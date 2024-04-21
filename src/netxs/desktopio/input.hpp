@@ -595,6 +595,7 @@ namespace netxs::input
 
         using hist = std::array<hist_t, numofbuttons>;
         using knob = std::array<knob_t, numofbuttons>;
+        //using tail = netxs::datetime::tail<fp2d>;
         using tail = netxs::datetime::tail<twod>;
 
         static constexpr auto dragstrt = mouse_event::button::drag::start:: any.group<numofbuttons>();
@@ -611,6 +612,8 @@ namespace netxs::input
         static constexpr auto movement = mouse_event::move.id;
         static constexpr auto noactive = si32{ -1 };
 
+        //fp2d prime = {}; // mouse: System mouse cursor coordinates.
+        //fp2d coord = {}; // mouse: Relative mouse cursor coordinates.
         twod prime = {}; // mouse: System mouse cursor coordinates.
         twod coord = {}; // mouse: Relative mouse cursor coordinates.
         tail delta = {}; // mouse: History of mouse movements for a specified period of time.

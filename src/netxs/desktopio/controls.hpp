@@ -2392,6 +2392,12 @@ namespace netxs::ui
             base::setpad(new_intpad, new_extpad);
             return This();
         }
+        auto nested_context(auto& parent_canvas)
+        {
+            auto basis = rect{ dot_00, base::region.size } - base::intpad;
+            auto context = parent_canvas.change_basis(basis, true);
+            return context;
+        }
     };
 
     // controls: Splitter.
@@ -2443,9 +2449,12 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (splitter) splitter->render(parent_canvas);
-                if (object_1) object_1->render(parent_canvas);
-                if (object_2) object_2->render(parent_canvas);
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    if (splitter) splitter->render(parent_canvas);
+                    if (object_1) object_1->render(parent_canvas);
+                    if (object_2) object_2->render(parent_canvas);
+                }
             };
         }
         // fork: .
@@ -2624,18 +2633,21 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto basis = parent_canvas.full();
-                auto frame = parent_canvas.clip();
-                auto min_y = frame.coor[updown] - basis.coor[updown];
-                auto max_y = frame.size[updown] + min_y;
-                auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
-                auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
-                while (start != base::subset.end())
+                if (auto context = form::nested_context(parent_canvas))
                 {
-                    if (auto& object = *start++)
+                    auto basis = parent_canvas.full();
+                    auto frame = parent_canvas.clip();
+                    auto min_y = frame.coor[updown] - basis.coor[updown];
+                    auto max_y = frame.size[updown] + min_y;
+                    auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
+                    auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
+                    while (start != base::subset.end())
                     {
-                        object->render(parent_canvas);
-                        if (!object->base::hidden && bound(object) >= max_y) break;
+                        if (auto& object = *start++)
+                        {
+                            object->render(parent_canvas);
+                            if (!object->base::hidden && bound(object) >= max_y) break;
+                        }
                     }
                 }
             };
@@ -2742,9 +2754,12 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                for (auto& object : subset)
+                if (auto context = form::nested_context(parent_canvas))
                 {
-                    object->render(parent_canvas);
+                    for (auto& object : subset)
+                    {
+                        object->render(parent_canvas);
+                    }
                 }
             };
         }
@@ -2812,10 +2827,13 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (subset.size())
-                if (auto object = subset.back())
+                if (auto context = form::nested_context(parent_canvas))
                 {
-                    object->render(parent_canvas);
+                    if (subset.size())
+                    if (auto object = subset.back())
+                    {
+                        object->render(parent_canvas);
+                    }
                 }
             };
         }
@@ -2968,7 +2986,7 @@ namespace netxs::ui
         {
             if (square.x != new_area.size.x)
             {
-            	deform(new_area);
+                deform(new_area);
             }
         }
 
@@ -3198,8 +3216,11 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (empty()) return;
-                auto& item = *base::subset.back();
-                item.render(parent_canvas, faux);
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    auto& item = *base::subset.back();
+                    item.render(parent_canvas, faux);
+                }
             };
         }
         // rail: Resize nested object with scroll bounds checking.
@@ -3779,18 +3800,18 @@ namespace netxs::ui
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
-            //	auto apply = [&](auto active)
-            //	{
-            //		wide = active;
-            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-            //		                                   : init);   //  wider on hover
-            //		base::reflow();
-            //		return faux; // One shot call
-            //	};
+            //    auto apply = [&](auto active)
+            //    {
+            //        wide = active;
+            //        if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //                                           : init);   //  wider on hover
+            //        base::reflow();
+            //        return faux; // One shot call
+            //    };
             //
-            //	timer.pacify(activity::mouse_leave);
-            //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
+            //    timer.pacify(activity::mouse_leave);
+            //    apply(activity::mouse_hover);
+            //    timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

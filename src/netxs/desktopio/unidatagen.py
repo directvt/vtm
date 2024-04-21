@@ -65,7 +65,7 @@ BREAKCAT = {'Other'                 :[ 'any'  , 'Other'                         
             'EP + ZWJ'              :[ 'combo', 'EP + ZWJ'                      ]}
 
 # classification: https://www.unicode.org/reports/tr44/#General_Category_Values
-CATEGORY = {'Uppercase_Letter'	    : 'Lu' ,  # an uppercase letter
+CATEGORY = {'Uppercase_Letter'      : 'Lu' ,  # an uppercase letter
             'Lowercase_Letter'      : 'Ll' ,  # a lowercase letter
             'Titlecase_Letter'      : 'Lt' ,  # a digraphic character, with first part uppercase
             'Cased_Letter'          : 'LC' ,  # Lu | Ll | Lt
@@ -210,7 +210,7 @@ ALLIED_IMPL = r'''
             if (l == {break_ep})
             {{
                 l = (r == {break_ext}) ? {break_ep}    :
-               	    (r == {break_zwj}) ? {break_combo} : r;
+                    (r == {break_zwj}) ? {break_combo} : r;
             }}
             else
             {{

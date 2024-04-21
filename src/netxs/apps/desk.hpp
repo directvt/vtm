@@ -675,7 +675,8 @@ namespace netxs::app::desk
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + gear.delta.get().x);
+                            auto delta = twod{ gear.delta.get() };
+                            taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta.x);
                             taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
                             active ? menu_max_size = taskbar_grips->base::min_sz.x
                                    : menu_min_size = taskbar_grips->base::min_sz.x;

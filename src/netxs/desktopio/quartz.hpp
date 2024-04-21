@@ -26,13 +26,13 @@ namespace netxs::datetime
     template<class T, class degree = std::chrono::milliseconds>
     T round(time t)
     {
-        return clamp<T>(std::chrono::duration_cast<degree>(t.time_since_epoch()).count());
+        return netxs::saturate_cast<T>(std::chrono::duration_cast<degree>(t.time_since_epoch()).count());
     }
     // quartz: Round a chrono time period in degree (def: milliseconds).
     template<class T, class degree = std::chrono::milliseconds>
     T round(span t)
     {
-        return netxs::clamp<T>(std::chrono::duration_cast<degree>(t).count());
+        return netxs::saturate_cast<T>(std::chrono::duration_cast<degree>(t).count());
     }
 
     // quartz: Return a total count degree unts (def: milliseconds) since epoch.

@@ -3,6 +3,14 @@
 
 #pragma once
 
+//dx3d specific
+//#include <d3d11_2.h>
+//#include <d2d1_2.h>
+//#include <dcomp.h>
+//#include <wrl.h> // ComPtr
+//using namespace Microsoft::WRL;
+//#define GDI_ONLY 1
+
 #include <dwrite_2.h>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "Dwrite.lib")
@@ -17,7 +25,7 @@ namespace netxs::gui
     auto fx_white = [](auto& c){ c = 0x5F'23'23'23; };
     auto fx_black = [](auto& c){ c = 0x3F'00'00'00; };
 
-    struct w32window : IDWriteTextRenderer
+    struct w32surface : IDWriteTextRenderer
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using dwrt = IDWriteBitmapRenderTarget*;
@@ -26,11 +34,13 @@ namespace netxs::gui
         {
             IDWriteFactory2*        pDWriteFactory{};
             IDWriteGdiInterop*      pGdiInterop{};
-            IDWriteRenderingParams* pRenderingParams{};
+            IDWriteRenderingParams* pNaturalRendering{};
+            IDWriteRenderingParams* pAliasedRendering{};
             IDWriteTextFormat*      pTextFormat{};
             void reset()
             {
-                pRenderingParams->Release();
+                pNaturalRendering->Release();
+                pAliasedRendering->Release();
                 pTextFormat->Release();
                 pGdiInterop->Release();
                 pDWriteFactory->Release();
@@ -39,8 +49,6 @@ namespace netxs::gui
 
         HDC  hdc;
         argb fgc;
-        argb shadow_color;
-        twod shadow_shift;
         HWND hWnd;
         bool sync;
         rect prev;
@@ -50,9 +58,9 @@ namespace netxs::gui
         gcfg conf;
         dwrt surf;
 
-        w32window(w32window const&) = default;
-        w32window(w32window&&) = default;
-        w32window(gcfg context, HWND hWnd)
+        w32surface(w32surface const&) = default;
+        w32surface(w32surface&&) = default;
+        w32surface(gcfg context, HWND hWnd)
             : hWnd{ hWnd },
               sync{ faux },
               prev{ .coor = dot_mx, .size = dot_11 },
@@ -72,33 +80,40 @@ namespace netxs::gui
         {
             if (surf) surf->Release();
         }
-        auto canvas()
+        auto canvas(bool wipe = faux)
         {
             if (area && hdc)
             {
                 if (area.size != size)
                 {
-                    auto hr = surf->Resize(area.size.x, area.size.y);
-                    if (hr == S_OK) size = area.size;
-                    else            log("bitmap resizing error: ", utf::to_hex(hr));
+                    auto undo = surf;
+                    auto hr = conf.pGdiInterop->CreateBitmapRenderTarget(NULL, area.size.x, area.size.y, &surf); // ET(auto hr = surf->Resize(area.size.x, area.size.y)); // Unnecessary copying.
+                    if (hr == S_OK)
+                    {
+                        hdc = surf->GetMemoryDC();
+                        wipe = faux;
+                        size = area.size;
+                        undo->Release();
+                    }
+                    else log("bitmap resizing error: ", utf::to_hex(hr));
                 }
                 sync = faux;
                 auto pv = BITMAP{};
                 if (sizeof(BITMAP) == ::GetObjectW(::GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &pv))
                 {
-                    return bits{ std::span<argb>{ (argb*)pv.bmBits, (sz_t)size.x * size.y }, rect{ area.coor, size }};
+                    auto sz = (sz_t)size.x * size.y;
+                    if (wipe) std::memset(pv.bmBits, 0, sz * sizeof(argb));
+                    return bits{ std::span<argb>{ (argb*)pv.bmBits, sz }, rect{ area.coor, size }};
                 }
             }
             return bits{};
         }
-        auto textout(rect dest, argb color, wiew txt, argb shadow_clr = {}, twod shadow_off = {})
+        auto textout(rect dest, argb color, wiew txt)
         {
             if (!dest || !hdc) return;
             fgc = color;
-            shadow_color = shadow_clr;
-            shadow_shift = shadow_off;
             auto pTextLayout = (IDWriteTextLayout*)nullptr;
-            auto textLength = (UINT32)txt.size();
+            auto textLength = (ui32)txt.size();
             ok2(conf.pDWriteFactory->CreateTextLayout(txt.data(),
                                                       textLength,
                                                       conf.pTextFormat,
@@ -110,8 +125,6 @@ namespace netxs::gui
                 auto dtm = DWRITE_TEXT_METRICS{};
                 pTextLayout->GetMetrics(&dtm);
                 auto minHeight = dtm.height;
-                //auto minWidth = dtm.widthIncludingTrailingWhitespace;
-                //log("mh ", minHeight, " dest.size.y ", dest.size.y);
                 dest.coor.y -= (si32)minHeight;
                 dest.size.y = -dest.size.y;
             }
@@ -119,9 +132,7 @@ namespace netxs::gui
             {
                 auto min_width = fp32{};
                 pTextLayout->DetermineMinWidth(&min_width);
-                auto mw = (si32)min_width;
-                //log("mw ", mw, " dest.size.x ", dest.size.x);
-                dest.coor.x -= mw + (shadow_clr ? shadow_off.x * 3 : 0);
+                dest.coor.x -= (si32)min_width;
                 dest.size.x = -dest.size.x;
             }
             //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, textLength });
@@ -129,9 +140,10 @@ namespace netxs::gui
             ok2(pTextLayout->Draw(hdc, this, (fp32)dest.coor.x, (fp32)dest.coor.y));
             pTextLayout->Release();
         }
-        void display()
+        void present()
         {
             if (sync || !hdc) return;
+            //netxs::misc::fill(canvas(), [](argb& c){ c.pma(); });
             static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto scr_coor = POINT{};
             auto old_size =  SIZE{ prev.size.x, prev.size.y };
@@ -159,31 +171,6 @@ namespace netxs::gui
         IFACEMETHOD(DrawGlyphRun)(void* /*clientDrawingContext*/, fp32 baselineOriginX, fp32 baselineOriginY, DWRITE_MEASURING_MODE measuringMode, DWRITE_GLYPH_RUN const* glyphRun, DWRITE_GLYPH_RUN_DESCRIPTION const* glyphRunDescription, IUnknown* /*clientDrawingEffect*/)
         {
             auto dirtyRect = RECT{};
-            if (shadow_color) //todo draw shadow by the resulting bitmap instead of glyph run
-            {
-                auto cache = vrgb{};
-                auto clip = rect{};
-                auto dest = canvas();
-                dest.move(dot_00);
-                auto test = 0xff;
-                for (auto i = 0; i < 3 ; i++) //todo optimize, just apply gamma
-                {
-                    surf->DrawGlyphRun(baselineOriginX + shadow_shift.x,
-                                                 baselineOriginY + shadow_shift.y,
-                                                 measuringMode,
-                                                 glyphRun,
-                                                 conf.pRenderingParams,
-                                                 test,
-                                                 &dirtyRect);
-                    clip = rect{{ dirtyRect.left, dirtyRect.top }, { dirtyRect.right - dirtyRect.left, dirtyRect.bottom - dirtyRect.top }};
-                    clip += dent{ 1,1,1,1 } * 2;
-                    clip.trimby(dest.area());
-                    dest.clip(clip);
-                    netxs::boxblur<1>(dest, 1, cache);
-                }
-                auto d = shadow_color;
-                netxs::onrect(dest, clip, [d](auto& c){ c.chan.a = c.chan.r; c.chan.r = d.chan.r; c.chan.g = d.chan.g; c.chan.b = d.chan.b; });
-            }
             auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto hr = conf.pDWriteFactory->TranslateColorGlyphRun(baselineOriginX, baselineOriginY, glyphRun, glyphRunDescription, measuringMode, nullptr, 0, &para_layers);
             if (para_layers) //todo cache color glyphs
@@ -200,7 +187,7 @@ namespace netxs::gui
                         hr = surf->DrawGlyphRun(s.baselineOriginX, s.baselineOriginY,
                                                 measuringMode,
                                                 &s.glyphRun,
-                                                conf.pRenderingParams,
+                                                conf.pNaturalRendering, // Emojis are broken without antialiasing.
                                                 argb::swap_rb(s.paletteIndex == -1 ? fgc.token : color.token),
                                                 &dirtyRect);
                     }
@@ -213,7 +200,8 @@ namespace netxs::gui
                                         baselineOriginY,
                                         measuringMode,
                                         glyphRun,
-                                        conf.pRenderingParams,
+                                        //conf.pNaturalRendering,
+                                        conf.pAliasedRendering,
                                         argb::swap_rb(fgc.token),
                                         &dirtyRect);
             }
@@ -269,8 +257,8 @@ namespace netxs::gui
     template<class window>
     struct w32renderer
     {
-        using gcfg = w32window::gcfg;
-        using wins = std::vector<w32window>;
+        using gcfg = w32surface::gcfg;
+        using wins = std::vector<w32surface>;
 
         gcfg conf;
         bool initialized;
@@ -292,7 +280,9 @@ namespace netxs::gui
                                        0, // _In_ DWORD iOutPrecision
                                        0, // _In_ DWORD iClipPrecision
                                        0, // _In_ DWORD iQuality
-                                       0, // _In_ DWORD iPitchAndFamily
+                                       FIXED_PITCH, // _In_ DWORD iPitchAndFamily
+                                       //L"Courier New"); // _In_opt_ LPCWSTR pszFaceName
+                                       //L"Lucida Console"); // _In_opt_ LPCWSTR pszFaceName
                                        L"Consolas"); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Segoe UI Emoji"); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Monotty"); // _In_opt_ LPCWSTR pszFaceName
@@ -317,7 +307,7 @@ namespace netxs::gui
             auto family_name = std::wstring(length, 0);
             ok2(pFamilyNames->GetString(index, family_name.data(), length + 1));
             
-            auto fontSize = (fp32)-lf.lfHeight ;// -::MulDiv(lf.lfHeight, 96, 96);//GetDeviceCaps(hdc, LOGPIXELSY));
+            auto fontSize = (fp32)-lf.lfHeight;// -::MulDiv(lf.lfHeight, 96, 96);//GetDeviceCaps(hdc, LOGPIXELSY));
 
             ok2(conf.pDWriteFactory->CreateTextFormat(family_name.data(),
                                                       NULL,                        
@@ -327,7 +317,9 @@ namespace netxs::gui
                                                       fontSize,
                                                       L"en-en",
                                                       &conf.pTextFormat));
-            ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pRenderingParams));
+            //ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pAliasedRendering));
+            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.f/*no gamma*/, 0.f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
+            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
             pFontFamily->Release();
             pFont->Release();
             pFamilyNames->Release();
@@ -338,7 +330,7 @@ namespace netxs::gui
             conf.reset();
         }
         constexpr explicit operator bool () const { return initialized; }
-        auto add(wins& layers, bool transparent, si32 owner_index = -1)
+        auto add(wins& layers, bool transparent, si32 owner_index = -1, window* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -373,8 +365,9 @@ namespace netxs::gui
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:    w->keybd_press(wParam, lParam);             break;
                     case WM_DESTROY:     ::PostQuitMessage(0);                       break;
-                    case WM_PAINT:
-                    default:     stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    //dx3d specific
+                    case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
                 if (w->tasks) w->redraw();
                 return stat;
@@ -397,13 +390,14 @@ namespace netxs::gui
                 initialized = faux;
                 log("window creation error: ", ::GetLastError());
             }
+            else if (host_ptr) ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
             auto win_index = (si32)layers.size();
             layers.emplace_back(conf, hWnd);
             return win_index;
         }
     };
 
-    auto header_text = L"Windows Command Prompt - C:\\Windows\\System32\\"s;
+    auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
     auto footer_text = L"4/4000 80:25"s;
     auto header_para = ui::para{ utf::to_utf(header_text) };
     auto footer_para = ui::para{ utf::to_utf(footer_text) };
@@ -415,6 +409,31 @@ namespace netxs::gui
         using wins = reng::wins;
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray, cell::shaders::alpha>;
+
+        //dx3d specific
+        //static HRESULT __stdcall D2D1CreateFactory(D2D1_FACTORY_TYPE, IID const&, D2D1_FACTORY_OPTIONS*, void**) {}
+        //#define import_dx3d \
+        //    X(D3D11CreateDevice, D3D11) \
+        //    X(CreateDXGIFactory2, Dxgi) \
+        //    X(D2D1CreateFactory, D2d1) \
+        //    X(DCompositionCreateDevice, Dcomp)
+        //#define X(func, dll) std::decay<decltype(##func)>::type func##_ptr{}; \
+        //                    HMODULE dll##_dll{};
+        //    import_dx3d
+        //#undef X
+        //ComPtr<ID3D11Device>          d3d_Device;
+        //ComPtr<IDXGIDevice>           dxgi_Device;
+        //ComPtr<IDXGIFactory2>         dxgi_Factory;
+        //ComPtr<IDXGISwapChain1>       dxgi_SwapChain;
+        //ComPtr<IDXGISurface2>         dxgi_Surface0;
+        //ComPtr<ID2D1Factory2>         d2d_Factory;
+        //ComPtr<ID2D1Device1>          d2d_Device;
+        //ComPtr<ID2D1DeviceContext>    d2d_DC;
+        //ComPtr<ID2D1SolidColorBrush>  d2d_Brush;
+        //ComPtr<ID2D1Bitmap1>          d2d_Bitmap;
+        //ComPtr<IDCompositionDevice>   dcomp_Device;
+        //ComPtr<IDCompositionTarget>   dcomp_Target;
+        //ComPtr<IDCompositionVisual>   dcomp_Visual;
 
         enum bttn
         {
@@ -444,9 +463,9 @@ namespace netxs::gui
             }
         };
 
+        //bool dx3d; //dx3d specific
         reng engine;
         wins layers;
-        bool dx3d;
         twod mouse_coord;
         twod grid_size;
         twod cell_size;
@@ -466,6 +485,7 @@ namespace netxs::gui
         si32 header;
         si32 footer;
         si32 client;
+        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         constexpr explicit operator bool () const { return initialized; }
 
         ~window()
@@ -473,7 +493,7 @@ namespace netxs::gui
             for (auto& w : layers) w.reset();
         }
         window(rect win_coor_px_size_cell, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
-            : dx3d{ faux },
+            : //dx3d{ faux }, //dx3d specific
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
@@ -487,14 +507,35 @@ namespace netxs::gui
               shadow{ engine.add(layers, 0) },
               header{ engine.add(layers, 0, shadow) },
               footer{ engine.add(layers, 0, shadow) },
-              client{ engine.add(layers, 1, shadow) }
+              client{ engine.add(layers, 1, shadow, this) }
         {
             if (!engine) return;
             layers[shadow].area = { inner_rect.coor - shadow_rastr.over / 2, inner_rect.size + shadow_rastr.over };
             layers[client].area = inner_rect + outer_dent;
-            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
-            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
-            ::SetWindowLongPtrW(layers[client].hWnd, GWLP_USERDATA, (LONG_PTR)this);
+
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself() + shadow_dent;
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }} + shadow_dent;
+            layers[header].area.coor.y -= shadow_dent.b;
+            //layers[footer].area.coor.y += shadow_dent.t;
+
+            //dx3d specific
+            //dx3d = [&]
+            //{
+            //    if (GDI_ONLY) return faux;
+            //    #define X(func, dll) \
+            //        dll##_dll = ::LoadLibraryExA(#dll ".dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32); \
+            //        if (!dll##_dll) return faux; \
+            //        func##_ptr = reinterpret_cast<std::decay<decltype(##func)>::type>(::GetProcAddress(dll##_dll, #func));\
+            //        if (!func##_ptr) return faux;
+            //        import_dx3d
+            //    #undef import_dx3d
+            //    #undef GDI_ONLY
+            //    return true;
+            //}();
+            //if (dx3d) reinit();
+            //else log("Direct3D not found.");
+            //#undef X
+
             redraw();
             initialized = true;
         }
@@ -502,10 +543,12 @@ namespace netxs::gui
         {
             layers[shadow].area.coor += coor_delta;
             layers[client].area.coor += coor_delta;
-            inner_rect.coor            += coor_delta;
+            inner_rect.coor          += coor_delta;
             //todo unify
-            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
-            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself() + shadow_dent;
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }} + shadow_dent;
+            layers[header].area.coor.y -= shadow_dent.b;
+            //layers[footer].area.coor.y += shadow_dent.t;
 
             tasks += task::moved;
         }
@@ -513,10 +556,12 @@ namespace netxs::gui
         {
             layers[client].area.size += size_delta;
             layers[shadow].area.size += size_delta;
-            inner_rect.size            += size_delta;
+            inner_rect.size          += size_delta;
             //todo unify
-            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
-            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself() + shadow_dent;
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }} + shadow_dent;
+            layers[header].area.coor.y -= shadow_dent.b;
+            //layers[footer].area.coor.y += shadow_dent.t;
 
             tasks += task::sized;
         }
@@ -569,8 +614,9 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_grid(auto canvas)
+        void draw_grid()
         {
+            auto canvas = layers[client].canvas();
             auto c  = rect{{}, cell_size };
             auto lt = dent{ 1, 0, 1, 0 };
             auto rb = dent{ 0, 1, 0, 1 };
@@ -611,14 +657,17 @@ namespace netxs::gui
             //netxs::onrect(canvas, c3, fx_pure_wt);
 
             canvas.step(inner_rect.coor);
+            auto region = rect{ .coor = grip_size + cell_size * dot_01, .size = inner_rect.size };
+            layers[client].textout(region, tint::cyanlt, L"vtm GUI frontend is currently under development. You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪. Press Esc or Right click to close."s);
         }
         bool hit_grips()
         {
             auto hit = !grip.zoomon && (grip.seized || (hovered && !inner_rect.hittest(mouse_coord) && layers[client].area.hittest(mouse_coord)));
             return hit;
         }
-        void draw_grips(auto canvas)
+        void draw_grips()
         {
+            auto canvas = layers[client].canvas();
             auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
             auto fx_white2 = [](auto& c){ c = 0x5F'23'23'23; };
             auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
@@ -633,10 +682,22 @@ namespace netxs::gui
                 //log("grips ", side_x, " ", side_y);
             }
         }
-        void draw_shadow(auto canvas) //todo draw shadow per cell
+        void draw_shadow() //todo draw shadow per cell
         {
+            auto canvas = layers[shadow].canvas();
             canvas.move(-shadow_rastr.over / 2); //todo unify
             shadow_rastr.render(canvas, inner_rect.size);
+        }
+        void draw_titles()
+        {
+            auto header_dest = layers[header].canvas(true);
+            auto footer_dest = layers[footer].canvas(true);
+            auto h = header_dest.area().moveto(dot_00).rotate({ 1, -1 }) - shadow_dent;
+            auto f = footer_dest.area().moveto(dot_00).rotate({ -1, 1 }) - shadow_dent;
+            layers[header].textout(h, 0xFF'ff'ff'ff, header_text);
+            layers[footer].textout(f, 0xFF'ff'ff'ff, footer_text);
+            netxs::misc::contour(header_dest);
+            netxs::misc::contour(footer_dest);
         }
         void redraw()
         {
@@ -656,37 +717,79 @@ namespace netxs::gui
             }
             else if (mods)
             {
-                if (mods(task::sized | task::inner))
-                {
-                    draw_grid(layers[client].canvas()); // 0.600 ms
-                    auto region = rect{ .coor = grip_size + cell_size * dot_01, .size = inner_rect.size };
-                    layers[client].textout(region, tint::cyanlt, L"vtm GUI frontend is currently under development. You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪. Press Esc or Right click to close."s);
-                }
-                if (mods(task::sized | task::grips))  draw_grips(layers[client].canvas()); // 0.150 ms
-                if (mods(task::sized              )) draw_shadow(layers[shadow].canvas()); // 0.300 ms
-                if (mods(task::sized | task::title))
-                {
-                    auto header_dest = layers[header].canvas();
-                    auto footer_dest = layers[footer].canvas();
-                    netxs::misc::fill(header_dest, header_dest.area(), [](auto& c){ c = 0; });
-                    netxs::misc::fill(footer_dest, footer_dest.area(), [](auto& c){ c = 0; });
-                    auto h = layers[header].area;
-                    auto f = layers[footer].area;
-                    h.coor = {};
-                    f.coor = {};
-                    layers[header].textout(h.rotate({ 1, -1 }), tint::purewhite, header_text, tint::pureblack, dot_11);
-                    layers[footer].textout(f.rotate({ -1, 1 }), tint::purewhite, footer_text, tint::pureblack, dot_11);
-                }
-                if (hovered/*mouse test*/)
-                {
-                    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
-                    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
-                    netxs::onrect(layers[client].canvas(), cursor, fx_green);
-                }
-                for (auto& w : layers) w.display();
+                if (mods(task::sized | task::inner))   draw_grid(); // 0.600 ms
+                if (mods(task::sized | task::grips))  draw_grips(); // 0.150 ms
+                if (mods(task::sized              )) draw_shadow(); // 0.300 ms
+                if (mods(task::sized | task::title)) draw_titles();
+                //if (hovered/*mouse test*/)
+                //{
+                //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
+                //    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
+                //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
+                //}
+                for (auto& w : layers) w.present();
                 //log("full update");
             }
         }
+        //dx3d specific
+        //void reinit()
+        //{
+        //    //todo hWnd_window
+        //    if (!ok2(D3D11CreateDevice_ptr(0, D3D_DRIVER_TYPE_HARDWARE, 0, D3D11_CREATE_DEVICE_BGRA_SUPPORT, 0, 0, D3D11_SDK_VERSION, &d3d_Device, 0, 0)))
+        //    {
+        //        ok2(D3D11CreateDevice_ptr(0, D3D_DRIVER_TYPE_WARP, 0, D3D11_CREATE_DEVICE_BGRA_SUPPORT, 0, 0, D3D11_SDK_VERSION, &d3d_Device, 0, 0)); // No GPU.
+        //    }
+        //    ok2(d3d_Device.As(&dxgi_Device));
+        //    //ok2(::CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(dxFactory), reinterpret_cast<void**>(dxFactory.GetAddressOf())));
+        //    ok2(CreateDXGIFactory2_ptr(0, __uuidof(dxgi_Factory), (void**)dxgi_Factory.GetAddressOf()));
+        //        auto dxgi_SwapChain_desc = DXGI_SWAP_CHAIN_DESC1{ .Width       = (ui32)layers[shadow].area.size.x,
+        //                                                          .Height      = (ui32)layers[shadow].area.size.y,
+        //                                                          .Format      = DXGI_FORMAT_B8G8R8A8_UNORM,
+        //                                                          .SampleDesc  = { .Count = 1 },
+        //                                                          .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        //                                                          .BufferCount = 2,
+        //                                                          .SwapEffect  = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+        //                                                          .AlphaMode   = DXGI_ALPHA_MODE_PREMULTIPLIED };
+        //        ok2(dxgi_Factory->CreateSwapChainForComposition(dxgi_Device.Get(), &dxgi_SwapChain_desc, nullptr, dxgi_SwapChain.GetAddressOf()));
+        //            // Get the first swap chain's back buffer (surface[0])
+        //            ok2(dxgi_SwapChain->GetBuffer(0, __uuidof(dxgi_Surface0), (void**)dxgi_Surface0.GetAddressOf()));
+        //    // Create a Direct2D factory
+        //    auto d2d_factory_opts = D2D1_FACTORY_OPTIONS{ .debugLevel = D2D1_DEBUG_LEVEL_INFORMATION };
+        //    ok2(D2D1CreateFactory_ptr(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(d2d_Factory), &d2d_factory_opts, (void**)d2d_Factory.GetAddressOf()));
+        //        // Create the Direct2D device
+        //        ok2(d2d_Factory->CreateDevice(dxgi_Device.Get(), d2d_Device.GetAddressOf()));
+        //            // Create the Direct2D context
+        //            ok2(d2d_Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_DC.GetAddressOf()));
+        //                // Create a Direct2D bitmap that linked with the swap chain surface[0]
+        //                auto d2d_bitmap_props = D2D1_BITMAP_PROPERTIES1{ .pixelFormat = { .format = DXGI_FORMAT_B8G8R8A8_UNORM,
+        //                                                                                  .alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED },
+        //                                                                 .bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW };
+        //                ok2(d2d_DC->CreateBitmapFromDxgiSurface(dxgi_Surface0.Get(), d2d_bitmap_props, d2d_Bitmap.GetAddressOf()));
+        //                    // Tie the device context with the bitmap
+        //                    d2d_DC->SetTarget(d2d_Bitmap.Get());
+        //                ok2(d2d_DC->CreateSolidColorBrush({ 0.f, 1.f, 1.f, 0.25f }, d2d_Brush.GetAddressOf()));
+        //                d2d_DC->BeginDraw();
+        //                    d2d_DC->Clear();
+        //                    d2d_DC->FillEllipse({{ 150.0f, 150.0f }, 100.0f, 100.0f }, d2d_Brush.Get());
+        //                ok2(d2d_DC->EndDraw());
+        //    // Present
+        //    ok2(dxgi_SwapChain->Present(1, 0));
+        //    ok2(DCompositionCreateDevice_ptr(dxgi_Device.Get(), __uuidof(dcomp_Device), (void**)dcomp_Device.GetAddressOf()));
+        //    ok2(dcomp_Device->CreateTargetForHwnd(layers[shadow].hWnd, true, dcomp_Target.GetAddressOf()));
+        //    ok2(dcomp_Device->CreateVisual(dcomp_Visual.GetAddressOf()));
+        //        ok2(dcomp_Visual->SetContent(dxgi_SwapChain.Get()));
+        //        ok2(dcomp_Target->SetRoot(dcomp_Visual.Get()));
+        //    ok2(dcomp_Device->Commit());
+        //}
+        //void check_dx3d_state()
+        //{
+        //    log("WM_PAINT");
+        //    auto valid = BOOL{};
+        //    if (dx3d && (!dcomp_Device || (dcomp_Device->CheckDeviceState(&valid), !valid)))
+        //    {
+        //        reinit();
+        //    }
+        //}
         auto& kbs()
         {
             static auto state_kb = 0;
@@ -804,7 +907,22 @@ namespace netxs::gui
             }
             else
             {
-                //log(mouse_coord);
+                //dx3d specific
+                //auto& x = coord.x;
+                //auto& y = coord.y;
+                //if (!dx3d)
+                //{
+                //}
+                //else if (d2d_DC)
+                //{
+                //    d2d_Brush->SetColor({ 0.f, 1.f, 1.f, 0.250f });
+                //    d2d_DC->BeginDraw();
+                //    //d2d_DC->Clear();
+                //    d2d_DC->FillEllipse({{ (float)x, (float)y }, 7.5f, 7.5f }, d2d_Brush.Get());
+                //    ok2(d2d_DC->EndDraw());
+                //    ok2(dxgi_SwapChain->Present(1, 0));
+                //    //ok2(dxgi_SwapChain->Present(1, 0));
+                //}
             }
             mouse_coord = coord;
             if (!buttons)

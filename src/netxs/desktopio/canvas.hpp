@@ -331,40 +331,38 @@ namespace netxs
         // argb: Rough alpha blending ARGB colors.
         //void mix_alpha(argb c)
         //{
-        //	auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
-        //	{
-        //		return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
-        //	};
-        //	auto norm = [](auto const& c2, auto const& alpha)
-        //	{
-        //		return (c2 * alpha) >> 8;
-        //	};
+        //    auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
+        //    {
+        //        return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
+        //    };
+        //    auto norm = [](auto const& c2, auto const& alpha)
+        //    {
+        //        return (c2 * alpha) >> 8;
+        //    };
         //
-        //	if (chan.a)
-        //	{
-        //		if (c.chan.a)
-        //		{
-        //			auto& a1 = chan.a;
-        //			auto& a2 = c.chan.a;
-        //			chan.r = blend(norm(c.chan.r, a2), chan.r, a1);
-        //			chan.g = blend(norm(c.chan.g, a2), chan.g, a1);
-        //			chan.b = blend(norm(c.chan.b, a2), chan.b, a1);
-        //			chan.a = c.chan.a;
-        //		}
-        //	}
-        //	else
-        //	{
-        //		chan = c.chan;
-        //	}
+        //    if (chan.a)
+        //    {
+        //        if (c.chan.a)
+        //        {
+        //            auto& a1 = chan.a;
+        //            auto& a2 = c.chan.a;
+        //            chan.r = blend(norm(c.chan.r, a2), chan.r, a1);
+        //            chan.g = blend(norm(c.chan.g, a2), chan.g, a1);
+        //            chan.b = blend(norm(c.chan.b, a2), chan.b, a1);
+        //            chan.a = c.chan.a;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        chan = c.chan;
+        //    }
         //}
-
         //// argb: Are the colors identical.
         //bool like(argb c) const
         //{
-        //
-        //	static constexpr auto k = ui32{ 0b11110000 };
-        //	static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
-        //	return	(token & threshold) == (c.token & threshold);
+        //    static constexpr auto k = ui32{ 0b11110000 };
+        //    static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
+        //    return (token & threshold) == (c.token & threshold);
         //}
         // argb: Shift color.
         void xlight(si32 factor = 1)
@@ -530,7 +528,14 @@ namespace netxs
         {
             return argb{ argb::gamma(c.chan.r),
                          argb::gamma(c.chan.g),
-                         argb::gamma(c.chan.g), c.chan.a };
+                         argb::gamma(c.chan.b), c.chan.a };
+        }
+        // argb: Premultiply alpha.
+        auto pma()
+        {
+            chan.r = (byte)((si32)chan.r * chan.a / 255);
+            chan.g = (byte)((si32)chan.g * chan.a / 255);
+            chan.b = (byte)((si32)chan.b * chan.a / 255);
         }
 
         template<si32 i>
@@ -2390,10 +2395,14 @@ namespace netxs
             }
         };
 
-        void fill(auto& canvas, auto block, auto fx) // gfx: Fill block.
+        void fill(auto&& canvas, auto block, auto fx) // gfx: Fill block.
         {
             block.normalize_itself();
             netxs::onrect(canvas, block, fx);
+        }
+        void fill(auto&& canvas, auto fx) // gfx: Fill canvas area.
+        {
+            netxs::onrect(canvas, canvas.area(), fx);
         }
         void cage(auto& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
@@ -2951,7 +2960,10 @@ namespace netxs
             digest++;
         }
     };
+}
 
+namespace netxs::misc
+{
     template<si32 Repeat = 2, bool InnerGlow = faux, class T = vrgb, class P = noop, si32 Ratio = 1>
     void boxblur(auto& image, si32 r, T&& cache = {}, P shade = {})
     {
@@ -2986,5 +2998,21 @@ namespace netxs
                                                h, r, s_width,
                                                      d_width, Ratio, s_point,
                                                                      d_point, shade);
+    }
+    void contour(auto& image)
+    {
+        static auto shadows_cache = std::vector<fp32>{};
+        static auto boxblur_cache = std::vector<fp32>{};
+        auto r = image.area();
+        auto v = r.size.x * r.size.y;
+        boxblur_cache.resize(v);
+        shadows_cache.resize(v);
+        auto shadows_image = netxs::raster<std::span<fp32>, rect>{ shadows_cache, r };
+        shadows_image.step(-dot_11);
+        netxs::onbody(image, shadows_image, [](auto& src, auto& dst){ dst = src ? 255.f * 3.f : 0.f; });
+        shadows_image.step(dot_11);
+        shadows_image.clip(r);
+        netxs::misc::boxblur<2>(shadows_image, 1, boxblur_cache);
+        netxs::oncopy(image, shadows_image, [](auto& src, auto& dst){ src.chan.a = src ? 0xFF : (byte)std::clamp(dst, 0.f, 255.f); });
     }
 }

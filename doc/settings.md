@@ -415,11 +415,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
-            <size=40000    />   <!-- Scrollback buffer length. -->
+            <size=40000    />   <!-- Initial scrollback buffer length. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
+            <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
+            <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
+            <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
             <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
@@ -438,7 +440,8 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
+            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -449,10 +452,10 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
             </selection>
         </color>
-        <fields>
-            <lucent=0xC0 /> <!-- Fields transparency level. -->
-            <size=0      /> <!-- Left/right field size (for hz scrolling UX). -->
-        </fields>
+        <layout>
+            <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. (for convenient horizontal scrolling). -->
+            <border=0/>                 <!-- Terminal window left and right border size. -->
+        </layout>
         <tablen=8 />   <!-- Tab length. -->
         <cursor>
             <style="underline"/> <!-- block | underline -->

@@ -300,10 +300,10 @@ R"==(
                 <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
             </selection>
         </color>
-        <fields>
-            <lucent=0xC0/> <!-- Fields transparency level. -->
-            <size=0/>      <!-- Left/right field size (for hz scrolling UX). -->
-        </fields>
+        <layout>
+            <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. (for convenient horizontal scrolling). -->
+            <border=0/>                 <!-- Terminal window left and right border size. -->
+        </layout>
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
@@ -374,7 +374,8 @@ R"==(
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
             <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-        <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
+        <atexit = auto/>  <!-- auto | ask | close | restart | retry 
+                               auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
                                close:   Always close.
                                restart: Restart session.
