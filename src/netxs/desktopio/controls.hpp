@@ -2395,7 +2395,7 @@ namespace netxs::ui
         auto nested_context(auto& parent_canvas)
         {
             auto basis = rect{ dot_00, base::region.size } - base::intpad;
-            auto context = parent_canvas.change_basis<faux>(basis, true);
+            auto context = parent_canvas.change_basis(basis, true);
             return context;
         }
     };
