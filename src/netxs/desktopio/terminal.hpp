@@ -136,6 +136,7 @@ namespace netxs::ui
             si32 def_tablen;
             si32 def_lucent;
             si32 def_margin;
+            si32 def_border;
             si32 def_atexit;
             cell def_curclr;
             argb def_fcolor;
@@ -196,8 +197,9 @@ namespace netxs::ui
                 def_altscr = std::max(1, config.take("scrollback/altscroll/step", si32{ 1 }));
                 def_alt_on =             config.take("scrollback/altscroll/enabled", true);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
-                def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
+                def_lucent = std::max(0, config.take("layout/oversize/opacity", si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("layout/oversize",         si32{ 0 }    ));
+                def_border = std::max(0, config.take("layout/border",           si32{ 0 }    ));
                 def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::format);
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
@@ -7523,8 +7525,8 @@ namespace netxs::ui
                 //    auto pads = console.getpad();
                 //    west.coor.x -= oversz.l - pads + dot_mx.x;
                 //    east.coor.x += oversz.r - pads + console.panel.x;
-                //    west = west.clip(clip);
-                //    east = east.clip(clip);
+                //    west = west.trim(clip);
+                //    east = east.trim(clip);
                 //    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
                 //    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
                 //}

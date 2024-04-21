@@ -91,6 +91,7 @@ namespace netxs::app::terminal
     namespace attr
     {
         static constexpr auto cwdsync = "cwdsync";
+        static constexpr auto borders = "layout/border";
     }
 
     using events = netxs::events::userland::terminal;
@@ -211,7 +212,7 @@ namespace netxs::app::terminal
                 X(TerminalOutput            ) /* */ \
                 X(TerminalFindNext          ) /* */ \
                 X(TerminalFindPrev          ) /* */ \
-                X(TerminalUndo              ) /* Undo/Redo for cooked read under win32 */ \
+                X(TerminalUndo              ) /* Undo/Redo for cooked read on win32 */ \
                 X(TerminalRedo              ) /* */ \
                 X(TerminalClipboardPaste    ) /* */ \
                 X(TerminalClipboardWipe     ) /* */ \
@@ -777,11 +778,15 @@ namespace netxs::app::terminal
         auto menu_white = skin::color(tone::menu_white);
         auto cB = menu_white;
 
+        config.cd("/config/term/");
+        auto borders = config.take(attr::borders, 0);
         auto menu_height = ptr::shared(0);
-        auto gradient = [menu_height, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
+        auto gradient = [menu_height, borders, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
         {
             static constexpr auto grad_vsize = 32;
-            auto region = parent_canvas.full();
+            auto full = parent_canvas.full();
+            auto clip = parent_canvas.clip();
+            auto region = full;
             if (region.size.x != bground.size().x)
             {
                 auto spline = netxs::spline01{ -0.30f };
@@ -804,14 +809,23 @@ namespace netxs::app::terminal
                     }
                 }
             }
-            auto clip = parent_canvas.clip();
-            auto dest = clip.trim({ region.coor, { region.size.x, std::min(bground.size().y, *menu_height) }});
+            auto menu_size = twod{ region.size.x, std::min(bground.size().y, *menu_height) };
+            auto stat_size = twod{ region.size.x, 1 };
+            // Menu background.
+            auto dest = clip.trim({ region.coor, menu_size });
             parent_canvas.clip(dest);
             bground.move(region.coor);
-            parent_canvas.plot(bground, cell::shaders::blend); // Menu background.
+            parent_canvas.plot(bground, cell::shaders::blend);
+            // Hz scrollbar background.
             bground.step({ 0, region.size.y - 1 });
             parent_canvas.clip(clip);
-            parent_canvas.plot(bground, cell::shaders::blend); // Hz scrollbar background.
+            parent_canvas.plot(bground, cell::shaders::blend);
+            // Left/right border background.
+            auto color = bground[dot_00];
+            full -= dent{ 0, 0, menu_size.y, stat_size.y };
+            parent_canvas.cage(full, dent{ borders, borders, 0, 0 }, cell::shaders::blend(color));
+            // Restore clipping area.
+            parent_canvas.clip(clip);
         };
 
         auto window = ui::cake::ctor();
@@ -821,7 +835,17 @@ namespace netxs::app::terminal
             ->shader(gradient, e2::form::state::keybd::focus::count);
 
         auto object = window->attach(ui::fork::ctor(axis::Y));
-        auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+        auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y))
+            ->setpad({ borders, borders })
+            ->invoke([&](auto& boss)
+            {
+                if (borders)
+                boss.LISTEN(tier::release, e2::render::background::any, parent_canvas, -, (borders, cB)) // Shade left/right borders.
+                {
+                    auto full = parent_canvas.full();
+                    parent_canvas.cage(full, dent{ borders, borders, 0, 0 }, [&](cell& c){ c.fuse(cB); });
+                };
+            });
         auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                     ->limits(dot_11, { 400,200 });
         auto scroll = layers->attach(ui::rail::ctor()->smooth(faux));
@@ -985,7 +1009,7 @@ namespace netxs::app::terminal
             {
                 term_bgc = clr.bgc();
             };
-            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, term_bgc_ptr))
+            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, term_bgc_ptr, borders))
             {
                 if (winsz->y != 1) parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(term_bgc).txt(bar).link(bar); });
                 else               parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(0       ).txt(bar).link(bar); });
