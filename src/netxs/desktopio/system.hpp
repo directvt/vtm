@@ -5316,7 +5316,7 @@ namespace netxs::os
                                     m.timecod = timecode;
                                     mouse(m);
                                 }
-                                m.coordxy = { x, y };
+                                m.coordxy = twod{ x, y };
                                 switch (ctl)
                                 {
                                     case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
