@@ -75,7 +75,7 @@ namespace netxs::gui
         {
             auto pixelsPerDip = dpi / 96.f;
             //surf->SetPixelsPerDip(pixelsPerDip);
-            log("DPI CHANGED ", pixelsPerDip);
+            log("DPI CHANGED ", dpi);
         }
         void reset() // We are not using custom copy/move ctors.
         {
@@ -271,7 +271,7 @@ namespace netxs::gui
         w32renderer()
             : initialized{ faux }
         {
-            auto old_dpi_ctx = ::SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+            set_dpi_awareness();
             //auto s = 96;//::GetDeviceCaps(hdc, LOGPIXELSY);
             auto height = -16;//::MulDiv(24, s, 96);
             auto hfont = ::CreateFontW(height, //_In_ int cHeight
@@ -335,6 +335,15 @@ namespace netxs::gui
         {
             conf.reset();
         }
+        void set_dpi_awareness()
+        {
+            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
+            if (proc)
+            {
+                auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                if (hr != S_OK) log("Set DPI awareness failed ", utf::to_hex(hr));
+            }
+        }
         constexpr explicit operator bool () const { return initialized; }
         auto add(wins& layers, bool transparent, si32 owner_index = -1, window* host_ptr = nullptr)
         {
@@ -370,8 +379,8 @@ namespace netxs::gui
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:    w->keybd_press(wParam, lParam);             break;
-                    case WM_DESTROY:     ::PostQuitMessage(0);                       break;
                     case WM_DPICHANGED:  w->set_dpi(lo(wParam));                     break;
+                    case WM_DESTROY:     ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
