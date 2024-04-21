@@ -302,7 +302,7 @@ R"==(
         </color>
         <layout>
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. (for convenient horizontal scrolling). -->
-            <border=0/>                 <!-- Viewport's left and right border. -->
+            <border=0/>                 <!-- Terminal window left and right border size. -->
         </layout>
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
