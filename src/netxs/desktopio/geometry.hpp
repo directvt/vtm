@@ -601,6 +601,21 @@ namespace netxs
             pad1.b -= pad2.b;
             return pad1;
         }
+        auto bump(rect src) const
+        {
+            auto dst = src + *this;
+            if (dst.size.x < 0)
+            {
+                dst.coor.x = std::clamp(dst.coor.x, src.coor.x, src.coor.x + src.size.x);
+                dst.size.x = 0;
+            }
+            if (dst.size.y < 0)
+            {
+                dst.coor.y = std::clamp(dst.coor.y, src.coor.y, src.coor.y + src.size.y);
+                dst.size.y = 0;
+            }
+            return dst;
+        }
         // dent: Change endianness to LE.
         friend auto letoh(dent d)
         {

@@ -61,20 +61,20 @@ namespace netxs::gui
         w32surface(w32surface const&) = default;
         w32surface(w32surface&&) = default;
         w32surface(gcfg context, HWND hWnd)
-            : hWnd{ hWnd },
+            :  hdc{},
+              hWnd{ hWnd },
               sync{ faux },
-              prev{ .coor = dot_mx, .size = dot_11 },
-              area{ .size = dot_11 },
-              size{ dot_11 },
+              prev{ .coor = dot_mx },
+              area{ dot_00, dot_00 },
+              size{ dot_00 },
               refs{ 0 },
               conf{ context },
               surf{ nullptr }
+        { }
+        void set_dpi(auto /*dpi*/)
         {
-            if (S_OK == conf.pGdiInterop->CreateBitmapRenderTarget(NULL, size.x, size.y, &surf))
-            {
-                hdc = surf->GetMemoryDC();
-            }
-            else size = {};
+            //auto pixelsPerDip = dpi / 96.f;
+            //surf->SetPixelsPerDip(pixelsPerDip);
         }
         void reset() // We are not using custom copy/move ctors.
         {
@@ -82,7 +82,7 @@ namespace netxs::gui
         }
         auto canvas(bool wipe = faux)
         {
-            if (area && hdc)
+            if (area)
             {
                 if (area.size != size)
                 {
@@ -93,17 +93,21 @@ namespace netxs::gui
                         hdc = surf->GetMemoryDC();
                         wipe = faux;
                         size = area.size;
-                        undo->Release();
+                        if (undo) undo->Release();
+                        surf->SetPixelsPerDip(1.f); // Ignore DPI to be pixel perfect.
                     }
                     else log("bitmap resizing error: ", utf::to_hex(hr));
                 }
-                sync = faux;
-                auto pv = BITMAP{};
-                if (sizeof(BITMAP) == ::GetObjectW(::GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &pv))
+                if (hdc)
                 {
-                    auto sz = (sz_t)size.x * size.y;
-                    if (wipe) std::memset(pv.bmBits, 0, sz * sizeof(argb));
-                    return bits{ std::span<argb>{ (argb*)pv.bmBits, sz }, rect{ area.coor, size }};
+                    sync = faux;
+                    auto pv = BITMAP{};
+                    if (sizeof(BITMAP) == ::GetObjectW(::GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &pv))
+                    {
+                        auto sz = (sz_t)size.x * size.y;
+                        if (wipe) std::memset(pv.bmBits, 0, sz * sizeof(argb));
+                        return bits{ std::span<argb>{ (argb*)pv.bmBits, sz }, rect{ area.coor, size }};
+                    }
                 }
             }
             return bits{};
@@ -266,6 +270,7 @@ namespace netxs::gui
         w32renderer()
             : initialized{ faux }
         {
+            set_dpi_awareness();
             //auto s = 96;//::GetDeviceCaps(hdc, LOGPIXELSY);
             auto height = -16;//::MulDiv(24, s, 96);
             auto hfont = ::CreateFontW(height, //_In_ int cHeight
@@ -329,6 +334,15 @@ namespace netxs::gui
         {
             conf.reset();
         }
+        void set_dpi_awareness()
+        {
+            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
+            if (proc)
+            {
+                auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                if (hr != S_OK) log("Set DPI awareness failed ", utf::to_hex(hr));
+            }
+        }
         constexpr explicit operator bool () const { return initialized; }
         auto add(wins& layers, bool transparent, si32 owner_index = -1, window* host_ptr = nullptr)
         {
@@ -364,6 +378,7 @@ namespace netxs::gui
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:    w->keybd_press(wParam, lParam);             break;
+                    case WM_DPICHANGED:  w->set_dpi(lo(wParam));                     break;
                     case WM_DESTROY:     ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
@@ -538,6 +553,12 @@ namespace netxs::gui
 
             redraw();
             initialized = true;
+        }
+        auto set_dpi(auto new_dpi)
+        {
+            for (auto& w : layers) w.set_dpi(new_dpi);
+            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
+            //tasks += task::all;
         }
         auto move_window(twod coor_delta)
         {

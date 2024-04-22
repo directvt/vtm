@@ -361,7 +361,7 @@ namespace netxs::app::desk
                 {
                     auto& isfolded = conf.folded;
                     auto insts = block->attach(ui::list::ctor())
-                        ->setpad({ 0, 0, tall, -tall }, { 0, 0, -tall, 0 });
+                        ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall * 2, 0 });
                     auto bttn_rail = head_fork->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
                         ->limits({ 5, -1 }, { 5, -1 })
                         ->invoke([&](auto& boss)
@@ -534,7 +534,7 @@ namespace netxs::app::desk
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()
-                    ->setpad({ 0, 0, tall, -tall }, { 0, 0, 0, 0 })
+                    ->setpad({ 0, 0, tall, 0 }, { 0, 0, -tall, 0 })
                     ->attach_collection(e2::form::prop::name, *usr_list, user_template);
                 return users;
             };
@@ -702,7 +702,8 @@ namespace netxs::app::desk
                 });
             auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor());
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
-            auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
+            auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100))
+                ->setpad({}, { 0, 0, 0, -tall }); // To place above Disconnect button.
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
                 ->plugin<pro::notes>(" Desktop Taskbar                     \n"
@@ -736,6 +737,7 @@ namespace netxs::app::desk
                 ->plugin<pro::notes>(" Show/hide user list ")
                 ->setpad({ 2, 2, tall, tall });
             auto userlist_area = users_area->attach(ui::cake::ctor())
+                ->setpad({}, { 0, 0, -tall, 0 }) // To place above the admins/users label.
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
