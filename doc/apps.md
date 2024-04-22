@@ -116,7 +116,6 @@ Repeat    | Selects the next label and exec the function specified by the `actio
 Value                        | Description
 -----------------------------|------------
 TerminalCwdSync              | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
-TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
 TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
 TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
 TerminalFindNext             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
@@ -130,9 +129,11 @@ TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discar
 TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardPaste       | Paste from clipboard.
 TerminalClipboardWipe        | Reset clipboard.
+TerminalSelectionMode        | Set terminal text selection mode.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
 TerminalSelectionCopy        | Сopy selection to clipboard.
 TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
 TerminalSelectionClear       | Deselect a selection.
+TerminalSelectionOneShot     | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
 TerminalViewportCopy         | Сopy viewport to clipboard.
 TerminalViewportPageUp       | Scroll one page up.
 TerminalViewportPageDown     | Scroll one page down.

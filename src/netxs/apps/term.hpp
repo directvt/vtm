@@ -31,6 +31,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( mode, si32 ),
                     EVENT_XS( box , si32 ),
+                    EVENT_XS( shot, si32 ),
                 };
                 SUBSET_XS( colors )
                 {
@@ -51,6 +52,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( mode, si32 ),
                     EVENT_XS( box , si32 ),
+                    EVENT_XS( shot, si32 ),
                 };
                 SUBSET_XS( colors )
                 {
@@ -220,6 +222,7 @@ namespace netxs::app::terminal
                 X(TerminalSelectionMode     ) /* */ \
                 X(TerminalSelectionRect     ) /* Linear/Rectangular */ \
                 X(TerminalSelectionClear    ) /* */ \
+                X(TerminalSelectionOneShot  ) /* One-shot toggle to copy text while mouse tracking is active */ \
                 X(TerminalViewportPageUp    ) /* */ \
                 X(TerminalViewportPageDown  ) /* */ \
                 X(TerminalViewportLineUp    ) /* */ \
@@ -396,6 +399,18 @@ namespace netxs::app::terminal
                         boss.SIGNAL(tier::anycast, preview::selection::mode, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::selection::mode, mode)
+                    {
+                        _update_to(boss, item, mode);
+                    };
+                }
+                static void TerminalSelectionOneShot(ui::item& boss, menu::item& item)
+                {
+                    item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
+                    _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
+                    {
+                        boss.SIGNAL(tier::anycast, preview::selection::shot, item.views[item.taken].value);
+                    });
+                    boss.LISTEN(tier::anycast, release::selection::shot, mode)
                     {
                         _update_to(boss, item, mode);
                     };
@@ -683,6 +698,10 @@ namespace netxs::app::terminal
         boss.LISTEN(tier::anycast, terminal::events::preview::selection::mode, selmod)
         {
             boss.set_selmod(selmod);
+        };
+        boss.LISTEN(tier::anycast, terminal::events::preview::selection::shot, selmod)
+        {
+            boss.set_oneshot(selmod);
         };
         boss.LISTEN(tier::anycast, terminal::events::preview::selection::box, selbox)
         {
@@ -1026,6 +1045,7 @@ namespace netxs::app::terminal
         inst->attach_property(ui::term::events::colors::bg,      terminal::events::release::colors::bg)
             ->attach_property(ui::term::events::colors::fg,      terminal::events::release::colors::fg)
             ->attach_property(ui::term::events::selmod,          terminal::events::release::selection::mode)
+            ->attach_property(ui::term::events::onesht,          terminal::events::release::selection::shot)
             ->attach_property(ui::term::events::selalt,          terminal::events::release::selection::box)
             ->attach_property(ui::term::events::io_log,          terminal::events::release::io_log)
             ->attach_property(ui::term::events::layout::wrapln,  terminal::events::release::wrapln)
