@@ -2268,16 +2268,16 @@ namespace netxs::ui
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto bump(dent delta, bool trim = true)
+        auto bump(dent delta, bool bump_clip = true)
         {
             auto old_full = flow::full();
             auto old_clip = core::clip();
-            if (trim)
+            if (bump_clip)
             {
-                auto new_clip = core::area().trim(old_clip + delta);
+                auto new_clip = delta.bump(old_clip).trimby(core::area());
                 core::clip(new_clip);
             }
-            auto new_full = old_full + delta;
+            auto new_full = delta.bump(old_full);
             flow::full(new_full);
             return std::pair{ old_full, old_clip };
         }

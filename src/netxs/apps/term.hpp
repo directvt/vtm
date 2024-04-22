@@ -779,7 +779,7 @@ namespace netxs::app::terminal
         auto cB = menu_white;
 
         config.cd("/config/term/");
-        auto border = config.take(attr::borders, 0);
+        auto border = std::max(0, config.take(attr::borders, 0));
         auto borders = dent{ border, border, 0, 0 };
         auto menu_height = ptr::shared(0);
         auto gradient = [menu_height, borders, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable

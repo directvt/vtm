@@ -10,6 +10,7 @@ namespace netxs::prompt
 {
     static constexpr auto  pads = "      "sv;
     static constexpr auto    os = "  os: "sv;
+    static constexpr auto   gui = " gui: "sv;
     static constexpr auto   ack = " ack: "sv;
     static constexpr auto   key = " key: "sv;
     static constexpr auto   tty = " tty: "sv;

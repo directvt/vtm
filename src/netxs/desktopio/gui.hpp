@@ -71,11 +71,10 @@ namespace netxs::gui
               conf{ context },
               surf{ nullptr }
         { }
-        void set_dpi(auto dpi)
+        void set_dpi(auto /*dpi*/)
         {
             //auto pixelsPerDip = dpi / 96.f;
             //surf->SetPixelsPerDip(pixelsPerDip);
-            log("DPI CHANGED ", dpi);
         }
         void reset() // We are not using custom copy/move ctors.
         {
@@ -558,6 +557,7 @@ namespace netxs::gui
         auto set_dpi(auto new_dpi)
         {
             for (auto& w : layers) w.set_dpi(new_dpi);
+            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
             //tasks += task::all;
         }
         auto move_window(twod coor_delta)
