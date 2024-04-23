@@ -1031,7 +1031,7 @@ namespace netxs
     template<class M>
     struct addref
     {
-        using type = typename std::conditional<std::is_class<typename M::mapped_type>::value, typename M::mapped_type &, typename M::mapped_type>::type;
+        using type = typename std::conditional<std::is_class_v<typename M::mapped_type>, typename M::mapped_type &, typename M::mapped_type>::type;
     };
 
     template<class M, class K>

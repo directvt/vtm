@@ -132,7 +132,6 @@ namespace netxs
 
         xy2d divround(T    n) const { return { netxs::divround(x, n  ), netxs::divround(y, n  ) }; }
         xy2d divround(xy2d p) const { return { netxs::divround(x, p.x), netxs::divround(y, p.y) }; }
-        xy2d divupper(xy2d p) const { return { netxs::divupper(x, p.x), netxs::divupper(y, p.y) }; }
 
         auto str() const
         {
@@ -174,12 +173,11 @@ namespace netxs
     static constexpr auto dot_22 = twod{ 2,2 };
     static constexpr auto dot_21 = twod{ 2,1 };
     static constexpr auto dot_33 = twod{ 3,3 };
-    static constexpr auto dot_mx = twod{ si32max / 2, si32max / 2 };
+    static constexpr auto dot_mx = twod{ (si32)(si32max / 2.f), (si32)(si32max / 2.f) };
 
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
-    twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
 }
 
 namespace std

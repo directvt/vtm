@@ -818,7 +818,7 @@ namespace netxs::ui
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                auto coor = gear.coord;
+                auto coor = twod{ gear.coord };
                 coor.y -= 1;
                 coor.x -= half_x;
                 header.move(coor);
@@ -850,7 +850,7 @@ namespace netxs::ui
                                      props.clip_preview_time > stamp - gear.delta.stamp());
                 if (gear.board::shown)
                 {
-                    auto coor = gear.coord + dot_21 * 2;
+                    auto coor = twod{ gear.coord } + dot_21 * 2;
                     auto full = gear.board::image.full();
                     gear.board::image.move(coor - full.coor);
                     canvas.plot(gear.board::image, cell::shaders::mix);

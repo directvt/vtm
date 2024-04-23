@@ -7050,7 +7050,7 @@ namespace netxs::ui
             // Check bounds and scroll if needed.
             auto& console = *target;
             auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
-            auto coord = gear.coord;
+            auto coord = twod{ gear.coord };
             auto vport = rect{ -origin, console.panel };
             auto delta = dot_00;
             for (auto a : { axis::X, axis::Y })

@@ -534,7 +534,7 @@ namespace netxs::input
         time guid{}; // foci: Originating environment ID.
     };
 
-    // console: Mouse tracker.
+    // input: Mouse tracker.
     struct mouse
     {
         using mouse_event = netxs::events::userland::hids::mouse;
@@ -595,8 +595,7 @@ namespace netxs::input
 
         using hist = std::array<hist_t, numofbuttons>;
         using knob = std::array<knob_t, numofbuttons>;
-        //using tail = netxs::datetime::tail<fp2d>;
-        using tail = netxs::datetime::tail<twod>;
+        using tail = netxs::datetime::tail<fp2d>;
 
         static constexpr auto dragstrt = mouse_event::button::drag::start:: any.group<numofbuttons>();
         static constexpr auto dragpull = mouse_event::button::drag::pull::  any.group<numofbuttons>();
@@ -612,27 +611,25 @@ namespace netxs::input
         static constexpr auto movement = mouse_event::move.id;
         static constexpr auto noactive = si32{ -1 };
 
-        //fp2d prime = {}; // mouse: System mouse cursor coordinates.
-        //fp2d coord = {}; // mouse: Relative mouse cursor coordinates.
-        twod prime = {}; // mouse: System mouse cursor coordinates.
-        twod coord = {}; // mouse: Relative mouse cursor coordinates.
-        tail delta = {}; // mouse: History of mouse movements for a specified period of time.
-        bool reach = {}; // mouse: Has the event tree relay reached the mouse event target.
-        bool nodbl = {}; // mouse: Whether single click event processed (to prevent double clicks).
-        bool scrll = {}; // mouse: Vertical scrolling.
-        bool hzwhl = {}; // mouse: Horizontal scrolling.
-        si32 whldt = {}; // mouse: Scroll delta.
-        si32 locks = {}; // mouse: State of the captured buttons (bit field).
-        si32 index = {}; // mouse: Index of the active button. -1 if the buttons are not involed.
-        id_t swift = {}; // mouse: Delegate's ID of the current mouse owner.
-        id_t hover = {}; // mouse: Hover control ID.
-        id_t start = {}; // mouse: Initiator control ID.
-        hint cause = {}; // mouse: Current event id.
-        hist stamp = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
-        span delay = {}; // mouse: Double-click threshold.
-        knob bttns = {}; // mouse: Extended state of mouse buttons.
-        sysmouse m_sys = {}; // mouse: Device state.
-        sysmouse m_sav = {}; // mouse: Previous device state.
+        fp2d prime{}; // mouse: System mouse cursor coordinates.
+        fp2d coord{}; // mouse: Relative mouse cursor coordinates.
+        tail delta{}; // mouse: History of mouse movements for a specified period of time.
+        bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
+        bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
+        bool scrll{}; // mouse: Vertical scrolling.
+        bool hzwhl{}; // mouse: Horizontal scrolling.
+        fp32 whldt{}; // mouse: Scroll delta (1.f/120).
+        si32 locks{}; // mouse: State of the captured buttons (bit field).
+        si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
+        id_t swift{}; // mouse: Delegate's ID of the current mouse owner.
+        id_t hover{}; // mouse: Hover control ID.
+        id_t start{}; // mouse: Initiator control ID.
+        hint cause{}; // mouse: Current event id.
+        hist stamp{}; // mouse: Recorded intervals between successive button presses to track double-clicks.
+        span delay{}; // mouse: Double-click threshold.
+        knob bttns{}; // mouse: Extended state of mouse buttons.
+        sysmouse m_sys{}; // mouse: Device state.
+        sysmouse m_sav{}; // mouse: Previous device state.
 
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
@@ -695,7 +692,7 @@ namespace netxs::input
             //todo use current item's type: Law<twod>
             return delta.fader<Law>(spell);
         }
-        // mouse: Extended mouse event generation.
+        // mouse: Generate mouse event.
         void update(sysmouse& m)
         {
             auto m_buttons = std::bitset<8>(m.buttons);
@@ -917,7 +914,7 @@ namespace netxs::input
         }
     };
 
-    // console: Keybd tracker.
+    // input: Keybd tracker.
     struct keybd
     {
         enum prot
@@ -928,13 +925,13 @@ namespace netxs::input
 
         si32 nullkey = key::Key2;
 
-        text cluster = {};
-        bool extflag = {};
-        bool pressed = {};
-        bool handled = {};
-        si32 virtcod = {};
-        si32 scancod = {};
-        si32 keycode = {};
+        text cluster{};
+        bool extflag{};
+        bool pressed{};
+        bool handled{};
+        si32 virtcod{};
+        si32 scancod{};
+        si32 keycode{};
 
         auto doinput()
         {
@@ -959,7 +956,7 @@ namespace netxs::input
         virtual void fire_keybd() = 0;
     };
 
-    // console: Clipboard paste.
+    // input: Clipboard paste.
     struct paste
     {
         text txtdata;
@@ -973,7 +970,7 @@ namespace netxs::input
         virtual void fire_paste() = 0;
     };
 
-    // console: Focus tracker.
+    // input: Focus tracker.
     struct focus
     {
         enum prot
@@ -993,7 +990,7 @@ namespace netxs::input
         virtual void fire_focus() = 0;
     };
 
-    // console: Clipboard tracker.
+    // input: Clipboard tracker.
     struct board
     {
         enum prot
@@ -1124,7 +1121,7 @@ namespace netxs::input
         }
     };
 
-    // console: Human interface device controller.
+    // input: Human interface device controller.
     struct hids
         : public mouse,
           public keybd,
@@ -1406,7 +1403,7 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, twod new_coord, twod new_delta, si32 new_button_state, si32 new_ctlstate)
+        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
@@ -1494,7 +1491,7 @@ namespace netxs::input
         auto& area() const { return idmap.area(); }
 
         template<tier Tier>
-        void pass(sptr object, twod offset, bool relative = faux)
+        void pass(sptr object, fp2d offset, bool relative = faux)
         {
             if (object)
             {
@@ -1574,7 +1571,7 @@ namespace netxs::input
             mouse::coord = mouse::prime;
             mouse::nodbl = faux;
 
-            auto& offset = idmap.coor();
+            auto offset = idmap.coor();
             if (mouse::swift)
             {
                 auto next = bell::getref<base>(mouse::swift);

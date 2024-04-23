@@ -283,18 +283,22 @@ namespace netxs
         }
     };
 
-    template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
+    template<class T1, class T2, class T3 = T1, class = std::enable_if_t<std::is_arithmetic_v<T1>
+                                                                      && std::is_arithmetic_v<T2>
+                                                                      && std::is_arithmetic_v<T3>>>
     constexpr T3 divround(T1 n, T2 d)
     {
+        if constexpr (std::is_floating_point_v<T1> || std::is_floating_point_v<T2>) return d == 0 ? 0
+                                                                                                  : n / d;
         ///In C++11, signed shift left of a negative number is always undefined
         //return d != 0 ? ((n << 1) - d + ((true && ((n < 0) ^ (d > 0))) << 1) * d) / (d << 1) : 0;
 
         //return d != 0 ? ((n < 0) ^ (d < 0)) ? ((n - d / 2) / d)
         //                                    : ((n + d / 2) / d)
         //              : 0;
-        return d == 0 ? 0
-                      : ((n < 0) == (d < 0)) ? ((n + d / 2) / d)
-                                             : ((n - d / 2) / d);
+        else return d == 0 ? 0
+                           : ((n < 0) == (d < 0)) ? ((n + d / 2) / d)
+                                                  : ((n - d / 2) / d);
     }
     template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
     constexpr T3 divupper(T1 n, T2 d)
@@ -317,7 +321,7 @@ namespace netxs
 
     // intmath: Deduce a scalar type from the vector type.
     template<class T>
-    using disintegrate = typename _disintegrate< std::is_arithmetic<T>::value, T >::type;
+    using disintegrate = typename _disintegrate<std::is_arithmetic_v<T>, T>::type;
 
     // intmath: Quadratic fader delta sequence generator.
     //          The QUADRATIC-LAW fader from the initial velocity
@@ -326,15 +330,12 @@ namespace netxs
     struct quadratic
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                twod speed; // quadratic: Distance ΔR over time period ΔT.
-                type limit; // quadratic: Activity period.
-                type phase; // quadratic: Register.
-                type scale; // quadratic: Factor.
-                type start; // quadratic: Deffered start time.
-        mutable twod total; // quadratic: Current point on the path.
+                T    speed; // quadratic: Distance ΔR over time period ΔT.
+                si32 limit; // quadratic: Activity period.
+                si32 phase; // quadratic: Register.
+                si32 scale; // quadratic: Factor.
+                si32 start; // quadratic: Deffered start time.
+        mutable T    total; // quadratic: Current point on the path.
 
     public:
         // Quadratic fader:
@@ -342,19 +343,18 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        quadratic(twod speed, type cycle, type limit, type start)
+        quadratic(T speed, si32 cycle, si32 limit, si32 start)
             : speed{ speed         },
               limit{ limit         },
               phase{ limit * 2     },
               scale{ phase * cycle },
               start{ start         },
-              total{ twod{}        }
+              total{ T{}           }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -365,11 +365,7 @@ namespace netxs
                     total = s;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };
@@ -381,15 +377,12 @@ namespace netxs
     struct constlinear
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                type limit; // constlinear: Activity period.
-                type phase; // constlinear: Register.
-                twod speed; // constlinear: Distance ΔR over time period ΔT.
-                type scale; // constlinear: Factor.
-                type start; // constlinear: Deffered start time.
-        mutable twod total; // constlinear: Current point on the path.
+                si32 limit; // constlinear: Activity period.
+                si32 phase; // constlinear: Register.
+                T    speed; // constlinear: Distance ΔR over time period ΔT.
+                si32 scale; // constlinear: Factor.
+                si32 start; // constlinear: Deffered start time.
+        mutable T    total; // constlinear: Current point on the path.
 
     public:
         // Linear constant speed delta generator:
@@ -397,19 +390,18 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        constlinear(twod speed, type cycle, type limit, type start)
+        constlinear(T speed, si32 cycle, si32 limit, si32 start)
             : limit{ limit         },
               phase{ limit * 2     },
               speed{ speed * phase },
               scale{ cycle * phase },
               start{ start         },
-              total{ twod{}        }
+              total{ T{}           }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -420,11 +412,7 @@ namespace netxs
                     total = s;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };
@@ -436,26 +424,22 @@ namespace netxs
     struct constlinearAtoB
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                type limit; // constlinearAtoB: Activity period.
-                twod range; // constlinearAtoB: Path's end point (from 0 to range).
-                type start; // constlinearAtoB: Deffered start time point.
-        mutable twod total; // constlinearAtoB: Current point on the path.
+                si32 limit; // constlinearAtoB: Activity period.
+                T    range; // constlinearAtoB: Path's end point (from 0 to range).
+                si32 start; // constlinearAtoB: Deffered start time point.
+        mutable T    total; // constlinearAtoB: Current point on the path.
 
     public:
-        constlinearAtoB(twod range, type limit, type start)
+        constlinearAtoB(T range, si32 limit, si32 start)
             : limit{ limit },
               range{ range },
               start{ start },
-              total{ twod{}}
+              total{ T{}   }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -470,11 +454,7 @@ namespace netxs
                     total = range;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };

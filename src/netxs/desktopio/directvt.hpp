@@ -792,7 +792,7 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (si32, buttons))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
@@ -834,7 +834,7 @@ namespace netxs::directvt
                                         (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
-                                        (si32, wheeldt)  // sysmouse: Scroll delta.
+                                        (fp32, wheeldt)  // sysmouse: Scroll delta.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
