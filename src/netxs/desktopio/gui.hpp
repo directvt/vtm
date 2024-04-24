@@ -25,6 +25,14 @@ namespace netxs::gui
     auto fx_white = [](auto& c){ c = 0x5F'23'23'23; };
     auto fx_black = [](auto& c){ c = 0x3F'00'00'00; };
 
+    namespace style
+    {
+        static constexpr auto normal = 0;
+        static constexpr auto italic = 1;
+        static constexpr auto bold = 2;
+        static constexpr auto bold_italic = bold | italic;
+    };
+
     struct w32surface : IDWriteTextRenderer
     {
         using bits = netxs::raster<std::span<argb>, rect>;
@@ -36,12 +44,15 @@ namespace netxs::gui
             IDWriteGdiInterop*      pGdiInterop{};
             IDWriteRenderingParams* pNaturalRendering{};
             IDWriteRenderingParams* pAliasedRendering{};
-            IDWriteTextFormat*      pTextFormat{};
+            IDWriteTextFormat*      pTextFormat[4]{};
             void reset()
             {
                 pNaturalRendering->Release();
                 pAliasedRendering->Release();
-                pTextFormat->Release();
+                pTextFormat[style::normal]->Release();
+                pTextFormat[style::italic]->Release();
+                pTextFormat[style::bold]->Release();
+                pTextFormat[style::bold_italic]->Release();
                 pGdiInterop->Release();
                 pDWriteFactory->Release();
             }
@@ -112,18 +123,16 @@ namespace netxs::gui
             }
             return bits{};
         }
-        auto textout(rect dest, argb color, wiew txt)
+        auto textout(rect clip, twod step, argb color, si32 format, wiew txt)
         {
+            auto dest = rect{ clip.coor + step, clip.size - step };
             if (!dest || !hdc) return;
             fgc = color;
             auto pTextLayout = (IDWriteTextLayout*)nullptr;
-            auto textLength = (ui32)txt.size();
-            ok2(conf.pDWriteFactory->CreateTextLayout(txt.data(),
-                                                      textLength,
-                                                      conf.pTextFormat,
-                                                      (fp32)std::abs(dest.size.x),
-                                                      (fp32)std::abs(dest.size.y),
-                                                      &pTextLayout));
+            auto l = (ui32)txt.size();
+            auto w = (fp32)std::abs(dest.size.x);
+            auto h = (fp32)std::abs(dest.size.y);
+            ok2(conf.pDWriteFactory->CreateTextLayout(txt.data(), l, conf.pTextFormat[format], w, h, &pTextLayout));
             if (dest.size.y < 0)
             {
                 auto dtm = DWRITE_TEXT_METRICS{};
@@ -139,9 +148,15 @@ namespace netxs::gui
                 dest.coor.x -= (si32)min_width;
                 dest.size.x = -dest.size.x;
             }
-            //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, textLength });
-            //pTextLayout->SetStrikethrough(true, DWRITE_TEXT_RANGE{ 0, textLength });
+            //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, l });
+            //pTextLayout->SetStrikethrough(true, DWRITE_TEXT_RANGE{ 0, l });
+            auto left = clip.coor.x;
+            auto top = clip.coor.y;
+            auto right = left + clip.size.x;
+            auto bottom = top + clip.size.y;
+            ::IntersectClipRect(hdc, left, top, right, bottom);
             ok2(pTextLayout->Draw(hdc, this, (fp32)dest.coor.x, (fp32)dest.coor.y));
+            ::ExcludeClipRect(hdc, left, top, right, bottom);
             pTextLayout->Release();
         }
         void present()
@@ -267,68 +282,23 @@ namespace netxs::gui
         gcfg conf;
         bool initialized;
 
-        w32renderer(text font_name, twod cell_size)
+        w32renderer(text font_name_utf8, twod cell_size)
             : initialized{ faux }
         {
             set_dpi_awareness();
-            //auto s = 96;//::GetDeviceCaps(hdc, LOGPIXELSY);
-            auto font_utf16 = utf::to_utf(font_name);
-            auto height = -cell_size.y;
-            auto hfont = ::CreateFontW(height, //_In_ int cHeight
-                                       0, // _In_ int cWidth
-                                       0, // _In_ int cEscapement
-                                       0, // _In_ int cOrientation
-                                       0, // _In_ int cWeight
-                                       0, // _In_ DWORD bItalic
-                                       0, // _In_ DWORD bUnderline
-                                       0, // _In_ DWORD bStrikeOut
-                                       0, // _In_ DWORD iCharSet
-                                       0, // _In_ DWORD iOutPrecision
-                                       0, // _In_ DWORD iClipPrecision
-                                       0, // _In_ DWORD iQuality
-                                       FIXED_PITCH, // _In_ DWORD iPitchAndFamily
-                                       font_utf16.c_str()); // _In_opt_ LPCWSTR pszFaceName
-                                       //L"Courier New"); // _In_opt_ LPCWSTR pszFaceName
-                                       //L"Lucida Console"); // _In_opt_ LPCWSTR pszFaceName
-                                       //L"Segoe UI Emoji"); // _In_opt_ LPCWSTR pszFaceName
-                                       //L"Monotty"); // _In_opt_ LPCWSTR pszFaceName
-
             ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&conf.pDWriteFactory)));
             ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
-
-            auto lf = LOGFONTW{};
-            ::GetObjectW(hfont, sizeof(LOGFONTW), &lf);
-            auto pFont = (IDWriteFont*)nullptr;
-            ok2(conf.pGdiInterop->CreateFontFromLOGFONT(&lf, &pFont));
-
-            auto pFontFamily = (IDWriteFontFamily*)nullptr;
-            auto pFamilyNames = (IDWriteLocalizedStrings*)nullptr;
-            ok2(pFont->GetFontFamily(&pFontFamily));
-            ok2(pFontFamily->GetFamilyNames(&pFamilyNames));
-
-            auto length = UINT32{};
-            auto index = UINT32{};
-            ok2(pFamilyNames->GetStringLength(index, &length));
-
-            auto family_name = std::wstring(length, 0);
-            ok2(pFamilyNames->GetString(index, family_name.data(), length + 1));
-            
-            auto fontSize = (fp32)-lf.lfHeight;// -::MulDiv(lf.lfHeight, 96, 96);//GetDeviceCaps(hdc, LOGPIXELSY));
-
-            ok2(conf.pDWriteFactory->CreateTextFormat(family_name.data(),
-                                                      NULL,                        
-                                                      pFont->GetWeight(),
-                                                      pFont->GetStyle(),
-                                                      pFont->GetStretch(),
-                                                      fontSize,
-                                                      L"en-en",
-                                                      &conf.pTextFormat));
+            auto font_name = utf::to_utf(font_name_utf8);
+            auto font_size = (fp32)cell_size.y;
+            auto locale = L"en-en"s;
+            auto font_collection = nullptr;
+            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::normal]));
+            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::italic]));
+            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold]));
+            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold_italic]));
             //ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pAliasedRendering));
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.f/*no gamma*/, 0.f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
-            pFontFamily->Release();
-            pFont->Release();
-            pFamilyNames->Release();
             initialized = true;
         }
         ~w32renderer()
@@ -413,8 +383,11 @@ namespace netxs::gui
         }
     };
 
+    auto canvas_text = ansi::itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
+        .add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.").fgc(tint::greenlt).add(" Press Esc or Right click to close.");
     auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
     auto footer_text = L"4/4000 80:25"s;
+    auto canvas_para = ui::para{ canvas_text };
     auto header_para = ui::para{ utf::to_utf(header_text) };
     auto footer_para = ui::para{ utf::to_utf(footer_text) };
 
@@ -508,7 +481,7 @@ namespace netxs::gui
         {
             for (auto& w : layers) w.reset();
         }
-        window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
+        window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
             : //dx3d{ faux }, //dx3d specific
               engine{ font, cell_size },
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
@@ -555,6 +528,7 @@ namespace netxs::gui
 
             redraw();
             initialized = true;
+            show(win_mode);
         }
         auto set_dpi(auto new_dpi)
         {
@@ -640,7 +614,7 @@ namespace netxs::gui
         void draw_grid()
         {
             auto canvas = layers[client].canvas();
-            auto c  = rect{{}, cell_size };
+            auto r  = rect{{}, cell_size };
             auto lt = dent{ 1, 0, 1, 0 };
             auto rb = dent{ 0, 1, 0, 1 };
             auto fx_pure_wt = [](auto& c){ c = 0xFF'ff'ff'ff; };
@@ -655,18 +629,18 @@ namespace netxs::gui
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::pureblack };
             auto lbc = argb{ tint::pureblue  }.alpha(0.5f);
-            for (c.coor.y = 0; c.coor.y < inner_rect.size.y; c.coor.y += cell_size.y)
+            for (r.coor.y = 0; r.coor.y < inner_rect.size.y; r.coor.y += cell_size.y)
             {
-                auto y = (fp32)c.coor.y / (inner_rect.size.y - 1);
+                auto y = (fp32)r.coor.y / (inner_rect.size.y - 1);
                 auto lc = argb::transit(ltc, lbc, y);
                 auto rc = argb::transit(rtc, rbc, y);
-                for (c.coor.x = 0; c.coor.x < inner_rect.size.x; c.coor.x += cell_size.x)
+                for (r.coor.x = 0; r.coor.x < inner_rect.size.x; r.coor.x += cell_size.x)
                 {
-                    auto x = (fp32)c.coor.x / (inner_rect.size.x - 1);
+                    auto x = (fp32)r.coor.x / (inner_rect.size.x - 1);
                     auto p = argb::transit(lc, rc, x);
-                    netxs::onrect(canvas, c, [&](auto& c){ c = p; });
-                    //netxs::misc::cage(canvas, c, lt, fx_white2);
-                    //netxs::misc::cage(canvas, c, rb, fx_black2);
+                    netxs::onrect(canvas, r, [&](auto& c){ c = p; });
+                    //netxs::misc::cage(canvas, r, lt, fx_white2);
+                    //netxs::misc::cage(canvas, r, rb, fx_black2);
                 }
             }
 
@@ -680,8 +654,30 @@ namespace netxs::gui
             //netxs::onrect(canvas, c3, fx_pure_wt);
 
             canvas.step(inner_rect.coor);
-            auto region = rect{ .coor = grip_size + cell_size * dot_01, .size = inner_rect.size };
-            layers[client].textout(region, tint::cyanlt, L"vtm GUI frontend is currently under development. You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪. Press Esc or Right click to close."s);
+            auto r_init = rect{ .coor = grip_size + cell_size * dot_01, .size = inner_rect.size };
+            r = r_init;
+            r.coor.y += cell_size.y;
+            auto& content = canvas_para.content();
+            auto& layer = layers[client];
+            auto m = grip_size + inner_rect.size;
+            auto right_part = twod{ -cell_size.x, 0 };
+            for (auto& c : content)
+            {
+                auto format = style::normal;
+                if (c.itc()) format |= style::italic;
+                if (c.bld()) format |= style::bold;
+                auto fgc = c.fgc();
+                if (!fgc) fgc = argb{ tint::cyanlt };
+                auto w = c.wdt() == 3 ? right_part : dot_00;
+                layer.textout(r, w, fgc, format, utf::to_utf(c.txt()));
+                r.coor.x += cell_size.x;
+                if (r.coor.x >= m.x)
+                {
+                    r.coor.x = r_init.coor.x;
+                    r.coor.y += cell_size.y;
+                    if (r.coor.y >= m.y) break;
+                }
+            }
         }
         bool hit_grips()
         {
@@ -717,8 +713,8 @@ namespace netxs::gui
             auto footer_dest = layers[footer].canvas(true);
             auto h = header_dest.area().moveto(dot_00).rotate({ 1, -1 }) - shadow_dent;
             auto f = footer_dest.area().moveto(dot_00).rotate({ -1, 1 }) - shadow_dent;
-            layers[header].textout(h, 0xFF'ff'ff'ff, header_text);
-            layers[footer].textout(f, 0xFF'ff'ff'ff, footer_text);
+            layers[header].textout(h, dot_00, 0xFF'ff'ff'ff, style::normal, header_text);
+            layers[footer].textout(f, dot_00, 0xFF'ff'ff'ff, style::normal, footer_text);
             netxs::misc::contour(header_dest);
             netxs::misc::contour(footer_dest);
         }

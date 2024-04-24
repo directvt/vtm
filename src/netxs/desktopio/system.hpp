@@ -1143,6 +1143,13 @@ namespace netxs::os
             arch += sizeof(size_t) == 4 ? "32-bit" : "64-bit";
             return std::pair{ "Windows"s, arch };
         }();
+        template<class ...Args>
+        void logstd(Args&&... args)
+        {
+            auto count = DWORD{};
+            auto yield = utf::concat(std::forward<Args>(args)..., "\n");
+            ::WriteFile(::GetStdHandle(STD_OUTPUT_HANDLE), yield.data(), (DWORD)yield.size(), &count, 0);
+        }
 
     #else
 
@@ -3506,18 +3513,16 @@ namespace netxs::os
                         auto proc_count = ::GetConsoleProcessList(&processpid, 1);
                         if (1 == proc_count) // Run gui console.
                         {
-                            auto modeflags = DWORD{};
-                            ::GetConsoleDisplayMode(&modeflags);
-
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
                             dtvt::windpi = (si32)::GetDpiForWindow(h);
-                            if (dtvt::windpi == 0) dtvt::windpi = 96;
+                            if (dtvt::windpi == 0) dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
                             ok(::GetWindowRect(h, &r));
 
-                            dtvt::iconic = modeflags == CONSOLE_FULLSCREEN ? 2 : ::IsIconic(h);
-
+                            auto modeflags = DWORD{};
+                            ok(::GetConsoleDisplayMode(&modeflags));
                             auto maximized = modeflags == CONSOLE_FULLSCREEN;
+                            dtvt::iconic = maximized ? 2 : ::IsIconic(h);
                             auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
                             if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
                             {
@@ -3526,18 +3531,16 @@ namespace netxs::os
                             }
                             if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
                             if (dtvt::uifont == text{}) dtvt::uifont = "Consolas";
-                            // Centrify window.
-                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::fontsz.x * dtvt::window.size.x) / 2,
+                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::fontsz.x * dtvt::window.size.x) / 2, // Centrify window.
                                                   r.top  + (r.bottom - r.top - dtvt::fontsz.y * dtvt::window.size.y) / 2 };
-                            dtvt::fontsz = dtvt::fontsz * dtvt::windpi / 96;;
-                            dtvt::window.coor = dtvt::window.coor * dtvt::windpi / 96;;
+                            dtvt::fontsz = dtvt::fontsz * dtvt::windpi / USER_DEFAULT_SCREEN_DPI;
+                            dtvt::window.coor = dtvt::window.coor * dtvt::windpi / USER_DEFAULT_SCREEN_DPI;
+                            dtvt::vtmode |= ui::console::gui;
 
-                            ::FreeConsole();
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
-                            dtvt::vtmode |= ui::console::gui;
-
+                            if constexpr (!debugmode) ::FreeConsole();
                             auto term = "Native GUI console";
                             log("%%Terminal type: %term%, %font% %w%×%h%", prompt::os, term, dtvt::uifont, dtvt::fontsz.x, dtvt::fontsz.y);
                             return;
@@ -5751,9 +5754,9 @@ namespace netxs::os
         {
             #if defined(WIN32)
                 using window = gui::window<gui::w32renderer>;
-                if (auto w = window{ dtvt::window, dtvt::uifont, dtvt::fontsz })
+                if (auto w = window{ dtvt::window, dtvt::uifont, dtvt::fontsz, dtvt::iconic })
                 {
-                    w.show(dtvt::iconic);
+                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::fontsz=", dtvt::fontsz, " dtvt::iconic=", dtvt::iconic);
                     w.dispatch();
                 }
             #else
