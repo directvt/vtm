@@ -150,13 +150,7 @@ namespace netxs::gui
             }
             //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, l });
             //pTextLayout->SetStrikethrough(true, DWRITE_TEXT_RANGE{ 0, l });
-            auto left = clip.coor.x;
-            auto top = clip.coor.y;
-            auto right = left + clip.size.x;
-            auto bottom = top + clip.size.y;
-            ::IntersectClipRect(hdc, left, top, right, bottom);
             ok2(pTextLayout->Draw(hdc, this, (fp32)dest.coor.x, (fp32)dest.coor.y));
-            ::ExcludeClipRect(hdc, left, top, right, bottom);
             pTextLayout->Release();
         }
         void present()
@@ -661,6 +655,14 @@ namespace netxs::gui
             auto& layer = layers[client];
             auto m = grip_size + inner_rect.size;
             auto right_part = twod{ -cell_size.x, 0 };
+
+            auto hdc = layer.hdc;
+            auto left = r.coor.x;
+            auto top = r.coor.y;
+            auto right = left + r.size.x;
+            auto bottom = top + r.size.y;
+            auto off = r.coor;
+            ::IntersectClipRect(hdc, left, top, right, bottom);
             for (auto& c : content)
             {
                 auto format = style::normal;
@@ -677,7 +679,10 @@ namespace netxs::gui
                     r.coor.y += cell_size.y;
                     if (r.coor.y >= m.y) break;
                 }
+                off = r.coor - off;
+                ::OffsetClipRgn(hdc, off.x, off.y);
             }
+            ::ExcludeClipRect(hdc, 0, 0, layer.size.x, layer.size.y);
         }
         bool hit_grips()
         {
