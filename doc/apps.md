@@ -167,94 +167,117 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 #### Terminal configuration example
 ```xml
 <config>
- <term>
-  <menu item*>
-      <autohide=true />  <!-- If true, show menu only on hover. -->
-      <enabled=1 />
-      <slim=1 />
-      <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-          <label="\e[38:2:0:255:0m<\e[m"/>
-          <notes>
-              " Previous match                                  \n"
-              "   LeftClick to jump to previous match or scroll \n"
-              "             one page up if nothing to search    \n"
-              "   Match clipboard data if no selection          \n"
-              "   Left+RightClick to clear clipboard            "
-          </notes>
-      </item>
-      <item label=">" action=TerminalFindNext>
-          <label="\e[38:2:0:255:0m>\e[m"/>
-          <notes>
-              " Next match                                     \n"
-              "   LeftClick to jump to next match or scroll    \n"
-              "             one page down if nothing to search \n"
-              "   Match clipboard data if no selection         \n"
-              "   Left+RightClick to clear clipboard           "
-          </notes>
-      </item>
-      <item label="Wrap" type=Option action=TerminalWrapMode data="off">
-          <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
-          <notes>
-              " Wrapping text lines on/off      \n"
-              " - applied to selection if it is "
-          </notes>
-      </item>
-      <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-          <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
-          <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-          <label data="rich">
-              "\e[38:2:109:231:237m""R"
-              "\e[38:2:109:237:186m""T"
-              "\e[38:2:60:255:60m"  "F"
-              "\e[38:2:189:255:53m" "-"
-              "\e[38:2:255:255:49m" "s"
-              "\e[38:2:255:189:79m" "t"
-              "\e[38:2:255:114:94m" "y"
-              "\e[38:2:255:60:157m" "l"
-              "\e[38:2:255:49:214m" "e" "\e[m"
-          </label>
-          <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-          <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
-      </item>
-      <item label="Log" notes=" Stdin/out logging is off " type=Option action=TerminalStdioLog data="off">
-          <label="\e[38:2:0:255:0mLog\e[m" notes=" Stdin/out logging is on \n Run Logs to see output  " data="on"/>
-      </item>
-      <item label="  "    notes=" ...empty menu block/splitter for safety "/>
-      <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-      <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-      <item label="Restart" type=Command action=TerminalRestart/>
-      <item label="Top" action=TerminalViewportTop/>
-      <item label="End" action=TerminalViewportEnd/>
+    <term>
+        <menu item*>
+            <autohide=true />  <!-- If true, show menu only on hover. -->
+            <enabled=1 />
+            <slim=1 />
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m"/>
+                <notes>
+                    " Previous match                                  \n"
+                    "   LeftClick to jump to previous match or scroll \n"
+                    "             one page up if nothing to search    \n"
+                    "   Match clipboard data if no selection          \n"
+                    "   Left+RightClick to clear clipboard            "
+                </notes>
+            </item>
+            <item label=">" action=TerminalFindNext>
+                <label="\e[38:2:0:255:0m>\e[m"/>
+                <notes>
+                    " Next match                                     \n"
+                    "   LeftClick to jump to next match or scroll    \n"
+                    "             one page down if nothing to search \n"
+                    "   Match clipboard data if no selection         \n"
+                    "   Left+RightClick to clear clipboard           "
+                </notes>
+            </item>
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    " - applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="Log" notes=" Stdin/out logging is off " type=Option action=TerminalStdioLog data="off">
+                <label="\e[38:2:0:255:0mLog\e[m" notes=" Stdin/out logging is on \n Run Logs to see output  " data="on"/>
+            </item>
+            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Restart" type=Command action=TerminalRestart/>
+            <item label="Top" action=TerminalViewportTop/>
+            <item label="End" action=TerminalViewportEnd/>
 
-      <item label="PgLeft"    type=Repeat action=TerminalViewportPageLeft/>
-      <item label="PgRight"   type=Repeat action=TerminalViewportPageRight/>
-      <item label="CharLeft"  type=Repeat action=TerminalViewportCharLeft/>
-      <item label="CharRight" type=Repeat action=TerminalViewportCharRight/>
+            <item label="PgLeft"    type=Repeat action=TerminalViewportPageLeft/>
+            <item label="PgRight"   type=Repeat action=TerminalViewportPageRight/>
+            <item label="CharLeft"  type=Repeat action=TerminalViewportCharLeft/>
+            <item label="CharRight" type=Repeat action=TerminalViewportCharRight/>
 
-      <item label="PgUp"   type=Repeat action=TerminalViewportPageUp/>
-      <item label="PgDn"   type=Repeat action=TerminalViewportPageDown/>
-      <item label="LineUp" type=Repeat action=TerminalViewportLineUp/>
-      <item label="LineDn" type=Repeat action=TerminalViewportLineDown/>
+            <item label="PgUp"   type=Repeat action=TerminalViewportPageUp/>
+            <item label="PgDn"   type=Repeat action=TerminalViewportPageDown/>
+            <item label="LineUp" type=Repeat action=TerminalViewportLineUp/>
+            <item label="LineDn" type=Repeat action=TerminalViewportLineDown/>
 
-      <item label="PrnScr" action=TerminalViewportCopy/>
-      <item label="Deselect" action=TerminalSelectionClear/>
-      
-      <item label="Line" type=Option action=TerminalSelectionRect data="false">
-          <label="Rect" data="true"/>
-      </item>
-      <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
-      <item label="Paste" type=Repeat action=TerminalClipboardPaste/>
-      <item label="Undo" type=Command action=TerminalUndo/>
-      <item label="Redo" type=Command action=TerminalRedo/>
-      <item label="Quit" type=Command action=TerminalQuit/>
-      <item label="Fullscreen" type=Command action=TerminalFullscreen/>
+            <item label="PrnScr" action=TerminalViewportCopy/>
+            <item label="Deselect" action=TerminalSelectionClear/>
+            
+            <item label="Line" type=Option action=TerminalSelectionRect data="false">
+                <label="Rect" data="true"/>
+            </item>
+            <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
+            <item label="Paste" type=Repeat action=TerminalClipboardPaste/>
+            <item label="Undo" type=Command action=TerminalUndo/>
+            <item label="Redo" type=Command action=TerminalRedo/>
+            <item label="Quit" type=Command action=TerminalQuit/>
+            <item label="Fullscreen" type=Command action=TerminalFullscreen/>
 
-      <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
-      <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
-          <label="\e[37mPush Me\e[m"/>
-      </item>
-  </menu>
- </term>
+            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
+                <label="\e[37mPush Me\e[m"/>
+            </item>
+
+            <item label=" HTML " data=none type=Option action=TerminalSelectionOneShot>
+                <label="\e[48:2:0:128:128;38:2:0:255:255m HTML \e[m" data=html/>
+                <notes>
+                    " One-shot toggle to copy as HTML \n"
+                    " while mouse tracking is active. "
+                </notes>
+            </item>
+            <item label=" Text " data=none type=Option action=TerminalSelectionOneShot>
+                <label="\e[48:2:0:128:0;38:2:0:255:0m Text \e[m" data=text/>
+                <notes>
+                    " One-shot toggle to copy as Text \n"
+                    " while mouse tracking is active. "
+                </notes>
+            </item>
+            <item label="One-Shot" data=none type=Option action=TerminalSelectionOneShot>
+                <label="\e[48:2:0:128:0;38:2:0:255:0m  Text  \e[m" data=text/>
+                <label="\e[48:2:0:128:128;38:2:0:255:255m  HTML  \e[m" data=html/>
+                <notes>
+                    " One-shot toggle to copy as Text/HTML \n"
+                    " while mouse tracking is active.      "
+                </notes>
+            </item>
+        </menu>
+    </term>
 </config>
 ```
 
