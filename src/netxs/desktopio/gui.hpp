@@ -191,7 +191,7 @@ namespace netxs::gui
                         hr = surf->DrawGlyphRun(s.baselineOriginX, s.baselineOriginY,
                                                 measuringMode,
                                                 &s.glyphRun,
-                                                conf.pNaturalRendering, // Emojis are broken without antialiasing.
+                                                conf.pNaturalRendering, // Emojis are broken without AA (antialiasing).
                                                 argb::swap_rb(s.paletteIndex == -1 ? fgc.token : color.token),
                                                 &dirtyRect);
                     }
@@ -267,12 +267,13 @@ namespace netxs::gui
         gcfg conf;
         bool initialized;
 
-        w32renderer()
+        w32renderer(text font_name, twod cell_size)
             : initialized{ faux }
         {
             set_dpi_awareness();
             //auto s = 96;//::GetDeviceCaps(hdc, LOGPIXELSY);
-            auto height = -16;//::MulDiv(24, s, 96);
+            auto font_utf16 = utf::to_utf(font_name);
+            auto height = -cell_size.y;
             auto hfont = ::CreateFontW(height, //_In_ int cHeight
                                        0, // _In_ int cWidth
                                        0, // _In_ int cEscapement
@@ -286,9 +287,9 @@ namespace netxs::gui
                                        0, // _In_ DWORD iClipPrecision
                                        0, // _In_ DWORD iQuality
                                        FIXED_PITCH, // _In_ DWORD iPitchAndFamily
+                                       font_utf16.c_str()); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Courier New"); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Lucida Console"); // _In_opt_ LPCWSTR pszFaceName
-                                       L"Consolas"); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Segoe UI Emoji"); // _In_opt_ LPCWSTR pszFaceName
                                        //L"Monotty"); // _In_opt_ LPCWSTR pszFaceName
 
@@ -507,8 +508,9 @@ namespace netxs::gui
         {
             for (auto& w : layers) w.reset();
         }
-        window(rect win_coor_px_size_cell, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
+        window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
             : //dx3d{ faux }, //dx3d specific
+              engine{ font, cell_size },
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
@@ -1034,10 +1036,13 @@ namespace netxs::gui
                 ::DispatchMessageW(&msg);
             }
         }
-        void show()
+        void show(si32 win_state)
         {
-            auto mode = SW_SHOWNORMAL;
-            for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+            if (win_state == 0 || win_state == 2) //todo fullscreen mode (=2). 0 - normal, 1 - minimized, 2 - fullscreen
+            {
+                auto mode = SW_SHOWNORMAL;
+                for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+            }
         }
     };
 }

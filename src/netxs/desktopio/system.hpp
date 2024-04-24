@@ -3350,7 +3350,9 @@ namespace netxs::os
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
-        static auto win_sz = twod{}; // dtvt: Initial window size.
+        static auto window = rect{}; // dtvt: Initial window area.
+        static auto windpi = si32{}; // dtvt: Initial window dpi.
+        static auto iconic = si32{}; // dtvt: Initial window state (normal = 0, minimized = 1, fullscreen = 2).
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto uifont = text{}; // dtvt: Font name for gui console.
         static auto fontsz = twod{}; // dtvt: Font size for gui console.
@@ -3365,9 +3367,9 @@ namespace netxs::os
                 if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected))
                 {
                     nt::console::buffer = { cinfo.dwSize.X, cinfo.dwSize.Y };
-                    winsz = dtvt::scroll ? nt::console::buffer
-                                         : twod{ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
-                                                 cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 };
+                    if (dtvt::scroll) winsz = nt::console::buffer;
+                    else              winsz = { cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                                                cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 };
                 }
             #else
                 auto size = ::winsize{};
@@ -3413,7 +3415,7 @@ namespace netxs::os
                     if (::PeekNamedPipe(os::stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::window.size);
                         if (dtvt::active)
                         {
                             io::recv(os::stdin_fd, buffer);
@@ -3424,7 +3426,7 @@ namespace netxs::os
                 {
                     auto header = io::recv(os::stdin_fd, buffer);
                     length = (DWORD)header.size();
-                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::window.size);
                     if (!dtvt::active)
                     {
                         dtvt::leadin = header;
@@ -3442,7 +3444,7 @@ namespace netxs::os
                         auto length = header.length();
                         if (length)
                         {
-                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::window.size);
                             if (!dtvt::active)
                             {
                                 dtvt::leadin = header;
@@ -3495,8 +3497,7 @@ namespace netxs::os
             }
             else
             {
-                dtvt::win_sz = dtvt::consize();
-                //trygui = faux; //todo Not implemented.
+                dtvt::window.size = dtvt::consize();
                 if (trygui)
                 {
                     #if defined(_WIN32)
@@ -3507,20 +3508,36 @@ namespace netxs::os
                         {
                             auto modeflags = DWORD{};
                             ::GetConsoleDisplayMode(&modeflags);
+
+                            auto r = RECT{};
+                            auto h = ::GetConsoleWindow();
+                            dtvt::windpi = (si32)::GetDpiForWindow(h);
+                            if (dtvt::windpi == 0) dtvt::windpi = 96;
+                            ok(::GetWindowRect(h, &r));
+
+                            dtvt::iconic = modeflags == CONSOLE_FULLSCREEN ? 2 : ::IsIconic(h);
+
                             auto maximized = modeflags == CONSOLE_FULLSCREEN;
                             auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                            if (::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info))
+                            if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
                             {
                                 dtvt::uifont = utf::to_utf(font_info.FaceName);
                                 dtvt::fontsz = { font_info.dwFontSize.X, font_info.dwFontSize.Y };
                             }
+                            if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
+                            if (dtvt::uifont == text{}) dtvt::uifont = "Consolas";
+                            // Centrify window.
+                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::fontsz.x * dtvt::window.size.x) / 2,
+                                                  r.top  + (r.bottom - r.top - dtvt::fontsz.y * dtvt::window.size.y) / 2 };
+                            dtvt::fontsz = dtvt::fontsz * dtvt::windpi / 96;;
+                            dtvt::window.coor = dtvt::window.coor * dtvt::windpi / 96;;
+
                             ::FreeConsole();
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
                             dtvt::vtmode |= ui::console::gui;
-                            if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
-                            if (dtvt::uifont == text{}) dtvt::uifont = "Consolas";
+
                             auto term = "Native GUI console";
                             log("%%Terminal type: %term%, %font% %w%×%h%", prompt::os, term, dtvt::uifont, dtvt::fontsz.x, dtvt::fontsz.y);
                             return;
@@ -4509,7 +4526,7 @@ namespace netxs::os
                     if (item.form == mime::disabled) input::board::normalize(item);
                     else                             item.set();
                     os::clipboard::set(item);
-                    auto crop = utf::trunc(item.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                    auto crop = utf::trunc(item.utf8, dtvt::window.size.y / 2); // Trim preview before sending.
                     s11n::sysboard.send(dtvt::client, id_t{}, item.size, crop.str(), item.form);
                 }
                 void handle(s11n::xs::clipdata_request lock)
@@ -4628,7 +4645,7 @@ namespace netxs::os
             m.coordxy = { si16min, si16min };
             c.fast = true;
             f.state = true;
-            w.winsize = os::dtvt::win_sz;
+            w.winsize = os::dtvt::window.size;
             focus(f);
 
             #if defined(_WIN32)
@@ -5499,8 +5516,8 @@ namespace netxs::os
                                 }
                             }
                             auto clipdata = proxy.clipdata.freeze();
-                            input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::win_sz / 2, utf8, form, meta);
-                            auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                            input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::window.size / 2, utf8, form, meta);
+                            auto crop = utf::trunc(clipdata.thing.utf8, dtvt::window.size.y / 2); // Trim preview before sending.
                             proxy.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
                         };
                         switch (uMsg)
@@ -5658,7 +5675,7 @@ namespace netxs::os
                 if (dtvt::vtmode & ui::console::nt16)
                 {
                     auto c16 = palette;
-                    c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
+                    c16.srWindow = { .Right = (si16)dtvt::window.size.x, .Bottom = (si16)dtvt::window.size.y }; // Suppress unexpected scrollbars.
                     argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
@@ -5707,7 +5724,7 @@ namespace netxs::os
                 if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
                     auto count = DWORD{};
-                    ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::win_sz.x * dtvt::win_sz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
+                    ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::window.size.x * dtvt::window.size.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
                 if (saved_fd != os::invalid_fd)
@@ -5734,9 +5751,9 @@ namespace netxs::os
         {
             #if defined(WIN32)
                 using window = gui::window<gui::w32renderer>;
-                if (auto w = window{{{ 200, 200 }, { 80, 20 }}, { 11, 22 }})
+                if (auto w = window{ dtvt::window, dtvt::uifont, dtvt::fontsz })
                 {
-                    w.show();
+                    w.show(dtvt::iconic);
                     w.dispatch();
                 }
             #else
