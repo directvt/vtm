@@ -432,8 +432,9 @@ namespace netxs::gui
                 sized = 1 << 1,
                 grips = 1 << 2,
                 inner = 1 << 3,
-                title = 1 << 4,
-                all = moved | sized | grips | inner | title,
+                header = 1 << 4,
+                footer = 1 << 5,
+                all = -1,
             };
             si32 list{ all };
             auto& operator += (si32 t) { list |= t; return *this; }
@@ -712,17 +713,16 @@ namespace netxs::gui
             canvas.move(-shadow_rastr.over / 2); //todo unify
             shadow_rastr.render(canvas, inner_rect.size);
         }
-        void draw_titles()
+        void draw_title(si32 index, twod align, wiew utf8) //todo just render ui::core
         {
-            auto header_dest = layers[header].canvas(true);
-            auto footer_dest = layers[footer].canvas(true);
-            auto h = header_dest.area().moveto(dot_00).rotate({ 1, -1 }) - shadow_dent;
-            auto f = footer_dest.area().moveto(dot_00).rotate({ -1, 1 }) - shadow_dent;
-            layers[header].textout(h, dot_00, 0xFF'ff'ff'ff, style::normal, header_text);
-            layers[footer].textout(f, dot_00, 0xFF'ff'ff'ff, style::normal, footer_text);
-            netxs::misc::contour(header_dest);
-            netxs::misc::contour(footer_dest);
+            auto& layer = layers[index];
+            auto canvas = layer.canvas(true);
+            auto r = canvas.area().moveto(dot_00).rotate(align) - shadow_dent;
+            layer.textout(r, dot_00, 0xFF'ff'ff'ff, style::normal, utf8);
+            netxs::misc::contour(canvas); // 1ms
         }
+        void draw_header() { draw_title(header, { 1, -1 }, header_text); }
+        void draw_footer() { draw_title(footer, { -1, 1 }, footer_text); }
         void redraw()
         {
             auto mods = tasks;
@@ -741,10 +741,11 @@ namespace netxs::gui
             }
             else if (mods)
             {
-                if (mods(task::sized | task::inner))   draw_grid(); // 0.600 ms
-                if (mods(task::sized | task::grips))  draw_grips(); // 0.150 ms
-                if (mods(task::sized              )) draw_shadow(); // 0.300 ms
-                if (mods(task::sized | task::title)) draw_titles();
+                if (mods(task::sized | task::inner ))   draw_grid(); // 0.600 ms
+                if (mods(task::sized | task::grips ))  draw_grips(); // 0.150 ms
+                if (mods(task::sized               )) draw_shadow(); // 0.300 ms
+                if (mods(task::sized | task::header)) draw_header();
+                if (mods(task::sized | task::footer)) draw_footer();
                 //if (hovered/*mouse test*/)
                 //{
                 //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
@@ -752,7 +753,6 @@ namespace netxs::gui
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
                 for (auto& w : layers) w.present();
-                //log("full update");
             }
         }
         //dx3d specific
