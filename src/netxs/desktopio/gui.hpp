@@ -3,14 +3,6 @@
 
 #pragma once
 
-//dx3d specific
-//#include <d3d11_2.h>
-//#include <d2d1_2.h>
-//#include <dcomp.h>
-//#include <wrl.h> // ComPtr
-//using namespace Microsoft::WRL;
-//#define GDI_ONLY 1
-
 #include <dwrite_2.h>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "Dwrite.lib")
@@ -432,7 +424,7 @@ namespace netxs::gui
                     case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
-                    case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
                 if (w->tasks) w->redraw();
@@ -474,31 +466,6 @@ namespace netxs::gui
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray>;
 
-        //dx3d specific
-        //static HRESULT __stdcall D2D1CreateFactory(D2D1_FACTORY_TYPE, IID const&, D2D1_FACTORY_OPTIONS*, void**) {}
-        //#define import_dx3d \
-        //    X(D3D11CreateDevice, D3D11) \
-        //    X(CreateDXGIFactory2, Dxgi) \
-        //    X(D2D1CreateFactory, D2d1) \
-        //    X(DCompositionCreateDevice, Dcomp)
-        //#define X(func, dll) std::decay<decltype(##func)>::type func##_ptr{}; \
-        //                    HMODULE dll##_dll{};
-        //    import_dx3d
-        //#undef X
-        //ComPtr<ID3D11Device>          d3d_Device;
-        //ComPtr<IDXGIDevice>           dxgi_Device;
-        //ComPtr<IDXGIFactory2>         dxgi_Factory;
-        //ComPtr<IDXGISwapChain1>       dxgi_SwapChain;
-        //ComPtr<IDXGISurface2>         dxgi_Surface0;
-        //ComPtr<ID2D1Factory2>         d2d_Factory;
-        //ComPtr<ID2D1Device1>          d2d_Device;
-        //ComPtr<ID2D1DeviceContext>    d2d_DC;
-        //ComPtr<ID2D1SolidColorBrush>  d2d_Brush;
-        //ComPtr<ID2D1Bitmap1>          d2d_Bitmap;
-        //ComPtr<IDCompositionDevice>   dcomp_Device;
-        //ComPtr<IDCompositionTarget>   dcomp_Target;
-        //ComPtr<IDCompositionVisual>   dcomp_Visual;
-
         enum bttn
         {
             left   = 1 << 0,
@@ -529,7 +496,6 @@ namespace netxs::gui
             }
         };
 
-        //bool dx3d; //dx3d specific
         twod mouse_coord;
         twod grid_size;
         twod cell_size;
@@ -552,8 +518,7 @@ namespace netxs::gui
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
-            : //dx3d{ faux }, //dx3d specific
-              Renderer{ font, cell_size },
+            : Renderer{ font, cell_size },
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
@@ -572,25 +537,6 @@ namespace netxs::gui
             if (!*this) return;
             layers[client].area = { win_coor_px_size_cell.coor, grid_size * cell_size };
             recalc_layout();
-
-            //dx3d specific
-            //dx3d = [&]
-            //{
-            //    if (GDI_ONLY) return faux;
-            //    #define X(func, dll) \
-            //        dll##_dll = ::LoadLibraryExA(#dll ".dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32); \
-            //        if (!dll##_dll) return faux; \
-            //        func##_ptr = reinterpret_cast<std::decay<decltype(##func)>::type>(::GetProcAddress(dll##_dll, #func));\
-            //        if (!func##_ptr) return faux;
-            //        import_dx3d
-            //    #undef import_dx3d
-            //    #undef GDI_ONLY
-            //    return true;
-            //}();
-            //if (dx3d) reinit();
-            //else log("Direct3D not found.");
-            //#undef X
-
             redraw();
             Renderer::show(win_mode);
         }
@@ -807,65 +753,6 @@ namespace netxs::gui
                 Renderer::present();
             }
         }
-        //dx3d specific
-        //void reinit()
-        //{
-        //    //todo hWnd_window
-        //    if (!ok2(D3D11CreateDevice_ptr(0, D3D_DRIVER_TYPE_HARDWARE, 0, D3D11_CREATE_DEVICE_BGRA_SUPPORT, 0, 0, D3D11_SDK_VERSION, &d3d_Device, 0, 0)))
-        //    {
-        //        ok2(D3D11CreateDevice_ptr(0, D3D_DRIVER_TYPE_WARP, 0, D3D11_CREATE_DEVICE_BGRA_SUPPORT, 0, 0, D3D11_SDK_VERSION, &d3d_Device, 0, 0)); // No GPU.
-        //    }
-        //    ok2(d3d_Device.As(&dxgi_Device));
-        //    //ok2(::CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(dxFactory), reinterpret_cast<void**>(dxFactory.GetAddressOf())));
-        //    ok2(CreateDXGIFactory2_ptr(0, __uuidof(dxgi_Factory), (void**)dxgi_Factory.GetAddressOf()));
-        //        auto dxgi_SwapChain_desc = DXGI_SWAP_CHAIN_DESC1{ .Width       = (ui32)layers[shadow].area.size.x,
-        //                                                          .Height      = (ui32)layers[shadow].area.size.y,
-        //                                                          .Format      = DXGI_FORMAT_B8G8R8A8_UNORM,
-        //                                                          .SampleDesc  = { .Count = 1 },
-        //                                                          .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        //                                                          .BufferCount = 2,
-        //                                                          .SwapEffect  = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
-        //                                                          .AlphaMode   = DXGI_ALPHA_MODE_PREMULTIPLIED };
-        //        ok2(dxgi_Factory->CreateSwapChainForComposition(dxgi_Device.Get(), &dxgi_SwapChain_desc, nullptr, dxgi_SwapChain.GetAddressOf()));
-        //            // Get the first swap chain's back buffer (surface[0])
-        //            ok2(dxgi_SwapChain->GetBuffer(0, __uuidof(dxgi_Surface0), (void**)dxgi_Surface0.GetAddressOf()));
-        //    // Create a Direct2D factory
-        //    auto d2d_factory_opts = D2D1_FACTORY_OPTIONS{ .debugLevel = D2D1_DEBUG_LEVEL_INFORMATION };
-        //    ok2(D2D1CreateFactory_ptr(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(d2d_Factory), &d2d_factory_opts, (void**)d2d_Factory.GetAddressOf()));
-        //        // Create the Direct2D device
-        //        ok2(d2d_Factory->CreateDevice(dxgi_Device.Get(), d2d_Device.GetAddressOf()));
-        //            // Create the Direct2D context
-        //            ok2(d2d_Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_DC.GetAddressOf()));
-        //                // Create a Direct2D bitmap that linked with the swap chain surface[0]
-        //                auto d2d_bitmap_props = D2D1_BITMAP_PROPERTIES1{ .pixelFormat = { .format = DXGI_FORMAT_B8G8R8A8_UNORM,
-        //                                                                                  .alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED },
-        //                                                                 .bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW };
-        //                ok2(d2d_DC->CreateBitmapFromDxgiSurface(dxgi_Surface0.Get(), d2d_bitmap_props, d2d_Bitmap.GetAddressOf()));
-        //                    // Tie the device context with the bitmap
-        //                    d2d_DC->SetTarget(d2d_Bitmap.Get());
-        //                ok2(d2d_DC->CreateSolidColorBrush({ 0.f, 1.f, 1.f, 0.25f }, d2d_Brush.GetAddressOf()));
-        //                d2d_DC->BeginDraw();
-        //                    d2d_DC->Clear();
-        //                    d2d_DC->FillEllipse({{ 150.0f, 150.0f }, 100.0f, 100.0f }, d2d_Brush.Get());
-        //                ok2(d2d_DC->EndDraw());
-        //    // Present
-        //    ok2(dxgi_SwapChain->Present(1, 0));
-        //    ok2(DCompositionCreateDevice_ptr(dxgi_Device.Get(), __uuidof(dcomp_Device), (void**)dcomp_Device.GetAddressOf()));
-        //    ok2(dcomp_Device->CreateTargetForHwnd(layers[shadow].hWnd, true, dcomp_Target.GetAddressOf()));
-        //    ok2(dcomp_Device->CreateVisual(dcomp_Visual.GetAddressOf()));
-        //        ok2(dcomp_Visual->SetContent(dxgi_SwapChain.Get()));
-        //        ok2(dcomp_Target->SetRoot(dcomp_Visual.Get()));
-        //    ok2(dcomp_Device->Commit());
-        //}
-        //void check_dx3d_state()
-        //{
-        //    log("WM_PAINT");
-        //    auto valid = BOOL{};
-        //    if (dx3d && (!dcomp_Device || (dcomp_Device->CheckDeviceState(&valid), !valid)))
-        //    {
-        //        reinit();
-        //    }
-        //}
         auto& kbs()
         {
             static auto state_kb = 0;
@@ -971,25 +858,6 @@ namespace netxs::gui
                     Renderer::moveby(dxdy);
                     tasks += task::moved;
                 }
-            }
-            else
-            {
-                //dx3d specific
-                //auto& x = coord.x;
-                //auto& y = coord.y;
-                //if (!dx3d)
-                //{
-                //}
-                //else if (d2d_DC)
-                //{
-                //    d2d_Brush->SetColor({ 0.f, 1.f, 1.f, 0.250f });
-                //    d2d_DC->BeginDraw();
-                //    //d2d_DC->Clear();
-                //    d2d_DC->FillEllipse({{ (float)x, (float)y }, 7.5f, 7.5f }, d2d_Brush.Get());
-                //    ok2(d2d_DC->EndDraw());
-                //    ok2(dxgi_SwapChain->Present(1, 0));
-                //    //ok2(dxgi_SwapChain->Present(1, 0));
-                //}
             }
             mouse_coord = coord;
             if (!buttons)
