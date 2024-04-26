@@ -723,7 +723,7 @@ namespace netxs::gui
             auto inner_rect = layers[client].area;
             auto outer_rect = layers[client].area + outer_dent;
             static auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
-            static auto fx_shade2 = [](auto& c){ c = 0x5F'23'23'23; };
+            static auto fx_shade2 = [](auto& c){ c = 0x5F'3f'3f'3f; };
             static auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
             fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, fx_trans2); });
             grips_drawn = hit_grips();

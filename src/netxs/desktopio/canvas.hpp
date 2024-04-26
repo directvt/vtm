@@ -2369,7 +2369,7 @@ namespace netxs
                 auto l = sector * (curpos - corner(length));
                 auto a = center * l / center;
                 auto b = center *~l /~center;
-                auto s = sector * std::max(a - b + center, dot_00);
+                auto s = sector * std::max(dot_00, a - b + center + sector.less(dot_00, dot_00, cell_size));
 
                 hzgrip.coor.x = widths.x;     // |----|
                 hzgrip.coor.y = 0;            // |    |
