@@ -68,7 +68,6 @@ namespace netxs::gui
         ui32 refs;
         gcfg conf;
         dwrt surf;
-        testy<bool> hovered;
 
         w32surface(w32surface const&) = default;
         w32surface(w32surface&&) = default;
@@ -83,24 +82,10 @@ namespace netxs::gui
               conf{ context },
               surf{ nullptr }
         { }
-        void set_dpi(auto /*dpi*/)
+        void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
         {
             //auto pixelsPerDip = dpi / 96.f;
             //surf->SetPixelsPerDip(pixelsPerDip);
-        }
-        auto hover(bool state)
-        {
-            auto changed = hovered(state);
-            if (hovered && changed)
-            {
-                auto mouse_track = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT),
-                                                    .dwFlags = TME_LEAVE,
-                                                    .hwndTrack = hWnd,
-                                                    .dwHoverTime = HOVER_DEFAULT };
-                auto rc = ::TrackMouseEvent(&mouse_track);
-                if (!rc) log("track = ", rc ? "ok":"failed");
-            }
-            return changed;
         }
         void reset() // We are not using custom copy/move ctors.
         {
@@ -191,18 +176,6 @@ namespace netxs::gui
                                             ULW_ALPHA);                  // DWORD         dwFlags
             if (!rc) log("UpdateLayeredWindow returns unexpected result ", rc);
             sync = true;
-        }
-        void close()
-        {
-            ::SendMessageW(hWnd, WM_CLOSE, NULL, NULL);
-        }
-        void capture_mouse()
-        {
-            ::SetCapture(hWnd);
-        }
-        void release_mouse()
-        {
-            ::ReleaseCapture();
         }
         IFACEMETHOD(DrawGlyphRun)(void* /*clientDrawingContext*/, fp32 baselineOriginX, fp32 baselineOriginY, DWRITE_MEASURING_MODE measuringMode, DWRITE_GLYPH_RUN const* glyphRun, DWRITE_GLYPH_RUN_DESCRIPTION const* glyphRunDescription, IUnknown* /*clientDrawingEffect*/)
         {
@@ -298,6 +271,7 @@ namespace netxs::gui
 
         gcfg conf;
         bool initialized;
+        wins layers;
 
         w32renderer(text font_name_utf8, twod cell_size)
             : initialized{ faux }
@@ -307,7 +281,12 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
             auto font_name = utf::to_utf(font_name_utf8);
             auto font_size = (fp32)cell_size.y;
-            auto locale = L"en-en"s;
+            auto locale = wide(LOCALE_NAME_MAX_LENGTH, '\0');
+            if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
+            {
+                locale = L"en-US";
+                log("%%Using default locale 'en-US'.", prompt::gui);
+            }
             auto font_collection = nullptr;
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::normal]));
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::italic]));
@@ -320,27 +299,44 @@ namespace netxs::gui
         }
         ~w32renderer()
         {
+            for (auto& w : layers) w.reset();
             conf.reset();
         }
+        auto& operator [] (si32 layer) { return layers[layer]; }
+
         void set_dpi_awareness()
         {
             auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc)
             {
                 auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                if (hr != S_OK) log("Set DPI awareness failed ", utf::to_hex(hr));
+                if (hr != S_OK || hr != E_ACCESSDENIED) log("Set DPI awareness failed ", utf::to_hex(hr), " ", ::GetLastError());
             }
         }
-        void move(auto& layers)
+        auto set_dpi(auto new_dpi)
         {
-            auto lock = ::BeginDeferWindowPos((si32)layers.size());
-            for (auto& w : layers)
+            //for (auto& w : layers) w.set_dpi(new_dpi);
+            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
+        }
+        auto moveby(twod coor_delta)
+        {
+            for (auto& w : layers) w.area.coor += coor_delta;
+        }
+        template<bool JustMove = faux>
+        void present()
+        {
+            if constexpr (JustMove)
             {
-                lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-                if (!lock) { log("error: ", ::GetLastError()); throw; }
-                w.prev.coor = w.area.coor;
+                auto lock = ::BeginDeferWindowPos((si32)layers.size());
+                for (auto& w : layers)
+                {
+                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
+                    w.prev.coor = w.area.coor;
+                }
+                ::EndDeferWindowPos(lock);
             }
-            ::EndDeferWindowPos(lock);
+            else for (auto& w : layers) w.present(); // 3.000 ms
         }
         void dispatch()
         {
@@ -350,44 +346,84 @@ namespace netxs::gui
                 ::DispatchMessageW(&msg);
             }
         }
+        void shown_event(bool shown, arch reason)
+        {
+            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."
+                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."
+                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."
+                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."
+                                                                            : "unknown reason");
+        }
+        void show(si32 win_state)
+        {
+            if (win_state == 0 || win_state == 2) //todo fullscreen mode (=2). 0 - normal, 1 - minimized, 2 - fullscreen
+            {
+                auto mode = SW_SHOWNORMAL;
+                for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+            }
+        }
+        void capture_mouse()
+        {
+            if (!layers.empty()) ::SetCapture(layers.front().hWnd);
+        }
+        void release_mouse()
+        {
+            ::ReleaseCapture();
+        }
+        void close()
+        {
+            if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
+        }
+        void activate()
+        {
+            log("activated");
+            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+        }
         constexpr explicit operator bool () const { return initialized; }
-        auto add(wins& layers, window* host_ptr = nullptr)
+        auto add(window* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                auto w = (window *)::GetWindowLongPtrW(hWnd, 0);
-                auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
+                //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
+                auto w = (window *)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
-                auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
-                auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
+                static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto hover_win = testy<HWND>{};
+                static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
+                static auto h = 0;
+                static auto f = 0;
                 static auto i = 0;
                 if (w->tasks) log("unsync ", i++);
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE:   w->mouse_shift(layer, { lo(lParam), hi(lParam) }); break; // Desktop-based coord.
-                    case WM_MOUSELEAVE:  w->mouse_hover(layer, faux);                       break;
-                    case WM_LBUTTONDOWN: w->mouse_press(layer, window::bttn::left,   true); break;
-                    case WM_MBUTTONDOWN: w->mouse_press(layer, window::bttn::middle, true); break;
-                    case WM_RBUTTONDOWN: w->mouse_press(layer, window::bttn::right,  true); break;
-                    case WM_LBUTTONUP:   w->mouse_press(layer, window::bttn::left,   faux); break;
-                    case WM_MBUTTONUP:   w->mouse_press(layer, window::bttn::middle, faux); break;
-                    case WM_RBUTTONUP:   w->mouse_press(layer, window::bttn::right,  faux); break;
-                    case WM_MOUSEWHEEL:  w->mouse_wheel(layer, hi(wParam), faux);           break;
-                    case WM_MOUSEHWHEEL: w->mouse_wheel(layer, hi(wParam), true);           break;
-                    case WM_ACTIVATEAPP: w->focus_event(!!wParam);                          break; // Focus between apps.
-                    case WM_ACTIVATE:    w->state_event(!!lo(wParam), !!hi(wParam));        break; // Window focus within the app.
-                    case WM_MOUSEACTIVATE: w->state_activate(); stat = MA_NOACTIVATE;       break; // Suppress window activation with a mouse click.
-                    case WM_SHOWWINDOW:  w->shown_event(!!wParam, lParam);                  break; //todo revise
+                    case WM_MOUSEMOVE:
+                        if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
+                        if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
+                        break;
+                    case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break;
+                    case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
+                    case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
+                    case WM_MOUSEACTIVATE: w->state_activate(); stat = MA_NOACTIVATE;  break; // Suppress window activation with a mouse click.
+                    case WM_LBUTTONDOWN:   w->mouse_press(window::bttn::left,   true); break;
+                    case WM_MBUTTONDOWN:   w->mouse_press(window::bttn::middle, true); break;
+                    case WM_RBUTTONDOWN:   w->mouse_press(window::bttn::right,  true); break;
+                    case WM_LBUTTONUP:     w->mouse_press(window::bttn::left,   faux); break;
+                    case WM_MBUTTONUP:     w->mouse_press(window::bttn::middle, faux); break;
+                    case WM_RBUTTONUP:     w->mouse_press(window::bttn::right,  faux); break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), faux);           break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), true);           break;
+                    case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
                     //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
                     case WM_KEYDOWN:
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
-                    case WM_SYSKEYUP:    w->keybd_press(wParam, lParam);             break;
-                    case WM_DPICHANGED:  w->set_dpi(lo(wParam));                     break;
-                    case WM_DESTROY:     ::PostQuitMessage(0);                       break;
+                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
+                    case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
+                    case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
@@ -396,7 +432,7 @@ namespace netxs::gui
                 return stat;
             };
             static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
-            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, .cbWndExtra = 2 * sizeof(LONG_PTR), .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
+            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, /*.cbWndExtra = 2 * sizeof(LONG_PTR),*/ .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
             static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
             if (!reg)
             {
@@ -416,8 +452,9 @@ namespace netxs::gui
             }
             else if (host_ptr)
             {
-                ::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
-                ::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
+                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
+                //::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
+                //::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
             }
             layers.emplace_back(conf, hWnd);
             return layer;
@@ -436,7 +473,6 @@ namespace netxs::gui
     struct window
     {
         using reng = Renderer<window>;
-        using wins = reng::wins;
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray>;
 
@@ -496,8 +532,7 @@ namespace netxs::gui
         };
 
         //bool dx3d; //dx3d specific
-        reng engine;
-        wins layers;
+        reng layers;
         twod mouse_coord;
         twod grid_size;
         twod cell_size;
@@ -528,13 +563,9 @@ namespace netxs::gui
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         constexpr explicit operator bool () const { return initialized; }
 
-        ~window()
-        {
-            for (auto& w : layers) w.reset();
-        }
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
             : //dx3d{ faux }, //dx3d specific
-              engine{ font, cell_size },
+              layers{ font, cell_size },
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
@@ -544,15 +575,15 @@ namespace netxs::gui
               outer_dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y },
               grips_drawn{ faux },
               buttons{},
-              client{ engine.add(layers, this) },
-              grip_l{ engine.add(layers, this) },
-              grip_r{ engine.add(layers, this) },
-              grip_t{ engine.add(layers, this) },
-              grip_b{ engine.add(layers, this) },
-              header{ engine.add(layers) },
-              footer{ engine.add(layers) }
+              client{ layers.add(this) },
+              grip_l{ layers.add(this) },
+              grip_r{ layers.add(this) },
+              grip_t{ layers.add(this) },
+              grip_b{ layers.add(this) },
+              header{ layers.add() },
+              footer{ layers.add() }
         {
-            if (!engine) return;
+            if (!layers) return;
             layers[client].area = { win_coor_px_size_cell.coor, grid_size * cell_size };
             recalc_layout();
 
@@ -580,8 +611,7 @@ namespace netxs::gui
         }
         auto set_dpi(auto new_dpi)
         {
-            for (auto& w : layers) w.set_dpi(new_dpi);
-            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
+            layers.set_dpi(new_dpi);
             //tasks += task::all;
         }
         void recalc_layout()
@@ -600,7 +630,7 @@ namespace netxs::gui
         }
         auto move_window(twod coor_delta)
         {
-            for (auto& w : layers) w.area.coor += coor_delta;
+            layers.moveby(coor_delta);
             tasks += task::moved;
         }
         auto size_window(twod size_delta)
@@ -637,12 +667,6 @@ namespace netxs::gui
                 move_window(coor_delta);
             }
             return layers[client].area - old_client;
-        }
-        void mouse_hover(si32 layer, bool state)
-        {
-            //log("layer = ", layer, state ? " hover":" leave");
-            auto changed = layers[layer].hover(state);
-            if (changed) tasks += task::hover;
         }
         void draw_grid()
         {
@@ -726,10 +750,9 @@ namespace netxs::gui
         }
         bool hit_grips()
         {
-            auto hit = !grip.zoomon && (grip.seized || layers[grip_l].hovered
-                                                    || layers[grip_r].hovered
-                                                    || layers[grip_t].hovered
-                                                    || layers[grip_b].hovered);
+            auto inner_rect = layers[client].area;
+            auto outer_rect = layers[client].area + outer_dent;
+            auto hit = !grip.zoomon && (grip.seized || (outer_rect.hittest(mouse_coord) && !inner_rect.hittest(mouse_coord)));
             return hit;
         }
         void fill_grips(rect area, auto fx)
@@ -789,20 +812,20 @@ namespace netxs::gui
         {
             auto mods = tasks;
             tasks.reset();
-                 if (mods.list == task::moved) engine.move(layers);
+                 if (mods.list == task::moved) layers.present<true>();
             else if (mods)
             {
                 if (mods(task::sized | task::inner ))   draw_grid();
                 if (mods(task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (mods(task::sized | task::header)) draw_header();
                 if (mods(task::sized | task::footer)) draw_footer();
-                //if (hovered/*mouse test*/)
+                //if (layers[client].area.hittest(mouse_coord))
                 //{
                 //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
                 //    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
-                for (auto& w : layers) w.present(); // 3.000 ms
+                layers.present();
             }
         }
         //dx3d specific
@@ -885,9 +908,15 @@ namespace netxs::gui
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
             return state;
         }
-        void mouse_capture(si32 layer) { layers[layer].capture_mouse(); }
-        void mouse_release() { layers[client].release_mouse(); }
-        void mouse_wheel(si32 layer, si32 delta, bool /*hz*/)
+        void mouse_capture()
+        {
+            layers.capture_mouse();
+        }
+        void mouse_release()
+        {
+            layers.release_mouse();
+        }
+        void mouse_wheel(si32 delta, bool /*hz*/)
         {
             auto wheeldt = delta / 120;
             auto kb = kbs();
@@ -908,7 +937,7 @@ namespace netxs::gui
                     grip.zoomon = true;
                     grip.zoomsz = layers[client].area;
                     grip.zoomat = mouse_coord;
-                    mouse_capture(layer);
+                    mouse_capture();
                 }
             }
             else if (grip.zoomon)
@@ -927,11 +956,9 @@ namespace netxs::gui
                 if (warp_window(next - layers[client].area)) grip.zoomdt = step;
             }
         }
-        void mouse_shift(si32 layer, twod coord)
+        void mouse_shift(twod coord)
         {
             auto kb = kbs();// keybd_state();
-            mouse_hover(layer, true);
-            coord += layers[layer].area.coor;
             auto inner_rect = layers[client].area;
             if (hit_grips() || grip.seized)
             {
@@ -970,12 +997,7 @@ namespace netxs::gui
             {
                 if (auto dxdy = coord - mouse_coord)
                 {
-                    //log("moveby ", dxdy);
-                    for (auto& w : layers)
-                    {
-                        w.area.coor += dxdy;
-                        //log("   coor: ", w.area.coor);
-                    }
+                    layers.moveby(dxdy);
                     tasks += task::moved;
                 }
             }
@@ -1006,9 +1028,9 @@ namespace netxs::gui
                                     : s ? task::grips : task::inner;
             }
         }
-        void mouse_press(si32 layer, si32 button, bool pressed)
+        void mouse_press(si32 button, bool pressed)
         {
-            if (pressed && !buttons) mouse_capture(layer);
+            if (pressed && !buttons) mouse_capture();
             pressed ? buttons |= button
                     : buttons &= ~button;
             if (!buttons) mouse_release();//todo simplify
@@ -1069,32 +1091,23 @@ namespace netxs::gui
         }
         void state_activate()
         {
-            log("activated");
-            ::SetActiveWindow(layers[client].hWnd);
+            layers.activate();
         }
-        void shown_event(bool shown, arch reason) //todo revise
+        void shown_event(bool shown, arch reason)
         {
-            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."
-                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."
-                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."
-                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."
-                                                                            : "unknown reason");
+            layers.shown_event(shown, reason);
         }
         void quit()
         {
-            layers[client].close();
+            layers.close();
         }
         void dispatch()
         {
-            engine.dispatch();
+            layers.dispatch();
         }
         void show(si32 win_state)
         {
-            if (win_state == 0 || win_state == 2) //todo fullscreen mode (=2). 0 - normal, 1 - minimized, 2 - fullscreen
-            {
-                auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
-            }
+            layers.show(win_state);
         }
     };
 }
