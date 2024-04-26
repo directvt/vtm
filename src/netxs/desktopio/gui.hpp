@@ -496,6 +496,8 @@ namespace netxs::gui
         si32 grip_b;
         si32 header;
         si32 footer;
+        bool drop_shadow{ true };
+
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         constexpr explicit operator bool () const { return initialized; }
 
@@ -567,9 +569,6 @@ namespace netxs::gui
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
-            auto i =0;
-            for (auto& w : layers) log("", i++, ": ", w.area);
-
             //layers[footer].area.coor.y += shadow_dent.t;
         }
         auto move_window(twod coor_delta)
@@ -715,61 +714,40 @@ namespace netxs::gui
                 if (auto r = layer.area.trim(area))
                 {
                     auto canvas = layer.canvas();
-                    canvas.clip(r);
-                    netxs::misc::fill(canvas, r, fx);
-                    shadow_img.render(canvas, r, inner_rect, cell::shaders::alpha);
+                    fx(canvas, r);
                 }
             }
         }
-        rect prev_side_x;
-        rect prev_side_y;
-        void draw_grips(bool wipe)
+        void draw_grips()
         {
             auto inner_rect = layers[client].area;
             auto outer_rect = layers[client].area + outer_dent;
-            auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
-            auto fx_shade2 = [](auto& c){ c = 0x5F'23'23'23; };
-            auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
-            prev_side_x.coor += inner_rect.coor;
-            prev_side_y.coor += inner_rect.coor;
+            static auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
+            static auto fx_shade2 = [](auto& c){ c = 0x5F'23'23'23; };
+            static auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
+            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, fx_trans2); });
             grips_drawn = hit_grips();
-            if (wipe || (!grips_drawn && !prev_side_x))
-            {
-                fill_grips(outer_rect, fx_trans2); // Draw shadow only.
-                prev_side_x.size = {};
-                prev_side_y.size = {};
-            }
             if (grips_drawn)
             {
+                auto s = grip.sector;
                 auto [side_x, side_y] = grip.layout(outer_rect);
-                if (auto black_area_x = side_x / prev_side_x) fill_grips(black_area_x, fx_shade2);
-                if (auto black_area_y = side_y / prev_side_y) fill_grips(black_area_y, fx_shade2);
-                if (auto white_area_x = prev_side_x / side_x) fill_grips(white_area_x, fx_trans2);
-                if (auto white_area_y = prev_side_y / side_y) fill_grips(white_area_y, fx_trans2);
-                //    netxs::misc::cage(canvas_x, side_x, dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 }, fx_black2); // 1-px dark contour around.
-                //    netxs::misc::cage(canvas_y, side_y, dent{ s.x > 0, s.x < 0, 1, 1 }, fx_black2);             //
-                prev_side_x = side_x;
-                prev_side_y = side_y;
+                auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
+                auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
+                fill_grips(side_x, [&](auto& canvas, auto r)
+                {
+                    netxs::misc::fill(canvas, r, fx_shade2);
+                    netxs::misc::cage(canvas, side_x, dent_x, fx_black2); // 1-px dark contour around.
+                });
+                fill_grips(side_y, [&](auto& canvas, auto r)
+                {
+                    netxs::misc::fill(canvas, r, fx_shade2);
+                    netxs::misc::cage(canvas, side_y, dent_y, fx_black2); // 1-px dark contour around.
+                });
             }
-            else if(prev_side_x) // Hide grips.
+            if (drop_shadow) fill_grips(outer_rect, [&](auto& canvas, auto r)
             {
-                fill_grips(prev_side_x, fx_trans2);
-                fill_grips(prev_side_y, fx_trans2);
-                prev_side_x.size = {};
-                prev_side_y.size = {};
-            }
-            prev_side_x.coor -= inner_rect.coor;
-            prev_side_y.coor -= inner_rect.coor;
-            //    //auto [side_x, side_y] = grip.draw(canvas, canvas.area(), fx_white2);
-            //    auto s = grip.sector;
-            //    auto canvas_x = layers[s.y > 0 ? grip_t : grip_b].canvas();
-            //    auto canvas_y = layers[s.x > 0 ? grip_l : grip_r].canvas();
-            //    netxs::onrect(canvas_x, side_x, fx_shade2);
-            //    netxs::onrect(canvas_y, side_y, fx_shade2);
-            //    netxs::misc::cage(canvas_x, side_x, dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 }, fx_black2); // 1-px dark contour around.
-            //    netxs::misc::cage(canvas_y, side_y, dent{ s.x > 0, s.x < 0, 1, 1 }, fx_black2);             //
-            //    //log("grips ", side_x, " ", side_y);
-            //}
+                shadow_img.render(canvas, r, inner_rect, cell::shaders::alpha);
+            });
         }
         void draw_title(si32 index, twod align, wiew utf8) //todo just render ui::core
         {
@@ -799,8 +777,8 @@ namespace netxs::gui
             }
             else if (mods)
             {
-                if (mods(task::sized | task::inner ))   draw_grid(); // 0.600 ms
-                if (mods(task::sized | task::hover | task::grips)) draw_grips(mods(task::sized)); // 0.150 ms
+                if (mods(task::sized | task::inner ))   draw_grid();
+                if (mods(task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (mods(task::sized | task::header)) draw_header();
                 if (mods(task::sized | task::footer)) draw_footer();
                 //if (hovered/*mouse test*/)
@@ -809,7 +787,7 @@ namespace netxs::gui
                 //    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
-                for (auto& w : layers) w.present();
+                for (auto& w : layers) w.present(); // 3.000 ms
             }
         }
         //dx3d specific
@@ -1025,21 +1003,21 @@ namespace netxs::gui
         {
             union key_state
             {
+                ui32 token;
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
                     ui32 scancode : 9; // 16-24 (24 - extended)
                     ui32 reserved : 5; // 25-29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
-                };
-                ui32 token;
+                } v;
             };
             auto param = key_state{ .token = (ui32)lParam };
             log("vkey: ", utf::to_hex(vkey),
-                " scode: ", utf::to_hex(param.scancode),
-                " state: ", param.state == 0 ? "pressed"
-                          : param.state == 1 ? "rep"
-                          : param.state == 3 ? "released" : "unknown");
+                " scode: ", utf::to_hex(param.v.scancode),
+                " state: ", param.v.state == 0 ? "pressed"
+                          : param.v.state == 1 ? "rep"
+                          : param.v.state == 3 ? "released" : "unknown");
             if (vkey == 0x1b) quit();
             kbs() = keybd_state();
             //auto s = keybd_state();
