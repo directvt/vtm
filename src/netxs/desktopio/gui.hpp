@@ -24,6 +24,13 @@ namespace netxs::gui
     auto fx_trans = [](auto& c){ c = 0x01'00'00'00; };
     auto fx_white = [](auto& c){ c = 0x5F'23'23'23; };
     auto fx_black = [](auto& c){ c = 0x3F'00'00'00; };
+    auto canvas_text = ansi::itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
+        .add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.").fgc(tint::greenlt).add(" Press Esc or Right click to close.");
+    auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
+    auto footer_text = L"4/4000 80:25"s;
+    auto canvas_para = ui::para{ canvas_text };
+    auto header_para = ui::para{ utf::to_utf(header_text) };
+    auto footer_para = ui::para{ utf::to_utf(footer_text) };
 
     namespace style
     {
@@ -406,7 +413,7 @@ namespace netxs::gui
                     case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break;
                     case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
                     case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
-                    case WM_MOUSEACTIVATE: w->state_activate(); stat = MA_NOACTIVATE;  break; // Suppress window activation with a mouse click.
+                    case WM_MOUSEACTIVATE: w->layers.activate(); stat = MA_NOACTIVATE;  break; // Suppress window activation with a mouse click.
                     case WM_LBUTTONDOWN:   w->mouse_press(window::bttn::left,   true); break;
                     case WM_MBUTTONDOWN:   w->mouse_press(window::bttn::middle, true); break;
                     case WM_RBUTTONDOWN:   w->mouse_press(window::bttn::right,  true); break;
@@ -415,7 +422,7 @@ namespace netxs::gui
                     case WM_RBUTTONUP:     w->mouse_press(window::bttn::right,  faux); break;
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), faux);           break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), true);           break;
-                    case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
+                    case WM_SHOWWINDOW:    w->layers.shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
                     //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
                     case WM_KEYDOWN:
@@ -460,14 +467,6 @@ namespace netxs::gui
             return layer;
         }
     };
-
-    auto canvas_text = ansi::itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
-        .add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.").fgc(tint::greenlt).add(" Press Esc or Right click to close.");
-    auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
-    auto footer_text = L"4/4000 80:25"s;
-    auto canvas_para = ui::para{ canvas_text };
-    auto header_para = ui::para{ utf::to_utf(header_text) };
-    auto footer_para = ui::para{ utf::to_utf(footer_text) };
 
     template<template<class Window> class Renderer>
     struct window
@@ -539,18 +538,10 @@ namespace netxs::gui
         twod grip_cell;
         twod grip_size;
         shad shadow_img;
-
-        dent inner_dent;
         dent outer_dent;
-
         netxs::misc::szgrips grip;
-        rect side_x_prev;
-        rect side_y_prev;
-
-        bool grips_drawn;
         si32 buttons;
         task tasks;
-        bool initialized{};
         si32 client;
         si32 grip_l;
         si32 grip_r;
@@ -561,7 +552,8 @@ namespace netxs::gui
         bool drop_shadow{ true };
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
-        constexpr explicit operator bool () const { return initialized; }
+
+        constexpr explicit operator bool () const { return !!layers; }
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
             : //dx3d{ faux }, //dx3d specific
@@ -571,9 +563,7 @@ namespace netxs::gui
               grip_cell{ grip_cell },
               grip_size{ grip_cell * cell_size },
               shadow_img{ 0.44f/*bias*/, 116.5f/*alfa*/, grip_size.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
-              inner_dent{},
               outer_dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y },
-              grips_drawn{ faux },
               buttons{},
               client{ layers.add(this) },
               grip_l{ layers.add(this) },
@@ -606,8 +596,7 @@ namespace netxs::gui
             //#undef X
 
             redraw();
-            initialized = true;
-            show(win_mode);
+            layers.show(win_mode);
         }
         auto set_dpi(auto new_dpi)
         {
@@ -775,8 +764,7 @@ namespace netxs::gui
             static auto fx_shade2 = [](auto& c){ c = 0x5F'3f'3f'3f; };
             static auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
             fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, fx_trans2); });
-            grips_drawn = hit_grips();
-            if (grips_drawn)
+            if (hit_grips())
             {
                 auto s = grip.sector;
                 auto [side_x, side_y] = grip.layout(outer_rect);
@@ -989,7 +977,7 @@ namespace netxs::gui
                 grip.zoomon = faux;
                 mouse_release();
             }
-            if (grip.calc(inner_rect, coord, outer_dent, inner_dent, cell_size))
+            if (grip.calc(inner_rect, coord, outer_dent, dent{}, cell_size))
             {
                 tasks += task::grips;
             }
@@ -1033,8 +1021,8 @@ namespace netxs::gui
             if (pressed && !buttons) mouse_capture();
             pressed ? buttons |= button
                     : buttons &= ~button;
-            if (!buttons) mouse_release();//todo simplify
-            if (!pressed & (button == bttn::right)) quit();
+            if (!buttons) mouse_release();
+            if (!pressed & (button == bttn::right)) layers.close();
         }
         void keybd_press(arch vkey, arch lParam)
         {
@@ -1055,7 +1043,7 @@ namespace netxs::gui
                 " state: ", param.v.state == 0 ? "pressed"
                           : param.v.state == 1 ? "rep"
                           : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) quit();
+            if (vkey == 0x1b) layers.close();
             kbs() = keybd_state();
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
@@ -1088,18 +1076,6 @@ namespace netxs::gui
         void state_event(bool activated, bool minimized)
         {
             log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
-        }
-        void state_activate()
-        {
-            layers.activate();
-        }
-        void shown_event(bool shown, arch reason)
-        {
-            layers.shown_event(shown, reason);
-        }
-        void quit()
-        {
-            layers.close();
         }
         void dispatch()
         {
