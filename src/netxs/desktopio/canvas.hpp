@@ -2335,27 +2335,12 @@ namespace netxs
             auto calc(rect window, twod curpos, dent outer, dent inner, twod cell_size = dot_11)
             {
                 auto border = outer - inner;
+                auto inside_old = inside;
+                auto hzgrip_old = hzgrip;
+                auto vtgrip_old = vtgrip;
                 auto inner_rect = window + inner;
                 auto outer_rect = window + outer;
-
-                auto inside_prev = inside;
-                auto hzgrip_prev = hzgrip;
-                auto vtgrip_prev = vtgrip;
-
-                inside = !inner_rect.hittest(curpos)
-                       && outer_rect.hittest(curpos);
-                //if (!seized)
-                {
-                    ////curpos = inner_rect.clamp(curpos);
-                    //auto r1 = inner_rect;
-                    //auto l1 = r1.coor - curpos;
-                    //auto l2 = r1.coor + r1.size - curpos;
-                    //auto m = std::min({ std::abs(l1.x), std::abs(l1.y), std::abs(l2.x), std::abs(l2.y) });
-                    //m == std::abs(l1.x) ? curpos.x = r1.coor.x :
-                    //m == std::abs(l1.y) ? curpos.y = r1.coor.y :
-                    //m == std::abs(l2.x) ? curpos.x = r1.coor.x + r1.size.x :
-                    //                      curpos.y = r1.coor.y + r1.size.y;
-                }
+                inside = !inner_rect.hittest(curpos) && outer_rect.hittest(curpos);
                 auto& length = outer_rect.size;
                 curpos = quantize(curpos, outer_rect.coor, cell_size);
                 auto center = std::max(length / 2, dot_11);
@@ -2379,7 +2364,7 @@ namespace netxs
                 vtgrip.coor = dot_00;
                 vtgrip.size = widths;
                 vtgrip.size.y += s.y - s.y % cell_size.y;
-                auto changed = inside_prev != inside || (inside && (hzgrip_prev != hzgrip || vtgrip_prev != vtgrip));
+                auto changed = inside_old != inside || (inside && (hzgrip_old != hzgrip || vtgrip_old != vtgrip));
                 return changed;
             }
             auto drag(rect window, twod curpos, dent outer, bool zoom, twod cell_size = dot_11) const

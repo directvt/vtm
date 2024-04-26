@@ -196,6 +196,14 @@ namespace netxs::gui
         {
             ::SendMessageW(hWnd, WM_CLOSE, NULL, NULL);
         }
+        void capture_mouse()
+        {
+            ::SetCapture(hWnd);
+        }
+        void release_mouse()
+        {
+            ::ReleaseCapture();
+        }
         IFACEMETHOD(DrawGlyphRun)(void* /*clientDrawingContext*/, fp32 baselineOriginX, fp32 baselineOriginY, DWRITE_MEASURING_MODE measuringMode, DWRITE_GLYPH_RUN const* glyphRun, DWRITE_GLYPH_RUN_DESCRIPTION const* glyphRunDescription, IUnknown* /*clientDrawingEffect*/)
         {
             auto dirtyRect = RECT{};
@@ -321,6 +329,25 @@ namespace netxs::gui
             {
                 auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
                 if (hr != S_OK) log("Set DPI awareness failed ", utf::to_hex(hr));
+            }
+        }
+        void move(auto& layers)
+        {
+            auto lock = ::BeginDeferWindowPos((si32)layers.size());
+            for (auto& w : layers)
+            {
+                lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                if (!lock) { log("error: ", ::GetLastError()); throw; }
+                w.prev.coor = w.area.coor;
+            }
+            ::EndDeferWindowPos(lock);
+        }
+        void dispatch()
+        {
+            auto msg = MSG{};
+            while (::GetMessageW(&msg, 0, 0, 0) > 0)
+            {
+                ::DispatchMessageW(&msg);
             }
         }
         constexpr explicit operator bool () const { return initialized; }
@@ -707,10 +734,9 @@ namespace netxs::gui
         }
         void fill_grips(rect area, auto fx)
         {
-            auto inner_rect = layers[client].area;
-            for (auto i = grip_l; i <= grip_b; i++)
+            for (auto g : { grip_l, grip_r, grip_t, grip_b })
             {
-                auto& layer = layers[i];
+                auto& layer = layers[g];
                 if (auto r = layer.area.trim(area))
                 {
                     auto canvas = layer.canvas();
@@ -763,18 +789,7 @@ namespace netxs::gui
         {
             auto mods = tasks;
             tasks.reset();
-            if (mods.list == task::moved)
-            {
-                //todo unify
-                auto lock = ::BeginDeferWindowPos((si32)layers.size());
-                for (auto& w : layers)
-                {
-                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-                    if (!lock) { log("error: ", ::GetLastError()); throw; }
-                    w.prev.coor = w.area.coor;
-                }
-                ::EndDeferWindowPos(lock);
-            }
+                 if (mods.list == task::moved) engine.move(layers);
             else if (mods)
             {
                 if (mods(task::sized | task::inner ))   draw_grid();
@@ -870,8 +885,8 @@ namespace netxs::gui
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
             return state;
         }
-        void mouse_capture(si32 layer) { ::SetCapture(layers[layer].hWnd); }
-        void mouse_release() { ::ReleaseCapture(); }
+        void mouse_capture(si32 layer) { layers[layer].capture_mouse(); }
+        void mouse_release() { layers[client].release_mouse(); }
         void mouse_wheel(si32 layer, si32 delta, bool /*hz*/)
         {
             auto wheeldt = delta / 120;
@@ -996,7 +1011,7 @@ namespace netxs::gui
             if (pressed && !buttons) mouse_capture(layer);
             pressed ? buttons |= button
                     : buttons &= ~button;
-            if (!buttons) mouse_release();
+            if (!buttons) mouse_release();//todo simplify
             if (!pressed & (button == bttn::right)) quit();
         }
         void keybd_press(arch vkey, arch lParam)
@@ -1071,11 +1086,7 @@ namespace netxs::gui
         }
         void dispatch()
         {
-            auto msg = MSG{};
-            while (::GetMessageW(&msg, 0, 0, 0) > 0)
-            {
-                ::DispatchMessageW(&msg);
-            }
+            engine.dispatch();
         }
         void show(si32 win_state)
         {
