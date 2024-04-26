@@ -201,6 +201,18 @@ namespace netxs
             chan.a = (byte)std::clamp(k * 255.f, 0.f, 255.f);
             return *this;
         }
+        // argb: Sum alpha channel.
+        auto& alpha_sum(si32 k)
+        {
+            chan.a = (byte)std::clamp(chan.a + k, 0, 255);
+            return *this;
+        }
+        // argb: Sum alpha channel.
+        auto& alpha_sum(fp32 k)
+        {
+            chan.a = (byte)std::clamp(chan.a + k * 255.f, 0.f, 255.f);
+            return *this;
+        }
         // argb: Return alpha channel.
         auto alpha() const
         {
@@ -1934,7 +1946,7 @@ namespace netxs
             struct alpha_t : public brush_t<alpha_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha(src); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha_sum(src); }
             };
             struct full_t : public brush_t<full_t>
             {
@@ -2188,7 +2200,7 @@ namespace netxs
 
     namespace misc //todo classify
     {
-        template<class T, auto fx>
+        template<class T>
         struct shadow
         {
             T  bitmap{};
@@ -2212,7 +2224,7 @@ namespace netxs
                 //offset  +=  ratio * _k3;
                 sync = true;
                 alfa = std::clamp(alfa, 0.f, 255.f);
-                size = std::abs(size) * 2;
+                size = std::abs(size);
                 over = ratio * (size * 2);
                 step = over / 2 - offset;
                 auto spline = netxs::spline01{ bias };
@@ -2233,42 +2245,46 @@ namespace netxs
                     }
                 }
             }
-            auto render(auto& canvas, auto win_size)
+            auto render(auto&& canvas, auto clip, auto window, auto fx)
             {
-                canvas.step(step);
+                auto dst = rect{ window.coor - over / 2, window.size + over };
+                if (!dst.trim(clip)) return;
+                auto basis = step - window.coor;
+                clip.coor += basis;
+                canvas.step(basis);
+                dst.coor = dot_00;
                 auto src = bitmap.area();
-                auto dst = rect{ dot_00, win_size + over };
                 auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
                 auto off = dent{ 0, cut.x, 0, cut.y };
                 src += off;
                 auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
                 auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
                 auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
-                if (mid)
+                if (auto m = mid.trim(clip))
                 {
                     auto base_shadow = bitmap[src.size - dot_11];
-                    netxs::onrect(canvas, mid, fx(base_shadow));
+                    netxs::onrect(canvas, m, fx(base_shadow));
                 }
                 if (top)
                 {
                     auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
-                    netxs::xform_scale(canvas, top, bitmap, pen, fx);
+                    netxs::xform_scale(canvas, top, clip, bitmap, pen, fx);
                     top.coor.y += mid.size.y + top.size.y;
-                    netxs::xform_scale(canvas, top, bitmap, pen.rotate({ 1, -1 }), fx);
+                    netxs::xform_scale(canvas, top, clip, bitmap, pen.rotate({ 1, -1 }), fx);
                 }
                 if (lft)
                 {
                     auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
-                    netxs::xform_scale(canvas, lft, bitmap, pen, fx);
+                    netxs::xform_scale(canvas, lft, clip, bitmap, pen, fx);
                     lft.coor.x += mid.size.x + lft.size.x;
-                    netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
+                    netxs::xform_scale(canvas, lft, clip, bitmap, pen.rotate({ -1, 1 }), fx);
                 }
                 auto dir = dot_11;
-                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                canvas.step(-step);
+                            netxs::xform_mirror(canvas, clip, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, clip, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir.x += 2; netxs::xform_mirror(canvas, clip, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, clip, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                canvas.step(-basis);
             }
         };
         struct szgrips
@@ -2328,16 +2344,17 @@ namespace netxs
 
                 inside = !inner_rect.hittest(curpos)
                        && outer_rect.hittest(curpos);
-                if (!seized)
+                //if (!seized)
                 {
-                    auto r1 = inner_rect;
-                    auto l1 = r1.coor - curpos;
-                    auto l2 = r1.coor + r1.size - curpos;
-                    auto m = std::min({ std::abs(l1.x), std::abs(l1.y), std::abs(l2.x), std::abs(l2.y) });
-                    m == std::abs(l1.x) ? curpos.x = r1.coor.x :
-                    m == std::abs(l1.y) ? curpos.y = r1.coor.y :
-                    m == std::abs(l2.x) ? curpos.x = r1.coor.x + r1.size.x :
-                                          curpos.y = r1.coor.y + r1.size.y;
+                    ////curpos = inner_rect.clamp(curpos);
+                    //auto r1 = inner_rect;
+                    //auto l1 = r1.coor - curpos;
+                    //auto l2 = r1.coor + r1.size - curpos;
+                    //auto m = std::min({ std::abs(l1.x), std::abs(l1.y), std::abs(l2.x), std::abs(l2.y) });
+                    //m == std::abs(l1.x) ? curpos.x = r1.coor.x :
+                    //m == std::abs(l1.y) ? curpos.y = r1.coor.y :
+                    //m == std::abs(l2.x) ? curpos.x = r1.coor.x + r1.size.x :
+                    //                      curpos.y = r1.coor.y + r1.size.y;
                 }
                 auto& length = outer_rect.size;
                 curpos = quantize(curpos, outer_rect.coor, cell_size);
@@ -2354,9 +2371,9 @@ namespace netxs
                 auto b = center *~l /~center;
                 auto s = sector * std::max(a - b + center, dot_00);
 
-                hzgrip.coor.x = widths.x;
-                hzgrip.coor.y = 0;
-                hzgrip.size.y = widths.y;
+                hzgrip.coor.x = widths.x;     // |----|
+                hzgrip.coor.y = 0;            // |    |
+                hzgrip.size.y = widths.y;     // |----|
                 hzgrip.size.x = s.x - s.x % cell_size.x;
 
                 vtgrip.coor = dot_00;
@@ -2384,14 +2401,18 @@ namespace netxs
             {
                 seized = faux;
             }
-            auto draw(auto& canvas, rect area, auto fx) const
+            auto layout(rect area) const
             {
                 auto vertex = corner(area.size);
                 auto side_x = hzgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
                 auto side_y = vtgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
+                return std::pair{ side_x, side_y };
+            }
+            auto draw(auto& canvas, rect area, auto fx) const
+            {
+                auto [side_x, side_y] = layout(area);
                 netxs::onrect(canvas, side_x, fx);
                 netxs::onrect(canvas, side_y, fx);
-                return std::pair{ side_x, side_y };
             }
         };
 
@@ -2404,7 +2425,7 @@ namespace netxs
         {
             netxs::onrect(canvas, canvas.area(), fx);
         }
-        void cage(auto& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
+        void cage(auto&& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top

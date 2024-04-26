@@ -2095,14 +2095,14 @@ namespace netxs::ui
             {
                 if (skin::globals().shadow_enabled)
                 {
-                    static auto shadow = netxs::misc::shadow<core, cell::shaders::blend>{};
+                    static auto shadow = netxs::misc::shadow<core>{};
                     if (!shadow.sync) shadow.generate(skin::globals().shadow_bias,
                                                       skin::globals().shadow_opacity,
-                                                      skin::globals().shadow_blur,
+                                                      skin::globals().shadow_blur * 2,
                                                       skin::globals().shadow_offset,
                                                       dot_21,
                                                       [](cell& c, auto a){ c.alpha(a); });
-                    shadow.render(canvas, boss.base::size());
+                    shadow.render(canvas, canvas.area(), rect{ .size = boss.base::size() }, cell::shaders::blend);
                 }
             }
 

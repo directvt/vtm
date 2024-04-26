@@ -608,13 +608,14 @@ namespace netxs
 
     // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
     template<class NewlineFx = noop>
-    void xform_scale(auto&& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_scale(auto&& canvas, auto canvas_rect, auto clip_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        clip_rect.coor -= canvas.coor();
         canvas_rect.coor -= canvas.coor();
         bitmap_rect.coor -= bitmap.coor();
-        auto dst_view = canvas_rect.trunc(dst_size);
+        auto dst_view = canvas_rect.trim(clip_rect).trunc(dst_size);
         auto src_view = bitmap_rect.trunc(src_size);
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
@@ -651,16 +652,17 @@ namespace netxs
 
     // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
     template<class NewlineFx = noop>
-    void xform_mirror(auto&& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_mirror(auto&& canvas, auto clip_rect, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        clip_rect.coor -= canvas.coor();
         canvas_rect_coor -= canvas.coor();
         bitmap_rect.coor -= bitmap.coor();
         auto src_view = bitmap_rect.trunc(src_size);
         bitmap_rect.coor = canvas_rect_coor;
         auto dst_area = bitmap_rect.normalize();
-        auto dst_view = dst_area.trunc(dst_size);
+        auto dst_view = dst_area.trim(clip_rect).trunc(dst_size);
         src_view -= dst_area - dst_view; // Cut invisible sides.
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0

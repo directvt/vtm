@@ -204,6 +204,7 @@ namespace netxs
         rect   shift           (twod p) const { return { coor + p, size };                    }
         auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
         auto&  moveto          (twod p)       { coor = p;  return *this;                      }
+        rect   operator /      (twod p) const { return { coor / p, size / p };                }
         rect   operator |      (rect r) const { return unite(r, *this);                       }
         auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
         auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }
@@ -643,6 +644,40 @@ namespace netxs
         auto end = r1.size - r2.size - top;
         return dent{ top.x, end.x,
                      top.y, end.y };
+    }
+    // dent: Exclude r2 from r1.
+    auto operator / (rect r1, rect r2)
+    {
+        r2 = r1.trim(r2);
+        auto top = r2.coor - r1.coor;
+        auto end = r1.size - r2.size - top;
+        if (top.y == 0 && end.y == 0)
+        {
+            if (top.x > 0)
+            {
+                r1.size.x = std::min(r1.size.x, top.x);
+            }
+            else
+            {
+                auto dx = std::max(0, r1.size.x - end.x);
+                r1.coor.x += dx;
+                r1.size.x -= dx;
+            }
+        }
+        else if (top.x == 0 && end.x == 0)
+        {
+            if (top.y > 0)
+            {
+                r1.size.y = std::min(r1.size.y, top.y);
+            }
+            else
+            {
+                auto dy = std::max(0, r1.size.y - end.y);
+                r1.coor.y += dy;
+                r1.size.y -= dy;
+            }
+        }
+        return r1;
     }
 
     // geometry: Scroll info.
