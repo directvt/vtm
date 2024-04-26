@@ -262,17 +262,23 @@ namespace netxs::gui
         }
     };
 
-    template<class window>
-    struct w32renderer
+    struct renderer
     {
         using gcfg = w32surface::gcfg;
         using wins = std::vector<w32surface>;
+
+        enum bttn
+        {
+            left   = 1 << 0,
+            right  = 1 << 1,
+            middle = 1 << 2,
+        };
 
         gcfg conf;
         bool initialized;
         wins layers;
 
-        w32renderer(text font_name_utf8, twod cell_size)
+        renderer(text font_name_utf8, twod cell_size)
             : initialized{ faux }
         {
             set_dpi_awareness();
@@ -296,7 +302,7 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
             initialized = true;
         }
-        ~w32renderer()
+        ~renderer()
         {
             for (auto& w : layers) w.reset();
             conf.reset();
@@ -378,14 +384,26 @@ namespace netxs::gui
             log("activated");
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
         }
+        void state_event(bool activated, bool minimized)
+        {
+            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+        }
+
+        virtual void update() = 0;
+        virtual void mouse_shift(twod coord) = 0;
+        virtual void focus_event(bool state) = 0;
+        virtual void mouse_press(si32 index, bool pressed) = 0;
+        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
+        virtual void keybd_press(arch vkey, arch lParam) = 0;
+
         constexpr explicit operator bool () const { return initialized; }
-        auto add(window* host_ptr = nullptr)
+        auto add(renderer* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
-                auto w = (window *)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                auto w = (renderer*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
                 static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
@@ -394,8 +412,6 @@ namespace netxs::gui
                 static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
                 static auto h = 0;
                 static auto f = 0;
-                static auto i = 0;
-                if (w->tasks) log("unsync ", i++);
                 switch (msg)
                 {
                     case WM_MOUSEMOVE:
@@ -406,12 +422,12 @@ namespace netxs::gui
                     case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
                     case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
                     case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
-                    case WM_LBUTTONDOWN:   w->mouse_press(window::bttn::left,   true); break;
-                    case WM_MBUTTONDOWN:   w->mouse_press(window::bttn::middle, true); break;
-                    case WM_RBUTTONDOWN:   w->mouse_press(window::bttn::right,  true); break;
-                    case WM_LBUTTONUP:     w->mouse_press(window::bttn::left,   faux); break;
-                    case WM_MBUTTONUP:     w->mouse_press(window::bttn::middle, faux); break;
-                    case WM_RBUTTONUP:     w->mouse_press(window::bttn::right,  faux); break;
+                    case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
+                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
+                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
+                    case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
+                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
+                    case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), faux);           break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), true);           break;
                     case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
@@ -427,7 +443,7 @@ namespace netxs::gui
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
-                if (w->tasks) w->redraw();
+                w->update();
                 return stat;
             };
             static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
@@ -460,18 +476,11 @@ namespace netxs::gui
         }
     };
 
-    struct window : w32renderer<window>
+    struct window : renderer
     {
-        using Renderer = w32renderer;
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray>;
 
-        enum bttn
-        {
-            left   = 1 << 0,
-            right  = 1 << 1,
-            middle = 1 << 2,
-        };
         struct task
         {
             enum
@@ -518,7 +527,7 @@ namespace netxs::gui
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
-            : Renderer{ font, cell_size },
+            : renderer{ font, cell_size },
               grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
@@ -537,8 +546,8 @@ namespace netxs::gui
             if (!*this) return;
             layers[client].area = { win_coor_px_size_cell.coor, grid_size * cell_size };
             recalc_layout();
-            redraw();
-            Renderer::show(win_mode);
+            update();
+            renderer::show(win_mode);
         }
         void recalc_layout()
         {
@@ -556,7 +565,7 @@ namespace netxs::gui
         }
         auto move_window(twod coor_delta)
         {
-            Renderer::moveby(coor_delta);
+            renderer::moveby(coor_delta);
             tasks += task::moved;
         }
         auto size_window(twod size_delta)
@@ -733,11 +742,12 @@ namespace netxs::gui
         }
         void draw_header() { draw_title(header, { 1, -1 }, header_text); }
         void draw_footer() { draw_title(footer, { -1, 1 }, footer_text); }
-        void redraw()
+        void update()
         {
+            if (!tasks) return;
             auto mods = tasks;
             tasks.reset();
-                 if (mods.list == task::moved) Renderer::present<true>();
+                 if (mods.list == task::moved) renderer::present<true>();
             else if (mods)
             {
                 if (mods(task::sized | task::inner ))   draw_grid();
@@ -750,7 +760,7 @@ namespace netxs::gui
                 //    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
-                Renderer::present();
+                renderer::present();
             }
         }
         auto& kbs()
@@ -855,7 +865,7 @@ namespace netxs::gui
             {
                 if (auto dxdy = coord - mouse_coord)
                 {
-                    Renderer::moveby(dxdy);
+                    renderer::moveby(dxdy);
                     tasks += task::moved;
                 }
             }
@@ -873,7 +883,7 @@ namespace netxs::gui
             pressed ? buttons |= button
                     : buttons &= ~button;
             if (!buttons) mouse_release();
-            if (!pressed & (button == bttn::right)) Renderer::close();
+            if (!pressed & (button == bttn::right)) renderer::close();
         }
         void keybd_press(arch vkey, arch lParam)
         {
@@ -894,7 +904,7 @@ namespace netxs::gui
                 " state: ", param.v.state == 0 ? "pressed"
                           : param.v.state == 1 ? "rep"
                           : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) Renderer::close();
+            if (vkey == 0x1b) renderer::close();
             kbs() = keybd_state();
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
@@ -923,10 +933,6 @@ namespace netxs::gui
         void focus_event(bool focused)
         {
             log(focused ? "focused" : "unfocused");
-        }
-        void state_event(bool activated, bool minimized)
-        {
-            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
         }
     };
 }
