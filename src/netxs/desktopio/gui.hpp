@@ -32,7 +32,7 @@ namespace netxs::gui
         static constexpr auto bold_italic = bold | italic;
     };
 
-    struct w32surface : IDWriteTextRenderer
+    struct surface : IDWriteTextRenderer
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using dwrt = IDWriteBitmapRenderTarget*;
@@ -57,8 +57,8 @@ namespace netxs::gui
             }
         };
 
-        HDC  hdc;
-        argb fgc;
+        HDC   hdc;
+        argb  fgc;
         HWND hWnd;
         bool sync;
         rect prev;
@@ -68,9 +68,9 @@ namespace netxs::gui
         gcfg conf;
         dwrt surf;
 
-        w32surface(w32surface const&) = default;
-        w32surface(w32surface&&) = default;
-        w32surface(gcfg context, HWND hWnd)
+        surface(surface const&) = default;
+        surface(surface&&) = default;
+        surface(gcfg context, HWND hWnd)
             :  hdc{},
               hWnd{ hWnd },
               sync{ faux },
@@ -262,10 +262,10 @@ namespace netxs::gui
         }
     };
 
-    struct renderer
+    struct render
     {
-        using gcfg = w32surface::gcfg;
-        using wins = std::vector<w32surface>;
+        using gcfg = surface::gcfg;
+        using wins = std::vector<surface>;
 
         enum bttn
         {
@@ -278,14 +278,14 @@ namespace netxs::gui
         bool initialized;
         wins layers;
 
-        renderer(text font_name_utf8, twod cell_size)
+        render(text font_name_utf8, twod cellsz)
             : initialized{ faux }
         {
             set_dpi_awareness();
             ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&conf.pDWriteFactory)));
             ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
             auto font_name = utf::to_utf(font_name_utf8);
-            auto font_size = (fp32)cell_size.y;
+            auto font_size = (fp32)cellsz.y;
             auto locale = wide(LOCALE_NAME_MAX_LENGTH, '\0');
             if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
             {
@@ -302,12 +302,13 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
             initialized = true;
         }
-        ~renderer()
+        ~render()
         {
             for (auto& w : layers) w.reset();
             conf.reset();
         }
         auto& operator [] (si32 layer) { return layers[layer]; }
+        explicit operator bool () const { return initialized; }
 
         void set_dpi_awareness()
         {
@@ -396,14 +397,13 @@ namespace netxs::gui
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
 
-        constexpr explicit operator bool () const { return initialized; }
-        auto add(renderer* host_ptr = nullptr)
+        auto add(render* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
-                auto w = (renderer*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                auto w = (render*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
                 static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
@@ -476,10 +476,11 @@ namespace netxs::gui
         }
     };
 
-    struct window : renderer
+    struct window : render
     {
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray>;
+        using grip = netxs::misc::szgrips;
 
         struct task
         {
@@ -505,16 +506,15 @@ namespace netxs::gui
             }
         };
 
-        twod mouse_coord;
-        twod grid_size;
-        twod cell_size;
-        twod grip_cell;
-        twod grip_size;
-        shad shadow_img;
-        dent outer_dent;
-        netxs::misc::szgrips grip;
-        si32 buttons;
-        task tasks;
+        twod gridsz;
+        twod cellsz;
+        twod gripsz;
+        shad shadow;
+        dent border;
+        grip szgrip;
+        twod mcoord;
+        si32 mbttns;
+        task reload;
         si32 client;
         si32 grip_l;
         si32 grip_r;
@@ -527,14 +527,13 @@ namespace netxs::gui
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
-            : renderer{ font, cell_size },
-              grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
-              cell_size{ cell_size },
-              grip_cell{ grip_cell },
-              grip_size{ grip_cell * cell_size },
-              shadow_img{ 0.44f/*bias*/, 116.5f/*alfa*/, grip_size.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
-              outer_dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y },
-              buttons{},
+            : render{ font, cell_size },
+              gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
+              cellsz{ cell_size },
+              gripsz{ grip_cell * cell_size },
+              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
+              border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
+              mbttns{},
               client{ add(this) },
               grip_l{ add(this) },
               grip_r{ add(this) },
@@ -544,20 +543,20 @@ namespace netxs::gui
               footer{ add() }
         {
             if (!*this) return;
-            layers[client].area = { win_coor_px_size_cell.coor, grid_size * cell_size };
+            layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             update();
-            renderer::show(win_mode);
+            render::show(win_mode);
         }
         void recalc_layout()
         {
             auto base_rect = layers[client].area;
-            layers[grip_l].area = base_rect + dent{ grip_size.x, -base_rect.size.x, grip_size.y, grip_size.y };
-            layers[grip_r].area = base_rect + dent{ -base_rect.size.x, grip_size.x, grip_size.y, grip_size.y };
-            layers[grip_t].area = base_rect + dent{ 0, 0, grip_size.y, -base_rect.size.y };
-            layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, grip_size.y };
-            auto header_height = cell_size.y * ((header_para.size().x + grid_size.x - 1) / grid_size.x);
-            auto footer_height = cell_size.y * ((footer_para.size().x + grid_size.x - 1) / grid_size.x);
+            layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
+            layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
+            layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
+            layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
+            auto header_height = cellsz.y * ((header_para.size().x + gridsz.x - 1) / gridsz.x);
+            auto footer_height = cellsz.y * ((footer_para.size().x + gridsz.x - 1) / gridsz.x);
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
@@ -565,25 +564,24 @@ namespace netxs::gui
         }
         auto move_window(twod coor_delta)
         {
-            renderer::moveby(coor_delta);
-            tasks += task::moved;
+            render::moveby(coor_delta);
+            reload += task::moved;
         }
         auto size_window(twod size_delta)
         {
             layers[client].area.size += size_delta;
             recalc_layout();
-            tasks += task::sized;
+            reload += task::sized;
         }
         auto resize_window(twod size_delta)
         {
             auto old_client = layers[client].area;
-            auto new_size = old_client.size + size_delta;
-            auto new_grid_size = std::max(dot_11, new_size / cell_size);
+            auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = dot_00;
-            if (grid_size != new_grid_size)
+            if (gridsz != new_gridsz)
             {
-                grid_size = new_grid_size;
-                size_delta = grid_size * cell_size - old_client.size;
+                gridsz = new_gridsz;
+                size_delta = gridsz * cellsz - old_client.size;
                 size_window(size_delta);
             }
             return size_delta;
@@ -592,11 +590,11 @@ namespace netxs::gui
         {
             auto old_client = layers[client].area;
             auto new_client = old_client + warp_delta;
-            auto new_grid_size = std::max(dot_11, new_client.size / cell_size);
-            if (grid_size != new_grid_size)
+            auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
+            if (gridsz != new_gridsz)
             {
-                grid_size = new_grid_size;
-                auto size_delta = grid_size * cell_size - old_client.size;
+                gridsz = new_gridsz;
+                auto size_delta = gridsz * cellsz - old_client.size;
                 auto coor_delta = new_client.coor - old_client.coor;
                 size_window(size_delta);
                 move_window(coor_delta);
@@ -607,7 +605,7 @@ namespace netxs::gui
         {
             auto canvas = layers[client].canvas();
             auto region = canvas.area();
-            auto r  = rect{{}, cell_size };
+            auto r  = rect{{}, cellsz };
             auto lt = dent{ 1, 0, 1, 0 };
             auto rb = dent{ 0, 1, 0, 1 };
             auto fx_pure_wt = [](auto& c){ c = 0xFF'ff'ff'ff; };
@@ -622,12 +620,12 @@ namespace netxs::gui
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::pureblack };
             auto lbc = argb{ tint::pureblue  }.alpha(0.5f);
-            for (r.coor.y = 0; r.coor.y < region.size.y; r.coor.y += cell_size.y)
+            for (r.coor.y = 0; r.coor.y < region.size.y; r.coor.y += cellsz.y)
             {
                 auto y = (fp32)r.coor.y / (region.size.y - 1);
                 auto lc = argb::transit(ltc, lbc, y);
                 auto rc = argb::transit(rtc, rbc, y);
-                for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cell_size.x)
+                for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cellsz.x)
                 {
                     auto x = (fp32)r.coor.x / (region.size.x - 1);
                     auto p = argb::transit(lc, rc, x);
@@ -647,13 +645,13 @@ namespace netxs::gui
             //netxs::onrect(canvas, c3, fx_pure_wt);
 
             canvas.step(region.coor);
-            auto r_init = rect{ .coor = grip_size + cell_size * dot_01, .size = region.size };
+            auto r_init = rect{ .coor = gripsz + cellsz * dot_01, .size = region.size };
             r = r_init;
-            r.coor.y += cell_size.y;
+            r.coor.y += cellsz.y;
             auto& content = canvas_para.content();
             auto& layer = layers[client];
-            auto m = grip_size + region.size;
-            auto right_part = twod{ -cell_size.x, 0 };
+            auto m = gripsz + region.size;
+            auto right_part = twod{ -cellsz.x, 0 };
 
             auto hdc = layer.hdc;
             auto left = r.coor.x;
@@ -671,11 +669,11 @@ namespace netxs::gui
                 if (!fgc) fgc = argb{ tint::cyanlt };
                 auto w = c.wdt() == 3 ? right_part : dot_00;
                 layer.textout(r, w, fgc, format, utf::to_utf(c.txt()));
-                r.coor.x += cell_size.x;
+                r.coor.x += cellsz.x;
                 if (r.coor.x >= m.x)
                 {
                     r.coor.x = r_init.coor.x;
-                    r.coor.y += cell_size.y;
+                    r.coor.y += cellsz.y;
                     if (r.coor.y >= m.y) break;
                 }
                 off = r.coor - off;
@@ -686,8 +684,8 @@ namespace netxs::gui
         bool hit_grips()
         {
             auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + outer_dent;
-            auto hit = !grip.zoomon && (grip.seized || (outer_rect.hittest(mouse_coord) && !inner_rect.hittest(mouse_coord)));
+            auto outer_rect = layers[client].area + border;
+            auto hit = !szgrip.zoomon && (szgrip.seized || (outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
             return hit;
         }
         void fill_grips(rect area, auto fx)
@@ -705,15 +703,15 @@ namespace netxs::gui
         void draw_grips()
         {
             auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + outer_dent;
+            auto outer_rect = layers[client].area + border;
             static auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
             static auto fx_shade2 = [](auto& c){ c = 0x5F'3f'3f'3f; };
             static auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
             fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, fx_trans2); });
             if (hit_grips())
             {
-                auto s = grip.sector;
-                auto [side_x, side_y] = grip.layout(outer_rect);
+                auto s = szgrip.sector;
+                auto [side_x, side_y] = szgrip.layout(outer_rect);
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
                 fill_grips(side_x, [&](auto& canvas, auto r)
@@ -729,7 +727,7 @@ namespace netxs::gui
             }
             if (drop_shadow) fill_grips(outer_rect, [&](auto& canvas, auto r)
             {
-                shadow_img.render(canvas, r, inner_rect, cell::shaders::alpha);
+                shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
         }
         void draw_title(si32 index, twod align, wiew utf8) //todo just render ui::core
@@ -744,23 +742,23 @@ namespace netxs::gui
         void draw_footer() { draw_title(footer, { -1, 1 }, footer_text); }
         void update()
         {
-            if (!tasks) return;
-            auto mods = tasks;
-            tasks.reset();
-                 if (mods.list == task::moved) renderer::present<true>();
+            if (!reload) return;
+            auto mods = reload;
+            reload.reset();
+                 if (mods.list == task::moved) render::present<true>();
             else if (mods)
             {
                 if (mods(task::sized | task::inner ))   draw_grid();
                 if (mods(task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (mods(task::sized | task::header)) draw_header();
                 if (mods(task::sized | task::footer)) draw_footer();
-                //if (layers[client].area.hittest(mouse_coord))
+                //if (layers[client].area.hittest(mcoord))
                 //{
                 //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
-                //    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
+                //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
-                renderer::present();
+                render::present();
             }
         }
         auto& kbs()
@@ -792,98 +790,98 @@ namespace netxs::gui
             //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
             //else if (kb & hids::RCtrl)                netxs::_k3 += wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
-            //shadow_img = build_shadow_corner(cell_size.x);
-            //tasks += task::sized;
+            //shadow = build_shadow_corner(cellsz.x);
+            //reload += task::sized;
             //netxs::_k0 += wheeldt > 0 ? 1 : -1;
             //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
 
             if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
             {
-                if (!grip.zoomon)
+                if (!szgrip.zoomon)
                 {
-                    grip.zoomdt = {};
-                    grip.zoomon = true;
-                    grip.zoomsz = layers[client].area;
-                    grip.zoomat = mouse_coord;
+                    szgrip.zoomdt = {};
+                    szgrip.zoomon = true;
+                    szgrip.zoomsz = layers[client].area;
+                    szgrip.zoomat = mcoord;
                     mouse_capture();
                 }
             }
-            else if (grip.zoomon)
+            else if (szgrip.zoomon)
             {
-                grip.zoomon = faux;
+                szgrip.zoomon = faux;
                 mouse_release();
             }
-            if (grip.zoomon)
+            if (szgrip.zoomon)
             {
-                auto warp = dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y };
-                auto step = grip.zoomdt + warp * wheeldt;
-                auto next = grip.zoomsz + step;
+                auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                auto step = szgrip.zoomdt + warp * wheeldt;
+                auto next = szgrip.zoomsz + step;
                 next.size = std::max(dot_00, next.size);
                 ///auto viewport = ...get max win size (multimon)
                 //next.trimby(viewport);
-                if (warp_window(next - layers[client].area)) grip.zoomdt = step;
+                if (warp_window(next - layers[client].area)) szgrip.zoomdt = step;
             }
         }
         void mouse_shift(twod coord)
         {
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[client].area;
-            if (hit_grips() || grip.seized)
+            if (hit_grips() || szgrip.seized)
             {
-                if (buttons & bttn::left)
+                if (mbttns & bttn::left)
                 {
-                    if (!grip.seized) // drag start
+                    if (!szgrip.seized) // drag start
                     {
-                        grip.grab(inner_rect, mouse_coord, outer_dent, cell_size);
+                        szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
                     auto zoom = kb & hids::anyCtrl;
-                    auto [preview_area, size_delta] = grip.drag(inner_rect, coord, outer_dent, zoom, cell_size);
+                    auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
                     if (auto dxdy = resize_window(size_delta))
                     {
-                        if (auto move_delta = grip.move(dxdy, zoom))
+                        if (auto move_delta = szgrip.move(dxdy, zoom))
                         {
                             move_window(move_delta);
                         }
                     }
                 }
-                else if (grip.seized) // drag stop
+                else if (szgrip.seized) // drag stop
                 {
-                    grip.drop();
-                    tasks += task::grips;
+                    szgrip.drop();
+                    reload += task::grips;
                 }
             }
-            if (grip.zoomon && !(kb & hids::anyCtrl))
+            if (szgrip.zoomon && !(kb & hids::anyCtrl))
             {
-                grip.zoomon = faux;
+                szgrip.zoomon = faux;
                 mouse_release();
             }
-            if (grip.calc(inner_rect, coord, outer_dent, dent{}, cell_size))
+            if (szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
-                tasks += task::grips;
+                reload += task::grips;
             }
-            if (!grip.seized && buttons & bttn::left)
+            if (!szgrip.seized && mbttns & bttn::left)
             {
-                if (auto dxdy = coord - mouse_coord)
+                if (auto dxdy = coord - mcoord)
                 {
-                    renderer::moveby(dxdy);
-                    tasks += task::moved;
+                    render::moveby(dxdy);
+                    reload += task::moved;
                 }
             }
-            mouse_coord = coord;
-            if (!buttons)
+            mcoord = coord;
+            if (!mbttns)
             {
                 static auto s = testy{ faux };
-                tasks += s(hit_grips()) ? task::grips | task::inner
-                                    : s ? task::grips : task::inner;
+                reload += s(hit_grips()) ? task::grips | task::inner
+                                     : s ? task::grips : task::inner;
             }
         }
         void mouse_press(si32 button, bool pressed)
         {
-            if (pressed && !buttons) mouse_capture();
-            pressed ? buttons |= button
-                    : buttons &= ~button;
-            if (!buttons) mouse_release();
-            if (!pressed & (button == bttn::right)) renderer::close();
+            if (pressed && !mbttns) mouse_capture();
+            pressed ? mbttns |= button
+                    : mbttns &= ~button;
+            if (!mbttns) mouse_release();
+            if (!pressed & (button == bttn::right)) render::close();
         }
         void keybd_press(arch vkey, arch lParam)
         {
@@ -904,7 +902,7 @@ namespace netxs::gui
                 " state: ", param.v.state == 0 ? "pressed"
                           : param.v.state == 1 ? "rep"
                           : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) renderer::close();
+            if (vkey == 0x1b) render::close();
             kbs() = keybd_state();
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
