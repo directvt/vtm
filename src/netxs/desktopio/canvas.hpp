@@ -2978,7 +2978,7 @@ namespace netxs::misc
         using irgb = std::decay_t<T>::value_type;
 
         auto area = image.area();
-        auto clip = image.clip();
+        auto clip = image.clip().trim(area);
         if (!clip) return;
 
         auto w = std::max(0, clip.size.x);
@@ -3016,8 +3016,10 @@ namespace netxs::misc
         boxblur_cache.resize(v);
         shadows_cache.resize(v);
         auto shadows_image = netxs::raster<std::span<fp32>, rect>{ shadows_cache, r };
+        // Clear cached garbage after previous blur.
+        netxs::misc::cage(shadows_image, shadows_image.area(), dent{ 1, 0, 1, 0 }, [](auto& dst){ dst = 0.f; });
         shadows_image.step(-dot_11);
-        netxs::onbody(image, shadows_image, [](auto& src, auto& dst){ dst = src ? 255.f * 3.f : 0.f; });
+        netxs::onbody(image, shadows_image, [](auto& src, auto& dst){ dst = src ? 255.f * 3.f : 0.f; }); // Note: Pure black pixels will become invisible/transparent.
         shadows_image.step(dot_11);
         shadows_image.clip(r);
         netxs::misc::boxblur<2>(shadows_image, 1, boxblur_cache);

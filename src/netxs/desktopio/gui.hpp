@@ -45,9 +45,9 @@ namespace netxs::gui
             {
                 pNaturalRendering->Release();
                 pAliasedRendering->Release();
-                pTextFormat[style::normal]->Release();
-                pTextFormat[style::italic]->Release();
-                pTextFormat[style::bold]->Release();
+                pTextFormat[style::normal     ]->Release();
+                pTextFormat[style::italic     ]->Release();
+                pTextFormat[style::bold       ]->Release();
                 pTextFormat[style::bold_italic]->Release();
                 pGdiInterop->Release();
                 pDWriteFactory->Release();
@@ -189,11 +189,13 @@ namespace netxs::gui
                     auto color = argb{ s.runColor.r, s.runColor.g, s.runColor.b, s.runColor.a }; // s.runColor.a could be nan != 0.
                     if (hr == S_OK && color.chan.a)
                     {
+                        auto token = s.paletteIndex == -1 ? fgc.token : color.token;
+                        if ((token & 0x00'ff'ff'ff) == 0) token |= 0xFF'01'01'01; // Don't allow pure black fg for color glyphs.
                         hr = surf->DrawGlyphRun(s.baselineOriginX, s.baselineOriginY,
                                                 measuringMode,
                                                 &s.glyphRun,
                                                 conf.pNaturalRendering, // Emojis are broken without AA (antialiasing).
-                                                argb::swap_rb(s.paletteIndex == -1 ? fgc.token : color.token),
+                                                argb::swap_rb(token),
                                                 &dirtyRect);
                     }
                 }
@@ -282,7 +284,8 @@ namespace netxs::gui
             ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&conf.pDWriteFactory)));
             ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
             auto font_name = utf::to_utf(font_name_utf8);
-            auto font_size = (fp32)cellsz.y;
+            //todo recalc
+            auto font_size = (fp32)cellsz.y * 16.f / 22.f;
             auto locale = wide(LOCALE_NAME_MAX_LENGTH, '\0');
             if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
             {
@@ -295,8 +298,9 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold]));
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold_italic]));
             //ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pAliasedRendering));
-            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.f/*no gamma*/, 0.f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
-            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
+            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
+            // It is not possible to render glyphs in colors close to pure black if any gamma >1 is applied. (e.g. 2.2f sRGB gamma)
+            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
             initialized = true;
         }
         ~manager()
@@ -596,10 +600,10 @@ namespace netxs::gui
             auto lt = dent{ 1, 0, 1, 0 };
             auto rb = dent{ 0, 1, 0, 1 };
             canvas.step(-region.coor);
-            auto rtc = argb{ tint::pureblue  }.alpha(0.5f);
+            auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::pureblack };
-            auto lbc = argb{ tint::pureblue  }.alpha(0.5f);
+            auto lbc = argb{ tint::pureblue  };//.alpha(0.5f);
 
             auto line_y = region.size.x * (cellsz.y - 1);
             auto offset = 0;
