@@ -485,14 +485,14 @@ namespace netxs::gui
 
         struct task
         {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto moved  = 1 << __COUNTER__ - _counter;
-            static constexpr auto sized  = 1 << __COUNTER__ - _counter;
-            static constexpr auto grips  = 1 << __COUNTER__ - _counter;
-            static constexpr auto hover  = 1 << __COUNTER__ - _counter;
-            static constexpr auto inner  = 1 << __COUNTER__ - _counter;
-            static constexpr auto header = 1 << __COUNTER__ - _counter;
-            static constexpr auto footer = 1 << __COUNTER__ - _counter;
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto header = 1 << (__COUNTER__ - _counter);
+            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
 

@@ -82,5 +82,30 @@ namespace netxs
         };
         template<class C, class T>
         using change_value_type = typename change_value_type_helper<C>::template new_type<T>;
+
+        template<class T, class Allocator = std::allocator<T>>
+        struct raw_allocator : Allocator
+        {
+            using Allocator::Allocator;
+            using allocator_traits = std::allocator_traits<Allocator>;
+
+            template<class R>
+            struct rebind
+            {
+                using other = raw_allocator<R, typename allocator_traits::template rebind_alloc<R>>;
+            };
+            template<class R>
+            void construct(R* p) noexcept(std::is_nothrow_default_constructible_v<R>)
+            {
+                ::new((void*)p) R; // Construct an "R" object, placing it directly into pre-allocated storage at memory address p.
+            }
+            template<class R, class ...Args>
+            void construct(R* p, Args&&... args)
+            {
+                allocator_traits::construct((Allocator&)*this, p, std::forward<Args>(args)...);
+            }
+        };
     }
+    template<class T>
+    using raw_vector = std::vector<T, ptr::raw_allocator<T>>;
 }
