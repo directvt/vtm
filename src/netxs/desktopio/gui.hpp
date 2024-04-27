@@ -53,6 +53,13 @@ namespace netxs::gui
                 pDWriteFactory->Release();
             }
         };
+        //struct DWRITE_BITMAP_DATA_BGRA32
+        //{
+        //    ui32 pad[6];
+        //    ui32 width;
+        //    ui32 height;
+        //    ui32 *pixels;
+        //};
 
         HDC   hdc;
         argb  fgc;
@@ -91,12 +98,14 @@ namespace netxs::gui
         {
             if (area)
             {
+                //DWRITE_BITMAP_DATA_BGRA32* p;
                 if (area.size != size)
                 {
                     auto undo = surf;
                     auto hr = conf.pGdiInterop->CreateBitmapRenderTarget(NULL, area.size.x, area.size.y, &surf); // ET(auto hr = surf->Resize(area.size.x, area.size.y)); // Unnecessary copying.
                     if (hr == S_OK)
                     {
+                        //p = reinterpret_cast<DWRITE_BITMAP_DATA_BGRA32*>(surf);
                         hdc = surf->GetMemoryDC();
                         wipe = faux;
                         size = area.size;
@@ -636,7 +645,7 @@ namespace netxs::gui
             auto right = left + r.size.x;
             auto bottom = top + r.size.y;
             auto off = r.coor;
-            ::IntersectClipRect(hdc, left, top, right, bottom);
+            //::IntersectClipRect(hdc, left, top, right, bottom);
             for (auto& c : content)
             {
                 auto format = style::normal;
@@ -654,9 +663,9 @@ namespace netxs::gui
                     if (r.coor.y >= region.size.y) break;
                 }
                 off = r.coor - off;
-                ::OffsetClipRgn(hdc, off.x, off.y);
+                //::OffsetClipRgn(hdc, off.x, off.y);
             }
-            ::ExcludeClipRect(hdc, 0, 0, layer.size.x, layer.size.y);
+            //::ExcludeClipRect(hdc, 0, 0, layer.size.x, layer.size.y);
         }
         bool hit_grips()
         {
