@@ -2208,14 +2208,14 @@ namespace netxs
             twod over{};
             twod step{};
 
-            shadow() = default;
-            shadow(shadow&&) = default;
+            shadow()              = default;
+            shadow(shadow&&)      = default;
             shadow(shadow const&) = default;
             shadow(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
             {
                 generate(bias, alfa, size, offset, ratio, fuse);
             }
-            // shadow: Generate sRGB shadow sprite.
+            // shadow: Generate shadow sprite.
             void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
             {
                 //bias    += _k0 * 0.1f;
@@ -2245,6 +2245,7 @@ namespace netxs
                     }
                 }
             }
+            // shadow: Render rectanguler shadow for window rect.
             auto render(auto&& canvas, auto clip, auto window, auto fx)
             {
                 auto dst = rect{ window.coor - over / 2, window.size + over };
@@ -2287,6 +2288,7 @@ namespace netxs
                 canvas.step(-basis);
             }
         };
+
         struct szgrips
         {
             using test = testy<twod>;

@@ -26,9 +26,9 @@ namespace netxs::gui
 
     namespace style
     {
-        static constexpr auto normal = 0;
-        static constexpr auto italic = 1;
-        static constexpr auto bold = 2;
+        static constexpr auto normal      = 0;
+        static constexpr auto italic      = 1;
+        static constexpr auto bold        = 2;
         static constexpr auto bold_italic = bold | italic;
     };
 
@@ -262,7 +262,7 @@ namespace netxs::gui
         }
     };
 
-    struct render
+    struct manager
     {
         using gcfg = surface::gcfg;
         using wins = std::vector<surface>;
@@ -278,7 +278,7 @@ namespace netxs::gui
         bool initialized;
         wins layers;
 
-        render(text font_name_utf8, twod cellsz)
+        manager(text font_name_utf8, twod cellsz)
             : initialized{ faux }
         {
             set_dpi_awareness();
@@ -302,7 +302,7 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(2.2f/*sRGB gamma*/, 0.f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
             initialized = true;
         }
-        ~render()
+        ~manager()
         {
             for (auto& w : layers) w.reset();
             conf.reset();
@@ -397,13 +397,13 @@ namespace netxs::gui
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
 
-        auto add(render* host_ptr = nullptr)
+        auto add(manager* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
-                auto w = (render*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
                 static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
@@ -476,7 +476,7 @@ namespace netxs::gui
         }
     };
 
-    struct window : render
+    struct window : manager
     {
         using gray = netxs::raster<std::vector<byte>, rect>;
         using shad = netxs::misc::shadow<gray>;
@@ -484,56 +484,46 @@ namespace netxs::gui
 
         struct task
         {
-            enum
-            {
-                moved = 1 << 0,
-                sized = 1 << 1,
-                grips = 1 << 2,
-                hover = 1 << 3,
-                inner = 1 << 4,
-                header = 1 << 5,
-                footer = 1 << 6,
-                all = -1,
-            };
-            si32 list{ all };
-            auto& operator += (si32 t) { list |= t; return *this; }
-            //auto& operator -= (si32 t) { list &=~t; return *this; }
-            auto operator () (si32 t) { return list & t; }
-            void reset() { list = 0; }
-            constexpr explicit operator bool () const
-            {
-                return !!list;
-            }
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto moved  = 1 << __COUNTER__ - _counter;
+            static constexpr auto sized  = 1 << __COUNTER__ - _counter;
+            static constexpr auto grips  = 1 << __COUNTER__ - _counter;
+            static constexpr auto hover  = 1 << __COUNTER__ - _counter;
+            static constexpr auto inner  = 1 << __COUNTER__ - _counter;
+            static constexpr auto header = 1 << __COUNTER__ - _counter;
+            static constexpr auto footer = 1 << __COUNTER__ - _counter;
+            static constexpr auto all = -1;
         };
 
-        twod gridsz;
-        twod cellsz;
-        twod gripsz;
-        shad shadow;
-        dent border;
-        grip szgrip;
-        twod mcoord;
-        si32 mbttns;
-        task reload;
-        si32 client;
-        si32 grip_l;
-        si32 grip_r;
-        si32 grip_t;
-        si32 grip_b;
-        si32 header;
-        si32 footer;
+        twod gridsz; // window: Grid size in cells.
+        twod cellsz; // window: Cell size in pixels.
+        twod gripsz; // window: Resizing grips size in pixels.
+        dent border; // window: Border around window for resizing grips (dent in pixels).
+        shad shadow; // window: Shadow generator.
+        grip szgrip; // window: Resizing grips UI-control.
+        twod mcoord; // window: Mouse cursor coord.
+        si32 mbttns; // window: Mouse button state.
+        si32 reload; // window: Changelog for update.
+        si32 client; // window: Surface index for Client.
+        si32 grip_l; // window: Surface index for Left resizing grip.
+        si32 grip_r; // window: Surface index for Right resizing grip.
+        si32 grip_t; // window: Surface index for Top resizing grip.
+        si32 grip_b; // window: Surface index for Bottom resizing grip.
+        si32 header; // window: Surface index for Header.
+        si32 footer; // window: Surface index for Footer.
         bool drop_shadow{ true };
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
-            : render{ font, cell_size },
+            : manager{ font, cell_size },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               cellsz{ cell_size },
               gripsz{ grip_cell * cell_size },
-              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
+              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
               mbttns{},
+              reload{ task::all },
               client{ add(this) },
               grip_l{ add(this) },
               grip_r{ add(this) },
@@ -546,7 +536,7 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             update();
-            render::show(win_mode);
+            manager::show(win_mode);
         }
         void recalc_layout()
         {
@@ -564,14 +554,14 @@ namespace netxs::gui
         }
         auto move_window(twod coor_delta)
         {
-            render::moveby(coor_delta);
-            reload += task::moved;
+            manager::moveby(coor_delta);
+            reload |= task::moved;
         }
         auto size_window(twod size_delta)
         {
             layers[client].area.size += size_delta;
             recalc_layout();
-            reload += task::sized;
+            reload |= task::sized;
         }
         auto resize_window(twod size_delta)
         {
@@ -634,15 +624,6 @@ namespace netxs::gui
                     //netxs::misc::cage(canvas, r, rb, fx_black2);
                 }
             }
-
-            //auto c1 = rect{ dot_00, region.size - dent{ 0, region.size.x / 2, 0, 0 }};
-            //auto c2 = c1;
-            //auto c3 =  rect{ dot_00, region.size };
-            //c2.coor.x += region.size.x / 2;
-            //netxs::onrect(canvas, c1, fx_black);
-            //netxs::onrect(canvas, c2, fx_pure_wt);
-            //netxs::misc::cage(canvas, c2, 1, fx_black);
-            //netxs::onrect(canvas, c3, fx_pure_wt);
 
             canvas.step(region.coor);
             auto r_init = rect{ .coor = gripsz + cellsz * dot_01, .size = region.size };
@@ -730,7 +711,7 @@ namespace netxs::gui
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
         }
-        void draw_title(si32 index, twod align, wiew utf8) //todo just render ui::core
+        void draw_title(si32 index, twod align, wiew utf8) //todo just output ui::core
         {
             auto& layer = layers[index];
             auto canvas = layer.canvas(true);
@@ -743,22 +724,22 @@ namespace netxs::gui
         void update()
         {
             if (!reload) return;
-            auto mods = reload;
-            reload.reset();
-                 if (mods.list == task::moved) render::present<true>();
-            else if (mods)
+            auto what = reload;
+            reload = {};
+                 if (what == task::moved) manager::present<true>();
+            else if (what)
             {
-                if (mods(task::sized | task::inner ))   draw_grid();
-                if (mods(task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
-                if (mods(task::sized | task::header)) draw_header();
-                if (mods(task::sized | task::footer)) draw_footer();
+                if (what & (task::sized | task::inner))   draw_grid();
+                if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
+                if (what & (task::sized | task::header)) draw_header();
+                if (what & (task::sized | task::footer)) draw_footer();
                 //if (layers[client].area.hittest(mcoord))
                 //{
                 //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
                 //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
                 //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
                 //}
-                render::present();
+                manager::present();
             }
         }
         auto& kbs()
@@ -791,7 +772,7 @@ namespace netxs::gui
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
             //else if (kb & hids::RCtrl)                netxs::_k3 += wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
             //shadow = build_shadow_corner(cellsz.x);
-            //reload += task::sized;
+            //reload |= task::sized;
             //netxs::_k0 += wheeldt > 0 ? 1 : -1;
             //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
 
@@ -847,7 +828,7 @@ namespace netxs::gui
                 else if (szgrip.seized) // drag stop
                 {
                     szgrip.drop();
-                    reload += task::grips;
+                    reload |= task::grips;
                 }
             }
             if (szgrip.zoomon && !(kb & hids::anyCtrl))
@@ -857,21 +838,21 @@ namespace netxs::gui
             }
             if (szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
-                reload += task::grips;
+                reload |= task::grips;
             }
             if (!szgrip.seized && mbttns & bttn::left)
             {
                 if (auto dxdy = coord - mcoord)
                 {
-                    render::moveby(dxdy);
-                    reload += task::moved;
+                    manager::moveby(dxdy);
+                    reload |= task::moved;
                 }
             }
             mcoord = coord;
             if (!mbttns)
             {
                 static auto s = testy{ faux };
-                reload += s(hit_grips()) ? task::grips | task::inner
+                reload |= s(hit_grips()) ? task::grips | task::inner
                                      : s ? task::grips : task::inner;
             }
         }
@@ -881,7 +862,7 @@ namespace netxs::gui
             pressed ? mbttns |= button
                     : mbttns &= ~button;
             if (!mbttns) mouse_release();
-            if (!pressed & (button == bttn::right)) render::close();
+            if (!pressed & (button == bttn::right)) manager::close();
         }
         void keybd_press(arch vkey, arch lParam)
         {
@@ -902,7 +883,7 @@ namespace netxs::gui
                 " state: ", param.v.state == 0 ? "pressed"
                           : param.v.state == 1 ? "rep"
                           : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) render::close();
+            if (vkey == 0x1b) manager::close();
             kbs() = keybd_state();
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
