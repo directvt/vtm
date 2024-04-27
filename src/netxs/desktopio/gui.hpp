@@ -13,9 +13,6 @@ namespace netxs::gui
 {
     using namespace input;
 
-    auto fx_trans = [](auto& c){ c = 0x01'00'00'00; };
-    auto fx_white = [](auto& c){ c = 0x5F'23'23'23; };
-    auto fx_black = [](auto& c){ c = 0x3F'00'00'00; };
     auto canvas_text = ansi::itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
         .add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.").fgc(tint::greenlt).add(" Press Esc or Right click to close.");
     auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
@@ -521,7 +518,7 @@ namespace netxs::gui
               cellsz{ cell_size },
               gripsz{ grip_cell * cell_size },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
-              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
+              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
               reload{ task::all },
               client{ add(this) },
@@ -593,47 +590,42 @@ namespace netxs::gui
         }
         void draw_grid()
         {
-            auto canvas = layers[client].canvas();
+            auto canvas = layers[client].canvas(); // 0.500 ms
             auto region = canvas.area();
-            auto r  = rect{{}, cellsz };
+            auto r  = rect{ .size = cellsz };
             auto lt = dent{ 1, 0, 1, 0 };
             auto rb = dent{ 0, 1, 0, 1 };
-            auto fx_pure_wt = [](auto& c){ c = 0xFF'ff'ff'ff; };
-            auto fx_white2  = [](auto& c){ c = 0xAf'7f'7f'7f; };
-            auto fx_black2  = [](auto& c){ c = 0xAF'00'00'00; };
-            auto fx_blue    = [](auto& c){ c = 0xAF'00'00'7f; };
-            //auto fx_white = [](auto& c){ c = 0xFF'7f'7f'7f; };
-            //auto fx_black = [](auto& c){ c = 0xFF'00'00'00; };
-            //auto fx_blue  = [](auto& c){ c = 0xFF'00'00'7f; };
             canvas.step(-region.coor);
             auto rtc = argb{ tint::pureblue  }.alpha(0.5f);
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::pureblack };
             auto lbc = argb{ tint::pureblue  }.alpha(0.5f);
+
+            auto line_y = region.size.x * (cellsz.y - 1);
+            auto offset = 0;
+            auto stride = region.size.x - cellsz.x;
+            auto step_x = cellsz.x;
+            auto step_y = cellsz.x + line_y;
             for (r.coor.y = 0; r.coor.y < region.size.y; r.coor.y += cellsz.y)
             {
-                auto y = (fp32)r.coor.y / (region.size.y - 1);
-                auto lc = argb::transit(ltc, lbc, y);
-                auto rc = argb::transit(rtc, rbc, y);
+                auto fy = (fp32)r.coor.y / (region.size.y - 1);
+                auto lc = argb::transit(ltc, lbc, fy);
+                auto rc = argb::transit(rtc, rbc, fy);
                 for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cellsz.x)
                 {
-                    auto x = (fp32)r.coor.x / (region.size.x - 1);
-                    auto p = argb::transit(lc, rc, x);
-                    netxs::onrect(canvas, r, [&](auto& c){ c = p; });
-                    //netxs::misc::cage(canvas, r, lt, fx_white2);
-                    //netxs::misc::cage(canvas, r, rb, fx_black2);
+                    auto fx = (fp32)r.coor.x / (region.size.x - 1);
+                    auto p = argb::transit(lc, rc, fx);
+                    netxs::inrect(canvas.begin() + offset, step_x, step_y, stride, cell::shaders::full(p));
+                    offset += step_x;
                 }
+                offset += line_y;
             }
 
             canvas.step(region.coor);
-            auto r_init = rect{ .coor = gripsz + cellsz * dot_01, .size = region.size };
-            r = r_init;
-            r.coor.y += cellsz.y;
+            r = rect{ .coor = cellsz * dot_01, .size = region.size };
             auto& content = canvas_para.content();
             auto& layer = layers[client];
-            auto m = gripsz + region.size;
             auto right_part = twod{ -cellsz.x, 0 };
-
             auto hdc = layer.hdc;
             auto left = r.coor.x;
             auto top = r.coor.y;
@@ -651,11 +643,11 @@ namespace netxs::gui
                 auto w = c.wdt() == 3 ? right_part : dot_00;
                 layer.textout(r, w, fgc, format, utf::to_utf(c.txt()));
                 r.coor.x += cellsz.x;
-                if (r.coor.x >= m.x)
+                if (r.coor.x >= region.size.x)
                 {
-                    r.coor.x = r_init.coor.x;
+                    r.coor.x = 0;
                     r.coor.y += cellsz.y;
-                    if (r.coor.y >= m.y) break;
+                    if (r.coor.y >= region.size.y) break;
                 }
                 off = r.coor - off;
                 ::OffsetClipRgn(hdc, off.x, off.y);
@@ -683,12 +675,12 @@ namespace netxs::gui
         }
         void draw_grips()
         {
+            static auto trans = 0x01'00'00'00;
+            static auto shade = 0x5F'3f'3f'3f;
+            static auto black = 0x3F'00'00'00;
             auto inner_rect = layers[client].area;
             auto outer_rect = layers[client].area + border;
-            static auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
-            static auto fx_shade2 = [](auto& c){ c = 0x5F'3f'3f'3f; };
-            static auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
-            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, fx_trans2); });
+            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, cell::shaders::full(trans)); });
             if (hit_grips())
             {
                 auto s = szgrip.sector;
@@ -697,13 +689,13 @@ namespace netxs::gui
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
                 fill_grips(side_x, [&](auto& canvas, auto r)
                 {
-                    netxs::misc::fill(canvas, r, fx_shade2);
-                    netxs::misc::cage(canvas, side_x, dent_x, fx_black2); // 1-px dark contour around.
+                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
                 fill_grips(side_y, [&](auto& canvas, auto r)
                 {
-                    netxs::misc::fill(canvas, r, fx_shade2);
-                    netxs::misc::cage(canvas, side_y, dent_y, fx_black2); // 1-px dark contour around.
+                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
             }
             if (drop_shadow) fill_grips(outer_rect, [&](auto& canvas, auto r)
@@ -735,9 +727,8 @@ namespace netxs::gui
                 if (what & (task::sized | task::footer)) draw_footer();
                 //if (layers[client].area.hittest(mcoord))
                 //{
-                //    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
                 //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
-                //    netxs::onrect(layers[client].canvas(), cursor, fx_green);
+                //    netxs::onrect(layers[client].canvas(), cursor, cell::shaders::full(0x7F'00'3f'00));
                 //}
                 manager::present();
             }

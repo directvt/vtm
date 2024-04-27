@@ -851,6 +851,22 @@ namespace netxs
             }
         }
     }
+    void inrect(auto iter, auto dx, auto dy, auto stride, auto fx)
+    {
+        static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(fx), decltype(*iter)>>;
+        auto endy = iter + dy;
+        while (true)
+        {
+            auto endx = iter + dx;
+            while (iter != endx)
+            {
+                if constexpr (Plain) fx(*iter++);
+                else             if (fx(*iter++)) return;
+            }
+            if (iter == endy) break;
+            iter += stride;
+        }
+    }
 
     static inline
     bool liang_barsky(fp32 xmin, fp32 ymin, fp32 xmax, fp32 ymax,
