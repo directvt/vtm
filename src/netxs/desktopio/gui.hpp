@@ -29,7 +29,7 @@ namespace netxs::gui
         static constexpr auto bold_italic = bold | italic;
     };
 
-    struct surface : IDWriteTextRenderer
+    struct surface : IDWriteTextRenderer //, ID_IDWriteTextFormat1
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using dwrt = IDWriteBitmapRenderTarget*;
@@ -98,14 +98,12 @@ namespace netxs::gui
         {
             if (area)
             {
-                //DWRITE_BITMAP_DATA_BGRA32* p;
                 if (area.size != size)
                 {
                     auto undo = surf;
                     auto hr = conf.pGdiInterop->CreateBitmapRenderTarget(NULL, area.size.x, area.size.y, &surf); // ET(auto hr = surf->Resize(area.size.x, area.size.y)); // Unnecessary copying.
                     if (hr == S_OK)
                     {
-                        //p = reinterpret_cast<DWRITE_BITMAP_DATA_BGRA32*>(surf);
                         hdc = surf->GetMemoryDC();
                         wipe = faux;
                         size = area.size;
@@ -170,7 +168,7 @@ namespace netxs::gui
             auto win_coor = POINT{ area.coor.x, area.coor.y };
             //auto sized = prev.size(     size);
             auto moved = prev.coor(area.coor);
-            auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (copy bitmap to hardware)
+            auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (syscall, copy bitmap to hardware)
                                             HDC{},                       // No color palette matching.  HDC hdcDst,
                                             moved ? &win_coor : nullptr, // POINT         *pptDst,
                                             &win_size,                   // SIZE          *psize,
@@ -306,6 +304,7 @@ namespace netxs::gui
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::italic]));
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold]));
             ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold_italic]));
+            //conf.pTextFormat[style::bold_italic]->SetTrimming();
             //ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pAliasedRendering));
             ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
             // It is not possible to render glyphs in colors close to pure black if any gamma >1 is applied. (e.g. 2.2f sRGB gamma)
@@ -334,9 +333,9 @@ namespace netxs::gui
             //for (auto& w : layers) w.set_dpi(new_dpi);
             log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
         }
-        auto moveby(twod coor_delta)
+        auto moveby(twod delta)
         {
-            for (auto& w : layers) w.area.coor += coor_delta;
+            for (auto& w : layers) w.area.coor += delta;
         }
         template<bool JustMove = faux>
         void present()
