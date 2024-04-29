@@ -20,14 +20,14 @@
     #pragma warning(disable:4996) // Suppress std::getenv warning.
 
     #include <Windows.h>
-    #include <userenv.h>                 // ::GetUserProfileDirectoryW
-    #pragma comment(lib, "User32.lib")
-    #pragma comment(lib, "Userenv.lib")
-    #pragma comment(lib, "Advapi32.lib") // ::StartService() for arm arch
-    #include <Psapi.h>                   // ::GetModuleFileNameEx
-    #include <winternl.h>                // ::NtOpenFile
-    #include <sddl.h>                    // ::ConvertSidToStringSidA()
+    #include <UserEnv.h>             // ::GetUserProfileDirectoryW
+    #include <Psapi.h>               // ::GetModuleFileNameEx
+    #include <winternl.h>            // ::NtOpenFile
+    #include <Sddl.h>                // ::ConvertSidToStringSidA()
     #include "gui.hpp"
+    #pragma comment(lib, "User32")
+    #pragma comment(lib, "UserEnv")
+    #pragma comment(lib, "AdvAPI32") // ::StartService() for arm arch
 
 #else
 
@@ -75,6 +75,10 @@
 
 #endif
 
+#define EEET(...) { auto et_start = datetime::now(); \
+                    __VA_ARGS__; \
+                    auto et_stop = datetime::round<si32, std::chrono::microseconds>(datetime::now() - et_start); \
+                    log("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
 namespace netxs
 {
     struct eccc

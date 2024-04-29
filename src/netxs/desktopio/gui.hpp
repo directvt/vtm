@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <dwrite_2.h>
+#include <DWrite_2.h>
 #pragma comment(lib, "Gdi32")
-#pragma comment(lib, "Dwrite.lib")
+#pragma comment(lib, "dwrite")
 
 #define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
 
@@ -189,7 +189,7 @@ namespace netxs::gui
             {
                 auto subrun = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
                 auto next = BOOL{ true };
-                do
+                while (para_layers->MoveNext(&next), next)
                 {
                     hr = para_layers->GetCurrentRun(&subrun);
                     auto& s = *subrun;
@@ -206,7 +206,6 @@ namespace netxs::gui
                                                 &dirtyRect);
                     }
                 }
-                while (para_layers->MoveNext(&next), next);
             }
             else if (hr == DWRITE_E_NOCOLOR)
             {
