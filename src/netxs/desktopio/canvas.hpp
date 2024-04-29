@@ -327,17 +327,14 @@ namespace netxs
         // argb: Alpha blending ARGB colors.
         void inline mix(argb c, si32 alpha)
         {
-            if (alpha == 0xFF)
-            {
-                chan = c.chan;
-            }
+            if (alpha == 255) chan = c.chan;
             else if (alpha)
             {
-                auto inverse = 256 - alpha;
-                chan.r = (byte)((c.chan.r * alpha + chan.r * inverse) >> 8);
-                chan.g = (byte)((c.chan.g * alpha + chan.g * inverse) >> 8);
-                chan.b = (byte)((c.chan.b * alpha + chan.b * inverse) >> 8);
-                chan.a = (byte)((c.chan.a * alpha + chan.a * inverse) >> 8);
+                auto na = 256 - alpha;
+                chan.r = (byte)((c.chan.r * alpha + chan.r * na) >> 8);
+                chan.g = (byte)((c.chan.g * alpha + chan.g * na) >> 8);
+                chan.b = (byte)((c.chan.b * alpha + chan.b * na) >> 8);
+                chan.a = (byte)((c.chan.a * alpha + chan.a * na) >> 8);
             }
         }
         // argb: Rough alpha blending ARGB colors.
@@ -545,9 +542,27 @@ namespace netxs
         // argb: Premultiply alpha.
         auto pma()
         {
-            chan.r = (byte)((si32)chan.r * chan.a / 255);
-            chan.g = (byte)((si32)chan.g * chan.a / 255);
-            chan.b = (byte)((si32)chan.b * chan.a / 255);
+            if (chan.a == 255) return;
+            else if (chan.a == 0) token = 0;
+            else // if (chan.a != 255)
+            {
+                chan.r = (byte)(((si32)chan.r * chan.a) >> 8);
+                chan.g = (byte)(((si32)chan.g * chan.a) >> 8);
+                chan.b = (byte)(((si32)chan.b * chan.a) >> 8);
+            }
+        }
+        // argb: Blend pma.
+        auto blendpma(argb c)
+        {
+            if (c.chan.a == 255 || chan.a == 0) token = c.token;
+            else if (c.chan.a != 0)
+            {
+                auto na = 256 - c.chan.a;
+                auto rb = (c.token & 0xFF00FF) + ((na * (token & 0xFF00FF)) >> 8);
+                auto g  = (c.token & 0x00FF00) + ((na * (token & 0x00FF00)) >> 8);
+                auto a  = c.chan.a + ((na * chan.a) >> 8);
+                token = (rb & 0xFF00FF) | (g & 0x00FF00) | (a << 24);
+            }
         }
 
         template<si32 i>
@@ -1943,6 +1958,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend(src); }
             };
+            struct blendpma_t : public brush_t<blendpma_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blendpma(src); }
+            };
             struct alpha_t : public brush_t<alpha_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2103,6 +2123,7 @@ namespace netxs
             static constexpr auto  overlay =  overlay_t{};
             static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
+            static constexpr auto blendpma = blendpma_t{};
             static constexpr auto    blend =    blend_t{};
             static constexpr auto    alpha =    alpha_t{};
             static constexpr auto     lite =     lite_t{};

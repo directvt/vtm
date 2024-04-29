@@ -851,7 +851,8 @@ namespace netxs
             }
         }
     }
-    void inrect(auto iter, auto dx, auto dy, auto stride, auto fx)
+    template<class P = noop>
+    void inrect(auto iter, auto dx, auto dy, auto stride, auto fx, P online = {})
     {
         static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(fx), decltype(*iter)>>;
         auto endy = iter + dy;
@@ -864,6 +865,7 @@ namespace netxs
                 else             if (fx(*iter++)) return;
             }
             if (iter == endy) break;
+            online();
             iter += stride;
         }
     }

@@ -13,11 +13,13 @@ namespace netxs::gui
 {
     using namespace input;
 
-    auto canvas_text = ansi::itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
-        .add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.").fgc(tint::greenlt).add(" Press Esc or Right click to close.");
+    auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
+        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
+                               " (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
+        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
     auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
     auto footer_text = L"4/4000 80:25"s;
-    auto canvas_para = ui::para{ canvas_text };
+    auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};
     auto header_para = ui::para{ utf::to_utf(header_text) };
     auto footer_para = ui::para{ utf::to_utf(footer_text) };
 
@@ -27,6 +29,17 @@ namespace netxs::gui
         static constexpr auto italic      = 1;
         static constexpr auto bold        = 2;
         static constexpr auto bold_italic = bold | italic;
+    };
+
+    struct alpha_mask
+    {
+        static constexpr auto undef = -1;
+        static constexpr auto plain = 0;
+        static constexpr auto color = 1;
+
+        netxs::raw_vector<byte> bits;
+        rect area;
+        si32 type{ undef };
     };
 
     struct surface : IDWriteTextRenderer //, ID_IDWriteTextFormat1
@@ -279,16 +292,16 @@ namespace netxs::gui
             middle = 1 << 2,
         };
 
-        gcfg conf;
-        bool initialized;
-        wins layers;
+        gcfg config; // manager: .
+        bool isfine; // manager: .
+        wins layers; // manager: .
 
         manager(text font_name_utf8, twod cellsz)
-            : initialized{ faux }
+            : isfine{ faux }
         {
             set_dpi_awareness();
-            ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&conf.pDWriteFactory)));
-            ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
+            ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&config.pDWriteFactory)));
+            ok2(config.pDWriteFactory->GetGdiInterop(&config.pGdiInterop));
             auto font_name = utf::to_utf(font_name_utf8);
             //todo recalc
             auto font_size = (fp32)cellsz.y * 16.f / 22.f;
@@ -299,24 +312,24 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             auto font_collection = nullptr;
-            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::normal]));
-            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::italic]));
-            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold]));
-            ok2(conf.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &conf.pTextFormat[style::bold_italic]));
-            //conf.pTextFormat[style::bold_italic]->SetTrimming();
-            //ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pAliasedRendering));
-            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &conf.pAliasedRendering));
+            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::normal]));
+            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::italic]));
+            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold]));
+            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold_italic]));
+            //config.pTextFormat[style::bold_italic]->SetTrimming();
+            //ok2(config.pDWriteFactory->CreateRenderingParams(&config.pAliasedRendering));
+            ok2(config.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &config.pAliasedRendering));
             // It is not possible to render glyphs in colors close to pure black if any gamma >1 is applied. (e.g. 2.2f sRGB gamma)
-            ok2(conf.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &conf.pNaturalRendering));
-            initialized = true;
+            ok2(config.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &config.pNaturalRendering));
+            isfine = true;
         }
         ~manager()
         {
             for (auto& w : layers) w.reset();
-            conf.reset();
+            config.reset();
         }
         auto& operator [] (si32 layer) { return layers[layer]; }
-        explicit operator bool () const { return initialized; }
+        explicit operator bool () const { return isfine; }
 
         void set_dpi_awareness()
         {
@@ -459,7 +472,7 @@ namespace netxs::gui
             static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
             if (!reg)
             {
-                initialized = faux;
+                isfine = faux;
                 log("window class registration error: ", ::GetLastError());
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
@@ -470,7 +483,7 @@ namespace netxs::gui
             auto layer = (si32)layers.size();
             if (!hWnd)
             {
-                initialized = faux;
+                isfine = faux;
                 log("window creation error: ", ::GetLastError());
             }
             else if (host_ptr)
@@ -479,7 +492,7 @@ namespace netxs::gui
                 //::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
                 //::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
             }
-            layers.emplace_back(conf, hWnd);
+            layers.emplace_back(config, hWnd);
             return layer;
         }
     };
@@ -502,6 +515,9 @@ namespace netxs::gui
             static constexpr auto footer = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
+
+        std::unordered_map<ui64, alpha_mask> glyph_cache;
+        ui::face grid_data;
 
         twod gridsz; // window: Grid size in cells.
         twod cellsz; // window: Cell size in pixels.
@@ -543,6 +559,11 @@ namespace netxs::gui
             if (!*this) return;
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
+            //todo temp
+            grid_data.size(layers[client].area.size / cellsz);
+            grid_data.cup(dot_00);
+            grid_data.output(canvas_page);
+
             update();
             manager::show(win_mode);
         }
@@ -570,6 +591,10 @@ namespace netxs::gui
             layers[client].area.size += size_delta;
             recalc_layout();
             reload |= task::sized;
+            //todo temp
+            grid_data.size(layers[client].area.size / cellsz);
+            grid_data.cup(dot_00);
+            grid_data.output(canvas_page);
         }
         auto resize_window(twod size_delta)
         {
@@ -598,6 +623,187 @@ namespace netxs::gui
                 move_window(coor_delta);
             }
             return layers[client].area - old_client;
+        }
+        void generatee_glyph_mak(alpha_mask& glyph_mask, cell const& c)
+        {
+            glyph_mask.type = alpha_mask::plain;
+            if (c.wdt() == 0) return;
+            auto format = style::normal;
+            if (c.itc()) format |= style::italic;
+            if (c.bld()) format |= style::bold;
+
+            auto fontCollection = (IDWriteFontCollection*)nullptr;
+            auto hr = config.pTextFormat[format]->GetFontCollection(&fontCollection);
+            auto fontFamily = (IDWriteFontFamily*)nullptr;
+            hr = fontCollection->GetFontFamily(0, &fontFamily);
+            auto font = (IDWriteFont*)nullptr;
+            hr = fontFamily->GetFont(0, &font);
+            auto fontFace = (IDWriteFontFace*)nullptr;
+            hr = font->CreateFontFace(&fontFace);
+
+            auto code_iter = utf::cpit{ c.txt() };
+            static auto code_buff = std::vector<ui32>{};
+            static auto glyph_index = std::vector<ui16>{};
+            code_buff.resize(0);
+            while (code_iter) code_buff.push_back(code_iter.next().cdpoint);
+
+            glyph_index.resize(code_buff.size());
+            hr = fontFace->GetGlyphIndicesA(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
+
+            auto emSize = config.pTextFormat[format]->GetFontSize();
+            auto glyphRun = DWRITE_GLYPH_RUN{ .fontFace = fontFace,
+                                              .fontEmSize = emSize,
+                                              .glyphCount = (ui32)glyph_index.size(),
+                                              .glyphIndices = glyph_index.data() };
+
+            auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
+            auto measuringMode = DWRITE_MEASURING_MODE_NATURAL;
+            hr = config.pDWriteFactory->TranslateColorGlyphRun(0, 0, &glyphRun, nullptr, measuringMode, nullptr, 0, &para_layers);
+            if (para_layers)
+            {
+                auto subrun = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
+                auto next = BOOL{ true };
+                while (para_layers->MoveNext(&next), next)
+                {
+                    hr = para_layers->GetCurrentRun(&subrun);
+                    auto& s = *subrun;
+                    auto color = argb{ s.runColor.r, s.runColor.g, s.runColor.b, s.runColor.a }; // s.runColor.a could be nan != 0.
+                    if (hr == S_OK && color.chan.a)
+                    {
+                        if (color.token == 0) color.token = 0xFF'01'01'01; // Don't allow pure black fg for color glyphs.
+                        //auto token = s.paletteIndex == -1 ? fgc.token : color.token;
+
+                    }
+                }
+                para_layers->Release();
+            }
+            else if (hr == DWRITE_E_NOCOLOR)
+            {
+                //hr = surf->DrawGlyphRun(baselineOriginX,
+                //                        baselineOriginY,
+                //                        measuringMode,
+                //                        glyphRun,
+                //                        //conf.pNaturalRendering,
+                //                        conf.pAliasedRendering,
+                //                        argb::swap_rb(fgc.token),
+                //                        &dirtyRect);
+            }
+
+            auto color = !!para_layers;
+
+            //auto& renderingParams = color ? config.pNaturalRendering : config.pAliasedRendering;
+            auto& renderingParams = config.pNaturalRendering;
+            auto aa_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; // DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
+            auto mask_type = DWRITE_OUTLINE_THRESHOLD_ANTIALIASED;
+            //auto mask_type = color ? DWRITE_OUTLINE_THRESHOLD_ALIASED : DWRITE_OUTLINE_THRESHOLD_ANTIALIASED;
+            auto rendering_mode = DWRITE_RENDERING_MODE{};
+            auto grid_fit_mode = DWRITE_GRID_FIT_MODE{};
+            fontFace->GetRecommendedRenderingMode(emSize,                        // emSize,
+                                                  1.f,                           // pixelsPerDip,
+                                                  DWRITE_MEASURING_MODE_NATURAL, /// measuringMode,
+                                                  renderingParams,               // renderingParams,
+                                                  &rendering_mode);              // renderingMode,
+            auto glyphRunAnalysis = (IDWriteGlyphRunAnalysis*)nullptr;
+            config.pDWriteFactory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
+                                                          nullptr,                       // transform,
+                                                          rendering_mode,                // renderingMode,
+                                                          DWRITE_MEASURING_MODE_NATURAL, // measuringMode,
+                                                          grid_fit_mode,                 // gridFitMode,
+                                                          aa_mode,                       // antialiasMode,
+                                                          0,                             // baselineOriginX,
+                                                          0,                             // baselineOriginY,
+                                                          &glyphRunAnalysis);            // glyphRunAnalysis
+            auto r = RECT{};
+            hr = glyphRunAnalysis->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
+            glyph_mask.area.size = { r.right - r.left, r.bottom - r.top };
+            glyph_mask.bits.resize(glyph_mask.area.size.x * glyph_mask.area.size.y);
+            hr = glyphRunAnalysis->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, glyph_mask.bits.data(), (ui32)glyph_mask.bits.size());
+
+            glyphRunAnalysis->Release();
+            fontFace->Release();
+            font->Release();
+            fontFamily->Release();
+            fontCollection->Release();
+        }
+        void draw_cell(cell const& c, auto iter, si32 region_size_x)
+        {
+            auto w = c.wdt();
+            if (w == 0) return;
+            auto token = c.tkn() & ~3;
+            if (c.itc()) token |= style::italic;
+            if (c.bld()) token |= style::bold;
+            auto& glyph_mask = glyph_cache[token];
+            if (glyph_mask.type == alpha_mask::undef) generatee_glyph_mak(glyph_mask, c);
+            //todo underline/strike etc
+            if (!glyph_mask.area) return;
+
+            auto line_y = region_size_x * (glyph_mask.area.size.y - 1);
+            auto stride = region_size_x - glyph_mask.area.size.x;
+            auto step_x = glyph_mask.area.size.x;
+            auto step_y = glyph_mask.area.size.x + line_y;
+            auto dst = iter + glyph_mask.area.coor.x + glyph_mask.area.coor.y * region_size_x;
+            if (w == 1)
+            {
+                if (glyph_mask.type == alpha_mask::color)
+                {
+                    auto src = (argb*)glyph_mask.bits.data();
+                    auto blendpma = [&](auto& d){ d.blendpma(*src++); };
+                    netxs::inrect(dst, step_x, step_y, stride, blendpma);
+                }
+                else
+                {
+                    auto fgc = c.fgc();
+                    auto src = (byte*)glyph_mask.bits.data();
+                    auto colorize = [&](argb& dst){ dst.mix(fgc, *src++); };
+                    netxs::inrect(dst, step_x, step_y, stride, colorize);
+                }
+            }
+            else
+            {
+                return;
+                step_x /= 2;
+                auto ddx = glyph_mask.area.size.x & 1;
+                if (w == 2)
+                {
+                    step_x += ddx;
+                    if (glyph_mask.type == alpha_mask::color)
+                    {
+                        auto src = (argb*)glyph_mask.bits.data();
+                        auto blendpma = [&](auto& dst){ dst.blendpma(*src++); };
+                        auto online = [&]{ src += glyph_mask.area.size.x / 2; };
+                        netxs::inrect(dst, step_x, step_y, stride, blendpma, online);
+                    }
+                    else
+                    {
+                        auto fgc = c.fgc();
+                        auto src = (byte*)glyph_mask.bits.data();
+                        auto colorize = [&](argb& dst){ dst.mix(fgc, *src++); };
+                        auto online = [&]{ src += glyph_mask.area.size.x / 2; };
+                        netxs::inrect(dst, step_x, step_y, stride, colorize, online);
+                    }
+                }
+                else if (w == 3)
+                {
+                    ddx += step_x;
+                    if (glyph_mask.type == alpha_mask::color)
+                    {
+                        auto src = (argb*)glyph_mask.bits.data();
+                        src += ddx;
+                        auto blendpma = [&](auto& dst){ dst.blendpma(*src++); };
+                        auto online = [&]{ src += ddx; };
+                        netxs::inrect(dst, step_x, step_y, stride, blendpma, online);
+                    }
+                    else
+                    {
+                        auto fgc = c.fgc();
+                        auto src = (byte*)glyph_mask.bits.data();
+                        src += ddx;
+                        auto colorize = [&](argb& dst){ dst.mix(fgc, *src++); };
+                        auto online = [&]{ src += ddx; };
+                        netxs::inrect(dst, step_x, step_y, stride, colorize, online);
+                    }
+                }
+            }
         }
         void draw_grid()
         {
@@ -633,37 +839,22 @@ namespace netxs::gui
             }
 
             canvas.step(region.coor);
-            r = rect{ .coor = cellsz * dot_01, .size = region.size };
-            auto& content = canvas_para.content();
             auto& layer = layers[client];
-            auto right_part = twod{ -cellsz.x, 0 };
-            auto hdc = layer.hdc;
-            auto left = r.coor.x;
-            auto top = r.coor.y;
-            auto right = left + r.size.x;
-            auto bottom = top + r.size.y;
-            auto off = r.coor;
-            //::IntersectClipRect(hdc, left, top, right, bottom);
-            for (auto& c : content)
+            auto coor = dot_00;
+            offset = region.size.x * (coor.y * cellsz.y) + coor.x;
+            for (auto& c : grid_data)
             {
-                auto format = style::normal;
-                if (c.itc()) format |= style::italic;
-                if (c.bld()) format |= style::bold;
-                auto fgc = c.fgc();
-                if (!fgc) fgc = argb{ tint::cyanlt };
-                auto w = c.wdt() == 3 ? right_part : dot_00;
-                layer.textout(r, w, fgc, format, utf::to_utf(c.txt()));
-                r.coor.x += cellsz.x;
-                if (r.coor.x >= region.size.x)
+                draw_cell(c, canvas.begin() + offset, region.size.x);
+                offset += step_x;
+                coor.x += cellsz.x;
+                if (coor.x >= region.size.x)
                 {
-                    r.coor.x = 0;
-                    r.coor.y += cellsz.y;
-                    if (r.coor.y >= region.size.y) break;
+                    coor.x = 0;
+                    coor.y += cellsz.y;
+                    offset += line_y;
+                    if (coor.y >= region.size.y) break;
                 }
-                off = r.coor - off;
-                //::OffsetClipRgn(hdc, off.x, off.y);
             }
-            //::ExcludeClipRect(hdc, 0, 0, layer.size.x, layer.size.y);
         }
         bool hit_grips()
         {
