@@ -33,16 +33,17 @@ namespace netxs::gui
 
     struct alpha_mask
     {
-        static constexpr auto undef = -1;
-        static constexpr auto plain = 0;
-        static constexpr auto color = 1;
+        static constexpr auto undef = 0;
+        static constexpr auto plain = 1; // B/W mask.
+        static constexpr auto alpha = 2; // Grayscale AA glyph mask.
+        static constexpr auto color = 3; // Color AA glyph.
 
         netxs::raw_vector<byte> bits;
         rect area;
         si32 type{ undef };
     };
 
-    struct surface : IDWriteTextRenderer //, ID_IDWriteTextFormat1
+    struct surface
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using dwrt = IDWriteBitmapRenderTarget*;
@@ -66,13 +67,6 @@ namespace netxs::gui
                 pDWriteFactory->Release();
             }
         };
-        //struct DWRITE_BITMAP_DATA_BGRA32
-        //{
-        //    ui32 pad[6];
-        //    ui32 width;
-        //    ui32 height;
-        //    ui32 *pixels;
-        //};
 
         HDC   hdc;
         argb  fgc;
@@ -99,10 +93,7 @@ namespace netxs::gui
               surf{ nullptr }
         { }
         void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
-        {
-            //auto pixelsPerDip = dpi / 96.f;
-            //surf->SetPixelsPerDip(pixelsPerDip);
-        }
+        { }
         void reset() // We are not using custom copy/move ctors.
         {
             if (surf) surf->Release();
@@ -121,7 +112,7 @@ namespace netxs::gui
                         wipe = faux;
                         size = area.size;
                         if (undo) undo->Release();
-                        surf->SetPixelsPerDip(1.f); // Ignore DPI to be pixel perfect.
+                        //surf->SetPixelsPerDip(1.f); // Ignore DPI to be pixel perfect.
                     }
                     else log("bitmap resizing error: ", utf::to_hex(hr));
                 }
@@ -138,36 +129,6 @@ namespace netxs::gui
                 }
             }
             return bits{};
-        }
-        auto textout(rect clip, twod step, argb color, si32 format, wiew txt)
-        {
-            auto dest = rect{ clip.coor + step, clip.size - step };
-            if (!dest || !hdc) return;
-            fgc = color;
-            auto pTextLayout = (IDWriteTextLayout*)nullptr;
-            auto l = (ui32)txt.size();
-            auto w = (fp32)std::abs(dest.size.x);
-            auto h = (fp32)std::abs(dest.size.y);
-            ok2(conf.pDWriteFactory->CreateTextLayout(txt.data(), l, conf.pTextFormat[format], w, h, &pTextLayout));
-            if (dest.size.y < 0)
-            {
-                auto dtm = DWRITE_TEXT_METRICS{};
-                pTextLayout->GetMetrics(&dtm);
-                auto minHeight = dtm.height;
-                dest.coor.y -= (si32)minHeight;
-                dest.size.y = -dest.size.y;
-            }
-            if (dest.size.x < 0)
-            {
-                auto min_width = fp32{};
-                pTextLayout->DetermineMinWidth(&min_width);
-                dest.coor.x -= (si32)min_width;
-                dest.size.x = -dest.size.x;
-            }
-            //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, l });
-            //pTextLayout->SetStrikethrough(true, DWRITE_TEXT_RANGE{ 0, l });
-            ok2(pTextLayout->Draw(hdc, this, (fp32)dest.coor.x, (fp32)dest.coor.y));
-            pTextLayout->Release();
         }
         void present()
         {
@@ -192,91 +153,6 @@ namespace netxs::gui
                                             ULW_ALPHA);                  // DWORD         dwFlags
             if (!rc) log("UpdateLayeredWindow returns unexpected result ", rc);
             sync = true;
-        }
-        IFACEMETHOD(DrawGlyphRun)(void* /*clientDrawingContext*/, fp32 baselineOriginX, fp32 baselineOriginY, DWRITE_MEASURING_MODE measuringMode, DWRITE_GLYPH_RUN const* glyphRun, DWRITE_GLYPH_RUN_DESCRIPTION const* glyphRunDescription, IUnknown* /*clientDrawingEffect*/)
-        {
-            auto dirtyRect = RECT{};
-            auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
-            auto hr = conf.pDWriteFactory->TranslateColorGlyphRun(baselineOriginX, baselineOriginY, glyphRun, glyphRunDescription, measuringMode, nullptr, 0, &para_layers);
-            if (para_layers) //todo cache color glyphs
-            {
-                auto subrun = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                auto next = BOOL{ true };
-                while (para_layers->MoveNext(&next), next)
-                {
-                    hr = para_layers->GetCurrentRun(&subrun);
-                    auto& s = *subrun;
-                    auto color = argb{ s.runColor.r, s.runColor.g, s.runColor.b, s.runColor.a }; // s.runColor.a could be nan != 0.
-                    if (hr == S_OK && color.chan.a)
-                    {
-                        auto token = s.paletteIndex == -1 ? fgc.token : color.token;
-                        if ((token & 0x00'ff'ff'ff) == 0) token |= 0xFF'01'01'01; // Don't allow pure black fg for color glyphs.
-                        hr = surf->DrawGlyphRun(s.baselineOriginX, s.baselineOriginY,
-                                                measuringMode,
-                                                &s.glyphRun,
-                                                conf.pNaturalRendering, // Emojis are broken without AA (antialiasing).
-                                                argb::swap_rb(token),
-                                                &dirtyRect);
-                    }
-                }
-            }
-            else if (hr == DWRITE_E_NOCOLOR)
-            {
-                hr = surf->DrawGlyphRun(baselineOriginX,
-                                        baselineOriginY,
-                                        measuringMode,
-                                        glyphRun,
-                                        //conf.pNaturalRendering,
-                                        conf.pAliasedRendering,
-                                        argb::swap_rb(fgc.token),
-                                        &dirtyRect);
-            }
-            return hr;
-        }
-        IFACEMETHOD(IsPixelSnappingDisabled)(void* /*clientDrawingContext*/, BOOL* isDisabled)
-        {
-            *isDisabled = FALSE;
-            return S_OK;
-        }
-        IFACEMETHOD(GetCurrentTransform)(void* /*clientDrawingContext*/ , DWRITE_MATRIX* transform)
-        {
-            surf->GetCurrentTransform(transform);
-            return S_OK;
-        }
-        IFACEMETHOD(GetPixelsPerDip)(void* /*clientDrawingContext*/, fp32* pixelsPerDip)
-        {
-            *pixelsPerDip = surf->GetPixelsPerDip();
-            return S_OK;
-        }
-        IFACEMETHOD(DrawUnderline)(void* /*clientDrawingContext*/, fp32 /*baselineOriginX*/, fp32 /*baselineOriginY*/, DWRITE_UNDERLINE const* /*underline*/, IUnknown* /*clientDrawingEffect*/)
-        {
-            return E_NOTIMPL;
-        }
-        IFACEMETHOD(DrawStrikethrough)(void* /*clientDrawingContext*/, fp32 /*baselineOriginX*/, fp32 /*baselineOriginY*/, DWRITE_STRIKETHROUGH const* /*strikethrough*/, IUnknown* /*clientDrawingEffect*/)
-        {
-            return E_NOTIMPL;
-        }
-        IFACEMETHOD(DrawInlineObject)(void* /*clientDrawingContext*/, fp32 /*originX*/, fp32 /*originY*/, IDWriteInlineObject* /*inlineObject*/, BOOL /*isSideways*/, BOOL /*isRightToLeft*/, IUnknown* /*clientDrawingEffect*/)
-        {
-            return E_NOTIMPL;
-        }
-        IFACEMETHOD_(unsigned long, AddRef)()
-        {
-            return InterlockedIncrement(&refs);
-        }
-        IFACEMETHOD_(unsigned long, Release) ()
-        {
-            auto new_refs = InterlockedDecrement(&refs);
-            if (new_refs == 0) delete this;
-            return new_refs;
-        }
-        IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
-        {
-                 if (__uuidof(IDWriteTextRenderer)  == riid) *ppvObject = this;
-            else if (__uuidof(IDWritePixelSnapping) == riid) *ppvObject = this;
-            else if (__uuidof(IUnknown)             == riid) *ppvObject = this;
-            else                                           { *ppvObject = NULL; return E_FAIL; }
-            return S_OK;
         }
     };
 
@@ -910,7 +786,7 @@ namespace netxs::gui
             auto& layer = layers[index];
             auto canvas = layer.canvas(true);
             auto r = canvas.area().moveto(dot_00).rotate(align) - shadow_dent;
-            layer.textout(r, dot_00, 0xFF'ff'ff'ff, style::normal, utf8);
+            //layer.textout(r, dot_00, 0xFF'ff'ff'ff, style::normal, utf8);
             netxs::misc::contour(canvas); // 1ms
         }
         void draw_header() { draw_title(header, { 1, -1 }, header_text); }
