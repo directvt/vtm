@@ -47,24 +47,6 @@ namespace netxs::gui
     {
         using bits = netxs::raster<std::span<argb>, rect>;
 
-        struct gcfg
-        {
-            IDWriteFactory2*        pDWriteFactory{};
-            IDWriteRenderingParams* pNaturalRendering{};
-            IDWriteRenderingParams* pAliasedRendering{};
-            IDWriteTextFormat*      pTextFormat[4]{};
-            void reset()
-            {
-                pNaturalRendering->Release();
-                pAliasedRendering->Release();
-                pTextFormat[style::normal     ]->Release();
-                pTextFormat[style::italic     ]->Release();
-                pTextFormat[style::bold       ]->Release();
-                pTextFormat[style::bold_italic]->Release();
-                pDWriteFactory->Release();
-            }
-        };
-
         HDC   hdc;
         argb  fgc;
         HWND hWnd;
@@ -72,21 +54,17 @@ namespace netxs::gui
         rect prev;
         rect area;
         twod size;
-        ui32 refs;
-        gcfg conf;
         bits data;
 
         surface(surface const&) = default;
         surface(surface&&) = default;
-        surface(gcfg context, HWND hWnd)
+        surface(HWND hWnd)
             :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
               hWnd{ hWnd },
               sync{ faux },
               prev{ .coor = dot_mx },
               area{ dot_00, dot_00 },
-              size{ dot_00 },
-              refs{ 0 },
-              conf{ context }
+              size{ dot_00 }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
@@ -150,8 +128,22 @@ namespace netxs::gui
 
     struct manager
     {
-        using gcfg = surface::gcfg;
         using wins = std::vector<surface>;
+
+        struct gcfg
+        {
+            IDWriteFactory2*        pDWriteFactory{};
+            IDWriteRenderingParams* pNaturalRendering{};
+            IDWriteRenderingParams* pAliasedRendering{};
+            IDWriteTextFormat*      pTextFormat[4]{};
+            void reset()
+            {
+                pNaturalRendering->Release();
+                pAliasedRendering->Release();
+                for (auto tf : pTextFormat) tf->Release();
+                pDWriteFactory->Release();
+            }
+        };
 
         enum bttn
         {
@@ -359,7 +351,7 @@ namespace netxs::gui
                 //::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
                 //::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
             }
-            layers.emplace_back(config, hWnd);
+            layers.emplace_back(hWnd);
             return layer;
         }
     };
