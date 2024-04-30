@@ -46,7 +46,6 @@ namespace netxs::gui
     struct surface
     {
         using bits = netxs::raster<std::span<argb>, rect>;
-        using dwrt = IDWriteBitmapRenderTarget*;
 
         struct gcfg
         {
