@@ -51,7 +51,6 @@ namespace netxs::gui
         struct gcfg
         {
             IDWriteFactory2*        pDWriteFactory{};
-            IDWriteGdiInterop*      pGdiInterop{};
             IDWriteRenderingParams* pNaturalRendering{};
             IDWriteRenderingParams* pAliasedRendering{};
             IDWriteTextFormat*      pTextFormat[4]{};
@@ -63,7 +62,6 @@ namespace netxs::gui
                 pTextFormat[style::italic     ]->Release();
                 pTextFormat[style::bold       ]->Release();
                 pTextFormat[style::bold_italic]->Release();
-                pGdiInterop->Release();
                 pDWriteFactory->Release();
             }
         };
@@ -77,58 +75,53 @@ namespace netxs::gui
         twod size;
         ui32 refs;
         gcfg conf;
-        dwrt surf;
+        bits data;
 
         surface(surface const&) = default;
         surface(surface&&) = default;
         surface(gcfg context, HWND hWnd)
-            :  hdc{},
+            :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
               hWnd{ hWnd },
               sync{ faux },
               prev{ .coor = dot_mx },
               area{ dot_00, dot_00 },
               size{ dot_00 },
               refs{ 0 },
-              conf{ context },
-              surf{ nullptr }
+              conf{ context }
         { }
+        void reset() // We don't use custom copy/move ctors.
+        {
+            if (hdc) ::DeleteDC(hdc);
+        }
         void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
         { }
-        void reset() // We are not using custom copy/move ctors.
-        {
-            if (surf) surf->Release();
-        }
         auto canvas(bool wipe = faux)
         {
             if (area)
             {
                 if (area.size != size)
                 {
-                    auto undo = surf;
-                    auto hr = conf.pGdiInterop->CreateBitmapRenderTarget(NULL, area.size.x, area.size.y, &surf); // ET(auto hr = surf->Resize(area.size.x, area.size.y)); // Unnecessary copying.
-                    if (hr == S_OK)
+                    auto ptr = (void*)nullptr;
+                    auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
+                                                          .biWidth       = area.size.x,
+                                                          .biHeight      = -area.size.y,
+                                                          .biPlanes      = 1,
+                                                          .biBitCount    = 32,
+                                                          .biCompression = BI_RGB }};
+                    if (auto hbm = ::CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
-                        hdc = surf->GetMemoryDC();
+                        ::DeleteObject(::SelectObject(hdc, hbm));
                         wipe = faux;
                         size = area.size;
-                        if (undo) undo->Release();
-                        //surf->SetPixelsPerDip(1.f); // Ignore DPI to be pixel perfect.
+                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)size.x * size.y }, rect{ area.coor, size }};
                     }
-                    else log("bitmap resizing error: ", utf::to_hex(hr));
+                    else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
                 }
-                if (hdc)
-                {
-                    sync = faux;
-                    auto pv = BITMAP{};
-                    if (sizeof(BITMAP) == ::GetObjectW(::GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &pv))
-                    {
-                        auto sz = (sz_t)size.x * size.y;
-                        if (wipe) std::memset(pv.bmBits, 0, sz * sizeof(argb));
-                        return bits{ std::span<argb>{ (argb*)pv.bmBits, sz }, rect{ area.coor, size }};
-                    }
-                }
+                if (wipe) std::memset(data.data(), 0, (sz_t)size.x * size.y * sizeof(argb));
+                sync = faux;
             }
-            return bits{};
+            data.move(area.coor);
+            return data;
         }
         void present()
         {
@@ -151,7 +144,7 @@ namespace netxs::gui
                                             {},                          // COLORREF      crKey,
                                             &blend_props,                // BLENDFUNCTION *pblend,
                                             ULW_ALPHA);                  // DWORD         dwFlags
-            if (!rc) log("UpdateLayeredWindow returns unexpected result ", rc);
+            if (!rc) log("%%UpdateLayeredWindow returns unexpected result ", prompt::gui, rc);
             sync = true;
         }
     };
@@ -177,7 +170,6 @@ namespace netxs::gui
         {
             set_dpi_awareness();
             ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&config.pDWriteFactory)));
-            ok2(config.pDWriteFactory->GetGdiInterop(&config.pGdiInterop));
             auto font_name = utf::to_utf(font_name_utf8);
             //todo recalc
             auto font_size = (fp32)cellsz.y * 16.f / 22.f;
@@ -213,7 +205,7 @@ namespace netxs::gui
             if (proc)
             {
                 auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                if (hr != S_OK || hr != E_ACCESSDENIED) log("Set DPI awareness failed ", utf::to_hex(hr), " ", ::GetLastError());
+                if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
         auto set_dpi(auto new_dpi)
@@ -349,7 +341,7 @@ namespace netxs::gui
             if (!reg)
             {
                 isfine = faux;
-                log("window class registration error: ", ::GetLastError());
+                log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
             auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
@@ -360,7 +352,7 @@ namespace netxs::gui
             if (!hWnd)
             {
                 isfine = faux;
-                log("window creation error: ", ::GetLastError());
+                log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
             }
             else if (host_ptr)
             {
