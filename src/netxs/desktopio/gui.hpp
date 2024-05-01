@@ -132,11 +132,15 @@ namespace netxs::gui
 
         struct gcfg
         {
-            IDWriteFactory2*   pDWriteFactory{};
-            IDWriteTextFormat* pTextFormat[4]{};
+            IDWriteFactory2*       pDWriteFactory{};
+            IDWriteFontFallback*   systemFontFallback{};
+            IDWriteFontCollection* systemFontCollection{};
+
+            //IDWriteTextFormat* pTextFormat[4]{};
             void reset()
             {
-                for (auto tf : pTextFormat) tf->Release();
+                systemFontCollection->Release();
+                systemFontFallback->Release();
                 pDWriteFactory->Release();
             }
         };
@@ -148,30 +152,30 @@ namespace netxs::gui
             middle = 1 << 2,
         };
 
-        gcfg config; // manager: .
-        bool isfine; // manager: .
-        wins layers; // manager: .
+        gcfg config; // manager: DWrite's references.
+        bool isfine; // manager: All is ok.
+        wins layers; // manager: ARGB layers.
+        wide locale; // manager: Locale.
+        wide family; // manager: Base font family name.
+        fp32 fontsz; // manager: Base font size.
 
         manager(text font_name_utf8, twod cellsz)
-            : isfine{ faux }
+            : isfine{ faux },
+              locale(LOCALE_NAME_MAX_LENGTH, '\0'),
+              family{ utf::to_utf(font_name_utf8) },
+              fontsz{ cellsz.y * 16.f / 22.f } //todo temp
         {
             set_dpi_awareness();
             ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&config.pDWriteFactory)));
-            auto font_name = utf::to_utf(font_name_utf8);
-            //todo recalc
-            auto font_size = (fp32)cellsz.y * 16.f / 22.f;
-            auto locale = wide(LOCALE_NAME_MAX_LENGTH, '\0');
+
+            config.pDWriteFactory->GetSystemFontFallback(&config.systemFontFallback);
+            config.pDWriteFactory->GetSystemFontCollection(&config.systemFontCollection, TRUE);
+
             if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
             {
                 locale = L"en-US";
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
-            auto font_collection = nullptr;
-            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::normal]));
-            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::italic]));
-            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold]));
-            ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold_italic]));
-            //config.pTextFormat[style::bold_italic]->SetTrimming();
             isfine = true;
         }
         ~manager()
@@ -386,6 +390,7 @@ namespace netxs::gui
         si32 grip_b; // window: Surface index for Bottom resizing grip.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
+        wide toWide; // window: UTF-16 buffer.
         bool drop_shadow{ true };
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -482,34 +487,188 @@ namespace netxs::gui
             auto format = style::normal;
             if (c.itc()) format |= style::italic;
             if (c.bld()) format |= style::bold;
-
-            auto fontCollection = (IDWriteFontCollection*)nullptr;
-            auto hr = config.pTextFormat[format]->GetFontCollection(&fontCollection);
-            auto fontFamily = (IDWriteFontFamily*)nullptr;
-            hr = fontCollection->GetFontFamily(0, &fontFamily);
-            auto font = (IDWriteFont2*)nullptr;
-            hr = fontFamily->GetFont(0, (IDWriteFont**)&font);
-            auto fontFace = (IDWriteFontFace2*)nullptr;
-            hr = font->CreateFontFace((IDWriteFontFace**)&fontFace);
-
             auto code_iter = utf::cpit{ c.txt() };
             static auto code_buff = std::vector<ui32>{};
             static auto glyph_index = std::vector<ui16>{};
             code_buff.resize(0);
             while (code_iter) code_buff.push_back(code_iter.next().cdpoint);
+            if (code_buff.empty()) return;
+
+            //auto maxRangeCount = ui32{ 100 };
+            //auto actualRangeCount = ui32{};
+            //auto unicodeRanges = std::vector<DWRITE_UNICODE_RANGE>(maxRangeCount);
+            //fontFace->GetUnicodeRanges(maxRangeCount, unicodeRanges.data(), &actualRangeCount);
+
+            struct my_IDWriteTextAnalysisSource : IDWriteTextAnalysisSource
+            {
+                struct myNS : IDWriteNumberSubstitution
+                {
+                    ui32 rcount{};
+                    IFACEMETHOD_(unsigned long, AddRef)() { return InterlockedIncrement(&rcount); }
+                    IFACEMETHOD_(unsigned long, Release)()
+                    {
+                        auto new_refs = InterlockedDecrement(&rcount);
+                        if (new_refs == 0) delete this;
+                        return new_refs;
+                    }
+                    IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
+                    {
+                             if (__uuidof(IDWriteNumberSubstitution) == riid) *ppvObject = this;
+                        else if (__uuidof(IUnknown)                  == riid) *ppvObject = this;
+                        else                                                { *ppvObject = NULL; return E_FAIL; }
+                        return S_OK;
+                    }
+                } myNS;
+                wide& locale;
+                wide& letter;
+                ui32 rcount{};
+                my_IDWriteTextAnalysisSource(wide& locale, wide& letter)
+                    : locale{ locale },
+                      letter{ letter }
+                { }
+
+                IFACEMETHOD_(unsigned long, AddRef)() { return InterlockedIncrement(&rcount); }
+                IFACEMETHOD_(unsigned long, Release)()
+                {
+                    //not used
+                    auto new_refs = InterlockedDecrement(&rcount);
+                    if (new_refs == 0) delete this;
+                    return new_refs;
+                }
+                IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
+                {
+                         if (__uuidof(IDWriteTextAnalysisSource) == riid) *ppvObject = this;
+                    else if (__uuidof(IUnknown)                  == riid) *ppvObject = this;
+                    else                                                { *ppvObject = NULL; return E_FAIL; }
+                    return S_OK;
+                }
+                IFACEMETHOD(GetTextAtPosition)(UINT32 textPosition, WCHAR const** textString, UINT32* textLength)
+                {
+                    if (textPosition < letter.size())
+                    {
+                        *textString = letter.data() + textPosition;
+                        *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
+                    }
+                    else
+                    {
+                        *textString = nullptr;
+                        *textLength = 0;
+                    }
+                    return S_OK;
+                }
+                IFACEMETHOD(GetTextBeforePosition)(UINT32 textPosition, WCHAR const** textString, UINT32* textLength)
+                {
+                    //not used
+                    if (textPosition > 0 && textPosition <= letter.size())
+                    {
+                        *textString = letter.data();
+                        *textLength = textPosition;
+                    }
+                    else
+                    {
+                        *textString = nullptr;
+                        *textLength = 0;
+                    }
+                    return S_OK;
+                }
+                IFACEMETHOD_(DWRITE_READING_DIRECTION, GetParagraphReadingDirection)()
+                {
+                    //not used
+                    return DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
+                }
+                IFACEMETHOD(GetLocaleName)(UINT32 textPosition, UINT32* textLength, WCHAR const** localeName)
+                {
+                    *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
+                    *localeName = locale.data();
+                    return S_OK;
+                }
+                IFACEMETHOD(GetNumberSubstitution)(UINT32 textPosition, UINT32* textLength, IDWriteNumberSubstitution** numberSubstitution)
+                {
+                    //not used
+                    *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
+                    *numberSubstitution = &myNS;
+                    myNS.AddRef();
+                    return S_OK;
+                    //return E_NOTIMPL;
+                }
+            };
+
+            auto scale = fp32{};
+            auto mappedLength = ui32{};
+            auto mappedFont = (IDWriteFont2*)nullptr;
+            toWide.clear();
+            utf::to_utf(c.txt(), toWide);
+            auto analysisSource = my_IDWriteTextAnalysisSource{ manager::locale, toWide };
+            auto hr = config.systemFontFallback->MapCharacters(
+                &analysisSource,                    // IDWriteTextAnalysisSource* analysisSource,
+                0,                                  // UINT32 textPosition,
+                toWide.size(),                      // UINT32 textLength,
+                config.systemFontCollection,        // _In_opt_ IDWriteFontCollection* baseFontCollection,
+                manager::family.data(),             // _In_opt_z_ wchar_t const* baseFamilyName,
+                c.bld() ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,          // DWRITE_FONT_WEIGHT baseWeight,
+                c.itc() ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,          // DWRITE_FONT_STYLE baseStyle,
+                DWRITE_FONT_STRETCH_NORMAL,         // DWRITE_FONT_STRETCH baseStretch,
+                &mappedLength,                      // _Out_range_(0, textLength) UINT32* mappedLength,
+                (IDWriteFont**)&mappedFont,         // _COM_Outptr_result_maybenull_ IDWriteFont** mappedFont,
+                &scale);                            // _Out_ FLOAT* scale
+            if (!mappedFont)
+            {
+                log("no font for ", c.txt());
+                return;
+            }
+            auto exists = BOOL{};
+            mappedFont->HasCharacter(code_buff.front(), &exists);
+            if (!exists)
+            {
+                auto names = (IDWriteLocalizedStrings*)nullptr;
+                auto fontFamily = (IDWriteFontFamily*)nullptr;
+                mappedFont->GetFontFamily(&fontFamily);
+                fontFamily->GetFamilyNames(&names);
+                auto buff = wide(100, 0);
+                names->GetString(0, buff.data(), buff.size());
+                log("no glyph '", c.txt(), "' in font: ", utf::to_utf(buff.data()));
+                names->Release();
+                fontFamily->Release();
+            }
+
+            auto fontFace = (IDWriteFontFace2*)nullptr;
+            hr = mappedFont->CreateFontFace((IDWriteFontFace**)&fontFace);
 
             glyph_index.resize(code_buff.size());
             hr = fontFace->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
 
-            auto fontEmSize = config.pTextFormat[format]->GetFontSize();
             auto glyphRun = DWRITE_GLYPH_RUN{ .fontFace = fontFace,
-                                              .fontEmSize = fontEmSize,
+                                              .fontEmSize = fontsz,
                                               .glyphCount = (ui32)glyph_index.size(),
                                               .glyphIndices = glyph_index.data() };
 
             auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuringMode = DWRITE_MEASURING_MODE_NATURAL;
             hr = config.pDWriteFactory->TranslateColorGlyphRun(0, 0, &glyphRun, nullptr, measuringMode, nullptr, 0, &para_layers);
+            auto color = !!para_layers;
+            auto rendering_mode = color ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
+            auto grid_fit_mode = DWRITE_GRID_FIT_MODE_DEFAULT;
+            auto aa_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; // DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
+            auto gen_texture = [&](auto& glyphRun)
+            {
+                auto glyphRunAnalysis = (IDWriteGlyphRunAnalysis*)nullptr;
+                config.pDWriteFactory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
+                                                            nullptr,                       // transform,
+                                                            rendering_mode,                // renderingMode,
+                                                            measuringMode,                 // measuringMode,
+                                                            grid_fit_mode,                 // gridFitMode,
+                                                            aa_mode,                       // antialiasMode,
+                                                            0,                             // baselineOriginX,
+                                                            0,                             // baselineOriginY,
+                                                            &glyphRunAnalysis);            // glyphRunAnalysis
+                auto r = RECT{};
+                hr = glyphRunAnalysis->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
+                glyph_mask.area.size = { r.right - r.left, r.bottom - r.top };
+                glyph_mask.bits.resize(glyph_mask.area.size.x * glyph_mask.area.size.y);
+                hr = glyphRunAnalysis->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, glyph_mask.bits.data(), (ui32)glyph_mask.bits.size());
+                //todo apply glyph metrics
+                glyphRunAnalysis->Release();
+            };
             if (para_layers)
             {
                 auto subrun = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
@@ -523,49 +682,18 @@ namespace netxs::gui
                     {
                         if (color.token == 0) color.token = 0xFF'01'01'01; // Don't allow pure black fg for color glyphs.
                         //auto token = s.paletteIndex == -1 ? fgc.token : color.token;
-
+                        gen_texture(subrun->glyphRun);
+                        break;
                     }
                 }
                 para_layers->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR)
             {
-                //hr = surf->DrawGlyphRun(baselineOriginX,
-                //                        baselineOriginY,
-                //                        measuringMode,
-                //                        glyphRun,
-                //                        //conf.pNaturalRendering,
-                //                        conf.pAliasedRendering,
-                //                        argb::swap_rb(fgc.token),
-                //                        &dirtyRect);
+                gen_texture(glyphRun);
             }
-
-            auto color = !!para_layers;
-
-            auto rendering_mode = color ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
-            auto grid_fit_mode = DWRITE_GRID_FIT_MODE_DEFAULT;
-            auto aa_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; // DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
-            auto glyphRunAnalysis = (IDWriteGlyphRunAnalysis*)nullptr;
-            config.pDWriteFactory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
-                                                          nullptr,                       // transform,
-                                                          rendering_mode,                // renderingMode,
-                                                          measuringMode,                 // measuringMode,
-                                                          grid_fit_mode,                 // gridFitMode,
-                                                          aa_mode,                       // antialiasMode,
-                                                          0,                             // baselineOriginX,
-                                                          0,                             // baselineOriginY,
-                                                          &glyphRunAnalysis);            // glyphRunAnalysis
-            auto r = RECT{};
-            hr = glyphRunAnalysis->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
-            glyph_mask.area.size = { r.right - r.left, r.bottom - r.top };
-            glyph_mask.bits.resize(glyph_mask.area.size.x * glyph_mask.area.size.y);
-            hr = glyphRunAnalysis->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, glyph_mask.bits.data(), (ui32)glyph_mask.bits.size());
-            //todo apply glyph metrics
-            glyphRunAnalysis->Release();
             fontFace->Release();
-            font->Release();
-            fontFamily->Release();
-            fontCollection->Release();
+            mappedFont->Release();
         }
         void draw_cell(cell const& c, auto iter, si32 region_size_x)
         {
@@ -602,11 +730,12 @@ namespace netxs::gui
             }
             else
             {
-                return;
                 step_x /= 2;
                 auto ddx = glyph_mask.area.size.x & 1;
                 if (w == 2)
                 {
+                    step_y -= step_x;
+                    stride += step_x;
                     step_x += ddx;
                     if (glyph_mask.type == alpha_mask::color)
                     {
@@ -627,6 +756,8 @@ namespace netxs::gui
                 else if (w == 3)
                 {
                     ddx += step_x;
+                    step_y -= ddx;
+                    stride += ddx;
                     if (glyph_mask.type == alpha_mask::color)
                     {
                         auto src = (argb*)glyph_mask.bits.data();
