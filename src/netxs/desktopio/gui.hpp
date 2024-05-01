@@ -132,14 +132,10 @@ namespace netxs::gui
 
         struct gcfg
         {
-            IDWriteFactory2*        pDWriteFactory{};
-            IDWriteRenderingParams* pNaturalRendering{};
-            IDWriteRenderingParams* pAliasedRendering{};
-            IDWriteTextFormat*      pTextFormat[4]{};
+            IDWriteFactory2*   pDWriteFactory{};
+            IDWriteTextFormat* pTextFormat[4]{};
             void reset()
             {
-                pNaturalRendering->Release();
-                pAliasedRendering->Release();
                 for (auto tf : pTextFormat) tf->Release();
                 pDWriteFactory->Release();
             }
@@ -176,10 +172,6 @@ namespace netxs::gui
             ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold]));
             ok2(config.pDWriteFactory->CreateTextFormat(font_name.data(), font_collection, DWRITE_FONT_WEIGHT_BOLD,   DWRITE_FONT_STYLE_ITALIC, DWRITE_FONT_STRETCH_NORMAL, font_size, locale.data(), &config.pTextFormat[style::bold_italic]));
             //config.pTextFormat[style::bold_italic]->SetTrimming();
-            //ok2(config.pDWriteFactory->CreateRenderingParams(&config.pAliasedRendering));
-            ok2(config.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.f/*grayscale*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_ALIASED, &config.pAliasedRendering));
-            // It is not possible to render glyphs in colors close to pure black if any gamma >1 is applied. (e.g. 2.2f sRGB gamma)
-            ok2(config.pDWriteFactory->CreateCustomRenderingParams(1.0f/*no gamma*/, 0.0f/*nocontrast*/, 0.5f/*cleartype*/, DWRITE_PIXEL_GEOMETRY_FLAT, DWRITE_RENDERING_MODE_NATURAL_SYMMETRIC, &config.pNaturalRendering));
             isfine = true;
         }
         ~manager()
@@ -495,10 +487,10 @@ namespace netxs::gui
             auto hr = config.pTextFormat[format]->GetFontCollection(&fontCollection);
             auto fontFamily = (IDWriteFontFamily*)nullptr;
             hr = fontCollection->GetFontFamily(0, &fontFamily);
-            auto font = (IDWriteFont*)nullptr;
-            hr = fontFamily->GetFont(0, &font);
-            auto fontFace = (IDWriteFontFace*)nullptr;
-            hr = font->CreateFontFace(&fontFace);
+            auto font = (IDWriteFont2*)nullptr;
+            hr = fontFamily->GetFont(0, (IDWriteFont**)&font);
+            auto fontFace = (IDWriteFontFace2*)nullptr;
+            hr = font->CreateFontFace((IDWriteFontFace**)&fontFace);
 
             auto code_iter = utf::cpit{ c.txt() };
             static auto code_buff = std::vector<ui32>{};
@@ -507,11 +499,11 @@ namespace netxs::gui
             while (code_iter) code_buff.push_back(code_iter.next().cdpoint);
 
             glyph_index.resize(code_buff.size());
-            hr = fontFace->GetGlyphIndicesA(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
+            hr = fontFace->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
 
-            auto emSize = config.pTextFormat[format]->GetFontSize();
+            auto fontEmSize = config.pTextFormat[format]->GetFontSize();
             auto glyphRun = DWRITE_GLYPH_RUN{ .fontFace = fontFace,
-                                              .fontEmSize = emSize,
+                                              .fontEmSize = fontEmSize,
                                               .glyphCount = (ui32)glyph_index.size(),
                                               .glyphIndices = glyph_index.data() };
 
@@ -550,23 +542,14 @@ namespace netxs::gui
 
             auto color = !!para_layers;
 
-            //auto& renderingParams = color ? config.pNaturalRendering : config.pAliasedRendering;
-            auto& renderingParams = config.pNaturalRendering;
+            auto rendering_mode = color ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
+            auto grid_fit_mode = DWRITE_GRID_FIT_MODE_DEFAULT;
             auto aa_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; // DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
-            auto mask_type = DWRITE_OUTLINE_THRESHOLD_ANTIALIASED;
-            //auto mask_type = color ? DWRITE_OUTLINE_THRESHOLD_ALIASED : DWRITE_OUTLINE_THRESHOLD_ANTIALIASED;
-            auto rendering_mode = DWRITE_RENDERING_MODE{};
-            auto grid_fit_mode = DWRITE_GRID_FIT_MODE{};
-            fontFace->GetRecommendedRenderingMode(emSize,                        // emSize,
-                                                  1.f,                           // pixelsPerDip,
-                                                  DWRITE_MEASURING_MODE_NATURAL, /// measuringMode,
-                                                  renderingParams,               // renderingParams,
-                                                  &rendering_mode);              // renderingMode,
             auto glyphRunAnalysis = (IDWriteGlyphRunAnalysis*)nullptr;
             config.pDWriteFactory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
                                                           nullptr,                       // transform,
                                                           rendering_mode,                // renderingMode,
-                                                          DWRITE_MEASURING_MODE_NATURAL, // measuringMode,
+                                                          measuringMode,                 // measuringMode,
                                                           grid_fit_mode,                 // gridFitMode,
                                                           aa_mode,                       // antialiasMode,
                                                           0,                             // baselineOriginX,
@@ -577,7 +560,7 @@ namespace netxs::gui
             glyph_mask.area.size = { r.right - r.left, r.bottom - r.top };
             glyph_mask.bits.resize(glyph_mask.area.size.x * glyph_mask.area.size.y);
             hr = glyphRunAnalysis->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, glyph_mask.bits.data(), (ui32)glyph_mask.bits.size());
-
+            //todo apply glyph metrics
             glyphRunAnalysis->Release();
             fontFace->Release();
             font->Release();
