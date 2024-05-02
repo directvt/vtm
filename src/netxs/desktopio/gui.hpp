@@ -62,6 +62,12 @@ namespace netxs::gui
                     osfont->GetUnicodeRanges(count, rangemap.data(), &count);
                     rangemap.resize(count);
                     rangemap.shrink_to_fit();
+
+                    //auto cmap_data = (void const*)nullptr;
+                    //auto cmap_size = ui32{};
+                    //auto cmap_ctx = (void*)nullptr;
+                    //auto exists = BOOL{};
+                    //fontFace->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p'), &cmap_data, &cmap_size, &cmap_ctx, &exists);
                 }
                 osfont->Release();
             }
@@ -76,8 +82,7 @@ namespace netxs::gui
                 fontFamily->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), buff.size());
-                log("Using font '", utf::to_utf(buff.data()), "' with cmap:");
-                for (auto r : rangemap) log("\t", r.first, "-", r.last);
+                log("Using font '", utf::to_utf(buff.data()), "'");
                 names->Release();
             }
 
@@ -111,14 +116,25 @@ namespace netxs::gui
         IDWriteFontCollection* fontlist;
         font                   basefont;
         std::vector<font>      fallback;
-        std::vector<si32>      observed;
+        std::vector<byte>      included;
 
         gcfg(view family_name)
             : factory{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory->GetSystemFontCollection(&c, TRUE); return c; }() },
               basefont{ family_name, fontlist },
-              observed(fontlist->GetFontFamilyCount(), 0)
-        { }
+              included(fontlist->GetFontFamilyCount(), 0)
+        {
+            for (auto i = 0; i < included.size(); i++)
+            {
+                auto fontFamily = (IDWriteFontFamily*)nullptr;
+                auto osfont = (IDWriteFont1*)nullptr;
+                fontlist->GetFontFamily(i, &fontFamily);
+                fontFamily->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&osfont);
+                if (!osfont) continue;
+                included[i] = (osfont ? 1 : 0) | (osfont->IsMonospacedFont() ? 2 : 0);
+                osfont->Release();
+            }
+        }
         ~gcfg()
         {
             if (fontlist) fontlist->Release();
@@ -126,55 +142,50 @@ namespace netxs::gui
         }
         auto take_font(utfx codepoint, si32 s)
         {
-            auto hittest = [&](auto& fontinst)
+            auto hittest = [&](auto& fontface)
             {
-                if (fontinst) for (auto r : fontinst.rangemap) if (codepoint >= r.first && codepoint <= r.last) return true;
-                return faux;
+                if (!fontface) return faux;
+                auto glyph_index = ui16{};
+                fontface->GetGlyphIndices(&codepoint, 1, &glyph_index);
+                return !!glyph_index;
             };
-            if (hittest(basefont)) return basefont.fontface[s];
+            if (hittest(basefont.fontface[s])) return basefont.fontface[s];
             else
             {
-                for (auto& f : fallback) if (hittest(f)) return f.fontface[s];
+                for (auto& f : fallback) if (hittest(f.fontface[s])) return f.fontface[s];
                 auto stretch = DWRITE_FONT_STRETCH_NORMAL;
                 auto weight = s & style::bold ?   DWRITE_FONT_WEIGHT_BOLD  : DWRITE_FONT_WEIGHT_NORMAL;
                 auto fstyle = s & style::italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
-                for (auto i = 0; i < observed.size(); i++)
+                auto try_font = [&](auto i)
                 {
-                    if (observed[i]) continue;
-                    observed[i] = 1;
                     auto fontFamily = (IDWriteFontFamily*)nullptr;
                     auto osfont = (IDWriteFont1*)nullptr;
                     fontlist->GetFontFamily(i, &fontFamily);
                     fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
-                    auto exists = BOOL{};
-                    if (osfont && osfont->IsMonospacedFont() && (osfont->HasCharacter(codepoint, &exists), exists))
+                    auto fontFace = (IDWriteFontFace*)nullptr;
+                    osfont->CreateFontFace(&fontFace);
+                    if (hittest(fontFace))
                     {
+                        included[i] |= 4;
                         auto& f = fallback.emplace_back(fontFamily);
+                        fontFace->Release();
                         osfont->Release();
                         fontFamily->Release();
                         return f.fontface[s];
                     }
+                    fontFace->Release();
                     osfont->Release();
                     fontFamily->Release();
+                };
+                for (auto i = 0; i < included.size(); i++)
+                {
+                    if (!included[i] || (included[i] & 2) == 0 || (included[i] & 4)) continue;
+                    try_font(i);
                 }
-                for (auto i = 0; i < observed.size(); i++)
+                for (auto i = 0; i < included.size(); i++)
                 {
-                    if (observed[i] != 2) continue;
-                    observed[i] = 2;
-                    auto fontFamily = (IDWriteFontFamily*)nullptr;
-                    auto osfont = (IDWriteFont1*)nullptr;
-                    fontlist->GetFontFamily(i, &fontFamily);
-                    fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
-                    auto exists = BOOL{};
-                    if (osfont && (osfont->HasCharacter(codepoint, &exists), exists))
-                    {
-                        auto& f = fallback.emplace_back(fontFamily);
-                        osfont->Release();
-                        fontFamily->Release();
-                        return f.fontface[s];
-                    }
-                    osfont->Release();
-                    fontFamily->Release();
+                    if (!included[i] || included[i] & 4) continue;
+                    try_font(i);
                 }
             }
             return basefont.fontface.size() ? basefont.fontface[s] : nullptr;
