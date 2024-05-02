@@ -49,6 +49,10 @@ namespace netxs::gui
         {
             std::vector<IDWriteFontFace1*>    fontface;
             std::vector<DWRITE_UNICODE_RANGE> rangemap;
+            DWRITE_FONT_METRICS metrics{};
+            si32 baseline{};
+            si32 emheight{};
+            twod cellsz;
 
             auto load(auto& fontFace, auto family, auto weight, auto stretch, auto style)
             {
@@ -57,17 +61,83 @@ namespace netxs::gui
                 osfont->CreateFontFace((IDWriteFontFace**)&fontFace);
                 if (rangemap.empty())
                 {
+                    fontFace->GetMetrics(&metrics);
+                    emheight = metrics.ascent + metrics.descent;
+                    cellsz.x = metrics.designUnitsPerEm / 2;
+                    cellsz.y = emheight + metrics.lineGap;
+                    baseline = metrics.ascent + metrics.lineGap / 2;
+
                     auto count = (ui32)fontFace->GetGlyphCount();
                     rangemap.resize(count);
                     osfont->GetUnicodeRanges(count, rangemap.data(), &count);
                     rangemap.resize(count);
                     rangemap.shrink_to_fit();
+                    // formats 8, 10 and 12 with 32-bit encoding
+                    // format 13 - last-resort
+                    // format 14 for Unicode variation sequences
+                    struct cmap_table
+                    {
+                        enum platforms
+                        {
+                            Unicode   = 0, // Various
+                            Macintosh = 1, // Script manager code
+                            ISO       = 2, // ISO encoding
+                            Windows   = 3, // Windows encoding
+                            Custom    = 4, // Custom encoding
+                        };
+                        enum encodings
+                        {
+                            Symbol            = 0, // Symbols
+                            Windows_1_0       = 1, // Unicode BMP
+                            Unicode_2_0       = 3, // Unicode 2.0 and onwards semantics, Unicode BMP only
+                            Unicode_2_0f      = 4, // Unicode 2.0 and onwards semantics, Unicode full repertoire
+                            Unicode_Variation = 5, // Unicode Variation Sequences—for use with subtable format 14
+                            Unicode_full      = 6, // Unicode full repertoire—for use with subtable format 13
+                            Windows_2_0       = 10,// Unicode full repertoire
+                        };
+                        struct rect
+                        {
+                            ui16 platformID;
+                            ui16 encodingID;
+                            ui32 subtableOffset; // Byte offset from beginning of table to the subtable for this encoding.
+                        };
+                        ui16 version;
+                        ui16 numTables;
+                        rect records[];
+                    };
+                    struct colr_table
+                    {
+                        struct baseGlyphRecord
+                        {
+                            ui16 glyphID;         // Glyph ID of the base glyph.
+                            ui16 firstLayerIndex; // Index (base 0) into the layerRecords array.
+                            ui16 numLayers;       // Number of color layers associated with this glyph.
+                        };
+                        struct layerRecord
+                        {
+                            ui16 glyphID;      // Glyph ID of the glyph used for a given layer.
+                            ui16 paletteIndex; // Index (base 0) for a palette entry in the CPAL table.
+                        };
+                        ui16 version;                   // Table version number—set to 0.
+                        ui16 numBaseGlyphRecords;       // Number of base glyphs.
+                        ui32 baseGlyphRecordsOffset;    // Offset to baseGlyphRecords array.
+                        ui32 layerRecordsOffset;        // Offset to layerRecords array.
+                        ui16 numLayerRecords;           // Number of Layer records.
+                        //baseGlyphRecord baseGlyphRecs[];
+                        //layerRecord     layersRecs[];
+                    };
 
                     //auto cmap_data = (void const*)nullptr;
                     //auto cmap_size = ui32{};
                     //auto cmap_ctx = (void*)nullptr;
                     //auto exists = BOOL{};
                     //fontFace->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p'), &cmap_data, &cmap_size, &cmap_ctx, &exists);
+                    // 1. cmap: codepoints -> indices
+                    // 2. GSUB: indices -> indices
+                    // 3. BASE: take font-wise metrics
+                    // 4. GPOS: glyph positions
+                    // 5. COLR+CPAL: multicolored glyphs (version 0)
+
                 }
                 osfont->Release();
             }
@@ -81,7 +151,7 @@ namespace netxs::gui
                 auto names = (IDWriteLocalizedStrings*)nullptr;
                 fontFamily->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
-                names->GetString(0, buff.data(), buff.size());
+                names->GetString(0, buff.data(), (ui32)buff.size());
                 log("Using font '", utf::to_utf(buff.data()), "'");
                 names->Release();
             }
@@ -140,7 +210,7 @@ namespace netxs::gui
             if (fontlist) fontlist->Release();
             if (factory) factory->Release();
         }
-        auto take_font(utfx codepoint, si32 s)
+        auto& take_font(utfx codepoint)
         {
             auto hittest = [&](auto& fontface)
             {
@@ -149,13 +219,13 @@ namespace netxs::gui
                 fontface->GetGlyphIndices(&codepoint, 1, &glyph_index);
                 return !!glyph_index;
             };
-            if (hittest(basefont.fontface[s])) return basefont.fontface[s];
+            if (hittest(basefont.fontface[0])) return basefont;
             else
             {
-                for (auto& f : fallback) if (hittest(f.fontface[s])) return f.fontface[s];
+                for (auto& f : fallback) if (hittest(f.fontface[0])) return f;
                 auto stretch = DWRITE_FONT_STRETCH_NORMAL;
-                auto weight = s & style::bold ?   DWRITE_FONT_WEIGHT_BOLD  : DWRITE_FONT_WEIGHT_NORMAL;
-                auto fstyle = s & style::italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
+                auto weight = DWRITE_FONT_WEIGHT_NORMAL;
+                auto fstyle = DWRITE_FONT_STYLE_NORMAL;
                 auto try_font = [&](auto i)
                 {
                     auto fontFamily = (IDWriteFontFamily*)nullptr;
@@ -164,31 +234,29 @@ namespace netxs::gui
                     fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
                     auto fontFace = (IDWriteFontFace*)nullptr;
                     osfont->CreateFontFace(&fontFace);
-                    if (hittest(fontFace))
+                    auto hit = hittest(fontFace);
+                    if (hit)
                     {
                         included[i] |= 4;
-                        auto& f = fallback.emplace_back(fontFamily);
-                        fontFace->Release();
-                        osfont->Release();
-                        fontFamily->Release();
-                        return f.fontface[s];
+                        fallback.emplace_back(fontFamily);
                     }
                     fontFace->Release();
                     osfont->Release();
                     fontFamily->Release();
+                    return hit;
                 };
                 for (auto i = 0; i < included.size(); i++)
                 {
                     if (!included[i] || (included[i] & 2) == 0 || (included[i] & 4)) continue;
-                    try_font(i);
+                    if (try_font(i)) return fallback.back();
                 }
                 for (auto i = 0; i < included.size(); i++)
                 {
                     if (!included[i] || included[i] & 4) continue;
-                    try_font(i);
+                    if (try_font(i)) return fallback.back();
                 }
             }
-            return basefont.fontface.size() ? basefont.fontface[s] : nullptr;
+            return basefont;
         }
     };
 
@@ -290,13 +358,11 @@ namespace netxs::gui
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
         wide locale; // manager: Locale.
-        fp32 fontsz; // manager: Base font size.
 
-        manager(view font_name_utf8, twod cellsz)
+        manager(view font_name_utf8)
             : config{ font_name_utf8 },
               isfine{ faux },
-              locale(LOCALE_NAME_MAX_LENGTH, '\0'),
-              fontsz{ cellsz.y * 16.f / 22.f } //todo temp
+              locale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             set_dpi_awareness();
             if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
@@ -421,7 +487,7 @@ namespace netxs::gui
                         if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
                         if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
                         break;
-                    case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break;
+                    case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break; //todo reimplement mouse leaving
                     case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
                     case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
                     case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
@@ -523,7 +589,7 @@ namespace netxs::gui
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 })
-            : manager{ font, cell_size },
+            : manager{ font },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               cellsz{ cell_size },
               gripsz{ grip_cell * cell_size },
@@ -577,7 +643,7 @@ namespace netxs::gui
             //todo temp
             grid_data.size(layers[client].area.size / cellsz);
             grid_data.cup(dot_00);
-            grid_data.output(canvas_page);
+            grid_data.output<true>(canvas_page);
         }
         auto resize_window(twod size_delta)
         {
@@ -621,12 +687,15 @@ namespace netxs::gui
             auto format = style::normal;
             if (c.itc()) format |= style::italic;
             if (c.bld()) format |= style::bold;
-            auto fontFace = config.take_font(code_buff.front(), format);
+            auto& f = config.take_font(code_buff.front());
+            auto fontFace = f.fontface[format];
             if (!fontFace) return;
 
             glyph_index.resize(code_buff.size());
             auto hr = fontFace->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
 
+            auto scale = std::min((fp32)cellsz.x / f.cellsz.x, (fp32)cellsz.y / f.cellsz.y);
+            auto fontsz = f.emheight * scale * 0.75f; //todo 72/96?
             auto glyphRun = DWRITE_GLYPH_RUN{ .fontFace = fontFace,
                                               .fontEmSize = fontsz,
                                               .glyphCount = (ui32)glyph_index.size(),
@@ -635,8 +704,8 @@ namespace netxs::gui
             auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuringMode = DWRITE_MEASURING_MODE_NATURAL;
             hr = config.factory->TranslateColorGlyphRun(0, 0, &glyphRun, nullptr, measuringMode, nullptr, 0, &para_layers);
-            auto color = !!para_layers;
-            auto rendering_mode = color ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
+            auto colored = !!para_layers;
+            auto rendering_mode = colored ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
             auto grid_fit_mode = DWRITE_GRID_FIT_MODE_DEFAULT;
             auto aa_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; // DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
             auto gen_texture = [&](auto& glyphRun)
@@ -653,10 +722,9 @@ namespace netxs::gui
                                                             &glyphRunAnalysis);            // glyphRunAnalysis
                 auto r = RECT{};
                 hr = glyphRunAnalysis->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
-                glyph_mask.area.size = { r.right - r.left, r.bottom - r.top };
+                glyph_mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
                 glyph_mask.bits.resize(glyph_mask.area.size.x * glyph_mask.area.size.y);
                 hr = glyphRunAnalysis->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, glyph_mask.bits.data(), (ui32)glyph_mask.bits.size());
-                //todo apply glyph metrics
                 glyphRunAnalysis->Release();
             };
             if (para_layers)
@@ -682,6 +750,8 @@ namespace netxs::gui
             {
                 gen_texture(glyphRun);
             }
+            glyph_mask.area.coor.y += (si32)(f.baseline * scale);
+            //log("fontsz=", fontsz, " scale ", scale, " baseline=", (si32)(f.baseline * scale), " cellsz=", cellsz);
         }
         void draw_cell(cell const& c, auto iter, si32 region_size_x)
         {
@@ -778,6 +848,8 @@ namespace netxs::gui
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::pureblack };
             auto lbc = argb{ tint::pureblue  };//.alpha(0.5f);
+            auto white = argb{ tint::whitedk };
+            auto black = argb{ tint::blackdk };
 
             auto line_y = region.size.x * (cellsz.y - 1);
             auto offset = 0;
@@ -794,13 +866,15 @@ namespace netxs::gui
                     auto fx = (fp32)r.coor.x / (region.size.x - 1);
                     auto p = argb::transit(lc, rc, fx);
                     netxs::inrect(canvas.begin() + offset, step_x, step_y, stride, cell::shaders::full(p));
+                    netxs::misc::cage(canvas, r, lt, cell::shaders::full(white));
+                    //netxs::misc::cage(canvas, r, rb, cell::shaders::full(black));
                     offset += step_x;
                 }
                 offset += line_y;
             }
 
             canvas.step(region.coor);
-            auto& layer = layers[client];
+            //auto& layer = layers[client];
             auto coor = dot_00;
             offset = region.size.x * (coor.y * cellsz.y) + coor.x;
             for (auto& c : grid_data)
