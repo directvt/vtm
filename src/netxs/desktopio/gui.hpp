@@ -43,6 +43,144 @@ namespace netxs::gui
         si32 type{ undef };
     };
 
+    struct gcfg
+    {
+        struct font
+        {
+            std::vector<IDWriteFontFace1*>    fontface;
+            std::vector<DWRITE_UNICODE_RANGE> rangemap;
+
+            auto load(auto& fontFace, auto family, auto weight, auto stretch, auto style)
+            {
+                auto osfont = (IDWriteFont1*)nullptr;
+                family->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&osfont);
+                osfont->CreateFontFace((IDWriteFontFace**)&fontFace);
+                if (rangemap.empty())
+                {
+                    auto count = (ui32)fontFace->GetGlyphCount();
+                    rangemap.resize(count);
+                    osfont->GetUnicodeRanges(count, rangemap.data(), &count);
+                    rangemap.resize(count);
+                    rangemap.shrink_to_fit();
+                }
+                osfont->Release();
+            }
+            void load(IDWriteFontFamily* fontFamily)
+            {
+                fontface.resize(4);
+                load(fontface[style::normal     ], fontFamily, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                load(fontface[style::italic     ], fontFamily, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                load(fontface[style::bold       ], fontFamily, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                load(fontface[style::bold_italic], fontFamily, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                auto names = (IDWriteLocalizedStrings*)nullptr;
+                fontFamily->GetFamilyNames(&names);
+                auto buff = wide(100, 0);
+                names->GetString(0, buff.data(), buff.size());
+                log("Using font '", utf::to_utf(buff.data()), "' with cmap:");
+                for (auto r : rangemap) log("\t", r.first, "-", r.last);
+                names->Release();
+            }
+
+            font(font&&) = default;
+            font(IDWriteFontFamily* fontFamily)
+            {
+                load(fontFamily);
+            }
+            font(view family_utf8, IDWriteFontCollection* collection)
+            {
+                auto index = ui32{};
+                auto found = BOOL{};   
+                auto family_utf16 = utf::to_utf(family_utf8);
+                collection->FindFamilyName(family_utf16.data(), &index, &found);
+                if (found)
+                {
+                    auto fontFamily = (IDWriteFontFamily*)nullptr;
+                    collection->GetFontFamily(index, &fontFamily);
+                    load(fontFamily);
+                    fontFamily->Release();                    
+                }
+            }
+            ~font()
+            {
+                for (auto f : fontface) if (f) f->Release();
+            }
+            explicit operator bool () { return !rangemap.empty(); }
+        };
+
+        IDWriteFactory2*       factory;
+        IDWriteFontCollection* fontlist;
+        font                   basefont;
+        std::vector<font>      fallback;
+        std::vector<si32>      observed;
+
+        gcfg(view family_name)
+            : factory{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
+              fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory->GetSystemFontCollection(&c, TRUE); return c; }() },
+              basefont{ family_name, fontlist },
+              observed(fontlist->GetFontFamilyCount(), 0)
+        { }
+        ~gcfg()
+        {
+            if (fontlist) fontlist->Release();
+            if (factory) factory->Release();
+        }
+        auto take_font(utfx codepoint, si32 s)
+        {
+            auto hittest = [&](auto& fontinst)
+            {
+                if (fontinst) for (auto r : fontinst.rangemap) if (codepoint >= r.first && codepoint <= r.last) return true;
+                return faux;
+            };
+            if (hittest(basefont)) return basefont.fontface[s];
+            else
+            {
+                for (auto& f : fallback) if (hittest(f)) return f.fontface[s];
+                auto stretch = DWRITE_FONT_STRETCH_NORMAL;
+                auto weight = s & style::bold ?   DWRITE_FONT_WEIGHT_BOLD  : DWRITE_FONT_WEIGHT_NORMAL;
+                auto fstyle = s & style::italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
+                for (auto i = 0; i < observed.size(); i++)
+                {
+                    if (observed[i]) continue;
+                    observed[i] = 1;
+                    auto fontFamily = (IDWriteFontFamily*)nullptr;
+                    auto osfont = (IDWriteFont1*)nullptr;
+                    fontlist->GetFontFamily(i, &fontFamily);
+                    fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
+                    auto exists = BOOL{};
+                    if (osfont && osfont->IsMonospacedFont() && (osfont->HasCharacter(codepoint, &exists), exists))
+                    {
+                        auto& f = fallback.emplace_back(fontFamily);
+                        osfont->Release();
+                        fontFamily->Release();
+                        return f.fontface[s];
+                    }
+                    osfont->Release();
+                    fontFamily->Release();
+                }
+                for (auto i = 0; i < observed.size(); i++)
+                {
+                    if (observed[i] != 2) continue;
+                    observed[i] = 2;
+                    auto fontFamily = (IDWriteFontFamily*)nullptr;
+                    auto osfont = (IDWriteFont1*)nullptr;
+                    fontlist->GetFontFamily(i, &fontFamily);
+                    fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
+                    auto exists = BOOL{};
+                    if (osfont && (osfont->HasCharacter(codepoint, &exists), exists))
+                    {
+                        auto& f = fallback.emplace_back(fontFamily);
+                        osfont->Release();
+                        fontFamily->Release();
+                        return f.fontface[s];
+                    }
+                    osfont->Release();
+                    fontFamily->Release();
+                }
+            }
+            return basefont.fontface.size() ? basefont.fontface[s] : nullptr;
+        }
+    };
+
     struct surface
     {
         using bits = netxs::raster<std::span<argb>, rect>;
@@ -130,21 +268,6 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
-        struct gcfg
-        {
-            IDWriteFactory2*       pDWriteFactory{};
-            IDWriteFontFallback*   systemFontFallback{};
-            IDWriteFontCollection* systemFontCollection{};
-
-            //IDWriteTextFormat* pTextFormat[4]{};
-            void reset()
-            {
-                systemFontCollection->Release();
-                systemFontFallback->Release();
-                pDWriteFactory->Release();
-            }
-        };
-
         enum bttn
         {
             left   = 1 << 0,
@@ -156,21 +279,15 @@ namespace netxs::gui
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
         wide locale; // manager: Locale.
-        wide family; // manager: Base font family name.
         fp32 fontsz; // manager: Base font size.
 
-        manager(text font_name_utf8, twod cellsz)
-            : isfine{ faux },
+        manager(view font_name_utf8, twod cellsz)
+            : config{ font_name_utf8 },
+              isfine{ faux },
               locale(LOCALE_NAME_MAX_LENGTH, '\0'),
-              family{ utf::to_utf(font_name_utf8) },
               fontsz{ cellsz.y * 16.f / 22.f } //todo temp
         {
             set_dpi_awareness();
-            ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&config.pDWriteFactory)));
-
-            config.pDWriteFactory->GetSystemFontFallback(&config.systemFontFallback);
-            config.pDWriteFactory->GetSystemFontCollection(&config.systemFontCollection, TRUE);
-
             if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
             {
                 locale = L"en-US";
@@ -181,7 +298,6 @@ namespace netxs::gui
         ~manager()
         {
             for (auto& w : layers) w.reset();
-            config.reset();
         }
         auto& operator [] (si32 layer) { return layers[layer]; }
         explicit operator bool () const { return isfine; }
@@ -480,13 +596,10 @@ namespace netxs::gui
             }
             return layers[client].area - old_client;
         }
-        void generatee_glyph_mak(alpha_mask& glyph_mask, cell const& c)
+        void generatee_glyph_mask(alpha_mask& glyph_mask, cell const& c)
         {
             glyph_mask.type = alpha_mask::plain;
             if (c.wdt() == 0) return;
-            auto format = style::normal;
-            if (c.itc()) format |= style::italic;
-            if (c.bld()) format |= style::bold;
             auto code_iter = utf::cpit{ c.txt() };
             static auto code_buff = std::vector<ui32>{};
             static auto glyph_index = std::vector<ui16>{};
@@ -494,148 +607,14 @@ namespace netxs::gui
             while (code_iter) code_buff.push_back(code_iter.next().cdpoint);
             if (code_buff.empty()) return;
 
-            //auto maxRangeCount = ui32{ 100 };
-            //auto actualRangeCount = ui32{};
-            //auto unicodeRanges = std::vector<DWRITE_UNICODE_RANGE>(maxRangeCount);
-            //fontFace->GetUnicodeRanges(maxRangeCount, unicodeRanges.data(), &actualRangeCount);
-
-            struct my_IDWriteTextAnalysisSource : IDWriteTextAnalysisSource
-            {
-                struct myNS : IDWriteNumberSubstitution
-                {
-                    ui32 rcount{};
-                    IFACEMETHOD_(unsigned long, AddRef)() { return InterlockedIncrement(&rcount); }
-                    IFACEMETHOD_(unsigned long, Release)()
-                    {
-                        auto new_refs = InterlockedDecrement(&rcount);
-                        if (new_refs == 0) delete this;
-                        return new_refs;
-                    }
-                    IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
-                    {
-                             if (__uuidof(IDWriteNumberSubstitution) == riid) *ppvObject = this;
-                        else if (__uuidof(IUnknown)                  == riid) *ppvObject = this;
-                        else                                                { *ppvObject = NULL; return E_FAIL; }
-                        return S_OK;
-                    }
-                } myNS;
-                wide& locale;
-                wide& letter;
-                ui32 rcount{};
-                my_IDWriteTextAnalysisSource(wide& locale, wide& letter)
-                    : locale{ locale },
-                      letter{ letter }
-                { }
-
-                IFACEMETHOD_(unsigned long, AddRef)() { return InterlockedIncrement(&rcount); }
-                IFACEMETHOD_(unsigned long, Release)()
-                {
-                    //not used
-                    auto new_refs = InterlockedDecrement(&rcount);
-                    if (new_refs == 0) delete this;
-                    return new_refs;
-                }
-                IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
-                {
-                         if (__uuidof(IDWriteTextAnalysisSource) == riid) *ppvObject = this;
-                    else if (__uuidof(IUnknown)                  == riid) *ppvObject = this;
-                    else                                                { *ppvObject = NULL; return E_FAIL; }
-                    return S_OK;
-                }
-                IFACEMETHOD(GetTextAtPosition)(UINT32 textPosition, WCHAR const** textString, UINT32* textLength)
-                {
-                    if (textPosition < letter.size())
-                    {
-                        *textString = letter.data() + textPosition;
-                        *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
-                    }
-                    else
-                    {
-                        *textString = nullptr;
-                        *textLength = 0;
-                    }
-                    return S_OK;
-                }
-                IFACEMETHOD(GetTextBeforePosition)(UINT32 textPosition, WCHAR const** textString, UINT32* textLength)
-                {
-                    //not used
-                    if (textPosition > 0 && textPosition <= letter.size())
-                    {
-                        *textString = letter.data();
-                        *textLength = textPosition;
-                    }
-                    else
-                    {
-                        *textString = nullptr;
-                        *textLength = 0;
-                    }
-                    return S_OK;
-                }
-                IFACEMETHOD_(DWRITE_READING_DIRECTION, GetParagraphReadingDirection)()
-                {
-                    //not used
-                    return DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
-                }
-                IFACEMETHOD(GetLocaleName)(UINT32 textPosition, UINT32* textLength, WCHAR const** localeName)
-                {
-                    *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
-                    *localeName = locale.data();
-                    return S_OK;
-                }
-                IFACEMETHOD(GetNumberSubstitution)(UINT32 textPosition, UINT32* textLength, IDWriteNumberSubstitution** numberSubstitution)
-                {
-                    //not used
-                    *textLength = (ui32)std::max(0, (si32)letter.size() - (si32)textPosition);
-                    *numberSubstitution = &myNS;
-                    myNS.AddRef();
-                    return S_OK;
-                    //return E_NOTIMPL;
-                }
-            };
-
-            auto scale = fp32{};
-            auto mappedLength = ui32{};
-            auto mappedFont = (IDWriteFont2*)nullptr;
-            toWide.clear();
-            utf::to_utf(c.txt(), toWide);
-            auto analysisSource = my_IDWriteTextAnalysisSource{ manager::locale, toWide };
-            auto hr = config.systemFontFallback->MapCharacters(
-                &analysisSource,                    // IDWriteTextAnalysisSource* analysisSource,
-                0,                                  // UINT32 textPosition,
-                toWide.size(),                      // UINT32 textLength,
-                config.systemFontCollection,        // _In_opt_ IDWriteFontCollection* baseFontCollection,
-                manager::family.data(),             // _In_opt_z_ wchar_t const* baseFamilyName,
-                c.bld() ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_NORMAL,          // DWRITE_FONT_WEIGHT baseWeight,
-                c.itc() ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,          // DWRITE_FONT_STYLE baseStyle,
-                DWRITE_FONT_STRETCH_NORMAL,         // DWRITE_FONT_STRETCH baseStretch,
-                &mappedLength,                      // _Out_range_(0, textLength) UINT32* mappedLength,
-                (IDWriteFont**)&mappedFont,         // _COM_Outptr_result_maybenull_ IDWriteFont** mappedFont,
-                &scale);                            // _Out_ FLOAT* scale
-            if (!mappedFont)
-            {
-                log("no font for ", c.txt());
-                return;
-            }
-            auto exists = BOOL{};
-            mappedFont->HasCharacter(code_buff.front(), &exists);
-            if (!exists)
-            {
-                auto names = (IDWriteLocalizedStrings*)nullptr;
-                auto fontFamily = (IDWriteFontFamily*)nullptr;
-                mappedFont->GetFontFamily(&fontFamily);
-                fontFamily->GetFamilyNames(&names);
-                auto buff = wide(100, 0);
-                names->GetString(0, buff.data(), buff.size());
-                log("no glyph '", c.txt(), "' in font: ", utf::to_utf(buff.data()));
-                names->Release();
-                fontFamily->Release();
-            }
-
-            auto fontFace = (IDWriteFontFace2*)nullptr;
-            hr = mappedFont->CreateFontFace((IDWriteFontFace**)&fontFace);
+            auto format = style::normal;
+            if (c.itc()) format |= style::italic;
+            if (c.bld()) format |= style::bold;
+            auto fontFace = config.take_font(code_buff.front(), format);
+            if (!fontFace) return;
 
             glyph_index.resize(code_buff.size());
-            hr = fontFace->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
+            auto hr = fontFace->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
 
             auto glyphRun = DWRITE_GLYPH_RUN{ .fontFace = fontFace,
                                               .fontEmSize = fontsz,
@@ -644,7 +623,7 @@ namespace netxs::gui
 
             auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuringMode = DWRITE_MEASURING_MODE_NATURAL;
-            hr = config.pDWriteFactory->TranslateColorGlyphRun(0, 0, &glyphRun, nullptr, measuringMode, nullptr, 0, &para_layers);
+            hr = config.factory->TranslateColorGlyphRun(0, 0, &glyphRun, nullptr, measuringMode, nullptr, 0, &para_layers);
             auto color = !!para_layers;
             auto rendering_mode = color ? DWRITE_RENDERING_MODE_ALIASED : DWRITE_RENDERING_MODE_GDI_NATURAL;
             auto grid_fit_mode = DWRITE_GRID_FIT_MODE_DEFAULT;
@@ -652,7 +631,7 @@ namespace netxs::gui
             auto gen_texture = [&](auto& glyphRun)
             {
                 auto glyphRunAnalysis = (IDWriteGlyphRunAnalysis*)nullptr;
-                config.pDWriteFactory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
+                config.factory->CreateGlyphRunAnalysis(&glyphRun,                     // glyphRun,
                                                             nullptr,                       // transform,
                                                             rendering_mode,                // renderingMode,
                                                             measuringMode,                 // measuringMode,
@@ -692,8 +671,6 @@ namespace netxs::gui
             {
                 gen_texture(glyphRun);
             }
-            fontFace->Release();
-            mappedFont->Release();
         }
         void draw_cell(cell const& c, auto iter, si32 region_size_x)
         {
@@ -703,7 +680,7 @@ namespace netxs::gui
             if (c.itc()) token |= style::italic;
             if (c.bld()) token |= style::bold;
             auto& glyph_mask = glyph_cache[token];
-            if (glyph_mask.type == alpha_mask::undef) generatee_glyph_mak(glyph_mask, c);
+            if (glyph_mask.type == alpha_mask::undef) generatee_glyph_mask(glyph_mask, c);
             //todo underline/strike etc
             if (!glyph_mask.area) return;
 
