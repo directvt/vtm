@@ -19,11 +19,11 @@ namespace netxs::gui
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
-    auto header_text = L"Windows Command Prompt - 😎 - C:\\Windows\\System32\\"s;
-    auto footer_text = L"4/4000 80:25"s;
+    auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
+    auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
     auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};
-    auto header_para = ui::para{ utf::to_utf(header_text) };
-    auto footer_para = ui::para{ utf::to_utf(footer_text) };
+    auto header_page = ui::page{ header_text };
+    auto footer_page = ui::page{ footer_text };
 
     namespace style
     {
@@ -584,7 +584,9 @@ namespace netxs::gui
         };
 
         std::unordered_map<ui64, alpha_mask> glyph_cache;
-        ui::face grid_data;
+        ui::face main_grid;
+        ui::face head_grid;
+        ui::face foot_grid;
 
         twod gridsz; // window: Grid size in cells.
         twod cellsz; // window: Cell size in pixels.
@@ -630,10 +632,15 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
-            grid_data.size(layers[client].area.size / cellsz);
-            grid_data.cup(dot_00);
-            grid_data.output(canvas_page);
-
+            main_grid.size(layers[client].area.size / cellsz);
+            main_grid.cup(dot_00);
+            main_grid.output(canvas_page);
+            head_grid.size(layers[header].area.size / cellsz);
+            head_grid.cup(dot_00);
+            head_grid.output(header_page);
+            foot_grid.size(layers[footer].area.size / cellsz);
+            foot_grid.cup(dot_00);
+            foot_grid.output(footer_page);
             update();
             manager::show(win_mode);
         }
@@ -644,8 +651,12 @@ namespace netxs::gui
             layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
             layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
             layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
-            auto header_height = cellsz.y * ((header_para.size().x + gridsz.x - 1) / gridsz.x);
-            auto footer_height = cellsz.y * ((footer_para.size().x + gridsz.x - 1) / gridsz.x);
+            auto h_size = base_rect.size / cellsz;
+            auto f_size = base_rect.size / cellsz;
+            head_grid.calc_page_height(header_page, h_size);
+            head_grid.calc_page_height(footer_page, f_size);
+            auto header_height = cellsz.y * h_size.y;
+            auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
@@ -662,9 +673,15 @@ namespace netxs::gui
             recalc_layout();
             reload |= task::sized;
             //todo temp
-            grid_data.size(layers[client].area.size / cellsz);
-            grid_data.cup(dot_00);
-            grid_data.output<true>(canvas_page);
+            main_grid.size(layers[client].area.size / cellsz);
+            main_grid.cup(dot_00);
+            main_grid.output<true>(canvas_page);
+            head_grid.size(layers[header].area.size / cellsz);
+            head_grid.cup(dot_00);
+            head_grid.output(header_page);
+            foot_grid.size(layers[footer].area.size / cellsz);
+            foot_grid.cup(dot_00);
+            foot_grid.output(footer_page);
         }
         auto resize_window(twod size_delta)
         {
@@ -694,7 +711,7 @@ namespace netxs::gui
             }
             return layers[client].area - old_client;
         }
-        void generatee_glyph_mask(alpha_mask& glyph_mask, cell const& c)
+        void rasterize_glyph(alpha_mask& glyph_mask, cell const& c)
         {
             glyph_mask.type = aamode ? alpha_mask::alpha : alpha_mask::plain;
             if (c.wdt() == 0) return;
@@ -807,7 +824,7 @@ namespace netxs::gui
                 iter = glyph_cache.emplace(token, mono_buffer).first;
             }
             auto& glyph_mask = iter->second;
-            if (glyph_mask.type == alpha_mask::undef) generatee_glyph_mask(glyph_mask, c);
+            if (glyph_mask.type == alpha_mask::undef) rasterize_glyph(glyph_mask, c);
             //todo underline/strike etc
             if (!glyph_mask.area) return;
 
@@ -849,9 +866,25 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, colorize);
             }
         }
-        void draw_grid()
+        void draw_grid(auto& canvas, rect region, auto& grid_data)
         {
-            auto canvas = layers[client].canvas(); // 0.500 ms
+            canvas.step(-region.coor);
+            auto coor = dot_00;
+            for (auto& c : grid_data)
+            {
+                draw_cell(canvas, coor, c);
+                coor.x += cellsz.x;
+                if (coor.x >= region.size.x)
+                {
+                    coor.x = 0;
+                    coor.y += cellsz.y;
+                    if (coor.y >= region.size.y) break;
+                }
+            }
+            canvas.step(region.coor);
+        }
+        void fill_back(auto& canvas)
+        {
             auto region = canvas.area();
             auto r  = rect{ .size = cellsz };
             auto lt = dent{ 1, 0, 1, 0 };
@@ -884,19 +917,6 @@ namespace netxs::gui
                     offset += step_x;
                 }
                 offset += line_y;
-            }
-
-            auto coor = dot_00;
-            for (auto& c : grid_data)
-            {
-                draw_cell(canvas, coor, c);
-                coor.x += cellsz.x;
-                if (coor.x >= region.size.x)
-                {
-                    coor.x = 0;
-                    coor.y += cellsz.y;
-                    if (coor.y >= region.size.y) break;
-                }
             }
             canvas.step(region.coor);
         }
@@ -949,16 +969,15 @@ namespace netxs::gui
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
         }
-        void draw_title(si32 index, twod align, wiew utf8) //todo just output ui::core
+        void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
-            auto& layer = layers[index];
-            auto canvas = layer.canvas(true);
-            auto r = canvas.area().moveto(dot_00).rotate(align) - shadow_dent;
-            //layer.textout(r, dot_00, 0xFF'ff'ff'ff, style::normal, utf8);
+            auto canvas = layers[index].canvas(true);
+            auto r = canvas.area().moveto(dot_00) - shadow_dent;
+            draw_grid(canvas, r, facedata);
             netxs::misc::contour(canvas); // 1ms
         }
-        void draw_header() { draw_title(header, { 1, -1 }, header_text); }
-        void draw_footer() { draw_title(footer, { -1, 1 }, footer_text); }
+        void draw_header() { draw_title(header, head_grid); }
+        void draw_footer() { draw_title(footer, foot_grid); }
         void update()
         {
             if (!reload) return;
@@ -967,7 +986,12 @@ namespace netxs::gui
                  if (what == task::moved) manager::present<true>();
             else if (what)
             {
-                if (what & (task::sized | task::inner))   draw_grid();
+                if (what & (task::sized | task::inner))
+                {
+                    auto canvas = layers[client].canvas();
+                    fill_back(canvas);
+                    draw_grid(canvas, canvas.area(), main_grid); // 0.500 ms);
+                }
                 if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (what & (task::sized | task::header)) draw_header();
                 if (what & (task::sized | task::footer)) draw_footer();

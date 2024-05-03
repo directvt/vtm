@@ -926,6 +926,7 @@ namespace netxs::ui
 
             bool live = true; // title: Title visibility.
 
+            //todo use face::calc_page_height
             auto recalc(page& object, twod& size)
             {
                 auto cp = dot_00;

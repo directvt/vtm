@@ -2214,6 +2214,20 @@ namespace netxs::ui
                 textpage.stream(find);
             }
         }
+        auto calc_page_height(page& object, twod& size)
+        {
+            auto cp = dot_00;
+            flow::reset();
+            flow::size(size);
+            auto publish = [&](auto const& combo)
+            {
+                cp = flow::print(combo);
+            };
+            object.stream(publish);
+            auto& cover = flow::minmax();
+            size.y = cover.height() + 1;
+            return cp;
+        }
         // face: Reflow text page on the canvas and hold position
         //       of the top visible paragraph while resizing.
         void reflow_deprecated(page& textpage)
