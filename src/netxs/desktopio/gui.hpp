@@ -32,13 +32,20 @@ namespace netxs::gui
         static constexpr auto bold        = 2;
         static constexpr auto bold_italic = bold | italic;
     };
+    namespace fontcat
+    {
+        static constexpr auto valid      = 1 << 0;
+        static constexpr auto monospaced = 1 << 1;
+        static constexpr auto color      = 1 << 2;
+        static constexpr auto loaded     = 1 << 3;
+    };
 
     struct alpha_mask
     {
         static constexpr auto undef = 0;
         static constexpr auto plain = 1; // B/W mask. No alpha blending. byte-based. fx: pixel = byte ? fgc : pixel.
         static constexpr auto alpha = 2; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-        static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xffff)), fgc, irgb.chan.a >> 16).
+        static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
 
         //todo use pmr to increase CPU cache hit
         std::vector<byte> bits;
@@ -65,10 +72,11 @@ namespace netxs::gui
             si32 baseline{};
             si32 emheight{};
             twod cellsz;
+            ui32 index{};
 
             auto load(auto& fontFace, auto family, auto weight, auto stretch, auto style)
             {
-                auto osfont = (IDWriteFont1*)nullptr;
+                auto osfont = (IDWriteFont2*)nullptr;
                 family->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&osfont);
                 osfont->CreateFontFace((IDWriteFontFace**)&fontFace);
                 if (rangemap.empty())
@@ -164,7 +172,7 @@ namespace netxs::gui
                 fontFamily->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
-                log("Using font '", utf::to_utf(buff.data()), "'");
+                log("%%Using font '%fontname%'.", prompt::gui, utf::to_utf(buff.data()));
                 names->Release();
             }
 
@@ -175,7 +183,6 @@ namespace netxs::gui
             }
             font(view family_utf8, IDWriteFontCollection* collection)
             {
-                auto index = ui32{};
                 auto found = BOOL{};   
                 auto family_utf16 = utf::to_utf(family_utf8);
                 collection->FindFamilyName(family_utf16.data(), &index, &found);
@@ -186,6 +193,7 @@ namespace netxs::gui
                     load(fontFamily);
                     fontFamily->Release();                    
                 }
+                else log("%%Font '%fontname%' is not installed in the system.", prompt::gui, family_utf8);
             }
             ~font()
             {
@@ -198,22 +206,28 @@ namespace netxs::gui
         IDWriteFontCollection* fontlist;
         font                   basefont;
         std::vector<font>      fallback;
-        std::vector<byte>      included;
+        std::vector<byte>      fontstat;
 
         gcfg(view family_name)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               basefont{ family_name, fontlist },
-              included(fontlist->GetFontFamilyCount(), 0)
+              fontstat(fontlist->GetFontFamilyCount(), 0)
         {
-            for (auto i = 0; i < included.size(); i++)
+            if (basefont) fontstat[basefont.index] |= fontcat::loaded;
+            for (auto i = 0; i < fontstat.size(); i++)
             {
                 auto fontFamily = (IDWriteFontFamily*)nullptr;
-                auto osfont = (IDWriteFont1*)nullptr;
+                auto osfont = (IDWriteFont2*)nullptr;
                 fontlist->GetFontFamily(i, &fontFamily);
                 fontFamily->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&osfont);
-                if (!osfont) continue;
-                included[i] = (osfont ? 1 : 0) | (osfont->IsMonospacedFont() ? 2 : 0);
+                if (osfont)
+                {
+                                                    fontstat[i] |= fontcat::valid;
+                    if (osfont->IsColorFont())      fontstat[i] |= fontcat::color;
+                    if (osfont->IsMonospacedFont()) fontstat[i] |= fontcat::monospaced;
+                }
+                else continue;
                 osfont->Release();
             }
         }
@@ -241,7 +255,7 @@ namespace netxs::gui
                 auto try_font = [&](auto i)
                 {
                     auto fontFamily = (IDWriteFontFamily*)nullptr;
-                    auto osfont = (IDWriteFont1*)nullptr;
+                    auto osfont = (IDWriteFont2*)nullptr;
                     fontlist->GetFontFamily(i, &fontFamily);
                     fontFamily->GetFirstMatchingFont(weight, stretch, fstyle, (IDWriteFont**)&osfont);
                     auto fontFace = (IDWriteFontFace*)nullptr;
@@ -249,7 +263,7 @@ namespace netxs::gui
                     auto hit = hittest(fontFace);
                     if (hit)
                     {
-                        included[i] |= 4;
+                        fontstat[i] |= fontcat::loaded;
                         fallback.emplace_back(fontFamily);
                     }
                     fontFace->Release();
@@ -257,16 +271,18 @@ namespace netxs::gui
                     fontFamily->Release();
                     return hit;
                 };
-                for (auto i = 0; i < included.size(); i++)
+                auto try_fontcat = [&](auto category)
                 {
-                    if (!included[i] || (included[i] & 2) == 0 || (included[i] & 4)) continue;
-                    if (try_font(i)) return fallback.back();
-                }
-                for (auto i = 0; i < included.size(); i++)
-                {
-                    if (!included[i] || included[i] & 4) continue;
-                    if (try_font(i)) return fallback.back();
-                }
+                    for (auto i = 0; i < fontstat.size(); i++)
+                    {
+                        if (fontstat[i] == category && try_font(i)) return true;
+                    }
+                    return faux;
+                };
+                if (try_fontcat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
+                if (try_fontcat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
+                if (try_fontcat(fontcat::valid | fontcat::color))                       return fallback.back();
+                if (try_fontcat(fontcat::valid))                                        return fallback.back();
             }
             return basefont;
         }
