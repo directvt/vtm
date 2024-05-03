@@ -5757,7 +5757,7 @@ namespace netxs::os
         auto native()
         {
             #if defined(WIN32)
-                if (auto w = gui::window{ dtvt::window, dtvt::uifont, dtvt::fontsz, dtvt::iconic, faux })
+                if (auto w = gui::window{ dtvt::window, dtvt::uifont, dtvt::fontsz, dtvt::iconic, { 2, 1 }, faux })
                 {
                     if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::fontsz=", dtvt::fontsz, " dtvt::iconic=", dtvt::iconic);
                     w.dispatch();
