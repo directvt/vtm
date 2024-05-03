@@ -47,10 +47,12 @@ namespace netxs::gui
         static constexpr auto alpha = 2; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
         static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
 
-        //todo use pmr to increase CPU cache hit
-        std::vector<byte> bits;
-        rect area;
-        si32 type{ undef };
+        std::pmr::vector<byte> bits;
+        rect                   area;
+        si32                   type{ undef };
+        alpha_mask(auto& pool)
+            : bits{ &pool }
+        { }
     };
     struct pmr_alpha_mask
     {
@@ -792,12 +794,19 @@ namespace netxs::gui
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
             using irgb = netxs::irgb<si32>;
+            static auto mono_buffer = std::pmr::monotonic_buffer_resource{};
+
             auto w = c.wdt();
             if (w == 0) return;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= style::italic;
             if (c.bld()) token |= style::bold;
-            auto& glyph_mask = glyph_cache[token];
+            auto iter = glyph_cache.find(token);
+            if (iter == glyph_cache.end())
+            {
+                iter = glyph_cache.emplace(token, mono_buffer).first;
+            }
+            auto& glyph_mask = iter->second;
             if (glyph_mask.type == alpha_mask::undef) generatee_glyph_mask(glyph_mask, c);
             //todo underline/strike etc
             if (!glyph_mask.area) return;
