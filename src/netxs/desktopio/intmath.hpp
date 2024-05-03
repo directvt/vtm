@@ -698,7 +698,7 @@ namespace netxs
 
     // intmath: Copy the bitmap to the bitmap by invoking
     //          handle(sprite1_element, sprite2_element) for each elem.
-    void oncopy(auto&& bitmap1, auto const& bitmap2, auto handle)
+    void oncopy(auto&& bitmap1, auto&& bitmap2, auto handle)
     {
         auto& size1 = bitmap1.size();
         auto& size2 = bitmap2.size();
@@ -720,7 +720,7 @@ namespace netxs
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
     template<bool RtoL, class R, class C, class P, class NewlineFx = noop>
-    void inbody(auto&& canvas, auto const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
+    void inbody(auto&& canvas, auto&& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         if (region.size.y == 0) return;
         auto& base1 = region.coor;
@@ -799,11 +799,9 @@ namespace netxs
         { }
     };
 
-    // intmath: Intersect two sprites and invoking
-    //          handle(sprite1_element, sprite2_element)
-    //          for each elem in the intersection.
+    // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
     template<class NewlineFx = noop>
-    void onbody(auto&& canvas, auto const& bitmap, auto handle, NewlineFx online = {})
+    void onbody(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -812,6 +810,19 @@ namespace netxs
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
             inbody<faux>(canvas, bitmap, joint, basis, handle, online);
+        }
+    }
+    // intmath: Intersect two sprite's clips and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
+    template<class NewlineFx = noop>
+    void onclip(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})
+    {
+        auto canvas_clip = canvas.clip();
+        auto bitmap_area = bitmap.area();
+        //canvas_clip.coor -= bitmap_area.coor;
+        if (canvas_clip.trimby(bitmap_area))
+        {
+            auto basis = canvas_clip.coor - bitmap_area.coor;
+            netxs::inbody<faux>(canvas, bitmap, canvas_clip, basis, handle, online);
         }
     }
 

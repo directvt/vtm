@@ -199,13 +199,14 @@ namespace netxs
         bool operator == (rect const&) const = default;
         explicit operator bool ()       const { return size.x != 0 && size.y != 0;            }
         auto   center          ()       const { return coor + size / 2;                       }
-        auto   area            ()       const { return size.x * size.y;                       }
+        auto   length          ()       const { return size.x * size.y;                       }
         twod   map             (twod p) const { return p - coor;                              }
         rect   shift           (twod p) const { return { coor + p, size };                    }
         auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
         auto&  moveto          (twod p)       { coor = p;  return *this;                      }
         rect   operator /      (twod p) const { return { coor / p, size / p };                }
         rect   operator |      (rect r) const { return unite(r, *this);                       }
+        auto&  operator |=     (rect r)       { return unitewith(r);                          }
         auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
         auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }
 
@@ -288,6 +289,13 @@ namespace netxs
             r.coor = std::clamp(coor, dot_00, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
             return r;
+        }
+        // rect: Unite with rect (normalized only).
+        constexpr rect& unitewith(rect r)
+        {
+            coor = std::min(coor, r.coor);
+            size = std::max(coor + size, r.coor + r.size ) - coor;
+            return *this;
         }
         // rect: Return circumscribed rect.
         static constexpr rect unite(rect r1, rect r2)

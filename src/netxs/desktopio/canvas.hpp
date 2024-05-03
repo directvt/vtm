@@ -105,8 +105,15 @@ namespace netxs
                     static_cast<byte>(r * 255),
                     static_cast<byte>(a * 255) }
         { }
+        template<class T>
+        constexpr argb(T const& c)
+            : argb(c.b, c.g, c.r, c.a)
+        { }
         constexpr argb(ui32 c)
             : token{ netxs::letoh(c) }
+        { }
+        constexpr argb(si32 c)
+            : argb{ (ui32)c }
         { }
         constexpr argb(tint c)
             : argb{ vt256[c] }
@@ -167,6 +174,13 @@ namespace netxs
         constexpr auto operator != (argb c) const
         {
             return !operator==(c);
+        }
+        auto& swap_rb()
+        {
+            token = ((token >>  0) & 0xFF'00'FF'00) |
+                    ((token >> 16) & 0x00'00'00'FF) |
+                    ((token << 16) & 0x00'FF'00'00);
+            return *this;
         }
         static auto swap_rb(ui32 c)
         {
@@ -306,6 +320,11 @@ namespace netxs
                 chan.b = blend2(chan.b, c.chan.b);
                 chan.a = (byte)(a >> 8);
             }
+        }
+        // argb: Alpha blending ARGB colors.
+        void blend(argb c)
+        {
+            mix(c);
         }
         // argb: ARGB transitional blending. Level = 0: equals c1, level = 256: equals c2.
         static auto transit(argb c1, argb c2, si32 level)
@@ -540,19 +559,22 @@ namespace netxs
                          argb::gamma(c.chan.b), c.chan.a };
         }
         // argb: Premultiply alpha.
-        auto pma()
+        auto& pma()
         {
-            if (chan.a == 255) return;
-            else if (chan.a == 0) token = 0;
-            else // if (chan.a != 255)
+            if (chan.a != 255)
             {
-                chan.r = (byte)(((si32)chan.r * chan.a) >> 8);
-                chan.g = (byte)(((si32)chan.g * chan.a) >> 8);
-                chan.b = (byte)(((si32)chan.b * chan.a) >> 8);
+                if (chan.a == 0) token = 0;
+                else
+                {
+                    chan.r = (byte)(((si32)chan.r * chan.a) >> 8);
+                    chan.g = (byte)(((si32)chan.g * chan.a) >> 8);
+                    chan.b = (byte)(((si32)chan.b * chan.a) >> 8);
+                }
             }
+            return *this;
         }
         // argb: Blend pma.
-        auto blendpma(argb c)
+        auto& blendpma(argb c)
         {
             if (c.chan.a == 255 || chan.a == 0) token = c.token;
             else if (c.chan.a != 0)
@@ -563,6 +585,18 @@ namespace netxs
                 auto a  = c.chan.a + ((na * chan.a) >> 8);
                 token = (rb & 0xFF00FF) | (g & 0x00FF00) | (a << 24);
             }
+            return *this;
+        }
+        // argb: Blend pma.
+        auto& blendpma(argb c, auto alpha)
+        {
+            if (alpha == 255) *this = c;
+            else if (alpha != 0)
+            {
+                c.chan.a = (byte)((c.chan.a * alpha) >> 8);
+                blendpma(c.pma());
+            }
+            return *this;
         }
 
         template<si32 i>
@@ -889,55 +923,55 @@ namespace netxs
         {
             return irgb{ r + c.r, g + c.g, b + c.b, a + c.a };
         }
-
-        void operator *= (auto n)
+        void operator *= (auto n) { r *= n; g *= n; b *= n; a *= n; }
+        void operator /= (auto n) { r /= n; g /= n; b /= n; a /= n; }
+        void operator =  (irgb const& c) { r =  c.r; g =  c.g; b =  c.b; a =  c.a; }
+        void operator += (irgb const& c) { r += c.r; g += c.g; b += c.b; a += c.a; }
+        void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
+        void operator += (argb c) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
+        void operator -= (argb c) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
+        // irgb: Premultiply alpha.
+        auto& pma()
         {
-            r *= n;
-            g *= n;
-            b *= n;
-            a *= n;
+            if (a != 255)
+            {
+                if (a == 0)
+                {
+                    r = b = g = 0;
+                }
+                else
+                {
+                    r = (r * a) >> 8;
+                    g = (g * a) >> 8;
+                    b = (b * a) >> 8;
+                }
+            }
+            return *this;
         }
-        void operator /= (auto n)
+        // irgb: Blend pma.
+        auto& blendpma(irgb c)
         {
-            r /= n;
-            g /= n;
-            b /= n;
-            a /= n;
+            if (c.a == 255 || a == 0) *this = c;
+            else if (c.a != 0)
+            {
+                auto na = 256 - c.a;
+                r = c.r + ((na * r) >> 8);
+                g = c.g + ((na * g) >> 8);
+                b = c.b + ((na * b) >> 8);
+                a = c.a + ((na * a) >> 8);
+            }
+            return *this;
         }
-        void operator = (irgb const& c)
+        // irgb: Blend pma.
+        auto& blendpma(irgb c, T alpha)
         {
-            r = c.r;
-            g = c.g;
-            b = c.b;
-            a = c.a;
-        }
-        void operator += (irgb const& c)
-        {
-            r += c.r;
-            g += c.g;
-            b += c.b;
-            a += c.a;
-        }
-        void operator -= (irgb const& c)
-        {
-            r -= c.r;
-            g -= c.g;
-            b -= c.b;
-            a -= c.a;
-        }
-        void operator += (argb c)
-        {
-            r += c.chan.r;
-            g += c.chan.g;
-            b += c.chan.b;
-            a += c.chan.a;
-        }
-        void operator -= (argb c)
-        {
-            r -= c.chan.r;
-            g -= c.chan.g;
-            b -= c.chan.b;
-            a -= c.chan.a;
+            if (alpha == 255) *this = c;
+            else if (alpha != 0)
+            {
+                c.a = (c.a * alpha) >> 8;
+                blendpma(c.pma());
+            }
+            return *this;
         }
     };
 
