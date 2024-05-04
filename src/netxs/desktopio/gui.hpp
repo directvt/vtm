@@ -15,6 +15,7 @@ namespace netxs::gui
 {
     using namespace input;
 
+    //test strings
     auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
@@ -25,47 +26,22 @@ namespace netxs::gui
     auto header_page = ui::page{ header_text };
     auto footer_page = ui::page{ footer_text };
 
-    namespace style
-    {
-        static constexpr auto normal      = 0;
-        static constexpr auto italic      = 1;
-        static constexpr auto bold        = 2;
-        static constexpr auto bold_italic = bold | italic;
-    };
-    namespace fontcat
-    {
-        static constexpr auto valid      = 1 << 0;
-        static constexpr auto monospaced = 1 << 1;
-        static constexpr auto color      = 1 << 2;
-        static constexpr auto loaded     = 1 << 3;
-    };
-
-    struct alpha_mask
-    {
-        static constexpr auto undef = 0;
-        static constexpr auto plain = 1; // B/W mask. No alpha blending. byte-based. fx: pixel = byte ? fgc : pixel.
-        static constexpr auto alpha = 2; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-        static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
-
-        std::pmr::vector<byte> bits;
-        rect                   area;
-        si32                   type{ undef };
-        alpha_mask(auto& pool)
-            : bits{ &pool }
-        { }
-    };
-    struct irgb_alpha_mask
-    {
-        std::pmr::vector<byte> bits;
-        rect                   area;
-        irgb<si32>             fill;
-        irgb_alpha_mask(auto& pool)
-            : bits{ &pool }
-        { }
-    };
-
     struct font
     {
+        struct style
+        {
+            static constexpr auto normal      = 0;
+            static constexpr auto italic      = 1;
+            static constexpr auto bold        = 2;
+            static constexpr auto bold_italic = bold | italic;
+        };
+        struct fontcat
+        {
+            static constexpr auto valid      = 1 << 0;
+            static constexpr auto monospaced = 1 << 1;
+            static constexpr auto color      = 1 << 2;
+            static constexpr auto loaded     = 1 << 3;
+        };
         struct typeface
         {
             std::vector<IDWriteFontFace1*>    fontface;
@@ -282,7 +258,35 @@ namespace netxs::gui
 
     struct glyf
     {
+        using irgb = netxs::irgb<si32>;
+        using vect = std::pmr::vector<byte>;
+        struct alpha_mask
+        {
+            static constexpr auto undef = 0;
+            static constexpr auto plain = 1; // B/W mask. No alpha blending. byte-based. fx: pixel = byte ? fgc : pixel.
+            static constexpr auto alpha = 2; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+            static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
+
+            vect bits; // Contains: type=plain: bytes [0,255]; type=alpha: bytes [0-255]; type=color: irgb<si32>.
+            rect area;
+            si32 type;
+            alpha_mask(auto& pool)
+                : bits{ &pool },
+                  type{ undef }
+            { }
+        };
+        struct color_layer
+        {
+            vect bits;
+            rect area;
+            irgb fill;
+            color_layer(auto& pool)
+                : bits{ &pool }
+            { }
+        };
+
         using gmap = std::unordered_map<ui64, alpha_mask>;
+
         font& fcache; // glyf: Font cache.
         twod  cellsz;
         bool  aamode; // glyf: Enable AA.
@@ -308,9 +312,9 @@ namespace netxs::gui
             while (code_iter) cpbuff.push_back(code_iter.next().cdpoint);
             if (cpbuff.empty()) return;
 
-            auto format = style::normal;
-            if (c.itc()) format |= style::italic;
-            if (c.bld()) format |= style::bold;
+            auto format = font::style::normal;
+            if (c.itc()) format |= font::style::italic;
+            if (c.bld()) format |= font::style::bold;
             auto& f = fcache.take_font(cpbuff.front());
             auto font_face = f.fontface[format];
             if (!font_face) return;
@@ -343,12 +347,11 @@ namespace netxs::gui
             };
             if (colored_glyphs)
             {
-                using irgb = netxs::irgb<si32>;
                 glyph_mask.bits.clear();
                 glyph_mask.type = alpha_mask::color;
                 auto exist = BOOL{ true };
                 auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                auto masks = std::pmr::vector<irgb_alpha_mask>{ &buffer_pool }; // Minimize allocations.
+                auto masks = std::pmr::vector<color_layer>{ &buffer_pool }; // Minimize allocations.
                 while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
                 {
                     auto& m = masks.emplace_back(buffer_pool);
@@ -390,12 +393,11 @@ namespace netxs::gui
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
-            using irgb = netxs::irgb<si32>;
             auto w = c.wdt();
             if (w == 0) return;
             auto token = c.tkn() & ~3;
-            if (c.itc()) token |= style::italic;
-            if (c.bld()) token |= style::bold;
+            if (c.itc()) token |= font::style::italic;
+            if (c.bld()) token |= font::style::bold;
             auto iter = glyphs.find(token);
             if (iter == glyphs.end())
             {
