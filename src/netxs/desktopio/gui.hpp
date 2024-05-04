@@ -54,25 +54,25 @@ namespace netxs::gui
             : bits{ &pool }
         { }
     };
-    struct pmr_alpha_mask
+    struct irgb_alpha_mask
     {
         std::pmr::vector<byte> bits;
         rect                   area;
         irgb<si32>             fill;
-        pmr_alpha_mask(auto& pool)
+        irgb_alpha_mask(auto& pool)
             : bits{ &pool }
         { }
     };
 
-    struct gcfg
+    struct font
     {
-        struct font
+        struct typeface
         {
             std::vector<IDWriteFontFace1*>    fontface;
             DWRITE_FONT_METRICS               metrics{};
             si32                              baseline{};
             si32                              emheight{};
-            twod                              cellsz;
+            twod                              facesz; // Typeface cell size.
             ui32                              index{ ~0u };
 
             auto load(auto& faceinst, auto barefont, auto weight, auto stretch, auto style)
@@ -84,8 +84,8 @@ namespace netxs::gui
                 {
                     faceinst->GetMetrics(&metrics);
                     emheight = metrics.ascent + metrics.descent;
-                    cellsz.x = metrics.designUnitsPerEm / 2;
-                    cellsz.y = emheight + metrics.lineGap;
+                    facesz.x = metrics.designUnitsPerEm / 2;
+                    facesz.y = emheight + metrics.lineGap;
                     baseline = metrics.ascent + metrics.lineGap / 2;
                     // formats 8, 10 and 12 with 32-bit encoding
                     // format 13 - last-resort
@@ -170,13 +170,13 @@ namespace netxs::gui
                 names->Release();
             }
 
-            font(font&&) = default;
-            font(IDWriteFontFamily* barefont, ui32 index)
+            typeface(typeface&&) = default;
+            typeface(IDWriteFontFamily* barefont, ui32 index)
                 : index{ index }
             {
                 load(barefont);
             }
-            font(view family_utf8, IDWriteFontCollection* fontlist)
+            typeface(view family_utf8, IDWriteFontCollection* fontlist)
             {
                 auto found = BOOL{};   
                 auto family_utf16 = utf::to_utf(family_utf8);
@@ -190,7 +190,7 @@ namespace netxs::gui
                 }
                 else log("%%Font '%fontname%' is not installed in the system.", prompt::gui, family_utf8);
             }
-            ~font()
+            ~typeface()
             {
                 for (auto f : fontface) if (f) f->Release();
             }
@@ -199,11 +199,11 @@ namespace netxs::gui
 
         IDWriteFactory2*       factory2;
         IDWriteFontCollection* fontlist;
-        font                   basefont;
+        typeface               basefont;
         std::vector<byte>      fontstat;
-        std::vector<font>      fallback;
+        std::vector<typeface>  fallback;
 
-        gcfg(view family_name)
+        font(view family_name)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               basefont{ family_name, fontlist },
@@ -226,7 +226,7 @@ namespace netxs::gui
                 fontfile->Release();
             }
         }
-        ~gcfg()
+        ~font()
         {
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
@@ -236,9 +236,9 @@ namespace netxs::gui
             auto hittest = [&](auto& fontface)
             {
                 if (!fontface) return faux;
-                auto glyph_index = ui16{};
-                fontface->GetGlyphIndices(&codepoint, 1, &glyph_index);
-                return !!glyph_index;
+                auto glyphindex = ui16{};
+                fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
+                return !!glyphindex;
             };
             if (hittest(basefont.fontface[0])) return basefont;
             else
@@ -277,6 +277,189 @@ namespace netxs::gui
                 if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
             }
             return basefont;
+        }
+    };
+
+    struct glyf
+    {
+        using gmap = std::unordered_map<ui64, alpha_mask>;
+        font& fcache; // glyf: Font cache.
+        twod  cellsz;
+        bool  aamode; // glyf: Enable AA.
+        gmap  glyphs;
+        std::pmr::unsynchronized_pool_resource buffer_pool;
+        std::pmr::monotonic_buffer_resource    mono_buffer;
+        std::pmr::vector<ui32>                 cpbuff; // : Temp buffer for glyph codepoints.
+        std::pmr::vector<ui16>                 gindex; // : Temp buffer for glyph indices.
+
+        glyf(font& fcache, twod cellsz, bool aamode)
+            : fcache{ fcache },
+              cellsz{ cellsz },
+              aamode{ aamode },
+              cpbuff{ &buffer_pool },
+              gindex{ &buffer_pool }
+        { }
+        void rasterize(alpha_mask& glyph_mask, cell const& c)
+        {
+            glyph_mask.type = aamode ? alpha_mask::alpha : alpha_mask::plain;
+            if (c.wdt() == 0) return;
+            auto code_iter = utf::cpit{ c.txt() };
+            cpbuff.resize(0);
+            while (code_iter) cpbuff.push_back(code_iter.next().cdpoint);
+            if (cpbuff.empty()) return;
+
+            auto format = style::normal;
+            if (c.itc()) format |= style::italic;
+            if (c.bld()) format |= style::bold;
+            auto& f = fcache.take_font(cpbuff.front());
+            auto font_face = f.fontface[format];
+            if (!font_face) return;
+
+            gindex.resize(cpbuff.size());
+            auto hr = font_face->GetGlyphIndices(cpbuff.data(), (ui32)cpbuff.size(), gindex.data());
+            auto transform = std::min((fp32)cellsz.x / f.facesz.x, (fp32)cellsz.y / f.facesz.y);
+            auto base_line = fp2d{ 0, f.baseline * transform };
+            auto font_size = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
+            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
+                                               .fontEmSize   = font_size,
+                                               .glyphCount   = (ui32)gindex.size(),
+                                               .glyphIndices = gindex.data() };
+            auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
+            auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
+            hr = fcache.factory2->TranslateColorGlyphRun(0, 0, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
+            auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
+            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
+            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
+            auto create_texture = [&](auto& run, auto& mask)
+            {
+                auto r = RECT{};
+                auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
+                fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line.x, base_line.y, &rasterizer);
+                hr = rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
+                mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                mask.bits.resize(mask.area.size.x * mask.area.size.y);
+                hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                rasterizer->Release();
+            };
+            if (colored_glyphs)
+            {
+                using irgb = netxs::irgb<si32>;
+                glyph_mask.bits.clear();
+                glyph_mask.type = alpha_mask::color;
+                auto exist = BOOL{ true };
+                auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
+                auto masks = std::pmr::vector<irgb_alpha_mask>{ &buffer_pool }; // Minimize allocations.
+                while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
+                {
+                    auto& m = masks.emplace_back(buffer_pool);
+                    create_texture(layer->glyphRun, m);
+                    m.fill = layer->paletteIndex != -1 ? argb{ layer->runColor }.swap_rb() : argb{}; // runColor.a could be nan != 0.
+                }
+                glyph_mask.area = {};
+                for (auto& m : masks) glyph_mask.area |= m.area;
+                auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
+                glyph_mask.bits.resize(l * sizeof(irgb));
+                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)l }, glyph_mask.area };
+                for (auto& m : masks)
+                {
+                    auto alpha_mask = netxs::raster{ m.bits, m.area };
+                    if (m.fill.a) // Fixed color.
+                    {
+                        netxs::onbody(raster, alpha_mask, [c = m.fill](irgb& dst, byte& alpha)
+                        {
+                            if (dst.a & 0xFF'00) dst.a = (dst.a & 0xFF) | (((dst.a >> 16) * alpha) & 0xFF'00); // Update fgc layer if it is.
+                            dst.blendpma(c, alpha);
+                        });
+                    }
+                    else // Foreground color unknown in advance. Side-effect: fully transparent glyph layers will be colored with the fgc color.
+                    {
+                        netxs::onbody(raster, alpha_mask, [](irgb& dst, byte& alpha)
+                        {
+                            if (alpha == 255) dst.a |= 0xFF'00;
+                            else if (alpha != 0)
+                            {
+                                auto a = alpha + (((256 - alpha) * (dst.a >> 16)) >> 8);
+                                dst.a = (dst.a & 0xFF) | (a << 8);
+                            }
+                        });
+                    }
+                }
+                colored_glyphs->Release();
+            }
+            else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask);
+        }
+        void draw_cell(auto& canvas, twod coor, cell const& c)
+        {
+            using irgb = netxs::irgb<si32>;
+            auto w = c.wdt();
+            if (w == 0) return;
+            auto token = c.tkn() & ~3;
+            if (c.itc()) token |= style::italic;
+            if (c.bld()) token |= style::bold;
+            auto iter = glyphs.find(token);
+            if (iter == glyphs.end())
+            {
+                iter = glyphs.emplace(token, mono_buffer).first;
+                rasterize(iter->second, c);
+            }
+            auto& glyph_mask = iter->second;
+            //todo underline/strike etc
+            if (!glyph_mask.area) return;
+
+            canvas.clip(rect{ coor, cellsz });
+            if (glyph_mask.type == alpha_mask::color)
+            {
+                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
+                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
+                else        raster.step(coor);
+                auto blendpma = [fgc = c.fgc()](argb& dst, irgb& src)
+                {
+                    if (src.a & 0xFF'00)
+                    {
+                        auto p = argb{ src.r, src.g, src.b, src.a & 0xFF };
+                        dst.blendpma(p.pma()).blendpma(fgc, src.a >> 8);
+                    }
+                    else
+                    {
+                        auto p = argb{ src.r, src.g, src.b, src.a };
+                        dst.blendpma(p.pma());
+                    }
+                };
+                netxs::onclip(canvas, raster, blendpma);
+            }
+            else if (glyph_mask.type == alpha_mask::alpha)
+            {
+                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
+                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
+                else        raster.step(coor);
+                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ dst.blendpma(fgc, src); };
+                netxs::onclip(canvas, raster, colorize);
+            }
+            else if (glyph_mask.type == alpha_mask::plain)
+            {
+                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
+                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
+                else        raster.step(coor);
+                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ if (src) dst.blendpma(fgc); };
+                netxs::onclip(canvas, raster, colorize);
+            }
+        }
+        void fill_grid(auto& canvas, rect region, auto& grid_cells)
+        {
+            canvas.step(-region.coor);
+            auto coor = dot_00;
+            for (auto& c : grid_cells)
+            {
+                draw_cell(canvas, coor, c);
+                coor.x += cellsz.x;
+                if (coor.x >= region.size.x)
+                {
+                    coor.x = 0;
+                    coor.y += cellsz.y;
+                    if (coor.y >= region.size.y) break;
+                }
+            }
+            canvas.step(region.coor);
         }
     };
 
@@ -373,14 +556,16 @@ namespace netxs::gui
             middle = 1 << 2,
         };
 
-        gcfg config; // manager: DWrite's references.
+        font fcache; // manager: Font cache.
+        glyf gcache; // manager: Glyph cache.
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
         wide locale; // manager: Locale.
 
-        manager(view font_name_utf8)
-            : config{ font_name_utf8 },
-              isfine{ faux },
+        manager(view font_name_utf8, twod cellsz, bool antialiasing)
+            : fcache{ font_name_utf8 },
+              gcache{ fcache, cellsz, antialiasing },
+              isfine{ true },
               locale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             set_dpi_awareness();
@@ -389,7 +574,6 @@ namespace netxs::gui
                 locale = L"en-US";
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
-            isfine = true;
         }
         ~manager()
         {
@@ -583,7 +767,6 @@ namespace netxs::gui
             static constexpr auto all = -1;
         };
 
-        std::unordered_map<ui64, alpha_mask> glyph_cache;
         ui::face main_grid;
         ui::face head_grid;
         ui::face foot_grid;
@@ -605,13 +788,12 @@ namespace netxs::gui
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
         wide toWide; // window: UTF-16 buffer.
-        bool aamode; // window: Enable AA.
         bool drop_shadow{ true };
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
-            : manager{ font },
+            : manager{ font, cell_size, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               cellsz{ cell_size },
               gripsz{ grip_cell * cell_size },
@@ -625,8 +807,7 @@ namespace netxs::gui
               grip_t{ add(this) },
               grip_b{ add(this) },
               header{ add() },
-              footer{ add() },
-              aamode{ antialiasing }
+              footer{ add() }
         {
             if (!*this) return;
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
@@ -710,178 +891,6 @@ namespace netxs::gui
                 move_window(coor_delta);
             }
             return layers[client].area - old_client;
-        }
-        void rasterize_glyph(alpha_mask& glyph_mask, cell const& c)
-        {
-            glyph_mask.type = aamode ? alpha_mask::alpha : alpha_mask::plain;
-            if (c.wdt() == 0) return;
-            auto code_iter = utf::cpit{ c.txt() };
-            static auto code_buff = std::vector<ui32>{};
-            static auto glyph_index = std::vector<ui16>{};
-            static auto mono_buffer = std::pmr::monotonic_buffer_resource{};
-            code_buff.resize(0);
-            while (code_iter) code_buff.push_back(code_iter.next().cdpoint);
-            if (code_buff.empty()) return;
-
-            auto format = style::normal;
-            if (c.itc()) format |= style::italic;
-            if (c.bld()) format |= style::bold;
-            auto& f = config.take_font(code_buff.front());
-            auto font_face = f.fontface[format];
-            if (!font_face) return;
-
-            glyph_index.resize(code_buff.size());
-            auto hr = font_face->GetGlyphIndices(code_buff.data(), (ui32)code_buff.size(), glyph_index.data());
-
-            auto transform = std::min((fp32)cellsz.x / f.cellsz.x, (fp32)cellsz.y / f.cellsz.y);
-            auto base_line = fp2d{ 0, f.baseline * transform };
-            auto font_size = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
-            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
-                                               .fontEmSize   = font_size,
-                                               .glyphCount   = (ui32)glyph_index.size(),
-                                               .glyphIndices = glyph_index.data() };
-            auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
-            auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
-            hr = config.factory2->TranslateColorGlyphRun(0, 0, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
-            auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
-            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
-            auto create_texture = [&](auto& run, auto& mask)
-            {
-                auto r = RECT{};
-                auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
-                config.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line.x, base_line.y, &rasterizer);
-                hr = rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
-                mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
-                rasterizer->Release();
-            };
-            if (colored_glyphs)
-            {
-                using irgb = netxs::irgb<si32>;
-                glyph_mask.bits.clear();
-                glyph_mask.type = alpha_mask::color;
-                auto exist = BOOL{ true };
-                auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                auto masks = std::pmr::vector<pmr_alpha_mask>{ &mono_buffer }; // Minimize allocations.
-                while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
-                {
-                    auto& m = masks.emplace_back(mono_buffer);
-                    create_texture(layer->glyphRun, m);
-                    m.fill = layer->paletteIndex != -1 ? argb{ layer->runColor }.swap_rb() : argb{}; // runColor.a could be nan != 0.
-                }
-                glyph_mask.area = {};
-                for (auto& m : masks) glyph_mask.area |= m.area;
-                auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
-                glyph_mask.bits.resize(l * sizeof(irgb));
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)l }, glyph_mask.area };
-                for (auto& m : masks)
-                {
-                    auto alpha_mask = netxs::raster{ m.bits, m.area };
-                    if (m.fill.a) // Fixed color.
-                    {
-                        netxs::onbody(raster, alpha_mask, [c = m.fill](irgb& dst, byte& alpha)
-                        {
-                            if (dst.a & 0xFF'00) // Update fgc layer.
-                            {
-                                dst.a = (dst.a & 0xFF) | (((dst.a >> 16) * alpha) & 0xFF'00);
-                            }
-                            dst.blendpma(c, alpha);
-                        });
-                    }
-                    else // Foreground color unknown in advance. Side-effect: fully transparent glyph layers will be colored with the fgc color.
-                    {
-                        netxs::onbody(raster, alpha_mask, [](irgb& dst, byte& alpha)
-                        {
-                            if (alpha == 255) dst.a |= 0xFF'00;
-                            else if (alpha != 0)
-                            {
-                                auto na = 256 - alpha;
-                                auto a = alpha + ((na * (dst.a >> 16)) >> 8);
-                                dst.a = (dst.a & 0xFF) | (a << 8);
-                            }
-                        });
-                    }
-                }
-                colored_glyphs->Release();
-            }
-            else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask);
-        }
-        void draw_cell(auto& canvas, twod coor, cell const& c)
-        {
-            using irgb = netxs::irgb<si32>;
-            static auto mono_buffer = std::pmr::monotonic_buffer_resource{};
-
-            auto w = c.wdt();
-            if (w == 0) return;
-            auto token = c.tkn() & ~3;
-            if (c.itc()) token |= style::italic;
-            if (c.bld()) token |= style::bold;
-            auto iter = glyph_cache.find(token);
-            if (iter == glyph_cache.end())
-            {
-                iter = glyph_cache.emplace(token, mono_buffer).first;
-            }
-            auto& glyph_mask = iter->second;
-            if (glyph_mask.type == alpha_mask::undef) rasterize_glyph(glyph_mask, c);
-            //todo underline/strike etc
-            if (!glyph_mask.area) return;
-
-            canvas.clip(rect{ coor, cellsz });
-            if (glyph_mask.type == alpha_mask::color)
-            {
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto blendpma = [fgc = c.fgc()](argb& dst, irgb& src)
-                {
-                    if (src.a & 0xFF'00)
-                    {
-                        auto p = argb{ src.r, src.g, src.b, src.a & 0xFF };
-                        dst.blendpma(p.pma()).blendpma(fgc, src.a >> 8);
-                    }
-                    else
-                    {
-                        auto p = argb{ src.r, src.g, src.b, src.a };
-                        dst.blendpma(p.pma());
-                    }
-                };
-                netxs::onclip(canvas, raster, blendpma);
-            }
-            else if (glyph_mask.type == alpha_mask::alpha)
-            {
-                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ dst.blendpma(fgc, src); };
-                netxs::onclip(canvas, raster, colorize);
-            }
-            else if (glyph_mask.type == alpha_mask::plain)
-            {
-                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ if (src) dst.blendpma(fgc); };
-                netxs::onclip(canvas, raster, colorize);
-            }
-        }
-        void draw_grid(auto& canvas, rect region, auto& grid_data)
-        {
-            canvas.step(-region.coor);
-            auto coor = dot_00;
-            for (auto& c : grid_data)
-            {
-                draw_cell(canvas, coor, c);
-                coor.x += cellsz.x;
-                if (coor.x >= region.size.x)
-                {
-                    coor.x = 0;
-                    coor.y += cellsz.y;
-                    if (coor.y >= region.size.y) break;
-                }
-            }
-            canvas.step(region.coor);
         }
         void fill_back(auto& canvas)
         {
@@ -973,7 +982,7 @@ namespace netxs::gui
         {
             auto canvas = layers[index].canvas(true);
             auto r = canvas.area().moveto(dot_00) - shadow_dent;
-            draw_grid(canvas, r, facedata);
+            gcache.fill_grid(canvas, r, facedata);
             netxs::misc::contour(canvas); // 1ms
         }
         void draw_header() { draw_title(header, head_grid); }
@@ -990,7 +999,7 @@ namespace netxs::gui
                 {
                     auto canvas = layers[client].canvas();
                     fill_back(canvas);
-                    draw_grid(canvas, canvas.area(), main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, canvas.area(), main_grid); // 0.500 ms);
                 }
                 if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (what & (task::sized | task::header)) draw_header();
