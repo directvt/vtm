@@ -16,7 +16,7 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::redlt).bld(true).add(" is currently under development.").nil()
+    auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
@@ -263,11 +263,10 @@ namespace netxs::gui
         struct alpha_mask
         {
             static constexpr auto undef = 0;
-            static constexpr auto plain = 1; // B/W mask. No alpha blending. byte-based. fx: pixel = byte ? fgc : pixel.
-            static constexpr auto alpha = 2; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-            static constexpr auto color = 3; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
+            static constexpr auto alpha = 1; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
+            static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
 
-            vect bits; // Contains: type=plain: bytes [0,255]; type=alpha: bytes [0-255]; type=color: irgb<si32>.
+            vect bits; // Contains: type=alpha: bytes [0-255]; type=color: irgb<si32>.
             rect area;
             si32 type;
             alpha_mask(auto& pool)
@@ -288,9 +287,9 @@ namespace netxs::gui
         using gmap = std::unordered_map<ui64, alpha_mask>;
 
         font& fcache; // glyf: Font cache.
-        twod  cellsz;
+        twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
         bool  aamode; // glyf: Enable AA.
-        gmap  glyphs;
+        gmap  glyphs; // glyf: Glyph map.
         std::pmr::unsynchronized_pool_resource buffer_pool;
         std::pmr::monotonic_buffer_resource    mono_buffer;
         std::pmr::vector<ui32>                 cpbuff; // : Temp buffer for glyph codepoints.
@@ -305,7 +304,7 @@ namespace netxs::gui
         { }
         void rasterize(alpha_mask& glyph_mask, cell const& c)
         {
-            glyph_mask.type = aamode ? alpha_mask::alpha : alpha_mask::plain;
+            glyph_mask.type = alpha_mask::alpha;
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             cpbuff.resize(0);
@@ -370,8 +369,14 @@ namespace netxs::gui
                     {
                         netxs::onbody(raster, alpha_mask, [c = m.fill](irgb& dst, byte& alpha)
                         {
-                            if (dst.a & 0xFF'00) dst.a = (dst.a & 0xFF) | (((dst.a >> 16) * alpha) & 0xFF'00); // Update fgc layer if it is.
-                            dst.blendpma(c, alpha);
+                            if (dst.a & 0xFF'00) // Update fgc layer if it is.
+                            {
+                                auto fgc_alpha = ((dst.a >> 8) * alpha) & 0xFF'00;
+                                dst.a &= 0xFF; 
+                                dst.blend_nonpma(c, alpha);
+                                dst.a |= fgc_alpha;
+                            }
+                            else dst.blend_nonpma(c, alpha);
                         });
                     }
                     else // Foreground color unknown in advance. Side-effect: fully transparent glyph layers will be colored with the fgc color.
@@ -381,7 +386,7 @@ namespace netxs::gui
                             if (alpha == 255) dst.a |= 0xFF'00;
                             else if (alpha != 0)
                             {
-                                auto a = alpha + (((256 - alpha) * (dst.a >> 16)) >> 8);
+                                auto a = alpha + (((256 - alpha) * (dst.a >> 8)) >> 8);
                                 dst.a = (dst.a & 0xFF) | (a << 8);
                             }
                         });
@@ -393,6 +398,23 @@ namespace netxs::gui
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
+            auto placeholder = rect{ coor, cellsz };
+            if (c.und())
+            {
+
+            }
+            if (c.stk())
+            {
+
+            }
+            if (c.ovr())
+            {
+
+            }
+            if (c.inv())
+            {
+
+            }
             auto w = c.wdt();
             if (w == 0) return;
             auto token = c.tkn() & ~3;
@@ -405,45 +427,28 @@ namespace netxs::gui
                 rasterize(iter->second, c);
             }
             auto& glyph_mask = iter->second;
-            //todo underline/strike etc
             if (!glyph_mask.area) return;
-
-            canvas.clip(rect{ coor, cellsz });
+            canvas.clip(placeholder);
+            auto box = glyph_mask.area.shift(w != 3 ? coor : coor - twod{ cellsz.x, 0 });
             if (glyph_mask.type == alpha_mask::color)
             {
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto blendpma = [fgc = c.fgc()](argb& dst, irgb& src)
+                auto fx = [fgc = c.fgc()](argb& dst, irgb src)
                 {
                     if (src.a & 0xFF'00)
                     {
-                        auto p = argb{ src.r, src.g, src.b, src.a & 0xFF };
-                        dst.blendpma(p.pma()).blendpma(fgc, src.a >> 8);
+                        dst.blend_pma({ src.r, src.g, src.b, src.a & 0xFF });
+                        dst.blend_nonpma(fgc, src.a >> 8);
                     }
-                    else
-                    {
-                        auto p = argb{ src.r, src.g, src.b, src.a };
-                        dst.blendpma(p.pma());
-                    }
+                    else dst.blend_pma(src);
                 };
-                netxs::onclip(canvas, raster, blendpma);
+                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
+                netxs::onclip(canvas, raster, fx);
             }
-            else if (glyph_mask.type == alpha_mask::alpha)
+            else
             {
-                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ dst.blendpma(fgc, src); };
-                netxs::onclip(canvas, raster, colorize);
-            }
-            else if (glyph_mask.type == alpha_mask::plain)
-            {
-                auto raster = netxs::raster{ std::span{ (byte*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, glyph_mask.area };
-                if (w == 3) raster.step(coor - twod{ cellsz.x, 0 });
-                else        raster.step(coor);
-                auto colorize = [fgc = argb{ c.fgc() }.pma()](argb& dst, byte src){ if (src) dst.blendpma(fgc); };
-                netxs::onclip(canvas, raster, colorize);
+                auto fx = [fgc = c.fgc()](argb& dst, byte src){ dst.blend_nonpma(fgc, src); };
+                auto raster = netxs::raster{ glyph_mask.bits, box };
+                netxs::onclip(canvas, raster, fx);
             }
         }
         void fill_grid(auto& canvas, rect region, auto& grid_cells)
@@ -789,7 +794,6 @@ namespace netxs::gui
         si32 grip_b; // window: Surface index for Bottom resizing grip.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
-        wide toWide; // window: UTF-16 buffer.
         bool drop_shadow{ true };
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -843,7 +847,7 @@ namespace netxs::gui
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
-            //layers[footer].area.coor.y += shadow_dent.t;
+            layers[footer].area.coor.y += shadow_dent.t;
         }
         auto move_window(twod coor_delta)
         {

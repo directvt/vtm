@@ -573,28 +573,31 @@ namespace netxs
             }
             return *this;
         }
-        // argb: Blend pma.
-        auto& blendpma(argb c)
+        // argb: Blend with pma c.
+        auto& blend_pma(argb pma_c)
         {
-            if (c.chan.a == 255 || chan.a == 0) token = c.token;
-            else if (c.chan.a != 0)
+            if (pma_c.chan.a != 0)
             {
-                auto na = 256 - c.chan.a;
-                auto rb = (c.token & 0xFF00FF) + ((na * (token & 0xFF00FF)) >> 8);
-                auto g  = (c.token & 0x00FF00) + ((na * (token & 0x00FF00)) >> 8);
-                auto a  = c.chan.a + ((na * chan.a) >> 8);
-                token = (rb & 0xFF00FF) | (g & 0x00FF00) | (a << 24);
+                if (pma_c.chan.a == 255 || chan.a == 0) token = pma_c.token;
+                else
+                {
+                    auto na = 256 - pma_c.chan.a;
+                    auto rb = (pma_c.token & 0xFF00FF) + ((na * (token & 0xFF00FF)) >> 8);
+                    auto g  = (pma_c.token & 0x00FF00) + ((na * (token & 0x00FF00)) >> 8);
+                    auto a  =  pma_c.chan.a + ((na * chan.a) >> 8);
+                    token = (rb & 0xFF00FF) | (g & 0x00FF00) | (a << 24);
+                }
             }
             return *this;
         }
-        // argb: Blend pma.
-        auto& blendpma(argb c, auto alpha)
+        // argb: Blend with non-pma c.
+        auto& blend_nonpma(argb non_pma_c, auto alpha)
         {
-            if (alpha == 255) *this = c;
+            if (alpha == 255) *this = non_pma_c;
             else if (alpha != 0)
             {
-                c.chan.a = (byte)((c.chan.a * alpha) >> 8);
-                blendpma(c.pma());
+                non_pma_c.chan.a = (byte)((non_pma_c.chan.a * alpha) >> 8);
+                blend_pma(non_pma_c.pma());
             }
             return *this;
         }
@@ -948,28 +951,31 @@ namespace netxs
             }
             return *this;
         }
-        // irgb: Blend pma.
-        auto& blendpma(irgb c)
+        // irgb: Blend with pma c.
+        auto& blend_pma(irgb c)
         {
-            if (c.a == 255 || a == 0) *this = c;
-            else if (c.a != 0)
+            if (c.a != 0)
             {
-                auto na = 256 - c.a;
-                r = c.r + ((na * r) >> 8);
-                g = c.g + ((na * g) >> 8);
-                b = c.b + ((na * b) >> 8);
-                a = c.a + ((na * a) >> 8);
+                if (c.a == 255 || a == 0) *this = c;
+                else
+                {
+                    auto na = 256 - c.a;
+                    r = c.r + ((na * r) >> 8);
+                    g = c.g + ((na * g) >> 8);
+                    b = c.b + ((na * b) >> 8);
+                    a = c.a + ((na * a) >> 8);
+                }
             }
             return *this;
         }
-        // irgb: Blend pma.
-        auto& blendpma(irgb c, T alpha)
+        // irgb: Blend with non-pma c.
+        auto& blend_nonpma(irgb non_pma_c, T alpha)
         {
-            if (alpha == 255) *this = c;
+            if (alpha == 255) *this = non_pma_c;
             else if (alpha != 0)
             {
-                c.a = (c.a * alpha) >> 8;
-                blendpma(c.pma());
+                non_pma_c.a = (non_pma_c.a * alpha) >> 8;
+                blend_pma(non_pma_c.pma());
             }
             return *this;
         }
@@ -1995,7 +2001,7 @@ namespace netxs
             struct blendpma_t : public brush_t<blendpma_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
-                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blendpma(src); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend_pma(src); }
             };
             struct alpha_t : public brush_t<alpha_t>
             {
