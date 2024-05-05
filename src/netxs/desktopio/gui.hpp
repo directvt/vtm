@@ -405,7 +405,8 @@ namespace netxs::gui
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
-            auto placeholder = rect{ coor, cellsz };
+            auto placeholder = canvas.area().trim(rect{ coor, cellsz });
+            if (!placeholder) return;
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
@@ -465,22 +466,25 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void fill_grid(auto& canvas, rect region, auto& grid_cells)
+        void fill_grid(auto& canvas, twod origin, auto& grid_cells)
         {
-            canvas.step(-region.coor);
-            auto coor = dot_00;
+            auto coor = origin;
+            auto size = grid_cells.size() * cellsz;
+            auto maxc = coor + size;
+            auto base = canvas.coor();
+            canvas.step(-base);
             for (auto& c : grid_cells)
             {
                 draw_cell(canvas, coor, c);
                 coor.x += cellsz.x;
-                if (coor.x >= region.size.x)
+                if (coor.x >= maxc.x)
                 {
-                    coor.x = 0;
+                    coor.x = origin.x;
                     coor.y += cellsz.y;
-                    if (coor.y >= region.size.y) break;
+                    if (coor.y >= maxc.y) break;
                 }
             }
-            canvas.step(region.coor);
+            canvas.step(base);
         }
     };
 
@@ -1000,8 +1004,7 @@ namespace netxs::gui
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
             auto canvas = layers[index].canvas(true);
-            auto r = canvas.area().moveto(dot_00) - shadow_dent;
-            gcache.fill_grid(canvas, r, facedata);
+            gcache.fill_grid(canvas, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
         }
         void draw_header() { draw_title(header, head_grid); }
@@ -1018,7 +1021,7 @@ namespace netxs::gui
                 {
                     auto canvas = layers[client].canvas();
                     fill_back(canvas);
-                    gcache.fill_grid(canvas, canvas.area(), main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, dot_00, main_grid); // 0.500 ms);
                 }
                 if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                 if (what & (task::sized | task::header)) draw_header();
