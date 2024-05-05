@@ -18,7 +18,7 @@ namespace netxs::gui
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
+                               " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
@@ -258,33 +258,33 @@ namespace netxs::gui
 
     struct glyf
     {
-        using irgb = netxs::irgb<si32>;
+        using irgb = netxs::irgb<fp32>;
         using vect = std::pmr::vector<byte>;
-        struct alpha_mask
+        struct sprite
         {
             static constexpr auto undef = 0;
             static constexpr auto alpha = 1; // Grayscale AA glyph alphamix. byte-based. fx: pixel = blend(pixel, fgc, byte).
-            static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a & 0xff)), fgc, irgb.chan.a >> 8).
+            static constexpr auto color = 2; // irgb-colored glyph colormix. irgb-based. fx: pixel = blend(blend(pixel, irgb.alpha(irgb.chan.a - (si32)irgb.chan.a)), fgc, (si32)irgb.chan.a - 256).
 
-            vect bits; // Contains: type=alpha: bytes [0-255]; type=color: irgb<si32>.
-            rect area;
-            si32 type;
-            alpha_mask(auto& pool)
+            vect bits; // sprite: Contains: type=alpha: bytes [0-255]; type=color: irgb<fp32>.
+            rect area; // sprite: Glyph mask black-box.
+            si32 type; // sprite: Glyph mask type.
+            sprite(auto& pool)
                 : bits{ &pool },
                   type{ undef }
             { }
         };
         struct color_layer
         {
-            vect bits;
-            rect area;
-            irgb fill;
+            vect bits; // color_layer: Layer pixels (8-bit grayscale).
+            rect area; // color_layer: Layer black-box.
+            irgb fill; // color_layer: Layer's sRGB color.
             color_layer(auto& pool)
                 : bits{ &pool }
             { }
         };
 
-        using gmap = std::unordered_map<ui64, alpha_mask>;
+        using gmap = std::unordered_map<ui64, sprite>;
 
         font& fcache; // glyf: Font cache.
         twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
@@ -302,9 +302,9 @@ namespace netxs::gui
               cpbuff{ &buffer_pool },
               gindex{ &buffer_pool }
         { }
-        void rasterize(alpha_mask& glyph_mask, cell const& c)
+        void rasterize(sprite& glyph_mask, cell const& c)
         {
-            glyph_mask.type = alpha_mask::alpha;
+            glyph_mask.type = sprite::alpha;
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             cpbuff.resize(0);
@@ -347,7 +347,7 @@ namespace netxs::gui
             if (colored_glyphs)
             {
                 glyph_mask.bits.clear();
-                glyph_mask.type = alpha_mask::color;
+                glyph_mask.type = sprite::color;
                 auto exist = BOOL{ true };
                 auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
                 auto masks = std::pmr::vector<color_layer>{ &buffer_pool }; // Minimize allocations.
@@ -355,7 +355,13 @@ namespace netxs::gui
                 {
                     auto& m = masks.emplace_back(buffer_pool);
                     create_texture(layer->glyphRun, m);
-                    m.fill = layer->paletteIndex != -1 ? argb{ layer->runColor }.swap_rb() : argb{}; // runColor.a could be nan != 0.
+                    auto u = layer->runColor;
+                    m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
+                                                               std::isnormal(u.g) ? u.g : 0.f,
+                                                               std::isnormal(u.b) ? u.b : 0.f,
+                                                               std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
+                    //test fgc
+                    //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
                 }
                 glyph_mask.area = {};
                 for (auto& m : masks) glyph_mask.area |= m.area;
@@ -365,16 +371,16 @@ namespace netxs::gui
                 for (auto& m : masks)
                 {
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
-                    if (m.fill.a) // Fixed color.
+                    if (m.fill.a != 0.f) // Predefined sRGB color.
                     {
                         netxs::onbody(raster, alpha_mask, [c = m.fill](irgb& dst, byte& alpha)
                         {
-                            if (dst.a & 0xFF'00) // Update fgc layer if it is.
+                            if (dst.a >= 256.f) // Update the fgc layer if it exists. dst.a consists of two parts: an integer that represents the fgc alpha in 8-bit format, and a floating point normalized [0.0-1.0] value that represents the alpha for the color glyph sprite.
                             {
-                                auto fgc_alpha = ((dst.a >> 8) * alpha) & 0xFF'00;
-                                dst.a &= 0xFF; 
+                                auto fgc_alpha = (si32)dst.a;
+                                dst.a -= fgc_alpha;
                                 dst.blend_nonpma(c, alpha);
-                                dst.a |= fgc_alpha;
+                                if (alpha != 255 && fgc_alpha > 256) dst.a += 256 + (si32)netxs::saturate_cast<byte>(fgc_alpha - 256) * (255 - alpha) / 255;
                             }
                             else dst.blend_nonpma(c, alpha);
                         });
@@ -383,11 +389,12 @@ namespace netxs::gui
                     {
                         netxs::onbody(raster, alpha_mask, [](irgb& dst, byte& alpha)
                         {
-                            if (alpha == 255) dst.a |= 0xFF'00;
+                                 if (alpha == 255) dst = { 0.f, 0.f, 0.f, 256.f + 255.f };
                             else if (alpha != 0)
                             {
-                                auto a = alpha + (((256 - alpha) * (dst.a >> 8)) >> 8);
-                                dst.a = (dst.a & 0xFF) | (a << 8);
+                                static constexpr auto kk = (si32)netxs::saturate_cast<byte>(- 256.f);
+                                auto fgc_alpha = (si32)netxs::saturate_cast<byte>(dst.a - 256.f);
+                                dst.a = dst.a + (-(si32)dst.a + 256 + alpha + (255 - alpha) * fgc_alpha / 255);
                             }
                         });
                     }
@@ -399,22 +406,10 @@ namespace netxs::gui
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
             auto placeholder = rect{ coor, cellsz };
-            if (c.und())
-            {
-
-            }
-            if (c.stk())
-            {
-
-            }
-            if (c.ovr())
-            {
-
-            }
-            if (c.inv())
-            {
-
-            }
+            if (c.und()) { }
+            if (c.stk()) { }
+            if (c.ovr()) { }
+            if (c.inv()) { }
             auto w = c.wdt();
             if (w == 0) return;
             auto token = c.tkn() & ~3;
@@ -430,23 +425,42 @@ namespace netxs::gui
             if (!glyph_mask.area) return;
             canvas.clip(placeholder);
             auto box = glyph_mask.area.shift(w != 3 ? coor : coor - twod{ cellsz.x, 0 });
-            if (glyph_mask.type == alpha_mask::color)
+            auto fgc = c.fgc();
+            auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
+            if (glyph_mask.type == sprite::color)
             {
-                auto fx = [fgc = c.fgc()](argb& dst, irgb src)
+                auto fx = [fgc, f_fgc](argb& dst, irgb src)
                 {
-                    if (src.a & 0xFF'00)
+                         if (src.a == 0.f) return;
+                    else if (src.a == 1.f) dst = src.linear2sRGB();
+                    else if (src.a < 256.f + 255.f)
                     {
-                        dst.blend_pma({ src.r, src.g, src.b, src.a & 0xFF });
-                        dst.blend_nonpma(fgc, src.a >> 8);
+                        auto f_dst = irgb{ dst }.sRGB2Linear();
+                        if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
+                        {
+                            auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
+                            src.a -= (si32)src.a;
+                            f_dst.blend_nonpma(f_fgc, fgc_alpha);
+                        }
+                        dst = f_dst.blend_pma(src).linear2sRGB();
                     }
-                    else dst.blend_pma(src);
+                    else dst = fgc; // src.a >= 256 + 255.f
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
                 netxs::onclip(canvas, raster, fx);
             }
             else
             {
-                auto fx = [fgc = c.fgc()](argb& dst, byte src){ dst.blend_nonpma(fgc, src); };
+                auto fx = [fgc, f_fgc](argb& dst, byte src)
+                {
+                         if (src == 0) return;
+                    else if (src == 255) dst = fgc;
+                    else
+                    {
+                        auto f_dst = irgb{ dst }.sRGB2Linear();;
+                        dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
+                    }
+                };
                 auto raster = netxs::raster{ glyph_mask.bits, box };
                 netxs::onclip(canvas, raster, fx);
             }
@@ -529,7 +543,6 @@ namespace netxs::gui
         void present()
         {
             if (sync || !hdc) return;
-            //netxs::misc::fill(canvas(), [](argb& c){ c.pma(); });
             static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto scr_coor = POINT{};
             auto old_size =  SIZE{ prev.size.x, prev.size.y };
@@ -907,8 +920,8 @@ namespace netxs::gui
             canvas.step(-region.coor);
             auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
             auto ltc = argb{ tint::pureblack };
-            auto rbc = argb{ tint::pureblack };
-            auto lbc = argb{ tint::pureblue  };//.alpha(0.5f);
+            auto rbc = argb{ tint::purered };
+            auto lbc = argb{ tint::puregreen  };//.alpha(0.5f);
             auto white = argb{ tint::whitedk };
             auto black = argb{ tint::blackdk };
 

@@ -100,10 +100,10 @@ namespace netxs
                     static_cast<byte>(a) }
         { }
         constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a)
-            : chan{ static_cast<byte>(b * 255),
-                    static_cast<byte>(g * 255),
-                    static_cast<byte>(r * 255),
-                    static_cast<byte>(a * 255) }
+            : chan{ netxs::saturate_cast<byte>(b * 255),
+                    netxs::saturate_cast<byte>(g * 255),
+                    netxs::saturate_cast<byte>(r * 255),
+                    netxs::saturate_cast<byte>(a * 255) }
         { }
         template<class T>
         constexpr argb(T const& c)
@@ -540,67 +540,6 @@ namespace netxs
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
-        // argb: Linear to sRGB (g = 2.4)
-        static auto gamma(fp32 c)
-        {
-            return c <= 0.0031308f ? 12.92f * c
-                                   : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
-        }
-        // argb: Linear to sRGB (g = 2.4)
-        static auto gamma(byte c)
-        {
-            return (byte)argb::gamma(c / 255.f);
-        }
-        // argb: Linear to sRGB (g = 2.4)
-        static auto gamma(argb c)
-        {
-            return argb{ argb::gamma(c.chan.r),
-                         argb::gamma(c.chan.g),
-                         argb::gamma(c.chan.b), c.chan.a };
-        }
-        // argb: Premultiply alpha.
-        auto& pma()
-        {
-            if (chan.a != 255)
-            {
-                if (chan.a == 0) token = 0;
-                else
-                {
-                    chan.r = (byte)(((si32)chan.r * chan.a) >> 8);
-                    chan.g = (byte)(((si32)chan.g * chan.a) >> 8);
-                    chan.b = (byte)(((si32)chan.b * chan.a) >> 8);
-                }
-            }
-            return *this;
-        }
-        // argb: Blend with pma c.
-        auto& blend_pma(argb pma_c)
-        {
-            if (pma_c.chan.a != 0)
-            {
-                if (pma_c.chan.a == 255 || chan.a == 0) token = pma_c.token;
-                else
-                {
-                    auto na = 256 - pma_c.chan.a;
-                    auto rb = (pma_c.token & 0xFF00FF) + ((na * (token & 0xFF00FF)) >> 8);
-                    auto g  = (pma_c.token & 0x00FF00) + ((na * (token & 0x00FF00)) >> 8);
-                    auto a  =  pma_c.chan.a + ((na * chan.a) >> 8);
-                    token = (rb & 0xFF00FF) | (g & 0x00FF00) | (a << 24);
-                }
-            }
-            return *this;
-        }
-        // argb: Blend with non-pma c.
-        auto& blend_nonpma(argb non_pma_c, auto alpha)
-        {
-            if (alpha == 255) *this = non_pma_c;
-            else if (alpha != 0)
-            {
-                non_pma_c.chan.a = (byte)((non_pma_c.chan.a * alpha) >> 8);
-                blend_pma(non_pma_c.pma());
-            }
-            return *this;
-        }
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
@@ -907,14 +846,20 @@ namespace netxs
 
         constexpr irgb() = default;
         constexpr irgb(irgb const&) = default;
-        constexpr irgb(T r, T g, T b, T a = { -1 })
+        constexpr irgb(T r, T g, T b, T a)
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
-        constexpr irgb(argb c)
+        constexpr irgb(argb c) requires(std::is_integral_v<T>)
             : r{ c.chan.r },
               g{ c.chan.g },
               b{ c.chan.b },
               a{ c.chan.a }
+        { }
+        constexpr irgb(argb c) requires(std::is_floating_point_v<T>)
+            : r{ c.chan.r / 255.f },
+              g{ c.chan.g / 255.f },
+              b{ c.chan.b / 255.f },
+              a{ c.chan.a / 255.f }
         { }
 
         operator argb() const { return argb{ r, g, b, a }; }
@@ -922,59 +867,81 @@ namespace netxs
         bool operator > (auto n) const { return r > n || g > n || b > n || a > n; }
         auto operator / (auto n) const { return irgb{ r / n, g / n, b / n, a / n }; } // 10% faster than divround.
         auto operator * (auto n) const { return irgb{ r * n, g * n, b * n, a * n }; }
-        auto operator + (irgb const& c) const
-        {
-            return irgb{ r + c.r, g + c.g, b + c.b, a + c.a };
-        }
+        auto operator + (irgb const& c) const { return irgb{ r + c.r, g + c.g, b + c.b, a + c.a }; }
         void operator *= (auto n) { r *= n; g *= n; b *= n; a *= n; }
         void operator /= (auto n) { r /= n; g /= n; b /= n; a /= n; }
         void operator =  (irgb const& c) { r =  c.r; g =  c.g; b =  c.b; a =  c.a; }
         void operator += (irgb const& c) { r += c.r; g += c.g; b += c.b; a += c.a; }
         void operator -= (irgb const& c) { r -= c.r; g -= c.g; b -= c.b; a -= c.a; }
-        void operator += (argb c) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
-        void operator -= (argb c) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
-        // irgb: Premultiply alpha.
-        auto& pma()
+        void operator += (argb c) requires(std::is_integral_v<T>) { r += c.chan.r; g += c.chan.g; b += c.chan.b; a += c.chan.a; }
+        void operator -= (argb c) requires(std::is_integral_v<T>) { r -= c.chan.r; g -= c.chan.g; b -= c.chan.b; a -= c.chan.a; }
+        // irgb: sRGB to Linear (g = 2.4)
+        static auto sRGB2Linear(fp32 c)
         {
-            if (a != 255)
+            return c <= 0.04045f ? c / 12.92f
+                                 : std::pow((c + 0.055f) / 1.055f, 2.4f);
+        }
+        // irgb: Linear to sRGB (g = 2.4)
+        static auto linear2sRGB(fp32 c)
+        {
+            return c <= 0.0031308f ? 12.92f * c
+                                   : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
+        }
+        // irgb: sRGB to linear (g = 2.4)
+        irgb& sRGB2Linear() requires(std::is_floating_point_v<T>)
+        {
+            r = sRGB2Linear(r);
+            g = sRGB2Linear(g);
+            b = sRGB2Linear(b);
+            return *this;
+        }
+        // irgb: Linear to sRGB (g = 2.4)
+        irgb& linear2sRGB() requires(std::is_floating_point_v<T>)
+        {
+            r = linear2sRGB(r);
+            g = linear2sRGB(g);
+            b = linear2sRGB(b);
+            return *this;
+        }
+        // irgb: Premultiply alpha (floating point only).
+        auto& pma() requires(std::is_floating_point_v<T>)
+        {
+            if (a != 1.f)
             {
-                if (a == 0)
-                {
-                    r = b = g = 0;
-                }
+                if (a == 0.f) r = b = g = 0.f;
                 else
                 {
-                    r = (r * a) >> 8;
-                    g = (g * a) >> 8;
-                    b = (b * a) >> 8;
+                    r *= a;
+                    g *= a;
+                    b *= a;
                 }
             }
             return *this;
         }
-        // irgb: Blend with pma c.
-        auto& blend_pma(irgb c)
+        // irgb: Blend with pma c (floating point only).
+        auto& blend_pma(irgb c) requires(std::is_floating_point_v<T>)
         {
-            if (c.a != 0)
+            if (c.a != 0.f)
             {
-                if (c.a == 255 || a == 0) *this = c;
+                if (c.a == 1.f || a == 0.f) *this = c;
                 else
                 {
-                    auto na = 256 - c.a;
-                    r = c.r + ((na * r) >> 8);
-                    g = c.g + ((na * g) >> 8);
-                    b = c.b + ((na * b) >> 8);
-                    a = c.a + ((na * a) >> 8);
+                    auto na = 1.f - c.a;
+                    r = c.r + na * r;
+                    g = c.g + na * g;
+                    b = c.b + na * b;
+                    a = c.a + na * a;
                 }
             }
             return *this;
         }
-        // irgb: Blend with non-pma c.
-        auto& blend_nonpma(irgb non_pma_c, T alpha)
+        // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
+        auto& blend_nonpma(irgb non_pma_c, auto alpha) requires(std::is_floating_point_v<T>)
         {
             if (alpha == 255) *this = non_pma_c;
             else if (alpha != 0)
             {
-                non_pma_c.a = (non_pma_c.a * alpha) >> 8;
+                non_pma_c.a *= (T)alpha / 255.f;
                 blend_pma(non_pma_c.pma());
             }
             return *this;
