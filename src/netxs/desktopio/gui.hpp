@@ -19,6 +19,7 @@ namespace netxs::gui
     auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
+        .fgc(tint::purered).add("🥵🦚test").fgc(tint::purecyan).add("test")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
@@ -942,7 +943,7 @@ namespace netxs::gui
                 for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cellsz.x)
                 {
                     auto fx = (fp32)r.coor.x / (region.size.x - 1);
-                    auto p = argb::transit(lc, rc, fx);
+                    auto p = rtc;//argb::transit(lc, rc, fx);
                     netxs::inrect(canvas.begin() + offset, step_x, step_y, stride, cell::shaders::full(p));
                     //netxs::misc::cage(canvas, r, lt, cell::shaders::full(white));
                     //netxs::misc::cage(canvas, r, rb, cell::shaders::full(black));
