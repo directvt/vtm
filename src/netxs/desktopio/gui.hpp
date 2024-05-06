@@ -16,7 +16,7 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧< >🇯🇵<\n")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧< >🇯🇵<\n")
         .itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
@@ -380,8 +380,11 @@ namespace netxs::gui
                 fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line.x, base_line.y, &rasterizer);
                 hr = rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
                 mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                if (mask.area.size)
+                {
+                    mask.bits.resize(mask.area.size.x * mask.area.size.y);
+                    hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                }
                 rasterizer->Release();
             };
             if (colored_glyphs)
@@ -395,13 +398,17 @@ namespace netxs::gui
                 {
                     auto& m = masks.emplace_back(buffer_pool);
                     create_texture(layer->glyphRun, m);
-                    auto u = layer->runColor;
-                    m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
-                                                               std::isnormal(u.g) ? u.g : 0.f,
-                                                               std::isnormal(u.b) ? u.b : 0.f,
-                                                               std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
-                    //test fgc
-                    //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
+                    if (m.area)
+                    {
+                        auto u = layer->runColor;
+                        m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
+                                                                   std::isnormal(u.g) ? u.g : 0.f,
+                                                                   std::isnormal(u.b) ? u.b : 0.f,
+                                                                   std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
+                        //test fgc
+                        //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
+                    }
+                    else masks.pop_back();
                 }
                 glyph_mask.area = {};
                 for (auto& m : masks) glyph_mask.area |= m.area;

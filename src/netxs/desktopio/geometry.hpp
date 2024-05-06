@@ -293,8 +293,9 @@ namespace netxs
         // rect: Unite with rect (normalized only).
         constexpr rect& unitewith(rect r)
         {
-            coor = std::min(coor, r.coor);
-            size = std::max(coor + size, r.coor + r.size ) - coor;
+            auto new_coor = std::min(coor, r.coor);
+            size = std::max(coor + size, r.coor + r.size ) - new_coor;
+            coor = new_coor;
             return *this;
         }
         // rect: Return circumscribed rect.
