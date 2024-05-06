@@ -16,10 +16,10 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧< >🇯🇵<\n")
+        .itc(true).fgc(tint::cyanlt).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
-        .fgc(tint::purered).add("🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
@@ -174,18 +174,29 @@ namespace netxs::gui
             explicit operator bool () { return index != ~0u; }
         };
 
-        IDWriteFactory2*       factory2;
-        IDWriteFontCollection* fontlist;
-        typeface               basefont;
-        std::vector<byte>      fontstat;
-        std::vector<typeface>  fallback;
+        IDWriteFactory2*       factory2; // font: DWrite factory.
+        IDWriteFontCollection* fontlist; // font: System font collection.
+        IDWriteTextAnalyzer*   analyzer; // font: Glyph indicies reader.
+        typeface               basefont; // font: Base font.
+        std::vector<byte>      fontstat; // font: System font collection status list.
+        std::vector<typeface>  fallback; // font: Fallback font list.
+        wide                   oslocale; // font: User locale.
 
         font(view family_name)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
+              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer*)nullptr; factory2->CreateTextAnalyzer(&a); return a; }() },
               basefont{ family_name, fontlist },
-              fontstat(fontlist->GetFontFamilyCount(), 0)
+              fontstat(fontlist->GetFontFamilyCount(), 0),
+              oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
+            if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
+            else
+            {
+                oslocale = L"en-US";
+                log("%%Using default locale 'en-US'.", prompt::gui);
+            }
+            oslocale.shrink_to_fit();
             if (basefont) fontstat[basefont.index] |= fontcat::loaded;
             for (auto i = 0u; i < fontstat.size(); i++)
             {
@@ -205,6 +216,7 @@ namespace netxs::gui
         }
         ~font()
         {
+            if (analyzer) analyzer->Release();
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
@@ -287,34 +299,25 @@ namespace netxs::gui
 
         using gmap = std::unordered_map<ui64, sprite>;
 
+        std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
+        std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
         font& fcache; // glyf: Font cache.
         twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
-        std::pmr::unsynchronized_pool_resource buffer_pool;
-        std::pmr::monotonic_buffer_resource    mono_buffer;
-        std::pmr::vector<ui32>                 cpbuff; // : Temp buffer for glyph codepoints.
-        std::pmr::vector<ui16>                 gindex; // : Temp buffer for glyph indices.
+        wide  toWide; // glyf: UTF-16 buffer.
 
         glyf(font& fcache, twod cellsz, bool aamode)
             : fcache{ fcache },
               cellsz{ cellsz },
-              aamode{ aamode },
-              cpbuff{ &buffer_pool },
-              gindex{ &buffer_pool }
+              aamode{ aamode }
         { }
-        ~glyf()
-        {
-            glyphs.clear();
-            cpbuff.clear();
-            gindex.clear();
-        }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
-            cpbuff.resize(0);
+            auto cpbuff = std::pmr::vector<ui32>{ &buffer_pool };
             while (code_iter) cpbuff.push_back(code_iter.next().cdpoint);
             if (cpbuff.empty()) return;
 
@@ -325,52 +328,44 @@ namespace netxs::gui
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
-            auto hr = S_OK;
-            gindex.resize(cpbuff.size());
-            hr = font_face->GetGlyphIndices(cpbuff.data(), (ui32)cpbuff.size(), gindex.data());
             auto transform = std::min((fp32)cellsz.x / f.facesz.x, (fp32)cellsz.y / f.facesz.y);
             auto base_line = fp2d{ 0, f.baseline * transform };
             auto font_size = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
-            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
-                                               .fontEmSize   = font_size,
-                                               .glyphCount   = (ui32)gindex.size(),
-                                               .glyphIndices = gindex.data() };
 
-            //auto localeName = wide(LOCALE_NAME_MAX_LENGTH, '\0');
-            //::GetUserDefaultLocaleName(localeName.data(), (si32)localeName.size());
-            //auto scriptAnalysis = DWRITE_SCRIPT_ANALYSIS{ .script = 0 };
-            //auto textAnalyzer = (IDWriteTextAnalyzer*)nullptr;
-            //hr = fcache.factory2->CreateTextAnalyzer(&textAnalyzer);
-            //auto textString = utf::to_utf(c.txt());
-            //auto clusterMap = std::vector<UINT16>(100);
-            //auto textProps = DWRITE_SHAPING_TEXT_PROPERTIES{};
-            //auto glyphIndices = std::vector<UINT16>(100);
-            //auto glyphProps = std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES>(100);
-            //auto actualGlyphCount = UINT32{};
-            //textAnalyzer->GetGlyphs(
-            //    textString.data(),       //_In_reads_(textLength) WCHAR const* textString,
-            //    (ui32)textString.size(), //UINT32 textLength,
-            //    font_face,               //_In_ IDWriteFontFace* fontFace,
-            //    faux,                    //BOOL isSideways,
-            //    faux,                    //BOOL isRightToLeft,
-            //    &scriptAnalysis,         //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-            //    localeName.data(),       //_In_opt_z_ WCHAR const* localeName,
-            //    nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-            //    nullptr,                 //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-            //    nullptr,                 //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-            //    0,                       //UINT32 featureRanges,
-            //    100,                     //UINT32 maxGlyphCount,
-            //    clusterMap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
-            //    &textProps,              //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-            //    glyphIndices.data(),     //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-            //    glyphProps.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-            //    &actualGlyphCount);      //_Out_ UINT32* actualGlyphCount
-            //textAnalyzer->Release();
+            //todo use GSUB
+            //gindex.resize(cpbuff.size());
+            //hr = font_face->GetGlyphIndices(cpbuff.data(), (ui32)cpbuff.size(), gindex.data());
             //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
             //                                   .fontEmSize   = font_size,
-            //                                   .glyphCount   = (ui32)glyphIndices.size(),
-            //                                   .glyphIndices = glyphIndices.data() };
-
+            //                                   .glyphCount   = (ui32)gindex.size(),
+            //                                   .glyphIndices = gindex.data() };
+            toWide.clear();
+            utf::to_utf(c.txt(), toWide);
+            auto glyphcount = 3 * toWide.size() / 2 + 16;
+            auto clustermap = std::pmr::vector<UINT16>(glyphcount, &buffer_pool);
+            auto glyph_list = std::pmr::vector<UINT16>(glyphcount, &buffer_pool);
+            auto glyph_prop = std::pmr::vector<DWRITE_SHAPING_GLYPH_PROPERTIES>(glyphcount, &buffer_pool);
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 0 }; //todo revise
+            auto text_props = DWRITE_SHAPING_TEXT_PROPERTIES{};
+            auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace = font_face, .fontEmSize = font_size, .glyphIndices = glyph_list.data() };
+            auto hr = fcache.analyzer->GetGlyphs(
+                toWide.data(),           //_In_reads_(textLength) WCHAR const* textString,
+                (ui32)toWide.size(),     //UINT32 textLength,
+                font_face,               //_In_ IDWriteFontFace* fontFace,
+                faux,                    //BOOL isSideways,
+                faux,                    //BOOL isRightToLeft,
+                &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
+                nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
+                nullptr,                 //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                nullptr,                 //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                0,                       //UINT32 featureRanges,
+                glyphcount,              //UINT32 maxGlyphCount,
+                clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
+                &text_props,             //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                glyph_list.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
+                glyph_prop.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
+                &glyph_run.glyphCount);  //_Out_ UINT32* actualGlyphCount
 
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
@@ -629,20 +624,13 @@ namespace netxs::gui
         glyf gcache; // manager: Glyph cache.
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
-        wide locale; // manager: Locale.
 
         manager(view font_name_utf8, twod cellsz, bool antialiasing)
             : fcache{ font_name_utf8 },
               gcache{ fcache, cellsz, antialiasing },
-              isfine{ true },
-              locale(LOCALE_NAME_MAX_LENGTH, '\0')
+              isfine{ true }
         {
             set_dpi_awareness();
-            if (!::GetUserDefaultLocaleName(locale.data(), (si32)locale.size())) // Return locale length or 0.
-            {
-                locale = L"en-US";
-                log("%%Using default locale 'en-US'.", prompt::gui);
-            }
         }
         ~manager()
         {
