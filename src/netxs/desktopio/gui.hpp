@@ -982,7 +982,7 @@ namespace netxs::gui
                 for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cellsz.x)
                 {
                     auto fx = (fp32)r.coor.x / (region.size.x - 1);
-                    auto p = rtc;//argb::transit(lc, rc, fx);
+                    auto p = argb::transit(lc, rc, fx);
                     netxs::inrect(canvas.begin() + offset, step_x, step_y, stride, cell::shaders::full(p));
                     //netxs::misc::cage(canvas, r, lt, cell::shaders::full(white));
                     //netxs::misc::cage(canvas, r, rb, cell::shaders::full(black));
