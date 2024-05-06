@@ -306,6 +306,11 @@ namespace netxs::gui
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
         wide  toWide; // glyf: UTF-16 buffer.
+        std::vector<ui32> cpbuff;
+        std::vector<ui16> clustermap;
+        std::vector<ui16> glyph_list;
+        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyph_prop;
+        std::vector<color_layer> masks;
 
         glyf(font& fcache, twod cellsz, bool aamode)
             : fcache{ fcache },
@@ -317,7 +322,7 @@ namespace netxs::gui
             glyph_mask.type = sprite::alpha;
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
-            auto cpbuff = std::pmr::vector<ui32>{ &buffer_pool };
+            cpbuff.clear();
             while (code_iter) cpbuff.push_back(code_iter.next().cdpoint);
             if (cpbuff.empty()) return;
 
@@ -342,9 +347,9 @@ namespace netxs::gui
             toWide.clear();
             utf::to_utf(c.txt(), toWide);
             auto glyphcount = 3 * toWide.size() / 2 + 16;
-            auto clustermap = std::pmr::vector<UINT16>(glyphcount, &buffer_pool);
-            auto glyph_list = std::pmr::vector<UINT16>(glyphcount, &buffer_pool);
-            auto glyph_prop = std::pmr::vector<DWRITE_SHAPING_GLYPH_PROPERTIES>(glyphcount, &buffer_pool);
+            clustermap.assign(glyphcount, {});
+            glyph_list.assign(glyphcount, {});
+            glyph_prop.assign(glyphcount, {});
             auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 0 }; //todo revise
             auto text_props = DWRITE_SHAPING_TEXT_PROPERTIES{};
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace = font_face, .fontEmSize = font_size, .glyphIndices = glyph_list.data() };
@@ -393,7 +398,7 @@ namespace netxs::gui
                 glyph_mask.type = sprite::color;
                 auto exist = BOOL{ true };
                 auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                auto masks = std::pmr::vector<color_layer>{ &buffer_pool }; // Minimize allocations.
+                masks.clear();
                 while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
                 {
                     auto& m = masks.emplace_back(buffer_pool);
