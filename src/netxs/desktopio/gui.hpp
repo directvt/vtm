@@ -16,7 +16,7 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧< >🇯🇵<\n")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .add("\n1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
