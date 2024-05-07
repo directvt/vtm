@@ -50,7 +50,7 @@ namespace netxs::gui
             DWRITE_FONT_METRICS               metrics{};
             si32                              baseline{};
             si32                              emheight{};
-            twod                              facesz; // Typeface cell size.
+            twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
 
             auto load(auto& faceinst, auto barefont, auto weight, auto stretch, auto style)
@@ -62,8 +62,8 @@ namespace netxs::gui
                 {
                     faceinst->GetMetrics(&metrics);
                     emheight = metrics.ascent + metrics.descent;
-                    facesz.x = metrics.designUnitsPerEm / 2;
-                    facesz.y = emheight + metrics.lineGap;
+                    facesize.x = metrics.designUnitsPerEm / 2;
+                    facesize.y = emheight + metrics.lineGap;
                     baseline = metrics.ascent + metrics.lineGap / 2;
                     // formats 8, 10 and 12 with 32-bit encoding
                     // format 13 - last-resort
@@ -294,7 +294,8 @@ namespace netxs::gui
             rect area; // color_layer: Layer black-box.
             irgb fill; // color_layer: Layer's sRGB color.
             color_layer(auto& pool)
-                : bits{ &pool }
+                : bits{ &pool },
+                  fill{       }
             { }
         };
 
@@ -306,14 +307,15 @@ namespace netxs::gui
         twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
-        wide  toWide; // glyf: UTF-16 buffer.
-        std::vector<ui32> cpbuff;
-        std::vector<ui16> clustermap;
-        std::vector<ui16> glyph_list;
-        std::vector<FLOAT> glyph_wdts;
-        std::vector<DWRITE_GLYPH_OFFSET> glyph_offs;
-        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyph_prop;
-        std::vector<color_layer> masks;
+        wide                                         text_utf16; // glyf: UTF-16 buffer.
+        std::vector<ui32>                            codepoints; // glyf: .
+        std::vector<ui16>                            clustermap; // glyf: .
+        std::vector<ui16>                            glyf_index; // glyf: .
+        std::vector<FLOAT>                           glyf_width; // glyf: .
+        std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyf: .
+        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyf: .
+        std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
+        std::vector<color_layer>                     glyf_masks; // glyf: .
 
         glyf(font& fcache, twod cellsz, bool aamode)
             : fcache{ fcache },
@@ -325,95 +327,96 @@ namespace netxs::gui
             glyph_mask.type = sprite::alpha;
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
-            cpbuff.clear();
-            while (code_iter) cpbuff.push_back(code_iter.next().cdpoint);
-            if (cpbuff.empty()) return;
+            codepoints.clear();
+            while (code_iter) codepoints.push_back(code_iter.next().cdpoint);
+            if (codepoints.empty()) return;
 
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto& f = fcache.take_font(cpbuff.front());
+            auto& f = fcache.take_font(codepoints.front());
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
-            auto transform = std::min((fp32)cellsz.x / f.facesz.x, (fp32)cellsz.y / f.facesz.y);
+            auto transform = std::min((fp32)cellsz.x / f.facesize.x, (fp32)cellsz.y / f.facesize.y);
             auto base_line = fp2d{ 0, f.baseline * transform };
-            auto font_size = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
+            auto em_height = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
 
-            //todo use GSUB
-            //gindex.resize(cpbuff.size());
-            //hr = font_face->GetGlyphIndices(cpbuff.data(), (ui32)cpbuff.size(), gindex.data());
+            //todo use otf tables directly: GSUB etc
+            //gindex.resize(codepoints.size());
+            //hr = font_face->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
             //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
-            //                                   .fontEmSize   = font_size,
+            //                                   .fontEmSize   = em_height,
             //                                   .glyphCount   = (ui32)gindex.size(),
             //                                   .glyphIndices = gindex.data() };
-            toWide.clear();
-            utf::to_utf(c.txt(), toWide);
-            auto glyphcount = 3 * toWide.size() / 2 + 16;
-            clustermap.assign(glyphcount, {});
-            glyph_list.assign(glyphcount, {});
-            glyph_prop.assign(glyphcount, {});
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 0 }; //todo revise
-            auto text_props = std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>{ toWide.size() };
+            text_utf16.clear();
+            utf::to_utf(c.txt(), text_utf16);
+            auto text_count = (ui32)text_utf16.size();
+            auto glyf_count = 3 * text_count / 2 + 16;
+            glyf_index.resize(glyf_count);
+            glyf_props.resize(glyf_count);
+            text_props.resize(text_count);
+            clustermap.resize(text_count);
 
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 0 }; //todo revise
             auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
                                                           //{ DWRITE_FONT_FEATURE_TAG_SLASHED_ZERO, 1 },
                                                         });
-            auto feat_list = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), fs.size() };
-            auto features = std::vector<DWRITE_TYPOGRAPHIC_FEATURES const*>{ &feat_list };
-            auto featureRangesLengths = std::vector<ui32>{ (ui32)toWide.size() };
-            auto glyphCount = ui32{};
+            auto const feat_list = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), fs.size() };
+            auto features = &feat_list;
 
             auto hr = fcache.analyzer->GetGlyphs(
-                toWide.data(),           //_In_reads_(textLength) WCHAR const* textString,
-                (ui32)toWide.size(),     //UINT32 textLength,
+                text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
+                text_count,              //UINT32 textLength,
                 font_face,               //_In_ IDWriteFontFace* fontFace,
                 faux,                    //BOOL isSideways,
                 faux,                    //BOOL isRightToLeft,
                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                features.data(),                   //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                featureRangesLengths.data(),       //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                (ui32)featureRangesLengths.size(), //UINT32 featureRanges,
-                glyphcount,              //UINT32 maxGlyphCount,
+                &features,               //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                1,                       //UINT32 featureRanges,
+                glyf_count,              //UINT32 maxGlyphCount,
                 clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
                 text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                glyph_list.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-                glyph_prop.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-                &glyphCount);            //_Out_ UINT32* actualGlyphCount
+                glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
+                glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
+                &glyf_count);            //_Out_ UINT32* actualGlyphCount
+            if (hr != S_OK) return;
 
-            glyph_wdts.assign(glyphCount, {});
-            glyph_offs.assign(glyphCount, {});
+            glyf_width.resize(glyf_count);
+            glyf_align.resize(glyf_count);
 
             hr = fcache.analyzer->GetGlyphPlacements(
-                toWide.data(),                     // _In_reads_(textLength) WCHAR const* textString,
+                text_utf16.data(),                     // _In_reads_(textLength) WCHAR const* textString,
                 clustermap.data(),                 // _In_reads_(textLength) UINT16 const* clusterMap,
                 text_props.data(),                 // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                (ui32)toWide.size(),               // UINT32 textLength,
-                glyph_list.data(),                 // _In_reads_(glyphCount) UINT16 const* glyphIndices,
-                glyph_prop.data(),                 // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
-                glyphCount,                        // UINT32 glyphCount,
+                text_count,                        // UINT32 textLength,
+                glyf_index.data(),                 // _In_reads_(glyphCount) UINT16 const* glyphIndices,
+                glyf_props.data(),                 // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
+                glyf_count,                        // UINT32 glyphCount,
                 font_face,                         // _In_ IDWriteFontFace* fontFace,
-                font_size,                         // FLOAT fontEmSize,
+                em_height,                         // FLOAT fontEmSize,
                 faux,                              // BOOL isSideways,
                 faux,                              // BOOL isRightToLeft,
                 &script_opt,                       // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),            // _In_opt_z_ WCHAR const* localeName,
-                features.data(),                   // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                featureRangesLengths.data(),       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                (ui32)featureRangesLengths.size(), // UINT32 featureRanges,
-                glyph_wdts.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
-                glyph_offs.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
+                &features,                         // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                &text_count,                       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                1,                                 // UINT32 featureRanges,
+                glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
+                glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
+            if (hr != S_OK) return;
 
-            auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace = font_face,
-                                                .fontEmSize = font_size,
-                                                .glyphCount = glyphCount,
-                                                .glyphIndices = glyph_list.data(),
-                                                .glyphAdvances = glyph_wdts.data(),
-                                                .glyphOffsets = glyph_offs.data() };
+            auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
+                                                .fontEmSize    = em_height,
+                                                .glyphCount    = glyf_count,
+                                                .glyphIndices  = glyf_index.data(),
+                                                .glyphAdvances = glyf_width.data(),
+                                                .glyphOffsets  = glyf_align.data() };
 
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
@@ -423,17 +426,21 @@ namespace netxs::gui
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
-                auto r = RECT{};
                 auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
-                fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, &rasterizer);
-                hr = rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r);
-                mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                if (mask.area.size)
+                if (S_OK == fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, &rasterizer))
                 {
-                    mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                    hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                    auto r = RECT{};
+                    if (S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
+                    {
+                        mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                        if (mask.area.size)
+                        {
+                            mask.bits.resize(mask.area.size.x * mask.area.size.y);
+                            hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                        }
+                    }
+                    rasterizer->Release();
                 }
-                rasterizer->Release();
             };
             if (colored_glyphs)
             {
@@ -441,10 +448,10 @@ namespace netxs::gui
                 glyph_mask.type = sprite::color;
                 auto exist = BOOL{ true };
                 auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
-                masks.clear();
+                glyf_masks.clear();
                 while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
                 {
-                    auto& m = masks.emplace_back(buffer_pool);
+                    auto& m = glyf_masks.emplace_back(buffer_pool);
                     create_texture(layer->glyphRun, m, layer->baselineOriginX, layer->baselineOriginY);
                     if (m.area)
                     {
@@ -456,14 +463,14 @@ namespace netxs::gui
                         //test fgc
                         //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
                     }
-                    else masks.pop_back();
+                    else glyf_masks.pop_back();
                 }
                 glyph_mask.area = {};
-                for (auto& m : masks) glyph_mask.area |= m.area;
+                for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
                 glyph_mask.bits.resize(l * sizeof(irgb));
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)l }, glyph_mask.area };
-                for (auto& m : masks)
+                for (auto& m : glyf_masks)
                 {
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
                     if (m.fill.a != 0.f) // Predefined sRGB color.
