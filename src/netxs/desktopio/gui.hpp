@@ -16,7 +16,7 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤︎👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw:>❤< VS15:>❤︎< VS16:>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤︎👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< VS15:>❤︎< VS16:>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
@@ -243,7 +243,7 @@ namespace netxs::gui
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
-        auto& take_font(utfx codepoint, bool force_monochromatic, bool force_color)
+        auto& take_font(utfx codepoint)
         {
             auto hittest = [&](auto& fontface)
             {
@@ -255,8 +255,8 @@ namespace netxs::gui
             if (hittest(basefont.fontface[0])) return basefont;
             else
             {
-                auto any = !force_monochromatic && !force_color;
-                for (auto& f : fallback) if ((any || (force_monochromatic && !f.color) || (force_color && f.color)) && hittest(f.fontface[0])) return f;
+                for (auto& f : fallback) if ( f.color && hittest(f.fontface[0])) return f;
+                for (auto& f : fallback) if (!f.color && hittest(f.fontface[0])) return f;
                 auto try_font = [&](auto i)
                 {
                     auto barefont = (IDWriteFontFamily*)nullptr;
@@ -284,28 +284,10 @@ namespace netxs::gui
                     }
                     return faux;
                 };
-                if (any)
-                {
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
-                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
-                }
-                else if (force_monochromatic)
-                {
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
-                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
-                }
-                else if (force_color)
-                {
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
-                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
-                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
-                }
-                if (!any) for (auto& f : fallback) if (((force_monochromatic && f.color) || (force_color && !f.color)) && hittest(f.fontface[0])) return f;
+                if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
+                if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
+                if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
+                if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
             }
             return basefont;
         }
@@ -376,8 +358,7 @@ namespace netxs::gui
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
             auto force_monochromatic = codepoints.back() == utf::vs15_code;
-            auto force_color =         codepoints.back() == utf::vs16_code;
-            auto& f = fcache.take_font(codepoints.front(), force_monochromatic, force_color);
+            auto& f = fcache.take_font(codepoints.front());
             auto font_face = f.fontface[format];
             if (!font_face) return;
 

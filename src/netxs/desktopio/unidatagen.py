@@ -131,7 +131,7 @@ WCWIDTHS = {'zerowidth' : ['zero', 'non-printable' ],
             'fullwidth' : ['wide', 'fullwidth'     ]}
 
 # classification: https://www.unicode.org/emoji/charts/emoji-variants.html
-CUSTOMIZE = [( 0xFE0E, WCWIDTHS['zerowidth'][0], 'Nonspacing_Mark' ), # VS15 Selects Text  presentation
+CUSTOMIZE = [( 0xFE0E, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ), # VS15 Selects Text  presentation
              ( 0xFE0F, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' )] # VS16 Selects Emoji presentation
 
 # classification:  empirically
