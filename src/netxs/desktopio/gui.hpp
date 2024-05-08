@@ -508,6 +508,7 @@ namespace netxs::gui
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
+            if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
@@ -1010,42 +1011,32 @@ namespace netxs::gui
             }
             return layers[client].area - old_client;
         }
-        void fill_back(auto& canvas)
+        void fill_back(auto& grid_cells)
         {
-            auto region = canvas.area();
-            auto r  = rect{ .size = cellsz };
-            auto lt = dent{ 1, 0, 1, 0 };
-            auto rb = dent{ 0, 1, 0, 1 };
-            canvas.step(-region.coor);
             auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::purered };
             auto lbc = argb{ tint::puregreen  };//.alpha(0.5f);
             auto white = argb{ tint::whitedk };
             auto black = argb{ tint::blackdk };
-
-            auto line_y = region.size.x * (cellsz.y - 1);
-            auto offset = 0;
-            auto stride = region.size.x - cellsz.x;
-            auto step_x = cellsz.x;
-            auto step_y = cellsz.x + line_y;
-            for (r.coor.y = 0; r.coor.y < region.size.y; r.coor.y += cellsz.y)
+            auto lc = ltc;
+            auto rc = rtc;
+            auto x = 0.f;
+            auto y = 0.f;
+            auto m = grid_cells.size() - dot_11;
+            auto eol = [&]
             {
-                auto fy = (fp32)r.coor.y / (region.size.y - 1);
-                auto lc = argb::transit(ltc, lbc, fy);
-                auto rc = argb::transit(rtc, rbc, fy);
-                for (r.coor.x = 0; r.coor.x < region.size.x; r.coor.x += cellsz.x)
-                {
-                    auto fx = (fp32)r.coor.x / (region.size.x - 1);
-                    auto p = argb::transit(lc, rc, fx);
-                    netxs::inrect(canvas.begin() + offset, step_x, step_y, stride, cell::shaders::full(p));
-                    //netxs::misc::cage(canvas, r, lt, cell::shaders::full(white));
-                    //netxs::misc::cage(canvas, r, rb, cell::shaders::full(black));
-                    offset += step_x;
-                }
-                offset += line_y;
-            }
-            canvas.step(region.coor);
+                x = 0.f;
+                auto dc = y++ / m.y;
+                lc = argb::transit(ltc, lbc, dc);
+                rc = argb::transit(rtc, rbc, dc);
+            };
+            auto fx = [&](cell& c)
+            {
+                auto dc = x++ / m.x;
+                c.bgc(argb::transit(lc, rc, dc));
+            };
+            netxs::onrect(grid_cells, grid_cells.area(), fx, eol);
         }
         bool hit_grips()
         {
@@ -1115,7 +1106,7 @@ namespace netxs::gui
                 if (what & (task::sized | task::inner))
                 {
                     auto canvas = layers[client].canvas();
-                    fill_back(canvas);
+                    fill_back(main_grid);
                     gcache.fill_grid(canvas, dot_00, main_grid); // 0.500 ms);
                 }
                 if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
