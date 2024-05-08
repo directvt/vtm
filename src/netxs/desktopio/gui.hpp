@@ -52,19 +52,37 @@ namespace netxs::gui
             si32                              emheight{};
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
+            bool                              color{ faux };
 
+            static auto iscolor(auto faceinst)
+            {
+                auto tableSize = ui32{};
+                auto tableData = (void const*)nullptr;
+                auto tableContext = (void*)nullptr;
+                auto exists = BOOL{};
+                faceinst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
+                                          &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
+                                          &tableSize,    //_Out_ UINT32* tableSize,
+                                          &tableContext, //_Out_ void** tableContext,
+                                          &exists);      //_Out_ BOOL* exists
+                if (exists) faceinst->ReleaseFontTable(tableContext);
+                return exists;
+            }
             auto load(auto& faceinst, auto barefont, auto weight, auto stretch, auto style)
             {
                 auto fontfile = (IDWriteFont2*)nullptr;
                 barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
+                if (!fontfile) return;
                 fontfile->CreateFontFace((IDWriteFontFace**)&faceinst);
-                if (!metrics.designUnitsPerEm)
+                if (faceinst && !metrics.designUnitsPerEm)
                 {
                     faceinst->GetMetrics(&metrics);
                     emheight = metrics.ascent + metrics.descent;
                     facesize.x = metrics.designUnitsPerEm / 2;
                     facesize.y = emheight + metrics.lineGap;
                     baseline = metrics.ascent + metrics.lineGap / 2;
+                    color = iscolor(faceinst);
+
                     // formats 8, 10 and 12 with 32-bit encoding
                     // format 13 - last-resort
                     // format 14 for Unicode variation sequences
@@ -144,7 +162,7 @@ namespace netxs::gui
                 barefont->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
-                log("%%Using font '%fontname%'.", prompt::gui, utf::to_utf(buff.data()));
+                log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, utf::to_utf(buff.data()), color ? "color" : "monochromatic");
                 names->Release();
             }
 
@@ -164,7 +182,7 @@ namespace netxs::gui
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
                     load(barefont);
-                    barefont->Release();                    
+                    barefont->Release();
                 }
                 else log("%%Font '%fontname%' is not installed in the system.", prompt::gui, family_utf8);
             }
@@ -199,7 +217,7 @@ namespace netxs::gui
             }
             oslocale.shrink_to_fit();
             if (basefont) fontstat[basefont.index] |= fontcat::loaded;
-            for (auto i = 0u; i < fontstat.size(); i++)
+            for (auto i = 0u; i < fontstat.size(); i++) //todo make initialization lazy
             {
                 auto barefont = (IDWriteFontFamily*)nullptr;
                 auto fontfile = (IDWriteFont2*)nullptr;
@@ -207,9 +225,13 @@ namespace netxs::gui
                 barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile);
                 if (fontfile)
                 {
-                                                      fontstat[i] |= fontcat::valid;
-                    if (fontfile->IsColorFont())      fontstat[i] |= fontcat::color;
+                    fontstat[i] |= fontcat::valid;
                     if (fontfile->IsMonospacedFont()) fontstat[i] |= fontcat::monospaced;
+                    if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
+                    {
+                        if (typeface::iscolor(faceinst)) fontstat[i] |= fontcat::color;
+                        faceinst->Release();
+                    }
                 }
                 else continue;
                 fontfile->Release();
@@ -221,7 +243,7 @@ namespace netxs::gui
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
-        auto& take_font(utfx codepoint)
+        auto& take_font(utfx codepoint, bool force_monochromatic, bool force_color)
         {
             auto hittest = [&](auto& fontface)
             {
@@ -233,7 +255,8 @@ namespace netxs::gui
             if (hittest(basefont.fontface[0])) return basefont;
             else
             {
-                for (auto& f : fallback) if (hittest(f.fontface[0])) return f;
+                auto any = !force_monochromatic && !force_color;
+                for (auto& f : fallback) if ((any || (force_monochromatic && !f.color) || (force_color && f.color)) && hittest(f.fontface[0])) return f;
                 auto try_font = [&](auto i)
                 {
                     auto barefont = (IDWriteFontFamily*)nullptr;
@@ -261,10 +284,28 @@ namespace netxs::gui
                     }
                     return faux;
                 };
-                if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
-                if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
-                if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
-                if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
+                if (any)
+                {
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
+                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
+                }
+                else if (force_monochromatic)
+                {
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
+                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
+                }
+                else if (force_color)
+                {
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
+                    if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
+                    if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
+                }
+                if (!any) for (auto& f : fallback) if (((force_monochromatic && f.color) || (force_color && !f.color)) && hittest(f.fontface[0])) return f;
             }
             return basefont;
         }
@@ -334,7 +375,9 @@ namespace netxs::gui
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto& f = fcache.take_font(codepoints.front());
+            auto force_monochromatic = codepoints.back() == utf::vs15_code;
+            auto force_color =         codepoints.back() == utf::vs16_code;
+            auto& f = fcache.take_font(codepoints.front(), force_monochromatic, force_color);
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
@@ -419,7 +462,8 @@ namespace netxs::gui
 
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
-            hr = fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
+            hr = force_monochromatic ? DWRITE_E_NOCOLOR
+                                     : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
             auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE

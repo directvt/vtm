@@ -40,7 +40,9 @@ namespace netxs::utf
     using ctrl = unidata::cntrls::type;
 
     static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
-    static constexpr auto replacement_code = utfx{ 0x0000FFFD };
+    static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
+    static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
+    static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
 
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata
