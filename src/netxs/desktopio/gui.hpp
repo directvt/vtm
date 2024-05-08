@@ -39,10 +39,10 @@ namespace netxs::gui
         };
         struct fontcat
         {
-            static constexpr auto valid      = 1 << 0;
-            static constexpr auto monospaced = 1 << 1;
-            static constexpr auto color      = 1 << 2;
-            static constexpr auto loaded     = 1 << 3;
+            static constexpr auto loaded     = 1ull << 60;
+            static constexpr auto valid      = 1ull << 61;
+            static constexpr auto monospaced = 1ull << 62;
+            static constexpr auto color      = 1ull << 63;
         };
         struct typeface
         {
@@ -192,12 +192,17 @@ namespace netxs::gui
             }
             explicit operator bool () { return index != ~0u; }
         };
-
+        struct stat
+        {
+            ui64 s{};
+            si32 i{};
+            text n{};
+        };
         IDWriteFactory2*       factory2; // font: DWrite factory.
         IDWriteFontCollection* fontlist; // font: System font collection.
         IDWriteTextAnalyzer*   analyzer; // font: Glyph indicies reader.
         typeface               basefont; // font: Base font.
-        std::vector<byte>      fontstat; // font: System font collection status list.
+        std::vector<stat>      fontstat; // font: System font collection status list.
         std::vector<typeface>  fallback; // font: Fallback font list.
         wide                   oslocale; // font: User locale.
 
@@ -206,7 +211,7 @@ namespace netxs::gui
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer*)nullptr; factory2->CreateTextAnalyzer(&a); return a; }() },
               basefont{ family_name, fontlist },
-              fontstat(fontlist->GetFontFamilyCount(), 0),
+              fontstat(fontlist->GetFontFamilyCount()),
               oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
@@ -216,26 +221,62 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            if (basefont) fontstat[basefont.index] |= fontcat::loaded;
-            for (auto i = 0u; i < fontstat.size(); i++) //todo make initialization lazy
+            if (basefont)
             {
+                fontstat[basefont.index].i = basefont.index;
+                fontstat[basefont.index].s |= fontcat::loaded;
+            }
+            for (auto i = 0u; i < fontstat.size(); i++)
+            {
+                fontstat[i].i = i;
                 auto barefont = (IDWriteFontFamily*)nullptr;
                 auto fontfile = (IDWriteFont2*)nullptr;
                 fontlist->GetFontFamily(i, &barefont);
                 barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile);
                 if (fontfile)
                 {
-                    fontstat[i] |= fontcat::valid;
-                    if (fontfile->IsMonospacedFont()) fontstat[i] |= fontcat::monospaced;
+                    fontstat[i].s |= fontcat::valid;
+                    if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
                     if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
                     {
-                        if (typeface::iscolor(faceinst)) fontstat[i] |= fontcat::color;
+                        if (typeface::iscolor(faceinst)) fontstat[i].s |= fontcat::color;
+                        auto numberOfFiles = ui32{};
+                        faceinst->GetFiles(&numberOfFiles, nullptr);
+                        auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
+                        if (S_OK == faceinst->GetFiles(&numberOfFiles, fontFiles.data()))
+                        {
+                            if (numberOfFiles)
+                            if (auto f = fontFiles.front())
+                            {
+                                auto fontFileReferenceKey = (void const*)nullptr;
+                                auto fontFileReferenceKeySize = ui32{};
+                                f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
+                                auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
+                                if (fontFileReferenceKeySize)
+                                if (f->GetLoader(&fontFileLoader); fontFileLoader)
+                                {
+                                    auto fontFileStream = (IDWriteFontFileStream*)nullptr;
+                                    if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
+                                    {
+                                        auto lastWriteTime = ui64{};
+                                        fontFileStream->GetLastWriteTime(&lastWriteTime);
+                                        fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
+                                        fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then file date.
+                                        fontFileStream->Release();
+                                    }
+                                    fontFileLoader->Release();
+                                }
+                                f->Release();
+                            }
+                        }
                         faceinst->Release();
                     }
                 }
                 else continue;
                 fontfile->Release();
             }
+            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+            //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
         }
         ~font()
         {
@@ -268,7 +309,7 @@ namespace netxs::gui
                     auto hit = hittest(fontface);
                     if (hit)
                     {
-                        fontstat[i] |= fontcat::loaded;
+                        fontstat[i].s |= fontcat::loaded;
                         fallback.emplace_back(barefont, i);
                     }
                     fontface->Release();
@@ -276,18 +317,10 @@ namespace netxs::gui
                     barefont->Release();
                     return hit;
                 };
-                auto try_font_by_cat = [&](auto category)
+                for (auto i = 0u; i < fontstat.size(); i++)
                 {
-                    for (auto i = 0u; i < fontstat.size(); i++)
-                    {
-                        if (fontstat[i] == category && try_font(i)) return true;
-                    }
-                    return faux;
-                };
-                if (try_font_by_cat(fontcat::valid | fontcat::monospaced | fontcat::color)) return fallback.back();
-                if (try_font_by_cat(fontcat::valid | fontcat::color))                       return fallback.back();
-                if (try_font_by_cat(fontcat::valid | fontcat::monospaced))                  return fallback.back();
-                if (try_font_by_cat(fontcat::valid))                                        return fallback.back();
+                    if ((fontstat[i].s & fontcat::valid && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i)) return fallback.back();
+                }
             }
             return basefont;
         }
