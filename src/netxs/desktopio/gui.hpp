@@ -16,8 +16,8 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purered).add("👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️test").fgc(tint::purecyan).add("test >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
-        .add("\n1234567890 !@#$%^&*()_+=[]\\")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤︎👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw:>❤< VS15:>❤︎< VS16:>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
@@ -362,10 +362,9 @@ namespace netxs::gui
             auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_SLASHED_ZERO, 1 },
                                                         });
-            auto const feat_list = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), fs.size() };
-            auto features = &feat_list;
+            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), fs.size() };
+            auto feat_table = &features;
 
             auto hr = fcache.analyzer->GetGlyphs(
                 text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
@@ -376,7 +375,7 @@ namespace netxs::gui
                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                &features,               //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                &feat_table,             //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                 &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
                 1,                       //UINT32 featureRanges,
                 glyf_count,              //UINT32 maxGlyphCount,
@@ -404,7 +403,7 @@ namespace netxs::gui
                 faux,                              // BOOL isRightToLeft,
                 &script_opt,                       // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),            // _In_opt_z_ WCHAR const* localeName,
-                &features,                         // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                &feat_table,                       // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                 &text_count,                       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
                 1,                                 // UINT32 featureRanges,
                 glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
