@@ -20,19 +20,24 @@ Every grid cell aside the rest of rendition attributes and grapheme cluster refe
 The following sequences allow to set the character 4x4-fragmentation attribute as a cell rendition state:
 - Human readable sequence format:
   ```
-    ESC[ 110 ; <n1> ; <n2> ; <n3> ; <n4> m
+               ┌──────────────────────────────── matrix width, range: 1..4 cells
+               │     ┌────────────────────────── matrix height, range: 1..4 cells
+               │     │     ┌──────────────────── column selector, range: 1..W cells, 0 - to select all
+               │     │     │     ┌────────────── row selector, range: 1..H cells, 0 - to select all
+               │     │     │     │     ┌──────── text cluster length in codepoints, always > 0
+               │     │     │     │     │     ┌── text rotation inside the ligature: 0 - 0°, 1 - 90°, 2 - 180°, 3 - 270°
+  ESC [ 110 : <W> : <H> : <X> : <Y> : <S> : <R> m
   ```
-  - `n1`, `n2`, `n3`, `n4` are from 0 to 4.
-  - `n1 = Dx`, `n2 = Nx`, `n3 = Dy`, `n4 = Ny`.
+  - The SGR Reset `\e[m` command resets mode.
   - Missing values are treated as 1.
-  - 0 treated as reset the fragmentation mode and disable it.
+  - `W = 0` resets the fragmentation mode.
 - Sequence with a "cooked" parameter:
   ```
-    ESC[ 111 ; <P> m
+    ESC [ 111 : <P> m
   ```
-  - `P = (Nx-1) + (Dx-1) * 4 + (Ny-1) * 16 + (Dy-1) * 64` from 0 to 255.
+  - `P = (X - 1) + (W - 1) * 4 + (Y - 1) * 16 + (H - 1) * 64` from 0 to 255.
   - Missing value is treated as 0.
-  - 0 treated as reset the fragmentation mode and disable it.
+  - `P = 0` resets the fragmentation mode.
 
 `ESC[m` resets all SGR-attributes and the same way resets the character fragmentation attribute.
 
