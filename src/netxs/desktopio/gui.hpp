@@ -16,7 +16,7 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤❤︎👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
@@ -990,6 +990,8 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
+            canvas_page.batch.front()->lyric->pick()[1].mtx({ 2, 1 }).wdt(2);
+            canvas_page.batch.front()->lyric->pick()[2].mtx({ 2, 1 }).wdt(3);
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output(canvas_page);

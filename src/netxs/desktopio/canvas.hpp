@@ -1058,6 +1058,11 @@ namespace netxs
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
             }
+            void mtx(si32 w, si32 h)
+            {
+                props.sizex = (byte)(w ? w - 1 : 0);
+                props.sizey = (byte)(h ? h - 1 : 0);
+            }
             void set_direct(view utf8, si32 w, si32 h = 0)
             {
                 static constexpr auto hasher = std::hash<view>{};
@@ -1066,16 +1071,14 @@ namespace netxs
                 {
                     token = 0;
                     props.count = (byte)count;
-                    props.sizex = (byte)(w ? w - 1 : 0);
-                    props.sizey = (byte)(h ? h - 1 : 0);
+                    mtx(w, h);
                     std::memcpy(glyph + 1, utf8.data(), count);
                 }
                 else
                 {
                     token = hasher(utf8);
                     props.jumbo = true;
-                    props.sizex = (byte)(w ? w - 1 : 0);
-                    props.sizey = (byte)(h ? h - 1 : 0);
+                    mtx(w, h);
                     jumbos().add(token & 0b0000'1111, utf8);
                 }
             }
@@ -1778,6 +1781,7 @@ namespace netxs
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
+        auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         auto& txt(view utf8, si32 w)
