@@ -954,7 +954,6 @@ namespace netxs
         union glyf
         {
             static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto jumbo = 0x80; // Cluster oversize bit.
 
             static auto jumbos()
             {
@@ -1001,7 +1000,16 @@ namespace netxs
                 return guard{ inst };
             }
 
+            struct prop
+            {
+                byte count : 3; // prop: Cluster length in bytes (if it is not jumbo).
+                byte jumbo : 1; // prop: Cluster is stored in an external map.
+                byte sizex : 2; // prop: 0-based (w - 1) cell matrix width.
+                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height.
+            };
+
             ui64 token;
+            prop props;
             char glyph[limit];
 
             constexpr glyf()
@@ -1013,13 +1021,13 @@ namespace netxs
             constexpr glyf(char c)
                 : token{ 0 }
             {
-                glyph[0] = 1;
+                props.count = 1;
                 glyph[1] = c;
             }
-            glyf(glyf const& g, view utf8)
+            glyf(glyf const& g, view utf8, si32 w, si32 h = 0)
                 : token{ g.token }
             {
-                set_direct(utf8);
+                set_direct(utf8, w, h);
             }
 
             constexpr glyf& operator = (glyf const&) = default;
@@ -1030,7 +1038,7 @@ namespace netxs
 
             constexpr auto is_jumbo() const
             {
-                return (glyph[0] & glyf::jumbo) != 0;
+                return !!props.jumbo;
             }
             constexpr void set(ui64 t)
             {
@@ -1039,31 +1047,36 @@ namespace netxs
             constexpr void set(char c)
             {
                 token = 0;
-                glyph[0] = 1;
+                props.count = 1;
                 glyph[1] = c;
             }
             constexpr void set_c0(char c)
             {
                 token = 0;
-                glyph[0] = 2;
+                props.count = 2;
+                props.sizex = 2 - 1;
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
             }
-            void set_direct(view utf8)
+            void set_direct(view utf8, si32 w, si32 h = 0)
             {
                 static constexpr auto hasher = std::hash<view>{};
                 auto count = utf8.size();
                 if (count < limit)
                 {
                     token = 0;
-                    glyph[0] = (byte)count;
+                    props.count = (byte)count;
+                    props.sizex = (byte)(w ? w - 1 : 0);
+                    props.sizey = (byte)(h ? h - 1 : 0);
                     std::memcpy(glyph + 1, utf8.data(), count);
                 }
                 else
                 {
                     token = hasher(utf8);
-                    glyph[0] |= glyf::jumbo;
-                    jumbos().add(token, utf8);
+                    props.jumbo = true;
+                    props.sizex = (byte)(w ? w - 1 : 0);
+                    props.sizey = (byte)(h ? h - 1 : 0);
+                    jumbos().add(token & 0b0000'1111, utf8);
                 }
             }
             template<svga Mode = svga::vtrgb>
@@ -1072,8 +1085,8 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (is_jumbo()) return jumbos().get(token);
-                    else            return view(glyph + 1, glyph[0]);
+                    if (is_jumbo()) return jumbos().get(token & 0b0000'1111);
+                    else            return view(glyph + 1, props.count);
                 }
             }
             auto is_space() const
@@ -1086,11 +1099,12 @@ namespace netxs
             }
             auto jgc() const
             {
-                return !is_jumbo() || jumbos().exists(token);
+                return !is_jumbo() || jumbos().exists(token & 0b0000'1111);
             }
+            // Return cluster storage length.
             auto len() const
             {
-                return is_jumbo() ? limit : (byte)(glyph[0] + 1);
+                return is_jumbo() ? limit : 1/* first byte*/ + props.count;
             }
             void rst()
             {
@@ -1176,12 +1190,12 @@ namespace netxs
             constexpr body(body const& b)
                 : token{ b.token }
             { }
-            constexpr body(size_t width)
+            constexpr body(si32 width)
                 : token{ 0 }
             {
                 attrs.mosaic = width;
             }
-            constexpr body(body const& b, size_t width)
+            constexpr body(body const& b, si32 width)
                 : token{ b.token }
             {
                 attrs.mosaic = width;
@@ -1416,9 +1430,9 @@ namespace netxs
               id{ base.id },
               px{ base.px }
         { }
-        cell(cell const& base, view cluster, size_t ucwidth)
+        cell(cell const& base, view cluster, si32 ucwidth, si32 ucheight = 1)
             : uv{ base.uv },
-              gc{ base.gc, cluster },
+              gc{ base.gc, cluster, ucwidth, ucheight },
               st{ base.st, ucwidth },
               id{ base.id },
               px{ base.px }
@@ -1458,7 +1472,7 @@ namespace netxs
         {
             return gc == c.gc;
         }
-        bool like(cell const& c) const // cell: Precise comparisons of the two cells.
+        bool like(cell const& c) const // cell: Meta comparison of the two cells.
         {
             return uv == c.uv
                 && st.like(c.st)
@@ -1768,7 +1782,7 @@ namespace netxs
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         auto& txt(view utf8, si32 w)
         {
-            gc.set_direct(utf8);
+            gc.set_direct(utf8, w);
             st.wdt(w);
             return *this;
         }
@@ -1782,7 +1796,7 @@ namespace netxs
             else
             {
                 auto cluster = utf::cluster(utf8);
-                gc.set_direct(cluster.text);
+                gc.set_direct(cluster.text, cluster.attr.ucwidth);
                 st.wdt(cluster.attr.ucwidth);
             }
             return *this;
@@ -1801,6 +1815,7 @@ namespace netxs
             return *this;
         }
 
+        auto  mtx() const  { return twod{ gc.props.sizex + 1, gc.props.sizey + 1 }; } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
@@ -1885,6 +1900,7 @@ namespace netxs
             return s << "\n\tfgc " << c.fgc()
                      << "\n\tbgc " << c.bgc()
                      << "\n\ttxt " <<(c.isspc() ? text{ "whitespace" } : utf::debase<faux, faux>(c.txt()))
+                     << "\n\tmtx " <<(c.mtx())
                      << "\n\tstk " <<(c.stk() ? "true" : "faux")
                      << "\n\titc " <<(c.itc() ? "true" : "faux")
                      << "\n\tovr " <<(c.ovr() ? "true" : "faux")
