@@ -3533,7 +3533,9 @@ namespace netxs::os
                                 dtvt::uifont = utf::to_utf(font_info.FaceName);
                                 dtvt::fontsz = { font_info.dwFontSize.X, font_info.dwFontSize.Y };
                             }
-                            if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
+                                 if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
+                            else if (dtvt::fontsz.x == 0)    dtvt::fontsz.x = dtvt::fontsz.y / 2;
+                            else if (dtvt::fontsz.y == 0)    dtvt::fontsz.y = dtvt::fontsz.x * 2;
                             if (dtvt::uifont == text{}) dtvt::uifont = "Consolas";
                             dtvt::window.coor = { r.left + (r.right - r.left - dtvt::fontsz.x * dtvt::window.size.x) / 2, // Centrify window.
                                                   r.top  + (r.bottom - r.top - dtvt::fontsz.y * dtvt::window.size.y) / 2 };

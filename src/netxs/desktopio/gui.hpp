@@ -16,8 +16,9 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
-        .add("❤").add(utf::to_utf_from_code(utf::vss<21,00>)).add("\n")
+    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
+        .add("❤").add(utf::to_utf_from_code(utf::vss<21,00>)).add("<VS21_00\n")
+        .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
@@ -421,7 +422,7 @@ namespace netxs::gui
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
                                                         });
-            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), fs.size() };
+            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), (ui32)fs.size() };
             auto feat_table = &features;
 
             auto hr = fcache.analyzer->GetGlyphs(
@@ -991,8 +992,8 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
-            canvas_page.batch.front()->lyric->pick()[1].mtx({ 2, 1 }).wdt(2);
-            canvas_page.batch.front()->lyric->pick()[2].mtx({ 2, 1 }).wdt(3);
+            //canvas_page.batch.front()->lyric->pick()[1].mtx({ 2, 1 }).wdt(2);
+            //canvas_page.batch.front()->lyric->pick()[2].mtx({ 2, 1 }).wdt(3);
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output(canvas_page);
