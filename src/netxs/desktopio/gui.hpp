@@ -17,6 +17,7 @@ namespace netxs::gui
 
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan).add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+        .add("❤").add(utf::to_utf_from_code(utf::vss<21,00>)).add("\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"

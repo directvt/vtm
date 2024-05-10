@@ -44,6 +44,19 @@ namespace netxs::utf
     static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
     static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
 
+    // utf: Unicode Character Size Modifier Selector.
+    template<si32 wh, si32 xy>
+    static constexpr auto vss = []
+    {
+        auto w = wh / 10;
+        auto h = wh % 10;
+        auto x = xy / 10;
+        auto y = xy % 10;
+        auto p = [](auto x){ return x * (x + 1) / 2 + 1; }; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
+        auto v = utfx{ 0x000E'0100 + p(w) + p(h) * 16 + x + y * 16};
+        return v;
+    }();
+
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata
     {

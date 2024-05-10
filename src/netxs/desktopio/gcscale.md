@@ -22,7 +22,7 @@ Every grid cell aside the rest of rendition attributes and grapheme cluster refe
 
 Encoding Format
 
-According to https://www.unicode.org/ivd/data/2022-09-13/ Variation Selectors in range from 0xE0120 up to 0xE01FF are not used. So we can use a sub-range of the [Unicode Variation Selectors](https://en.wikipedia.org/wiki/Variation_Selectors_Supplement) to specify character dimensions or select its fragment. Four integer values are packed into one byte by plain enumeration "wh_xy".
+According to https://www.unicode.org/ivd/data/2022-09-13/ Variation Selectors in range from 0xE0120 up to 0xE01FF are not used. So user can use a sub-range of the [Unicode Variation Selectors](https://en.wikipedia.org/wiki/Variation_Selectors_Supplement) to specify character dimensions or select its fragment. Four integer values are packed into one byte by plain enumeration of "wh_xy" records.
   - w: Matrix width
   - h: Matrix height
   - x: Horizontal fragment selector inside the matrix
