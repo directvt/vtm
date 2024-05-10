@@ -10,14 +10,50 @@ In this proposal, a character is defined as a user-perceived character (or graph
 ## Memory Storage
 
 Every grid cell aside the rest of rendition attributes and grapheme cluster reference should contain the following additional numeric values:
+
 - Width of the character matrix in cells.
 - Height of the character matrix in cells.
 - X-coordinate of the character fragment contained in the cell.
 - Y-coordinate of the character fragment contained in the cell.
 
+## Unicode Character Modifier
+
+> A variant form is a different glyph for a character, encoded in Unicode through the mechanism of variation sequences: sequences in Unicode that consist of a base character followed by a variation selector character.
+
+Encoding Format
+
+According to https://www.unicode.org/ivd/data/2022-09-13/ Variation Selectors in range from 0xE0120 up to 0xE01FF are not used. So we can use a sub-range of the [Unicode Variation Selectors](https://en.wikipedia.org/wiki/Variation_Selectors_Supplement) to specify character dimensions or select its fragment. Four integer values are packed into one byte by plain enumeration "wh_xy".
+  - w: Matrix width
+  - h: Matrix height
+  - x: Horizontal fragment selector inside the matrix
+  - y: Vertical fragment selector inside the matrix
+
+Unicode block for "Unicode Character Modifiers" `VSwh_xy`:
+
+![image](https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa)
+
+todo Language Tags Unicode block is unused today E0000 - E00FF.
+
+Placement in the text:
+
+```
+<basechar><VSwh_xy>
+```
+
+Examples:
+
+  - 😊+`<VS11_00>` produce 1x1 character.
+  - 😊+`<VS21_00>` produce 2x1 character.
+  - 👨‍👩‍👧‍👦+`<VS31_00>` produce 3x1 character.
+  - 😊+`<VS42_00>` produce 4x2 character.
+  - A+`<VS44_00>` produce 4x4 character.
+  - 😊+`<VS21_11>` produce the left half of the 2x1 character.
+  - 😊+`<VS21_21>` produce the right half of the 2x1 character.
+
 ## VT Sequence: CFA - Character Fragmentation Attribute.
 
 The following sequences allow to set the character 4x4-fragmentation attribute as a cell rendition state:
+
 - Human readable sequence format:
   ```
                ┌──────────────────────────────── matrix width, range: 1..4 cells
