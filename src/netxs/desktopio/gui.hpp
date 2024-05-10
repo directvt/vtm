@@ -358,6 +358,7 @@ namespace netxs::gui
         };
 
         using gmap = std::unordered_map<ui64, sprite>;
+        static constexpr auto dpi72_96 = 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
 
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
@@ -399,7 +400,7 @@ namespace netxs::gui
 
             auto transform = std::min((fp32)cellsz.x / f.facesize.x, (fp32)cellsz.y / f.facesize.y);
             auto base_line = fp2d{ 0, f.baseline * transform };
-            auto em_height = f.emheight * transform * 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
+            auto em_height = f.emheight * transform * glyf::dpi72_96;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
@@ -448,8 +449,10 @@ namespace netxs::gui
             glyf_width.resize(glyf_count);
             glyf_align.resize(glyf_count);
 
-            hr = fcache.analyzer->GetGlyphPlacements(
-                text_utf16.data(),                     // _In_reads_(textLength) WCHAR const* textString,
+            auto recalc_layout = [&]
+            {
+                return fcache.analyzer->GetGlyphPlacements(
+                text_utf16.data(),                 // _In_reads_(textLength) WCHAR const* textString,
                 clustermap.data(),                 // _In_reads_(textLength) UINT16 const* clusterMap,
                 text_props.data(),                 // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
                 text_count,                        // UINT32 textLength,
@@ -467,7 +470,23 @@ namespace netxs::gui
                 1,                                 // UINT32 featureRanges,
                 glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                 glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-            if (hr != S_OK) return;
+            };
+            if (recalc_layout() != S_OK) return;
+
+            // Check if the glyph exceeds the matrix.
+            auto matrix = c.mtx().x * cellsz.x;
+            auto length = fp32{};
+            for (auto i = 0; i < glyf_count; ++i)
+            {
+                length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
+            }
+            if (length > matrix + cellsz.x / 2.f) // Recalc layout if so.
+            {
+                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
+                transform *= (fp32)matrix / actual_width;
+                em_height = f.emheight * transform * glyf::dpi72_96;
+                if (recalc_layout() != S_OK) return;
+            }
 
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
                                                 .fontEmSize    = em_height,
