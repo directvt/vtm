@@ -53,7 +53,7 @@ namespace netxs::utf
         auto x = xy / 10;
         auto y = xy % 10;
         auto p = [](auto x){ return x * (x + 1) / 2 + 1; }; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
-        auto v = utfx{ 0x000E'0100 + p(w) + p(h) * 16 + x + y * 16};
+        auto v = (utfx)(0x000E'0100 + p(w) + p(h) * 16 + x + y * 16);
         return v;
     }();
 
