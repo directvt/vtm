@@ -481,7 +481,7 @@ namespace netxs::gui
             // Check if the glyph exceeds the matrix.
             auto matrix = c.mtx().x * cellsz.x;
             auto length = fp32{};
-            for (auto i = 0; i < glyf_count; ++i)
+            for (auto i = 0u; i < glyf_count; ++i)
             {
                 length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
             }
