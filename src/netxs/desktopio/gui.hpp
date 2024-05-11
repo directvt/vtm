@@ -387,12 +387,13 @@ namespace netxs::gui
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
-            auto force_monochromatic = faux;
+            auto monochromatic = faux;
             while (code_iter)
             {
                 auto codepoint = code_iter.next().cdpoint;
-                if (codepoint == utf::vs15_code) force_monochromatic = true;
-                codepoints.push_back(codepoint);
+                     if (codepoint == utf::vs15_code) monochromatic = true;
+                else if (codepoint == utf::vs16_code) monochromatic = faux;
+                else codepoints.push_back(codepoint);
             }
             if (codepoints.empty()) return;
 
@@ -502,8 +503,8 @@ namespace netxs::gui
 
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
-            hr = force_monochromatic ? DWRITE_E_NOCOLOR
-                                     : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
+            hr = monochromatic ? DWRITE_E_NOCOLOR
+                               : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
             auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
