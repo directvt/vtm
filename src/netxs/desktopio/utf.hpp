@@ -100,7 +100,9 @@ namespace netxs::utf
         {
             if (next.utf8len && next.allied(brgroup))
             {
-                ucwidth = std::max(ucwidth, next.ucwidth);
+                ucwidth = next.cdpoint >= vss_code<11, 00>
+                       && next.cdpoint <= vss_code<44, 44> ? next.ucwidth
+                                                           : std::max(ucwidth, next.ucwidth);
                 utf8len += next.utf8len;
                 cpcount += 1;
                 return 0_sz;
