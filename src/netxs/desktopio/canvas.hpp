@@ -936,12 +936,12 @@ namespace netxs
             return *this;
         }
         // irgb: Blend with non-pma c (0.0-1.0) using integer alpha (0-255).
-        auto& blend_nonpma(irgb non_pma_c, auto alpha) requires(std::is_floating_point_v<T>)
+        auto& blend_nonpma(irgb non_pma_c, byte alpha) requires(std::is_floating_point_v<T>)
         {
             if (alpha == 255) *this = non_pma_c;
             else if (alpha != 0)
             {
-                non_pma_c.a *= (T)alpha / 255.f;
+                non_pma_c.a *= (T)alpha / 255;
                 blend_pma(non_pma_c.pma());
             }
             return *this;
@@ -1092,7 +1092,7 @@ namespace netxs
                     else            return view(glyph + 1, props.count);
                 }
             }
-            auto is_space() const
+            bool is_space() const //todo VS2019 complains on auto
             {
                 return (byte)(glyph[1]) <= whitespace;
             }

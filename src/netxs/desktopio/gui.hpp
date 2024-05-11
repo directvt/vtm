@@ -558,16 +558,16 @@ namespace netxs::gui
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
                     if (m.fill.a != 0.f) // Predefined sRGB color.
                     {
-                        netxs::onbody(raster, alpha_mask, [c = m.fill](irgb& dst, byte& alpha)
+                        netxs::onbody(raster, alpha_mask, [fill = m.fill](irgb& dst, byte& alpha)
                         {
                             if (dst.a >= 256.f) // Update the fgc layer if it exists. dst.a consists of two parts: an integer that represents the fgc alpha in 8-bit format, and a floating point normalized [0.0-1.0] value that represents the alpha for the color glyph sprite.
                             {
                                 auto fgc_alpha = (si32)dst.a;
                                 dst.a -= fgc_alpha;
-                                dst.blend_nonpma(c, alpha);
+                                dst.blend_nonpma(fill, alpha);
                                 if (alpha != 255 && fgc_alpha > 256) dst.a += 256 + (si32)netxs::saturate_cast<byte>(fgc_alpha - 256) * (255 - alpha) / 255;
                             }
-                            else dst.blend_nonpma(c, alpha);
+                            else dst.blend_nonpma(fill, alpha);
                         });
                     }
                     else // Foreground color unknown in advance. Side-effect: fully transparent glyph layers will be colored with the fgc color.
