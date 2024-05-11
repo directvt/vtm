@@ -716,7 +716,7 @@ offset = ''
 eol = eolgenerator(len(offset_index * block_size), 16, block_size, '')
 cur_prop = -1
 size = 0
-offset_size = 0;
+offset_size = 0
 for pos in offset_index:
     for prop in pos:
         offset_size += 1
@@ -800,7 +800,7 @@ writeln('used %s' % fields['offset_t'])
 header_content = HEADER_BASE.format(**fields)
 #source_content = SOURCE_BASE.format(**fields)
 
-with open(HEADER_FILE, 'w') as f: f.write(header_content)
+with open(HEADER_FILE, 'w', newline = '\n') as f: f.write(header_content)
 writeln("done " + HEADER_FILE)
 
 #with open(SOURCE_FILE, 'w') as f: f.write(source_content)

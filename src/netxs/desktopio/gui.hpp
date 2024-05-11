@@ -17,13 +17,14 @@ namespace netxs::gui
 
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        .add("❤").add(utf::to_utf_from_code(utf::vss<21,00>)).add("<VS21_00\n")
+        //.add("❤").add(utf::vss<21,00>).add("<VS21_00 ").add("😎").add(utf::vss<11,00>).add("<VS11_00 ").add("👩‍👩‍👧‍👧").add(utf::vss<31,00>).add("<VS31_00\n")
+        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾😎").add(utf::vss<11,00>).add("<VS11_00 ").add("😎").add(utf::vss<21,00>).add("<VS21_00 ").add("❤").add(utf::vss<11,00>).add("<VS11_00 ").add("❤").add(utf::vss<21,00>).add("<VS21_00\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🦚😀😬😁😂😃😄😅😆 👌🐞😎👪.\n\n")
-        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n");
+        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
     auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};

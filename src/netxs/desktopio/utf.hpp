@@ -44,9 +44,9 @@ namespace netxs::utf
     static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
     static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
 
-    // utf: Unicode Character Size Modifier Selector.
+    // utf: Unicode Character Size Modifier Selector codepoint.
     template<si32 wh, si32 xy>
-    static constexpr auto vss = []
+    static constexpr auto vss_code = []
     {
         auto w = wh / 10;
         auto h = wh % 10;
@@ -56,6 +56,14 @@ namespace netxs::utf
         auto v = (utfx)(0x000E'0100 + p(w) + p(h) * 16 + x + y * 16);
         return v;
     }();
+    template<utfx code>
+    static constexpr auto utf8bytes = code <= 0x007f ? std::array<char, 4>{ static_cast<char>(code) }
+                                    : code <= 0x07ff ? std::array<char, 4>{ static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)), static_cast<char>(0x80 | ( code & 0x3f)) }
+                                    : code <= 0xffff ? std::array<char, 4>{ static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) }
+                                                     : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
+    // utf: Unicode Character Size Modifier Selector UTF-8 view.
+    template<si32 wh, si32 xy, auto code = vss_code<wh, xy>>
+    static constexpr auto vss = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
 
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata

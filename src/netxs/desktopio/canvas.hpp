@@ -953,8 +953,6 @@ namespace netxs
     {
         union glyf
         {
-            static constexpr auto limit = (byte)sizeof(ui64);
-
             static auto jumbos()
             {
                 using lock = std::mutex;
@@ -1000,6 +998,8 @@ namespace netxs
                 return guard{ inst };
             }
 
+            static constexpr auto limit = (byte)sizeof(ui64);
+            static constexpr auto token_mask = ~(ui64)0b1111'0000; // Exclude matrix metadata.
             struct prop
             {
                 byte count : 3; // prop: Cluster length in bytes (if it is not jumbo).
@@ -1079,7 +1079,7 @@ namespace netxs
                     token = hasher(utf8);
                     props.jumbo = true;
                     mtx(w, h);
-                    jumbos().add(token & 0b0000'1111, utf8);
+                    jumbos().add(token & token_mask, utf8);
                 }
             }
             template<svga Mode = svga::vtrgb>
@@ -1088,7 +1088,7 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (is_jumbo()) return jumbos().get(token & 0b0000'1111);
+                    if (is_jumbo()) return jumbos().get(token & token_mask);
                     else            return view(glyph + 1, props.count);
                 }
             }
@@ -1102,7 +1102,7 @@ namespace netxs
             }
             auto jgc() const
             {
-                return !is_jumbo() || jumbos().exists(token & 0b0000'1111);
+                return !is_jumbo() || jumbos().exists(token & token_mask);
             }
             // Return cluster storage length.
             auto len() const
