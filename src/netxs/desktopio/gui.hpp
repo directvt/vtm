@@ -387,13 +387,18 @@ namespace netxs::gui
             if (c.wdt() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
-            while (code_iter) codepoints.push_back(code_iter.next().cdpoint);
+            auto force_monochromatic = faux;
+            while (code_iter)
+            {
+                auto codepoint = code_iter.next().cdpoint;
+                if (codepoint == utf::vs15_code) force_monochromatic = true;
+                codepoints.push_back(codepoint);
+            }
             if (codepoints.empty()) return;
 
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto force_monochromatic = codepoints.back() == utf::vs15_code;
             auto& f = fcache.take_font(codepoints.front());
             auto font_face = f.fontface[format];
             if (!font_face) return;

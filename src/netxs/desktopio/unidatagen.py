@@ -127,12 +127,16 @@ PRINTABLE = ['Prepend', # always part of grapheme cluster
 
 # classification https://www.unicode.org/reports/tr11/#ED6
 WCWIDTHS = {'zerowidth' : ['zero', 'non-printable' ],
-            'halfwidth' : ['slim', 'narrow'        ],
-            'fullwidth' : ['wide', 'fullwidth'     ]}
+            'halfwidth' : ['slim', '1x1 narrow'    ],
+            'fullwidth' : ['wide', '2x1 fullwidth' ],
+            'overwidth' : ['trid', '3x1 overwidth' ],
+            'quadwidth' : ['quad', '4x1 quadwidth' ]}
 
 # classification: https://www.unicode.org/emoji/charts/emoji-variants.html
-CUSTOMIZE = [( 0xFE0E, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ), # VS15 Selects Text  presentation
-             ( 0xFE0F, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' )] # VS16 Selects Emoji presentation
+CUSTOMIZE = [( 0xE0122, WCWIDTHS['halfwidth'][0], 'Nonspacing_Mark' ), # VS11_00 - set 1x1 glyph matrix.
+             ( 0xE0124, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ), # VS21_00 - set 2x1 glyph matrix.
+             ( 0xE0127, WCWIDTHS['overwidth'][0], 'Nonspacing_Mark' ), # VS31_00 - set 3x1 glyph matrix.
+             ( 0xE012B, WCWIDTHS['quadwidth'][0], 'Nonspacing_Mark' )] # VS41_00 - set 4x1 glyph matrix.
 
 # classification:  empirically
 # todo except BREAKCAT = Prepend (always part of grapheme cluster)
@@ -256,6 +260,8 @@ HEADER_BASE = r'''
  *  0 - Non-printable
  *  1 - Halfwidth
  *  2 - Fullwidth
+ *  3 - Overwidth
+ *  4 - Quadwidth
  *
  * C0 controls 0x00..0x1F
  *  Since C0 codes are based on bytes, they are excluded from the property list of controls.
