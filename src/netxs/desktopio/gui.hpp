@@ -47,8 +47,9 @@ namespace netxs::gui
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,11>).fgc(tint::purecyan)
-                        .add("☆").add(utf::vss<21,11>)
+                        .add("☆").add(utf::vss<21,21>)
                         .add("\n")
                         .add("\n")
 
@@ -513,26 +514,30 @@ namespace netxs::gui
             };
             if (recalc_layout() != S_OK) return;
 
-            auto matrix = c.mtx().x * cellsz.x;
+            auto matrix = c.mtx() * cellsz;
             auto length = fp32{};
             for (auto i = 0u; i < glyf_count; ++i)
             {
                 length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
             }
-            if (length > matrix + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
+            if (length > matrix.x + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
             {
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix / actual_width;
+                transform *= (fp32)matrix.x / actual_width;
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
             }
-            else if (length < matrix - cellsz.x / 2.f) // Check if the glyph is too small for the matrix.
+            else if (length < matrix.x - cellsz.x / 2.f && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix.
             {
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix / actual_width;
+                transform *= (fp32)matrix.x / actual_width;
                 base_line = fp2d{ 0, f.baseline * transform };
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
+            }
+            else if (length < matrix.x - cellsz.x / 2.f) // Centrify glyph.
+            {
+                base_line.x += (matrix.x - length) / 2.f;
             }
 
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
@@ -1153,7 +1158,7 @@ namespace netxs::gui
             auto rc = rtc;
             auto x = 0.f;
             auto y = 0.f;
-            auto m = grid_cells.size() - dot_11;
+            auto m = std::max(dot_11, grid_cells.size() - dot_11);
             auto eol = [&]
             {
                 x = 0.f;
