@@ -52,7 +52,9 @@ namespace netxs::gui
                         .add("☆").add(utf::vss<21,21>)
                         .add("\n")
                         .add("\n")
-
+        .add("😎").add(utf::vss<42,01>).add(" <VS42_00\n")
+        .add("😎").add(utf::vss<42,02>).add("\n")
+                        .add("\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
