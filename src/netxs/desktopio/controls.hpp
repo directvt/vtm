@@ -829,23 +829,23 @@ namespace netxs::ui
                         if (area)
                         {
                             auto& test = canvas.peek(body.coor);
-                            if (test.wdt() == 2) // Extend cursor to adjacent halves.
+                            if (test.wdt() == unidata::widths::vs<21,11>) // Extend cursor to adjacent halves.
                             {
                                 if (clip.hittest(body.coor + dot_10))
                                 {
                                     auto& next = canvas.peek(body.coor + dot_10);
-                                    if (next.wdt() == 3 && test.same_txt(next))
+                                    if (next.wdt() == unidata::widths::vs<21,21> && test.same_txt(next))
                                     {
                                         area.size.x++;
                                     }
                                 }
                             }
-                            else if (test.wdt() == 3)
+                            else if (test.wdt() == unidata::widths::vs<21,21>)
                             {
                                 if (clip.hittest(body.coor - dot_10))
                                 {
                                     auto& prev = canvas.peek(body.coor - dot_10);
-                                    if (prev.wdt() == 2 && test.same_txt(prev))
+                                    if (prev.wdt() == unidata::widths::vs<21,11> && test.same_txt(prev))
                                     {
                                         area.size.x++;
                                         area.coor.x--;

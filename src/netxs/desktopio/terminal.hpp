@@ -1653,10 +1653,10 @@ namespace netxs::ui
                 if (n)
                 {
                     auto c = cell{ parser::brush };
-                    if (c.wdt() != 1)
-                    {
-                        c.wdt(2);
-                    }
+                    //if (c.wdt() != 1)
+                    //{
+                    //    c.wdt(2);
+                    //}
                     parser::assign(n, c);
                 }
             }
@@ -1679,9 +1679,10 @@ namespace netxs::ui
                 auto sym = utf::to_utf_from_code(c);
                 auto tmp = parser::brush;
                 parser::brush.txt(sym);
-                if (parser::brush.wdt() != 1)
+                auto [w, h, x, y] = unidata::widths::whxy(parser::brush.wdt());
+                if (w != 1)
                 {
-                    area.size.x /= 2;
+                    area.size.x /= w;
                 }
                 if (area)
                 {

@@ -1161,15 +1161,17 @@ namespace netxs::directvt
                         while (src != end)
                         {
                             auto& c = *src++;
-                            if (c.wdt() < 2) put(c);
+                            auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+                            if (w < 2 && x == 1) put(c);
                             else
                             {
-                                if (c.wdt() == 2)
+                                if (w == 2 && x == 1)
                                 {
                                     if (src != end)
                                     {
                                         auto& right = *src;
-                                        if (right.wdt() < 3) left_half(c);
+                                        auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                        if (rx == 1) left_half(c);
                                         else
                                         {
                                             if (dif(c, right)) left_half(c);
@@ -1204,8 +1206,8 @@ namespace netxs::directvt
                         {
                             auto& fore = *src++;
                             auto& back = *dst++;
-                            auto w = fore.wdt();
-                            if (w < 2)
+                            auto [w, h, x, y] = unidata::widths::whxy(fore.wdt());
+                            if (w == 1)
                             {
                                 if (back != fore)
                                 {
@@ -1215,13 +1217,14 @@ namespace netxs::directvt
                                     {
                                         auto& f = *src++;
                                         auto& b = *dst++;
-                                        auto fw = f.wdt();
-                                        if (fw < 2)
+                                        //auto fw = f.wdt();
+                                        auto [fw, fh, fx, fy] = unidata::widths::whxy(f.wdt());
+                                        if (fw == 1)
                                         {
                                             if (b == f) break;
                                             else        put(f);
                                         }
-                                        else if (fw == 2) // Check left part.
+                                        else if (fw == 2 && fx == 1) // Check left part.
                                         {
                                             if (src != end)
                                             {
@@ -1234,7 +1237,8 @@ namespace netxs::directvt
                                                 }
                                                 else
                                                 {
-                                                    if (right.wdt() < 3) left_half(f);
+                                                    auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                                    if (rx == 1) left_half(f);
                                                     else // right.wdt() == 3
                                                     {
                                                         tie(f, right);
@@ -1259,7 +1263,8 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            if (right.wdt() < 3) left_half(fore);
+                                            auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                            if (rx == 1) left_half(fore);
                                             else // right.wdt() == 3
                                             {
                                                 tie(fore, right);
@@ -1274,7 +1279,8 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            if (right.wdt() < 3) mov(src - beg), left_half(fore);
+                                            auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                            if (rx == 1) mov(src - beg), left_half(fore);
                                             else // right.wdt() == 3
                                             {
                                                 if (right != *dst)

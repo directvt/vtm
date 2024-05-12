@@ -1024,10 +1024,10 @@ namespace netxs
                 props.count = 1;
                 glyph[1] = c;
             }
-            glyf(glyf const& g, view utf8, si32 w, si32 h = 0)
+            glyf(glyf const& g, view utf8, si32 vs)
                 : token{ g.token }
             {
-                set_direct(utf8, w, h);
+                set_direct(utf8, vs);
             }
 
             constexpr glyf& operator = (glyf const&) = default;
@@ -1058,14 +1058,19 @@ namespace netxs
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
             }
+            auto mtx() const
+            {
+                return twod{ props.sizex + 1, props.sizey + 1 };
+            }
             void mtx(si32 w, si32 h)
             {
                 props.sizex = (byte)(w ? w - 1 : 0);
                 props.sizey = (byte)(h ? h - 1 : 0);
             }
-            void set_direct(view utf8, si32 w, si32 h = 0)
+            void set_direct(view utf8, si32 vs)
             {
                 static constexpr auto hasher = std::hash<view>{};
+                auto [w, h, x, y] = unidata::widths::whxy(vs);
                 auto count = utf8.size();
                 if (count < limit)
                 {
@@ -1411,7 +1416,7 @@ namespace netxs
         { }
         cell(char c)
             : gc{ c },
-              st{ 1 },
+              st{ unidata::widths::vs<11,11> },
               id{ 0 }
         {
             // sizeof(glyf);
@@ -1433,9 +1438,9 @@ namespace netxs
               id{ base.id },
               px{ base.px }
         { }
-        cell(cell const& base, view cluster, si32 ucwidth, si32 ucheight = 1)
+        cell(cell const& base, view cluster, si32 ucwidth)
             : uv{ base.uv },
-              gc{ base.gc, cluster, ucwidth, ucheight },
+              gc{ base.gc, cluster, ucwidth},
               st{ base.st, ucwidth },
               id{ base.id },
               px{ base.px }
@@ -1443,7 +1448,7 @@ namespace netxs
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
-              st{ base.st, 1 },
+              st{ base.st, unidata::widths::vs<11,11> },
               id{ base.id },
               px{ base.px }
         { }
@@ -1662,8 +1667,8 @@ namespace netxs
         void scan(text& dest) const
         {
                  if (wdt() == 0) dest += whitespace;
-            else if (wdt() == 1) dest += gc.get();
-            else if (wdt() == 2)
+            else if (wdt() == unidata::widths::vs<11,11>) dest += gc.get();
+            else if (wdt() == unidata::widths::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1676,7 +1681,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (wdt() == 2)
+            if (wdt() == unidata::widths::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1689,7 +1694,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (wdt() == 3)
+            if (wdt() == unidata::widths::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1784,10 +1789,18 @@ namespace netxs
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
-        auto& txt(view utf8, si32 w)
+        // cell: Set cluster unidata width.
+        auto& wdt(si32 vs)
         {
-            gc.set_direct(utf8, w);
-            st.wdt(w);
+            auto [w, h, x, y] = unidata::widths::whxy(vs);
+            gc.mtx(w, h);
+            st.wdt(vs);
+            return *this;
+        }
+        auto& txt(view utf8, si32 vs)
+        {
+            gc.set_direct(utf8, vs);
+            st.wdt(vs);
             return *this;
         }
         cell& txt(view utf8)
@@ -1805,10 +1818,9 @@ namespace netxs
             }
             return *this;
         }
-        auto& txt(char c)        { gc.set(c); st.wdt(1);   return *this; } // cell: Set grapheme cluster from char.
+        auto& txt(char c)        { gc.set(c); st.wdt(unidata::widths::vs<11,11>);   return *this; } // cell: Set grapheme cluster from char.
         auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt(si32 w)        { st.wdt(w);              return *this; } // cell: Set grapheme cluster screen width.
         auto& rst() // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };
@@ -1819,11 +1831,11 @@ namespace netxs
             return *this;
         }
 
-        auto  mtx() const  { return twod{ gc.props.sizex + 1, gc.props.sizey + 1 }; } // cell: Return cluster matrix size (in cells).
+        auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        si32  wdt() const  { return st.wdt();      } // cell: Return grapheme cluster screen width.
+        si32  wdt() const  { return st.wdt();      } // cell: Return cluster unidata width.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
         auto& egc() const  { return gc;            } // cell: Get grapheme cluster token.
@@ -1848,7 +1860,6 @@ namespace netxs
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
         auto link() const  { return id;            } // cell: Return object ID.
-        auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
         auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
@@ -2849,7 +2860,7 @@ namespace netxs
             };
             auto func = [&](auto check)
             {
-                static constexpr auto right_half = rev ? 2 : 3;
+                static constexpr auto right_half = rev ? unidata::widths::vs<21,11> : unidata::widths::vs<21,21>;
                 coord.x += rev ? 1 : 0;
                 auto count = decltype(coord.x){};
                 auto width = (rev ? 0 : region.size.x) - coord.x;

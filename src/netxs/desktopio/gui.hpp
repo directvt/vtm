@@ -19,6 +19,39 @@ namespace netxs::gui
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
         //.add("❤").add(utf::vss<21,00>).add("<VS21_00 ").add("😎").add(utf::vss<11,00>).add("<VS11_00 ").add("👩‍👩‍👧‍👧").add(utf::vss<31,00>).add("<VS31_00\n")
         .add("👩🏾‍👨🏾‍👧🏾‍👧🏾").add(utf::vss<21,00>).add("<VS21_00 😎").add(utf::vss<11,00>).add("<VS11_00 ").add("😎").add(utf::vss<21,00>).add("<VS21_00 ").add("❤").add(utf::vss<11,00>).add("<VS11_00 ").add("❤").add(utf::vss<21,00>).add("<VS21_00\n")
+        .add("😎").add(utf::vss<21,11>).add(" 😃").add(utf::vss<21,21>).add("<VS21_11/VS21_21\n")
+
+                        .add("\n")
+        .add("Advanced ").add("T").add(utf::vss<22,01>)
+                        .add("e").add(utf::vss<22,01>)
+                        .add("r").add(utf::vss<22,01>)
+                        .add("m").add(utf::vss<22,01>)
+                        .add("i").add(utf::vss<22,01>)
+                        .add("n").add(utf::vss<22,01>)
+                        .add("a").add(utf::vss<22,01>)
+                        .add("l").add(utf::vss<22,01>)
+                        .add("\n")
+        .add("Terminal ").add("T").add(utf::vss<22,02>)
+                        .add("e").add(utf::vss<22,02>)
+                        .add("r").add(utf::vss<22,02>)
+                        .add("m").add(utf::vss<22,02>)
+                        .add("i").add(utf::vss<22,02>)
+                        .add("n").add(utf::vss<22,02>)
+                        .add("a").add(utf::vss<22,02>)
+                        .add("l").add(utf::vss<22,02>)
+                        .add("\n")
+        .add("Emulator ").fgc(tint::pureyellow)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,00>)
+                        .add("★").add(utf::vss<21,11>).fgc(tint::purecyan)
+                        .add("☆").add(utf::vss<21,11>)
+                        .add("\n")
+                        .add("\n")
+
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
@@ -480,17 +513,24 @@ namespace netxs::gui
             };
             if (recalc_layout() != S_OK) return;
 
-            // Check if the glyph exceeds the matrix.
             auto matrix = c.mtx().x * cellsz.x;
             auto length = fp32{};
             for (auto i = 0u; i < glyf_count; ++i)
             {
                 length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
             }
-            if (length > matrix + cellsz.x / 2.f) // Recalc layout if so.
+            if (length > matrix + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
             {
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
                 transform *= (fp32)matrix / actual_width;
+                em_height = f.emheight * transform * glyf::dpi72_96;
+                if (recalc_layout() != S_OK) return;
+            }
+            else if (length < matrix - cellsz.x / 2.f) // Check if the glyph is too small for the matrix.
+            {
+                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
+                transform *= (fp32)matrix / actual_width;
+                base_line = fp2d{ 0, f.baseline * transform };
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
             }
@@ -599,8 +639,8 @@ namespace netxs::gui
             if (c.stk()) { }
             if (c.ovr()) { }
             if (c.inv()) { }
-            auto w = c.wdt();
-            if (w == 0) return;
+            auto v = c.wdt();
+            if (v == 0) return;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
@@ -612,9 +652,13 @@ namespace netxs::gui
             }
             auto& glyph_mask = iter->second;
             if (!glyph_mask.area) return;
-            canvas.clip(canvas.area());
-            //canvas.clip(placeholder);
-            auto box = glyph_mask.area.shift(w != 3 ? coor : coor - twod{ cellsz.x, 0 });
+
+            auto [w, h, x, y] = unidata::widths::whxy(v);
+            if (x ==0 || y == 0) return;
+            auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
+            canvas.clip(placeholder);
+            //canvas.clip(canvas.area());
+
             auto fgc = c.fgc();
             auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
             if (glyph_mask.type == sprite::color)
@@ -1018,8 +1062,6 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
-            //canvas_page.batch.front()->lyric->pick()[1].mtx({ 2, 1 }).wdt(2);
-            //canvas_page.batch.front()->lyric->pick()[2].mtx({ 2, 1 }).wdt(3);
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output(canvas_page);

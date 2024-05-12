@@ -15,11 +15,9 @@ import datetime
 import collections
 
 DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/GraphemeBreakProperty.txt',
-                             ['CODERANGE',
-                              'BREAK_CLASS' ]),
+                             ['CODERANGE', 'BREAK_CLASS' ]),
                 'EAWIDTH' : ('https://www.unicode.org/Public/UNIDATA/EastAsianWidth.txt',
-                             ['CODERANGE',
-                              'EAST_ASIAN_WIDTH' ]),
+                             ['CODERANGE', 'EAST_ASIAN_WIDTH' ]),
                 'UNICODE' : ('https://www.unicode.org/Public/UNIDATA/UnicodeData.txt',
                              ['CODERANGE'       ,
                               'NAME'            ,
@@ -37,12 +35,9 @@ DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/G
                               'LOWERCASE_MAP'   ,
                               'TITLECASE_MAP'    ]),
                 'EMOJILS' : ('https://www.unicode.org/Public/UNIDATA/emoji/emoji-data.txt',
-                             ['CODEVALUE',
-                              'EMOJI_BREAK_PROP' ]),
+                             ['CODEVALUE', 'EMOJI_BREAK_PROP' ]),
                 'ALIASES' : ('https://www.unicode.org/Public/UNIDATA/NameAliases.txt',
-                             ['CODEVALUE',
-                              'ALIAS',
-                              'TYPE' ])}
+                             ['CODEVALUE', 'ALIAS', 'TYPE' ])}
 
 UNICODESPACE = 0x110000
 
@@ -126,17 +121,21 @@ PRINTABLE = ['Prepend', # always part of grapheme cluster
              ]
 
 # classification https://www.unicode.org/reports/tr11/#ED6
-WCWIDTHS = {'zerowidth' : ['zero', 'non-printable' ],
-            'halfwidth' : ['slim', '1x1 narrow'    ],
-            'fullwidth' : ['wide', '2x1 fullwidth' ],
-            'overwidth' : ['trid', '3x1 overwidth' ],
-            'quadwidth' : ['quad', '4x1 quadwidth' ]}
+WCWIDTHS = {'zerowidth' : ['vs<00,00>', 'non-printable' ],
+            'halfwidth' : ['vs<11,00>', '1x1 narrow'    ],
+            'fullwidth' : ['vs<21,00>', '2x1 fullwidth' ]}
 
-# classification: https://www.unicode.org/emoji/charts/emoji-variants.html
-CUSTOMIZE = [( 0xE0122, WCWIDTHS['halfwidth'][0], 'Nonspacing_Mark' ), # VS11_00 - set 1x1 glyph matrix.
-             ( 0xE0124, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ), # VS21_00 - set 2x1 glyph matrix.
-             ( 0xE0127, WCWIDTHS['overwidth'][0], 'Nonspacing_Mark' ), # VS31_00 - set 3x1 glyph matrix.
-             ( 0xE012B, WCWIDTHS['quadwidth'][0], 'Nonspacing_Mark' )] # VS41_00 - set 4x1 glyph matrix.
+nspm = 'Nonspacing_Mark'
+CUSTOMIZE = [(0xE0121 + int(0), 'vs<00,00>', nspm)]
+def gc(x):
+    return x * (x + 1) / 2 + 1 # ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
+for w in range(1, 5):
+    for h in range(1, 5):
+        for y in range(0, 5):
+            for x in range(0, 5):
+                tag = 'vs<{}{},{}{}>'.format(w, h, x, y)
+                code = 0xE0100 + int(gc(w) + gc(h) * 16 + x + y * 16)
+                CUSTOMIZE.append((code, tag, nspm))
 
 # classification:  empirically
 # todo except BREAKCAT = Prepend (always part of grapheme cluster)
@@ -260,8 +259,6 @@ HEADER_BASE = r'''
  *  0 - Non-printable
  *  1 - Halfwidth
  *  2 - Fullwidth
- *  3 - Overwidth
- *  4 - Quadwidth
  *
  * C0 controls 0x00..0x1F
  *  Since C0 codes are based on bytes, they are excluded from the property list of controls.
@@ -314,10 +311,38 @@ namespace netxs::{module}
 {{
     namespace {wclass}
     {{
-        enum type : byte
+        static auto p = [](auto x){{ return x * (x + 1) / 2 + 1; }}; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
+        using type = byte;
+        template<si32 wh, si32 xy>
+        static constexpr auto vs = []
         {{
-            {widths}
-        }};
+            auto w = wh / 10;
+            auto h = wh % 10;
+            auto x = xy / 10;
+            auto y = xy % 10;
+            auto v = (type)(p(w) + p(h) * 16 + x + y * 16);
+            return v;
+        }}();
+        static constexpr auto zero = vs<00,00>;
+        static constexpr auto slim = vs<11,00>;
+        static constexpr auto wide = vs<21,00>;
+        auto whxy(si32 vs)
+        {{
+            static auto lut = []
+            {{}
+                struct r {{ byte w, h, x, y; }};
+                auto v = std::vector(256, r{{}});
+                for (auto w = (byte)1; w < 5; w++)
+                for (auto h = (byte)1; h < 5; h++)
+                for (auto y = (byte)0; y < 5; y++)
+                for (auto x = (byte)0; x < 5; x++)
+                {{}
+                    v[p(w) + p(h) * 16 + x + y * 16] = {{ w, h, x, y }};
+                }}
+                return v;
+            }}();
+            return lut[vs];
+        }}
     }}
 
     namespace {bclass}
@@ -415,10 +440,8 @@ namespace netxs::{module}
     {{
         static auto offset = unpack<byte>(base::offset_pack, base::offset_size);
         static auto blocks = unpack<ui16>(base::blocks_pack, base::blocks_size);
-
-        return cp > 0x10FFFF
-            ? base::ucspec[0]
-            : base::ucspec[offset[blocks[cp >> 8] + (cp & 0xFF)]];
+        return cp > 0x10FFFF ? base::ucspec[0]
+                             : base::ucspec[offset[blocks[cp >> 8] + (cp & 0xFF)]];
     }}
 }}
 '''.strip()

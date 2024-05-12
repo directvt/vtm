@@ -450,33 +450,33 @@ namespace netxs::ansi
             {
                 add(utf::replacement);
                 state.set_gc();
-                state.wdt(1);
+                state.wdt(unidata::widths::vs<11,11>);
             };
             auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
-                state.wdt(1);
+                state.wdt(unidata::widths::vs<11,11>);
             };
             auto allfx = [&](cell const& c)
             {
-                auto width = c.wdt();
-                if (width < 2) // Narrow character
+                auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+                if (w < 2) // Narrow character
                 {
-                    if (state.wdt() == 2) badfx(); // Left part alone
+                    if (state.wdt() == unidata::widths::vs<21,11>) badfx(); // Left part alone
                     c.scan<svga::vtrgb, UseSGR>(state, block);
                 }
                 else
                 {
-                    if (width == 2) // Left part
+                    if (w == 2 && x == 1) // Left part
                     {
-                        if (state.wdt() == 2) badfx();  // Left part alone
+                        if (state.wdt() == unidata::widths::vs<21,11>) badfx();  // Left part alone
                         c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
-                    else if (width == 3) // Right part
+                    else if (w == 2 && x == 2) // Right part
                     {
-                        if (state.wdt() == 2)
+                        if (state.wdt() == unidata::widths::vs<21,11>)
                         {
                             if (state.check_pair(c))
                             {
@@ -501,7 +501,7 @@ namespace netxs::ansi
             };
             auto eolfx = [&]
             {
-                if (state.wdt() == 2) side_badfx();  // Left part alone at the right side
+                if (state.wdt() == unidata::widths::vs<21,11>) side_badfx();  // Left part alone at the right side
                 state.set_gc();
                 basevt::eol();
             };
@@ -1673,7 +1673,9 @@ namespace netxs::ansi
         void assign(auto n, auto c)
         {
             proto_cells.assign(n, c);
-            data(n * c.wdt(), proto_cells);
+            auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+            auto wdt = x == 0 ? w : 1;
+            data(n * wdt, proto_cells);
             proto_cells.clear();
         }
         void reset(cell c)
@@ -1700,10 +1702,12 @@ namespace netxs::ansi
 
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
-            if (auto w = attr.ucwidth)
+            if (auto v = attr.ucwidth)
             {
-                proto_count += w;
-                brush.txt(utf8, w);
+                auto [w, h, x, y] = unidata::widths::whxy(v);
+                auto wdt = x == 0 ? w : 1;
+                proto_count += wdt;
+                brush.txt(utf8, v);
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
@@ -1718,14 +1722,14 @@ namespace netxs::ansi
                     else
                     {
                         auto empty = brush;
-                        empty.txt(whitespace).wdt(w);
+                        empty.txt(whitespace).wdt(v);
                         set_prop(empty);
                         proto_cells.push_back(empty);
                     }
                 }
                 else
                 {
-                    brush.txt(utf8, w);
+                    brush.txt(utf8, v);
                     proto_cells.push_back(brush);
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);

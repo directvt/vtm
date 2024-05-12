@@ -44,26 +44,21 @@ namespace netxs::utf
     static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
     static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
 
-    // utf: Unicode Character Size Modifier Selector codepoint.
-    template<si32 wh, si32 xy>
-    static constexpr auto vss_code = []
-    {
-        auto w = wh / 10;
-        auto h = wh % 10;
-        auto x = xy / 10;
-        auto y = xy % 10;
-        auto p = [](auto x){ return x * (x + 1) / 2 + 1; }; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
-        auto v = (utfx)(0x000E'0100 + p(w) + p(h) * 16 + x + y * 16);
-        return v;
-    }();
     template<utfx code>
     static constexpr auto utf8bytes = code <= 0x007f ? std::array<char, 4>{ static_cast<char>(code) }
                                     : code <= 0x07ff ? std::array<char, 4>{ static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)), static_cast<char>(0x80 | ( code & 0x3f)) }
                                     : code <= 0xffff ? std::array<char, 4>{ static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) }
                                                      : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
+    template<utfx code>
+    static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    static constexpr auto vs15 = utf8view<vs15_code>;
+    static constexpr auto vs16 = utf8view<vs16_code>;
+
     // utf: Unicode Character Size Modifier Selector UTF-8 view.
-    template<si32 wh, si32 xy, auto code = vss_code<wh, xy>>
-    static constexpr auto vss = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    template<si32 wh, si32 xy>
+    static constexpr auto vs_code = 0xE0100 + unidata::widths::vs<wh, xy>;
+    template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
+    static constexpr auto vss = utf8view<code>;
 
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata
@@ -100,11 +95,16 @@ namespace netxs::utf
         {
             if (next.utf8len && next.allied(brgroup))
             {
-                ucwidth = next.cdpoint >= vss_code<11, 00>
-                       && next.cdpoint <= vss_code<44, 44> ? next.ucwidth
-                                                           : std::max(ucwidth, next.ucwidth);
-                utf8len += next.utf8len;
-                cpcount += 1;
+                if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Drop VS-wh_xy modificator and break cluster.
+                {
+                    ucwidth = next.ucwidth;
+                }
+                else
+                {
+                    ucwidth = std::max(ucwidth, next.ucwidth);
+                    utf8len += next.utf8len;
+                    cpcount += 1;
+                }
                 return 0_sz;
             }
             else
