@@ -47,11 +47,18 @@ namespace netxs::gui
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,11>).fgc(tint::purecyan)
                         .add("☆").add(utf::vss<21,21>)
+                        .add("☆").add(utf::vss<21,00>)
                         .add("\n")
                         .add("\n")
+                        .add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
+                             "Terminal T\U000E0164e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
+                             "Emulator ★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0135").fgc(tint::pureyellow).add("☆\U000E0136☆\U000E0124\n\n").fgc(tint::purecyan)
+                        .add("A\U000E0124d\U000E0124v\U000E0124a\U000E0124n\U000E0124c\U000E0124e\U000E0124d\U000E0124⚙\U0000FE0E\U000E0136\n"
+                             "T\U000E0187e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
+                             "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
+                             "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
         .add("😎").add(utf::vss<42,01>).add(" <VS42_00\n")
         .add("😎").add(utf::vss<42,02>).add("\n")
                         .add("\n")

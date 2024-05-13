@@ -56,7 +56,7 @@ namespace netxs::utf
 
     // utf: Unicode Character Size Modifier Selector UTF-8 view.
     template<si32 wh, si32 xy>
-    static constexpr auto vs_code = 0xE0100 + unidata::widths::vs<wh, xy>;
+    static constexpr auto vs_code = unidata::widths::vs_block + unidata::widths::vs<wh, xy>;
     template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
     static constexpr auto vss = utf8view<code>;
 
@@ -95,9 +95,9 @@ namespace netxs::utf
         {
             if (next.utf8len && next.allied(brgroup))
             {
-                if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Drop VS-wh_xy modificator and break cluster.
+                if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
                 {
-                    ucwidth = next.ucwidth;
+                    ucwidth = next.cdpoint - netxs::unidata::widths::vs_block;
                 }
                 else
                 {

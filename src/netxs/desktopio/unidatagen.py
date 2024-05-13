@@ -127,15 +127,15 @@ WCWIDTHS = {'zerowidth' : ['vs<00,00>', 'non-printable' ],
 
 nspm = 'Nonspacing_Mark'
 CUSTOMIZE = [(0xE0121 + int(0), 'vs<00,00>', nspm)]
-def gc(x):
-    return x * (x + 1) / 2 + 1 # ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
-for w in range(1, 5):
-    for h in range(1, 5):
-        for y in range(0, 5):
-            for x in range(0, 5):
-                tag = 'vs<{}{},{}{}>'.format(w, h, x, y)
-                code = 0xE0100 + int(gc(w) + gc(h) * 16 + x + y * 16)
-                CUSTOMIZE.append((code, tag, nspm))
+#def gc(x):
+#    return x * (x + 1) / 2 + 1
+#for w in range(1, 5):
+#    for h in range(1, 5):
+#        for y in range(0, h + 1):
+#            for x in range(0, w + 1):
+#                tag = 'vs<{}{},{}{}>'.format(w, h, x, y)
+#                code = 0xE0100 + int(gc(w) + gc(h) * 16 + x + y * 16)
+#                CUSTOMIZE.append((code, tag, nspm))
 
 # classification:  empirically
 # todo except BREAKCAT = Prepend (always part of grapheme cluster)
@@ -311,6 +311,7 @@ namespace netxs::{module}
 {{
     namespace {wclass}
     {{
+        static constexpr auto vs_block = 0xE0100;
         static auto p = [](auto x){{ return x * (x + 1) / 2 + 1; }}; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
         using type = byte;
         template<si32 wh, si32 xy>
@@ -329,14 +330,14 @@ namespace netxs::{module}
         auto whxy(si32 vs)
         {{
             static auto lut = []
-            {{}
+            {{
                 struct r {{ byte w, h, x, y; }};
                 auto v = std::vector(256, r{{}});
                 for (auto w = (byte)1; w < 5; w++)
                 for (auto h = (byte)1; h < 5; h++)
-                for (auto y = (byte)0; y < 5; y++)
-                for (auto x = (byte)0; x < 5; x++)
-                {{}
+                for (auto y = (byte)0; y <= h; y++)
+                for (auto x = (byte)0; x <= w; x++)
+                {{
                     v[p(w) + p(h) * 16 + x + y * 16] = {{ w, h, x, y }};
                 }}
                 return v;
