@@ -105,6 +105,7 @@ namespace netxs::gui
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
             bool                              color{ faux };
+            bool                              fixed{ faux }; // Preserve specified font order.
 
             static auto iscolor(auto faceinst)
             {
@@ -218,25 +219,14 @@ namespace netxs::gui
                 names->Release();
             }
 
+            //todo make software font
+            typeface() = default;
             typeface(typeface&&) = default;
-            typeface(IDWriteFontFamily* barefont, ui32 index)
-                : index{ index }
+            typeface(IDWriteFontFamily* barefont, ui32 index, bool fixed = faux)
+                : index{ index },
+                  fixed{ fixed }
             {
                 load(barefont);
-            }
-            typeface(view family_utf8, IDWriteFontCollection* fontlist)
-            {
-                auto found = BOOL{};   
-                auto family_utf16 = utf::to_utf(family_utf8);
-                fontlist->FindFamilyName(family_utf16.data(), &index, &found);
-                if (found)
-                {
-                    auto barefont = (IDWriteFontFamily*)nullptr;
-                    fontlist->GetFontFamily(index, &barefont);
-                    load(barefont);
-                    barefont->Release();
-                }
-                else log("%%Font '%fontname%' is not installed in the system.", prompt::gui, family_utf8);
             }
             ~typeface()
             {
@@ -253,19 +243,38 @@ namespace netxs::gui
         IDWriteFactory2*       factory2; // font: DWrite factory.
         IDWriteFontCollection* fontlist; // font: System font collection.
         IDWriteTextAnalyzer*   analyzer; // font: Glyph indicies reader.
-        typeface               basefont; // font: Base font.
         std::vector<stat>      fontstat; // font: System font collection status list.
         std::vector<typeface>  fallback; // font: Fallback font list.
         wide                   oslocale; // font: User locale.
 
-        font(view family_name)
+        font(std::list<text>& family_names)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer*)nullptr; factory2->CreateTextAnalyzer(&a); return a; }() },
-              basefont{ family_name, fontlist },
-              fontstat(fontlist->GetFontFamilyCount()),
+              fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
               oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
+            if (!fontlist || !analyzer)
+            {
+                log("%%No fonts found in the system.", prompt::gui);
+                return;
+            }
+            for (auto& family_utf8 : family_names)
+            {
+                auto found = BOOL{};   
+                auto index = ui32{};
+                auto family_utf16 = utf::to_utf(family_utf8);
+                fontlist->FindFamilyName(family_utf16.data(), &index, &found);
+                if (found)
+                {
+                    auto barefont = (IDWriteFontFamily*)nullptr;
+                    fontlist->GetFontFamily(index, &barefont);
+                    fontstat[index].s |= fontcat::loaded;
+                    fallback.emplace_back(barefont, index, true);
+                    barefont->Release();
+                }
+                else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
+            }
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
             {
@@ -273,11 +282,6 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            if (basefont)
-            {
-                fontstat[basefont.index].i = basefont.index;
-                fontstat[basefont.index].s |= fontcat::loaded;
-            }
             for (auto i = 0u; i < fontstat.size(); i++)
             {
                 fontstat[i].i = i;
@@ -344,9 +348,8 @@ namespace netxs::gui
                 fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
                 return !!glyphindex;
             };
-            if (basefont && hittest(basefont.fontface[0])) return basefont;
-            for (auto& f : fallback) if ( f.color && hittest(f.fontface[0])) return f;
-            for (auto& f : fallback) if (!f.color && hittest(f.fontface[0])) return f;
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0])) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0])) return f;
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
@@ -374,14 +377,13 @@ namespace netxs::gui
             {
                 if ((fontstat[i].s & fontcat::valid && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
             }
-            if (basefont) return basefont;
             if (fallback.size()) return fallback.front();
             for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
             {
                 if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
             }
             log("%%No fonts found in the system.", prompt::gui);
-            return basefont;
+            return fallback.emplace_back(); // Should never happen.
         }
     };
 
@@ -845,8 +847,8 @@ namespace netxs::gui
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
 
-        manager(view font_name_utf8, twod cellsz, bool antialiasing)
-            : fcache{ font_name_utf8 },
+        manager(std::list<text>& font_names_utf8, twod cellsz, bool antialiasing)
+            : fcache{ font_names_utf8 },
               gcache{ fcache, cellsz, antialiasing },
               isfine{ true }
         {
@@ -1068,8 +1070,8 @@ namespace netxs::gui
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, text font, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
-            : manager{ font, cell_size, antialiasing },
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
+            : manager{ font_names, cell_size, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               cellsz{ cell_size },
               gripsz{ grip_cell * cell_size },

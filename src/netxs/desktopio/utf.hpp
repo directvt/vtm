@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <list>
 #include <map>
 #include <algorithm>
 #include <charconv>
@@ -97,7 +98,7 @@ namespace netxs::utf
             {
                 if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
                 {
-                    ucwidth = next.cdpoint - netxs::unidata::widths::vs_block;
+                    ucwidth = (decltype(ucwidth))(next.cdpoint - netxs::unidata::widths::vs_block);
                 }
                 else
                 {
@@ -1193,9 +1194,19 @@ namespace netxs::utf
         return len;
     }
     template<class ...Args>
+    auto& operator << (auto&& s, std::list<Args...> const& list)
+    { 
+        s << "{ ";
+        for (auto delim = ""; auto& item : list) s << std::exchange(delim, ", ") << item;
+        s << " }";
+        return s;
+    }
+    template<class ...Args>
     auto concat(Args&&... args)
     {
-        return (flux{} << ... << std::forward<Args>(args)).str();
+        auto s = flux{};
+        (s << ... << std::forward<Args>(args));
+        return s.str();
     }
     auto base64(view utf8)
     {
