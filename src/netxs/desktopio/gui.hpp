@@ -1215,7 +1215,7 @@ namespace netxs::gui
             auto eol = [&]
             {
                 x = 0.f;
-                auto dc = y++ / m.y;
+                auto dc = ++y / m.y;
                 lc = argb::transit(ltc, lbc, dc);
                 rc = argb::transit(rtc, rbc, dc);
             };
