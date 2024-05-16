@@ -1818,6 +1818,12 @@ namespace netxs
             }
             return *this;
         }
+        cell& txt2(view utf8, si32 vs)
+        {
+            gc.set_direct(utf8, vs);
+            st.wdt(vs);
+            return *this;
+        }
         auto& txt(char c)        { gc.set(c); st.wdt(unidata::widths::vs<11,11>);   return *this; } // cell: Set grapheme cluster from char.
         auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.

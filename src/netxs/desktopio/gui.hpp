@@ -17,8 +17,8 @@ namespace netxs::gui
 
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        .add("के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
-        .add("क कि कु कृ कॢ के कै को कौ\n")
+        .add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
+        .add("च्छे क कि कु कृ कॢ के कै को कौ\n")
         .add(" अनुच्छेद १.\n"
              "सभी मनुष्यों को गौरव और अधिकारों के मामले में\n"
              "जन्मजात स्वतन्त्रता और समानता प्राप्त है ।\n"
@@ -244,7 +244,7 @@ namespace netxs::gui
         };
         IDWriteFactory2*               factory2; // font: DWrite factory.
         IDWriteFontCollection*         fontlist; // font: System font collection.
-        IDWriteTextAnalyzer1*          analyzer; // font: Glyph indicies reader.
+        IDWriteTextAnalyzer2*          analyzer; // font: Glyph indicies reader.
         std::vector<stat>              fontstat; // font: System font collection status list.
         std::vector<typeface>          fallback; // font: Fallback font list.
         wide                           oslocale; // font: User locale.
@@ -278,7 +278,7 @@ namespace netxs::gui
         font(std::list<text>& family_names)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
-              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer1*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
+              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
               fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
               oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
@@ -300,6 +300,14 @@ namespace netxs::gui
                     fontstat[index].s |= fontcat::loaded;
                     fallback.emplace_back(barefont, index, true);
                     barefont->Release();
+
+                    //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
+                    //auto maxTagCount = ui32{100};
+                    //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
+                    //analyzer->GetTypographicFeatures(fallback.back().fontface[0], sa, oslocale.data(), maxTagCount, &maxTagCount, tags.data());
+                    //tags.resize(maxTagCount);
+                    //log("\tfeat count: ", maxTagCount);
+                    //for (auto t : tags) log("\t feat: ", view{ (char*)&t, 4 });
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
@@ -512,13 +520,43 @@ namespace netxs::gui
             clustermap.resize(text_count);
 
             auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(codepoints.front().wscript) };
-            auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },
-                                                          { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
-                                                          { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 1 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALANT_FORMS, 1 },
+            auto fs = std::to_array<std::pair<ui32, ui32>>({{}
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'i', 'g', 'a'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'l', 'i', 'g'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'l', 'i', 'g'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('m', 'a', 'r', 'k'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'o', 'c', 'l'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'l', 'i', 'g'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'f', 'l', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'c', 'm', 'p'), 1 },
+//
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 'm'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 's'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'k', 'h', 'n'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'f'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'm'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 's'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'j', 'c', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'i', 's', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'n'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('n', 'u', 'k', 't'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 'r', 'e', 's'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 's', 't', 's'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'k', 'r', 'f'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'p', 'h', 'f'), 1 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('v', 'a', 't', 'u'), 1 },
+                                                          
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'b', 's'), 0 },
+                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'p', 's'), 0 },
+                                                          //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 0 },
+                                                          //{ DWRITE_FONT_FEATURE_TAG_HALANT_FORMS, 0 },
                                                         });
-            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), (ui32)fs.size() };
+            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() };
             auto feat_table = &features;
 
             auto hr = fcache.analyzer->GetGlyphs(
@@ -1121,6 +1159,11 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
+            //canvas_page.batch.front()->lyric->begin()->txt2("क्ष", unidata::widths::vs<11,11>);
+            //canvas_page.batch.front()->lyric->begin()->txt2("ङ्क", unidata::widths::vs<11,11>);
+            //canvas_page.batch.front()->lyric->begin()->txt2("क्व", unidata::widths::vs<11,11>);
+            canvas_page.batch.front()->lyric->begin()->txt2("च्छे", unidata::widths::vs<11,11>);
+            
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output(canvas_page);
