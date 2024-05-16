@@ -17,7 +17,8 @@ namespace netxs::gui
 
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        .add("के है \n")
+        .add("के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
+        .add("क कि कु कृ कॢ के कै को कौ\n")
         .add(" अनुच्छेद १.\n"
              "सभी मनुष्यों को गौरव और अधिकारों के मामले में\n"
              "जन्मजात स्वतन्त्रता और समानता प्राप्त है ।\n"
@@ -692,7 +693,7 @@ namespace netxs::gui
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
-            if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
+            //if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
@@ -714,8 +715,8 @@ namespace netxs::gui
             auto [w, h, x, y] = unidata::widths::whxy(v);
             if (x ==0 || y == 0) return;
             auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-            canvas.clip(placeholder);
-            //canvas.clip(canvas.area());
+            //canvas.clip(placeholder);
+            canvas.clip(canvas.area());
 
             auto fgc = c.fgc();
             auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
