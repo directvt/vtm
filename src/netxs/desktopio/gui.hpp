@@ -247,7 +247,32 @@ namespace netxs::gui
         std::vector<stat>              fontstat; // font: System font collection status list.
         std::vector<typeface>          fallback; // font: Fallback font list.
         wide                           oslocale; // font: User locale.
-        std::array<ui16, 1000>         lang_map; // font: ISO<->MS script map.
+
+        static auto msscript(ui32 code) // font: ISO<->MS script map.
+        {
+            static auto lut = []
+            {
+                auto map = std::vector<ui16>(1000, 999);
+                if (auto f = (IDWriteFactory2*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&f), f)
+                {
+                    if (auto a = (IDWriteTextAnalyzer1*)nullptr; f->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a), a)
+                    {
+                        for (auto i = ui16{}; i < map.size(); i++)
+                        {
+                            auto prop = DWRITE_SCRIPT_PROPERTIES{};
+                            a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
+                            if (i && prop.isoScriptNumber == 999) break;
+                            map[prop.isoScriptNumber] = i;
+                            auto code = view{ (char*)&prop.isoScriptCode, 4 };
+                        }
+                        a->Release();
+                    }
+                    f->Release();
+                }
+                return map;
+            }();
+            return lut[code];
+        }
 
         font(std::list<text>& family_names)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
@@ -260,16 +285,6 @@ namespace netxs::gui
             {
                 log("%%No fonts found in the system.", prompt::gui);
                 return;
-            }
-            //log("Script MS<->ISO map:");
-            for (auto i = ui16{}; i < lang_map.size(); i++) // Build ISO<->MS script map.
-            {
-                auto prop = DWRITE_SCRIPT_PROPERTIES{};
-                analyzer->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
-                if (i && prop.isoScriptNumber == 999) break;
-                lang_map[prop.isoScriptNumber] = i;
-                auto code = view{ (char*)&prop.isoScriptCode, 4 };
-                //log("\tScript: ", i, "\tISO code: ", code, " ISO num: ", prop.isoScriptNumber);
             }
             for (auto& family_utf8 : family_names)
             {
@@ -459,7 +474,6 @@ namespace netxs::gui
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
             auto monochromatic = faux;
-            auto script_mscode = 0;
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
@@ -496,8 +510,7 @@ namespace netxs::gui
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 24 }; //todo revise
-            
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(codepoints.front().wscript) };
             auto scriptProperties = DWRITE_SCRIPT_PROPERTIES{};
             fcache.analyzer->GetScriptProperties(script_opt, &scriptProperties);
             auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },

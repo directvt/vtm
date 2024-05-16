@@ -324,7 +324,7 @@ namespace netxs::unidata
         ui32 cmatrix : 8;
         ui32 brgroup : 4;
         ui32 control : 7;
-        ui32 wscript : 10; // Unicode ISO script No: 0 - 999.
+        ui32 wscript : 10; // ISO 15924 Script No: 0 - 999.
         //ui32 reserv : 3;
 
         constexpr unidata(unidata const&) = default;
@@ -409,6 +409,11 @@ namespace netxs::unidata
             {offset}
         }});
 
+        static constexpr auto scripts = std::to_array<ui32>(
+        {{
+            {scripts}
+        }});
+
         static constexpr auto ucspec = std::to_array<unidata>(
         {{
             {ucspec}
@@ -438,11 +443,21 @@ namespace netxs::unidata
             auto offset = unpack<byte>(base::offset_pack, base::offset_size);
             auto blocks = unpack<ui16>(base::blocks_pack, base::blocks_size);
             auto v = std::vector<unidata>(0x10FFFF);
+            auto j = 0;
+            auto s = 0;
+            auto l = 0;
             for (auto i = 0; i < v.size(); i++)
             {{
+                if (l == 0)
+                {{
+                    s = base::scripts[j] & 0xFFFF;
+                    l = base::scripts[j] >> 16;
+                    j++;
+                }}
                 auto& rec = v[i];
                 rec = base::ucspec[offset[blocks[i >> 8] + (i & 0xFF)]];
-                rec.wscript = 0;
+                rec.wscript = s;
+                l--;
             }}
             return v;
         }}();
@@ -578,7 +593,7 @@ def apply_eawidths(source, chrs):
 def apply_wscripts(isocodes_src, scripts_src, chrs):
     isocodes = {}
     for isocode, scriptname in isocodes_src.props('ISOCODE', 'PVA'):
-        if scriptname: isocodes[scriptname] = isocode
+        if scriptname: isocodes[scriptname] = int(isocode)
     for cprange, scriptname in scripts_src.props('CODERANGE', 'SCRIPT_PROP'):
         for cp in sequencer(cprange):
             chrs[cp].scriptname = scriptname
@@ -675,6 +690,28 @@ apply_customcp(CUSTOMIZE,           chrs)
 apply_nonprint(set(ZEROWIDTH), set(PRINTABLE), chrs)
 noncmd_id = apply_commands(set(CONTROLCP), NONCTRLCP, set(PRINTABLE), chrs)
 apply_wscripts(data.src['ISOCODS'], data.src['SCRIPTS'], chrs)
+
+# 00 33 7 555 00
+# ranges: 0,2 3,2 7,1 5,3 0,2
+script_ranges = []
+charscount = 0
+scriptcode = chrs[0].scriptcode
+maxlen = 0
+for cp in chrs:
+    if cp.scriptcode != scriptcode or charscount == 65535:
+        script_ranges.append(scriptcode + (charscount << 16))
+        scriptcode = cp.scriptcode
+        if charscount > maxlen:
+            maxlen = charscount
+        charscount = 0
+    charscount += 1
+script_ranges.extend([scriptcode, charscount])
+
+scripts = ''
+for i, value in enumerate(script_ranges):
+    scripts += '            ' if i and i % 20 == 0 else ''
+    scripts += '0x%X,' % value
+    scripts += '\n' if (i + 1) % 20 == 0 else ' '
 
 #control_list = { 0 : (0, 'NON FORMAT CHARACTER', 'NON_FORMAT', 0) }
 #control_list.update({ cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None })
@@ -812,6 +849,7 @@ fields = {'header': HEADER_FILE,
           'blocks_size': blocks_size,
           'offset': offset,
           'offset_size': offset_size,
+          'scripts': scripts,
           'ucspec': ucspec }
 
 writeln('spec count: %s' % len(ucspec_index))
