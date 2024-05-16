@@ -511,8 +511,6 @@ namespace netxs::gui
             clustermap.resize(text_count);
 
             auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(codepoints.front().wscript) };
-            auto scriptProperties = DWRITE_SCRIPT_PROPERTIES{};
-            fcache.analyzer->GetScriptProperties(script_opt, &scriptProperties);
             auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
