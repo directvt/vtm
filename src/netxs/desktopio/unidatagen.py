@@ -26,8 +26,13 @@ DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/G
                 'EMOJILS' : ('https://www.unicode.org/Public/UNIDATA/emoji/emoji-data.txt',
                              ['CODEVALUE', 'EMOJI_BREAK_PROP']),
                 'ALIASES' : ('https://www.unicode.org/Public/UNIDATA/NameAliases.txt',
-                             ['CODEVALUE', 'ALIAS', 'TYPE']) }
+                             ['CODEVALUE', 'ALIAS', 'TYPE']),
+                "SCRIPTS" : ('https://www.unicode.org/Public/UNIDATA/Scripts.txt',
+                             ['CODERANGE', 'SCRIPT_PROP']),
+                "ISOCODS" : ('https://www.unicode.org/iso15924/iso15924.txt',
+                             ['CODE', 'ISOCODE', 'NAME', 'FrNAME', 'PVA', 'VER', 'DATE']) }
 
+# Value Aliases: http://www.unicode.org/Public/UNIDATA/PropertyValueAliases.txt
 # classification: https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
 BREAKCAT = { 'Other'                 : ['any'  , 'Other'                        ],
              'CR'                    : ['cr'   , 'CR'                           ],
@@ -470,7 +475,7 @@ def loaddata(url):
     return (values, digest)
 
 class uniprop(object):
-    def __init__(self,code):
+    def __init__(self, code):
         self.code       = code
         self.ucwidth    = EAWIDTH['N']
         self.gcbreak    = 'Other'
@@ -478,6 +483,8 @@ class uniprop(object):
         self.ctrl_index = None
         self.name       = None
         self.alias      = None
+        self.scriptname = 'Unknown'
+        self.scriptcode = 999
 
     def hash(self):
         return 'ctrl{}wd{}br{}'.format(self.ctrl_index, self.ucwidth, self.gcbreak)
@@ -567,6 +574,15 @@ def apply_eawidths(source, chrs):
         ucwidth = EAWIDTH[eawidth]
         for cp in sequencer(cprange):
             chrs[cp].ucwidth = ucwidth
+
+def apply_wscripts(isocodes_src, scripts_src, chrs):
+    isocodes = {}
+    for isocode, scriptname in isocodes_src.props('ISOCODE', 'PVA'):
+        if scriptname: isocodes[scriptname] = isocode
+    for cprange, scriptname in scripts_src.props('CODERANGE', 'SCRIPT_PROP'):
+        for cp in sequencer(cprange):
+            chrs[cp].scriptname = scriptname
+            chrs[cp].scriptcode = isocodes[scriptname]
 
 def apply_acronyms(source, chrs):
     for (cpval, alias, cptype) in source.props('CODEVALUE', 'ALIAS', 'TYPE'):
@@ -658,6 +674,7 @@ apply_acronyms(data.src['ALIASES'], chrs)
 apply_customcp(CUSTOMIZE,           chrs)
 apply_nonprint(set(ZEROWIDTH), set(PRINTABLE), chrs)
 noncmd_id = apply_commands(set(CONTROLCP), NONCTRLCP, set(PRINTABLE), chrs)
+apply_wscripts(data.src['ISOCODS'], data.src['SCRIPTS'], chrs)
 
 #control_list = { 0 : (0, 'NON FORMAT CHARACTER', 'NON_FORMAT', 0) }
 #control_list.update({ cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None })
