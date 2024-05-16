@@ -1702,7 +1702,7 @@ namespace netxs::ansi
 
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
-            if (auto v = attr.ucwidth)
+            if (auto v = attr.cmatrix)
             {
                 auto [w, h, x, y] = unidata::widths::whxy(v);
                 auto wdt = x == 0 ? w : 1;

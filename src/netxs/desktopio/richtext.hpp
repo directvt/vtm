@@ -1086,7 +1086,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.ucwidth = netxs::unidata::widths::vs<11,00>;
+                c.attr.cmatrix = netxs::unidata::widths::vs<11,00>;
                 ansi::parser::post(c);
             }
             else
@@ -1709,7 +1709,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.ucwidth = netxs::unidata::widths::vs<11,00>;
+                c.attr.cmatrix = netxs::unidata::widths::vs<11,00>;
                 ansi::parser::post(c);
             }
             else

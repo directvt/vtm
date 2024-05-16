@@ -38,7 +38,7 @@ namespace netxs
 
 namespace netxs::utf
 {
-    using ctrl = unidata::cntrls::type;
+    using ctrl = unidata::cntrls;
 
     static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
@@ -94,15 +94,15 @@ namespace netxs::utf
 
         auto combine(prop const& next)
         {
-            if (next.utf8len && next.allied(brgroup))
+            if (next.utf8len && unidata::allied(next))
             {
                 if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
                 {
-                    ucwidth = (decltype(ucwidth))(next.cdpoint - netxs::unidata::widths::vs_block);
+                    unidata::cmatrix = (decltype(unidata::cmatrix))(next.cdpoint - netxs::unidata::widths::vs_block);
                 }
                 else
                 {
-                    ucwidth = std::max(ucwidth, next.ucwidth);
+                    unidata::cmatrix = std::max(unidata::cmatrix, next.cmatrix);
                     utf8len += next.utf8len;
                     cpcount += 1;
                 }
@@ -465,7 +465,7 @@ namespace netxs::utf
         // qiew: Pop the front sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
-            auto n = si32{ 1 };
+            auto n = 1;
             auto next = utf::cluster<true>(*this);
             while (next.attr.control == cmd)
             {
@@ -478,7 +478,7 @@ namespace netxs::utf
         // qiew: Pop the front sequence of the same chars and return their count + 1.
         auto pop_all(char c)
         {
-            auto n = si32{ 1 };
+            auto n = 1;
             while (length() && view::front() == c)
             {
                 view::remove_prefix(1);

@@ -1813,8 +1813,8 @@ namespace netxs
             else
             {
                 auto cluster = utf::cluster(utf8);
-                gc.set_direct(cluster.text, cluster.attr.ucwidth);
-                st.wdt(cluster.attr.ucwidth);
+                gc.set_direct(cluster.text, cluster.attr.cmatrix);
+                st.wdt(cluster.attr.cmatrix);
             }
             return *this;
         }

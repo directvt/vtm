@@ -3359,7 +3359,7 @@ struct impl : consrv
                         auto& prop = unidata::select(code);
                         if (prev) // Surrogate pair.
                         {
-                            if (prop.ucwidth == unidata::widths::vs<21,00>)
+                            if (prop.cmatrix == unidata::widths::vs<21,00>)
                             {
                                 prev->txt(toUTF8, unidata::widths::vs<21,11>);
                                 dst  .txt(toUTF8, unidata::widths::vs<21,21>);
@@ -3373,7 +3373,7 @@ struct impl : consrv
                         }
                         else
                         {
-                            if (prop.ucwidth == unidata::widths::vs<21,00>)
+                            if (prop.cmatrix == unidata::widths::vs<21,00>)
                             {
                                 if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
                                 {

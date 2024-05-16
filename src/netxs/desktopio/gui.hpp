@@ -17,6 +17,7 @@ namespace netxs::gui
 
     //test strings
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
+        .add("के है \n")
         .add(" अनुच्छेद १.\n"
              "सभी मनुष्यों को गौरव और अधिकारों के मामले में\n"
              "जन्मजात स्वतन्त्रता और समानता प्राप्त है ।\n"
@@ -240,17 +241,18 @@ namespace netxs::gui
             si32 i{};
             text n{};
         };
-        IDWriteFactory2*       factory2; // font: DWrite factory.
-        IDWriteFontCollection* fontlist; // font: System font collection.
-        IDWriteTextAnalyzer*   analyzer; // font: Glyph indicies reader.
-        std::vector<stat>      fontstat; // font: System font collection status list.
-        std::vector<typeface>  fallback; // font: Fallback font list.
-        wide                   oslocale; // font: User locale.
+        IDWriteFactory2*               factory2; // font: DWrite factory.
+        IDWriteFontCollection*         fontlist; // font: System font collection.
+        IDWriteTextAnalyzer1*          analyzer; // font: Glyph indicies reader.
+        std::vector<stat>              fontstat; // font: System font collection status list.
+        std::vector<typeface>          fallback; // font: Fallback font list.
+        wide                           oslocale; // font: User locale.
+        std::array<ui16, 1000>         lang_map; // font: ISO<->MS script map.
 
         font(std::list<text>& family_names)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
-              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer*)nullptr; factory2->CreateTextAnalyzer(&a); return a; }() },
+              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer1*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
               fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
               oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
@@ -258,6 +260,16 @@ namespace netxs::gui
             {
                 log("%%No fonts found in the system.", prompt::gui);
                 return;
+            }
+            //log("Script MS<->ISO map:");
+            for (auto i = ui16{}; i < lang_map.size(); i++) // Build ISO<->MS script map.
+            {
+                auto prop = DWRITE_SCRIPT_PROPERTIES{};
+                analyzer->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
+                if (i && prop.isoScriptNumber == 999) break;
+                lang_map[prop.isoScriptNumber] = i;
+                auto code = view{ (char*)&prop.isoScriptCode, 4 };
+                //log("\tScript: ", i, "\tISO code: ", code, " ISO num: ", prop.isoScriptNumber);
             }
             for (auto& family_utf8 : family_names)
             {
@@ -426,7 +438,7 @@ namespace netxs::gui
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
         wide                                         text_utf16; // glyf: UTF-16 buffer.
-        std::vector<ui32>                            codepoints; // glyf: .
+        std::vector<utf::prop>                       codepoints; // glyf: .
         std::vector<ui16>                            clustermap; // glyf: .
         std::vector<ui16>                            glyf_index; // glyf: .
         std::vector<FLOAT>                           glyf_width; // glyf: .
@@ -447,11 +459,12 @@ namespace netxs::gui
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
             auto monochromatic = faux;
+            auto script_mscode = 0;
             while (code_iter)
             {
-                auto codepoint = code_iter.next().cdpoint;
-                     if (codepoint == utf::vs15_code) monochromatic = true;
-                else if (codepoint == utf::vs16_code) monochromatic = faux;
+                auto codepoint = code_iter.next();
+                     if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
+                else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
                 else codepoints.push_back(codepoint);
             }
             if (codepoints.empty()) return;
@@ -459,7 +472,7 @@ namespace netxs::gui
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto& f = fcache.take_font(codepoints.front());
+            auto& f = fcache.take_font(codepoints.front().cdpoint);
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
@@ -483,10 +496,15 @@ namespace netxs::gui
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 0 }; //todo revise
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = 24 }; //todo revise
+            
+            auto scriptProperties = DWRITE_SCRIPT_PROPERTIES{};
+            fcache.analyzer->GetScriptProperties(script_opt, &scriptProperties);
             auto fs = std::to_array<DWRITE_FONT_FEATURE>({{ DWRITE_FONT_FEATURE_TAG_STANDARD_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_LIGATURES, 1 },
                                                           { DWRITE_FONT_FEATURE_TAG_CONTEXTUAL_ALTERNATES, 1 },
+                                                          //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 1 },
+                                                          //{ DWRITE_FONT_FEATURE_TAG_HALANT_FORMS, 1 },
                                                         });
             auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ fs.data(), (ui32)fs.size() };
             auto feat_table = &features;
