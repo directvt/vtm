@@ -3520,8 +3520,10 @@ namespace netxs::os
                         {
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
-                            dtvt::windpi = (si32)::GetDpiForWindow(h);
-                            if (dtvt::windpi == 0) dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
+                            //todo ::GetDpiForWindow() is only available on win10
+                            //dtvt::windpi = (si32)::GetDpiForWindow(h);
+                            //if (dtvt::windpi == 0) dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
+                            dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
                             ok(::GetWindowRect(h, &r));
 
                             auto modeflags = DWORD{};
