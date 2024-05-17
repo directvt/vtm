@@ -110,7 +110,7 @@ namespace netxs::ansi
     static const auto w32_inp     = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
     static const auto c0_nul = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const auto c0_soh = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
-    static const auto c0_stx = '\x02'; // Start of Text       - First character of message text, and may be used to terminate the message heading.
+    static const auto c0_stx = '\x02'; // Start of Text       - Custom cluster initiator. First character of message text, and may be used to terminate the message heading.
     static const auto c0_etx = '\x03'; // End of Text         - Often used as a "break" character (Ctrl-C) to interrupt or terminate a program or process.
     static const auto c0_eot = '\x04'; // End of Transmssn    - Often used on Unix to indicate end-of-file on a terminal.
     static const auto c0_enq = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.

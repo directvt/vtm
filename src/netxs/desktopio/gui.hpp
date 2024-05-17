@@ -16,14 +16,19 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
+    auto vss11 = utf::vss<11,00>;
+    auto vss21 = utf::vss<21,00>;
+    auto vss31 = utf::vss<31,00>;
+    auto vss41 = utf::vss<41,00>;
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        .add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
-        .add("च्छे क कि कु कृ कॢ के कै को कौ\n")
-        .add(" अनुच्छेद १.\n"
-             "सभी मनुष्यों को गौरव और अधिकारों के मामले में\n"
-             "जन्मजात स्वतन्त्रता और समानता प्राप्त है ।\n"
-             "उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और\n"
-             "परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।\n")
+        //.add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
+        //.add("\002च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
+        // \U0000A8FB
+        .add("अ\002नुच्छेद", vss41, " १.\n"     // अनुच्छेद १.
+             "\002सभी", vss31, " \002मनुष्यों", vss41, " को", vss21, " \002गौरव", vss31, " \002और", vss31, " \002अधिका", vss41, "\002रों", vss21, " के", vss21, " \002मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
+             "ज\002न्मजात", vss41, " \002स्वतन्त्र", vss41, "\002ता", vss21, " \002और", vss31, " \002समान", vss31, "\002ता", vss21, " \002प्राप्त", vss31, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
+             "\002उन्हें", vss31, " \002बुद्धि", vss31, " \002और", vss31, " अ\002न्तरात्मा", vss41, " की", vss21, " \002देन", vss21, " \002प्राप्त", vss31, " है \002और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\002परस्पर", vss41, " \002उन्हें", vss31, " \002भाईचा", vss41, "\002रे", vss11, " के", vss21, " \002भाव", vss31, " से \002बर्ताव", vss31, " \002करना", vss31, " \002चाहिए", vss31, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
                         .add("\n")
         //.add("❤").add(utf::vss<21,00>).add("<VS21_00 ").add("😎").add(utf::vss<11,00>).add("<VS11_00 ").add("👩‍👩‍👧‍👧").add(utf::vss<31,00>).add("<VS31_00\n")
         .add("👩🏾‍👨🏾‍👧🏾‍👧🏾").add(utf::vss<21,00>).add("<VS21_00 😎").add(utf::vss<11,00>).add("<VS11_00 ").add("😎").add(utf::vss<21,00>).add("<VS21_00 ").add("❤").add(utf::vss<11,00>).add("<VS11_00 ").add("❤").add(utf::vss<21,00>).add("<VS21_00\n")
@@ -59,14 +64,14 @@ namespace netxs::gui
                         .add("☆").add(utf::vss<21,00>)
                         .add("\n")
                         .add("\n")
-                        .add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                             "Terminal T\U000E0164e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                             "Emulator ★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0135").fgc(tint::pureyellow).add("☆\U000E0136☆\U000E0124\n\n").fgc(tint::purecyan)
-                        .add("A\U000E0124d\U000E0124v\U000E0124a\U000E0124n\U000E0124c\U000E0124e\U000E0124d\U000E0124⚙\U0000FE0E\U000E0136\n"
-                             "T\U000E0187e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                             "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                             "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
-                        .add("\n")
+                        //.add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
+                        //     "Terminal T\U000E0164e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
+                        //     "Emulator ★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0135").fgc(tint::pureyellow).add("☆\U000E0136☆\U000E0124\n\n").fgc(tint::purecyan)
+                        //.add("A\U000E0124d\U000E0124v\U000E0124a\U000E0124n\U000E0124c\U000E0124e\U000E0124d\U000E0124⚙\U0000FE0E\U000E0136\n"
+                        //     "T\U000E0187e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
+                        //     "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
+                        //     "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
+                        //.add("\n")
         .add("😎").add(utf::vss<42,01>).add(" <VS42_00\n")
         .add("😎").add(utf::vss<42,02>).add("\n")
                         .add("\n")
@@ -532,7 +537,6 @@ namespace netxs::gui
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'l', 'i', 'g'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'f', 'l', 't'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'c', 'm', 'p'), 1 },
-//
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 'm'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 's'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'k', 'h', 'n'), 1 },
@@ -550,7 +554,6 @@ namespace netxs::gui
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'k', 'r', 'f'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'p', 'h', 'f'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('v', 'a', 't', 'u'), 1 },
-                                                          
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'b', 's'), 0 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'p', 's'), 0 },
                                                           //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 0 },
@@ -629,7 +632,7 @@ namespace netxs::gui
             }
             else if (length < matrix.x - cellsz.x / 2.f) // Centrify glyph.
             {
-                base_line.x += (matrix.x - length) / 2.f;
+                //base_line.x += (matrix.x - length) / 2.f;
             }
 
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
@@ -731,7 +734,7 @@ namespace netxs::gui
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
-            //if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
+            if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
@@ -753,8 +756,8 @@ namespace netxs::gui
             auto [w, h, x, y] = unidata::widths::whxy(v);
             if (x ==0 || y == 0) return;
             auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-            //canvas.clip(placeholder);
-            canvas.clip(canvas.area());
+            canvas.clip(placeholder);
+            //canvas.clip(canvas.area());
 
             auto fgc = c.fgc();
             auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
@@ -1162,7 +1165,7 @@ namespace netxs::gui
             //canvas_page.batch.front()->lyric->begin()->txt2("क्ष", unidata::widths::vs<11,11>);
             //canvas_page.batch.front()->lyric->begin()->txt2("ङ्क", unidata::widths::vs<11,11>);
             //canvas_page.batch.front()->lyric->begin()->txt2("क्व", unidata::widths::vs<11,11>);
-            canvas_page.batch.front()->lyric->begin()->txt2("च्छे", unidata::widths::vs<11,11>);
+            //canvas_page.batch.front()->lyric->begin()->txt2("च्छे", unidata::widths::vs<11,11>);
             
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
@@ -1207,7 +1210,7 @@ namespace netxs::gui
             //todo temp
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
-            main_grid.output<true>(canvas_page);
+            main_grid.output(canvas_page);
             head_grid.size(layers[header].area.size / cellsz);
             head_grid.cup(dot_00);
             head_grid.output(header_page);

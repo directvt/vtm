@@ -96,7 +96,7 @@ namespace netxs::utf
         {
             if (next.utf8len && unidata::allied(next))
             {
-                if (next.cdpoint >= vs_code<11,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
+                if (next.cdpoint >= vs_code<00,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
                 {
                     unidata::cmatrix = (decltype(unidata::cmatrix))(next.cdpoint - netxs::unidata::widths::vs_block);
                 }
@@ -289,7 +289,34 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
-                    else                         return frag{ replacement, next };
+                    else
+                    {
+                        if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                        {
+                            code.step();
+                            next = code.take();
+                            auto head = code.textptr;
+                            auto left = next;
+                            auto utf8len = 0;
+                            auto cpcount = 0;
+                            while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
+                            {
+                                utf8len += next.utf8len;
+                                cpcount += 1;
+                                code.step();
+                                next = code.take();
+                            }
+                            if (next.correct)
+                            {
+                                left.utf8len = utf8len;
+                                left.cpcount = cpcount;
+                                left.cmatrix = next.cdpoint - netxs::unidata::widths::vs_block;
+                                return frag{ view(head, left.utf8len), left };
+                            }
+                            else return frag{ replacement, left };
+                        }
+                        else return frag{ replacement, next };
+                    }
                 }
                 auto head = code.textptr;
                 auto left = next;
@@ -353,10 +380,43 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     code.step();
-                    auto rest = code.rest();
-                    auto chars = serve(next, rest);
-                    code.redo(chars);
-                    next = code.take();
+                    if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                    {
+                        next = code.take();
+                        auto rest = code.rest();
+                        auto left = next;
+                        auto utf8len = 0;
+                        auto cpcount = 0;
+                        while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
+                        {
+                            utf8len += next.utf8len;
+                            cpcount += 1;
+                            code.step();
+                            next = code.take();
+                        }
+                        if (next.correct)
+                        {
+                            left.utf8len = utf8len;
+                            left.cpcount = cpcount;
+                            left.cmatrix = next.cdpoint - netxs::unidata::widths::vs_block;
+                            auto crop = frag{ rest.substr(0, left.utf8len), left };
+                            yield(crop);
+                            code.step(); // Drop VS codepoint.
+                            next = code.take();
+                        }
+                        else // Silently ignore STX.
+                        {
+                            code.redo(rest);
+                            next = left;
+                        }
+                    }
+                    else // Proceed general control.
+                    {
+                        auto rest = code.rest();
+                        auto chars = serve(next, rest);
+                        code.redo(chars);
+                        next = code.take();
+                    }
                 }
                 else
                 {
