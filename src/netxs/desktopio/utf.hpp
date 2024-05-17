@@ -297,7 +297,7 @@ namespace netxs::utf
                             next = code.take();
                             auto head = code.textptr;
                             auto left = next;
-                            auto utf8len = 0;
+                            auto utf8len = 0_sz;
                             auto cpcount = 0;
                             while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
                             {
@@ -385,7 +385,7 @@ namespace netxs::utf
                         next = code.take();
                         auto rest = code.rest();
                         auto left = next;
-                        auto utf8len = 0;
+                        auto utf8len = 0_sz;
                         auto cpcount = 0;
                         while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
                         {
