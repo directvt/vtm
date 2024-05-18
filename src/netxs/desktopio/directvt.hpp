@@ -1162,7 +1162,7 @@ namespace netxs::directvt
                         {
                             auto& c = *src++;
                             auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
-                            if (w < 2 && x == 1) put(c);
+                            if (w < 2 && x < 2) put(c);
                             else
                             {
                                 if (w == 2 && x == 1)
@@ -1207,7 +1207,7 @@ namespace netxs::directvt
                             auto& fore = *src++;
                             auto& back = *dst++;
                             auto [w, h, x, y] = unidata::widths::whxy(fore.wdt());
-                            if (w == 1)
+                            if (w < 2)
                             {
                                 if (back != fore)
                                 {
@@ -1219,7 +1219,7 @@ namespace netxs::directvt
                                         auto& b = *dst++;
                                         //auto fw = f.wdt();
                                         auto [fw, fh, fx, fy] = unidata::widths::whxy(f.wdt());
-                                        if (fw == 1)
+                                        if (fw < 2)
                                         {
                                             if (b == f) break;
                                             else        put(f);
