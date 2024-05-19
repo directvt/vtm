@@ -59,8 +59,7 @@ namespace netxs::gui
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
                         .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,11>).fgc(tint::purecyan)
-                        .add("☆").add(utf::vss<21,21>)
+                        .add("★").add(utf::vss<21,00>).fgc(tint::purecyan)
                         .add("☆").add(utf::vss<21,00>)
                         .add("\n")
                         .add("\n")
@@ -105,7 +104,7 @@ namespace netxs::gui
         };
         struct typeface
         {
-            std::vector<IDWriteFontFace1*>    fontface;
+            std::vector<IDWriteFontFace2*>    fontface;
             DWRITE_FONT_METRICS               metrics{};
             si32                              baseline{};
             si32                              emheight{};

@@ -962,7 +962,7 @@ namespace netxs
                 struct vars
                 {
                     lock mutex{}; // There is no need to reset/clear/flush the map because
-                    depo jumbo{}; // count of different clusters is finite.
+                    depo jumbo{}; //todo the number of different clusters is unlimited.
                 };
                 struct guard : sync
                 {
@@ -999,13 +999,13 @@ namespace netxs
             }
 
             static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto token_mask = ~(ui64)0b1111'0000; // Exclude matrix metadata.
+            static constexpr auto token_mask = ~(ui64)0b1111'1000; // Exclude matrix metadata.
             struct prop
             {
+                // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
                 byte count : 3; // prop: Cluster length in bytes (if it is not jumbo).
-                byte jumbo : 1; // prop: Cluster is stored in an external map.
-                byte sizex : 2; // prop: 0-based (w - 1) cell matrix width.
-                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height.
+                byte sizex : 3; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 8)
+                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h; 1 - 4)
             };
 
             ui64 token;
@@ -1038,7 +1038,11 @@ namespace netxs
 
             constexpr auto is_jumbo() const
             {
-                return !!props.jumbo;
+                return (glyph[1] & 0b1100'0000) == 0b1000'0000;
+            }
+            void set_jumbo()
+            {
+                glyph[1] = (glyph[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
             }
             constexpr void set(ui64 t)
             {
@@ -1082,7 +1086,7 @@ namespace netxs
                 else
                 {
                     token = hasher(utf8);
-                    props.jumbo = true;
+                    set_jumbo();
                     mtx(w, h);
                     jumbos().add(token & token_mask, utf8);
                 }
@@ -1157,8 +1161,7 @@ namespace netxs
                                  // │ └────── interpolation type between `c0` and `c2`
                                  // └──────── interpolation type between `c0` and `c1`
                 // Unique attributes. From 24th bit.
-                //todo CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                ui32 mosaic : 8; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                ui32 mosaic : 8; // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
             };
             static constexpr auto shared_bits = (1 << 24) - 1;
 
@@ -1168,26 +1171,6 @@ namespace netxs
             //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
             // append prev: U+200C ZERO WIDTH NON-JOINER
             // append prev: U+00AD SOFT HYPHEN
-
-            // Width property
-            //     W   Wide                    ┌-------------------------------┐
-            //     Na  Narrow                  |   Narrow      ┌-------------------------------┐
-            //     F   Fullwidth, Em wide      |┌-------------┐|               |   Wide        |
-            //     H   Halfwidth, 1/2 Em wide  ||  Halfwidth  ||   Ambiguous   |┌-------------┐|
-            //     A   Ambiguous               |└-------------┘|               ||  Fullwidth  ||
-            //     N   Neutral =Not East Asian └---------------|---------------┘└-------------┘|
-            //                                                 └-------------------------------┘
-            // This width takes on either of 𝐭𝐰𝐨 𝐯𝐚𝐥𝐮𝐞𝐬: 𝐧𝐚𝐫𝐫𝐨𝐰 or 𝐰𝐢𝐝𝐞. (UAX TR11)
-            // For any given operation, these six default property values resolve into
-            // only two property values, narrow and wide, depending on context.
-            //
-            // width = { 0 - nonprintable | 1 - Halfwidth(Narrow) | 2 - Fullwidth(Wide) }
-            //
-            // Unicode Variation Selector 16 (U+FE0F) makes the character it combines with double-width.
-            //
-            // The 0xfe0f character is "variation selector 16" that says "show the emoji version of
-            // the previous character" and 0xfe0e is "variation selector 15" to say "show the non-emoji
-            // version of the previous character".
 
             ui32 token;
             attr attrs;
