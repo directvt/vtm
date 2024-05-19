@@ -1006,6 +1006,8 @@ namespace netxs
                 byte count : 3; // prop: Cluster length in bytes (if it is not jumbo).
                 byte sizex : 3; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 8)
                 byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h; 1 - 4)
+                //todo  In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
+                //      Drop "count" and use null (0x0) terminator, if you need an extra three bits for something.
             };
 
             ui64 token;
