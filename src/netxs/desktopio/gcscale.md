@@ -35,10 +35,10 @@ Placement in the text:
 
 Examples:
 
-  - 😊+`<VS11_00>` produce 1x1 character.
-  - 😊+`<VS21_00>` produce 2x1 character.
-  - 👨‍👩‍👧‍👦+`<VS31_00>` produce 3x1 character.
-  - 😊+`<VS42_00>` produce 4x2 character.
-  - A+`<VS44_00>` produce 4x4 character.
-  - 😊+`<VS21_11>` produce the left half of the 2x1 character.
-  - 😊+`<VS21_21>` produce the right half of the 2x1 character.
+  - 😊+`<SM-11_00>` produce 1x1 character.
+  - 😊+`<SM-21_00>` produce 2x1 character.
+  - 👨‍👩‍👧‍👦+`<SM-31_00>` produce 3x1 character.
+  - 😊+`<SM-42_00>` produce 4x2 character.
+  - A+`<SM-44_00>` produce 4x4 character.
+  - 😊+`<SM-21_11>` produce the left half of the 2x1 character.
+  - 😊+`<SM-21_21>` produce the right half of the 2x1 character.
