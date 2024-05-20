@@ -670,17 +670,33 @@ namespace netxs::app::desk
                 ->active()
                 ->invoke([&](auto& boss)
                 {
+                    auto drag_origin = ptr::shared<fp2d>();
                     boss.mouse.template draggable<hids::buttons::left>(true);
-                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
+                    boss.LISTEN(tier::release, e2::form::drag::start::_<hids::buttons::left>, gear, -, (drag_origin))
+                    {
+                        *drag_origin = gear.coord;
+                    };
+                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (drag_origin))
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            auto delta = twod{ gear.delta.get() };
-                            taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta.x);
-                            taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
-                            active ? menu_max_size = taskbar_grips->base::min_sz.x
-                                   : menu_min_size = taskbar_grips->base::min_sz.x;
-                            taskbar_grips->base::reflow();
+                            
+                            //todo fp2d
+                            //auto delta = twod{ gear.delta.get() };
+                            //taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta.x);
+                            //taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
+                            //active ? menu_max_size = taskbar_grips->base::min_sz.x
+                            //       : menu_min_size = taskbar_grips->base::min_sz.x;
+                            //taskbar_grips->base::reflow();
+
+                            if (auto delta = twod{ gear.coord - *drag_origin }[axis::X])
+                            {
+                                taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
+                                taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
+                                active ? menu_max_size = taskbar_grips->base::min_sz.x
+                                       : menu_min_size = taskbar_grips->base::min_sz.x;
+                                taskbar_grips->base::reflow();
+                            }
                         }
                     };
                     boss.LISTEN(tier::release, events::ui::sync, state)

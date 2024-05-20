@@ -16,6 +16,7 @@ Anyone who wants to:
 - Track position dependent keys such as WASD.
 - Distinguish between Left and Right physical keys.
 - Get consistent output regardless of terminal window resize.
+- Track mouse on a pixel-wise level.
 - Track mouse outside the terminal window (getting negative coordinates).
 - Take advantage of high-resolution wheel scrolling.
 - Track scrollback text manipulation.
@@ -30,18 +31,20 @@ Existing approaches have the following drawbacks:
 
 ## Conventions
 
-- All numeric values used in this protocol are decimal and zero-based.
+- ~~All numeric values used in this protocol are decimal and zero-based.~~ todo: Should we use HEX-form of the uint32 (IEEE-754 32-bit binary float, Little-Endian) for the floating point value representation?
 - Space characters are not used in sequence payloads and are only used for readability of the description.
 - All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 
 ### Format
 
-Signaling uses APC `ESC _ <payload> ESC \` with a specific payload syntax.
+Signaling uses APC `ESC _ <payload> ESC \` with an event-specific payload syntax.
 
 The payload consists of a list of attributes in the following format:
 ```
 <attr>=<val>,...,<val>; ...; <attr>=<val>,...,<val>
 ```
+
+todo: representation of the floating point values: float32 -> uint32 IEEE-754 form -> hex? or just round it up to 0.00001?
 
 Field             | Descriprtion
 ------------------|-------------
@@ -350,9 +353,9 @@ ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; w
 Attribute                 | Description
 --------------------------|------------
 `kbmods=<KeyMods>`        | Keyboard modifiers (see Keyboard event).
-`coord=<X>,<Y>`           | Mouse pointer coorinates.
+`coord=<X>,<Y>`           | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
 `buttons=<ButtonState>`   | Mouse button state.
-`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel high-resolution delta.
+`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel high-resolution delta represented as floating point value.
 
 In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
 ```

@@ -792,7 +792,7 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (si32, buttons))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
@@ -834,7 +834,7 @@ namespace netxs::directvt
                                         (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
-                                        (si32, wheeldt)  // sysmouse: Scroll delta.
+                                        (fp32, wheeldt)  // sysmouse: Scroll delta.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
@@ -921,7 +921,7 @@ namespace netxs::directvt
                     if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
-                        cluster = c1.len();
+                        cluster = (byte)c1.len();
                         meaning += cluster + 1;
                         changes |= glyph;
                     }
@@ -1161,15 +1161,17 @@ namespace netxs::directvt
                         while (src != end)
                         {
                             auto& c = *src++;
-                            if (c.wdt() < 2) put(c);
+                            auto [w, h, x, y] = c.whxy();
+                            if (w < 2 && x < 2) put(c);
                             else
                             {
-                                if (c.wdt() == 2)
+                                if (w == 2 && x == 1)
                                 {
                                     if (src != end)
                                     {
                                         auto& right = *src;
-                                        if (right.wdt() < 3) left_half(c);
+                                        auto [rw, rh, rx, ry] = right.whxy();
+                                        if (rx == 1) left_half(c);
                                         else
                                         {
                                             if (dif(c, right)) left_half(c);
@@ -1204,7 +1206,7 @@ namespace netxs::directvt
                         {
                             auto& fore = *src++;
                             auto& back = *dst++;
-                            auto w = fore.wdt();
+                            auto [w, h, x, y] = fore.whxy();
                             if (w < 2)
                             {
                                 if (back != fore)
@@ -1215,13 +1217,14 @@ namespace netxs::directvt
                                     {
                                         auto& f = *src++;
                                         auto& b = *dst++;
-                                        auto fw = f.wdt();
+                                        //auto fw = f.wdt();
+                                        auto [fw, fh, fx, fy] = f.whxy();
                                         if (fw < 2)
                                         {
                                             if (b == f) break;
                                             else        put(f);
                                         }
-                                        else if (fw == 2) // Check left part.
+                                        else if (fw == 2 && fx == 1) // Check left part.
                                         {
                                             if (src != end)
                                             {
@@ -1234,7 +1237,8 @@ namespace netxs::directvt
                                                 }
                                                 else
                                                 {
-                                                    if (right.wdt() < 3) left_half(f);
+                                                    auto [rw, rh, rx, ry] = right.whxy();
+                                                    if (rx == 1) left_half(f);
                                                     else // right.wdt() == 3
                                                     {
                                                         tie(f, right);
@@ -1259,7 +1263,8 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            if (right.wdt() < 3) left_half(fore);
+                                            auto [rw, rh, rx, ry] = right.whxy();
+                                            if (rx == 1) left_half(fore);
                                             else // right.wdt() == 3
                                             {
                                                 tie(fore, right);
@@ -1274,7 +1279,8 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            if (right.wdt() < 3) mov(src - beg), left_half(fore);
+                                            auto [rw, rh, rx, ry] = right.whxy();
+                                            if (rx == 1) mov(src - beg), left_half(fore);
                                             else // right.wdt() == 3
                                             {
                                                 if (right != *dst)

@@ -132,7 +132,6 @@ namespace netxs
 
         xy2d divround(T    n) const { return { netxs::divround(x, n  ), netxs::divround(y, n  ) }; }
         xy2d divround(xy2d p) const { return { netxs::divround(x, p.x), netxs::divround(y, p.y) }; }
-        xy2d divupper(xy2d p) const { return { netxs::divupper(x, p.x), netxs::divupper(y, p.y) }; }
 
         auto str() const
         {
@@ -174,12 +173,11 @@ namespace netxs
     static constexpr auto dot_22 = twod{ 2,2 };
     static constexpr auto dot_21 = twod{ 2,1 };
     static constexpr auto dot_33 = twod{ 3,3 };
-    static constexpr auto dot_mx = twod{ si32max / 2, si32max / 2 };
+    static constexpr auto dot_mx = twod{ (si32)(si32max / 2.f), (si32)(si32max / 2.f) };
 
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
-    twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
 }
 
 namespace std
@@ -201,12 +199,14 @@ namespace netxs
         bool operator == (rect const&) const = default;
         explicit operator bool ()       const { return size.x != 0 && size.y != 0;            }
         auto   center          ()       const { return coor + size / 2;                       }
-        auto   area            ()       const { return size.x * size.y;                       }
+        auto   length          ()       const { return size.x * size.y;                       }
         twod   map             (twod p) const { return p - coor;                              }
         rect   shift           (twod p) const { return { coor + p, size };                    }
         auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
         auto&  moveto          (twod p)       { coor = p;  return *this;                      }
+        rect   operator /      (twod p) const { return { coor / p, size / p };                }
         rect   operator |      (rect r) const { return unite(r, *this);                       }
+        auto&  operator |=     (rect r)       { return unitewith(r);                          }
         auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
         auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }
 
@@ -289,6 +289,14 @@ namespace netxs
             r.coor = std::clamp(coor, dot_00, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
             return r;
+        }
+        // rect: Unite with rect (normalized only).
+        constexpr rect& unitewith(rect r)
+        {
+            auto new_coor = std::min(coor, r.coor);
+            size = std::max(coor + size, r.coor + r.size ) - new_coor;
+            coor = new_coor;
+            return *this;
         }
         // rect: Return circumscribed rect.
         static constexpr rect unite(rect r1, rect r2)
@@ -645,6 +653,40 @@ namespace netxs
         auto end = r1.size - r2.size - top;
         return dent{ top.x, end.x,
                      top.y, end.y };
+    }
+    // dent: Exclude r2 from r1.
+    auto operator / (rect r1, rect r2)
+    {
+        r2 = r1.trim(r2);
+        auto top = r2.coor - r1.coor;
+        auto end = r1.size - r2.size - top;
+        if (top.y == 0 && end.y == 0)
+        {
+            if (top.x > 0)
+            {
+                r1.size.x = std::min(r1.size.x, top.x);
+            }
+            else
+            {
+                auto dx = std::max(0, r1.size.x - end.x);
+                r1.coor.x += dx;
+                r1.size.x -= dx;
+            }
+        }
+        else if (top.x == 0 && end.x == 0)
+        {
+            if (top.y > 0)
+            {
+                r1.size.y = std::min(r1.size.y, top.y);
+            }
+            else
+            {
+                auto dy = std::max(0, r1.size.y - end.y);
+                r1.coor.y += dy;
+                r1.size.y -= dy;
+            }
+        }
+        return r1;
     }
 
     // geometry: Scroll info.

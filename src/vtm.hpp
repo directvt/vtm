@@ -230,6 +230,7 @@ namespace netxs::app::vtm
 
             robot robo;
             zpos  seat;
+            fp2d  drag_origin;
 
         public:
             frame(base&&) = delete;
@@ -286,6 +287,10 @@ namespace netxs::app::vtm
                 {
                     robo.pacify();
                 };
+                boss.LISTEN(tier::release, e2::form::drag::start::any, gear, memo)
+                {
+                    drag_origin = gear.coord;
+                };
                 boss.LISTEN(tier::release, e2::form::drag::pull::any, gear, memo)
                 {
                     if (gear)
@@ -296,14 +301,21 @@ namespace netxs::app::vtm
                             case e2::form::drag::pull::left.id:
                             case e2::form::drag::pull::leftright.id:
                             {
-                                auto delta = gear.delta.get();
-                                boss.base::anchor = gear.coord - delta; // See pro::align unbind.
-
-                                auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
-                                boss.SIGNAL(tier::preview, e2::area, preview_area);
-
-                                boss.base::moveby(delta);
-                                boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                                //todo fp2d
+                                //auto delta = gear.delta.get();
+                                //boss.base::anchor = gear.coord - delta; // See pro::align unbind.
+                                //auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
+                                //boss.SIGNAL(tier::preview, e2::area, preview_area);
+                                //boss.base::moveby(delta);
+                                //boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                                if (auto delta = twod{ gear.coord - drag_origin })
+                                {
+                                    boss.base::anchor = drag_origin; // See pro::align unbind.
+                                    auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
+                                    boss.SIGNAL(tier::preview, e2::area, preview_area);
+                                    boss.base::moveby(delta);
+                                    boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                                }
                                 gear.dismiss();
                                 break;
                             }
@@ -437,8 +449,8 @@ namespace netxs::app::vtm
             struct slot_t
             {
                 rect slot{};
-                twod step{};
-                twod init{};
+                fp2d step{};
+                fp2d init{};
                 bool ctrl{};
             };
             std::unordered_map<id_t, slot_t> slots;
@@ -482,9 +494,16 @@ namespace netxs::app::vtm
                     auto& step = data.step;
 
                     step += gear.delta.get();
-                    slot.coor = std::min(init, step);
-                    slot.size = std::max(std::abs(step - init), dot_00);
-                    boss.deface(slot);
+
+                    //todo fp2d
+                    //slot.coor = std::min(init, step);
+                    //slot.size = std::max(std::abs(step - init), dot_00);
+                    //boss.deface(slot);
+
+                    auto moved = slot.coor(std::min(init, step));
+                    auto dsize = twod{ step - init };
+                    auto sized = slot.size(std::max(std::abs(dsize), dot_00));
+                    if (moved || sized) boss.deface(slot);
                     gear.dismiss();
                 }
             }
@@ -633,7 +652,7 @@ namespace netxs::app::vtm
 
             bool drags;
             id_t under;
-            twod coord;
+            fp2d coord;
             wptr cover;
 
             void proceed(bool keep)
@@ -731,6 +750,7 @@ namespace netxs::app::vtm
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.
+        fp2d drag_origin{}; // gate: Drag origin.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
@@ -836,12 +856,22 @@ namespace netxs::app::vtm
             {
                 if (gear.owner.id != this->id) return;
                 robot.pacify();
+                drag_origin = gear.coord;
             };
             LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
             {
                 if (gear.owner.id != this->id) return;
-                base::moveby(-gear.delta.get());
-                base::deface();
+
+                //todo fp2d
+                //base::moveby(-gear.delta.get());
+                //base::deface();
+
+                if (auto delta = twod{ gear.coord - drag_origin })
+                {
+                    drag_origin = gear.coord;
+                    base::moveby(-delta);
+                    base::deface();
+                }
             };
             LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
             {

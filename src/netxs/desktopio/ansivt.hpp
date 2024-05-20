@@ -110,7 +110,7 @@ namespace netxs::ansi
     static const auto w32_inp     = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
     static const auto c0_nul = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const auto c0_soh = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
-    static const auto c0_stx = '\x02'; // Start of Text       - First character of message text, and may be used to terminate the message heading.
+    static const auto c0_stx = '\x02'; // Start of Text       - Custom cluster initiator. First character of message text, and may be used to terminate the message heading.
     static const auto c0_etx = '\x03'; // End of Text         - Often used as a "break" character (Ctrl-C) to interrupt or terminate a program or process.
     static const auto c0_eot = '\x04'; // End of Transmssn    - Often used on Unix to indicate end-of-file on a terminal.
     static const auto c0_enq = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.
@@ -450,33 +450,36 @@ namespace netxs::ansi
             {
                 add(utf::replacement);
                 state.set_gc();
-                state.wdt(1);
+                state.wdt(utf::matrix::vs<11,11>);
             };
             auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
-                state.wdt(1);
+                state.wdt(utf::matrix::vs<11,11>);
             };
             auto allfx = [&](cell const& c)
             {
-                auto width = c.wdt();
-                if (width < 2) // Narrow character
+                auto [cw, ch, cx, cy] = c.whxy();
+                if (cw < 2) // Narrow character
                 {
-                    if (state.wdt() == 2) badfx(); // Left part alone
+                    auto [w, h, x, y] = state.whxy();
+                    if (x == 1) badfx(); // Left part alone
                     c.scan<svga::vtrgb, UseSGR>(state, block);
                 }
                 else
                 {
-                    if (width == 2) // Left part
+                    if (cw == 2 && cx == 1) // Left part
                     {
-                        if (state.wdt() == 2) badfx();  // Left part alone
+                        auto [w, h, x, y] = state.whxy();
+                        if (x == 1) badfx(); // Left part alone
                         c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
-                    else if (width == 3) // Right part
+                    else if (cw == 2 && cx == 2) // Right part
                     {
-                        if (state.wdt() == 2)
+                        auto [w, h, x, y] = state.whxy();
+                        if (w == 2 && x == 1)
                         {
                             if (state.check_pair(c))
                             {
@@ -493,15 +496,16 @@ namespace netxs::ansi
                         else
                         {
                             c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                            if (state.wdt() == 0) side_badfx(); // Right part alone at the left side
-                            else                  badfx(); // Right part alone
+                            if (state.xy() == 0) side_badfx(); // Right part alone at the left side
+                            else                 badfx(); // Right part alone
                         }
                     }
                 }
             };
             auto eolfx = [&]
             {
-                if (state.wdt() == 2) side_badfx();  // Left part alone at the right side
+                auto [w, h, x, y] = state.whxy();
+                if (x == 1) side_badfx();  // Left part alone at the right side
                 state.set_gc();
                 basevt::eol();
             };
@@ -1673,7 +1677,9 @@ namespace netxs::ansi
         void assign(auto n, auto c)
         {
             proto_cells.assign(n, c);
-            data(n * c.wdt(), proto_cells);
+            auto [w, h, x, y] = c.whxy();
+            auto wdt = x == 0 ? w : 1;
+            data(n * wdt, proto_cells);
             proto_cells.clear();
         }
         void reset(cell c)
@@ -1700,10 +1706,12 @@ namespace netxs::ansi
 
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
-            if (auto w = attr.ucwidth)
+            if (auto v = attr.cmatrix)
             {
-                proto_count += w;
-                brush.txt(utf8, w);
+                auto [w, h, x, y] = utf::matrix::whxy(v);
+                auto wdt = x == 0 ? w : 1;
+                proto_count += wdt;
+                brush.txt(utf8, v);
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
@@ -1718,14 +1726,14 @@ namespace netxs::ansi
                     else
                     {
                         auto empty = brush;
-                        empty.txt(whitespace).wdt(w);
+                        empty.txt(whitespace).wdt(v);
                         set_prop(empty);
                         proto_cells.push_back(empty);
                     }
                 }
                 else
                 {
-                    brush.txt(utf8, w);
+                    brush.txt(utf8, v);
                     proto_cells.push_back(brush);
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);

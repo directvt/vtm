@@ -1014,14 +1014,8 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
-                if (base::filler.wdt())
-                {
-                    parent_canvas.fill([&](cell& c){ c.fusefull(base::filler); });
-                }
-                else if (base::filler.link())
-                {
-                    parent_canvas.fill([&](cell& c){ c.link(bell::id); });
-                }
+                     if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
+                else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(bell::id));
             };
         }
     };

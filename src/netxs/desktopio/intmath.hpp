@@ -283,18 +283,22 @@ namespace netxs
         }
     };
 
-    template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
+    template<class T1, class T2, class T3 = T1, class = std::enable_if_t<std::is_arithmetic_v<T1>
+                                                                      && std::is_arithmetic_v<T2>
+                                                                      && std::is_arithmetic_v<T3>>>
     constexpr T3 divround(T1 n, T2 d)
     {
+        if constexpr (std::is_floating_point_v<T1> || std::is_floating_point_v<T2>) return d == 0 ? 0
+                                                                                                  : n / d;
         ///In C++11, signed shift left of a negative number is always undefined
         //return d != 0 ? ((n << 1) - d + ((true && ((n < 0) ^ (d > 0))) << 1) * d) / (d << 1) : 0;
 
         //return d != 0 ? ((n < 0) ^ (d < 0)) ? ((n - d / 2) / d)
         //                                    : ((n + d / 2) / d)
         //              : 0;
-        return d == 0 ? 0
-                      : ((n < 0) == (d < 0)) ? ((n + d / 2) / d)
-                                             : ((n - d / 2) / d);
+        else return d == 0 ? 0
+                           : ((n < 0) == (d < 0)) ? ((n + d / 2) / d)
+                                                  : ((n - d / 2) / d);
     }
     template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
     constexpr T3 divupper(T1 n, T2 d)
@@ -317,7 +321,7 @@ namespace netxs
 
     // intmath: Deduce a scalar type from the vector type.
     template<class T>
-    using disintegrate = typename _disintegrate< std::is_arithmetic<T>::value, T >::type;
+    using disintegrate = typename _disintegrate<std::is_arithmetic_v<T>, T>::type;
 
     // intmath: Quadratic fader delta sequence generator.
     //          The QUADRATIC-LAW fader from the initial velocity
@@ -326,15 +330,12 @@ namespace netxs
     struct quadratic
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                twod speed; // quadratic: Distance ΔR over time period ΔT.
-                type limit; // quadratic: Activity period.
-                type phase; // quadratic: Register.
-                type scale; // quadratic: Factor.
-                type start; // quadratic: Deffered start time.
-        mutable twod total; // quadratic: Current point on the path.
+                T    speed; // quadratic: Distance ΔR over time period ΔT.
+                si32 limit; // quadratic: Activity period.
+                si32 phase; // quadratic: Register.
+                si32 scale; // quadratic: Factor.
+                si32 start; // quadratic: Deffered start time.
+        mutable T    total; // quadratic: Current point on the path.
 
     public:
         // Quadratic fader:
@@ -342,19 +343,18 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        quadratic(twod speed, type cycle, type limit, type start)
+        quadratic(T speed, si32 cycle, si32 limit, si32 start)
             : speed{ speed         },
               limit{ limit         },
               phase{ limit * 2     },
               scale{ phase * cycle },
               start{ start         },
-              total{ twod{}        }
+              total{ T{}           }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -365,11 +365,7 @@ namespace netxs
                     total = s;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };
@@ -381,15 +377,12 @@ namespace netxs
     struct constlinear
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                type limit; // constlinear: Activity period.
-                type phase; // constlinear: Register.
-                twod speed; // constlinear: Distance ΔR over time period ΔT.
-                type scale; // constlinear: Factor.
-                type start; // constlinear: Deffered start time.
-        mutable twod total; // constlinear: Current point on the path.
+                si32 limit; // constlinear: Activity period.
+                si32 phase; // constlinear: Register.
+                T    speed; // constlinear: Distance ΔR over time period ΔT.
+                si32 scale; // constlinear: Factor.
+                si32 start; // constlinear: Deffered start time.
+        mutable T    total; // constlinear: Current point on the path.
 
     public:
         // Linear constant speed delta generator:
@@ -397,19 +390,18 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        constlinear(twod speed, type cycle, type limit, type start)
+        constlinear(T speed, si32 cycle, si32 limit, si32 start)
             : limit{ limit         },
               phase{ limit * 2     },
               speed{ speed * phase },
               scale{ cycle * phase },
               start{ start         },
-              total{ twod{}        }
+              total{ T{}           }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -420,11 +412,7 @@ namespace netxs
                     total = s;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };
@@ -436,26 +424,22 @@ namespace netxs
     struct constlinearAtoB
     {
     private:
-        using twod = T;
-        using type = disintegrate<twod>;
-
-                type limit; // constlinearAtoB: Activity period.
-                twod range; // constlinearAtoB: Path's end point (from 0 to range).
-                type start; // constlinearAtoB: Deffered start time point.
-        mutable twod total; // constlinearAtoB: Current point on the path.
+                si32 limit; // constlinearAtoB: Activity period.
+                T    range; // constlinearAtoB: Path's end point (from 0 to range).
+                si32 start; // constlinearAtoB: Deffered start time point.
+        mutable T    total; // constlinearAtoB: Current point on the path.
 
     public:
-        constlinearAtoB(twod range, type limit, type start)
+        constlinearAtoB(T range, si32 limit, si32 start)
             : limit{ limit },
               range{ range },
               start{ start },
-              total{ twod{}}
+              total{ T{}   }
         { }
 
-        auto operator () (type timer) const
+        auto operator () (si32 timer) const
         {
-            auto delta = std::optional<twod>{};
-
+            auto delta = std::optional<T>{};
             if (auto t = timer - start; t >= 0)
             {
                 if (t < limit)
@@ -470,11 +454,7 @@ namespace netxs
                     total = range;
                 }
             }
-            else
-            {
-                delta = twod{};
-            }
-
+            else delta = T{};
             return delta;
         }
     };
@@ -628,13 +608,14 @@ namespace netxs
 
     // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
     template<class NewlineFx = noop>
-    void xform_scale(auto&& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_scale(auto&& canvas, auto canvas_rect, auto clip_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        clip_rect.coor -= canvas.coor();
         canvas_rect.coor -= canvas.coor();
         bitmap_rect.coor -= bitmap.coor();
-        auto dst_view = canvas_rect.trunc(dst_size);
+        auto dst_view = canvas_rect.trim(clip_rect).trunc(dst_size);
         auto src_view = bitmap_rect.trunc(src_size);
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
@@ -671,16 +652,17 @@ namespace netxs
 
     // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
     template<class NewlineFx = noop>
-    void xform_mirror(auto&& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
+    void xform_mirror(auto&& canvas, auto clip_rect, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        clip_rect.coor -= canvas.coor();
         canvas_rect_coor -= canvas.coor();
         bitmap_rect.coor -= bitmap.coor();
         auto src_view = bitmap_rect.trunc(src_size);
         bitmap_rect.coor = canvas_rect_coor;
         auto dst_area = bitmap_rect.normalize();
-        auto dst_view = dst_area.trunc(dst_size);
+        auto dst_view = dst_area.trim(clip_rect).trunc(dst_size);
         src_view -= dst_area - dst_view; // Cut invisible sides.
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
@@ -716,7 +698,7 @@ namespace netxs
 
     // intmath: Copy the bitmap to the bitmap by invoking
     //          handle(sprite1_element, sprite2_element) for each elem.
-    void oncopy(auto&& bitmap1, auto const& bitmap2, auto handle)
+    void oncopy(auto&& bitmap1, auto&& bitmap2, auto handle)
     {
         auto& size1 = bitmap1.size();
         auto& size2 = bitmap2.size();
@@ -738,7 +720,7 @@ namespace netxs
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
     template<bool RtoL, class R, class C, class P, class NewlineFx = noop>
-    void inbody(auto&& canvas, auto const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
+    void inbody(auto&& canvas, auto&& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         if (region.size.y == 0) return;
         auto& base1 = region.coor;
@@ -817,11 +799,9 @@ namespace netxs
         { }
     };
 
-    // intmath: Intersect two sprites and invoking
-    //          handle(sprite1_element, sprite2_element)
-    //          for each elem in the intersection.
+    // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
     template<class NewlineFx = noop>
-    void onbody(auto&& canvas, auto const& bitmap, auto handle, NewlineFx online = {})
+    void onbody(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -830,6 +810,19 @@ namespace netxs
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
             inbody<faux>(canvas, bitmap, joint, basis, handle, online);
+        }
+    }
+    // intmath: Intersect two sprite's clips and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
+    template<class NewlineFx = noop>
+    void onclip(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})
+    {
+        auto canvas_clip = canvas.clip();
+        auto bitmap_area = bitmap.area();
+        //canvas_clip.coor -= bitmap_area.coor;
+        if (canvas_clip.trimby(bitmap_area))
+        {
+            auto basis = canvas_clip.coor - bitmap_area.coor;
+            netxs::inbody<faux>(canvas, bitmap, canvas_clip, basis, handle, online);
         }
     }
 
@@ -867,6 +860,24 @@ namespace netxs
                 if (frame == limit) break;
                 frame += notch;
             }
+        }
+    }
+    template<class P = noop>
+    void inrect(auto iter, auto dx, auto dy, auto stride, auto fx, P online = {})
+    {
+        static constexpr auto Plain = std::is_same_v<void, std::invoke_result_t<decltype(fx), decltype(*iter)>>;
+        auto endy = iter + dy;
+        while (true)
+        {
+            auto endx = iter + dx;
+            while (iter != endx)
+            {
+                if constexpr (Plain) fx(*iter++);
+                else             if (fx(*iter++)) return;
+            }
+            if (iter == endy) break;
+            online();
+            iter += stride;
         }
     }
 

@@ -131,7 +131,7 @@ namespace netxs::ui
                     while (n)
                     {
                         auto& c = block.at(p);
-                        if (c.isspc() || c.wdt() == 3) break;
+                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>) break;
                         n--;
                         p--;
                     }
@@ -142,7 +142,7 @@ namespace netxs::ui
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
-                        if (block.at(q).wdt() == 2)
+                        if (block.at(q).wdt() == utf::matrix::vs<21,11>)
                         {
                             --printout.size.x;
                         }
@@ -588,51 +588,87 @@ namespace netxs::ui
             }
             else
             {
-                //  + evaluate TAB etc
-                //  + bidi
-                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-                //  + while (--wide)
-                //    {
-                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-                //        lyric.emplace_back(cluster, whitespace);
-                //    }
-                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-                --tail; /* tail - 1: half of the wide char */;
                 while (dest < tail)
                 {
                     auto c = *data++;
-                    auto w = c.wdt();
-                    if (w == 1)
+                    //todo use c.whxy()
+                    auto v = c.wdt();
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        fuse(*dest++, c);
+                        fuse(*dest++, c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (w == 2)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                        fuse(*dest++, c.wdt(2));
-                        fuse(*dest++, c.wdt(3));
+                        fuse(*dest++, c.wdt(utf::matrix::vs<21,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<21,21>));
                     }
-                    else if (w == 0)
+                    else if (v == 0)
                     {
-                        //todo implemet controls/commands
+                        //todo implement controls/commands
                         // winsrv2019's cmd.exe sets title with a zero at the end
                         //*dst++ = cell{ c, whitespace };
                     }
-                    else if (w > 2)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                        c.txt(utf::replacement);
-                        do fuse(*dest++, c);
-                        while (--w && dest != tail + 1);
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<31,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,31>));
                     }
-                }
-                if (dest == tail) // Last cell; tail - 1.
-                {
-                    auto c = *data;
-                    auto w = c.wdt();
-                         if (w == 1) fuse(*dest, c);
-                    else if (w == 2) fuse(*dest, c.wdt(3));
-                    else if (w >  2) fuse(*dest, c.txt(utf::replacement));
+                    else if (v == utf::matrix::vs<41,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<41,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,41>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<51,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,51>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<61,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,61>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<71,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,61>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,71>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<81,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,61>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,71>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,81>));
+                    }
+                    else
+                    {
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
+                        if (x == 0) // x==0; Expand hz cell stripe.
+                        {
+                            auto stop = v + w;
+                            while (v != stop) fuse(*dest++, c.wdt(++v));
+                        }
+                        else fuse(*dest++, c);
+                    }
                 }
             }
         }
@@ -645,16 +681,6 @@ namespace netxs::ui
             }
             else
             {
-                //  + evaluate TAB etc
-                //  + bidi
-                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-                //  + while (--wide)
-                //    {
-                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-                //        lyric.emplace_back(cluster, whitespace);
-                //    }
-                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
                 auto set = [&](auto const& c)
                 {
                     if (dest == tail) dest -= back;
@@ -664,28 +690,80 @@ namespace netxs::ui
                 while (size > 0)
                 {
                     auto c = *data++;
-                    auto w = c.wdt();
-                    if (w == 1)
+                    auto v = c.wdt();
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        set(c);
+                        set(c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (w == 2)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                        set(c.wdt(2));
-                        set(c.wdt(3));
+                                      set(c.wdt(utf::matrix::vs<21,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<21,21>));
                     }
-                    else if (w == 0)
+                    else if (v == 0)
                     {
-                        //todo implemet controls/commands
-                        // winsrv2019's cmd.exe sets title with a zero at the end
-                        //*dst++ = cell{ c, whitespace };
+                        //
                     }
-                    else if (w > 2)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                        //c.txt(utf::replacement);
-                        //do set(c);
-                        //while (--w && size > 0);
+                                      set(c.wdt(utf::matrix::vs<31,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<31,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<31,31>));
+                    }
+                    else if (v == utf::matrix::vs<41,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<41,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,41>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<51,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,51>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<61,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,61>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<71,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,61>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,71>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<81,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,61>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,71>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,81>));
+                    }
+                    else
+                    {
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
+                        if (x == 0) // x==0; Expand hz cell stripe.
+                        {
+                            auto stop = v + w;
+                            while (v != stop) set(c.wdt(++v));
+                        }
+                        else set(c);
                     }
                 }
             }
@@ -699,51 +777,84 @@ namespace netxs::ui
             }
             else
             {
-                //  + evaluate TAB etc
-                //  + bidi
-                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-                //  + while (--wide)
-                //    {
-                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-                //        lyric.emplace_back(cluster, whitespace);
-                //    }
-                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-                ++tail; /* tail + 1: half of the wide char */;
                 while (dest > tail)
                 {
                     auto c = *--data;
-                    auto w = c.wdt();
-                    if (w == 1)
+                    auto v = c.wdt();
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        fuse(*--dest, c);
+                        fuse(*--dest, c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (w == 2)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                        fuse(*--dest, c.wdt(3));
-                        fuse(*--dest, c.wdt(2));
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<21,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<21,11>));
                     }
-                    else if (w == 0)
+                    else if (v == 0)
                     {
-                        //todo implemet controls/commands
-                        // winsrv2019's cmd.exe sets title with a zero at the end
-                        //*dst++ = cell{ c, whitespace };
+                        //
                     }
-                    else if (w > 2)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                        //c.txt(utf::replacement);
-                        //do *--dest = c;
-                        //while (--w && dest != tail - 1);
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<31,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,11>));
                     }
-                }
-                if (dest == tail) // Last cell; tail + 1.
-                {
-                    auto c = *--data;
-                    auto w = c.wdt();
-                         if (w == 1) fuse(*--dest, c);
-                    else if (w == 2) fuse(*--dest, c.wdt(3));
-                    else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
+                    else if (v == utf::matrix::vs<41,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<41,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,11>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<51,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,11>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<61,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,11>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<71,71>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,11>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<81,81>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,71>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,11>));
+                    }
+                    else
+                    {
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
+                        if (x == 0) // x==0; Expand hz cell stripe.
+                        {
+                            auto stop = v + w;
+                            while (v != stop) fuse(*--dest, c.wdt(stop--));
+                        }
+                        else fuse(*--dest, c);
+                    }
                 }
             }
         }
@@ -1090,7 +1201,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.ucwidth = netxs::unidata::widths::slim;
+                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
                 ansi::parser::post(c);
             }
             else
@@ -1165,7 +1276,8 @@ namespace netxs::ui
                 caret--;
                 auto& line = content();
                 auto  iter = line.begin() + caret;
-                if (iter->wdt() == 3 && caret > 0 && (--iter)->wdt() == 2)
+                //todo use whxy
+                if (iter->wdt() == utf::matrix::vs<21,21> && caret > 0 && (--iter)->wdt() == utf::matrix::vs<21,11>)
                 {
                     caret--;
                 }
@@ -1196,7 +1308,8 @@ namespace netxs::ui
                 auto& line = content();
                 auto  iter = line.begin() + caret;
                 caret++;
-                if (iter->wdt() == 2 && caret < length() && (++iter)->wdt() == 3)
+                //todo use whxy
+                if (iter->wdt() == utf::matrix::vs<21,11> && caret < length() && (++iter)->wdt() == utf::matrix::vs<21,21>)
                 {
                     caret++;
                 }
@@ -1224,16 +1337,16 @@ namespace netxs::ui
         {
             if (!inserting) del_gc_fwd();
             else            caret_check();
-            auto wdt = c.wdt();
+            auto [w, h, x, y] = c.whxy();
             auto& line = content();
-            if (wdt == 2)
+            if (w == 2)
             {
-                line.insert_full(caret, 2, c);
+                line.insert_full(caret, 2, c.wdt(utf::matrix::vs<21,11>));
                 caret++;
-                line.begin(caret)->wdt(3);
+                line.begin(caret)->wdt(utf::matrix::vs<21,21>);
                 caret++;
             }
-            else line.insert_full(caret++, 1, c.wdt(1));
+            else line.insert_full(caret++, 1, c.wdt(utf::matrix::vs<11,11>));
         }
         // para: Insert text.
         void insert(view utf8, bool inserting)
@@ -1256,12 +1369,16 @@ namespace netxs::ui
                 {
                     operator+=(utf8);
                     auto size = length();
-                    if (caret < size && at(caret).wdt() == 3) // Broken cluster.
+                    if (caret < size)
                     {
-                        auto& line = content();
-                        size--;
-                        line.scroll(caret, 1, size - caret);
-                        line.crop(size);
+                        auto [w, h, x, y] = at(caret).whxy();
+                        if (w != 1 && x != 1) // Broken cluster.
+                        {
+                            auto& line = content();
+                            size--;
+                            line.scroll(caret, 1, size - caret);
+                            line.crop(size);
+                        }
                     }
                 }
             }
@@ -1346,8 +1463,9 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
-                    if ((iter1++)->wdt() == 2 && iter1 != end_1 && (iter1++)->wdt() != 3) log(prompt::para, "Corrupted glyph");
-                    if ((iter2++)->wdt() == 2 && iter2 != end_2 && (iter2++)->wdt() != 3) log(prompt::para, "Corrupted glyph");
+                    //todo use whxy
+                    if ((iter1++)->wdt() == utf::matrix::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
+                    if ((iter2++)->wdt() == utf::matrix::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
                 }
             }
             return faux;
@@ -1709,7 +1827,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.ucwidth = netxs::unidata::widths::slim;
+                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
                 ansi::parser::post(c);
             }
             else
@@ -1907,7 +2025,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell& c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan(dest.base, dest);
+                    }
                 });
             }
             auto vect = std::vector<argb>(dest.clrs.size());
@@ -2028,7 +2150,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != 3) c.scan(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan(dest.base, dest);
+                    }
                 });
             }
             if (dest.data.size()) dest.data += "</span>";
@@ -2098,7 +2224,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != 3) c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                    }
                 });
             }
             return dest.data;
@@ -2213,6 +2343,20 @@ namespace netxs::ui
             {
                 textpage.stream(find);
             }
+        }
+        auto calc_page_height(page& object, twod& size)
+        {
+            auto cp = dot_00;
+            flow::reset();
+            flow::size(size);
+            auto publish = [&](auto const& combo)
+            {
+                cp = flow::print(combo);
+            };
+            object.stream(publish);
+            auto& cover = flow::minmax();
+            size.y = cover.height() + 1;
+            return cp;
         }
         // face: Reflow text page on the canvas and hold position
         //       of the top visible paragraph while resizing.

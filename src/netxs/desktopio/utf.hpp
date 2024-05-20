@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <list>
 #include <map>
 #include <algorithm>
 #include <charconv>
@@ -37,10 +38,75 @@ namespace netxs
 
 namespace netxs::utf
 {
-    using ctrl = unidata::cntrls::type;
+    using ctrl = unidata::cntrls;
 
     static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
-    static constexpr auto replacement_code = utfx{ 0x0000FFFD };
+    static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
+    static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
+    static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
+
+    template<utfx code>
+    static constexpr auto utf8bytes = code <= 0x007f ? std::array<char, 4>{ static_cast<char>(code) }
+                                    : code <= 0x07ff ? std::array<char, 4>{ static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)), static_cast<char>(0x80 | ( code & 0x3f)) }
+                                    : code <= 0xffff ? std::array<char, 4>{ static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) }
+                                                     : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
+    template<utfx code>
+    static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    static constexpr auto vs15 = utf8view<vs15_code>;
+    static constexpr auto vs16 = utf8view<vs16_code>;
+
+    // utf: Unicode Character Size Modifiers
+    namespace matrix
+    {
+        template<si32 xy>
+        static auto mosaic = []{ return xy / 10 + ((xy % 10) << 4); }();
+        static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
+        static constexpr auto kx = 8;
+        static constexpr auto ky = 4;
+        static constexpr auto mx = p(kx + 1);
+        static constexpr auto my = p(ky + 1);
+        static auto s = [](auto w, auto h, auto x, auto y){ return p(w) + x + (p(h) + y) * mx; };
+        template<si32 wh, si32 xy>
+        static constexpr auto vs = []
+        {
+            auto w = wh / 10;
+            auto h = wh % 10;
+            auto x = xy / 10;
+            auto y = xy % 10;
+            auto v = p(w) + x + (p(h) + y) * mx;
+            return v;
+        }();
+        static constexpr auto vs_block = 0xD0000;
+        template<si32 wh, si32 xy>
+        static constexpr auto vs_code = vs_block + vs<wh, xy>;
+        template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
+        static constexpr auto vss = utf8view<code>;
+
+        auto whxy(si32 vs)
+        {
+            static auto lut = []
+            {
+                struct r
+                {
+                    si32 w : 8;
+                    si32 h : 8;
+                    si32 x : 8;
+                    si32 y : 8;
+                };
+                auto v = std::vector(mx * my, r{});
+                for (auto w = 1; w <= kx; w++)
+                for (auto h = 1; h <= ky; h++)
+                for (auto y = 0; y <= h; y++)
+                for (auto x = 0; x <= w; x++)
+                {
+                    v[p(w) + x + (p(h) + y) * mx] = { w, h, x, y };
+                }
+                return v;
+            }();
+            return lut[vs];
+        }
+    }
+    static constexpr auto mtx = std::to_array({ matrix::vs<00,00>, matrix::vs<11,11>, matrix::vs<21,00> });
 
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata
@@ -49,37 +115,52 @@ namespace netxs::utf
         size_t cpcount;
         bool   correct;
         utfx   cdpoint;
+        si32   cmatrix;
 
         constexpr prop(size_t size)
             : unidata{      },
               utf8len{ size },
               cpcount{ 0    },
               correct{ faux },
-              cdpoint{ 0    }
+              cdpoint{ 0    },
+              cmatrix{ mtx[unidata::ucwidth] }
         { }
         prop(utfx code, size_t size)
             : unidata{ code },
               utf8len{ size },
-              cpcount{ 0    },
+              cpcount{ 1    },
               correct{ true },
-              cdpoint{ code }
+              cdpoint{ code },
+              cmatrix{ mtx[unidata::ucwidth] }
         { }
         constexpr prop(prop const& attr)
             : unidata{ attr         },
               utf8len{ attr.utf8len },
               cpcount{ attr.cpcount },
               correct{ attr.correct },
-              cdpoint{ attr.cdpoint }
+              cdpoint{ attr.cdpoint },
+              cmatrix{ attr.cmatrix }
         { }
         constexpr prop& operator = (prop const&) = default;
 
         auto combine(prop const& next)
         {
-            if (next.utf8len && next.allied(brgroup))
+            if (next.utf8len && unidata::allied(next))
             {
-                ucwidth = std::max(ucwidth, next.ucwidth);
-                utf8len += next.utf8len;
-                cpcount += 1;
+                if (next.cdpoint >= matrix::vs_code<00,00> && next.cdpoint <= matrix::vs_code<84,84>) // Set matrix size and drop VS-wh_xy modificator.
+                {
+                    cmatrix = (si32)(next.cdpoint - matrix::vs_block);
+                }
+                else
+                {
+                    if (next.ucwidth > unidata::ucwidth)
+                    {
+                        unidata::ucwidth = next.ucwidth;
+                        cmatrix = mtx[unidata::ucwidth];
+                    }
+                    utf8len += next.utf8len;
+                    cpcount += 1;
+                }
                 return 0_sz;
             }
             else
@@ -263,7 +344,34 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
-                    else                         return frag{ replacement, next };
+                    else
+                    {
+                        if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                        {
+                            code.step();
+                            next = code.take();
+                            auto head = code.textptr;
+                            auto left = next;
+                            auto utf8len = 0_sz;
+                            auto cpcount = 0;
+                            while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
+                            {
+                                utf8len += next.utf8len;
+                                cpcount += 1;
+                                code.step();
+                                next = code.take();
+                            }
+                            if (next.correct)
+                            {
+                                left.utf8len = utf8len;
+                                left.cpcount = cpcount;
+                                left.cmatrix = next.cdpoint - matrix::vs_block;
+                                return frag{ view(head, left.utf8len), left };
+                            }
+                            else return frag{ replacement, left };
+                        }
+                        else return frag{ replacement, next };
+                    }
                 }
                 auto head = code.textptr;
                 auto left = next;
@@ -327,10 +435,43 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     code.step();
-                    auto rest = code.rest();
-                    auto chars = serve(next, rest);
-                    code.redo(chars);
-                    next = code.take();
+                    if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                    {
+                        next = code.take();
+                        auto rest = code.rest();
+                        auto left = next;
+                        auto utf8len = 0_sz;
+                        auto cpcount = 0;
+                        while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
+                        {
+                            utf8len += next.utf8len;
+                            cpcount += 1;
+                            code.step();
+                            next = code.take();
+                        }
+                        if (next.correct)
+                        {
+                            left.utf8len = utf8len;
+                            left.cpcount = cpcount;
+                            left.cmatrix = next.cdpoint - matrix::vs_block;
+                            auto crop = frag{ rest.substr(0, left.utf8len), left };
+                            yield(crop);
+                            code.step(); // Drop VS codepoint.
+                            next = code.take();
+                        }
+                        else // Silently ignore STX.
+                        {
+                            code.redo(rest);
+                            next = left;
+                        }
+                    }
+                    else // Proceed general control.
+                    {
+                        auto rest = code.rest();
+                        auto chars = serve(next, rest);
+                        code.redo(chars);
+                        next = code.take();
+                    }
                 }
                 else
                 {
@@ -439,7 +580,7 @@ namespace netxs::utf
         // qiew: Pop the front sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
-            auto n = si32{ 1 };
+            auto n = 1;
             auto next = utf::cluster<true>(*this);
             while (next.attr.control == cmd)
             {
@@ -452,7 +593,7 @@ namespace netxs::utf
         // qiew: Pop the front sequence of the same chars and return their count + 1.
         auto pop_all(char c)
         {
-            auto n = si32{ 1 };
+            auto n = 1;
             while (length() && view::front() == c)
             {
                 view::remove_prefix(1);
@@ -1168,9 +1309,19 @@ namespace netxs::utf
         return len;
     }
     template<class ...Args>
+    auto& operator << (auto&& s, std::list<Args...> const& list)
+    { 
+        s << "{ ";
+        for (auto delim = ""; auto& item : list) s << std::exchange(delim, ", ") << item;
+        s << " }";
+        return s;
+    }
+    template<class ...Args>
     auto concat(Args&&... args)
     {
-        return (flux{} << ... << std::forward<Args>(args)).str();
+        auto s = flux{};
+        (s << ... << std::forward<Args>(args));
+        return s.str();
     }
     auto base64(view utf8)
     {

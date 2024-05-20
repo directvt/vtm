@@ -264,7 +264,7 @@ namespace netxs::app::tile
                                 master.RISEUP(tier::request, e2::config::creator, world_ptr, ());
 
                                 // Take coor and detach from the tiling wm.
-                                gear.coord -= applet.base::coor(); // Localize mouse coor.
+                                gear.coord -= applet.base::coor(); // Rebase mouse coor.
                                 what.square.size = applet.base::size();
                                 applet.global(what.square.coor);
                                 what.square.coor = -what.square.coor;

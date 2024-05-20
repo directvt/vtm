@@ -106,7 +106,7 @@ namespace netxs::ui
             };
         };
 
-        // pro: Resizing by dragging support.
+        // pro: Resizer.
         class sizer
             : public skill
         {
@@ -277,18 +277,26 @@ namespace netxs::ui
         {
             struct sock
             {
-                twod origin; // sock: Grab's initial coord info.
-                void grab(base const& master, twod curpos)
+                fp2d drag_origin; // sock: Drag origin.
+                void grab(base const& master, fp2d coord)
                 {
                     auto center = master.base::size() / 2;
-                    origin = curpos - center;
+                    drag_origin = coord - center;
                 }
-                void drag(base& master, twod coord)
+                auto drag(base& master, fp2d coord)
                 {
-                    auto delta = coord - origin;
+                    auto delta = coord - drag_origin;
                     auto center = master.base::size() / 2;
                     delta -= center;
-                    master.base::moveby(delta);
+                    //todo fp2d
+                    //master.base::moveby(delta);
+                    auto step = twod{ delta };
+                    if (step)
+                    {
+                        drag_origin = coord - center;
+                        master.base::moveby(step);
+                    }
+                    return step;
                 }
             };
 
@@ -329,9 +337,14 @@ namespace netxs::ui
                 {
                     if (dest_object)
                     {
-                        items.take(gear).drag(*dest_object, gear.coord);
-                        auto delta = gear.delta.get();
-                        dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                        //todo fp2d
+                        //items.take(gear).drag(*dest_object, gear.coord);
+                        //auto delta = gear.delta.get();
+                        //dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                        if (auto delta = items.take(gear).drag(*dest_object, gear.coord))
+                        {
+                            dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
+                        }
                         gear.dismiss();
                     }
                 };
@@ -816,23 +829,27 @@ namespace netxs::ui
                         if (area)
                         {
                             auto& test = canvas.peek(body.coor);
-                            if (test.wdt() == 2) // Extend cursor to adjacent halves.
+                            //todo >2x1 matrix support
+                            auto [w, h, x, y] = test.whxy();
+                            if (w == 2 && x == 1) // Extend cursor to adjacent halves.
                             {
                                 if (clip.hittest(body.coor + dot_10))
                                 {
                                     auto& next = canvas.peek(body.coor + dot_10);
-                                    if (next.wdt() == 3 && test.same_txt(next))
+                                    auto [nw, nh, nx, ny] = next.whxy();
+                                    if (nw == 2 && nx == 2 && test.same_txt(next))
                                     {
                                         area.size.x++;
                                     }
                                 }
                             }
-                            else if (test.wdt() == 3)
+                            else if (w == 2 && x == 2)
                             {
                                 if (clip.hittest(body.coor - dot_10))
                                 {
                                     auto& prev = canvas.peek(body.coor - dot_10);
-                                    if (prev.wdt() == 2 && test.same_txt(prev))
+                                    auto [pw, ph, px, py] = prev.whxy();
+                                    if (pw == 2 && px == 1 && test.same_txt(prev))
                                     {
                                         area.size.x++;
                                         area.coor.x--;
@@ -913,6 +930,7 @@ namespace netxs::ui
 
             bool live = true; // title: Title visibility.
 
+            //todo use face::calc_page_height
             auto recalc(page& object, twod& size)
             {
                 auto cp = dot_00;
@@ -2082,14 +2100,14 @@ namespace netxs::ui
             {
                 if (skin::globals().shadow_enabled)
                 {
-                    static auto shadow = netxs::misc::shadow<core, cell::shaders::blend>{};
+                    static auto shadow = netxs::misc::shadow<core>{};
                     if (!shadow.sync) shadow.generate(skin::globals().shadow_bias,
                                                       skin::globals().shadow_opacity,
-                                                      skin::globals().shadow_blur,
+                                                      skin::globals().shadow_blur * 2,
                                                       skin::globals().shadow_offset,
                                                       dot_21,
                                                       [](cell& c, auto a){ c.alpha(a); });
-                    shadow.render(canvas, boss.base::size());
+                    shadow.render(canvas, canvas.area(), rect{ .size = boss.base::size() }, cell::shaders::blend);
                 }
             }
 
@@ -3047,6 +3065,7 @@ namespace netxs::ui
         bool animat; // rail: Smooth scrolling.
         subs fasten; // rail: Subscriptions on masters to follow they state.
         rack scinfo; // rail: Scroll info.
+        fp2d drag_origin; // rail: Drag origin.
 
         si32 spd       = skin::globals().spd;
         si32 pls       = skin::globals().pls;
@@ -3138,6 +3157,7 @@ namespace netxs::ui
                 {
                     if (gear.capture(bell::id))
                     {
+                        drag_origin = gear.coord;
                         manual = xy(axes::all);
                         strict = xy(axes::all) - oversc; // !oversc = dot_11 - oversc
                         gear.dismiss();
@@ -3148,9 +3168,16 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    auto delta = gear.mouse::delta.get();
-                    auto value = permit * delta;
-                    if (value) scroll(value);
+                    //todo fp2d
+                    //auto delta = gear.mouse::delta.get();
+                    //auto value = permit * delta;
+                    //if (value) scroll(value);
+                    if (auto delta = twod{ gear.coord - drag_origin })
+                    {
+                        drag_origin = gear.coord;
+                        auto value = permit * delta;
+                        if (value) scroll(value);
+                    }
                     gear.dismiss();
                 }
             };
@@ -3316,9 +3343,16 @@ namespace netxs::ui
             strict[Axis] = true;
             robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
             {
-                auto delta = Axis == X ? twod{ p, 0 }
-                                       : twod{ 0, p };
-                scroll(delta);
+                //todo fp2d
+                //auto delta = Axis == X ? twod{ p, 0 }
+                //                       : twod{ 0, p };
+                //scroll(delta);
+                if (auto step = netxs::saturate_cast<twod::type>(p))
+                {
+                    auto delta = Axis == X ? twod{ step, 0 }
+                                           : twod{ 0, step };
+                    scroll(delta);
+                }
             });
         }
         // rail: Check overscroll if no auto correction.
@@ -3583,6 +3617,7 @@ namespace netxs::ui
         hook memo; // grip: .
         math calc; // grip: Scrollbar calculator.
         bool on_pager = faux; // grip: .
+        fp2d drag_origin; // grip: Drag origin.
 
         template<class Event>
         void send()
@@ -3663,7 +3698,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = gear.mouse::coord[Axis];
+                calc.cursor_pos = twod{ gear.coord }[Axis];
             };
             LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -3674,7 +3709,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left)
                  || this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
+                if (auto dir = calc.inside(twod{ gear.coord }[Axis]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -3730,6 +3765,7 @@ namespace netxs::ui
                 {
                     if (gear.capture(bell::id))
                     {
+                        drag_origin = gear.coord;
                         gear.dismiss();
                     }
                 }
@@ -3744,8 +3780,11 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = gear.mouse::delta.get()[Axis])
+                        //todo fp2d
+                        //if (auto delta = gear.mouse::delta.get()[Axis])
+                        if (auto delta = twod{ gear.coord - drag_origin }[Axis])
                         {
+                            drag_origin = gear.coord;
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
                             gear.dismiss();
@@ -4192,6 +4231,7 @@ namespace netxs::ui
         si32 max_val = 0;
         si32 origin = 0;
         si32 deltas = 0;
+        fp2d drag_origin;
 
         //todo unify mint = 1/fps60 = 16ms
         //it seems that 4ms is enough, there is no need to be tied to fps (an open question)
@@ -4317,6 +4357,7 @@ namespace netxs::ui
                 {
                     if (gear.capture(grip_ctl->id))
                     {
+                        drag_origin = gear.coord;
                         origin = cur_val;
                         gear.dismiss();
                     }
@@ -4325,9 +4366,17 @@ namespace netxs::ui
                 {
                     if (gear.captured(grip_ctl->id))
                     {
-                        deltas += gear.mouse::delta.get().x;
-                        move_grip(next_val(deltas));
-                        gear.dismiss();
+                        //todo fp2d
+                        //deltas += gear.mouse::delta.get().x;
+                        //move_grip(next_val(deltas));
+                        //gear.dismiss();
+                        if (auto delta = twod{ gear.coord - drag_origin }.x)
+                        {
+                            drag_origin = gear.coord;
+                            deltas += delta;
+                            move_grip(next_val(deltas));
+                            gear.dismiss();
+                        }
                     }
                 };
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::cancel::left, gear)

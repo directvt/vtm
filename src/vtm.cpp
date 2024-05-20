@@ -358,7 +358,7 @@ int main(int argc, char* argv[])
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
-        app::shared::start(params, aptype, os::dtvt::vtmode, os::dtvt::win_sz, config);
+        app::shared::start(params, aptype, os::dtvt::vtmode, os::dtvt::window.size, config);
     }
     else
     {
@@ -394,7 +394,7 @@ int main(int argc, char* argv[])
                 auto cwd = os::env::cwd();
                 auto cmd = script;
                 auto cfg = config.utf8();
-                auto win = os::dtvt::win_sz;
+                auto win = os::dtvt::window.size;
                 userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
                 os::tty::splice(client);
                 return 0;
