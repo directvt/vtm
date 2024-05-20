@@ -1026,11 +1026,6 @@ namespace netxs
                 props.count = 1;
                 glyph[1] = c;
             }
-            glyf(glyf const& g, view utf8, si32 vs)
-                : token{ g.token }
-            {
-                set_direct(utf8, vs);
-            }
 
             constexpr glyf& operator = (glyf const&) = default;
             auto operator == (glyf const& g) const
@@ -1073,10 +1068,9 @@ namespace netxs
                 props.sizex = (byte)(w ? w - 1 : 0);
                 props.sizey = (byte)(h ? h - 1 : 0);
             }
-            void set_direct(view utf8, si32 vs)
+            void set_direct(view utf8, si32 w, si32 h)
             {
                 static constexpr auto hasher = std::hash<view>{};
-                auto [w, h, x, y] = unidata::widths::whxy(vs);
                 auto count = utf8.size();
                 if (count < limit)
                 {
@@ -1163,7 +1157,7 @@ namespace netxs
                                  // │ └────── interpolation type between `c0` and `c2`
                                  // └──────── interpolation type between `c0` and `c1`
                 // Unique attributes. From 24th bit.
-                ui32 mosaic : 8; // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+                ui32 mosaic : 8; // High bits - y, low bits - x. // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
             };
             static constexpr auto shared_bits = (1 << 24) - 1;
 
@@ -1183,15 +1177,15 @@ namespace netxs
             constexpr body(body const& b)
                 : token{ b.token }
             { }
-            constexpr body(si32 width)
+            constexpr body(si32 mosaic)
                 : token{ 0 }
             {
-                attrs.mosaic = width;
+                attrs.mosaic = mosaic;
             }
-            constexpr body(body const& b, si32 width)
+            constexpr body(body const& b, si32 mosaic)
                 : token{ b.token }
             {
-                attrs.mosaic = width;
+                attrs.mosaic = mosaic;
             }
 
             constexpr body& operator = (body const&) = default;
@@ -1258,7 +1252,7 @@ namespace netxs
             void ovr(bool b) { attrs.overln = b; }
             void stk(bool b) { attrs.strike = b; }
             void blk(bool b) { attrs.blinks = b; }
-            void wdt(si32 w) { attrs.mosaic = w; }
+            void  xy(si32 m) { attrs.mosaic = m; }
 
             bool bld() const { return attrs.bolded; }
             bool itc() const { return attrs.italic; }
@@ -1270,7 +1264,7 @@ namespace netxs
             bool stk() const { return attrs.strike; }
             bool blk() const { return attrs.blinks; }
             bool raw() const { return attrs.bitmap; }
-            si32 wdt() const { return attrs.mosaic; }
+            si32  xy() const { return attrs.mosaic; }
         };
         struct clrs
         {
@@ -1401,7 +1395,7 @@ namespace netxs
         { }
         cell(char c)
             : gc{ c },
-              st{ unidata::widths::vs<11,11> },
+              st{ utf::matrix::mosaic<11> },
               id{ 0 }
         {
             // sizeof(glyf);
@@ -1423,17 +1417,10 @@ namespace netxs
               id{ base.id },
               px{ base.px }
         { }
-        cell(cell const& base, view cluster, si32 ucwidth)
-            : uv{ base.uv },
-              gc{ base.gc, cluster, ucwidth},
-              st{ base.st, ucwidth },
-              id{ base.id },
-              px{ base.px }
-        { }
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
-              st{ base.st, unidata::widths::vs<11,11> },
+              st{ base.st, utf::matrix::mosaic<11> },
               id{ base.id },
               px{ base.px }
         { }
@@ -1459,7 +1446,7 @@ namespace netxs
             return *this;
         }
 
-        operator bool () const { return wdt(); } // cell: Return true if cell contains printable character.
+        operator bool () const { return st.xy(); } // cell: Return true if cell contains printable character.
 
         auto same_txt(cell const& c) const // cell: Compare clusters.
         {
@@ -1487,9 +1474,16 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            st = c.st;
-            if (st.raw()) px = c.px;
-            if (wdt()) gc = c.gc;
+            if (c.st.raw())
+            {
+                px = c.px;
+                st.attrs.bitmap = c.st.attrs.bitmap;
+            }
+            if (c.st.xy())
+            {
+                st = c.st;
+                gc = c.gc;
+            }
         }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
@@ -1501,7 +1495,7 @@ namespace netxs
         {
             uv.fg.mix_one(c.uv.fg);
             uv.bg.mix_one(c.uv.bg);
-            if (c.wdt())
+            if (c.st.xy())
             {
                 st = c.st;
                 gc = c.gc;
@@ -1519,15 +1513,22 @@ namespace netxs
         {
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
-            st = c.st;
-            if (st.raw()) px = c.px;
-            if (wdt()) gc = c.gc;
+            if (c.st.raw())
+            {
+                px = c.px;
+                st.attrs.bitmap = c.st.attrs.bitmap;
+            }
+            if (c.st.xy())
+            {
+                st = c.st;
+                gc = c.gc;
+            }
         }
         // cell: Blend colors using alpha.
         void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
-            if (c.wdt())
+            if (c.st.xy())
             {
                 st = c.st;
                 gc = c.gc;
@@ -1552,24 +1553,29 @@ namespace netxs
         // cell: Blend two cells and set id if it is (fg = bg * c.fg).
         void overlay(cell const& c)
         {
-            if (c.wdt() || c.st.und())
+            if (c.st.xy() || c.st.und())
             {
                 auto bg = uv.bg;
                 if (bg.chan.a == 0xFF) bg.mix_one(c.uv.fg);
                 else                   bg.mix(c.uv.fg);
                 uv.fg = bg;
                 gc = c.gc;
+                st = c.st;
             }
             else
             {
+                st.meta(c.st);
                 if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.bg);
                 else                      uv.fg.mix(c.uv.bg);
             }
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            st = c.st;
-            if (st.raw()) px = c.px;
+            if (c.st.raw())
+            {
+                px = c.px;
+            }
+
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
@@ -1639,8 +1645,8 @@ namespace netxs
                     st.get<Mode, UseSGR>(base.st, dest);
                     //todo raw bitmap
                 }
-                if (wdt() && !gc.is_space()) filter<Mode, UseSGR>(base, dest);
-                else                         dest += whitespace;
+                if (st.xy() && !gc.is_space()) filter<Mode, UseSGR>(base, dest);
+                else                           dest += whitespace;
             }
         }
         // cell: Check that the halves belong to the same wide glyph.
@@ -1651,9 +1657,9 @@ namespace netxs
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         void scan(text& dest) const
         {
-                 if (wdt() == 0) dest += whitespace;
-            else if (wdt() == unidata::widths::vs<11,11>) dest += gc.get();
-            else if (wdt() == unidata::widths::vs<21,11>)
+                 if (st.xy() == 0) dest += whitespace;
+            else if (gc.props.sizex == 0 && gc.props.sizey == 0) dest += gc.get();
+            else if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1666,7 +1672,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (wdt() == unidata::widths::vs<21,11>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1679,7 +1685,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (wdt() == unidata::widths::vs<21,21>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1741,13 +1747,13 @@ namespace netxs
         void set_gc(cell const& c)
         {
             gc = c.gc;
-            st.wdt(c.st.wdt());
+            st.xy(c.st.xy());
         }
         // cell: Reset grapheme cluster.
         void set_gc()
         {
             gc.wipe();
-            st.wdt(0);
+            st.xy(0);
         }
         // cell: Copy view of the cell (preserve ID).
         auto& set(cell const& c) { uv = c.uv;
@@ -1777,15 +1783,16 @@ namespace netxs
         // cell: Set cluster unidata width.
         auto& wdt(si32 vs)
         {
-            auto [w, h, x, y] = unidata::widths::whxy(vs);
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.mtx(w, h);
-            st.wdt(vs);
+            st.xy(x + (y << 4));
             return *this;
         }
         auto& txt(view utf8, si32 vs)
         {
-            gc.set_direct(utf8, vs);
-            st.wdt(vs);
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
+            gc.set_direct(utf8, w, h);
+            st.xy(x + (y << 4));
             return *this;
         }
         cell& txt(view utf8)
@@ -1793,23 +1800,25 @@ namespace netxs
             if (utf8.empty())
             {
                 gc.token = 0;
-                st.wdt(0);
+                st.xy(0);
             }
             else
             {
                 auto cluster = utf::cluster(utf8);
-                gc.set_direct(cluster.text, cluster.attr.cmatrix);
-                st.wdt(cluster.attr.cmatrix);
+                auto [w, h, x, y] = utf::matrix::whxy(cluster.attr.cmatrix);
+                gc.set_direct(cluster.text, w, h);
+                st.xy(x + (y << 4));
             }
             return *this;
         }
         cell& txt2(view utf8, si32 vs)
         {
-            gc.set_direct(utf8, vs);
-            st.wdt(vs);
+            auto [w, h, x, y] = utf::matrix::whxy(vs);
+            gc.set_direct(utf8, w, h);
+            st.xy(x + (y << 4));
             return *this;
         }
-        auto& txt(char c)        { gc.set(c); st.wdt(unidata::widths::vs<11,11>);   return *this; } // cell: Set grapheme cluster from char.
+        auto& txt(char c)        { gc.set(c); st.xy(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
         auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
         auto& rst() // cell: Reset view attributes of the cell to zero.
@@ -1826,7 +1835,17 @@ namespace netxs
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        si32  wdt() const  { return st.wdt();      } // cell: Return cluster unidata width.
+        // cell: Return cluster matrix metadata.
+        si32  wdt() const
+        {
+            auto xy = st.xy();
+            auto x = xy & 0xf;
+            auto y = xy >> 4;
+            auto w = gc.props.sizex + 1;
+            auto h = gc.props.sizey + 1;
+            return utf::matrix::s(w, h, x, y);
+        }
+        si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
         auto& egc() const  { return gc;            } // cell: Get grapheme cluster token.
@@ -2851,7 +2870,7 @@ namespace netxs
             };
             auto func = [&](auto check)
             {
-                static constexpr auto right_half = rev ? unidata::widths::vs<21,11> : unidata::widths::vs<21,21>;
+                static constexpr auto right_half = rev ? utf::matrix::vs<21,11> : utf::matrix::vs<21,21>;
                 coord.x += rev ? 1 : 0;
                 auto count = decltype(coord.x){};
                 auto width = (rev ? 0 : region.size.x) - coord.x;

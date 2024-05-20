@@ -450,33 +450,33 @@ namespace netxs::ansi
             {
                 add(utf::replacement);
                 state.set_gc();
-                state.wdt(unidata::widths::vs<11,11>);
+                state.wdt(utf::matrix::vs<11,11>);
             };
             auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
-                state.wdt(unidata::widths::vs<11,11>);
+                state.wdt(utf::matrix::vs<11,11>);
             };
             auto allfx = [&](cell const& c)
             {
-                auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+                auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
                 if (w < 2) // Narrow character
                 {
-                    if (state.wdt() == unidata::widths::vs<21,11>) badfx(); // Left part alone
+                    if (state.wdt() == utf::matrix::vs<21,11>) badfx(); // Left part alone
                     c.scan<svga::vtrgb, UseSGR>(state, block);
                 }
                 else
                 {
                     if (w == 2 && x == 1) // Left part
                     {
-                        if (state.wdt() == unidata::widths::vs<21,11>) badfx();  // Left part alone
+                        if (state.wdt() == utf::matrix::vs<21,11>) badfx();  // Left part alone
                         c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
                     else if (w == 2 && x == 2) // Right part
                     {
-                        if (state.wdt() == unidata::widths::vs<21,11>)
+                        if (state.wdt() == utf::matrix::vs<21,11>)
                         {
                             if (state.check_pair(c))
                             {
@@ -501,7 +501,7 @@ namespace netxs::ansi
             };
             auto eolfx = [&]
             {
-                if (state.wdt() == unidata::widths::vs<21,11>) side_badfx();  // Left part alone at the right side
+                if (state.wdt() == utf::matrix::vs<21,11>) side_badfx();  // Left part alone at the right side
                 state.set_gc();
                 basevt::eol();
             };
@@ -1673,7 +1673,7 @@ namespace netxs::ansi
         void assign(auto n, auto c)
         {
             proto_cells.assign(n, c);
-            auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+            auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
             auto wdt = x == 0 ? w : 1;
             data(n * wdt, proto_cells);
             proto_cells.clear();
@@ -1704,7 +1704,7 @@ namespace netxs::ansi
             auto& attr = cluster.attr;
             if (auto v = attr.cmatrix)
             {
-                auto [w, h, x, y] = unidata::widths::whxy(v);
+                auto [w, h, x, y] = utf::matrix::whxy(v);
                 auto wdt = x == 0 ? w : 1;
                 proto_count += wdt;
                 brush.txt(utf8, v);

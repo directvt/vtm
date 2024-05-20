@@ -55,11 +55,58 @@ namespace netxs::utf
     static constexpr auto vs15 = utf8view<vs15_code>;
     static constexpr auto vs16 = utf8view<vs16_code>;
 
-    // utf: Unicode Character Size Modifier Selector UTF-8 view.
-    template<si32 wh, si32 xy>
-    static constexpr auto vs_code = unidata::widths::vs_block + unidata::widths::vs<wh, xy>;
-    template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
-    static constexpr auto vss = utf8view<code>;
+    // utf: Unicode Character Size Modifiers
+    namespace matrix
+    {
+        template<si32 xy>
+        static auto mosaic = []{ return xy / 10 + ((xy % 10) << 4); }();
+        static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
+        static constexpr auto kx = 8;
+        static constexpr auto ky = 4;
+        static constexpr auto mx = p(kx + 1);
+        static constexpr auto my = p(ky + 1);
+        static auto s = [](auto w, auto h, auto x, auto y){ return p(w) + x + (p(h) + y) * mx; };
+        template<si32 wh, si32 xy>
+        static constexpr auto vs = []
+        {
+            auto w = wh / 10;
+            auto h = wh % 10;
+            auto x = xy / 10;
+            auto y = xy % 10;
+            auto v = p(w) + x + (p(h) + y) * mx;
+            return v;
+        }();
+        static constexpr auto vs_block = 0xD0000;
+        template<si32 wh, si32 xy>
+        static constexpr auto vs_code = vs_block + vs<wh, xy>;
+        template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
+        static constexpr auto vss = utf8view<code>;
+
+        auto whxy(si32 vs)
+        {
+            static auto lut = []
+            {
+                struct r
+                {
+                    si32 w : 8;
+                    si32 h : 8;
+                    si32 x : 8;
+                    si32 y : 8;
+                };
+                auto v = std::vector(mx * my, r{});
+                for (auto w = 1; w <= kx; w++)
+                for (auto h = 1; h <= ky; h++)
+                for (auto y = 0; y <= h; y++)
+                for (auto x = 0; x <= w; x++)
+                {
+                    v[p(w) + x + (p(h) + y) * mx] = { w, h, x, y };
+                }
+                return v;
+            }();
+            return lut[vs];
+        }
+    }
+    static constexpr auto mtx = std::to_array({ matrix::vs<00,00>, matrix::vs<11,11>, matrix::vs<21,00> });
 
     // utf: Grapheme cluster properties.
     struct prop : public unidata::unidata
@@ -68,27 +115,31 @@ namespace netxs::utf
         size_t cpcount;
         bool   correct;
         utfx   cdpoint;
+        si32   cmatrix;
 
         constexpr prop(size_t size)
             : unidata{      },
               utf8len{ size },
               cpcount{ 0    },
               correct{ faux },
-              cdpoint{ 0    }
+              cdpoint{ 0    },
+              cmatrix{ mtx[unidata::ucwidth] }
         { }
         prop(utfx code, size_t size)
             : unidata{ code },
               utf8len{ size },
-              cpcount{ 0    },
+              cpcount{ 1    },
               correct{ true },
-              cdpoint{ code }
+              cdpoint{ code },
+              cmatrix{ mtx[unidata::ucwidth] }
         { }
         constexpr prop(prop const& attr)
             : unidata{ attr         },
               utf8len{ attr.utf8len },
               cpcount{ attr.cpcount },
               correct{ attr.correct },
-              cdpoint{ attr.cdpoint }
+              cdpoint{ attr.cdpoint },
+              cmatrix{ attr.cmatrix }
         { }
         constexpr prop& operator = (prop const&) = default;
 
@@ -96,13 +147,17 @@ namespace netxs::utf
         {
             if (next.utf8len && unidata::allied(next))
             {
-                if (next.cdpoint >= vs_code<00,00> && next.cdpoint <= vs_code<44,44>) // Set matrix size and drop VS-wh_xy modificator.
+                if (next.cdpoint >= matrix::vs_code<00,00> && next.cdpoint <= matrix::vs_code<84,84>) // Set matrix size and drop VS-wh_xy modificator.
                 {
-                    unidata::cmatrix = (decltype(unidata::cmatrix))(next.cdpoint - netxs::unidata::widths::vs_block);
+                    cmatrix = (si32)(next.cdpoint - matrix::vs_block);
                 }
                 else
                 {
-                    unidata::cmatrix = std::max(unidata::cmatrix, next.cmatrix);
+                    if (next.ucwidth > unidata::ucwidth)
+                    {
+                        unidata::ucwidth = next.ucwidth;
+                        cmatrix = mtx[unidata::ucwidth];
+                    }
                     utf8len += next.utf8len;
                     cpcount += 1;
                 }
@@ -299,7 +354,7 @@ namespace netxs::utf
                             auto left = next;
                             auto utf8len = 0_sz;
                             auto cpcount = 0;
-                            while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
+                            while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
                             {
                                 utf8len += next.utf8len;
                                 cpcount += 1;
@@ -310,7 +365,7 @@ namespace netxs::utf
                             {
                                 left.utf8len = utf8len;
                                 left.cpcount = cpcount;
-                                left.cmatrix = next.cdpoint - netxs::unidata::widths::vs_block;
+                                left.cmatrix = next.cdpoint - matrix::vs_block;
                                 return frag{ view(head, left.utf8len), left };
                             }
                             else return frag{ replacement, left };
@@ -387,7 +442,7 @@ namespace netxs::utf
                         auto left = next;
                         auto utf8len = 0_sz;
                         auto cpcount = 0;
-                        while (next.correct && (next.cdpoint < vs_code<00,00> || next.cdpoint > vs_code<44,44>)) // Eat all until VS.
+                        while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
                         {
                             utf8len += next.utf8len;
                             cpcount += 1;
@@ -398,7 +453,7 @@ namespace netxs::utf
                         {
                             left.utf8len = utf8len;
                             left.cpcount = cpcount;
-                            left.cmatrix = next.cdpoint - netxs::unidata::widths::vs_block;
+                            left.cmatrix = next.cdpoint - matrix::vs_block;
                             auto crop = frag{ rest.substr(0, left.utf8len), left };
                             yield(crop);
                             code.step(); // Drop VS codepoint.

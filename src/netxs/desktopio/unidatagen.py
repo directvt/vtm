@@ -113,12 +113,11 @@ PRINTABLE = ['Prepend', # always part of grapheme cluster
              ]
 
 # classification https://www.unicode.org/reports/tr11/#ED6
-WCWIDTHS = { 'zerowidth' : ['vs<00,00>', 'non-printable' ],
-             'halfwidth' : ['vs<11,00>', '1x1 narrow'    ],
-             'fullwidth' : ['vs<21,00>', '2x1 fullwidth' ] }
+WCWIDTHS = { 'zerowidth' : ['zero', 'non-printable' ],
+             'halfwidth' : ['slim', '1x1 narrow'    ],
+             'fullwidth' : ['wide', '2x1 fullwidth' ] }
 
-nspm = 'Nonspacing_Mark'
-CUSTOMIZE = [(0xE0121 + int(0), 'vs<00,00>', nspm)]
+CUSTOMIZE = [('D0000..D0FFF', 'zero', 'Nonspacing_Mark', 'Extend')]
 #def gc(x):
 #    return x * (x + 1) / 2 + 1
 #for w in range(1, 5):
@@ -257,38 +256,9 @@ namespace netxs::unidata
 {{
     namespace widths
     {{
-        static constexpr auto vs_block = 0xE0100;
-        static auto p = [](auto x){{ return x * (x + 1) / 2 + 1; }}; // ref: https://github.com/directvt/vtm/assets/11535558/792a5b87-712f-4313-91bc-9637964fc7fa
-        template<si32 wh, si32 xy>
-        static constexpr auto vs = []
-        {{
-            auto w = wh / 10;
-            auto h = wh % 10;
-            auto x = xy / 10;
-            auto y = xy % 10;
-            auto v = p(w) + p(h) * 16 + x + y * 16;
-            return v;
-        }}();
-        static constexpr auto zero = vs<00,00>;
-        static constexpr auto slim = vs<11,00>;
-        static constexpr auto wide = vs<21,00>;
-        auto whxy(si32 vs)
-        {{
-            static auto lut = []
-            {{
-                struct r {{ byte w, h, x, y; }};
-                auto v = std::vector(256, r{{}});
-                for (auto w = (byte)1; w < 5; w++)
-                for (auto h = (byte)1; h < 5; h++)
-                for (auto y = (byte)0; y <= h; y++)
-                for (auto x = (byte)0; x <= w; x++)
-                {{
-                    v[p(w) + p(h) * 16 + x + y * 16] = {{ w, h, x, y }};
-                }}
-                return v;
-            }}();
-            return lut[vs];
-        }}
+        static constexpr auto zero = 0; // 0x0 non-printable
+        static constexpr auto slim = 1; // 1x1 narrow
+        static constexpr auto wide = 2; // 2x1 fullwidth
     }}
 
     namespace gbreak
@@ -321,21 +291,21 @@ namespace netxs::unidata
 
     struct unidata
     {{
-        ui32 cmatrix : 8;
+        ui32 ucwidth : 2; // 0 - zero, 1 - slim, 2 - wide.
         ui32 brgroup : 4;
         ui32 control : 7;
         ui32 wscript : 10; // ISO 15924 Script No: 0 - 999.
-        //ui32 reserv : 3;
+        //ui32 reserv : 9;
 
         constexpr unidata(unidata const&) = default;
         constexpr unidata()
-            : cmatrix{{ widths::vs<11,00> }},
+            : ucwidth{{ widths::slim }},
               brgroup{{ gbreak::any }},
               control{{ cntrls::non_control }},
               wscript{{}}
         {{ }}
-        constexpr unidata(ui32 cmatrix, ui32 brgroup, ui32 control)
-            : cmatrix{{ cmatrix }},
+        constexpr unidata(ui32 ucwidth, ui32 brgroup, ui32 control)
+            : ucwidth{{ ucwidth }},
               brgroup{{ brgroup }},
               control{{ control }},
               wscript{{}}
@@ -612,12 +582,12 @@ def apply_nonprint(categories, printable, chrs):
         if cp.category in categories and cp.gcbreak not in printable:
             cp.ucwidth = EAWIDTH['NP']
 
-def apply_customcp(cprange, chrs):
-    for cp, width, category in cprange:
-        chrs[cp].ucwidth  = width
-        chrs[cp].category = category
-#        if breakclass:
-#           chrs[cp].gcbreak = breakclass
+def apply_customcp(recs, chrs):
+    for cprange, width, category, breakclass in recs:
+        for cp in sequencer(cprange):
+            chrs[cp].ucwidth  = width
+            chrs[cp].category = category
+            chrs[cp].gcbreak  = breakclass
 
 #def apply_commands(commands, excluded, printable, chrs):
 #    index = 0

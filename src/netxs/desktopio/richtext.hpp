@@ -131,7 +131,7 @@ namespace netxs::ui
                     while (n)
                     {
                         auto& c = block.at(p);
-                        if (c.isspc() || c.wdt() == unidata::widths::vs<21,21>) break;
+                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>) break;
                         n--;
                         p--;
                     }
@@ -142,7 +142,7 @@ namespace netxs::ui
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
-                        if (block.at(q).wdt() == unidata::widths::vs<21,11>)
+                        if (block.at(q).wdt() == utf::matrix::vs<21,11>)
                         {
                             --printout.size.x;
                         }
@@ -592,14 +592,14 @@ namespace netxs::ui
                 {
                     auto c = *data++;
                     auto v = c.wdt();
-                    if (v == unidata::widths::vs<11,00>)
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        fuse(*dest++, c.wdt(unidata::widths::vs<11,11>));
+                        fuse(*dest++, c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (v == unidata::widths::vs<21,00>)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                        fuse(*dest++, c.wdt(unidata::widths::vs<21,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<21,21>));
+                        fuse(*dest++, c.wdt(utf::matrix::vs<21,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<21,21>));
                     }
                     else if (v == 0)
                     {
@@ -607,22 +607,60 @@ namespace netxs::ui
                         // winsrv2019's cmd.exe sets title with a zero at the end
                         //*dst++ = cell{ c, whitespace };
                     }
-                    else if (v == unidata::widths::vs<31,00>)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                        fuse(*dest++, c.wdt(unidata::widths::vs<31,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<31,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<31,31>));
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<31,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,31>));
                     }
-                    else if (v == unidata::widths::vs<41,00>)
+                    else if (v == utf::matrix::vs<41,00>)
                     {
-                        fuse(*dest++, c.wdt(unidata::widths::vs<41,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<41,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<41,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(unidata::widths::vs<41,41>));
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<41,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,41>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<51,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,51>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<61,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,61>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<71,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,61>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,71>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                         fuse(*dest++, c.wdt(utf::matrix::vs<81,11>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,21>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,31>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,41>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,51>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,61>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,71>));
+                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,81>));
                     }
                     else
                     {
-                        auto [w, h, x, y] = unidata::widths::whxy(v);
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
@@ -652,35 +690,73 @@ namespace netxs::ui
                 {
                     auto c = *data++;
                     auto v = c.wdt();
-                    if (v == unidata::widths::vs<11,00>)
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        set(c.wdt(unidata::widths::vs<11,11>));
+                        set(c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (v == unidata::widths::vs<21,00>)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                                      set(c.wdt(unidata::widths::vs<21,11>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<21,21>));
+                                      set(c.wdt(utf::matrix::vs<21,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<21,21>));
                     }
                     else if (v == 0)
                     {
                         //
                     }
-                    else if (v == unidata::widths::vs<31,00>)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                                      set(c.wdt(unidata::widths::vs<31,11>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<31,21>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<31,31>));
+                                      set(c.wdt(utf::matrix::vs<31,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<31,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<31,31>));
                     }
-                    else if (v == unidata::widths::vs<41,00>)
+                    else if (v == utf::matrix::vs<41,00>)
                     {
-                                      set(c.wdt(unidata::widths::vs<41,11>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<41,21>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<41,31>));
-                        if (size > 0) set(c.wdt(unidata::widths::vs<41,41>));
+                                      set(c.wdt(utf::matrix::vs<41,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<41,41>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<51,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<51,51>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<61,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<61,61>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<71,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,61>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<71,71>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                      set(c.wdt(utf::matrix::vs<81,11>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,21>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,31>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,41>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,51>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,61>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,71>));
+                        if (size > 0) set(c.wdt(utf::matrix::vs<81,81>));
                     }
                     else
                     {
-                        auto [w, h, x, y] = unidata::widths::whxy(v);
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
@@ -704,35 +780,73 @@ namespace netxs::ui
                 {
                     auto c = *--data;
                     auto v = c.wdt();
-                    if (v == unidata::widths::vs<11,00>)
+                    if (v == utf::matrix::vs<11,00>)
                     {
-                        fuse(*--dest, c.wdt(unidata::widths::vs<11,11>));
+                        fuse(*--dest, c.wdt(utf::matrix::vs<11,11>));
                     }
-                    else if (v == unidata::widths::vs<21,00>)
+                    else if (v == utf::matrix::vs<21,00>)
                     {
-                                         fuse(*--dest, c.wdt(unidata::widths::vs<21,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<21,11>));
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<21,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<21,11>));
                     }
                     else if (v == 0)
                     {
                         //
                     }
-                    else if (v == unidata::widths::vs<31,00>)
+                    else if (v == utf::matrix::vs<31,00>)
                     {
-                                         fuse(*--dest, c.wdt(unidata::widths::vs<31,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<31,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<31,11>));
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<31,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,11>));
                     }
-                    else if (v == unidata::widths::vs<41,00>)
+                    else if (v == utf::matrix::vs<41,00>)
                     {
-                                         fuse(*--dest, c.wdt(unidata::widths::vs<41,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<41,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<41,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(unidata::widths::vs<41,11>));
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<41,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,11>));
+                    }
+                    else if (v == utf::matrix::vs<51,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<51,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,11>));
+                    }
+                    else if (v == utf::matrix::vs<61,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<61,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,11>));
+                    }
+                    else if (v == utf::matrix::vs<71,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<71,71>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,11>));
+                    }
+                    else if (v == utf::matrix::vs<81,00>)
+                    {
+                                         fuse(*--dest, c.wdt(utf::matrix::vs<81,81>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,71>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,61>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,51>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,41>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,31>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,21>));
+                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,11>));
                     }
                     else
                     {
-                        auto [w, h, x, y] = unidata::widths::whxy(v);
+                        auto [w, h, x, y] = utf::matrix::whxy(v);
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
@@ -1086,7 +1200,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.cmatrix = netxs::unidata::widths::vs<11,00>;
+                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
                 ansi::parser::post(c);
             }
             else
@@ -1161,7 +1275,7 @@ namespace netxs::ui
                 caret--;
                 auto& line = content();
                 auto  iter = line.begin() + caret;
-                if (iter->wdt() == unidata::widths::vs<21,21> && caret > 0 && (--iter)->wdt() == unidata::widths::vs<21,11>)
+                if (iter->wdt() == utf::matrix::vs<21,21> && caret > 0 && (--iter)->wdt() == utf::matrix::vs<21,11>)
                 {
                     caret--;
                 }
@@ -1192,7 +1306,7 @@ namespace netxs::ui
                 auto& line = content();
                 auto  iter = line.begin() + caret;
                 caret++;
-                if (iter->wdt() == unidata::widths::vs<21,11> && caret < length() && (++iter)->wdt() == unidata::widths::vs<21,21>)
+                if (iter->wdt() == utf::matrix::vs<21,11> && caret < length() && (++iter)->wdt() == utf::matrix::vs<21,21>)
                 {
                     caret++;
                 }
@@ -1220,16 +1334,16 @@ namespace netxs::ui
         {
             if (!inserting) del_gc_fwd();
             else            caret_check();
-            auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+            auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
             auto& line = content();
             if (w == 2)
             {
-                line.insert_full(caret, 2, c.wdt(unidata::widths::vs<21,11>));
+                line.insert_full(caret, 2, c.wdt(utf::matrix::vs<21,11>));
                 caret++;
-                line.begin(caret)->wdt(unidata::widths::vs<21,21>);
+                line.begin(caret)->wdt(utf::matrix::vs<21,21>);
                 caret++;
             }
-            else line.insert_full(caret++, 1, c.wdt(unidata::widths::vs<11,11>));
+            else line.insert_full(caret++, 1, c.wdt(utf::matrix::vs<11,11>));
         }
         // para: Insert text.
         void insert(view utf8, bool inserting)
@@ -1254,7 +1368,7 @@ namespace netxs::ui
                     auto size = length();
                     if (caret < size)
                     {
-                        auto [w, h, x, y] = unidata::widths::whxy(at(caret).wdt());
+                        auto [w, h, x, y] = utf::matrix::whxy(at(caret).wdt());
                         if (w != 1 && x != 1) // Broken cluster.
                         {
                             auto& line = content();
@@ -1346,8 +1460,8 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
-                    if ((iter1++)->wdt() == unidata::widths::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != unidata::widths::vs<21,21>) log(prompt::para, "Corrupted glyph");
-                    if ((iter2++)->wdt() == unidata::widths::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != unidata::widths::vs<21,21>) log(prompt::para, "Corrupted glyph");
+                    if ((iter1++)->wdt() == utf::matrix::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
+                    if ((iter2++)->wdt() == utf::matrix::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
                 }
             }
             return faux;
@@ -1709,7 +1823,7 @@ namespace netxs::ui
             if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
             {
                 auto c = cluster;
-                c.attr.cmatrix = netxs::unidata::widths::vs<11,00>;
+                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
                 ansi::parser::post(c);
             }
             else
@@ -1907,7 +2021,7 @@ namespace netxs::ui
                 curln.lyric->each([&](cell& c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != unidata::widths::vs<21,21>) c.scan(dest.base, dest);
+                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan(dest.base, dest);
                 });
             }
             auto vect = std::vector<argb>(dest.clrs.size());
@@ -2028,7 +2142,7 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != unidata::widths::vs<21,21>) c.scan(dest.base, dest);
+                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan(dest.base, dest);
                 });
             }
             if (dest.data.size()) dest.data += "</span>";
@@ -2098,7 +2212,7 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != unidata::widths::vs<21,21>) c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
                 });
             }
             return dest.data;

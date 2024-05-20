@@ -615,7 +615,7 @@ namespace netxs::os
                         auto& chr = dst.Char.UnicodeChar;
                         if (auto len = toWIDE.size())
                         {
-                            auto [w, h, x, y] = unidata::widths::whxy(src.wdt());
+                            auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
                             if (x == 1)   chr = toWIDE[0];
                             else          chr = len == 1 ? 32 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
                             if (chr == 0) chr = 32; // Null character is unsupported in SBCS codepages (eg 437) on win7/8.

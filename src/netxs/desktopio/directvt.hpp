@@ -1161,7 +1161,7 @@ namespace netxs::directvt
                         while (src != end)
                         {
                             auto& c = *src++;
-                            auto [w, h, x, y] = unidata::widths::whxy(c.wdt());
+                            auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
                             if (w < 2 && x < 2) put(c);
                             else
                             {
@@ -1170,7 +1170,7 @@ namespace netxs::directvt
                                     if (src != end)
                                     {
                                         auto& right = *src;
-                                        auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                        auto [rw, rh, rx, ry] = utf::matrix::whxy(right.wdt());
                                         if (rx == 1) left_half(c);
                                         else
                                         {
@@ -1206,7 +1206,7 @@ namespace netxs::directvt
                         {
                             auto& fore = *src++;
                             auto& back = *dst++;
-                            auto [w, h, x, y] = unidata::widths::whxy(fore.wdt());
+                            auto [w, h, x, y] = utf::matrix::whxy(fore.wdt());
                             if (w < 2)
                             {
                                 if (back != fore)
@@ -1218,7 +1218,7 @@ namespace netxs::directvt
                                         auto& f = *src++;
                                         auto& b = *dst++;
                                         //auto fw = f.wdt();
-                                        auto [fw, fh, fx, fy] = unidata::widths::whxy(f.wdt());
+                                        auto [fw, fh, fx, fy] = utf::matrix::whxy(f.wdt());
                                         if (fw < 2)
                                         {
                                             if (b == f) break;
@@ -1237,7 +1237,7 @@ namespace netxs::directvt
                                                 }
                                                 else
                                                 {
-                                                    auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                                    auto [rw, rh, rx, ry] = utf::matrix::whxy(right.wdt());
                                                     if (rx == 1) left_half(f);
                                                     else // right.wdt() == 3
                                                     {
@@ -1263,7 +1263,7 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                            auto [rw, rh, rx, ry] = utf::matrix::whxy(right.wdt());
                                             if (rx == 1) left_half(fore);
                                             else // right.wdt() == 3
                                             {
@@ -1279,7 +1279,7 @@ namespace netxs::directvt
                                         if (src != end)
                                         {
                                             auto& right = *src;
-                                            auto [rw, rh, rx, ry] = unidata::widths::whxy(right.wdt());
+                                            auto [rw, rh, rx, ry] = utf::matrix::whxy(right.wdt());
                                             if (rx == 1) mov(src - beg), left_half(fore);
                                             else // right.wdt() == 3
                                             {

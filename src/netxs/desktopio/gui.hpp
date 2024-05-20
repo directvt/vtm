@@ -16,51 +16,66 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto vss11 = utf::vss<11,00>;
-    auto vss21 = utf::vss<21,00>;
-    auto vss31 = utf::vss<31,00>;
-    auto vss41 = utf::vss<41,00>;
+    auto vss11 = utf::matrix::vss<11,00>;
+    auto vss21 = utf::matrix::vss<21,00>;
+    auto vss21_01 = utf::matrix::vss<21,01>;
+    auto vss21_21 = utf::matrix::vss<21,21>;
+    auto vss21_11 = utf::matrix::vss<21,11>;
+    auto vss31 = utf::matrix::vss<31,00>;
+    auto vss41 = utf::matrix::vss<41,00>;
+    auto vss51 = utf::matrix::vss<51,00>;
+    auto vss84_01 = utf::matrix::vss<84,01>;
+    auto vss84_02 = utf::matrix::vss<84,02>;
+    auto vss84_03 = utf::matrix::vss<84,03>;
+    auto vss84_04 = utf::matrix::vss<84,04>;
+    auto vss22_01 = utf::matrix::vss<22,01>;
+    auto vss22_02 = utf::matrix::vss<22,02>;
+    auto vss42_01 = utf::matrix::vss<42,01>;
+    auto vss42_02 = utf::matrix::vss<42,02>;
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
         //.add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
         //.add("\002च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
         // \U0000A8FB
-        .add("अ\002नुच्छेद", vss41, " १.\n"     // अनुच्छेद १.
+        .add("\002अनुच्छेद", vss51, " १.\n"     // अनुच्छेद १.
              "\002सभी", vss31, " \002मनुष्यों", vss41, " को", vss21, " \002गौरव", vss31, " \002और", vss31, " \002अधिका", vss41, "\002रों", vss21, " के", vss21, " \002मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "ज\002न्मजात", vss41, " \002स्वतन्त्र", vss41, "\002ता", vss21, " \002और", vss31, " \002समान", vss31, "\002ता", vss21, " \002प्राप्त", vss31, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
-             "\002उन्हें", vss31, " \002बुद्धि", vss31, " \002और", vss31, " अ\002न्तरात्मा", vss41, " की", vss21, " \002देन", vss21, " \002प्राप्त", vss31, " है \002और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\002परस्पर", vss41, " \002उन्हें", vss31, " \002भाईचा", vss41, "\002रे", vss11, " के", vss21, " \002भाव", vss31, " से \002बर्ताव", vss31, " \002करना", vss31, " \002चाहिए", vss31, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
+             "\002जन्मजात", vss51, " \002स्वतन्त्रता", vss51, " \002और", vss31, " \002समान", vss31, "\002ताप्राप्त", vss51, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
+             "\002उन्हें", vss31, " \002बुद्धि", vss31, " \002और", vss31, " \002अन्तरात्मा", vss51, " की", vss21, " \002देन", vss21, " \002प्राप्त", vss31, " है \002और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\002परस्पर", vss41, " \002उन्हें", vss31, " \002भाईचारे", vss51, " के", vss21, " \002भाव", vss31, " से \002बर्ताव", vss31, " \002करना", vss31, " \002चाहिए", vss41, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
                         .add("\n")
-        //.add("❤").add(utf::vss<21,00>).add("<VS21_00 ").add("😎").add(utf::vss<11,00>).add("<VS11_00 ").add("👩‍👩‍👧‍👧").add(utf::vss<31,00>).add("<VS31_00\n")
-        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾").add(utf::vss<21,00>).add("<VS21_00 😎").add(utf::vss<11,00>).add("<VS11_00 ").add("😎").add(utf::vss<21,00>).add("<VS21_00 ").add("❤").add(utf::vss<11,00>).add("<VS11_00 ").add("❤").add(utf::vss<21,00>).add("<VS21_00\n")
-        .add("😎").add(utf::vss<21,11>).add(" 😃").add(utf::vss<21,21>).add("<VS21_11/VS21_21\n")
-                        .add("\n")
-        .add("Advanced ").add("T").add(utf::vss<22,01>)
-                        .add("e").add(utf::vss<22,01>)
-                        .add("r").add(utf::vss<22,01>)
-                        .add("m").add(utf::vss<22,01>)
-                        .add("i").add(utf::vss<22,01>)
-                        .add("n").add(utf::vss<22,01>)
-                        .add("a").add(utf::vss<22,01>)
-                        .add("l").add(utf::vss<22,01>)
-                        .add("\n")
-        .add("Terminal ").add("T").add(utf::vss<22,02>)
-                        .add("e").add(utf::vss<22,02>)
-                        .add("r").add(utf::vss<22,02>)
-                        .add("m").add(utf::vss<22,02>)
-                        .add("i").add(utf::vss<22,02>)
-                        .add("n").add(utf::vss<22,02>)
-                        .add("a").add(utf::vss<22,02>)
-                        .add("l").add(utf::vss<22,02>)
-                        .add("\n")
+        //.add("❤", vss21, "<VS21_00 😎", vss11, "<VS11_00 👩‍👩‍👧‍👧", vss31, "<VS31_00\n")
+        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss21, "<VS21_00 😎", vss11, "<VS11_00 😎", vss21, "<VS21_00 ❤", vss11, "<VS11_00 ❤", vss21, "<VS21_00\n")
+        .add("😎", vss21_11, " 😃", vss21_21, "<VS21_11/VS21_21\n")
+        .add("😎", vss84_01, " <VS84_00\n")
+        .add("😎", vss84_02, "\n")
+        .add("😎", vss84_03, "\n")
+        .add("😎", vss84_04, "\n")
+        .add("Advanced ").add("T", vss22_01)
+                         .add("e", vss22_01)
+                         .add("r", vss22_01)
+                         .add("m", vss22_01)
+                         .add("i", vss22_01)
+                         .add("n", vss22_01)
+                         .add("a", vss22_01)
+                         .add("l", vss22_01)
+                         .add("\n")
+        .add("Terminal ").add("T", vss22_02)
+                         .add("e", vss22_02)
+                         .add("r", vss22_02)
+                         .add("m", vss22_02)
+                         .add("i", vss22_02)
+                         .add("n", vss22_02)
+                         .add("a", vss22_02)
+                         .add("l", vss22_02)
+                         .add("\n")
         .add("Emulator ").fgc(tint::pureyellow)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>)
-                        .add("★").add(utf::vss<21,00>).fgc(tint::purecyan)
-                        .add("☆").add(utf::vss<21,00>)
+                        .add("★", vss21)
+                        .add("★", vss21)
+                        .add("★", vss21)
+                        .add("★", vss21)
+                        .add("★", vss21)
+                        .add("★", vss21)
+                        .add("★", vss21).fgc(tint::purecyan)
+                        .add("☆", vss21)
                         .add("\n")
                         .add("\n")
                         //.add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
@@ -71,14 +86,14 @@ namespace netxs::gui
                         //     "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
                         //     "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
                         //.add("\n")
-        .add("😎").add(utf::vss<42,01>).add(" <VS42_00\n")
-        .add("😎").add(utf::vss<42,02>).add("\n")
+        .add("😎", vss42_01, " <VS42_00\n")
+        .add("😎", vss42_02, "\n")
                         .add("\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵").add(utf::vss<11,00>).add("🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
+                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss11, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
@@ -752,7 +767,7 @@ namespace netxs::gui
             auto& glyph_mask = iter->second;
             if (!glyph_mask.area) return;
 
-            auto [w, h, x, y] = unidata::widths::whxy(v);
+            auto [w, h, x, y] = utf::matrix::whxy(v);
             if (x ==0 || y == 0) return;
             auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
             canvas.clip(placeholder);
@@ -1161,14 +1176,9 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
-            //canvas_page.batch.front()->lyric->begin()->txt2("क्ष", unidata::widths::vs<11,11>);
-            //canvas_page.batch.front()->lyric->begin()->txt2("ङ्क", unidata::widths::vs<11,11>);
-            //canvas_page.batch.front()->lyric->begin()->txt2("क्व", unidata::widths::vs<11,11>);
-            //canvas_page.batch.front()->lyric->begin()->txt2("च्छे", unidata::widths::vs<11,11>);
-            
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
-            main_grid.output(canvas_page);
+            main_grid.output<true>(canvas_page);
             head_grid.size(layers[header].area.size / cellsz);
             head_grid.cup(dot_00);
             head_grid.output(header_page);
@@ -1209,7 +1219,7 @@ namespace netxs::gui
             //todo temp
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
-            main_grid.output(canvas_page);
+            main_grid.output<true>(canvas_page);
             head_grid.size(layers[header].area.size / cellsz);
             head_grid.cup(dot_00);
             head_grid.output(header_page);

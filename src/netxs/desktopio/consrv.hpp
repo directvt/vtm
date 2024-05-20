@@ -1314,8 +1314,8 @@ struct impl : consrv
                     {
                         server.uiterm.update([&]
                         {
-                            static auto empty = cell{ emptyspace }.wdt(unidata::widths::vs<11,11>);
-                            static auto erase = cell{ whitespace }.wdt(unidata::widths::vs<11,11>);
+                            static auto empty = cell{ emptyspace }.wdt(utf::matrix::vs<11,11>);
+                            static auto erase = cell{ whitespace }.wdt(utf::matrix::vs<11,11>);
                             auto& term = *server.uiterm.target;
                             auto& data = line.content();
                             auto  size = line.length();
@@ -3346,7 +3346,7 @@ struct impl : consrv
                     {
                         if (skip == src.Char.UnicodeChar)
                         {
-                            dst.txt(toUTF8, unidata::widths::vs<21,21>);
+                            dst.txt(toUTF8, utf::matrix::vs<21,21>);
                             skip = {};
                             return;
                         }
@@ -3359,35 +3359,35 @@ struct impl : consrv
                         auto& prop = unidata::select(code);
                         if (prev) // Surrogate pair.
                         {
-                            if (prop.cmatrix == unidata::widths::vs<21,00>)
+                            if (prop.ucwidth == unidata::widths::wide)
                             {
-                                prev->txt(toUTF8, unidata::widths::vs<21,11>);
-                                dst  .txt(toUTF8, unidata::widths::vs<21,21>);
+                                prev->txt(toUTF8, utf::matrix::vs<21,11>);
+                                dst  .txt(toUTF8, utf::matrix::vs<21,21>);
                             }
                             else // Narrow surrogate pair.
                             {
-                                prev->txt(toUTF8, unidata::widths::vs<11,11>);
+                                prev->txt(toUTF8, utf::matrix::vs<11,11>);
                                 dst.txt(whitespace);
                             }
                             prev = {};
                         }
                         else
                         {
-                            if (prop.cmatrix == unidata::widths::vs<21,00>)
+                            if (prop.ucwidth == unidata::widths::wide)
                             {
                                 if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
                                 {
-                                    dst.txt(toUTF8, unidata::widths::vs<21,21>); // Right half of wide char.
+                                    dst.txt(toUTF8, utf::matrix::vs<21,21>); // Right half of wide char.
                                 }
                                 else
                                 {
-                                    dst.txt(toUTF8, unidata::widths::vs<21,11>); // Left half of wide char.
+                                    dst.txt(toUTF8, utf::matrix::vs<21,11>); // Left half of wide char.
                                     skip = src.Char.UnicodeChar;
                                 }
                             }
                             else
                             {
-                                dst.txt(toUTF8, unidata::widths::vs<11,11>); // Narrow character.
+                                dst.txt(toUTF8, utf::matrix::vs<11,11>); // Narrow character.
                             }
                         }
                         code = {};
@@ -3532,18 +3532,18 @@ struct impl : consrv
                     auto c = cell{ toUTF8 };
                     auto v = c.wdt();
                     if (count > maxsz) count = std::max(0, maxsz);
-                    auto [w, h, x, y] = unidata::widths::whxy(v);
+                    auto [w, h, x, y] = utf::matrix::whxy(v);
                     count *= w;
                     filler.kill();
                     filler.size(count, c);
-                    if (v == unidata::widths::vs<21,00>)
+                    if (v == utf::matrix::vs<21,00>)
                     {
                         auto head = filler.begin();
                         auto tail = filler.end();
                         while (head != tail)
                         {
-                            (head++)->wdt(unidata::widths::vs<21,11>);
-                            (head++)->wdt(unidata::widths::vs<21,21>);
+                            (head++)->wdt(utf::matrix::vs<21,11>);
+                            (head++)->wdt(utf::matrix::vs<21,21>);
                         }
                     }
                     if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::text); }))
@@ -3670,7 +3670,7 @@ struct impl : consrv
                 while (head != tail)
                 {
                     auto& src = *head++;
-                    auto [w, h, x, y] = unidata::widths::whxy(src.wdt());
+                    auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
                     if (x == 1) toUTF8 += src.txt();
                 }
                 if (packet.input.etype == type::ansiOEM)
@@ -3813,7 +3813,7 @@ struct impl : consrv
                         dst.Attributes = attr;
                         toWIDE.clear();
                         utf::to_utf(src.txt(), toWIDE);
-                        auto [w, h, x, y] = unidata::widths::whxy(src.wdt());
+                        auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
                         auto wdt = w == 0 ? 0 : w == 2 && x == 2 ? 3 : w == 2 && x == 1 ? 2 : 1;
                         auto& c = dst.Char.UnicodeChar;
                         if (toWIDE.size())
@@ -3879,7 +3879,7 @@ struct impl : consrv
                             dst.Attributes = attr;
                             auto utf8 = src.txt();
                             //auto wdt = src.wdt();
-                            auto [w, h, x, y] = unidata::widths::whxy(src.wdt());
+                            auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
                             auto wdt = w == 0 ? 0 : w == 2 && x == 2 ? 3 : w == 2 && x == 1 ? 2 : 1;
                             set_half(wdt, dst.Attributes);
                             toANSI.clear();
