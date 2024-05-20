@@ -911,7 +911,7 @@ namespace netxs::unidata
             auto j = 0;
             auto s = 0;
             auto l = 0;
-            for (auto i = 0; i < v.size(); i++)
+            for (auto i = 0u; i < v.size(); i++)
             {
                 if (l == 0)
                 {
