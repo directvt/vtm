@@ -3530,13 +3530,12 @@ struct impl : consrv
                     }
                     log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     auto c = cell{ toUTF8 };
-                    auto v = c.wdt();
+                    auto [w, h, x, y] = c.whxy();
                     if (count > maxsz) count = std::max(0, maxsz);
-                    auto [w, h, x, y] = utf::matrix::whxy(v);
                     count *= w;
                     filler.kill();
                     filler.size(count, c);
-                    if (v == utf::matrix::vs<21,00>)
+                    if (w == 2 && h == 1 && x == 0 && y == 0)
                     {
                         auto head = filler.begin();
                         auto tail = filler.end();
@@ -3670,7 +3669,7 @@ struct impl : consrv
                 while (head != tail)
                 {
                     auto& src = *head++;
-                    auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
+                    auto [w, h, x, y] = src.whxy();
                     if (x == 1) toUTF8 += src.txt();
                 }
                 if (packet.input.etype == type::ansiOEM)
@@ -3813,7 +3812,7 @@ struct impl : consrv
                         dst.Attributes = attr;
                         toWIDE.clear();
                         utf::to_utf(src.txt(), toWIDE);
-                        auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
+                        auto [w, h, x, y] = src.whxy();
                         auto wdt = w == 0 ? 0 : w == 2 && x == 2 ? 3 : w == 2 && x == 1 ? 2 : 1;
                         auto& c = dst.Char.UnicodeChar;
                         if (toWIDE.size())
@@ -3878,8 +3877,7 @@ struct impl : consrv
                             }
                             dst.Attributes = attr;
                             auto utf8 = src.txt();
-                            //auto wdt = src.wdt();
-                            auto [w, h, x, y] = utf::matrix::whxy(src.wdt());
+                            auto [w, h, x, y] = src.whxy();
                             auto wdt = w == 0 ? 0 : w == 2 && x == 2 ? 3 : w == 2 && x == 1 ? 2 : 1;
                             set_half(wdt, dst.Attributes);
                             toANSI.clear();

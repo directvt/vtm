@@ -1679,7 +1679,7 @@ namespace netxs::ui
                 auto sym = utf::to_utf_from_code(c);
                 auto tmp = parser::brush;
                 parser::brush.txt(sym);
-                auto [w, h, x, y] = utf::matrix::whxy(parser::brush.wdt());
+                auto [w, h, x, y] = parser::brush.whxy();
                 if (w != 1)
                 {
                     area.size.x /= w;

@@ -498,7 +498,7 @@ namespace netxs::gui
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
-            if (c.wdt() == 0) return;
+            if (c.xy() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
             auto monochromatic = faux;
@@ -753,8 +753,7 @@ namespace netxs::gui
             if (c.stk()) { }
             if (c.ovr()) { }
             if (c.inv()) { }
-            auto v = c.wdt();
-            if (v == 0) return;
+            if (c.xy() == 0) return;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
@@ -767,8 +766,8 @@ namespace netxs::gui
             auto& glyph_mask = iter->second;
             if (!glyph_mask.area) return;
 
-            auto [w, h, x, y] = utf::matrix::whxy(v);
-            if (x ==0 || y == 0) return;
+            auto [w, h, x, y] = c.whxy();
+            if (x == 0 || y == 0) return;
             auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
             canvas.clip(placeholder);
             //canvas.clip(canvas.area());

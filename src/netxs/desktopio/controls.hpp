@@ -829,23 +829,27 @@ namespace netxs::ui
                         if (area)
                         {
                             auto& test = canvas.peek(body.coor);
-                            if (test.wdt() == utf::matrix::vs<21,11>) // Extend cursor to adjacent halves.
+                            //todo >2x1 matrix support
+                            auto [w, h, x, y] = test.whxy();
+                            if (w == 2 && x == 1) // Extend cursor to adjacent halves.
                             {
                                 if (clip.hittest(body.coor + dot_10))
                                 {
                                     auto& next = canvas.peek(body.coor + dot_10);
-                                    if (next.wdt() == utf::matrix::vs<21,21> && test.same_txt(next))
+                                    auto [nw, nh, nx, ny] = next.whxy();
+                                    if (nw == 2 && nx == 2 && test.same_txt(next))
                                     {
                                         area.size.x++;
                                     }
                                 }
                             }
-                            else if (test.wdt() == utf::matrix::vs<21,21>)
+                            else if (w == 2 && x == 2)
                             {
                                 if (clip.hittest(body.coor - dot_10))
                                 {
                                     auto& prev = canvas.peek(body.coor - dot_10);
-                                    if (prev.wdt() == utf::matrix::vs<21,11> && test.same_txt(prev))
+                                    auto [pw, ph, px, py] = prev.whxy();
+                                    if (pw == 2 && px == 1 && test.same_txt(prev))
                                     {
                                         area.size.x++;
                                         area.coor.x--;

@@ -591,6 +591,7 @@ namespace netxs::ui
                 while (dest < tail)
                 {
                     auto c = *data++;
+                    //todo use c.whxy()
                     auto v = c.wdt();
                     if (v == utf::matrix::vs<11,00>)
                     {
@@ -1275,6 +1276,7 @@ namespace netxs::ui
                 caret--;
                 auto& line = content();
                 auto  iter = line.begin() + caret;
+                //todo use whxy
                 if (iter->wdt() == utf::matrix::vs<21,21> && caret > 0 && (--iter)->wdt() == utf::matrix::vs<21,11>)
                 {
                     caret--;
@@ -1306,6 +1308,7 @@ namespace netxs::ui
                 auto& line = content();
                 auto  iter = line.begin() + caret;
                 caret++;
+                //todo use whxy
                 if (iter->wdt() == utf::matrix::vs<21,11> && caret < length() && (++iter)->wdt() == utf::matrix::vs<21,21>)
                 {
                     caret++;
@@ -1334,7 +1337,7 @@ namespace netxs::ui
         {
             if (!inserting) del_gc_fwd();
             else            caret_check();
-            auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
+            auto [w, h, x, y] = c.whxy();
             auto& line = content();
             if (w == 2)
             {
@@ -1368,7 +1371,7 @@ namespace netxs::ui
                     auto size = length();
                     if (caret < size)
                     {
-                        auto [w, h, x, y] = utf::matrix::whxy(at(caret).wdt());
+                        auto [w, h, x, y] = at(caret).whxy();
                         if (w != 1 && x != 1) // Broken cluster.
                         {
                             auto& line = content();
@@ -1460,6 +1463,7 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
+                    //todo use whxy
                     if ((iter1++)->wdt() == utf::matrix::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
                     if ((iter2++)->wdt() == utf::matrix::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
                 }
@@ -2021,7 +2025,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell& c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan(dest.base, dest);
+                    }
                 });
             }
             auto vect = std::vector<argb>(dest.clrs.size());
@@ -2142,7 +2150,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan(dest.base, dest);
+                    }
                 });
             }
             if (dest.data.size()) dest.data += "</span>";
@@ -2212,7 +2224,11 @@ namespace netxs::ui
                 curln.lyric->each([&](cell c)
                 {
                     if (c.isspc()) c.txt(whitespace);
-                    if (c.wdt() != utf::matrix::vs<21,21>) c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                    auto [w, h, x, y] = c.whxy();
+                    if (x == 1) // Capture the first cell only.
+                    {
+                        c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                    }
                 });
             }
             return dest.data;

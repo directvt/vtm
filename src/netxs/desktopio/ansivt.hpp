@@ -460,23 +460,26 @@ namespace netxs::ansi
             };
             auto allfx = [&](cell const& c)
             {
-                auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
-                if (w < 2) // Narrow character
+                auto [cw, ch, cx, cy] = c.whxy();
+                if (cw < 2) // Narrow character
                 {
-                    if (state.wdt() == utf::matrix::vs<21,11>) badfx(); // Left part alone
+                    auto [w, h, x, y] = state.whxy();
+                    if (x == 1) badfx(); // Left part alone
                     c.scan<svga::vtrgb, UseSGR>(state, block);
                 }
                 else
                 {
-                    if (w == 2 && x == 1) // Left part
+                    if (cw == 2 && cx == 1) // Left part
                     {
-                        if (state.wdt() == utf::matrix::vs<21,11>) badfx();  // Left part alone
+                        auto [w, h, x, y] = state.whxy();
+                        if (x == 1) badfx(); // Left part alone
                         c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
-                    else if (w == 2 && x == 2) // Right part
+                    else if (cw == 2 && cx == 2) // Right part
                     {
-                        if (state.wdt() == utf::matrix::vs<21,11>)
+                        auto [w, h, x, y] = state.whxy();
+                        if (w == 2 && x == 1)
                         {
                             if (state.check_pair(c))
                             {
@@ -493,15 +496,16 @@ namespace netxs::ansi
                         else
                         {
                             c.scan_attr<svga::vtrgb, UseSGR>(state, block);
-                            if (state.wdt() == 0) side_badfx(); // Right part alone at the left side
-                            else                  badfx(); // Right part alone
+                            if (state.xy() == 0) side_badfx(); // Right part alone at the left side
+                            else                 badfx(); // Right part alone
                         }
                     }
                 }
             };
             auto eolfx = [&]
             {
-                if (state.wdt() == utf::matrix::vs<21,11>) side_badfx();  // Left part alone at the right side
+                auto [w, h, x, y] = state.whxy();
+                if (x == 1) side_badfx();  // Left part alone at the right side
                 state.set_gc();
                 basevt::eol();
             };
@@ -1673,7 +1677,7 @@ namespace netxs::ansi
         void assign(auto n, auto c)
         {
             proto_cells.assign(n, c);
-            auto [w, h, x, y] = utf::matrix::whxy(c.wdt());
+            auto [w, h, x, y] = c.whxy();
             auto wdt = x == 0 ? w : 1;
             data(n * wdt, proto_cells);
             proto_cells.clear();

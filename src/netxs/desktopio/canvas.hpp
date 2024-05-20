@@ -1835,16 +1835,21 @@ namespace netxs
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        // cell: Return cluster matrix metadata.
+        // deprecated: use whxy instead.
         si32  wdt() const
         {
             auto xy = st.xy();
-            auto x = xy & 0xf;
+            auto x = xy & 0xF;
             auto y = xy >> 4;
             auto w = gc.props.sizex + 1;
             auto h = gc.props.sizey + 1;
             return utf::matrix::s(w, h, x, y);
         }
+        // cell: Return cluster matrix metadata.
+        auto whxy() const  { return std::tuple{ (si32)(gc.props.sizex + 1),
+                                                (si32)(gc.props.sizey + 1),
+                                                (si32)(st.attrs.mosaic & 0xF),
+                                                (si32)(st.attrs.mosaic >> 4) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
@@ -1878,7 +1883,7 @@ namespace netxs
             {
                 if (uv.bg == c.uv.bg)
                 {
-                    if (wdt() == 0 || txt().front() == ' ')
+                    if (xy() == 0 || txt().front() == ' ')
                     {
                         return true;
                     }
@@ -2878,6 +2883,7 @@ namespace netxs
                 auto allfx = [&](auto& c)
                 {
                     auto txt = c.txt();
+                    //todo use whxy
                     auto not_right_half = c.wdt() != right_half;
                     if (not_right_half && !check(txt)) return true;
                     count++;
