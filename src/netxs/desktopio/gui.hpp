@@ -90,6 +90,11 @@ namespace netxs::gui
         .add("😎", vss42_02, "\n")
                         .add("\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+        .fgc(purered).bgc(pureblue).add(" test \n")
+        .fgc(puregreen).bgc(pureblue).add(" test \n")
+        .fgc(purecyan).bgc(purered).add(" test \n")
+        //.fgc(purewhite).bgc(pureblack).add(" test \n")
+        .bgc(argb{})
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
@@ -661,7 +666,7 @@ namespace netxs::gui
             hr = monochromatic ? DWRITE_E_NOCOLOR
                                : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
+            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED;
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
@@ -1277,7 +1282,7 @@ namespace netxs::gui
             auto fx = [&](cell& c)
             {
                 auto dc = x++ / m.x;
-                c.bgc(argb::transit(lc, rc, dc));
+                if (!c.bgc()) c.bgc(argb::transit(lc, rc, dc));
             };
             netxs::onrect(grid_cells, grid_cells.area(), fx, eol);
         }
@@ -1388,6 +1393,13 @@ namespace netxs::gui
         {
             auto wheeldt = delta / 120;
             auto kb = kbs();
+            //if (kb & hids::LCtrl)
+            //{
+            //    netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+            //    gcache.glyphs.clear();
+            //    reload |= task::all;
+            //    return;
+            //}
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
             //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
