@@ -538,7 +538,7 @@ namespace netxs::gui
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(codepoints.front().wscript) };
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
             auto fs = std::to_array<std::pair<ui32, ui32>>({{}
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 },
                                                           //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },

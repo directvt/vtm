@@ -255,21 +255,18 @@ namespace netxs::unidata
         ui32 ucwidth : 2; // 0 - zero, 1 - slim, 2 - wide.
         ui32 brgroup : 4;
         ui32 control : 7;
-        ui32 wscript : 10; // ISO 15924 Script No: 0 - 999.
-        //ui32 reserv : 9;
+        //ui32 reserv : 19;
 
         constexpr unidata(unidata const&) = default;
         constexpr unidata()
             : ucwidth{ widths::slim },
               brgroup{ gbreak::any },
-              control{ cntrls::non_control },
-              wscript{}
+              control{ cntrls::non_control }
         { }
         constexpr unidata(ui32 ucwidth, ui32 brgroup, ui32 control)
             : ucwidth{ ucwidth },
               brgroup{ brgroup },
-              control{ control },
-              wscript{}
+              control{ control }
         { }
         unidata(ui32 cp)
             : unidata{ select(cp) }
@@ -900,14 +897,18 @@ namespace netxs::unidata
         }
         return data;
     }
-
     unidata const& select(ui32 cp)
     {
-        static auto ucbase = []
+        static auto offset = unpack<byte>(base::offset_pack, base::offset_size);
+        static auto blocks = unpack<ui16>(base::blocks_pack, base::blocks_size);
+        return cp > 0x10FFFF ? base::ucspec[0]
+                             : base::ucspec[offset[blocks[cp >> 8] + (cp & 0xFF)]];
+    }
+    auto script(ui32 cp)
+    {
+        static auto data = []
         {
-            auto offset = unpack<byte>(base::offset_pack, base::offset_size);
-            auto blocks = unpack<ui16>(base::blocks_pack, base::blocks_size);
-            auto v = std::vector<unidata>(0x10FFFF);
+            auto v = std::vector<ui32>(0x10FFFF); // ISO 15924 Script No: 0 - 999.
             auto j = 0;
             auto s = 0;
             auto l = 0;
@@ -919,13 +920,11 @@ namespace netxs::unidata
                     l = base::scripts[j] >> 16;
                     j++;
                 }
-                auto& rec = v[i];
-                rec = base::ucspec[offset[blocks[i >> 8] + (i & 0xFF)]];
-                rec.wscript = s;
+                v[i] = s;
                 l--;
             }
             return v;
         }();
-        return cp > 0x10FFFF ? ucbase[0] : ucbase[cp];
+        return cp > 0x10FFFF ? data[0] : data[cp];
     }
 }
