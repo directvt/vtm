@@ -42,6 +42,11 @@ namespace netxs::utf
 
     static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
+    static constexpr auto vs10_code        = utfx{ 0x0000'FE09 };
+    static constexpr auto vs11_code        = utfx{ 0x0000'FE0A };
+    static constexpr auto vs12_code        = utfx{ 0x0000'FE0B };
+    static constexpr auto vs13_code        = utfx{ 0x0000'FE0C };
+    static constexpr auto vs14_code        = utfx{ 0x0000'FE0D };
     static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
     static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
 
@@ -52,6 +57,11 @@ namespace netxs::utf
                                                      : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
     template<utfx code>
     static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    static constexpr auto vs10 = utf8view<vs10_code>;
+    static constexpr auto vs11 = utf8view<vs11_code>;
+    static constexpr auto vs12 = utf8view<vs12_code>;
+    static constexpr auto vs13 = utf8view<vs13_code>;
+    static constexpr auto vs14 = utf8view<vs14_code>;
     static constexpr auto vs15 = utf8view<vs15_code>;
     static constexpr auto vs16 = utf8view<vs16_code>;
 

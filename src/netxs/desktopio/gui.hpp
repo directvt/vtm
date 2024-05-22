@@ -24,31 +24,40 @@ namespace netxs::gui
     auto vss31 = utf::matrix::vss<31,00>;
     auto vss41 = utf::matrix::vss<41,00>;
     auto vss51 = utf::matrix::vss<51,00>;
+    auto vss61 = utf::matrix::vss<61,00>;
+    auto vss81 = utf::matrix::vss<81,00>;
     auto vss84_01 = utf::matrix::vss<84,01>;
     auto vss84_02 = utf::matrix::vss<84,02>;
     auto vss84_03 = utf::matrix::vss<84,03>;
     auto vss84_04 = utf::matrix::vss<84,04>;
     auto vss22_01 = utf::matrix::vss<22,01>;
     auto vss22_02 = utf::matrix::vss<22,02>;
+    
+    auto vss24_01 = utf::matrix::vss<24,01>;
+    auto vss24_02 = utf::matrix::vss<24,02>;
+    auto vss24_03 = utf::matrix::vss<24,03>;
+    auto vss24_04 = utf::matrix::vss<24,04>;
+    
     auto vss42_01 = utf::matrix::vss<42,01>;
     auto vss42_02 = utf::matrix::vss<42,02>;
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
         //.add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
-        //.add("\002च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
+        //.add("\2च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
         // \U0000A8FB
-        .add("\002अनुच्छेद", vss51, " १.\n"     // अनुच्छेद १.
-             "\002सभी", vss31, " \002मनुष्यों", vss41, " को", vss21, " \002गौरव", vss31, " \002और", vss31, " \002अधिका", vss41, "\002रों", vss21, " के", vss21, " \002मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "\002जन्मजात", vss51, " \002स्वतन्त्रता", vss51, " \002और", vss31, " \002समान", vss31, "\002ताप्राप्त", vss51, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
-             "\002उन्हें", vss31, " \002बुद्धि", vss31, " \002और", vss31, " \002अन्तरात्मा", vss51, " की", vss21, " \002देन", vss21, " \002प्राप्त", vss31, " है \002और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\002परस्पर", vss41, " \002उन्हें", vss31, " \002भाईचारे", vss51, " के", vss21, " \002भाव", vss31, " से \002बर्ताव", vss31, " \002करना", vss31, " \002चाहिए", vss41, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
+        .add("\2अनुच्छेद", vss51, " १.\n"     // अनुच्छेद १.
+             "\2सभी", vss31, " \2मनुष्यों", vss41, " को", vss21, " \2गौरव", vss31, " \2और", vss31, " \2अधिकारों", vss61, " के", vss21, " \2मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
+             "\2जन्मजात", vss51, " \2स्वतन्त्रता", vss51, " \2और", vss31, " \2समानता", vss51, " \2प्राप्त", vss31, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
+             "\2उन्हें", vss31, " \2बुद्धि", vss31, " \2और", vss31, " \2अन्तरात्मा", vss51, " की", vss21, " \2देन", vss21, " \2प्राप्त", vss31, " है \2और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2परस्पर", vss41, " \2उन्हें", vss31, " \2भाईचारे", vss51, " के", vss21, " \2भाव", vss31, " से \2बर्ताव", vss31, " \2करना", vss31, " \2चाहिए", vss41, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
                         .add("\n")
         //.add("❤", vss21, "<VS21_00 😎", vss11, "<VS11_00 👩‍👩‍👧‍👧", vss31, "<VS31_00\n")
         .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss21, "<VS21_00 😎", vss11, "<VS11_00 😎", vss21, "<VS21_00 ❤", vss11, "<VS11_00 ❤", vss21, "<VS21_00\n")
         .add("😎", vss21_11, " 😃", vss21_21, "<VS21_11/VS21_21\n")
-        .add("😎", vss84_01, " <VS84_00\n")
-        .add("😎", vss84_02, "\n")
-        .add("😎", vss84_03, "\n")
-        .add("😎", vss84_04, "\n")
+        .add("\2Height", utf::vs10, vss24_01, "😎", vss84_01, " <VS84_00\n")
+        .add("\2Height", utf::vs10, vss24_02, "😎", vss84_02, "\n")
+        .add("\2Height", utf::vs10, vss24_03, "😎", vss84_03, "\n")
+        .add("\2Height", utf::vs10, vss24_04, "😎", vss84_04, "\n")
+        .add("  \2Width", vss81, "\n")
         .add("Advanced ").add("T", vss22_01)
                          .add("e", vss22_01)
                          .add("r", vss22_01)
@@ -464,6 +473,11 @@ namespace netxs::gui
                 : bits{ &pool },
                   type{ undef }
             { }
+            template<class Elem>
+            auto raster()
+            {
+                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() / sizeof(Elem) }, area };
+            }
         };
         struct color_layer
         {
@@ -506,12 +520,21 @@ namespace netxs::gui
             if (c.xy() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
+            auto flipandrotate = 0;
             auto monochromatic = faux;
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
-                     if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
-                else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
+                if (codepoint.cdpoint >= utf::vs10_code && codepoint.cdpoint <= utf::vs16_code)
+                {
+                         if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
+                    else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
+                    else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + 0b010) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100);
+                }
                 else codepoints.push_back(codepoint);
             }
             if (codepoints.empty()) return;
@@ -628,11 +651,16 @@ namespace netxs::gui
             };
             if (recalc_layout() != S_OK) return;
 
+            auto swapxy = flipandrotate & 1;
             auto matrix = c.mtx() * cellsz;
+            if (swapxy) std::swap(matrix.x, matrix.y);
             auto length = fp32{};
+            auto ppos = 0;
             for (auto i = 0u; i < glyf_count; ++i)
             {
-                length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
+                ppos += glyf_align[i].advanceOffset;
+                length = std::max(length, ppos + glyf_width[i]);
+                ppos += glyf_width[i];
             }
             if (length > matrix.x + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
             {
@@ -649,9 +677,10 @@ namespace netxs::gui
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
             }
-            else if (length < matrix.x - cellsz.x / 2.f) // Centrify glyph.
+            else if (length - base_line.x < matrix.x - cellsz.x / 2.f) // Centrify glyph.
             {
-                //base_line.x += (matrix.x - length) / 2.f;
+                base_line.x += (matrix.x - length + base_line.x) / 2.f;
+                //base_line.x += std::floor((matrix.x - length + base_line.x) / cellsz.x) * cellsz.x / 2.f;
             }
 
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
@@ -713,7 +742,7 @@ namespace netxs::gui
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
                 glyph_mask.bits.resize(l * sizeof(irgb));
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)l }, glyph_mask.area };
+                auto raster = glyph_mask.raster<irgb>();
                 for (auto& m : glyf_masks)
                 {
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
@@ -748,6 +777,78 @@ namespace netxs::gui
                 colored_glyphs->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
+            if (flipandrotate)
+            {
+                //todo optimize
+                static auto buffer = std::vector<byte>{};
+                buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
+                //if (glyph_mask.type == sprite::color)
+                {
+                    using yyy = byte;//irgb;
+                    auto count = buffer.size() / sizeof(yyy);
+                    auto src = netxs::raster{ std::span{ (yyy*)buffer.data(), count }, glyph_mask.area };
+                    auto mx = glyph_mask.area.size.x;
+                    auto my = glyph_mask.area.size.y;
+                    if (swapxy)
+                    {
+                        std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
+                        std::swap(glyph_mask.area.coor.x, glyph_mask.area.coor.y);
+                    }
+                    auto dst = glyph_mask.raster<yyy>();
+                    auto s__dx = 1;
+                    auto s__dy = mx;
+                    auto dmx = glyph_mask.area.size.x;
+                    auto dmy = glyph_mask.area.size.y;
+                    auto lut = std::to_array(
+                    {
+                        std::tuple{ 1,   dmx,  0, 0 }, // 0 00
+                        std::tuple{ -dmx,  1,  0, dmy - 1 }, // 0 01
+                        std::tuple{ -1, -dmx, dmx - 1, dmy - 1 }, // 0 10
+                        std::tuple{ dmx,  -1, dmx - 1, 0 }, // 0 11
+
+                        std::tuple{ 1,   dmx,  0, 0 }, // 1 00
+                        std::tuple{ 1,   dmx,  0, 0 }, // 1 01
+                        std::tuple{ 1,   dmx,  0, 0 }, // 1 10
+                        std::tuple{ 1,   dmx,  0, 0 }, // 1 11
+                    });
+                    auto [d__dx, d__dy, d__px, d__py] = lut[flipandrotate];
+                    auto s_beg = src.data();
+                    auto s_eol = s_beg + mx - 1;
+                    auto s_end = s_beg + count - 1;
+                    auto d_beg = dst.data() + d__px + d__py * dmx;
+                    auto d_eol = d_beg + (d__dx * (mx - 1));// + d__dx + 1);
+                    auto s_ptr = s_beg;
+                    auto d_ptr = d_beg;
+                    while (true)
+                    {
+                        *d_ptr = *s_ptr;
+                        if (s_ptr != s_eol) s_ptr += s__dx;
+                        else
+                        {
+                            if (s_ptr == s_end) break;
+                            s_beg += s__dy;
+                            s_ptr = s_beg;
+                            s_eol += s__dy;
+                        }
+                        if (d_ptr != d_eol) d_ptr += d__dx;
+                        else
+                        {
+                            d_beg += d__dy;
+                            d_ptr = d_beg;
+                            d_eol += d__dy;
+                        }
+                    }
+                    //netxs::xform_mirror(raster, auto clip_rect, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {});
+                    //if (flipandrotate & 0b11)
+                    //{
+                    //    glyph_mask;
+                    //}
+                    //if (flipandrotate & 0b100)
+                    //{
+                    //    glyph_mask;
+                    //}
+                }
+            }
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
