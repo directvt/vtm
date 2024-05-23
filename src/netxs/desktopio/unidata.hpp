@@ -920,7 +920,7 @@ namespace netxs::unidata
                     l = base::scripts[j] >> 16;
                     j++;
                 }
-                v[i] = s;
+                v[i] = (ui16)s;
                 l--;
             }
             return v;

@@ -735,6 +735,23 @@ namespace netxs::utf
     {
         to_utf(utf8.data(), utf8.size(), wide_text);
     }
+    void to_utf(std::vector<prop> const& codepoints, wide& wide_text)
+    {
+        for (auto& r : codepoints)
+        {
+            auto code = r.cdpoint;
+            if (code < 0xD800 || (code >= 0xE000 && code <= 0xFFFF))
+            {
+                wide_text.push_back((wchr)code);
+            }
+            else if (code > 0xFFFF && code <= 0x10FFFF) // surrogate pair
+            {
+                wide_text.append({ (wchr)(0xD800 + ((code - 0x10000) >> 10)),
+                                   (wchr)(0xDC00 + (code & 0x03FF)) });
+            }
+            else wide_text.push_back(replacement_code);
+        }
+    }
     wide to_utf(char const* utf8, size_t size)
     {
         auto wide_text = wide{};

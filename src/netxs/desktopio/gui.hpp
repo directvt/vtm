@@ -18,27 +18,41 @@ namespace netxs::gui
     //test strings
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        // \U0000A8FB
+    auto canvas_text = ansi::add("")
+        .wrp(wrap::on).fgc(tint::purecyan)
+        .itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
+                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n")
+        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n")
+        .add("\n")
+        .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
         .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
-             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
+             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
              "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
-             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
              "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
                         .add("\n")
         //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
         .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
         .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
-        .bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,11>).bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>, " <VS84_00\n")
-        .bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,12>).bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>, "\n")
-        .bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,13>).bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>, "\n")
-        .bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,14>).bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>, "\n")
-        .add("  ").bgc(blacklt).add("\2Width", vss<81,11>).bgc(blackdk).add("\2Width", vss<81,21>).bgc(blacklt).add("\2Width", vss<81,31>).bgc(blackdk).add("\2Width", vss<81,41>)
-                  .bgc(blacklt).add("\2Width", vss<81,51>).bgc(blackdk).add("\2Width", vss<81,61>).bgc(blacklt).add("\2Width", vss<81,71>).bgc(blackdk).add("\2Width", vss<81,81>)
-            .bgc(argb{}).add("\n")
+        .add("\n")
+        .add("G", vss<21>,                         "<VS21_00: WideG ").add("\2G", utf::vs15, utf::vs13, vss<21>,            "<VS13:      HzFlip          ").add("\2G", utf::vs15, utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
+        .add("\2G", utf::vs15, utf::vs10, vss<21>, "<VS10: 90°CCW   ").add("\2G", utf::vs15, utf::vs13, utf::vs10, vss<21>, "<VS10+VS13: HzFlip+90°CCW   ").add("\2G", utf::vs15, utf::vs14, utf::vs10, vss<21>, "<VS10+VS14: VtFlip+90°CCW\n")
+        .add("\2G", utf::vs15, utf::vs11, vss<21>, "<VS11: 180°CCW  ").add("\2G", utf::vs15, utf::vs13, utf::vs11, vss<21>, "<VS11+VS13: HzFlip+180°CCW  ").add("\2G", utf::vs15, utf::vs14, utf::vs11, vss<21>, "<VS11+VS14: VtFlip+180°CCW\n")
+        .add("\2G", utf::vs15, utf::vs12, vss<21>, "<VS12: 270°CCW  ").add("\2G", utf::vs15, utf::vs13, utf::vs12, vss<21>, "<VS12+VS13: HzFlip+270°CCW  ").add("\2G", utf::vs15, utf::vs14, utf::vs12, vss<21>, "<VS12+VS14: VtFlip+270°CCW\n")
+        .add("\n")
+        .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
+        .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,02>).add("\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,03>).add("\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,04>).add("\n")
+        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,41>)
+                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,81>)
+                  .fgc(purecyan).bgc(argb{}).add("<VS11\n")
         .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
         .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
-        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(tint::purecyan).add("☆", vss<21>, "\n")
+        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(purecyan).add("☆", vss<21>, "\n")
                         .add("\n")
         .add("😎", vss<42,01>, " <VS42_00\n")
         .add("😎", vss<42,02>, "\n")
@@ -49,11 +63,8 @@ namespace netxs::gui
         .fgc(purecyan).bgc(purered).add(" test \n")
         //.fgc(purewhite).bgc(pureblack).add(" test \n")
         .bgc(argb{})
-        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
-        .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
-        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
-        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n\n");
+        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\\n\n");
+
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
     auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};
@@ -503,7 +514,7 @@ namespace netxs::gui
             //                                   .glyphCount   = (ui32)gindex.size(),
             //                                   .glyphIndices = gindex.data() };
             text_utf16.clear();
-            utf::to_utf(c.txt(), text_utf16);
+            utf::to_utf(codepoints, text_utf16);
             auto text_count = (ui32)text_utf16.size();
             auto glyf_count = 3 * text_count / 2 + 16;
             glyf_index.resize(glyf_count);
@@ -607,6 +618,7 @@ namespace netxs::gui
                 length = std::max(length, ppos + glyf_width[i]);
                 ppos += glyf_width[i];
             }
+            length -= base_line.x;
             if (length > matrix.x + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
             {
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
@@ -622,9 +634,9 @@ namespace netxs::gui
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
             }
-            else if (length - base_line.x < matrix.x - cellsz.x) // Centrify glyph.
+            else if (length < matrix.x - cellsz.x) // Centrify glyph.
             {
-                base_line.x += (matrix.x - length + base_line.x) / 2.f;
+                base_line.x += (matrix.x - length) / 2.f;
                 //base_line.x += std::floor((matrix.x - length + base_line.x) / cellsz.x) * cellsz.x / 2.f;
             }
 
@@ -746,21 +758,20 @@ namespace netxs::gui
                     auto dmy = glyph_mask.area.size.y;
                     auto lut = std::to_array(
                     {
-                        std::tuple{ 1,   dmx,  0, 0 }, // 0 00
-                        std::tuple{ -dmx,  1,  0, dmy - 1 }, // 0 01
-                        std::tuple{ -1, -dmx, dmx - 1, dmy - 1 }, // 0 10
-                        std::tuple{ dmx,  -1, dmx - 1, 0 }, // 0 11
-
-                        std::tuple{ 1,   dmx,  0, 0 }, // 1 00
-                        std::tuple{ 1,   dmx,  0, 0 }, // 1 01
-                        std::tuple{ 1,   dmx,  0, 0 }, // 1 10
-                        std::tuple{ 1,   dmx,  0, 0 }, // 1 11
+                        std::tuple{    1,  dmx,       0,       0 }, // 0 00
+                        std::tuple{ -dmx,    1,       0, dmy - 1 }, // 0 01
+                        std::tuple{   -1, -dmx, dmx - 1, dmy - 1 }, // 0 10
+                        std::tuple{  dmx,   -1, dmx - 1,       0 }, // 0 11
+                        std::tuple{   -1,  dmx, dmx - 1,       0 }, // 1 00
+                        std::tuple{  dmx,    1,       0,       0 }, // 1 01
+                        std::tuple{    1, -dmx,       0, dmy - 1 }, // 1 10
+                        std::tuple{ -dmx,   -1, dmx - 1, dmy - 1 }, // 1 11
                     });
                     auto [d__dx, d__dy, d__px, d__py] = lut[flipandrotate];
-                    auto s_beg = src.data();
+                    auto s_beg = src.begin();
                     auto s_eol = s_beg + mx - 1;
                     auto s_end = s_beg + count - 1;
-                    auto d_beg = dst.data() + d__px + d__py * dmx;
+                    auto d_beg = dst.begin() + d__px + d__py * dmx;
                     auto d_eol = d_beg + (d__dx * (mx - 1));// + d__dx + 1);
                     auto s_ptr = s_beg;
                     auto d_ptr = d_beg;
