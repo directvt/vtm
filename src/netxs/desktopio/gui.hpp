@@ -756,23 +756,32 @@ namespace netxs::gui
                     auto s__dy = mx;
                     auto dmx = glyph_mask.area.size.x;
                     auto dmy = glyph_mask.area.size.y;
-                    auto lut = std::to_array(
-                    {
-                        std::tuple{    1,  dmx,       0,       0 }, // 0 00
-                        std::tuple{ -dmx,    1,       0, dmy - 1 }, // 0 01
-                        std::tuple{   -1, -dmx, dmx - 1, dmy - 1 }, // 0 10
-                        std::tuple{  dmx,   -1, dmx - 1,       0 }, // 0 11
-                        std::tuple{   -1,  dmx, dmx - 1,       0 }, // 1 00
-                        std::tuple{  dmx,    1,       0,       0 }, // 1 01
-                        std::tuple{    1, -dmx,       0, dmy - 1 }, // 1 10
-                        std::tuple{ -dmx,   -1, dmx - 1, dmy - 1 }, // 1 11
-                    });
-                    auto [d__dx, d__dy, d__px, d__py] = lut[flipandrotate];
+                    //auto lut = std::to_array(
+                    //{
+                    //    std::tuple{    1,  dmx,       0,       0 }, // 1  0 00
+                    //    std::tuple{ -dmx,    1,       0, dmy - 1 }, // 2  0 01
+                    //    std::tuple{   -1, -dmx, dmx - 1, dmy - 1 }, // 3  0 10
+                    //    std::tuple{  dmx,   -1, dmx - 1,       0 }, // 4  0 11
+                    //    std::tuple{   -1,  dmx, dmx - 1,       0 }, // 5  1 00
+                    //    std::tuple{  dmx,    1,       0,       0 }, // 6  1 01
+                    //    std::tuple{    1, -dmx,       0, dmy - 1 }, // 7  1 10
+                    //    std::tuple{ -dmx,   -1, dmx - 1, dmy - 1 }, // 8  1 11
+                    //});
+                    //auto [d__dx, d__dy, d__px, d__py] = lut[flipandrotate];
+                    static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
+                    static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
+                    auto sx = l0[flipandrotate];
+                    auto sy = l1[flipandrotate];
+                    auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
+                    auto d__dy = sy * ((flipandrotate & 0b1) ? 1   : dmx);
+                    if (flipandrotate & 0b100) std::swap(sx, sy);
+                    auto d__px = (sy > 0 ? 0 : dmx - 1);
+                    auto d__py = (sx > 0 ? 0 : dmy - 1);
                     auto s_beg = src.begin();
                     auto s_eol = s_beg + mx - 1;
                     auto s_end = s_beg + count - 1;
-                    auto d_beg = dst.begin() + d__px + d__py * dmx;
-                    auto d_eol = d_beg + (d__dx * (mx - 1));// + d__dx + 1);
+                    auto d_beg = dst.begin() + (d__px + d__py * dmx);
+                    auto d_eol = d_beg + d__dx * (mx - 1);
                     auto s_ptr = s_beg;
                     auto d_ptr = d_beg;
                     while (true)
@@ -794,15 +803,6 @@ namespace netxs::gui
                             d_eol += d__dy;
                         }
                     }
-                    //netxs::xform_mirror(raster, auto clip_rect, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {});
-                    //if (flipandrotate & 0b11)
-                    //{
-                    //    glyph_mask;
-                    //}
-                    //if (flipandrotate & 0b100)
-                    //{
-                    //    glyph_mask;
-                    //}
                 }
             }
         }
