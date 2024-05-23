@@ -16,87 +16,32 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto vss11 = utf::matrix::vss<11,00>;
-    auto vss21 = utf::matrix::vss<21,00>;
-    auto vss21_01 = utf::matrix::vss<21,01>;
-    auto vss21_21 = utf::matrix::vss<21,21>;
-    auto vss21_11 = utf::matrix::vss<21,11>;
-    auto vss31 = utf::matrix::vss<31,00>;
-    auto vss41 = utf::matrix::vss<41,00>;
-    auto vss51 = utf::matrix::vss<51,00>;
-    auto vss61 = utf::matrix::vss<61,00>;
-    auto vss81 = utf::matrix::vss<81,00>;
-    auto vss84_01 = utf::matrix::vss<84,01>;
-    auto vss84_02 = utf::matrix::vss<84,02>;
-    auto vss84_03 = utf::matrix::vss<84,03>;
-    auto vss84_04 = utf::matrix::vss<84,04>;
-    auto vss22_01 = utf::matrix::vss<22,01>;
-    auto vss22_02 = utf::matrix::vss<22,02>;
-    
-    auto vss24_01 = utf::matrix::vss<24,01>;
-    auto vss24_02 = utf::matrix::vss<24,02>;
-    auto vss24_03 = utf::matrix::vss<24,03>;
-    auto vss24_04 = utf::matrix::vss<24,04>;
-    
-    auto vss42_01 = utf::matrix::vss<42,01>;
-    auto vss42_02 = utf::matrix::vss<42,02>;
+    template<auto ...Args>
+    auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        //.add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
-        //.add("\2च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
         // \U0000A8FB
-        .add("\2अनुच्छेद", vss51, " १.\n"     // अनुच्छेद १.
-             "\2सभी", vss31, " \2मनुष्यों", vss41, " को", vss21, " \2गौरव", vss31, " \2और", vss31, " \2अधिकारों", vss61, " के", vss21, " \2मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "\2जन्मजात", vss51, " \2स्वतन्त्रता", vss51, " \2और", vss31, " \2समानता", vss51, " \2प्राप्त", vss31, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
-             "\2उन्हें", vss31, " \2बुद्धि", vss31, " \2और", vss31, " \2अन्तरात्मा", vss51, " की", vss21, " \2देन", vss21, " \2प्राप्त", vss31, " है \2और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\2परस्पर", vss41, " \2उन्हें", vss31, " \2भाईचारे", vss51, " के", vss21, " \2भाव", vss31, " से \2बर्ताव", vss31, " \2करना", vss31, " \2चाहिए", vss41, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
+        .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
+             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
+             "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
+             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
                         .add("\n")
-        //.add("❤", vss21, "<VS21_00 😎", vss11, "<VS11_00 👩‍👩‍👧‍👧", vss31, "<VS31_00\n")
-        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss21, "<VS21_00 😎", vss11, "<VS11_00 😎", vss21, "<VS21_00 ❤", vss11, "<VS11_00 ❤", vss21, "<VS21_00\n")
-        .add("😎", vss21_11, " 😃", vss21_21, "<VS21_11/VS21_21\n")
-        .add("\2Height", utf::vs10, vss24_01, "😎", vss84_01, " <VS84_00\n")
-        .add("\2Height", utf::vs10, vss24_02, "😎", vss84_02, "\n")
-        .add("\2Height", utf::vs10, vss24_03, "😎", vss84_03, "\n")
-        .add("\2Height", utf::vs10, vss24_04, "😎", vss84_04, "\n")
-        .add("  \2Width", vss81, "\n")
-        .add("Advanced ").add("T", vss22_01)
-                         .add("e", vss22_01)
-                         .add("r", vss22_01)
-                         .add("m", vss22_01)
-                         .add("i", vss22_01)
-                         .add("n", vss22_01)
-                         .add("a", vss22_01)
-                         .add("l", vss22_01)
-                         .add("\n")
-        .add("Terminal ").add("T", vss22_02)
-                         .add("e", vss22_02)
-                         .add("r", vss22_02)
-                         .add("m", vss22_02)
-                         .add("i", vss22_02)
-                         .add("n", vss22_02)
-                         .add("a", vss22_02)
-                         .add("l", vss22_02)
-                         .add("\n")
-        .add("Emulator ").fgc(tint::pureyellow)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21).fgc(tint::purecyan)
-                        .add("☆", vss21)
+        //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
+        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
+        .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
+        .bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,11>).bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>, " <VS84_00\n")
+        .bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,12>).bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>, "\n")
+        .bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,13>).bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>, "\n")
+        .bgc(tint::blackdk).add("\2Height", utf::vs10, vss<24,14>).bgc(tint::blacklt).add("\2Height", utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>, "\n")
+        .add("  ").bgc(blacklt).add("\2Width", vss<81,11>).bgc(blackdk).add("\2Width", vss<81,21>).bgc(blacklt).add("\2Width", vss<81,31>).bgc(blackdk).add("\2Width", vss<81,41>)
+                  .bgc(blacklt).add("\2Width", vss<81,51>).bgc(blackdk).add("\2Width", vss<81,61>).bgc(blacklt).add("\2Width", vss<81,71>).bgc(blackdk).add("\2Width", vss<81,81>)
+            .bgc(argb{}).add("\n")
+        .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
+        .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
+        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(tint::purecyan).add("☆", vss<21>, "\n")
                         .add("\n")
-                        .add("\n")
-                        //.add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                        //     "Terminal T\U000E0164e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                        //     "Emulator ★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0135").fgc(tint::pureyellow).add("☆\U000E0136☆\U000E0124\n\n").fgc(tint::purecyan)
-                        //.add("A\U000E0124d\U000E0124v\U000E0124a\U000E0124n\U000E0124c\U000E0124e\U000E0124d\U000E0124⚙\U0000FE0E\U000E0136\n"
-                        //     "T\U000E0187e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                        //     "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                        //     "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
-                        //.add("\n")
-        .add("😎", vss42_01, " <VS42_00\n")
-        .add("😎", vss42_02, "\n")
+        .add("😎", vss<42,01>, " <VS42_00\n")
+        .add("😎", vss<42,02>, "\n")
                         .add("\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
         .fgc(purered).bgc(pureblue).add(" test \n")
@@ -107,7 +52,7 @@ namespace netxs::gui
         .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
         .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss11, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
+                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n\n");
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
@@ -677,7 +622,7 @@ namespace netxs::gui
                 em_height = f.emheight * transform * glyf::dpi72_96;
                 if (recalc_layout() != S_OK) return;
             }
-            else if (length - base_line.x < matrix.x - cellsz.x / 2.f) // Centrify glyph.
+            else if (length - base_line.x < matrix.x - cellsz.x) // Centrify glyph.
             {
                 base_line.x += (matrix.x - length + base_line.x) / 2.f;
                 //base_line.x += std::floor((matrix.x - length + base_line.x) / cellsz.x) * cellsz.x / 2.f;

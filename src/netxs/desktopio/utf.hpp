@@ -89,7 +89,7 @@ namespace netxs::utf
         static constexpr auto vs_block = 0xD0000;
         template<si32 wh, si32 xy>
         static constexpr auto vs_code = vs_block + vs<wh, xy>;
-        template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
+        template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
         static constexpr auto vss = utf8view<code>;
 
         auto whxy(si32 vs)
