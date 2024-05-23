@@ -36,10 +36,10 @@ namespace netxs::gui
         .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
         .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
         .add("\n")
-        .add("G", vss<21>,                         "<VS21_00: WideG ").add("\2G", utf::vs15, utf::vs13, vss<21>,            "<VS13:      HzFlip          ").add("\2G", utf::vs15, utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
-        .add("\2G", utf::vs15, utf::vs10, vss<21>, "<VS10: 90°CCW   ").add("\2G", utf::vs15, utf::vs13, utf::vs10, vss<21>, "<VS10+VS13: HzFlip+90°CCW   ").add("\2G", utf::vs15, utf::vs14, utf::vs10, vss<21>, "<VS10+VS14: VtFlip+90°CCW\n")
-        .add("\2G", utf::vs15, utf::vs11, vss<21>, "<VS11: 180°CCW  ").add("\2G", utf::vs15, utf::vs13, utf::vs11, vss<21>, "<VS11+VS13: HzFlip+180°CCW  ").add("\2G", utf::vs15, utf::vs14, utf::vs11, vss<21>, "<VS11+VS14: VtFlip+180°CCW\n")
-        .add("\2G", utf::vs15, utf::vs12, vss<21>, "<VS12: 270°CCW  ").add("\2G", utf::vs15, utf::vs13, utf::vs12, vss<21>, "<VS12+VS13: HzFlip+270°CCW  ").add("\2G", utf::vs15, utf::vs14, utf::vs12, vss<21>, "<VS12+VS14: VtFlip+270°CCW\n")
+        .add("G", vss<21>,              "<VS21_00:WideG   ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
+        .add("\2G", utf::vs10, vss<21>, "<VS10:  90°CCW   ").add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS10+VS13: HzFlip+90°CCW    ").add("\2G", utf::vs14, utf::vs10, vss<21>, "<VS10+VS14: VtFlip+90°CCW\n")
+        .add("\2G", utf::vs11, vss<21>, "<VS11: 180°CCW   ").add("\2G", utf::vs13, utf::vs11, vss<21>, "<VS11+VS13: HzFlip+180°CCW   ").add("\2G", utf::vs14, utf::vs11, vss<21>, "<VS11+VS14: VtFlip+180°CCW\n")
+        .add("😎",  utf::vs12, vss<21>, "<VS12: 270°CCW   ").add("\2G", utf::vs13, utf::vs12, vss<21>, "<VS12+VS13: HzFlip+270°CCW   ").add("\2G", utf::vs14, utf::vs12, vss<21>, "<VS12+VS14: VtFlip+270°CCW\n")
         .add("\n")
         .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
         .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
@@ -738,12 +738,14 @@ namespace netxs::gui
             {
                 //todo optimize
                 static auto buffer = std::vector<byte>{};
+                static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
+                static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
                 buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
-                //if (glyph_mask.type == sprite::color)
+                auto xform = [&](auto elem)
                 {
-                    using yyy = byte;//irgb;
-                    auto count = buffer.size() / sizeof(yyy);
-                    auto src = netxs::raster{ std::span{ (yyy*)buffer.data(), count }, glyph_mask.area };
+                    using type = decltype(elem);
+                    auto count = buffer.size() / sizeof(type);
+                    auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
                     auto mx = glyph_mask.area.size.x;
                     auto my = glyph_mask.area.size.y;
                     if (swapxy)
@@ -751,25 +753,11 @@ namespace netxs::gui
                         std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
                         std::swap(glyph_mask.area.coor.x, glyph_mask.area.coor.y);
                     }
-                    auto dst = glyph_mask.raster<yyy>();
+                    auto dst = glyph_mask.raster<type>();
                     auto s__dx = 1;
                     auto s__dy = mx;
                     auto dmx = glyph_mask.area.size.x;
                     auto dmy = glyph_mask.area.size.y;
-                    //auto lut = std::to_array(
-                    //{
-                    //    std::tuple{    1,  dmx,       0,       0 }, // 1  0 00
-                    //    std::tuple{ -dmx,    1,       0, dmy - 1 }, // 2  0 01
-                    //    std::tuple{   -1, -dmx, dmx - 1, dmy - 1 }, // 3  0 10
-                    //    std::tuple{  dmx,   -1, dmx - 1,       0 }, // 4  0 11
-                    //    std::tuple{   -1,  dmx, dmx - 1,       0 }, // 5  1 00
-                    //    std::tuple{  dmx,    1,       0,       0 }, // 6  1 01
-                    //    std::tuple{    1, -dmx,       0, dmy - 1 }, // 7  1 10
-                    //    std::tuple{ -dmx,   -1, dmx - 1, dmy - 1 }, // 8  1 11
-                    //});
-                    //auto [d__dx, d__dy, d__px, d__py] = lut[flipandrotate];
-                    static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
-                    static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
                     auto sx = l0[flipandrotate];
                     auto sy = l1[flipandrotate];
                     auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
@@ -803,7 +791,8 @@ namespace netxs::gui
                             d_eol += d__dy;
                         }
                     }
-                }
+                };
+                glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
             }
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
