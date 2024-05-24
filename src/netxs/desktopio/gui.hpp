@@ -20,7 +20,7 @@ namespace netxs::gui
     auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::add("")
         .wrp(wrap::on).fgc(tint::purecyan)
-        .itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+        .bld(faux).itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n")
@@ -507,7 +507,8 @@ namespace netxs::gui
 
             auto transform = std::min((fp32)cellsz.x / f.facesize.x, (fp32)cellsz.y / f.facesize.y);
             auto base_line = fp2d{ 0, f.baseline * transform };
-            auto em_height = f.emheight * transform * glyf::dpi72_96;
+            auto italicfit = c.itc() ? 0.85f : 1.f;// + _k0*0.05f; //todo revise, or make it configurable via settings
+            auto em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
@@ -626,7 +627,7 @@ namespace netxs::gui
             {
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
                 transform *= (fp32)matrix.x / actual_width;
-                em_height = f.emheight * transform * glyf::dpi72_96;
+                em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
                 if (recalc_layout() != S_OK) return;
             }
             else if (length < matrix.x - cellsz.x / 2.f && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix.
@@ -634,7 +635,7 @@ namespace netxs::gui
                 auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
                 transform *= (fp32)matrix.x / actual_width;
                 base_line = fp2d{ 0, f.baseline * transform };
-                em_height = f.emheight * transform * glyf::dpi72_96;
+                em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
                 if (recalc_layout() != S_OK) return;
             }
             else if (length < matrix.x - cellsz.x) // Centrify glyph.
@@ -1447,6 +1448,7 @@ namespace netxs::gui
             //    netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //    gcache.glyphs.clear();
             //    reload |= task::all;
+            //    log("_k0=", _k0);
             //    return;
             //}
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
@@ -1560,11 +1562,11 @@ namespace netxs::gui
                 } v;
             };
             auto param = key_state{ .token = (ui32)lParam };
-            log("vkey: ", utf::to_hex(vkey),
-                " scode: ", utf::to_hex(param.v.scancode),
-                " state: ", param.v.state == 0 ? "pressed"
-                          : param.v.state == 1 ? "rep"
-                          : param.v.state == 3 ? "released" : "unknown");
+            //log("vkey: ", utf::to_hex(vkey),
+            //    " scode: ", utf::to_hex(param.v.scancode),
+            //    " state: ", param.v.state == 0 ? "pressed"
+            //              : param.v.state == 1 ? "rep"
+            //              : param.v.state == 3 ? "released" : "unknown");
             if (vkey == 0x1b) manager::close();
             kbs() = keybd_state();
             //auto s = keybd_state();
