@@ -73,7 +73,37 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 
-    enum class feed : byte { none, rev, fwd, };
+    enum class feed : byte { none, rev, fwd };
+
+    enum class slot { _1, _2, _I };
+
+    enum class sort { forward, reverse };
+
+    enum class snap
+    {
+        none,
+        head,
+        tail,
+        both,
+        center,
+    };
+
+    struct bind
+    {
+        snap x = snap::both;
+        snap y = snap::both;
+    };
+
+    enum axis { X, Y };
+
+    enum class axes
+    {
+        none   = 0,
+        X_only = 1 << 0,
+        Y_only = 1 << 1,
+        all    = X_only | Y_only,
+    };
+    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
     template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,

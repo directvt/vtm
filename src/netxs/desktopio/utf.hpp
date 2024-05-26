@@ -40,15 +40,18 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls;
 
-    static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
-    static constexpr auto vs10_code        = utfx{ 0x0000'FE09 };
-    static constexpr auto vs11_code        = utfx{ 0x0000'FE0A };
-    static constexpr auto vs12_code        = utfx{ 0x0000'FE0B };
-    static constexpr auto vs13_code        = utfx{ 0x0000'FE0C };
-    static constexpr auto vs14_code        = utfx{ 0x0000'FE0D };
-    static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
-    static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
+    static constexpr auto vs06_code = utfx{ 0x0000'FE05 };
+    static constexpr auto vs07_code = utfx{ 0x0000'FE06 };
+    static constexpr auto vs08_code = utfx{ 0x0000'FE07 };
+    static constexpr auto vs09_code = utfx{ 0x0000'FE08 };
+    static constexpr auto vs10_code = utfx{ 0x0000'FE09 };
+    static constexpr auto vs11_code = utfx{ 0x0000'FE0A };
+    static constexpr auto vs12_code = utfx{ 0x0000'FE0B };
+    static constexpr auto vs13_code = utfx{ 0x0000'FE0C };
+    static constexpr auto vs14_code = utfx{ 0x0000'FE0D };
+    static constexpr auto vs15_code = utfx{ 0x0000'FE0E };
+    static constexpr auto vs16_code = utfx{ 0x0000'FE0F };
 
     template<utfx code>
     static constexpr auto utf8bytes = code <= 0x007f ? std::array<char, 4>{ static_cast<char>(code) }
@@ -57,6 +60,11 @@ namespace netxs::utf
                                                      : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
     template<utfx code>
     static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    static constexpr auto replacement = utf8view<replacement_code>; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto vs06 = utf8view<vs06_code>;
+    static constexpr auto vs07 = utf8view<vs07_code>;
+    static constexpr auto vs08 = utf8view<vs08_code>;
+    static constexpr auto vs09 = utf8view<vs09_code>;
     static constexpr auto vs10 = utf8view<vs10_code>;
     static constexpr auto vs11 = utf8view<vs11_code>;
     static constexpr auto vs12 = utf8view<vs12_code>;

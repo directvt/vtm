@@ -20,16 +20,22 @@ namespace netxs::gui
     auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::add("")
         .wrp(wrap::on).fgc(tint::purecyan)
+        .add("\2aaa", utf::vs09, vss<22,01>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
+        .add("\2aaa", utf::vs09, vss<22,02>, "\n")
+        .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
+        //todo multiline graphemes
+        //.add("\2line1\nline2", vss<52,01>, "\n")
+        //.add("\2line1\nline2", vss<52,02>, "\n")
         .bld(faux).itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n")
+                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
         .fgc(tint::greenlt).add("Press Esc or Right click to close.\n")
         .add("\n")
         .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
         .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
              "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
              "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
-             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2उन्हें", vss<21>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
              "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
                         .add("\n")
         //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
@@ -464,6 +470,7 @@ namespace netxs::gui
         std::vector<ui16>                            glyf_index; // glyf: .
         std::vector<FLOAT>                           glyf_width; // glyf: .
         std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyf: .
+        std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyf: .
         std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyf: .
         std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
         std::vector<color_layer>                     glyf_masks; // glyf: .
@@ -481,10 +488,11 @@ namespace netxs::gui
             codepoints.clear();
             auto flipandrotate = 0;
             auto monochromatic = faux;
+            auto glyfalignment = bind{ snap::center, snap::center };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
-                if (codepoint.cdpoint >= utf::vs10_code && codepoint.cdpoint <= utf::vs16_code)
+                if (codepoint.cdpoint >= utf::vs06_code && codepoint.cdpoint <= utf::vs16_code)
                 {
                          if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
                     else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
@@ -493,6 +501,10 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011);
                     else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011);
                     else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::head;
+                    else if (codepoint.cdpoint == utf::vs07_code) glyfalignment.x = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs08_code) glyfalignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs09_code) glyfalignment.y = snap::tail;
                 }
                 else codepoints.push_back(codepoint);
             }
@@ -586,10 +598,9 @@ namespace netxs::gui
 
             glyf_width.resize(glyf_count);
             glyf_align.resize(glyf_count);
+            glyf_sizes.resize(glyf_count);
 
-            auto recalc_layout = [&]
-            {
-                return fcache.analyzer->GetGlyphPlacements(
+            hr = fcache.analyzer->GetGlyphPlacements(
                 text_utf16.data(),                 // _In_reads_(textLength) WCHAR const* textString,
                 clustermap.data(),                 // _In_reads_(textLength) UINT16 const* clusterMap,
                 text_props.data(),                 // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
@@ -608,40 +619,55 @@ namespace netxs::gui
                 1,                                 // UINT32 featureRanges,
                 glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                 glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-            };
-            if (recalc_layout() != S_OK) return;
+            if (hr != S_OK) return;
 
+            font_face->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
             auto swapxy = flipandrotate & 1;
             auto matrix = c.mtx() * cellsz;
             if (swapxy) std::swap(matrix.x, matrix.y);
             auto length = fp32{};
-            auto ppos = 0;
+            auto penpos = fp32{};
+            auto scale = transform * glyf::dpi72_96 * italicfit;
             for (auto i = 0u; i < glyf_count; ++i)
             {
-                ppos += glyf_align[i].advanceOffset;
-                length = std::max(length, ppos + glyf_width[i]);
-                ppos += glyf_width[i];
+                auto w = glyf_sizes[i].advanceWidth;
+                auto r = glyf_sizes[i].rightSideBearing;
+                auto bearing = ((si32)w - r) * scale;
+                auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
+                length = std::max<fp32>(length, right_most);
+                penpos += glyf_width[i];
             }
-            length -= base_line.x;
-            if (length > matrix.x + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
+            auto actual_width = std::floor((length + cellsz.x * 0.75f) / cellsz.x) * cellsz.x;
+            auto actual_height = (fp32)cellsz.y;
+            if (actual_width > matrix.x) // Check if the glyph exceeds the matrix. (scale down)
             {
-                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix.x / actual_width;
+                auto k = matrix.x / actual_width;
+                transform *= k;
+                actual_width = matrix.x;
                 em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
-                if (recalc_layout() != S_OK) return;
+                for (auto& w : glyf_width) w *= k;
+                for (auto& [h, v] : glyf_align) h *= k;
             }
-            else if (length < matrix.x - cellsz.x / 2.f && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix.
+            else if (actual_width <= matrix.x - cellsz.x && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix. (scale up)
             {
-                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix.x / actual_width;
+                auto k = std::min(matrix.x / actual_width, (fp32)matrix.y / cellsz.y);//em_height);
+                transform *= k;
+                actual_width *= k;//matrix.x;
+                actual_height *= k;
                 base_line = fp2d{ 0, f.baseline * transform };
                 em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
-                if (recalc_layout() != S_OK) return;
+                for (auto& w : glyf_width) w *= k;
+                for (auto& [h, v] : glyf_align) h *= k;
             }
-            else if (length < matrix.x - cellsz.x) // Centrify glyph.
+            if (actual_width <= matrix.x - cellsz.x / 2.f) // Hz alignment.
             {
-                base_line.x += (matrix.x - length) / 2.f;
-                //base_line.x += std::floor((matrix.x - length + base_line.x) / cellsz.x) * cellsz.x / 2.f;
+                     if (glyfalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                else if (glyfalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
+            }
+            if (actual_height < matrix.y - cellsz.y / 2.f) // Vt alignment.
+            {
+                     if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
+                else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
             }
 
             auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
@@ -738,7 +764,7 @@ namespace netxs::gui
                 colored_glyphs->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
-            if (flipandrotate)
+            if (glyph_mask.area && flipandrotate)
             {
                 //todo optimize
                 static auto buffer = std::vector<byte>{};
