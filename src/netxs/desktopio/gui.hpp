@@ -246,6 +246,8 @@ namespace netxs::gui
         std::vector<stat>              fontstat; // font: System font collection status list.
         std::vector<typeface>          fallback; // font: Fallback font list.
         wide                           oslocale; // font: User locale.
+        flag                           complete; // font: Fallback index is ready.
+        std::thread                    bgworker; // font: Background thread.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -278,7 +280,8 @@ namespace netxs::gui
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
               fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
-              oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
+              oslocale(LOCALE_NAME_MAX_LENGTH, '\0'),
+              complete{ faux }
         {
             if (!fontlist || !analyzer)
             {
@@ -316,59 +319,66 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            for (auto i = 0u; i < fontstat.size(); i++)
+            bgworker = std::thread{ [&]
             {
-                fontstat[i].i = i;
-                if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
+                for (auto i = 0u; i < fontstat.size(); i++)
                 {
-                    if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
+                    fontstat[i].i = i;
+                    if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
                     {
-                        fontstat[i].s |= fontcat::valid;
-                        if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
-                        if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
+                        if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
                         {
-                            if (typeface::iscolor(faceinst)) fontstat[i].s |= fontcat::color;
-                            auto numberOfFiles = ui32{};
-                            faceinst->GetFiles(&numberOfFiles, nullptr);
-                            auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
-                            if (S_OK == faceinst->GetFiles(&numberOfFiles, fontFiles.data()))
+                            fontstat[i].s |= fontcat::valid;
+                            if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
+                            if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
                             {
-                                if (numberOfFiles)
-                                if (auto f = fontFiles.front())
+                                if (typeface::iscolor(faceinst)) fontstat[i].s |= fontcat::color;
+                                auto numberOfFiles = ui32{};
+                                faceinst->GetFiles(&numberOfFiles, nullptr);
+                                auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
+                                if (S_OK == faceinst->GetFiles(&numberOfFiles, fontFiles.data()))
                                 {
-                                    auto fontFileReferenceKey = (void const*)nullptr;
-                                    auto fontFileReferenceKeySize = ui32{};
-                                    f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
-                                    auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
-                                    if (fontFileReferenceKeySize)
-                                    if (f->GetLoader(&fontFileLoader); fontFileLoader)
+                                    if (numberOfFiles)
+                                    if (auto f = fontFiles.front())
                                     {
-                                        auto fontFileStream = (IDWriteFontFileStream*)nullptr;
-                                        if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
+                                        auto fontFileReferenceKey = (void const*)nullptr;
+                                        auto fontFileReferenceKeySize = ui32{};
+                                        f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
+                                        auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
+                                        if (fontFileReferenceKeySize)
+                                        if (f->GetLoader(&fontFileLoader); fontFileLoader)
                                         {
-                                            auto lastWriteTime = ui64{};
-                                            fontFileStream->GetLastWriteTime(&lastWriteTime);
-                                            fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
-                                            fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then file date.
-                                            fontFileStream->Release();
+                                            auto fontFileStream = (IDWriteFontFileStream*)nullptr;
+                                            if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
+                                            {
+                                                auto lastWriteTime = ui64{};
+                                                fontFileStream->GetLastWriteTime(&lastWriteTime);
+                                                fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
+                                                fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then by file_date.
+                                                fontFileStream->Release();
+                                            }
+                                            fontFileLoader->Release();
                                         }
-                                        fontFileLoader->Release();
+                                        f->Release();
                                     }
-                                    f->Release();
                                 }
+                                faceinst->Release();
                             }
-                            faceinst->Release();
+                            fontfile->Release();
                         }
-                        fontfile->Release();
+                        barefont->Release();
                     }
-                    barefont->Release();
                 }
-            }
-            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
-            //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
+                std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+                //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
+                complete.exchange(true);
+                complete.notify_all();
+                log("%%Font fallback index initialized.", prompt::gui);
+            }};
         }
         ~font()
         {
+            if (bgworker.joinable()) bgworker.join();
             if (analyzer) analyzer->Release();
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
@@ -384,6 +394,7 @@ namespace netxs::gui
             };
             for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0])) return f;
             for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0])) return f;
+            complete.wait(faux);
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
@@ -643,7 +654,7 @@ namespace netxs::gui
             {
                 auto k = matrix.x / actual_width;
                 transform *= k;
-                actual_width = matrix.x;
+                actual_width = (fp32)matrix.x;
                 em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
                 for (auto& w : glyf_width) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
@@ -777,7 +788,6 @@ namespace netxs::gui
                     auto count = buffer.size() / sizeof(type);
                     auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
                     auto mx = glyph_mask.area.size.x;
-                    auto my = glyph_mask.area.size.y;
                     if (swapxy)
                     {
                         std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
