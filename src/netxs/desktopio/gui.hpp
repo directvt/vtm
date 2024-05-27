@@ -20,8 +20,20 @@ namespace netxs::gui
     auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::add("")
         .wrp(wrap::on).fgc(tint::purecyan)
-        .add("\2aaa", utf::vs09, vss<22,01>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-        .add("\2aaa", utf::vs09, vss<22,02>, "\n")
+        .add(
+R"==(
+Box drawing alignment tests:                                          █
+                                                                      ▉
+  ╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    ▊ ╱╲╱╲╳╳╳
+  ║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▋ ╲╱╲╱╳╳╳
+  ║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▌ ╱╲╱╲╳╳╳
+  ╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▍ ╲╱╲╱╳╳╳
+  ║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▎
+  ║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▏
+  ╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋  ▁▂▃▄▅▆▇█
+)==")
+        .add("\n")
+        .add("\2aaa", vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
         .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
         //todo multiline graphemes
         //.add("\2line1\nline2", vss<52,01>, "\n")
@@ -130,11 +142,19 @@ namespace netxs::gui
                 if (faceinst && !metrics.designUnitsPerEm)
                 {
                     faceinst->GetMetrics(&metrics);
-                    emheight = metrics.ascent + metrics.descent;
-                    facesize.x = metrics.designUnitsPerEm / 2;
-                    facesize.y = emheight + metrics.lineGap;
+                    emheight = metrics.designUnitsPerEm;
+                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
+                    auto glyph_index = ui16{ 0 };
+                    faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                    facesize.x = glyph_metrics.advanceWidth;
+                    facesize.y = metrics.ascent + metrics.descent + metrics.lineGap;
                     baseline = metrics.ascent + metrics.lineGap / 2;
                     color = iscolor(faceinst);
+                    //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
+                    //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
+                    //    " metrics.ascent=", metrics.ascent,
+                    //    " metrics.descent=", metrics.descent,
+                    //    " metrics.lineGap=", metrics.lineGap);
 
                     // formats 8, 10 and 12 with 32-bit encoding
                     // format 13 - last-resort
@@ -467,7 +487,6 @@ namespace netxs::gui
         };
 
         using gmap = std::unordered_map<ui64, sprite>;
-        static constexpr auto dpi72_96 = 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
 
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
@@ -486,11 +505,19 @@ namespace netxs::gui
         std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
         std::vector<color_layer>                     glyf_masks; // glyf: .
 
-        glyf(font& fcache, twod cellsz, bool aamode)
+        glyf(font& fcache, twod& cellsz, bool aamode)
             : fcache{ fcache },
               cellsz{ cellsz },
               aamode{ aamode }
-        { }
+        {
+            if (!fcache.fallback.empty()) // Keep fontface cell proportions until we implement box-drawing glyphs on our side.
+            {
+                auto facesize = fcache.fallback.front().facesize;
+                cellsz.x = facesize.x * cellsz.y / facesize.y;
+                this->cellsz.x = cellsz.x;
+                log("%%Set cell size: ", prompt::gui, cellsz);
+            }
+        }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
@@ -528,10 +555,11 @@ namespace netxs::gui
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
-            auto transform = std::min((fp32)cellsz.x / f.facesize.x, (fp32)cellsz.y / f.facesize.y);
+            auto over = 0.f;//_k0 * 0.1f; //todo should we make it configurable?
+            auto transform = std::min((cellsz.x + over) / f.facesize.x, (cellsz.y + over) / f.facesize.y);
             auto base_line = fp2d{ 0, f.baseline * transform };
             auto italicfit = c.itc() ? 0.85f : 1.f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-            auto em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
+            auto em_height = f.emheight * transform * italicfit;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
@@ -638,7 +666,7 @@ namespace netxs::gui
             if (swapxy) std::swap(matrix.x, matrix.y);
             auto length = fp32{};
             auto penpos = fp32{};
-            auto scale = transform * glyf::dpi72_96 * italicfit;
+            auto scale = transform * italicfit;
             for (auto i = 0u; i < glyf_count; ++i)
             {
                 auto w = glyf_sizes[i].advanceWidth;
@@ -648,14 +676,14 @@ namespace netxs::gui
                 length = std::max<fp32>(length, right_most);
                 penpos += glyf_width[i];
             }
-            auto actual_width = std::floor((length + cellsz.x * 0.75f) / cellsz.x) * cellsz.x;
+            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * 0.75f) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix. (scale down)
             {
                 auto k = matrix.x / actual_width;
                 transform *= k;
                 actual_width = (fp32)matrix.x;
-                em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
+                em_height = f.emheight * transform * italicfit;
                 for (auto& w : glyf_width) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
             }
@@ -666,7 +694,7 @@ namespace netxs::gui
                 actual_width *= k;//matrix.x;
                 actual_height *= k;
                 base_line = fp2d{ 0, f.baseline * transform };
-                em_height = f.emheight * transform * glyf::dpi72_96 * italicfit;
+                em_height = f.emheight * transform * italicfit;
                 for (auto& w : glyf_width) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
             }
@@ -1022,7 +1050,7 @@ namespace netxs::gui
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
 
-        manager(std::list<text>& font_names_utf8, twod cellsz, bool antialiasing)
+        manager(std::list<text>& font_names_utf8, twod& cellsz, bool antialiasing)
             : fcache{ font_names_utf8 },
               gcache{ fcache, cellsz, antialiasing },
               isfine{ true }
