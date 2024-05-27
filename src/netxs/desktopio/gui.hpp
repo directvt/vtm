@@ -29,7 +29,7 @@ namespace netxs::gui
         .bld(faux).itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n")
+        .fgc(tint::greenlt).add("Press Esc to close.\n")
         .add("\n")
         .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
         .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
@@ -1243,6 +1243,11 @@ namespace netxs::gui
         si32 footer; // window: Surface index for Footer.
         bool drop_shadow{ true };
 
+        //test
+        twod scroll_pos;
+        twod scroll_origin;
+        twod scroll_delta;
+
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
         window(rect win_coor_px_size_cell, std::list<text>& font_names, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
@@ -1281,14 +1286,18 @@ namespace netxs::gui
         void recalc_layout()
         {
             auto base_rect = layers[client].area;
+            auto grid_size = base_rect.size / cellsz;
+            auto c_size = grid_size;
+            auto h_size = grid_size;
+            auto f_size = grid_size;
+            main_grid.calc_page_height(canvas_page, c_size);
+            head_grid.calc_page_height(header_page, h_size);
+            head_grid.calc_page_height(footer_page, f_size);
+            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",grid_size.x, ":", grid_size.y);
             layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
             layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
             layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
             layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
-            auto h_size = base_rect.size / cellsz;
-            auto f_size = base_rect.size / cellsz;
-            head_grid.calc_page_height(header_page, h_size);
-            head_grid.calc_page_height(footer_page, f_size);
             auto header_height = cellsz.y * h_size.y;
             auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
@@ -1301,14 +1310,20 @@ namespace netxs::gui
             manager::moveby(coor_delta);
             reload |= task::moved;
         }
-        auto size_window(twod size_delta)
+        auto size_window(twod size_delta, bool wipe = faux)
         {
             layers[client].area.size += size_delta;
             recalc_layout();
             reload |= task::sized;
             //todo temp
             main_grid.size(layers[client].area.size / cellsz);
-            main_grid.cup(dot_00);
+            if (wipe)
+            {
+                main_grid.wipe();
+                foot_grid.wipe();
+            }
+            main_grid.zz(scroll_pos);
+            main_grid.vsize(std::min(0, -scroll_pos.y) + layers[client].area.size.y);
             main_grid.output<true>(canvas_page);
             head_grid.size(layers[header].area.size / cellsz);
             head_grid.cup(dot_00);
@@ -1475,7 +1490,7 @@ namespace netxs::gui
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
             return state;
         }
-        void mouse_wheel(si32 delta, bool /*hz*/)
+        void mouse_wheel(si32 delta, bool hz)
         {
             auto wheeldt = delta / 120;
             auto kb = kbs();
@@ -1507,10 +1522,18 @@ namespace netxs::gui
                     mouse_capture();
                 }
             }
-            else if (szgrip.zoomon)
+            else
             {
-                szgrip.zoomon = faux;
-                mouse_release();
+                if (szgrip.zoomon)
+                {
+                    szgrip.zoomon = faux;
+                    mouse_release();
+                }
+                hz ? scroll_pos.x += wheeldt
+                   : scroll_pos.y += wheeldt;
+                size_window({}, true);
+                reload |= task::all;
+                reload &= ~task::sized;
             }
             if (szgrip.zoomon)
             {
@@ -1527,7 +1550,17 @@ namespace netxs::gui
         {
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[client].area;
-            if (hit_grips() || szgrip.seized)
+            if (mbttns & bttn::right)
+            {
+                scroll_delta += coord - mcoord;
+                if (scroll_pos(scroll_origin + scroll_delta / cellsz))
+                {
+                    size_window({}, true);
+                    reload |= task::all;
+                    reload &= ~task::sized;
+                }
+            }
+            else if (hit_grips() || szgrip.seized)
             {
                 if (mbttns & bttn::left)
                 {
@@ -1560,7 +1593,7 @@ namespace netxs::gui
             {
                 reload |= task::grips;
             }
-            if (!szgrip.seized && mbttns & bttn::left)
+            if (!szgrip.seized && (mbttns & bttn::left))
             {
                 if (auto dxdy = coord - mcoord)
                 {
@@ -1582,7 +1615,12 @@ namespace netxs::gui
             pressed ? mbttns |= button
                     : mbttns &= ~button;
             if (!mbttns) mouse_release();
-            if (!pressed & (button == bttn::right)) manager::close();
+            //if (!pressed & (button == bttn::right)) manager::close();
+            if (pressed & (button == bttn::right))
+            {
+                scroll_origin = scroll_pos;
+                scroll_delta = {};
+            }
         }
         void keybd_press(arch vkey, arch lParam)
         {
