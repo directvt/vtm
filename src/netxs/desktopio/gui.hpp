@@ -148,7 +148,8 @@ Box drawing alignment tests:                                          █
                     faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.x = glyph_metrics.advanceWidth;
                     facesize.y = metrics.ascent + metrics.descent + metrics.lineGap;
-                    baseline = metrics.ascent + metrics.lineGap / 2;
+                    //auto half_pixel = facesize.y / cellsz.y / 2.f;
+                    baseline = metrics.ascent + metrics.lineGap / 2;// - half_pixel;
                     color = iscolor(faceinst);
                     //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
                     //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
@@ -498,7 +499,7 @@ Box drawing alignment tests:                                          █
         std::vector<utf::prop>                       codepoints; // glyf: .
         std::vector<ui16>                            clustermap; // glyf: .
         std::vector<ui16>                            glyf_index; // glyf: .
-        std::vector<FLOAT>                           glyf_width; // glyf: .
+        std::vector<FLOAT>                           glyf_steps; // glyf: .
         std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyf: .
         std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyf: .
         std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyf: .
@@ -507,16 +508,21 @@ Box drawing alignment tests:                                          █
 
         glyf(font& fcache, twod& cellsz, bool aamode)
             : fcache{ fcache },
-              cellsz{ cellsz },
               aamode{ aamode }
+        {
+            set_cellsz(cellsz);
+        }
+        void set_cellsz(twod& cellsz)
         {
             if (!fcache.fallback.empty()) // Keep fontface cell proportions until we implement box-drawing glyphs on our side.
             {
                 auto facesize = fcache.fallback.front().facesize;
-                cellsz.x = facesize.x * cellsz.y / facesize.y;
-                this->cellsz.x = cellsz.x;
-                log("%%Set cell size: ", prompt::gui, cellsz);
+                cellsz.x = facesize.x * (10 * cellsz.y + 6) / (facesize.y * 10); // Slightly less than 'y size': 0.6 (not '+ 1').
             }
+            if (cellsz.x < 1) cellsz.x = 1;
+            if (cellsz.y < 2) cellsz.y = 2;
+            this->cellsz = cellsz;
+            log("%%Set cell size: ", prompt::gui, cellsz);
         }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
@@ -555,11 +561,13 @@ Box drawing alignment tests:                                          █
             auto font_face = f.fontface[format];
             if (!font_face) return;
 
-            auto over = 0.f;//_k0 * 0.1f; //todo should we make it configurable?
-            auto transform = std::min((cellsz.x + over) / f.facesize.x, (cellsz.y + over) / f.facesize.y);
-            auto base_line = fp2d{ 0, f.baseline * transform };
-            auto italicfit = c.itc() ? 0.85f : 1.f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-            auto em_height = f.emheight * transform * italicfit;
+            auto fs = fp2d{ f.facesize };
+            //auto transform = std::min(cellsz.x / fs.x, (cellsz.y + 1) / fs.y);
+            auto transform = (cellsz.y + 1) / fs.y;
+            auto half_pixel = f.facesize.y / cellsz.y / 2.f; //todo unify
+            auto base_line = fp2d{ 0, (f.baseline - half_pixel) * transform };
+            if (c.itc()) transform *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
+            auto em_height = f.emheight * transform;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
@@ -577,44 +585,12 @@ Box drawing alignment tests:                                          █
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
-            auto fs = std::to_array<std::pair<ui32, ui32>>({{}
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'i', 'g', 'a'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('m', 'a', 'r', 'k'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'o', 'c', 'l'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'f', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'c', 'm', 'p'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 'm'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'k', 'h', 'n'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'm'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'j', 'c', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'i', 's', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'n'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('n', 'u', 'k', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 'r', 'e', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 's', 't', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'k', 'r', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'p', 'h', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('v', 'a', 't', 'u'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'b', 's'), 0 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'p', 's'), 0 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 0 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALANT_FORMS, 0 },
-                                                        });
-            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() };
-            auto feat_table = &features;
+            //todo make it configurable (and font_face based)
+            //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
+            //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
+            //auto feat_table = features.data();
 
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
             auto hr = fcache.analyzer->GetGlyphs(
                 text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
                 text_count,              //UINT32 textLength,
@@ -624,9 +600,9 @@ Box drawing alignment tests:                                          █
                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                &feat_table,             //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                 &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                1,                       //UINT32 featureRanges,
+                0,//f.features.size(),   //UINT32 featureRanges,
                 glyf_count,              //UINT32 maxGlyphCount,
                 clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
                 text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
@@ -635,7 +611,7 @@ Box drawing alignment tests:                                          █
                 &glyf_count);            //_Out_ UINT32* actualGlyphCount
             if (hr != S_OK) return;
 
-            glyf_width.resize(glyf_count);
+            glyf_steps.resize(glyf_count);
             glyf_align.resize(glyf_count);
             glyf_sizes.resize(glyf_count);
 
@@ -653,49 +629,47 @@ Box drawing alignment tests:                                          █
                 faux,                              // BOOL isRightToLeft,
                 &script_opt,                       // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                 fcache.oslocale.data(),            // _In_opt_z_ WCHAR const* localeName,
-                &feat_table,                       // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                nullptr,//&f.feat_table,           // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                 &text_count,                       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                1,                                 // UINT32 featureRanges,
-                glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
+                0,//f.features.size(),             // UINT32 featureRanges,
+                glyf_steps.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                 glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
             if (hr != S_OK) return;
 
-            font_face->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
-            auto swapxy = flipandrotate & 1;
-            auto matrix = c.mtx() * cellsz;
-            if (swapxy) std::swap(matrix.x, matrix.y);
+            hr = font_face->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+            if (hr != S_OK) return;
             auto length = fp32{};
             auto penpos = fp32{};
-            auto scale = transform * italicfit;
+            auto matrix = fp2d{ c.mtx() * cellsz };
+            auto swapxy = flipandrotate & 1;
+            if (swapxy) std::swap(matrix.x, matrix.y);
             for (auto i = 0u; i < glyf_count; ++i)
             {
                 auto w = glyf_sizes[i].advanceWidth;
                 auto r = glyf_sizes[i].rightSideBearing;
-                auto bearing = ((si32)w - r) * scale;
+                auto bearing = ((si32)w - r) * transform;
                 auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
-                length = std::max<fp32>(length, right_most);
-                penpos += glyf_width[i];
+                length = std::max(length, right_most);
+                penpos += glyf_steps[i];
             }
-            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * 0.75f) / cellsz.x)) * cellsz.x;
+            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * 0.40f) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
-            if (actual_width > matrix.x) // Check if the glyph exceeds the matrix. (scale down)
+            if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
                 auto k = matrix.x / actual_width;
-                transform *= k;
-                actual_width = (fp32)matrix.x;
-                em_height = f.emheight * transform * italicfit;
-                for (auto& w : glyf_width) w *= k;
+                actual_width = matrix.x;
+                em_height *= k;
+                for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
             }
-            else if (actual_width <= matrix.x - cellsz.x && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix. (scale up)
+            else if (actual_height < matrix.y && actual_width <= matrix.x - cellsz.x) // Check if the glyph is too small for the matrix. (scale up)
             {
-                auto k = std::min(matrix.x / actual_width, (fp32)matrix.y / cellsz.y);//em_height);
-                transform *= k;
-                actual_width *= k;//matrix.x;
+                auto k = std::min(matrix.x / actual_width, matrix.y / actual_height);
+                actual_width *= k;
                 actual_height *= k;
-                base_line = fp2d{ 0, f.baseline * transform };
-                em_height = f.emheight * transform * italicfit;
-                for (auto& w : glyf_width) w *= k;
+                base_line.y *= k;
+                em_height *= k;
+                for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
             }
             if (actual_width <= matrix.x - cellsz.x / 2.f) // Hz alignment.
@@ -708,14 +682,12 @@ Box drawing alignment tests:                                          █
                      if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
                 else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
             }
-
-            auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
-                                                .fontEmSize    = em_height,
-                                                .glyphCount    = glyf_count,
-                                                .glyphIndices  = glyf_index.data(),
-                                                .glyphAdvances = glyf_width.data(),
-                                                .glyphOffsets  = glyf_align.data() };
-
+            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
+                                               .fontEmSize    = em_height,
+                                               .glyphCount    = glyf_count,
+                                               .glyphIndices  = glyf_index.data(),
+                                               .glyphAdvances = glyf_steps.data(),
+                                               .glyphOffsets  = glyf_align.data() };
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
             hr = monochromatic ? DWRITE_E_NOCOLOR
@@ -1522,14 +1494,23 @@ Box drawing alignment tests:                                          █
         {
             auto wheeldt = delta / 120;
             auto kb = kbs();
-            //if (kb & hids::LCtrl)
-            //{
-            //    netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-            //    gcache.glyphs.clear();
-            //    reload |= task::all;
-            //    log("_k0=", _k0);
-            //    return;
-            //}
+            if (kb & hids::LCtrl)
+            {
+                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+                log("_k0=", _k0);
+                gcache.glyphs.clear();
+                static auto orig_sz = cellsz;
+                auto grip_cell = gripsz / cellsz;
+                cellsz.y = orig_sz.y + _k0;
+                gcache.set_cellsz(cellsz);
+                gripsz = grip_cell * cellsz;
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
+                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+                recalc_layout();
+                reload |= task::all;
+                return;
+            }
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
             //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
