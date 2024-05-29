@@ -41,6 +41,8 @@ namespace netxs::utf
     using ctrl = unidata::cntrls;
 
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
+    static constexpr auto vs04_code = utfx{ 0x0000'FE03 };
+    static constexpr auto vs05_code = utfx{ 0x0000'FE04 };
     static constexpr auto vs06_code = utfx{ 0x0000'FE05 };
     static constexpr auto vs07_code = utfx{ 0x0000'FE06 };
     static constexpr auto vs08_code = utfx{ 0x0000'FE07 };
@@ -61,6 +63,8 @@ namespace netxs::utf
     template<utfx code>
     static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
     static constexpr auto replacement = utf8view<replacement_code>; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto vs04 = utf8view<vs04_code>;
+    static constexpr auto vs05 = utf8view<vs05_code>;
     static constexpr auto vs06 = utf8view<vs06_code>;
     static constexpr auto vs07 = utf8view<vs07_code>;
     static constexpr auto vs08 = utf8view<vs08_code>;

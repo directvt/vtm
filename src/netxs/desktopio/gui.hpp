@@ -64,12 +64,12 @@ Box drawing alignment tests:                                          █
         .add("\n")
         .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
         .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,02>).add("\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,03>).add("\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,04>).add("\n")
-        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,41>)
-                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs11, vss<81,81>)
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,02>).add("\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,03>).add("\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,04>).add("\n")
+        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
+                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
                   .fgc(purecyan).bgc(argb{}).add("<VS11\n")
         .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
         .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
@@ -516,11 +516,11 @@ Box drawing alignment tests:                                          █
             codepoints.clear();
             auto flipandrotate = 0;
             auto monochromatic = faux;
-            auto glyfalignment = bind{ snap::center, snap::center };
+            auto glyfalignment = bind{ snap::head, snap::center };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
-                if (codepoint.cdpoint >= utf::vs06_code && codepoint.cdpoint <= utf::vs16_code)
+                if (codepoint.cdpoint >= utf::vs04_code && codepoint.cdpoint <= utf::vs16_code)
                 {
                          if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
                     else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
@@ -529,9 +529,11 @@ Box drawing alignment tests:                                          █
                     else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011);
                     else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011);
                     else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011);
-                    else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::head;
-                    else if (codepoint.cdpoint == utf::vs07_code) glyfalignment.x = snap::tail;
-                    else if (codepoint.cdpoint == utf::vs08_code) glyfalignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs04_code) glyfalignment.x = snap::head;
+                    else if (codepoint.cdpoint == utf::vs05_code) glyfalignment.x = snap::center;
+                    else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs07_code) glyfalignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs08_code) glyfalignment.y = snap::center;
                     else if (codepoint.cdpoint == utf::vs09_code) glyfalignment.y = snap::tail;
                 }
                 else codepoints.push_back(codepoint);
