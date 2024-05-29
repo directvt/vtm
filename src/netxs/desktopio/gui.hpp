@@ -634,7 +634,7 @@ Box drawing alignment tests:                                          █
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF));
+            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0xE0B0 /*Powerline*/ && (base_char <= 0xE0BF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF))));
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
