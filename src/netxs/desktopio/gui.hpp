@@ -112,8 +112,11 @@ Box drawing alignment tests:                                          █
         {
             std::vector<IDWriteFontFace2*>    fontface;
             DWRITE_FONT_METRICS               metrics{};
-            si32                              baseline{};
-            si32                              emheight{};
+            fp32                              base_baseline{};
+            fp2d                              face_baseline{};
+            fp32                              transform{};
+            si32                              base_emheight{};
+            fp32                              face_emheight{};
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
             bool                              color{ faux };
@@ -142,14 +145,13 @@ Box drawing alignment tests:                                          █
                 if (faceinst && !metrics.designUnitsPerEm)
                 {
                     faceinst->GetMetrics(&metrics);
-                    emheight = metrics.designUnitsPerEm;
+                    base_emheight = metrics.designUnitsPerEm;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                     auto glyph_index = ui16{ 0 };
                     faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.x = glyph_metrics.advanceWidth;
                     facesize.y = metrics.ascent + metrics.descent + metrics.lineGap;
-                    //auto half_pixel = facesize.y / cellsz.y / 2.f;
-                    baseline = metrics.ascent + metrics.lineGap / 2;// - half_pixel;
+                    base_baseline = metrics.ascent + metrics.lineGap / 2.0f;
                     color = iscolor(faceinst);
                     //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
                     //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
@@ -406,6 +408,7 @@ Box drawing alignment tests:                                          █
         }
         auto& take_font(utfx codepoint)
         {
+            //return fallback.front();
             auto hittest = [&](auto& fontface)
             {
                 if (!fontface) return faux;
@@ -517,7 +520,12 @@ Box drawing alignment tests:                                          █
             if (!fcache.fallback.empty()) // Keep fontface cell proportions until we implement box-drawing glyphs on our side.
             {
                 auto facesize = fcache.fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 6) / (facesize.y * 10); // Slightly less than 'y size': 0.6 (not '+ 1').
+                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // +1.5
+                // Lucida Console 1.5ok
+                // Courier New    1.5ok 17-2.0bad
+                // Consolas       1.5ok
+                // Iosevka Term   1.5ok
+                // Cascadia Mono  1.5ok
             }
             if (cellsz.x < 1) cellsz.x = 1;
             if (cellsz.y < 2) cellsz.y = 2;
@@ -562,13 +570,21 @@ Box drawing alignment tests:                                          █
             if (!font_face) return;
 
             auto fs = fp2d{ f.facesize };
-            //auto transform = std::min(cellsz.x / fs.x, (cellsz.y + 1) / fs.y);
-            auto transform = (cellsz.y + 1) / fs.y;
-            auto half_pixel = f.facesize.y / cellsz.y / 2.f; //todo unify
-            auto base_line = fp2d{ 0, (f.baseline - half_pixel) * transform };
-            if (c.itc()) transform *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-            auto em_height = f.emheight * transform;
+            f.transform = (cellsz.y + 1.5f) / fs.y;
+            //f.transform = std::min((cellsz.x + 1.0f) / fs.x, (cellsz.y + 1.5f) / fs.y);
+            auto half_pixel = fs.y / cellsz.y * 0.80f;
+            // consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
+            // courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
+            // Iosevka Term   1.5-0.80ok  1.5-0.75ok
+            // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
+            // Lucida Console 1.5-0.80ok  1.5-0.75ok
+            f.face_baseline.y = (f.base_baseline - half_pixel) * f.transform;
+            if (format & font::style::italic) f.transform *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
+            f.face_emheight = f.base_emheight * f.transform;
 
+            auto transform = f.transform;
+            auto base_line = f.face_baseline;
+            auto em_height = f.face_emheight;
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
             //hr = font_face->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
