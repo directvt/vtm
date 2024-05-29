@@ -47,7 +47,7 @@ Box drawing alignment tests:                                          █
         .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
              "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
              "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
-             "\2उन्हें", vss<21>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
              "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
                         .add("\n")
         //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
@@ -110,8 +110,13 @@ Box drawing alignment tests:                                          █
         };
         struct typeface
         {
-            std::vector<IDWriteFontFace2*>    fontface;
-            DWRITE_FONT_METRICS               metrics{};
+            struct face_rec
+            {
+                IDWriteFontFace2* faceinst{};
+                fp32              transform{};
+                fp32              emheight{};
+            };
+            std::vector<face_rec>             fontface;
             fp32                              base_baseline{};
             fp2d                              face_baseline{};
             fp32                              transform{};
@@ -136,124 +141,92 @@ Box drawing alignment tests:                                          █
                 if (exists) faceinst->ReleaseFontTable(tableContext);
                 return exists;
             }
-            auto load(auto& faceinst, auto barefont, auto weight, auto stretch, auto style)
-            {
-                auto fontfile = (IDWriteFont2*)nullptr;
-                barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
-                if (!fontfile) return;
-                fontfile->CreateFontFace((IDWriteFontFace**)&faceinst);
-                if (faceinst && !metrics.designUnitsPerEm)
-                {
-                    faceinst->GetMetrics(&metrics);
-                    base_emheight = metrics.designUnitsPerEm;
-                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
-                    auto glyph_index = ui16{ 0 };
-                    faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
-                    facesize.x = glyph_metrics.advanceWidth;
-                    facesize.y = metrics.ascent + metrics.descent + metrics.lineGap;
-                    base_baseline = metrics.ascent + metrics.lineGap / 2.0f;
-                    color = iscolor(faceinst);
-                    //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
-                    //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
-                    //    " metrics.ascent=", metrics.ascent,
-                    //    " metrics.descent=", metrics.descent,
-                    //    " metrics.lineGap=", metrics.lineGap);
-
-                    // formats 8, 10 and 12 with 32-bit encoding
-                    // format 13 - last-resort
-                    // format 14 for Unicode variation sequences
-                    struct cmap_table
-                    {
-                        enum platforms
-                        {
-                            Unicode   = 0, // Various
-                            Macintosh = 1, // Script manager code
-                            ISO       = 2, // ISO encoding
-                            Windows   = 3, // Windows encoding
-                            Custom    = 4, // Custom encoding
-                        };
-                        enum encodings
-                        {
-                            Symbol            = 0, // Symbols
-                            Windows_1_0       = 1, // Unicode BMP
-                            Unicode_2_0       = 3, // Unicode 2.0 and onwards semantics, Unicode BMP only
-                            Unicode_2_0f      = 4, // Unicode 2.0 and onwards semantics, Unicode full repertoire
-                            Unicode_Variation = 5, // Unicode Variation Sequences—for use with subtable format 14
-                            Unicode_full      = 6, // Unicode full repertoire—for use with subtable format 13
-                            Windows_2_0       = 10,// Unicode full repertoire
-                        };
-                        struct rect
-                        {
-                            ui16 platformID;
-                            ui16 encodingID;
-                            ui32 subtableOffset; // Byte offset from beginning of table to the subtable for this encoding.
-                        };
-                        ui16 version;
-                        ui16 numTables;
-                        //rect records[];
-                    };
-                    struct colr_table
-                    {
-                        struct baseGlyphRecord
-                        {
-                            ui16 glyphID;         // Glyph ID of the base glyph.
-                            ui16 firstLayerIndex; // Index (base 0) into the layerRecords array.
-                            ui16 numLayers;       // Number of color layers associated with this glyph.
-                        };
-                        struct layerRecord
-                        {
-                            ui16 glyphID;      // Glyph ID of the glyph used for a given layer.
-                            ui16 paletteIndex; // Index (base 0) for a palette entry in the CPAL table.
-                        };
-                        ui16 version;                   // Table version number—set to 0.
-                        ui16 numBaseGlyphRecords;       // Number of base glyphs.
-                        ui32 baseGlyphRecordsOffset;    // Offset to baseGlyphRecords array.
-                        ui32 layerRecordsOffset;        // Offset to layerRecords array.
-                        ui16 numLayerRecords;           // Number of Layer records.
-                        //baseGlyphRecord baseGlyphRecs[];
-                        //layerRecord     layersRecs[];
-                    };
-
-                    //auto cmap_data = (void const*)nullptr;
-                    //auto cmap_size = ui32{};
-                    //auto cmap_ctx = (void*)nullptr;
-                    //auto exists = BOOL{};
-                    //fontface->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p'), &cmap_data, &cmap_size, &cmap_ctx, &exists);
-                    // 1. cmap: codepoints -> indices
-                    // 2. GSUB: indices -> indices
-                    // 3. BASE: take font-wise metrics
-                    // 4. GPOS: glyph positions
-                    // 5. COLR+CPAL: multicolored glyphs (version 0)
-                }
-                fontfile->Release();
-            }
             void load(IDWriteFontFamily* barefont)
             {
+                auto get = [&](auto& faceinst, auto weight, auto stretch, auto style)
+                {
+                    auto fontfile = (IDWriteFont2*)nullptr;
+                    barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
+                    if (!fontfile) return;
+                    fontfile->CreateFontFace((IDWriteFontFace**)&faceinst);
+                    fontfile->Release();
+                };
                 fontface.resize(4);
-                load(fontface[style::normal     ], barefont, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                load(fontface[style::italic     ], barefont, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-                load(fontface[style::bold       ], barefont, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                load(fontface[style::bold_italic], barefont, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::normal     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
                 auto names = (IDWriteLocalizedStrings*)nullptr;
                 barefont->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
                 log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, utf::to_utf(buff.data()), color ? "color" : "monochromatic");
                 names->Release();
+
+                auto& faceinst = fontface[style::normal].faceinst;
+                if (faceinst)
+                {
+                    auto m = DWRITE_FONT_METRICS{};
+                    faceinst->GetMetrics(&m);
+                    base_emheight = m.designUnitsPerEm;
+                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
+                    auto glyph_index = ui16{ 0 };
+                    faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                    facesize.x = glyph_metrics.advanceWidth;
+                    facesize.y = m.ascent + m.descent + m.lineGap;
+                    base_baseline = m.ascent + m.lineGap / 2.0f;
+                    color = iscolor(faceinst);
+                    //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
+                    //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
+                    //    " metrics.ascent=", metrics.ascent,
+                    //    " metrics.descent=", metrics.descent,
+                    //    " metrics.lineGap=", metrics.lineGap);
+                }
+            }
+            void recalc_metrics(twod cellsz, bool isbase)
+            {
+                auto fs = fp2d{ facesize };
+                auto transform = isbase ? (cellsz.y + 1.5f) / fs.y
+                                        : std::min((cellsz.x + 1.0f) / fs.x, (cellsz.y + 1.5f) / fs.y);
+                auto half_pixel = fs.y / cellsz.y * 0.80f;
+                // consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
+                // courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
+                // Iosevka Term   1.5-0.80ok  1.5-0.75ok
+                // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
+                // Lucida Console 1.5-0.80ok  1.5-0.75ok
+                face_baseline.y = (base_baseline - half_pixel) * transform;
+                auto face_emheight = base_emheight * transform;
+                fontface[style::normal     ].transform = transform;
+                fontface[style::normal     ].emheight = face_emheight;
+                fontface[style::bold       ].transform = transform;
+                fontface[style::bold       ].emheight = face_emheight;
+                transform     *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
+                face_emheight *= 0.85f;
+                fontface[style::italic     ].transform = transform;
+                fontface[style::italic     ].emheight = face_emheight;
+                fontface[style::bold_italic].transform = transform;
+                fontface[style::bold_italic].emheight = face_emheight;
             }
 
             //todo make software font
             typeface() = default;
             typeface(typeface&&) = default;
-            typeface(IDWriteFontFamily* barefont, ui32 index, bool fixed = faux)
+            typeface(IDWriteFontFamily* barefont, ui32 index)
                 : index{ index },
-                  fixed{ fixed }
+                  fixed{ true }
             {
                 load(barefont);
             }
+            typeface(IDWriteFontFamily* barefont, ui32 index, twod cellsz, bool isbase)
+                : index{ index },
+                  fixed{ faux }
+            {
+                load(barefont);
+                recalc_metrics(cellsz, isbase);
+            }
             ~typeface()
             {
-                for (auto f : fontface) if (f) f->Release();
+                for (auto& f : fontface) if (f.faceinst) f.faceinst->Release();
             }
             explicit operator bool () { return index != ~0u; }
         };
@@ -271,6 +244,7 @@ Box drawing alignment tests:                                          █
         wide                           oslocale; // font: User locale.
         flag                           complete; // font: Fallback index is ready.
         std::thread                    bgworker; // font: Background thread.
+        twod                           cellsize; // font: Terminal cell size in pixels.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -298,7 +272,7 @@ Box drawing alignment tests:                                          █
             return lut[code];
         }
 
-        font(std::list<text>& family_names)
+        font(std::list<text>& family_names, twod& cellsz)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
@@ -322,7 +296,7 @@ Box drawing alignment tests:                                          █
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
                     fontstat[index].s |= fontcat::loaded;
-                    fallback.emplace_back(barefont, index, true);
+                    fallback.emplace_back(barefont, index);
                     barefont->Release();
 
                     //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
@@ -335,6 +309,7 @@ Box drawing alignment tests:                                          █
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
+            set_cellsz(cellsz);
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
             {
@@ -406,6 +381,25 @@ Box drawing alignment tests:                                          █
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
+        void set_cellsz(twod& cellsz)
+        {
+            if (!fallback.empty()) // Keep fontface cell proportions.
+            {
+                auto facesize = fallback.front().facesize;
+                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // +1.5
+                // Lucida Console 1.5ok
+                // Courier New    1.5ok 17-2.0bad
+                // Consolas       1.5ok
+                // Iosevka Term   1.5ok
+                // Cascadia Mono  1.5ok
+            }
+            if (cellsz.x < 1) cellsz.x = 1;
+            if (cellsz.y < 2) cellsz.y = 2;
+            cellsize = cellsz;
+            log("%%Set cell size: ", prompt::gui, cellsz);
+            auto base_font = true;
+            for (auto& f : fallback) f.recalc_metrics(cellsz, std::exchange(base_font, faux));
+        }
         auto& take_font(utfx codepoint)
         {
             //return fallback.front();
@@ -416,8 +410,8 @@ Box drawing alignment tests:                                          █
                 fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
                 return !!glyphindex;
             };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0])) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0])) return f;
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
             complete.wait(faux);
             auto try_font = [&](auto i, bool test)
             {
@@ -432,7 +426,7 @@ Box drawing alignment tests:                                          █
                             {
                                 hit = true;
                                 fontstat[i].s |= fontcat::loaded;
-                                fallback.emplace_back(barefont, i);
+                                fallback.emplace_back(barefont, i, cellsize, faux);
                             }
                             fontface->Release();
                         }
@@ -495,7 +489,7 @@ Box drawing alignment tests:                                          █
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
         font& fcache; // glyf: Font cache.
-        twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
+        twod& cellsz; // glyf: Terminal cell size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
         wide                                         text_utf16; // glyf: UTF-16 buffer.
@@ -509,29 +503,11 @@ Box drawing alignment tests:                                          █
         std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
         std::vector<color_layer>                     glyf_masks; // glyf: .
 
-        glyf(font& fcache, twod& cellsz, bool aamode)
+        glyf(font& fcache, bool aamode)
             : fcache{ fcache },
+              cellsz{ fcache.cellsize },
               aamode{ aamode }
-        {
-            set_cellsz(cellsz);
-        }
-        void set_cellsz(twod& cellsz)
-        {
-            if (!fcache.fallback.empty()) // Keep fontface cell proportions until we implement box-drawing glyphs on our side.
-            {
-                auto facesize = fcache.fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // +1.5
-                // Lucida Console 1.5ok
-                // Courier New    1.5ok 17-2.0bad
-                // Consolas       1.5ok
-                // Iosevka Term   1.5ok
-                // Cascadia Mono  1.5ok
-            }
-            if (cellsz.x < 1) cellsz.x = 1;
-            if (cellsz.y < 2) cellsz.y = 2;
-            this->cellsz = cellsz;
-            log("%%Set cell size: ", prompt::gui, cellsz);
-        }
+        { }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
@@ -565,26 +541,14 @@ Box drawing alignment tests:                                          █
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto& f = fcache.take_font(codepoints.front().cdpoint);
-            auto font_face = f.fontface[format];
+            auto base_char = codepoints.front().cdpoint;
+            auto& f = fcache.take_font(base_char);
+            auto font_face = f.fontface[format].faceinst;
             if (!font_face) return;
-
-            auto fs = fp2d{ f.facesize };
-            f.transform = (cellsz.y + 1.5f) / fs.y;
-            //f.transform = std::min((cellsz.x + 1.0f) / fs.x, (cellsz.y + 1.5f) / fs.y);
-            auto half_pixel = fs.y / cellsz.y * 0.80f;
-            // consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
-            // courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
-            // Iosevka Term   1.5-0.80ok  1.5-0.75ok
-            // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
-            // Lucida Console 1.5-0.80ok  1.5-0.75ok
-            f.face_baseline.y = (f.base_baseline - half_pixel) * f.transform;
-            if (format & font::style::italic) f.transform *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-            f.face_emheight = f.base_emheight * f.transform;
-
-            auto transform = f.transform;
             auto base_line = f.face_baseline;
-            auto em_height = f.face_emheight;
+            auto transform = f.fontface[format].transform;
+            auto em_height = f.fontface[format].emheight;
+
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
             //hr = font_face->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
@@ -668,7 +632,9 @@ Box drawing alignment tests:                                          █
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * 0.40f) / cellsz.x)) * cellsz.x;
+            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF));
+            auto threshold = is_box_drawing ? 0.00f : 0.70f;
+            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
@@ -1039,8 +1005,8 @@ Box drawing alignment tests:                                          █
         wins layers; // manager: ARGB layers.
 
         manager(std::list<text>& font_names_utf8, twod& cellsz, bool antialiasing)
-            : fcache{ font_names_utf8 },
-              gcache{ fcache, cellsz, antialiasing },
+            : fcache{ font_names_utf8, cellsz },
+              gcache{ fcache, antialiasing },
               isfine{ true }
         {
             set_dpi_awareness();
@@ -1518,7 +1484,7 @@ Box drawing alignment tests:                                          █
                 static auto orig_sz = cellsz;
                 auto grip_cell = gripsz / cellsz;
                 cellsz.y = orig_sz.y + _k0;
-                gcache.set_cellsz(cellsz);
+                fcache.set_cellsz(cellsz);
                 gripsz = grip_cell * cellsz;
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
