@@ -18,8 +18,14 @@ namespace netxs::gui
     //test strings
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
-    auto canvas_text = ansi::add("")
-        .wrp(wrap::on).fgc(tint::purecyan)
+    auto canvas_text = ansi::add("").wrp(wrap::on)
+        .fgc(whitelt).bgc(bluelt).add("\n INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
+            .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
+        .fgc(tint::whitelt).add(
+R"==(
+CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
+)==")
+        .fgc(tint::purecyan)
         .add(
 R"==(
 Box drawing alignment tests:                                          █
@@ -170,7 +176,10 @@ Box drawing alignment tests:                                          █
                     faceinst->GetMetrics(&m);
                     base_emheight = m.designUnitsPerEm;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
+                    // Take metrics for "whitespace" or ".notdef" in case of missing whitespace. Note: ".notdef" is double sized ("whitespace" is narrow) in CJK fonts.
+                    auto code_points = ui32{ 32 };
                     auto glyph_index = ui16{ 0 };
+                    faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
                     faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.x = glyph_metrics.advanceWidth;
                     facesize.y = m.ascent + m.descent + m.lineGap;
@@ -634,7 +643,8 @@ Box drawing alignment tests:                                          █
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0xE0B0 /*Powerline*/ && (base_char <= 0xE0BF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF))));
+            //auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0xE0A0 /*Powerline*/ && (base_char <= 0xE0BF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF))));
+            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF));
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
