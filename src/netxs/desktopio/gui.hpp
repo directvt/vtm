@@ -25,6 +25,7 @@ namespace netxs::gui
 R"==(
 CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
 )==")
+        .add("\nThai sentence: สวัสดี ครับ\n")
         .fgc(tint::purecyan)
         .add(
 R"==(
@@ -121,13 +122,12 @@ Box drawing alignment tests:                                          █
                 IDWriteFontFace2* faceinst{};
                 fp32              transform{};
                 fp32              emheight{};
+                fp2d              baseline{};
             };
             std::vector<face_rec>             fontface;
             fp32                              base_baseline{};
-            fp2d                              face_baseline{};
             fp32                              transform{};
             si32                              base_emheight{};
-            fp32                              face_emheight{};
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
             bool                              color{ faux };
@@ -181,8 +181,8 @@ Box drawing alignment tests:                                          █
                     auto glyph_index = ui16{ 0 };
                     faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
                     faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
-                    facesize.x = glyph_metrics.advanceWidth;
-                    facesize.y = m.ascent + m.descent + m.lineGap;
+                    facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
+                    facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
                     base_baseline = m.ascent + m.lineGap / 2.0f;
                     color = iscolor(faceinst);
                     //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
@@ -197,24 +197,30 @@ Box drawing alignment tests:                                          █
                 auto fs = fp2d{ facesize };
                 auto transform = isbase ? (cellsz.y + 1.5f) / fs.y
                                         : std::min((cellsz.x + 1.0f) / fs.x, (cellsz.y + 1.5f) / fs.y);
-                auto half_pixel = fs.y / cellsz.y * 0.80f;
+                auto half_pixel = fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.80f };
                 // consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
                 // courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
                 // Iosevka Term   1.5-0.80ok  1.5-0.75ok
                 // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
                 // Lucida Console 1.5-0.80ok  1.5-0.75ok
-                face_baseline.y = (base_baseline - half_pixel) * transform;
+                //face_baseline.x = -half_pixel.x * transform; //todo It adds gaps between box drawings, but fixes powerline's right arrow
+                auto face_baseline = fp2d{ 0.f, (base_baseline - half_pixel.y) * transform };
                 auto face_emheight = base_emheight * transform;
                 fontface[style::normal     ].transform = transform;
                 fontface[style::normal     ].emheight = face_emheight;
+                fontface[style::normal     ].baseline = face_baseline;
                 fontface[style::bold       ].transform = transform;
                 fontface[style::bold       ].emheight = face_emheight;
-                transform     *= 0.85f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-                face_emheight *= 0.85f;
+                fontface[style::bold       ].baseline = face_baseline;
+                transform     *= 0.80f;// + _k0*0.05f; //todo revise, or make it configurable via settings
+                face_emheight *= 0.80f;
+                face_baseline.x -= half_pixel.x * transform;
                 fontface[style::italic     ].transform = transform;
                 fontface[style::italic     ].emheight = face_emheight;
+                fontface[style::italic     ].baseline = face_baseline;
                 fontface[style::bold_italic].transform = transform;
                 fontface[style::bold_italic].emheight = face_emheight;
+                fontface[style::bold_italic].baseline = face_baseline;
             }
 
             //todo make software font
@@ -556,9 +562,9 @@ Box drawing alignment tests:                                          █
             auto& f = fcache.take_font(base_char);
             auto font_face = f.fontface[format].faceinst;
             if (!font_face) return;
-            auto base_line = f.face_baseline;
             auto transform = f.fontface[format].transform;
             auto em_height = f.fontface[format].emheight;
+            auto base_line = f.fontface[format].baseline;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
@@ -643,7 +649,6 @@ Box drawing alignment tests:                                          █
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            //auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0xE0A0 /*Powerline*/ && (base_char <= 0xE0BF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF))));
             auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF));
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
@@ -661,7 +666,7 @@ Box drawing alignment tests:                                          █
                 auto k = std::min(matrix.x / actual_width, matrix.y / actual_height);
                 actual_width *= k;
                 actual_height *= k;
-                base_line.y *= k;
+                base_line *= k;
                 em_height *= k;
                 for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
