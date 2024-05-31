@@ -19,7 +19,7 @@ namespace netxs::gui
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::add("").wrp(wrap::on)
-        .fgc(whitelt).bgc(bluelt).add("\n INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
+        .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
             .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
         .fgc(tint::whitelt).add(
 R"==(
@@ -45,7 +45,8 @@ Box drawing alignment tests:                                          █
         //todo multiline graphemes
         //.add("\2line1\nline2", vss<52,01>, "\n")
         //.add("\2line1\nline2", vss<52,02>, "\n")
-        .bld(faux).itc(true).add("vtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+        .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
         .fgc(tint::greenlt).add("Press Esc to close.\n")
@@ -119,10 +120,11 @@ Box drawing alignment tests:                                          █
         {
             struct face_rec
             {
-                IDWriteFontFace2* faceinst{};
+                IDWriteFontFace2* face_inst{};
                 fp32              transform{};
-                fp32              emheight{};
-                fp2d              baseline{};
+                fp32              em_height{};
+                fp2d              actual_sz{};
+                fp2d              base_line{};
             };
             std::vector<face_rec>             fontface;
             fp32                              base_baseline{};
@@ -132,59 +134,61 @@ Box drawing alignment tests:                                          █
             ui32                              index{ ~0u };
             bool                              color{ faux };
             bool                              fixed{ faux }; // Preserve specified font order.
+            text                              font_name;
 
-            static auto iscolor(auto faceinst)
+            static auto iscolor(auto face_inst)
             {
                 auto tableSize = ui32{};
                 auto tableData = (void const*)nullptr;
                 auto tableContext = (void*)nullptr;
                 auto exists = BOOL{};
-                faceinst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
-                                          &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
-                                          &tableSize,    //_Out_ UINT32* tableSize,
-                                          &tableContext, //_Out_ void** tableContext,
-                                          &exists);      //_Out_ BOOL* exists
-                if (exists) faceinst->ReleaseFontTable(tableContext);
+                face_inst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
+                                           &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
+                                           &tableSize,    //_Out_ UINT32* tableSize,
+                                           &tableContext, //_Out_ void** tableContext,
+                                           &exists);      //_Out_ BOOL* exists
+                if (exists) face_inst->ReleaseFontTable(tableContext);
                 return exists;
             }
             void load(IDWriteFontFamily* barefont)
             {
-                auto get = [&](auto& faceinst, auto weight, auto stretch, auto style)
+                auto get = [&](auto& face_inst, auto weight, auto stretch, auto style)
                 {
                     auto fontfile = (IDWriteFont2*)nullptr;
                     barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
                     if (!fontfile) return;
-                    fontfile->CreateFontFace((IDWriteFontFace**)&faceinst);
+                    fontfile->CreateFontFace((IDWriteFontFace**)&face_inst);
                     fontfile->Release();
                 };
                 fontface.resize(4);
-                get(fontface[style::normal     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                get(fontface[style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-                get(fontface[style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                get(fontface[style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::normal     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::italic     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::bold       ].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::bold_italic].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
                 auto names = (IDWriteLocalizedStrings*)nullptr;
                 barefont->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
-                log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, utf::to_utf(buff.data()), color ? "color" : "monochromatic");
+                font_name = utf::to_utf(buff.data());
+                log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, font_name, color ? "color" : "monochromatic");
                 names->Release();
 
-                auto& faceinst = fontface[style::normal].faceinst;
-                if (faceinst)
+                auto& face_inst = fontface[style::normal].face_inst;
+                if (face_inst)
                 {
                     auto m = DWRITE_FONT_METRICS{};
-                    faceinst->GetMetrics(&m);
+                    face_inst->GetMetrics(&m);
                     base_emheight = m.designUnitsPerEm;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
-                    // Take metrics for "whitespace" or ".notdef" in case of missing whitespace. Note: ".notdef" is double sized ("whitespace" is narrow) in CJK fonts.
-                    auto code_points = ui32{ 32 };
+                    // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
+                    auto code_points = ui32{ 'x' };
                     auto glyph_index = ui16{ 0 };
-                    faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
-                    faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                    face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                    face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
                     facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
                     base_baseline = m.ascent + m.lineGap / 2.0f;
-                    color = iscolor(faceinst);
+                    color = iscolor(face_inst);
                     //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
                     //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
                     //    " metrics.ascent=", metrics.ascent,
@@ -194,33 +198,69 @@ Box drawing alignment tests:                                          █
             }
             void recalc_metrics(twod cellsz, bool isbase)
             {
-                auto fs = fp2d{ facesize };
-                auto transform = isbase ? (cellsz.y + 1.5f) / fs.y
-                                        : std::min((cellsz.x + 1.0f) / fs.x, (cellsz.y + 1.5f) / fs.y);
-                auto half_pixel = fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.80f };
-                // consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
-                // courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
+                auto fs = fp2d{ (fp32)facesize.x, (fp32)facesize.y };
+                //todo optimize for isbase
+                auto dx = isbase ? (cellsz.x + 1.0f) / fs.x : cellsz.x / fs.x;
+                auto dy = isbase ? (cellsz.y + 1.3f) / fs.y : cellsz.y / fs.y;
+                auto halfpixel = isbase ? fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.84f } : fp2d{};
+                auto base_line = isbase ? fp2d{ 0.f, (base_baseline - halfpixel.y) * dy } : fp2d{ 0.f, base_baseline * dy }; // Preserve original baseline by using dy.
+                auto transform = isbase ? dy : std::min(dx, dy);
+                auto em_height = base_emheight * transform;
+                auto actual_sz = fs * transform;
+                // Cascadia Mono (1.3-0.84ok:13g) (1.3-0.83bad:13g) (1.3-0.80bad:13g) (1.3-0.85ok:g) (1.3-0.75bad:g) (1.3-0.65bad:g)
+                // Courier New (1.3-0.84ok:g) (1.3-0.80ok:g) (1.3-0.85bad:btm)
+                // JetBrains Mono (1.3-0.84ok:g) (1.3-0.80ok:g)
+                // Iosevka Term : bad font: (1.3-0.85bad:33btm) <--> (1.3-0.85bad:30top)
+                // dy 1.5 breaks Lucida Console at 11px
+                // Lucida Console  (1.5-1.15 g11:bad) (1.5-1.14 g11:bad)
+                // Cascadia Mono (1.5-1.14 g12:ok) (1.5-1.13 g12:bad) (1.5-1.15 g12:ok) (1.5-1.1 g12:bad) (1.5-1.2 g12:ok) (1.5-1.0 g12:bad)
+                // 1.5-(0.80-0.96)ok:
+                // Consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
+                // Courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
                 // Iosevka Term   1.5-0.80ok  1.5-0.75ok
                 // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
                 // Lucida Console 1.5-0.80ok  1.5-0.75ok
                 //face_baseline.x = -half_pixel.x * transform; //todo It adds gaps between box drawings, but fixes powerline's right arrow
-                auto face_baseline = fp2d{ 0.f, (base_baseline - half_pixel.y) * transform };
-                auto face_emheight = base_emheight * transform;
-                fontface[style::normal     ].transform = transform;
-                fontface[style::normal     ].emheight = face_emheight;
-                fontface[style::normal     ].baseline = face_baseline;
-                fontface[style::bold       ].transform = transform;
-                fontface[style::bold       ].emheight = face_emheight;
-                fontface[style::bold       ].baseline = face_baseline;
-                transform     *= 0.80f;// + _k0*0.05f; //todo revise, or make it configurable via settings
-                face_emheight *= 0.80f;
-                face_baseline.x -= half_pixel.x * transform;
+                fontface[style::normal].transform = transform;
+                fontface[style::normal].em_height = em_height;
+                fontface[style::normal].base_line = base_line;
+                fontface[style::normal].actual_sz = actual_sz;
+                fontface[style::bold  ].transform = transform;
+                fontface[style::bold  ].em_height = em_height;
+                fontface[style::bold  ].base_line = base_line;
+                fontface[style::bold  ].actual_sz = actual_sz;
+                // Detect right bearing delta for italics.
+                auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
+                auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
+                auto code_points = ui32{ 'M' };
+                auto glyph_index = ui16{ 0 };
+                fontface[style::normal].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
+                fontface[style::italic].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                fontface[style::italic].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
+                auto proportional = normal_glyph_metrics.advanceWidth != facesize.x;
+                auto normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
+                auto italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
+                auto w = proportional && normal_width ? (fp32)normal_width : fs.x;
+                auto k = w / (w + (italic_width - normal_width));
+                //log("font_name=", font_name, " italic_width=", italic_width, " normal_width=", normal_width, " face_size.x=", facesize.x, " k=", k);
+                //log("\titalic: advanceWidth=",    italic_glyph_metrics.advanceWidth,
+                //             " leftSideBearing=", italic_glyph_metrics.leftSideBearing,
+                //             " rightSideBearing=", italic_glyph_metrics.rightSideBearing);
+                //log("\tnormal: advanceWidth=",    normal_glyph_metrics.advanceWidth,
+                //             " leftSideBearing=", normal_glyph_metrics.leftSideBearing,
+                //             " rightSideBearing=", normal_glyph_metrics.rightSideBearing);
+                transform *= k;
+                em_height *= k;
+                actual_sz *= k;
                 fontface[style::italic     ].transform = transform;
-                fontface[style::italic     ].emheight = face_emheight;
-                fontface[style::italic     ].baseline = face_baseline;
+                fontface[style::italic     ].em_height = em_height;
+                fontface[style::italic     ].base_line = base_line;
+                fontface[style::italic     ].actual_sz = actual_sz;
                 fontface[style::bold_italic].transform = transform;
-                fontface[style::bold_italic].emheight = face_emheight;
-                fontface[style::bold_italic].baseline = face_baseline;
+                fontface[style::bold_italic].em_height = em_height;
+                fontface[style::bold_italic].base_line = base_line;
+                fontface[style::bold_italic].actual_sz = actual_sz;
             }
 
             //todo make software font
@@ -241,7 +281,7 @@ Box drawing alignment tests:                                          █
             }
             ~typeface()
             {
-                for (auto& f : fontface) if (f.faceinst) f.faceinst->Release();
+                for (auto& f : fontface) if (f.face_inst) f.face_inst->Release();
             }
             explicit operator bool () { return index != ~0u; }
         };
@@ -343,13 +383,13 @@ Box drawing alignment tests:                                          █
                         {
                             fontstat[i].s |= fontcat::valid;
                             if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
-                            if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
+                            if (auto face_inst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&face_inst), face_inst)
                             {
-                                if (typeface::iscolor(faceinst)) fontstat[i].s |= fontcat::color;
+                                if (typeface::iscolor(face_inst)) fontstat[i].s |= fontcat::color;
                                 auto numberOfFiles = ui32{};
-                                faceinst->GetFiles(&numberOfFiles, nullptr);
+                                face_inst->GetFiles(&numberOfFiles, nullptr);
                                 auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
-                                if (S_OK == faceinst->GetFiles(&numberOfFiles, fontFiles.data()))
+                                if (S_OK == face_inst->GetFiles(&numberOfFiles, fontFiles.data()))
                                 {
                                     if (numberOfFiles)
                                     if (auto f = fontFiles.front())
@@ -375,7 +415,7 @@ Box drawing alignment tests:                                          █
                                         f->Release();
                                     }
                                 }
-                                faceinst->Release();
+                                face_inst->Release();
                             }
                             fontfile->Release();
                         }
@@ -401,7 +441,7 @@ Box drawing alignment tests:                                          █
             if (!fallback.empty()) // Keep fontface cell proportions.
             {
                 auto facesize = fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // +1.5
+                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // cellsz.y + 1.5
                 // Lucida Console 1.5ok
                 // Courier New    1.5ok 17-2.0bad
                 // Consolas       1.5ok
@@ -425,8 +465,8 @@ Box drawing alignment tests:                                          █
                 fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
                 return !!glyphindex;
             };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
             complete.wait(faux);
             auto try_font = [&](auto i, bool test)
             {
@@ -560,16 +600,17 @@ Box drawing alignment tests:                                          █
             if (c.bld()) format |= font::style::bold;
             auto base_char = codepoints.front().cdpoint;
             auto& f = fcache.take_font(base_char);
-            auto font_face = f.fontface[format].faceinst;
-            if (!font_face) return;
+            auto face_inst = f.fontface[format].face_inst;
+            if (!face_inst) return;
             auto transform = f.fontface[format].transform;
-            auto em_height = f.fontface[format].emheight;
-            auto base_line = f.fontface[format].baseline;
+            auto em_height = f.fontface[format].em_height;
+            auto base_line = f.fontface[format].base_line;
+            auto actual_sz = f.fontface[format].actual_sz;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
-            //hr = font_face->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
-            //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
+            //hr = face_inst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
+            //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = face_inst,
             //                                   .fontEmSize   = em_height,
             //                                   .glyphCount   = (ui32)gindex.size(),
             //                                   .glyphIndices = gindex.data() };
@@ -582,58 +623,56 @@ Box drawing alignment tests:                                          █
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            //todo make it configurable (and font_face based)
+            //todo make it configurable (and face_inst based)
             //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
             //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
             //auto feat_table = features.data();
 
             auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
-            auto hr = fcache.analyzer->GetGlyphs(
-                text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
-                text_count,              //UINT32 textLength,
-                font_face,               //_In_ IDWriteFontFace* fontFace,
-                faux,                    //BOOL isSideways,
-                faux,                    //BOOL isRightToLeft,
-                &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
-                nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                0,//f.features.size(),   //UINT32 featureRanges,
-                glyf_count,              //UINT32 maxGlyphCount,
-                clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
-                text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-                glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-                &glyf_count);            //_Out_ UINT32* actualGlyphCount
+            auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
+                                                 text_count,              //UINT32 textLength,
+                                                 face_inst,               //_In_ IDWriteFontFace* fontFace,
+                                                 faux,                    //BOOL isSideways,
+                                                 faux,                    //BOOL isRightToLeft,
+                                                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
+                                                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
+                                                 nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                 &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                 0,//f.features.size(),   //UINT32 featureRanges,
+                                                 glyf_count,              //UINT32 maxGlyphCount,
+                                                 clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
+                                                 text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                 glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
+                                                 glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
+                                                 &glyf_count);            //_Out_ UINT32* actualGlyphCount
             if (hr != S_OK) return;
 
             glyf_steps.resize(glyf_count);
             glyf_align.resize(glyf_count);
             glyf_sizes.resize(glyf_count);
 
-            hr = fcache.analyzer->GetGlyphPlacements(
-                text_utf16.data(),                 // _In_reads_(textLength) WCHAR const* textString,
-                clustermap.data(),                 // _In_reads_(textLength) UINT16 const* clusterMap,
-                text_props.data(),                 // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                text_count,                        // UINT32 textLength,
-                glyf_index.data(),                 // _In_reads_(glyphCount) UINT16 const* glyphIndices,
-                glyf_props.data(),                 // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
-                glyf_count,                        // UINT32 glyphCount,
-                font_face,                         // _In_ IDWriteFontFace* fontFace,
-                em_height,                         // FLOAT fontEmSize,
-                faux,                              // BOOL isSideways,
-                faux,                              // BOOL isRightToLeft,
-                &script_opt,                       // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                fcache.oslocale.data(),            // _In_opt_z_ WCHAR const* localeName,
-                nullptr,//&f.feat_table,           // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                &text_count,                       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                0,//f.features.size(),             // UINT32 featureRanges,
-                glyf_steps.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
-                glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
+            hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
+                                                     clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
+                                                     text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                     text_count,              // UINT32 textLength,
+                                                     glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
+                                                     glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
+                                                     glyf_count,              // UINT32 glyphCount,
+                                                     face_inst,               // _In_ IDWriteFontFace* fontFace,
+                                                     em_height,               // FLOAT fontEmSize,
+                                                     faux,                    // BOOL isSideways,
+                                                     faux,                    // BOOL isRightToLeft,
+                                                     &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                     fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
+                                                     nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                     &text_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                     0,//f.features.size(),   // UINT32 featureRanges,
+                                                     glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
+                                                     glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
             if (hr != S_OK) return;
 
-            hr = font_face->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+            hr = face_inst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
             if (hr != S_OK) return;
             auto length = fp32{};
             auto penpos = fp32{};
@@ -657,6 +696,7 @@ Box drawing alignment tests:                                          █
             {
                 auto k = matrix.x / actual_width;
                 actual_width = matrix.x;
+                //base_line *= k;
                 em_height *= k;
                 for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
@@ -674,14 +714,16 @@ Box drawing alignment tests:                                          █
             if (actual_width <= matrix.x - cellsz.x / 2.f) // Hz alignment.
             {
                      if (glyfalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                //else if (glyfalignment.x == snap::head  ) base_line.x = 0;
                 else if (glyfalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
             }
             if (actual_height < matrix.y - cellsz.y / 2.f) // Vt alignment.
             {
                      if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
+                //else if (glyfalignment.y == snap::head  ) base_line.y *= k;
                 else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
             }
-            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
+            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = face_inst,
                                                .fontEmSize    = em_height,
                                                .glyphCount    = glyf_count,
                                                .glyphIndices  = glyf_index.data(),
