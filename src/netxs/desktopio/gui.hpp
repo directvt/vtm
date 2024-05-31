@@ -200,6 +200,7 @@ Box drawing alignment tests:                                          █
             {
                 auto fs = fp2d{ (fp32)facesize.x, (fp32)facesize.y };
                 //todo optimize for isbase
+                //todo find scale/offset individually for every font (check █ g T)
                 auto dx = isbase ? (cellsz.x + 1.0f) / fs.x : cellsz.x / fs.x;
                 auto dy = isbase ? (cellsz.y + 1.3f) / fs.y : cellsz.y / fs.y;
                 auto halfpixel = isbase ? fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.84f } : fp2d{};
@@ -238,7 +239,7 @@ Box drawing alignment tests:                                          █
                 fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
                 fontface[style::italic].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
                 fontface[style::italic].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
-                auto proportional = normal_glyph_metrics.advanceWidth != facesize.x;
+                auto proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
                 auto normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
                 auto italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
                 auto w = proportional && normal_width ? (fp32)normal_width : fs.x;
