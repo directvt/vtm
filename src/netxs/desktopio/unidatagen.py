@@ -15,19 +15,21 @@ import datetime
 import collections
 
 UNICODESPACE = 0x110000
-DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/GraphemeBreakProperty.txt',
+#ROOTURL = "https://www.unicode.org/Public/UNIDATA"
+ROOTURL = "https://www.unicode.org/Public/draft/UCD/ucd/"
+DATA_SOURCE = { 'GCBREAK' : (ROOTURL + '/auxiliary/GraphemeBreakProperty.txt',
                              ['CODERANGE', 'BREAK_CLASS']),
-                'EAWIDTH' : ('https://www.unicode.org/Public/UNIDATA/EastAsianWidth.txt',
+                'EAWIDTH' : (ROOTURL + '/EastAsianWidth.txt',
                              ['CODERANGE', 'EAST_ASIAN_WIDTH']),
-                'UNICODE' : ('https://www.unicode.org/Public/UNIDATA/UnicodeData.txt',
+                'UNICODE' : (ROOTURL + '/UnicodeData.txt',
                              ['CODERANGE'  , 'NAME'         , 'CATEGORY'     , 'COMBO_CLASS'  , 'BIDI_CATEGORY',
                               'DECOMP_MAP' , 'DECIMAL_VALUE', 'DIGITAL_VALUE', 'NUMERIC_VALUE', 'MIRRORED'     ,
                               'LEGACY_NAME', 'COMMENT'      , 'UPPERCASE_MAP', 'LOWERCASE_MAP', 'TITLECASE_MAP']),
-                'EMOJILS' : ('https://www.unicode.org/Public/UNIDATA/emoji/emoji-data.txt',
+                'EMOJILS' : (ROOTURL + '/emoji/emoji-data.txt',
                              ['CODEVALUE', 'EMOJI_BREAK_PROP']),
-                'ALIASES' : ('https://www.unicode.org/Public/UNIDATA/NameAliases.txt',
+                'ALIASES' : (ROOTURL + '/NameAliases.txt',
                              ['CODEVALUE', 'ALIAS', 'TYPE']),
-                "SCRIPTS" : ('https://www.unicode.org/Public/UNIDATA/Scripts.txt',
+                "SCRIPTS" : (ROOTURL + '/Scripts.txt',
                              ['CODERANGE', 'SCRIPT_PROP']),
                 "ISOCODS" : ('https://www.unicode.org/iso15924/iso15924.txt',
                              ['CODE', 'ISOCODE', 'NAME', 'FrNAME', 'PVA', 'VER', 'DATE']) }
@@ -294,21 +296,18 @@ namespace netxs::unidata
         ui32 ucwidth : 2; // 0 - zero, 1 - slim, 2 - wide.
         ui32 brgroup : 4;
         ui32 control : 7;
-        ui32 wscript : 10; // ISO 15924 Script No: 0 - 999.
-        //ui32 reserv : 9;
+        //ui32 reserv : 19;
 
         constexpr unidata(unidata const&) = default;
         constexpr unidata()
             : ucwidth{{ widths::slim }},
               brgroup{{ gbreak::any }},
-              control{{ cntrls::non_control }},
-              wscript{{}}
+              control{{ cntrls::non_control }}
         {{ }}
         constexpr unidata(ui32 ucwidth, ui32 brgroup, ui32 control)
             : ucwidth{{ ucwidth }},
               brgroup{{ brgroup }},
-              control{{ control }},
-              wscript{{}}
+              control{{ control }}
         {{ }}
         unidata(ui32 cp)
             : unidata{{ select(cp) }}
@@ -564,8 +563,10 @@ def apply_eawidths(source, chrs):
 
 def apply_wscripts(isocodes_src, scripts_src, chrs):
     isocodes = {}
-    for isocode, scriptname in isocodes_src.props('ISOCODE', 'PVA'):
-        if scriptname: isocodes[scriptname] = int(isocode)
+    for isocode, name, pva in isocodes_src.props('ISOCODE', 'NAME', 'PVA'):
+        if pva: isocodes[pva] = int(isocode)
+        else :  isocodes[name.replace(" ", "_").replace("-", "_")] = int(isocode)
+
     for cprange, scriptname in scripts_src.props('CODERANGE', 'SCRIPT_PROP'):
         for cp in sequencer(cprange):
             chrs[cp].scriptname = scriptname
