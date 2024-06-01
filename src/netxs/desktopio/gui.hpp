@@ -199,12 +199,58 @@ Box drawing alignment tests:                                          █
             void recalc_metrics(twod cellsz, bool isbase)
             {
                 auto fs = fp2d{ (fp32)facesize.x, (fp32)facesize.y };
-                //todo optimize for isbase
-                //todo find scale/offset individually for every font (check █ g T)
-                auto dx = isbase ? (cellsz.x + 1.0f) / fs.x : cellsz.x / fs.x;
-                auto dy = isbase ? (cellsz.y + 1.3f) / fs.y : cellsz.y / fs.y;
-                auto halfpixel = isbase ? fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.84f } : fp2d{};
-                auto base_line = isbase ? fp2d{ 0.f, (base_baseline - halfpixel.y) * dy } : fp2d{ 0.f, base_baseline * dy }; // Preserve original baseline by using dy.
+                auto tc = fp2d{ cellsz + dot_11 };
+                auto k0 = tc.y / fs.y;
+                //auto halfpixel = isbase ? fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.84f } : fp2d{};
+                //auto b1 = base_baseline * k0 - 0.18495f;
+                auto f3 = fp32{};
+                {
+                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
+                    auto code_points = ui32{ 'g' };
+                    auto glyph_index = ui16{ 0 };
+                    fontface[style::normal].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                    fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                    auto m = DWRITE_FONT_METRICS{};
+                    fontface[style::normal].face_inst->GetMetrics(&m);
+                    //f3 = (fp64)m.ascent/m.descent;
+                    f3 = (fp32)m.descent/m.ascent;
+                    if (isbase) 
+                    log(
+                        "\n\tglyph_metrics.advanceHeight=", glyph_metrics.advanceHeight,
+                        "\n\tglyph_metrics.bottomSideBearing=", glyph_metrics.bottomSideBearing,
+                        "\n\tglyph_metrics.topSideBearing=", glyph_metrics.topSideBearing,
+                        "\n\tglyph_metrics.verticalOriginY=", glyph_metrics.verticalOriginY,
+                        "\n\tbase_baseline=", base_baseline,
+                        "\n\tm.facesize.y=", facesize.y,
+                        "\n\tm.ascent=", m.ascent,
+                        "\n\tm.descent=", m.descent,
+                        "\n\tm.ascent/m.descent=", f3,
+                        "\n\tfs.y/(cellsz.y+a)*f3=", fs.y/tc.y*f3,
+                        "\n\tm.designUnitsPerEm=", m.designUnitsPerEm
+                    );
+                }
+                //auto b1 = (base_baseline - fs.y / tc.y / (f3 + _k1*0.01f)) * k0;
+                auto b1 = base_baseline * k0 - (f3 + _k1*0.01f);
+                //auto b1 = (base_baseline - fs.y/(cellsz.y+a)/(0.95f+_k1*0.01f)) * k0;
+                //auto b1 = (base_baseline - fs_y/(cellsz.y+a) / 2.3) * k0;
+                //Lucida: 1.32ok min1.67ok
+                //Consolas: min1.01ok max1.3679005ok 1.367905bad 1.36791bad 1.36793bad 1.36795bad 1.3679ok 1.3678ok 1.3677ok 1.3675ok 1.368bad 1.367ok 1.369bad 1.365ok 1.36ok 1.37bad 1.4bad 1.35ok 1.3ok
+                //Lucida: 9.85fok
+                //Cascadia: 2.32ok 2.35bad 2.4bad 3.0bad f3bad 2.3ok
+                //log("t1=", 0.18495f / k0);=48.9
+                // Cascadia: 0.18495ok 0.1848bad 0.1849ok 0.1845bad 0.1835bad 0.1825bad 0.185ok 0.19ok 0.18bad 0.15bad 0.2ok 0.1:bad
+                //auto b2 = std::floor(b1);
+                auto b2 = std::round(b1);
+                //auto k1 = b1 - b2;//std::abs(b1 - b2);// * 2;
+                auto k1 = std::abs(b1 - b2);// * 2;
+                //auto add_top = b1 < b2;
+                auto k2 = (tc.y + k1) / fs.y;
+                //auto k2 = add_top ? b2 / b1 : (cellsz.y + a - b2) / (cellsz.y + a - b1);
+                //auto dy = k0*k2;
+                auto dy = k2;
+                auto dx = tc.x / fs.x;
+                log("font_name=", font_name, " k1=", k1, " k2=", k2);
+                auto base_line = fp2d{ 0.f, b2 };
                 auto transform = isbase ? dy : std::min(dx, dy);
                 auto em_height = base_emheight * transform;
                 auto actual_sz = fs * transform;
@@ -442,7 +488,9 @@ Box drawing alignment tests:                                          █
             if (!fallback.empty()) // Keep fontface cell proportions.
             {
                 auto facesize = fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // cellsz.y + 1.5
+                cellsz.x = facesize.x * (10 * cellsz.y + 10) / (facesize.y * 10); // cellsz.y + 0.5
+                //cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // cellsz.y + 1.5
+                //cellsz.x = facesize.x * cellsz.y / facesize.y;
                 // Lucida Console 1.5ok
                 // Courier New    1.5ok 17-2.0bad
                 // Consolas       1.5ok
@@ -1162,7 +1210,7 @@ Box drawing alignment tests:                                          █
         virtual void mouse_shift(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
-        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
+        virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
 
         auto add(manager* host_ptr = nullptr)
@@ -1196,8 +1244,8 @@ Box drawing alignment tests:                                          █
                     case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
                     case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), faux);           break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), true);           break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), faux);           break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), true);           break;
                     case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
                     //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
@@ -1532,14 +1580,16 @@ Box drawing alignment tests:                                          █
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
             return state;
         }
-        void mouse_wheel(si32 delta, bool hz)
+        void mouse_wheel(si32 delta, si32 cntrl, bool hz)
         {
             auto wheeldt = delta / 120;
-            auto kb = kbs();
-            if (kb & hids::LCtrl)
+            auto kb = keybd_state();//kbs();
+            //if (kb & hids::LCtrl)
+            log("cntrl=", utf::to_hex(cntrl));
+            if (cntrl & MK_CONTROL)
             {
                 netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-                log("_k0=", _k0);
+                log("_k0=", _k0, "_k1=", _k1);
                 gcache.glyphs.clear();
                 static auto orig_sz = cellsz;
                 auto grip_cell = gripsz / cellsz;
@@ -1549,6 +1599,24 @@ Box drawing alignment tests:                                          █
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
                 layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+                recalc_layout();
+                reload |= task::all;
+                return;
+            }
+            //else if (kb & hids::LAlt)
+            else if (cntrl & MK_SHIFT)
+            {
+                netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+                log("_k0=", _k0, "_k1=", _k1);
+                gcache.glyphs.clear();
+                //static auto orig_sz = cellsz;
+                //auto grip_cell = gripsz / cellsz;
+                //cellsz.y = orig_sz.y + _k0;
+                fcache.set_cellsz(cellsz);
+                //gripsz = grip_cell * cellsz;
+                //border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                //shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
+                //layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
                 recalc_layout();
                 reload |= task::all;
                 return;
