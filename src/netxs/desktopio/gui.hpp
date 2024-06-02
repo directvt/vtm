@@ -138,8 +138,9 @@ Using large type pieces:
                 fp2d              base_line{};
             };
             std::vector<face_rec>             fontface;
-            fp32                              base_baseline{};
             fp32                              transform{};
+            fp32                              base_descent{};
+            fp32                              base_ascent{};
             si32                              base_emheight{};
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
@@ -190,6 +191,8 @@ Using large type pieces:
                     auto m = DWRITE_FONT_METRICS{};
                     face_inst->GetMetrics(&m);
                     base_emheight = m.designUnitsPerEm;
+                    base_ascent = m.ascent + m.lineGap / 2.0f;
+                    base_descent = m.descent + m.lineGap / 2.0f;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                     // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                     auto code_points = ui32{ 'x' };
@@ -198,7 +201,6 @@ Using large type pieces:
                     face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
                     facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
-                    base_baseline = m.ascent + m.lineGap / 2.0f;
                     color = iscolor(face_inst);
                     //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
                     //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
@@ -210,75 +212,37 @@ Using large type pieces:
             void recalc_metrics(twod cellsz, bool isbase)
             {
                 auto fs = fp2d{ (fp32)facesize.x, (fp32)facesize.y };
-                auto tc = fp2d{ cellsz + dot_11 };
+                auto tc = fp2d{ cellsz };
                 auto k0 = tc.y / fs.y;
-                //auto halfpixel = isbase ? fp2d{ fs.x / cellsz.x * 0.5f, fs.y / cellsz.y * 0.84f } : fp2d{};
-                //auto b1 = base_baseline * k0 - 0.18495f;
-                auto f3 = fp32{};
-                {
-                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
-                    auto code_points = ui32{ 'g' };
-                    auto glyph_index = ui16{ 0 };
-                    fontface[style::normal].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
-                    fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
-                    auto m = DWRITE_FONT_METRICS{};
-                    fontface[style::normal].face_inst->GetMetrics(&m);
-                    //f3 = (fp64)m.ascent/m.descent;
-                    f3 = (fp32)m.descent/m.ascent;
-                    if (isbase) 
-                    log(
-                        "\n\tglyph_metrics.advanceHeight=", glyph_metrics.advanceHeight,
-                        "\n\tglyph_metrics.bottomSideBearing=", glyph_metrics.bottomSideBearing,
-                        "\n\tglyph_metrics.topSideBearing=", glyph_metrics.topSideBearing,
-                        "\n\tglyph_metrics.verticalOriginY=", glyph_metrics.verticalOriginY,
-                        "\n\tbase_baseline=", base_baseline,
-                        "\n\tm.facesize.y=", facesize.y,
-                        "\n\tm.ascent=", m.ascent,
-                        "\n\tm.descent=", m.descent,
-                        "\n\tm.ascent/m.descent=", f3,
-                        "\n\tfs.y/(cellsz.y+a)*f3=", fs.y/tc.y*f3,
-                        "\n\tm.designUnitsPerEm=", m.designUnitsPerEm
-                    );
-                }
-                //auto b1 = (base_baseline - fs.y / tc.y / (f3 + _k1*0.01f)) * k0;
-                auto b1 = base_baseline * k0 - (f3 + 0.43f + 0.20f + _k1*0.01f);
-                //auto b1 = (base_baseline - fs.y/(cellsz.y+a)/(0.95f+_k1*0.01f)) * k0;
-                //auto b1 = (base_baseline - fs_y/(cellsz.y+a) / 2.3) * k0;
-                //Lucida: 1.32ok min1.67ok
-                //Consolas: min1.01ok max1.3679005ok 1.367905bad 1.36791bad 1.36793bad 1.36795bad 1.3679ok 1.3678ok 1.3677ok 1.3675ok 1.368bad 1.367ok 1.369bad 1.365ok 1.36ok 1.37bad 1.4bad 1.35ok 1.3ok
-                //Lucida: 9.85fok
-                //Cascadia: 2.32ok 2.35bad 2.4bad 3.0bad f3bad 2.3ok
-                //log("t1=", 0.18495f / k0);=48.9
-                // Cascadia: 0.18495ok 0.1848bad 0.1849ok 0.1845bad 0.1835bad 0.1825bad 0.185ok 0.19ok 0.18bad 0.15bad 0.2ok 0.1:bad
-                //auto b2 = std::floor(b1);
-                auto b2 = std::round(b1);
-                //auto k1 = b1 - b2;//std::abs(b1 - b2);// * 2;
-                auto k1 = std::abs(b1 - b2);// * 2;
-                //auto add_top = b1 < b2;
-                auto k2 = (tc.y + k1) / fs.y;
-                //auto k2 = add_top ? b2 / b1 : (cellsz.y + a - b2) / (cellsz.y + a - b1);
-                //auto dy = k0*k2;
-                auto dy = k2;
+                auto b0 = base_ascent * k0;
+                //auto b2 = std::round(b0);
+                auto b_f = std::floor(b0);
+                auto b_c = std::ceil(b0);
+                //auto b1 = b0;// - (f3 + 0.43f + 0.20f + _k1*0.01f);
+                //Cascadia: 0.63
+                //JetBrains: 0.63
+                //Iosevka: 0.55
+                //auto b2 = std::round(b1);
+                //auto k1 = std::abs(b1 - b2);// * 2;
+                auto asc_f = b_f;
+                auto asc_c = b_c;
+                auto des_f = tc.y - b_f;
+                auto des_c = tc.y - b_c;
+                auto k1_f = asc_f / base_ascent;
+                auto k2_f = des_f / base_descent;
+                auto k1_c = asc_c / base_ascent;
+                auto k2_c = des_c / base_descent;
+                auto m1 = std::max(k1_f, k2_f);
+                auto m2 = std::max(k1_c, k2_c);
+                auto dy = std::min(m1, m2);
+                auto b2 = m1 < m2 ? b_f : b_c;
                 auto dx = tc.x / fs.x;
-                log("font_name=", font_name, " k1=", k1, " k2=", k2);
-                auto base_line = fp2d{ 0.f, b2 };
+                //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tgap=", base_lineGap, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", dy, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
+                auto base_line = fp2d{ 0.f, b2};
                 auto transform = isbase ? dy : std::min(dx, dy);
                 auto em_height = base_emheight * transform;
                 auto actual_sz = fs * transform;
-                // Cascadia Mono (1.3-0.84ok:13g) (1.3-0.83bad:13g) (1.3-0.80bad:13g) (1.3-0.85ok:g) (1.3-0.75bad:g) (1.3-0.65bad:g)
-                // Courier New (1.3-0.84ok:g) (1.3-0.80ok:g) (1.3-0.85bad:btm)
-                // JetBrains Mono (1.3-0.84ok:g) (1.3-0.80ok:g)
-                // Iosevka Term : bad font: (1.3-0.85bad:33btm) <--> (1.3-0.85bad:30top)
-                // dy 1.5 breaks Lucida Console at 11px
-                // Lucida Console  (1.5-1.15 g11:bad) (1.5-1.14 g11:bad)
-                // Cascadia Mono (1.5-1.14 g12:ok) (1.5-1.13 g12:bad) (1.5-1.15 g12:ok) (1.5-1.1 g12:bad) (1.5-1.2 g12:ok) (1.5-1.0 g12:bad)
-                // 1.5-(0.80-0.96)ok:
-                // Consolas (top 13, 1.5-0.80ok) (top 13, 1.5-0.79bad) (top 13, 1.5-0.78bad) (top 13, 1.5-0.77bad) (top 13, 1.5-0.76bad) (top 13, 1.5-0.75bad) (top 12, 1.5-0.80ok) (top 12, 1.5-0.85ok) (top 12, 1.5-0.96ok) (top 12, 1.5-1.0ok) (top 12, 1.5-0.90ok) (top 12, 1.4-1.0ok) (top 12, 1.4-0.90bad) (top 12, 1.4-0.89bad) (top 12, 1.3-0.85bad) (top 12, 1.3-0.82bad) (top 12, 1.3-0.89ok) (top 12, 1.3-0.8bad) (top 1.3-0.9ok, 1.2-1.0ok)
-                // Courier  (btm 21, 1.5-0.75ok) (btm 21, 1.5-0.80ok) (btm 21, 1.5-0.96ok) (btm 21, 1.5-0.97bad) (btm 21, 1.5-0.98bad) (btm 21, 1.5-0.95ok) (btm 21, 1.5-1.0bad) (btm 21, 1.5-0.90ok) (btm 21, 1.4-0.90ok) (btm 21, 1.4-0.91bad) (btm 21, 1.4-0.93bad) (btm 17, 1.4-0.95bad) (btm 17, 1.4-1.0bad) (btm 21, 1.3-0.82ok) (btm 21, 1.3-0.85bad) (btm 17, 1.3-0.89bad) (btm 22, 1.3-0.8ok) (btm 22, 1.2-0.5ok) (btm 17, 1.3-0.9bad)
-                // Iosevka Term   1.5-0.80ok  1.5-0.75ok
-                // Cascadia Mono  1.5-0.80ok  1.5-0.75ok
-                // Lucida Console 1.5-0.80ok  1.5-0.75ok
-                //face_baseline.x = -half_pixel.x * transform; //todo It adds gaps between box drawings, but fixes powerline's right arrow
+
                 fontface[style::normal].transform = transform;
                 fontface[style::normal].em_height = em_height;
                 fontface[style::normal].base_line = base_line;
@@ -499,7 +463,7 @@ Using large type pieces:
             if (!fallback.empty()) // Keep fontface cell proportions.
             {
                 auto facesize = fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 10) / (facesize.y * 10); // cellsz.y + 0.5
+                cellsz.x = facesize.x * (10 * cellsz.y + 0) / (facesize.y * 10); // cellsz.y + 0
                 //cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // cellsz.y + 1.5
                 //cellsz.x = facesize.x * cellsz.y / facesize.y;
                 // Lucida Console 1.5ok
@@ -1596,7 +1560,7 @@ Using large type pieces:
             auto wheeldt = delta / 120;
             auto kb = keybd_state();//kbs();
             //if (kb & hids::LCtrl)
-            log("cntrl=", utf::to_hex(cntrl));
+            //log("cntrl=", utf::to_hex(cntrl));
             if (cntrl & MK_CONTROL)
             {
                 netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
