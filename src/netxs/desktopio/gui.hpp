@@ -138,7 +138,6 @@ Using large type pieces:
                 fp2d              base_line{};
             };
             std::vector<face_rec>             fontface;
-            fp32                              transform{};
             fp32                              base_descent{};
             fp32                              base_ascent{};
             si32                              base_emheight{};
@@ -209,21 +208,14 @@ Using large type pieces:
                     //    " metrics.lineGap=", metrics.lineGap);
                 }
             }
-            void recalc_metrics(twod cellsz, bool isbase)
+            void recalc_metrics(twod& cellsz, bool isbase)
             {
-                auto fs = fp2d{ (fp32)facesize.x, (fp32)facesize.y };
+                auto fs = fp2d{ facesize };
                 auto tc = fp2d{ cellsz };
                 auto k0 = tc.y / fs.y;
                 auto b0 = base_ascent * k0;
-                //auto b2 = std::round(b0);
                 auto b_f = std::floor(b0);
                 auto b_c = std::ceil(b0);
-                //auto b1 = b0;// - (f3 + 0.43f + 0.20f + _k1*0.01f);
-                //Cascadia: 0.63
-                //JetBrains: 0.63
-                //Iosevka: 0.55
-                //auto b2 = std::round(b1);
-                //auto k1 = std::abs(b1 - b2);// * 2;
                 auto asc_f = b_f;
                 auto asc_c = b_c;
                 auto des_f = tc.y - b_f;
@@ -234,15 +226,22 @@ Using large type pieces:
                 auto k2_c = des_c / base_descent;
                 auto m1 = std::max(k1_f, k2_f);
                 auto m2 = std::max(k1_c, k2_c);
-                auto dy = std::min(m1, m2);
+                auto transform = std::min(m1, m2);
                 auto b2 = m1 < m2 ? b_f : b_c;
-                auto dx = tc.x / fs.x;
-                //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tgap=", base_lineGap, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", dy, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
-                auto base_line = fp2d{ 0.f, b2};
-                auto transform = isbase ? dy : std::min(dx, dy);
+                auto base_line = fp2d{ 0.f, b2 };
+                if (isbase)
+                {
+                    auto mx = fs.x * transform;
+                    auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
+                    cellsz.x = std::max<si32>(1, dx);
+                }
+                else
+                {
+                    transform = std::min(transform, tc.x / fs.x);
+                }
                 auto em_height = base_emheight * transform;
                 auto actual_sz = fs * transform;
-
+                //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 fontface[style::normal].transform = transform;
                 fontface[style::normal].em_height = em_height;
                 fontface[style::normal].base_line = base_line;
@@ -460,24 +459,11 @@ Using large type pieces:
         }
         void set_cellsz(twod& cellsz)
         {
-            if (!fallback.empty()) // Keep fontface cell proportions.
-            {
-                auto facesize = fallback.front().facesize;
-                cellsz.x = facesize.x * (10 * cellsz.y + 0) / (facesize.y * 10); // cellsz.y + 0
-                //cellsz.x = facesize.x * (10 * cellsz.y + 15) / (facesize.y * 10); // cellsz.y + 1.5
-                //cellsz.x = facesize.x * cellsz.y / facesize.y;
-                // Lucida Console 1.5ok
-                // Courier New    1.5ok 17-2.0bad
-                // Consolas       1.5ok
-                // Iosevka Term   1.5ok
-                // Cascadia Mono  1.5ok
-            }
-            if (cellsz.x < 1) cellsz.x = 1;
             if (cellsz.y < 2) cellsz.y = 2;
-            cellsize = cellsz;
-            log("%%Set cell size: ", prompt::gui, cellsz);
             auto base_font = true;
             for (auto& f : fallback) f.recalc_metrics(cellsz, std::exchange(base_font, faux));
+            cellsize = cellsz;
+            log("%%Set cell size: ", prompt::gui, cellsz);
         }
         auto& take_font(utfx codepoint)
         {
@@ -712,7 +698,9 @@ Using large type pieces:
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto is_box_drawing = base_char >= 0x2500 && (base_char <= 0x25FF || (base_char >= 0x1FB00 && base_char <= 0x1FBFF));
+            auto is_box_drawing = base_char >= 0x2500  && (base_char <= 0x25FF
+                              || (base_char >= 0x1CE1A && (base_char <= 0x1CE50 // Large Type Pieces: U+1CE1A-1CE50
+                              || (base_char >= 0x1FB00 &&  base_char <= 0x1FBFF))));
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
@@ -758,7 +746,11 @@ Using large type pieces:
             hr = monochromatic ? DWRITE_E_NOCOLOR
                                : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED;
+            auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid fitting breaks box-drawing linkage.
+                                                                  : DWRITE_GRID_FIT_MODE_ENABLED;
+            //todo Consolas test
+            //auto pixel_fit_mode = is_box_drawing ? DWRITE_GRID_FIT_MODE_DISABLED // Grid fitting breaks box-drawing linkage.
+            //                                     : DWRITE_GRID_FIT_MODE_ENABLED;
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
@@ -840,6 +832,9 @@ Using large type pieces:
                 colored_glyphs->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
+            //auto src_bitmap = glyph_mask.raster<byte>();
+            //auto bline = rect{base_line, { cellsz.x, 1 } };
+            //netxs::misc::fill(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
                 //todo optimize
