@@ -19,6 +19,9 @@ namespace netxs::gui
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
     auto canvas_text = ansi::add("").wrp(wrap::on)
+        .fgc(cyanlt).add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
+        .fgc(cyanlt).add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
+        .fgc(cyanlt).add("             ⎝⎩\n")
         .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
             .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
         .fgc(tint::whitelt).add(
@@ -143,6 +146,7 @@ Using large type pieces:
             fp32                              base_descent{};
             fp32                              base_ascent{};
             si32                              base_emheight{};
+            si32                              base_x_height{};
             twod                              facesize; // Typeface cell size.
             ui32                              index{ ~0u };
             bool                              color{ faux };
@@ -192,6 +196,7 @@ Using large type pieces:
                     auto m = DWRITE_FONT_METRICS{};
                     face_inst->GetMetrics(&m);
                     base_emheight = m.designUnitsPerEm;
+                    base_x_height = m.xHeight;
                     base_ascent = m.ascent + m.lineGap / 2.0f;
                     base_descent = m.descent + m.lineGap / 2.0f;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
@@ -247,13 +252,14 @@ Using large type pieces:
                     auto mx = fs.x * transform;
                     auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
                     cellsz.x = std::max<si32>(1, dx);
-                    transform_letters = std::min(transform, cellsz.x / fs.x);
+                    transform_letters = std::min(transform, cellsz.x / fs.x); // Respect letter width.
                 }
                 else
                 {
-                    transform = std::min(transform, tc.x / fs.x);
+                    transform = std::min(transform, cellsz.x  / fs.x);
                     transform_letters = transform;
                 }
+                transform_letters = std::floor(base_x_height * transform_letters) / base_x_height; // Respect x-height.
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = fs * transform;
@@ -266,8 +272,8 @@ Using large type pieces:
                 fontface[style::normal].actual_sz = actual_sz;
                 fontface[style::bold  ].transform = transform;
                 fontface[style::bold  ].em_height = em_height;
-                fontface[style::bold].transform_letters = transform_letters;
-                fontface[style::bold].em_height_letters = em_height_letters;
+                fontface[style::bold  ].transform_letters = transform_letters;
+                fontface[style::bold  ].em_height_letters = em_height_letters;
                 fontface[style::bold  ].base_line = base_line;
                 fontface[style::bold  ].actual_sz = actual_sz;
                 // Detect right bearing delta for italics.
@@ -284,17 +290,10 @@ Using large type pieces:
                 auto italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
                 auto w = proportional && normal_width ? (fp32)normal_width : fs.x;
                 auto k = w / (w + (italic_width - normal_width));
-                //log("font_name=", font_name, " italic_width=", italic_width, " normal_width=", normal_width, " face_size.x=", facesize.x, " k=", k);
-                //log("\titalic: advanceWidth=",    italic_glyph_metrics.advanceWidth,
-                //             " leftSideBearing=", italic_glyph_metrics.leftSideBearing,
-                //             " rightSideBearing=", italic_glyph_metrics.rightSideBearing);
-                //log("\tnormal: advanceWidth=",    normal_glyph_metrics.advanceWidth,
-                //             " leftSideBearing=", normal_glyph_metrics.leftSideBearing,
-                //             " rightSideBearing=", normal_glyph_metrics.rightSideBearing);
                 transform *= k;
                 em_height *= k;
-                transform_letters *= k;
-                em_height_letters *= k;
+                transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
+                em_height_letters = base_emheight * transform_letters;
                 actual_sz *= k;
                 fontface[style::italic     ].transform = transform;
                 fontface[style::italic     ].em_height = em_height;
@@ -638,10 +637,11 @@ Using large type pieces:
             auto& f = fcache.take_font(base_char);
             auto face_inst = f.fontface[format].face_inst;
             if (!face_inst) return;
-            auto is_box_drawing = base_char >= 0x2500  && (base_char <= 0x25FF
+            auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0  // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
+                              || (base_char >= 0x2500  && (base_char <= 0x25FF  // Box Elements
                               || (base_char >= 0xE0B0  && (base_char <= 0xE0B3  // Powerline Arrows
                               || (base_char >= 0x1CE1A && (base_char <= 0x1CE50 // Large Type Pieces: U+1CE1A-1CE50
-                              || (base_char >= 0x1FB00 &&  base_char <= 0x1FBFF))))));
+                              || (base_char >= 0x1FB00 &&  base_char <= 0x1FBFF))))))));
             auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
             auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
             auto base_line = f.fontface[format].base_line;
