@@ -134,6 +134,8 @@ Using large type pieces:
                 IDWriteFontFace2* face_inst{};
                 fp32              transform{};
                 fp32              em_height{};
+                fp32              transform_letters{};
+                fp32              em_height_letters{};
                 fp2d              actual_sz{};
                 fp2d              base_line{};
             };
@@ -226,28 +228,46 @@ Using large type pieces:
                 auto k2_c = des_c / base_descent;
                 auto m1 = std::max(k1_f, k2_f);
                 auto m2 = std::max(k1_c, k2_c);
-                auto transform = std::min(m1, m2);
-                auto b2 = m1 < m2 ? b_f : b_c;
+                auto b2 = fp32{};
+                auto transform = fp32{};
+                auto transform_letters = fp32{};
+                if (m1 < m2)
+                {
+                    transform = m1;
+                    b2 = b_f;
+                }
+                else
+                {
+                    transform = m2;
+                    b2 = b_c;
+                }
                 auto base_line = fp2d{ 0.f, b2 };
                 if (isbase)
                 {
                     auto mx = fs.x * transform;
                     auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
                     cellsz.x = std::max<si32>(1, dx);
+                    transform_letters = std::min(transform, cellsz.x / fs.x);
                 }
                 else
                 {
                     transform = std::min(transform, tc.x / fs.x);
+                    transform_letters = transform;
                 }
                 auto em_height = base_emheight * transform;
+                auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = fs * transform;
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 fontface[style::normal].transform = transform;
                 fontface[style::normal].em_height = em_height;
+                fontface[style::normal].transform_letters = transform_letters;
+                fontface[style::normal].em_height_letters = em_height_letters;
                 fontface[style::normal].base_line = base_line;
                 fontface[style::normal].actual_sz = actual_sz;
                 fontface[style::bold  ].transform = transform;
                 fontface[style::bold  ].em_height = em_height;
+                fontface[style::bold].transform_letters = transform_letters;
+                fontface[style::bold].em_height_letters = em_height_letters;
                 fontface[style::bold  ].base_line = base_line;
                 fontface[style::bold  ].actual_sz = actual_sz;
                 // Detect right bearing delta for italics.
@@ -273,13 +293,19 @@ Using large type pieces:
                 //             " rightSideBearing=", normal_glyph_metrics.rightSideBearing);
                 transform *= k;
                 em_height *= k;
+                transform_letters *= k;
+                em_height_letters *= k;
                 actual_sz *= k;
                 fontface[style::italic     ].transform = transform;
                 fontface[style::italic     ].em_height = em_height;
+                fontface[style::italic     ].transform_letters = transform_letters;
+                fontface[style::italic     ].em_height_letters = em_height_letters;
                 fontface[style::italic     ].base_line = base_line;
                 fontface[style::italic     ].actual_sz = actual_sz;
                 fontface[style::bold_italic].transform = transform;
                 fontface[style::bold_italic].em_height = em_height;
+                fontface[style::bold_italic].transform_letters = transform_letters;
+                fontface[style::bold_italic].em_height_letters = em_height_letters;
                 fontface[style::bold_italic].base_line = base_line;
                 fontface[style::bold_italic].actual_sz = actual_sz;
             }
@@ -612,8 +638,11 @@ Using large type pieces:
             auto& f = fcache.take_font(base_char);
             auto face_inst = f.fontface[format].face_inst;
             if (!face_inst) return;
-            auto transform = f.fontface[format].transform;
-            auto em_height = f.fontface[format].em_height;
+            auto is_box_drawing = base_char >= 0x2500  && (base_char <= 0x25FF
+                              || (base_char >= 0x1CE1A && (base_char <= 0x1CE50 // Large Type Pieces: U+1CE1A-1CE50
+                              || (base_char >= 0x1FB00 &&  base_char <= 0x1FBFF))));
+            auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
+            auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
             auto base_line = f.fontface[format].base_line;
             auto actual_sz = f.fontface[format].actual_sz;
 
@@ -686,7 +715,8 @@ Using large type pieces:
             if (hr != S_OK) return;
             auto length = fp32{};
             auto penpos = fp32{};
-            auto matrix = fp2d{ c.mtx() * cellsz };
+            auto mtx = c.mtx();
+            auto matrix = fp2d{ mtx * cellsz };
             auto swapxy = flipandrotate & 1;
             if (swapxy) std::swap(matrix.x, matrix.y);
             for (auto i = 0u; i < glyf_count; ++i)
@@ -698,9 +728,6 @@ Using large type pieces:
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto is_box_drawing = base_char >= 0x2500  && (base_char <= 0x25FF
-                              || (base_char >= 0x1CE1A && (base_char <= 0x1CE50 // Large Type Pieces: U+1CE1A-1CE50
-                              || (base_char >= 0x1FB00 &&  base_char <= 0x1FBFF))));
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
             auto actual_height = (fp32)cellsz.y;
@@ -746,11 +773,8 @@ Using large type pieces:
             hr = monochromatic ? DWRITE_E_NOCOLOR
                                : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid fitting breaks box-drawing linkage.
+            auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
                                                                   : DWRITE_GRID_FIT_MODE_ENABLED;
-            //todo Consolas test
-            //auto pixel_fit_mode = is_box_drawing ? DWRITE_GRID_FIT_MODE_DISABLED // Grid fitting breaks box-drawing linkage.
-            //                                     : DWRITE_GRID_FIT_MODE_ENABLED;
             auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
