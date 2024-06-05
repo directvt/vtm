@@ -148,6 +148,7 @@ Using large type pieces:
             si32                              base_emheight{};
             si32                              base_x_height{};
             twod                              facesize; // Typeface cell size.
+            fp32                              ratio{};
             ui32                              index{ ~0u };
             bool                              color{ faux };
             bool                              fixed{ faux }; // Preserve specified font order.
@@ -193,7 +194,7 @@ Using large type pieces:
                 auto& face_inst = fontface[style::normal].face_inst;
                 if (face_inst)
                 {
-                    auto m = DWRITE_FONT_METRICS{};
+                    auto m = DWRITE_FONT_METRICS1{};
                     face_inst->GetMetrics(&m);
                     base_emheight = m.designUnitsPerEm;
                     base_x_height = m.xHeight;
@@ -201,18 +202,15 @@ Using large type pieces:
                     base_descent = m.descent + m.lineGap / 2.0f;
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                     // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
-                    auto code_points = ui32{ 'x' };
+                    //auto code_points = ui32{ 'x' };
+                    auto code_points = ui32{ 'U' }; // U is approximately half an emoji square in the Segoe Emoji font.
                     auto glyph_index = ui16{ 0 };
                     face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
                     face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
                     facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
+                    ratio = 2.f * facesize.x / facesize.y;
                     color = iscolor(face_inst);
-                    //log("glyph_metrics.advanceWidth=", glyph_metrics.advanceWidth,
-                    //    " metrics.designUnitsPerEm=", metrics.designUnitsPerEm,
-                    //    " metrics.ascent=", metrics.ascent,
-                    //    " metrics.descent=", metrics.descent,
-                    //    " metrics.lineGap=", metrics.lineGap);
                 }
             }
             void recalc_metrics(twod& cellsz, bool isbase)
@@ -309,7 +307,6 @@ Using large type pieces:
                 fontface[style::bold_italic].actual_sz = actual_sz;
             }
 
-            //todo make software font
             typeface() = default;
             typeface(typeface&&) = default;
             typeface(IDWriteFontFamily* barefont, ui32 index)
@@ -692,7 +689,16 @@ Using large type pieces:
             glyf_steps.resize(glyf_count);
             glyf_align.resize(glyf_count);
             glyf_sizes.resize(glyf_count);
-
+            auto mtx = c.mtx();
+            auto matrix = fp2d{ mtx * cellsz };
+            auto swapxy = flipandrotate & 1;
+            if (swapxy)
+            {
+                std::swap(matrix.x, matrix.y);
+                transform *= f.ratio;
+                em_height *= f.ratio;
+                base_line *= f.ratio;
+            }
             hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
                                                      clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
                                                      text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
@@ -717,10 +723,6 @@ Using large type pieces:
             if (hr != S_OK) return;
             auto length = fp32{};
             auto penpos = fp32{};
-            auto mtx = c.mtx();
-            auto matrix = fp2d{ mtx * cellsz };
-            auto swapxy = flipandrotate & 1;
-            if (swapxy) std::swap(matrix.x, matrix.y);
             for (auto i = 0u; i < glyf_count; ++i)
             {
                 auto w = glyf_sizes[i].advanceWidth;
@@ -777,7 +779,7 @@ Using large type pieces:
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
             auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
                                                                   : DWRITE_GRID_FIT_MODE_ENABLED;
-            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
+            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE;
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
                 auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
