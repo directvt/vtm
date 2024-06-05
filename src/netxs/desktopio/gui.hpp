@@ -18,10 +18,11 @@ namespace netxs::gui
     //test strings
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
-    auto canvas_text = ansi::add("").wrp(wrap::on)
-        .fgc(cyanlt).add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
-        .fgc(cyanlt).add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
-        .fgc(cyanlt).add("             ⎝⎩\n")
+    auto canvas_text = ansi::add("").wrp(wrap::on).fgc(cyanlt)
+        .add("\2Hello", utf::vs10, vss<11>, "\n")
+        .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
+        .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
+        .add("             ⎝⎩\n")
         .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
             .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
         .fgc(tint::whitelt).add(
@@ -54,7 +55,7 @@ Using large type pieces:
 𜸼𜸼 𜸼 𜸼 𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜹃𜸾𜸟𜹃𜸾𜸟𜹃 𜸼 𜸼𜸾𜸟𜹃𜸼 𜸼
 )==")
         .add("\n")
-        .add("\2aaa", vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
+        .add("\2aaaa", utf::vs07, vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
         .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
         //todo multiline graphemes
         //.add("\2line1\nline2", vss<52,01>, "\n")
@@ -209,7 +210,7 @@ Using large type pieces:
                     face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                     facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
                     facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
-                    ratio = 2.f * facesize.x / facesize.y;
+                    ratio = (fp32)facesize.x / facesize.y;
                     color = iscolor(face_inst);
                 }
             }
@@ -603,7 +604,7 @@ Using large type pieces:
             codepoints.clear();
             auto flipandrotate = 0;
             auto monochromatic = faux;
-            auto glyfalignment = bind{ snap::head, snap::center };
+            auto glyfalignment = bind{ snap::none, snap::none };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
@@ -611,9 +612,9 @@ Using large type pieces:
                 {
                          if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
                     else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
-                    else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011);
-                    else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011);
-                    else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011); // +90°  CCW
+                    else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011); // +180° CCW
+                    else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
                     else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011);
                     else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011);
                     else if (codepoint.cdpoint == utf::vs04_code) glyfalignment.x = snap::head;
@@ -689,6 +690,7 @@ Using large type pieces:
             glyf_steps.resize(glyf_count);
             glyf_align.resize(glyf_count);
             glyf_sizes.resize(glyf_count);
+            auto actual_height = (fp32)cellsz.y;
             auto mtx = c.mtx();
             auto matrix = fp2d{ mtx * cellsz };
             auto swapxy = flipandrotate & 1;
@@ -698,6 +700,7 @@ Using large type pieces:
                 transform *= f.ratio;
                 em_height *= f.ratio;
                 base_line *= f.ratio;
+                actual_height *= f.ratio;
             }
             hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
                                                      clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
@@ -734,37 +737,39 @@ Using large type pieces:
             }
             auto threshold = is_box_drawing ? 0.00f : 0.70f;
             auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
-            auto actual_height = (fp32)cellsz.y;
+            auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
-                auto k = matrix.x / actual_width;
+                k = matrix.x / actual_width;
                 actual_width = matrix.x;
-                //base_line *= k;
+                actual_height *= k;
                 em_height *= k;
                 for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
             }
-            else if (actual_height < matrix.y && actual_width <= matrix.x - cellsz.x) // Check if the glyph is too small for the matrix. (scale up)
+            else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
             {
-                auto k = std::min(matrix.x / actual_width, matrix.y / actual_height);
+                k = std::min(matrix.x / actual_width, matrix.y / actual_height);
                 actual_width *= k;
                 actual_height *= k;
                 base_line *= k;
                 em_height *= k;
                 for (auto& w : glyf_steps) w *= k;
                 for (auto& [h, v] : glyf_align) h *= k;
+                k = 1.f;
             }
-            if (actual_width <= matrix.x - cellsz.x / 2.f) // Hz alignment.
+            if (glyfalignment.x != snap::none && actual_width < matrix.x)
             {
                      if (glyfalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
-                //else if (glyfalignment.x == snap::head  ) base_line.x = 0;
                 else if (glyfalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
+                //else if (glyfalignment.x == snap::head  ) base_line.x = 0;
             }
-            if (actual_height < matrix.y - cellsz.y / 2.f) // Vt alignment.
+            if (glyfalignment.y != snap::none && actual_height < matrix.y)
             {
+                base_line.y *= k;
                      if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
-                //else if (glyfalignment.y == snap::head  ) base_line.y *= k;
                 else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
+                //else if (glyfalignment.y == snap::head  ) base_line.y *= k;
             }
             auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = face_inst,
                                                .fontEmSize    = em_height,
