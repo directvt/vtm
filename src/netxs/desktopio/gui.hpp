@@ -250,7 +250,7 @@ Using large type pieces:
                 {
                     auto mx = fs.x * transform;
                     auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
-                    cellsz.x = std::max<si32>(1, dx);
+                    cellsz.x = std::max(1, (si32)dx);
                     transform_letters = std::min(transform, cellsz.x / fs.x); // Respect letter width.
                 }
                 else
