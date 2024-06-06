@@ -1222,6 +1222,7 @@ Using large type pieces:
         }
 
         virtual void update() = 0;
+        virtual void mouse_leave() = 0;
         virtual void mouse_shift(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
@@ -1245,11 +1246,10 @@ Using large type pieces:
                 static auto f = 0;
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE:
-                        if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
-                        if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
-                        break;
-                    case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break; //todo reimplement mouse leaving
+                    case WM_MOUSEMOVE:   if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
+                                         if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
+                                         break;
+                    case WM_MOUSELEAVE:  if (!--h) w->mouse_leave(), hover_win = {};   break;
                     case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
                     case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
                     case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
@@ -1339,6 +1339,7 @@ Using large type pieces:
         grip szgrip; // window: Resizing grips UI-control.
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
+        bool mhover; // window: Mouse hover.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
         si32 grip_l; // window: Surface index for Left resizing grip.
@@ -1367,6 +1368,7 @@ Using large type pieces:
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
+              mhover{},
               reload{ task::all },
               client{ add(this) },
               grip_l{ add(this) },
@@ -1418,6 +1420,20 @@ Using large type pieces:
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
             sync_pixel_size();
+        }
+        void set_aa_mode(bool mode)
+        {
+            log("AA ", mode ? "enabled" : "disabled");
+            gcache.aamode = mode;
+            gcache.reset();
+            reload |= task::all;
+        }
+        void set_font_list(auto& flist)
+        {
+            log("Font list: ", flist);
+            fcache.set_fonts(flist);
+            change_cell_size(0);
+            reload |= task::all;
         }
         void recalc_layout()
         {
@@ -1516,7 +1532,7 @@ Using large type pieces:
         {
             auto inner_rect = layers[client].area;
             auto outer_rect = layers[client].area + border;
-            auto hit = !szgrip.zoomon && (szgrip.seized || (outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
+            auto hit = !szgrip.zoomon && (szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
             return hit;
         }
         void fill_grips(rect area, auto fx)
@@ -1681,8 +1697,14 @@ Using large type pieces:
                 if (warp_window(next - layers[client].area)) szgrip.zoomdt = step;
             }
         }
+        void mouse_leave()
+        {
+            mhover = faux;
+            if (szgrip.leave()) reload |= task::grips;
+        }
         void mouse_shift(twod coord)
         {
+            mhover = true;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[client].area;
             if (mbttns & bttn::right)
@@ -1756,20 +1778,6 @@ Using large type pieces:
                 scroll_origin = scroll_pos;
                 scroll_delta = {};
             }
-        }
-        void set_aa_mode(bool mode)
-        {
-            log("AA ", mode ? "enabled" : "disabled");
-            gcache.aamode = mode;
-            gcache.reset();
-            reload |= task::all;
-        }
-        void set_font_list(auto& flist)
-        {
-            log("Font list: ", flist);
-            fcache.set_fonts(flist);
-            change_cell_size(0);
-            reload |= task::all;
         }
         void keybd_press(arch vkey, arch lParam)
         {

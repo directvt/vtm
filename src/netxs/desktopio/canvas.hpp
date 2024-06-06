@@ -2408,6 +2408,12 @@ namespace netxs
                 }
                 return seized;
             }
+            auto leave()
+            {
+                auto inside_old = std::exchange(inside, faux);
+                auto changed = inside_old != inside;
+                return changed;
+            }
             auto calc(rect window, twod curpos, dent outer, dent inner, twod cell_size = dot_11)
             {
                 auto border = outer - inner;
