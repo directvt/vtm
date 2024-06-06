@@ -189,7 +189,6 @@ Using large type pieces:
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
                 font_name = utf::to_utf(buff.data());
-                log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, font_name, color ? "color" : "monochromatic");
                 names->Release();
 
                 auto& face_inst = fontface[style::normal].face_inst;
@@ -344,6 +343,7 @@ Using large type pieces:
         flag                           complete; // font: Fallback index is ready.
         std::thread                    bgworker; // font: Background thread.
         twod                           cellsize; // font: Terminal cell size in pixels.
+        std::list<text>                families; // font: Primary font name list.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -371,6 +371,36 @@ Using large type pieces:
             return lut[code];
         }
 
+        void set_fonts(auto family_names)
+        {
+            families = family_names;
+            fallback.clear();
+            for (auto& family_utf8 : families)
+            {
+                auto found = BOOL{};   
+                auto index = ui32{};
+                auto family_utf16 = utf::to_utf(family_utf8);
+                fontlist->FindFamilyName(family_utf16.data(), &index, &found);
+                if (found)
+                {
+                    auto barefont = (IDWriteFontFamily*)nullptr;
+                    fontlist->GetFontFamily(index, &barefont);
+                    fontstat[index].s |= fontcat::loaded;
+                    auto& f = fallback.emplace_back(barefont, index);
+                    log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    barefont->Release();
+
+                    //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
+                    //auto maxTagCount = ui32{100};
+                    //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
+                    //analyzer->GetTypographicFeatures(fallback.back().fontface[0], sa, oslocale.data(), maxTagCount, &maxTagCount, tags.data());
+                    //tags.resize(maxTagCount);
+                    //log("\tfeat count: ", maxTagCount);
+                    //for (auto t : tags) log("\t feat: ", view{ (char*)&t, 4 });
+                }
+                else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
+            }
+        }
         font(std::list<text>& family_names, twod& cellsz)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
@@ -384,30 +414,7 @@ Using large type pieces:
                 log("%%No fonts found in the system.", prompt::gui);
                 return;
             }
-            for (auto& family_utf8 : family_names)
-            {
-                auto found = BOOL{};   
-                auto index = ui32{};
-                auto family_utf16 = utf::to_utf(family_utf8);
-                fontlist->FindFamilyName(family_utf16.data(), &index, &found);
-                if (found)
-                {
-                    auto barefont = (IDWriteFontFamily*)nullptr;
-                    fontlist->GetFontFamily(index, &barefont);
-                    fontstat[index].s |= fontcat::loaded;
-                    fallback.emplace_back(barefont, index);
-                    barefont->Release();
-
-                    //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
-                    //auto maxTagCount = ui32{100};
-                    //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
-                    //analyzer->GetTypographicFeatures(fallback.back().fontface[0], sa, oslocale.data(), maxTagCount, &maxTagCount, tags.data());
-                    //tags.resize(maxTagCount);
-                    //log("\tfeat count: ", maxTagCount);
-                    //for (auto t : tags) log("\t feat: ", view{ (char*)&t, 4 });
-                }
-                else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
-            }
+            set_fonts(family_names);
             set_cellsz(cellsz);
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
@@ -1771,8 +1778,24 @@ Using large type pieces:
             //    " state: ", param.v.state == 0 ? "pressed"
             //              : param.v.state == 1 ? "rep"
             //              : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) manager::close();
             kbs() = keybd_state();
+            if (vkey == 0x1b) manager::close();
+            else if (param.v.state == 3 && fcache.families.size())
+            {
+                auto flen = fcache.families.size();
+                auto index = vkey - 0x30;
+                if (index > 0 && index < flen)
+                {
+                    auto& flist = fcache.families;
+                    auto iter = flist.begin();
+                    std::advance(iter, index);
+                    flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
+                    log("Font list: ", flist);
+                    fcache.set_fonts(flist);
+                    change_cell_size(0);
+                    reload |= task::all;
+                }
+            }
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
             //static auto keybd_state = std::array<byte, 256>{};
