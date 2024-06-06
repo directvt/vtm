@@ -596,6 +596,11 @@ Using large type pieces:
               cellsz{ fcache.cellsize },
               aamode{ aamode }
         { }
+        void reset()
+        {
+            glyphs.clear();
+            mono_buffer.release();
+        }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
@@ -1320,6 +1325,7 @@ Using large type pieces:
 
         twod gridsz; // window: Grid size in cells.
         twod cellsz; // window: Cell size in pixels.
+        fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         dent border; // window: Border around window for resizing grips (dent in pixels).
         shad shadow; // window: Shadow generator.
@@ -1334,6 +1340,8 @@ Using large type pieces:
         si32 grip_b; // window: Surface index for Bottom resizing grip.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
+        twod h_size; // window: Header grid size.
+        twod f_size; // window: Footer grid size.
         bool drop_shadow{ true };
 
         //test
@@ -1347,6 +1355,7 @@ Using large type pieces:
             : manager{ font_names, cell_size, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               cellsz{ cell_size },
+              height{ (fp32)cell_size.y },
               gripsz{ grip_cell * cell_size },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
@@ -1376,17 +1385,9 @@ Using large type pieces:
             update();
             manager::show(win_mode);
         }
-        void recalc_layout()
+        void sync_pixel_size()
         {
             auto base_rect = layers[client].area;
-            auto grid_size = base_rect.size / cellsz;
-            auto c_size = grid_size;
-            auto h_size = grid_size;
-            auto f_size = grid_size;
-            main_grid.calc_page_height(canvas_page, c_size);
-            head_grid.calc_page_height(header_page, h_size);
-            head_grid.calc_page_height(footer_page, f_size);
-            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",grid_size.x, ":", grid_size.y);
             layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
             layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
             layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
@@ -1397,6 +1398,30 @@ Using large type pieces:
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
             layers[footer].area.coor.y += shadow_dent.t;
+        }
+        void change_cell_size(fp32 dy)
+        {
+            gcache.reset();
+            auto grip_cell = gripsz / cellsz;
+            height += dy;
+            cellsz.y = (si32)height;
+            fcache.set_cellsz(cellsz);
+            gripsz = grip_cell * cellsz;
+            border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+            shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
+            layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+            sync_pixel_size();
+        }
+        void recalc_layout()
+        {
+            auto c_size = gridsz;
+            h_size = gridsz;
+            f_size = gridsz;
+            main_grid.calc_page_height(canvas_page, c_size);
+            head_grid.calc_page_height(header_page, h_size);
+            head_grid.calc_page_height(footer_page, f_size);
+            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",gridsz.x, ":", gridsz.y);
+            sync_pixel_size();
         }
         auto move_window(twod coor_delta)
         {
@@ -1585,24 +1610,13 @@ Using large type pieces:
         }
         void mouse_wheel(si32 delta, si32 cntrl, bool hz)
         {
-            auto wheeldt = delta / 120;
+            auto wheeldt = delta / 120.f;
             auto kb = keybd_state();//kbs();
             //if (kb & hids::LCtrl)
             //log("cntrl=", utf::to_hex(cntrl));
             if (cntrl & MK_CONTROL)
             {
-                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-                log("_k0=", _k0, "_k1=", _k1);
-                gcache.glyphs.clear();
-                static auto orig_sz = cellsz;
-                auto grip_cell = gripsz / cellsz;
-                cellsz.y = orig_sz.y + _k0;
-                fcache.set_cellsz(cellsz);
-                gripsz = grip_cell * cellsz;
-                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
-                recalc_layout();
+                change_cell_size(wheeldt);
                 reload |= task::all;
                 return;
             }
@@ -1611,15 +1625,8 @@ Using large type pieces:
             {
                 netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
                 log("_k0=", _k0, "_k1=", _k1);
-                gcache.glyphs.clear();
-                //static auto orig_sz = cellsz;
-                //auto grip_cell = gripsz / cellsz;
-                //cellsz.y = orig_sz.y + _k0;
+                gcache.reset();
                 fcache.set_cellsz(cellsz);
-                //gripsz = grip_cell * cellsz;
-                //border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                //shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-                //layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
                 recalc_layout();
                 reload |= task::all;
                 return;
@@ -1633,6 +1640,7 @@ Using large type pieces:
             //netxs::_k0 += wheeldt > 0 ? 1 : -1;
             //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
 
+            //todo Activate it in another way.
             if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
             {
                 if (!szgrip.zoomon)
