@@ -1406,7 +1406,7 @@ Using large type pieces:
             layers[header].area.coor.y -= shadow_dent.b;
             layers[footer].area.coor.y += shadow_dent.t;
         }
-        void change_cell_size(fp32 dy)
+        void change_cell_size(fp32 dy = {})
         {
             gcache.reset();
             auto grip_cell = gripsz / cellsz;
@@ -1632,9 +1632,7 @@ Using large type pieces:
             {
                 netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
                 log("_k0=", _k0, "_k1=", _k1);
-                gcache.reset();
-                fcache.set_cellsz(cellsz);
-                recalc_layout();
+                change_cell_size();
                 reload |= task::all;
                 return;
             }
