@@ -1666,8 +1666,8 @@ Using large type pieces:
                     szgrip.zoomon = faux;
                     mouse_release();
                 }
-                hz ? scroll_pos.x += wheeldt
-                   : scroll_pos.y += wheeldt;
+                hz ? scroll_pos.x += (si32)wheeldt
+                   : scroll_pos.y += (si32)wheeldt;
                 size_window({}, true);
                 reload |= task::all;
                 reload &= ~task::sized;
@@ -1675,7 +1675,7 @@ Using large type pieces:
             if (szgrip.zoomon)
             {
                 auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                auto step = szgrip.zoomdt + warp * wheeldt;
+                auto step = szgrip.zoomdt + warp * (si32)wheeldt;
                 auto next = szgrip.zoomsz + step;
                 next.size = std::max(dot_00, next.size);
                 ///auto viewport = ...get max win size (multimon)
@@ -1759,6 +1759,20 @@ Using large type pieces:
                 scroll_delta = {};
             }
         }
+        void set_aa_mode(bool mode)
+        {
+            log("AA ", mode ? "enabled" : "disabled");
+            gcache.aamode = mode;
+            gcache.reset();
+            reload |= task::all;
+        }
+        void set_font_list(auto& flist)
+        {
+            log("Font list: ", flist);
+            fcache.set_fonts(flist);
+            change_cell_size(0);
+            reload |= task::all;
+        }
         void keybd_press(arch vkey, arch lParam)
         {
             union key_state
@@ -1780,7 +1794,11 @@ Using large type pieces:
             //              : param.v.state == 3 ? "released" : "unknown");
             kbs() = keybd_state();
             if (vkey == 0x1b) manager::close();
-            else if (param.v.state == 3 && fcache.families.size())
+            else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
+            {
+                set_aa_mode(!gcache.aamode);
+            }
+            else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
                 auto flen = fcache.families.size();
                 auto index = vkey - 0x30;
@@ -1790,10 +1808,7 @@ Using large type pieces:
                     auto iter = flist.begin();
                     std::advance(iter, index);
                     flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
-                    log("Font list: ", flist);
-                    fcache.set_fonts(flist);
-                    change_cell_size(0);
-                    reload |= task::all;
+                    set_font_list(flist);
                 }
             }
             //auto s = keybd_state();
