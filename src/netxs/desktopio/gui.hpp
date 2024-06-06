@@ -1121,6 +1121,12 @@ Using large type pieces:
             right  = 1 << 1,
             middle = 1 << 2,
         };
+        enum window_state
+        {
+            normal,
+            minimized,
+            fullscreen,
+        };
 
         font fcache; // manager: Font cache.
         glyf gcache; // manager: Glyph cache.
@@ -1198,12 +1204,23 @@ Using large type pieces:
         }
         void show(si32 win_state)
         {
-            if (win_state == 0 || win_state == 2) //todo fullscreen mode (=2). 0 - normal, 1 - minimized, 2 - fullscreen
+            if (win_state == window_state::normal)
             {
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+                set_active();
             }
-            set_active();
+            else if (win_state == window_state::fullscreen)
+            {
+                auto mode = SW_SHOWNORMAL;
+                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE));
+                set_active();
+            }
+            else if (win_state == window_state::minimized)
+            {
+                auto mode = SW_HIDE;
+                for (auto& w : layers) ::ShowWindow(w.hWnd, mode);
+            }
         }
         void mouse_capture()
         {
@@ -1347,6 +1364,9 @@ Using large type pieces:
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
         bool mhover; // window: Mouse hover.
+        bool fsmode; // window: Fullscreen mode.
+        dent fsdent; // window: Fullscreen border.
+        rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
         si32 grip_l; // window: Surface index for Left resizing grip.
@@ -1357,7 +1377,7 @@ Using large type pieces:
         si32 footer; // window: Surface index for Footer.
         twod h_size; // window: Header grid size.
         twod f_size; // window: Footer grid size.
-        bool drop_shadow{ true };
+        bool drop_shadow{ true }; // window: .
 
         //test
         twod scroll_pos;
@@ -1376,6 +1396,7 @@ Using large type pieces:
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
               mhover{},
+              fsmode{},
               reload{ task::all },
               client{ add(this) },
               grip_l{ add(this) },
@@ -1425,8 +1446,21 @@ Using large type pieces:
             gripsz = grip_cell * cellsz;
             border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-            layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
-            sync_pixel_size();
+            if (fsmode)
+            {
+                auto area = layers[client].area;
+                auto over = area.size % cellsz;
+                fsdent.l = over.x / 2;
+                fsdent.r = over.x - fsdent.l;
+                fsdent.t = over.y / 2;
+                fsdent.b = over.y - fsdent.t;
+                normsz.size = gridsz * cellsz;
+            }
+            else
+            {
+                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+                sync_pixel_size();
+            }
         }
         void set_aa_mode(bool mode)
         {
@@ -1441,6 +1475,57 @@ Using large type pieces:
             fcache.set_fonts(flist);
             change_cell_size(0);
             reload |= task::all;
+        }
+        void refillgrid(bool wipe = true)
+        {
+            auto area = layers[client].area - fsdent;
+            main_grid.size(area.size / cellsz);
+            if (wipe)
+            {
+                main_grid.wipe();
+                foot_grid.wipe();
+            }
+            main_grid.zz(scroll_pos);
+            main_grid.vsize(std::min(0, -scroll_pos.y) + area.size.y);
+            main_grid.output<true>(canvas_page);
+            if (!fsmode)
+            {
+                head_grid.size(layers[header].area.size / cellsz);
+                head_grid.cup(dot_00);
+                head_grid.output(header_page);
+                foot_grid.size(layers[footer].area.size / cellsz);
+                foot_grid.cup(dot_00);
+                foot_grid.output(footer_page);
+            }
+        }
+        void set_fullscreen_mode(bool mode)
+        {
+            log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
+            fsmode = mode;
+            if (layers.empty()) return;
+            if (mode)
+            {
+                auto devmode = DEVMODEW{ .dmSize = sizeof(DEVMODEW) };
+                ::EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &devmode);
+                auto monitor = rect{{ (si32)devmode.dmPosition.x, (si32)devmode.dmPosition.y }, { (si32)devmode.dmPelsWidth, (si32)devmode.dmPelsHeight }};
+                auto over_sz = monitor.size % cellsz;
+                fsdent.l = over_sz.x / 2;
+                fsdent.r = over_sz.x - fsdent.l;
+                fsdent.t = over_sz.y / 2;
+                fsdent.b = over_sz.y - fsdent.t;
+                normsz = std::exchange(layers[client].area, monitor);
+                show(window_state::fullscreen);
+            }
+            else
+            {
+                layers[client].area = normsz;
+                fsdent = {};
+                sync_pixel_size();
+                show(window_state::normal);
+            }
+            reload |= task::all;
+            //todo temp
+            refillgrid();
         }
         void recalc_layout()
         {
@@ -1464,21 +1549,7 @@ Using large type pieces:
             recalc_layout();
             reload |= task::sized;
             //todo temp
-            main_grid.size(layers[client].area.size / cellsz);
-            if (wipe)
-            {
-                main_grid.wipe();
-                foot_grid.wipe();
-            }
-            main_grid.zz(scroll_pos);
-            main_grid.vsize(std::min(0, -scroll_pos.y) + layers[client].area.size.y);
-            main_grid.output<true>(canvas_page);
-            head_grid.size(layers[header].area.size / cellsz);
-            head_grid.cup(dot_00);
-            head_grid.output(header_page);
-            foot_grid.size(layers[footer].area.size / cellsz);
-            foot_grid.cup(dot_00);
-            foot_grid.output(footer_page);
+            refillgrid(wipe);
         }
         auto resize_window(twod size_delta)
         {
@@ -1604,11 +1675,15 @@ Using large type pieces:
                 {
                     auto canvas = layers[client].canvas();
                     fill_back(main_grid);
-                    gcache.fill_grid(canvas, dot_00, main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, fsdent.corner(), main_grid); // 0.500 ms);
+                    if (fsmode && (what & task::sized)) netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
                 }
-                if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
-                if (what & (task::sized | task::header)) draw_header();
-                if (what & (task::sized | task::footer)) draw_footer();
+                if (!fsmode)
+                {
+                    if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
+                    if (what & (task::sized | task::header)) draw_header();
+                    if (what & (task::sized | task::footer)) draw_footer();
+                }
                 //if (layers[client].area.hittest(mcoord))
                 //{
                 //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
@@ -1713,7 +1788,7 @@ Using large type pieces:
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area;
+            auto inner_rect = layers[client].area - fsdent;
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
@@ -1761,6 +1836,7 @@ Using large type pieces:
             {
                 if (auto dxdy = coord - mcoord)
                 {
+                    if (fsmode) set_fullscreen_mode(faux);
                     manager::moveby(dxdy);
                     reload |= task::moved;
                 }
@@ -1810,6 +1886,10 @@ Using large type pieces:
             else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
             {
                 set_aa_mode(!gcache.aamode);
+            }
+            else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
+            {
+                set_fullscreen_mode(!fsmode);
             }
             else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
