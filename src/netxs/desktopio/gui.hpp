@@ -1183,13 +1183,18 @@ Using large type pieces:
                 ::DispatchMessageW(&msg);
             }
         }
+        void set_active()
+        {
+            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+        }
         void shown_event(bool shown, arch reason)
         {
-            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."
-                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."
-                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."
-                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."
-                                                                            : "unknown reason");
+            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
+                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
+                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
+                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
+                                                                            : utf::concat("Unknown reason. (", reason, ")"));
+            set_active();
         }
         void show(si32 win_state)
         {
@@ -1198,6 +1203,7 @@ Using large type pieces:
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
             }
+            set_active();
         }
         void mouse_capture()
         {
@@ -1214,11 +1220,12 @@ Using large type pieces:
         void activate()
         {
             log("activated");
-            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+            set_active();
         }
         void state_event(bool activated, bool minimized)
         {
             log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+            set_active();
         }
 
         virtual void update() = 0;
