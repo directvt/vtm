@@ -1498,22 +1498,30 @@ Using large type pieces:
                 foot_grid.output(footer_page);
             }
         }
-        void set_fullscreen_mode(bool mode)
+        void set_fullscreen_mode(si32 mode)
         {
+            if (layers.empty()) return;
             log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
             fsmode = mode;
-            if (layers.empty()) return;
             if (mode)
             {
-                auto devmode = DEVMODEW{ .dmSize = sizeof(DEVMODEW) };
-                ::EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &devmode);
-                auto monitor = rect{{ (si32)devmode.dmPosition.x, (si32)devmode.dmPosition.y }, { (si32)devmode.dmPelsWidth, (si32)devmode.dmPelsHeight }};
-                auto over_sz = monitor.size % cellsz;
+                auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
+                {
+                    auto& r = *monitor_rect_ptr;
+                    auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
+                    auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                    if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
+                    return TRUE;
+                };
+                auto area_pair = std::pair<rect, rect>{{}, layers[client].area };
+                ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
+                auto fs_area = area_pair.first;
+                auto over_sz = fs_area.size % cellsz;
                 fsdent.l = over_sz.x / 2;
                 fsdent.r = over_sz.x - fsdent.l;
                 fsdent.t = over_sz.y / 2;
                 fsdent.b = over_sz.y - fsdent.t;
-                normsz = std::exchange(layers[client].area, monitor);
+                normsz = std::exchange(layers[client].area, fs_area);
                 show(window_state::fullscreen);
             }
             else
