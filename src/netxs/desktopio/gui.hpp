@@ -1442,6 +1442,7 @@ Using large type pieces:
             gcache.reset();
             auto grip_cell = gripsz / cellsz;
             height += dy;
+            auto prev_cellsz = cellsz;
             cellsz.y = (si32)height;
             fcache.set_cellsz(cellsz);
             gripsz = grip_cell * cellsz;
@@ -1455,7 +1456,10 @@ Using large type pieces:
                 fsdent.r = over.x - fsdent.l;
                 fsdent.t = over.y / 2;
                 fsdent.b = over.y - fsdent.t;
-                normsz.size = gridsz * cellsz;
+                gridsz = (area - fsdent).size / cellsz;
+                normsz.size = normsz.size / prev_cellsz * cellsz;
+                //todo temp
+                refillgrid();
             }
             else
             {
