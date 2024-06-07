@@ -1091,11 +1091,8 @@ Using large type pieces:
             if (sync || !hdc) return;
             static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto scr_coor = POINT{};
-            auto old_size =  SIZE{ prev.size.x, prev.size.y };
-            auto old_coor = POINT{ prev.coor.x, prev.coor.y };
-            auto win_size =  SIZE{      size.x,      size.y };
             auto win_coor = POINT{ area.coor.x, area.coor.y };
-            //auto sized = prev.size(     size);
+            auto win_size =  SIZE{      size.x,      size.y };
             auto moved = prev.coor(area.coor);
             auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (syscall, copy bitmap to hardware)
                                             HDC{},                       // No color palette matching.  HDC hdcDst,
@@ -1207,7 +1204,7 @@ Using large type pieces:
             if (win_state == window_state::normal)
             {
                 auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+                for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
                 set_active();
             }
             else if (win_state == window_state::fullscreen)
@@ -1252,6 +1249,7 @@ Using large type pieces:
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
+        virtual void check_fsmode(arch hWnd) = 0;
 
         auto add(manager* host_ptr = nullptr)
         {
@@ -1293,6 +1291,9 @@ Using large type pieces:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
                     case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
+                    case WM_WINDOWPOSCHANGED:
+                    case WM_DISPLAYCHANGE:
+                    case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
@@ -1498,24 +1499,28 @@ Using large type pieces:
                 foot_grid.output(footer_page);
             }
         }
-        void set_fullscreen_mode(si32 mode)
+        auto get_fs_area(rect window_area)
         {
-            if (layers.empty()) return;
+            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
+            {
+                auto& r = *monitor_rect_ptr;
+                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
+                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
+                return TRUE;
+            };
+            auto area_pair = std::pair<rect, rect>{{}, window_area };
+            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
+            return area_pair.first;
+        }
+        void set_fullscreen_mode(bool mode)
+        {
+            if (fsmode == mode || layers.empty()) return;
             log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
             fsmode = mode;
             if (mode)
             {
-                auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
-                {
-                    auto& r = *monitor_rect_ptr;
-                    auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
-                    auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                    if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
-                    return TRUE;
-                };
-                auto area_pair = std::pair<rect, rect>{{}, layers[client].area };
-                ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
-                auto fs_area = area_pair.first;
+                auto fs_area = get_fs_area(layers[client].area);
                 auto over_sz = fs_area.size % cellsz;
                 fsdent.l = over_sz.x / 2;
                 fsdent.r = over_sz.x - fsdent.l;
@@ -1534,6 +1539,37 @@ Using large type pieces:
             reload |= task::all;
             //todo temp
             refillgrid();
+        }
+        void check_fsmode(arch hWnd)
+        {
+            if ((arch)(layers[client].hWnd) != hWnd) return;
+            if (layers.empty()) return;
+            if (fsmode)
+            {
+                auto fs_area = get_fs_area(layers[client].area);
+                if (fs_area != layers[client].area)
+                {
+                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    avail_area.coor += gripsz;
+                    avail_area.size -= std::min(avail_area.size, normsz.size + gripsz * 2);
+                    normsz.coor = avail_area.clamp(normsz.coor);
+                    set_fullscreen_mode(faux);
+                }
+            }
+            else
+            {
+                auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                if (!avail_area.trim(layers[client].area))
+                {
+                    auto area = layers[client].area;
+                    avail_area.coor += gripsz;
+                    avail_area.size -= std::min(avail_area.size, area.size + gripsz * 2);
+                    auto delta = avail_area.clamp(area.coor) - area.coor;
+                    manager::moveby(delta);
+                }
+            }
+            for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+            reload |= task::all;
         }
         void recalc_layout()
         {
