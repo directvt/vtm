@@ -3363,11 +3363,10 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto window = rect{}; // dtvt: Initial window area.
-        static auto windpi = si32{}; // dtvt: Initial window dpi.
-        static auto iconic = si32{}; // dtvt: Initial window state (normal = 0, minimized = 1, fullscreen = 2).
+        static auto iconic = si32{}; // dtvt: Initial window state: normal = 0, minimized = 1, fullscreen = 2.
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto uifont = std::list<text>{}; // dtvt: Font list for gui console.
-        static auto fontsz = twod{}; // dtvt: Font size for gui console.
+        static auto cellsz = si32{}; // dtvt: Font size for gui console.
 
         auto consize()
         {
@@ -3520,30 +3519,24 @@ namespace netxs::os
                         {
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
-                            //todo ::GetDpiForWindow() is only available on win10
-                            //dtvt::windpi = (si32)::GetDpiForWindow(h);
-                            //if (dtvt::windpi == 0) dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
-                            dtvt::windpi = USER_DEFAULT_SCREEN_DPI;
                             ok(::GetWindowRect(h, &r));
 
                             auto modeflags = DWORD{};
                             ok(::GetConsoleDisplayMode(&modeflags));
                             auto maximized = modeflags == CONSOLE_FULLSCREEN;
-                            dtvt::iconic = maximized ? 2 : ::IsIconic(h);
+                            dtvt::iconic = maximized ? gui::window::state::fullscreen
+                                                     : ::IsIconic(h) ? gui::window::state::minimized
+                                                                     : gui::window::state::normal;
                             auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
                             if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
                             {
                                 dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
-                                dtvt::fontsz = { font_info.dwFontSize.X, font_info.dwFontSize.Y };
+                                dtvt::cellsz = font_info.dwFontSize.Y;
                             }
-                                 if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
-                            else if (dtvt::fontsz.x == 0)    dtvt::fontsz.x = dtvt::fontsz.y / 2;
-                            else if (dtvt::fontsz.y == 0)    dtvt::fontsz.y = dtvt::fontsz.x * 2;
-                            if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Consolas");
-                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::fontsz.x * dtvt::window.size.x) / 2, // Centrify window.
-                                                  r.top  + (r.bottom - r.top - dtvt::fontsz.y * dtvt::window.size.y) / 2 };
-                            dtvt::fontsz = dtvt::fontsz * dtvt::windpi / USER_DEFAULT_SCREEN_DPI;
-                            dtvt::window.coor = dtvt::window.coor * dtvt::windpi / USER_DEFAULT_SCREEN_DPI;
+                            if (dtvt::cellsz == 0) dtvt::cellsz = 20;
+                            if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
+                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::cellsz / 2 * dtvt::window.size.x) / 2, // Centrify window.
+                                                  r.top  + (r.bottom - r.top - dtvt::cellsz * dtvt::window.size.y) / 2 };
                             dtvt::vtmode |= ui::console::gui;
 
                             os::stdin_fd  = os::invalid_fd;
@@ -3551,7 +3544,7 @@ namespace netxs::os
                             os::stderr_fd = os::invalid_fd;
                             if constexpr (!debugmode) ::FreeConsole();
                             auto term = "Native GUI console";
-                            log("%%Terminal type: %term%, %font% %w%×%h%", prompt::os, term, dtvt::uifont, dtvt::fontsz.x, dtvt::fontsz.y);
+                            log("%%Terminal type: %term%, font: %font%, cell height: %height%", prompt::os, term, dtvt::uifont, dtvt::cellsz);
                             return;
                         }
                         // We are hosted by a shell.
@@ -5762,14 +5755,14 @@ namespace netxs::os
         auto native()
         {
             #if defined(WIN32)
-                if (auto w = gui::window{ dtvt::window, dtvt::uifont, dtvt::fontsz, dtvt::iconic, { 2, 1 }, true })
+                if (auto w = gui::window{ dtvt::window, dtvt::uifont, dtvt::cellsz, dtvt::iconic, true })
                 {
-                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::fontsz=", dtvt::fontsz, " dtvt::iconic=", dtvt::iconic);
+                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::cellsz=", dtvt::cellsz, " dtvt::iconic=", dtvt::iconic);
                     w.dispatch();
                 }
             #else
                 //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::fontsz=", dtvt::fontsz, " dtvt::iconic=", dtvt::iconic, " dtvt::windpi=", dtvt::windpi);
+                log("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::cellsz=", dtvt::cellsz, " dtvt::iconic=", dtvt::iconic);
             #endif
         }
         auto splice(xipc client)

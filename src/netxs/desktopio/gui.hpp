@@ -150,7 +150,7 @@ Using large type pieces:
             fp32                              base_ascent{};
             si32                              base_emheight{};
             si32                              base_x_height{};
-            twod                              facesize; // Typeface cell size.
+            fp2d                              facesize; // Typeface cell size.
             fp32                              ratio{};
             ui32                              index{ ~0u };
             bool                              color{ faux };
@@ -209,24 +209,22 @@ Using large type pieces:
                     auto glyph_index = ui16{ 0 };
                     face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
                     face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
-                    facesize.y = std::max(2, m.ascent + m.descent + m.lineGap);
-                    facesize.x = glyph_metrics.advanceWidth ? glyph_metrics.advanceWidth : facesize.y / 2;
-                    ratio = (fp32)facesize.x / facesize.y;
+                    facesize.y = (fp32)std::max(2, m.ascent + m.descent + m.lineGap);
+                    facesize.x = glyph_metrics.advanceWidth ? (fp32)glyph_metrics.advanceWidth : facesize.y / 2;
+                    ratio = facesize.x / facesize.y;
                     color = iscolor(face_inst);
                 }
             }
-            void recalc_metrics(twod& cellsz, bool isbase)
+            void recalc_metrics(twod& cellsize, bool isbase)
             {
-                auto fs = fp2d{ facesize };
-                auto tc = fp2d{ cellsz };
-                auto k0 = tc.y / fs.y;
+                auto k0 = cellsize.y / facesize.y;
                 auto b0 = base_ascent * k0;
                 auto b_f = std::floor(b0);
                 auto b_c = std::ceil(b0);
                 auto asc_f = b_f;
                 auto asc_c = b_c;
-                auto des_f = tc.y - b_f;
-                auto des_c = tc.y - b_c;
+                auto des_f = cellsize.y - b_f;
+                auto des_c = cellsize.y - b_c;
                 auto k1_f = asc_f / base_ascent;
                 auto k2_f = des_f / base_descent;
                 auto k1_c = asc_c / base_ascent;
@@ -249,20 +247,20 @@ Using large type pieces:
                 auto base_line = fp2d{ 0.f, b2 };
                 if (isbase)
                 {
-                    auto mx = fs.x * transform;
+                    auto mx = facesize.x * transform;
                     auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
-                    cellsz.x = std::max(1, (si32)dx);
-                    transform_letters = std::min(transform, cellsz.x / fs.x); // Respect letter width.
+                    cellsize.x = std::max(1, (si32)dx);
+                    transform_letters = std::min(transform, cellsize.x / facesize.x); // Respect letter width.
                 }
                 else
                 {
-                    transform = std::min(transform, cellsz.x  / fs.x);
+                    transform = std::min(transform, cellsize.x  / facesize.x);
                     transform_letters = transform;
                 }
                 transform_letters = std::floor(base_x_height * transform_letters) / base_x_height; // Respect x-height.
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
-                auto actual_sz = fs * transform;
+                auto actual_sz = facesize * transform;
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 fontface[style::normal].transform = transform;
                 fontface[style::normal].em_height = em_height;
@@ -288,7 +286,7 @@ Using large type pieces:
                 auto proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
                 auto normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
                 auto italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
-                auto w = proportional && normal_width ? (fp32)normal_width : fs.x;
+                auto w = proportional && normal_width ? (fp32)normal_width : facesize.x;
                 auto k = w / (w + (italic_width - normal_width));
                 transform *= k;
                 em_height *= k;
@@ -403,7 +401,7 @@ Using large type pieces:
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
         }
-        font(std::list<text>& family_names, twod& cellsz)
+        font(std::list<text>& family_names, si32 cell_height)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
@@ -417,7 +415,7 @@ Using large type pieces:
                 return;
             }
             set_fonts(family_names);
-            set_cellsz(cellsz);
+            set_cellsz(cell_height);
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
             {
@@ -489,13 +487,12 @@ Using large type pieces:
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
-        void set_cellsz(twod& cellsz)
+        void set_cellsz(si32 cell_height)
         {
-            cellsz.y = std::clamp(cellsz.y, 2, 256);
+            cellsize = { 1, std::clamp(cell_height, 2, 256) };
             auto base_font = true;
-            for (auto& f : fallback) f.recalc_metrics(cellsz, std::exchange(base_font, faux));
-            cellsize = cellsz;
-            log("%%Set cell size: ", prompt::gui, cellsz);
+            for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            log("%%Set cell size: ", prompt::gui, cellsize);
         }
         auto& take_font(utfx codepoint)
         {
@@ -1121,22 +1118,18 @@ Using large type pieces:
             right  = 1 << 1,
             middle = 1 << 2,
         };
-        enum window_state
+        enum state
         {
             normal,
             minimized,
             fullscreen,
         };
 
-        font fcache; // manager: Font cache.
-        glyf gcache; // manager: Glyph cache.
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
 
-        manager(std::list<text>& font_names_utf8, twod& cellsz, bool antialiasing)
-            : fcache{ font_names_utf8, cellsz },
-              gcache{ fcache, antialiasing },
-              isfine{ true }
+        manager()
+            : isfine{ true }
         {
             set_dpi_awareness();
         }
@@ -1158,7 +1151,6 @@ Using large type pieces:
         }
         auto set_dpi(auto new_dpi)
         {
-            //for (auto& w : layers) w.set_dpi(new_dpi);
             log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
         }
         auto moveby(twod delta)
@@ -1204,19 +1196,19 @@ Using large type pieces:
         }
         void show(si32 win_state)
         {
-            if (win_state == window_state::normal)
+            if (win_state == state::normal)
             {
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
                 set_active();
             }
-            else if (win_state == window_state::fullscreen)
+            else if (win_state == state::fullscreen)
             {
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE));
                 set_active();
             }
-            else if (win_state == window_state::minimized)
+            else if (win_state == state::minimized)
             {
                 auto mode = SW_HIDE;
                 for (auto& w : layers) ::ShowWindow(w.hWnd, mode);
@@ -1358,8 +1350,9 @@ Using large type pieces:
         ui::face head_grid;
         ui::face foot_grid;
 
+        font fcache; // window: Font cache.
+        glyf gcache; // window: Glyph cache.
         twod gridsz; // window: Grid size in cells.
-        twod cellsz; // window: Cell size in pixels.
         fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         dent border; // window: Border around window for resizing grips (dent in pixels).
@@ -1382,6 +1375,7 @@ Using large type pieces:
         twod h_size; // window: Header grid size.
         twod f_size; // window: Footer grid size.
         bool drop_shadow{ true }; // window: .
+        twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
 
         //test
         twod scroll_pos;
@@ -1390,12 +1384,12 @@ Using large type pieces:
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
-            : manager{ font_names, cell_size, antialiasing },
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, twod grip_cell = dot_21)
+            : fcache{ font_names, cell_height },
+              gcache{ fcache, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
-              cellsz{ cell_size },
-              height{ (fp32)cell_size.y },
-              gripsz{ grip_cell * cell_size },
+              height{ (fp32)fcache.cellsize.y },
+              gripsz{ grip_cell * fcache.cellsize },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
@@ -1446,8 +1440,8 @@ Using large type pieces:
             auto grip_cell = gripsz / cellsz;
             height += dy;
             auto prev_cellsz = cellsz;
-            cellsz.y = (si32)height;
-            fcache.set_cellsz(cellsz);
+            fcache.set_cellsz((si32)height);
+            //cellsz = fcache.cellsize;
             gripsz = grip_cell * cellsz;
             border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
@@ -1534,14 +1528,14 @@ Using large type pieces:
                 fsdent.t = over_sz.y / 2;
                 fsdent.b = over_sz.y - fsdent.t;
                 normsz = std::exchange(layers[client].area, fs_area);
-                show(window_state::fullscreen);
+                show(state::fullscreen);
             }
             else
             {
                 layers[client].area = normsz;
                 fsdent = {};
                 sync_pixel_size();
-                show(window_state::normal);
+                show(state::normal);
             }
             reload |= task::all;
             //todo temp
