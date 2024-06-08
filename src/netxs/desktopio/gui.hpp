@@ -747,12 +747,12 @@ Using large type pieces:
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto threshold = is_box_drawing ? 0.00f : 0.70f;
-            auto actual_width = std::max(1.f, std::floor((length + cellsz.x * threshold) / cellsz.x)) * cellsz.x;
+            auto actual_width = is_box_drawing ? std::max(1.f, std::floor(length / cellsz.x)) * cellsz.x
+                                               : length;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
-                k = matrix.x / actual_width;
+                k = matrix.x / length;
                 actual_width = matrix.x;
                 actual_height *= k;
                 em_height *= k;
