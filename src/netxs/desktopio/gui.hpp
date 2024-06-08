@@ -489,7 +489,7 @@ Using large type pieces:
         }
         void set_cellsz(twod& cellsz)
         {
-            if (cellsz.y < 2) cellsz.y = 2;
+            cellsz.y = std::clamp(cellsz.y, 2, 256);
             auto base_font = true;
             for (auto& f : fallback) f.recalc_metrics(cellsz, std::exchange(base_font, faux));
             cellsize = cellsz;
