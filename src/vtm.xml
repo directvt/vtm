@@ -15,6 +15,30 @@ R"==(
 )=="
 #endif
 R"==(
+    <gui> <!-- GUI related settings. (win32 platform only for now) -->
+        <antialiasing = off />   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <cellheight = 20 />      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
+        <gridsize = 0,0 />       <!-- Window initial grid size in text cells. -->
+        <wincoor = 0,0 />        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
+        <winstate = undefined /> <!-- Window initial state: undefined | maximized | minimized -->
+        <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
+            "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
+            "Iosevka Term\n"
+            "JetBrains Mono\n"
+            "Cascadia Mono\n"
+            "DejaVu Sans Mono\n"
+            "Envy Code R\n"
+            "Fira Code\n"
+            "monofur for Powerline\n"
+            "Lucida Console\n"
+            "Consolas\n"
+            "Anonymous Pro\n"
+            "Source Code Pro\n"
+            "NSimSun\n"
+            "Noto Sans Devanagari\n"
+        </fontlist>
+        <testtext="test UTF-8 string (See ~/.config/vtm/settings.xml: /config/gui/testtext/)"/>
+    </gui>
     <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.

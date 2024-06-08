@@ -535,12 +535,29 @@ namespace netxs::app::shared
         }
     };
 
+    void splice(xipc client, xmls& config)
+    {
+        if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
+        else
+        {
+            config.cd("/config/gui/");
+            auto wincoord = config.take("wincoor", twod{ 100, 100 });
+            auto gridsize = config.take("gridsize", twod{ 80, 25 });
+            auto winstate = config.take("winstate", winform::undefined, app::shared::winform::options);
+            auto aliasing = config.take("antialiasing", faux);
+            auto testtext = config.take("testtext", ""s);
+            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
+            auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
+            auto win_area = rect{ wincoord, gridsize };
+            os::tty::native(client, win_area, fontlist, cellsize, winstate, aliasing, testtext);
+        }
+    }
     void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
-            os::tty::splice(client);
+            app::shared::splice(client, config);
         }};
         //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");

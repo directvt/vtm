@@ -3363,10 +3363,10 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto window = rect{}; // dtvt: Initial window area.
-        static auto iconic = si32{}; // dtvt: Initial window state: normal = 0, minimized = 1, fullscreen = 2.
         static auto client = xipc{}; // dtvt: Internal IO link.
-        static auto uifont = std::list<text>{}; // dtvt: Font list for gui console.
-        static auto cellsz = si32{}; // dtvt: Font size for gui console.
+        //static auto iconic = si32{}; // dtvt: Initial window state: normal = 0, minimized = 1, fullscreen = 2.
+        //static auto uifont = std::list<text>{}; // dtvt: Font list for gui console.
+        //static auto cellsz = si32{}; // dtvt: Font size for gui console.
 
         auto consize()
         {
@@ -3520,23 +3520,23 @@ namespace netxs::os
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
                             ok(::GetWindowRect(h, &r));
-
                             auto modeflags = DWORD{};
                             ok(::GetConsoleDisplayMode(&modeflags));
                             auto maximized = modeflags == CONSOLE_FULLSCREEN;
-                            dtvt::iconic = maximized ? gui::window::state::fullscreen
-                                                     : ::IsIconic(h) ? gui::window::state::minimized
-                                                                     : gui::window::state::normal;
+                            //dtvt::iconic = maximized ? gui::window::state::fullscreen
+                            //                         : ::IsIconic(h) ? gui::window::state::minimized
+                            //                                         : gui::window::state::normal;
                             auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                            auto cell_height = 0;
                             if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
                             {
-                                dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
-                                dtvt::cellsz = font_info.dwFontSize.Y;
+                                //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
+                                cell_height = font_info.dwFontSize.Y;
                             }
-                            if (dtvt::cellsz == 0) dtvt::cellsz = 20;
-                            if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
-                            dtvt::window.coor = { r.left + (r.right - r.left - dtvt::cellsz / 2 * dtvt::window.size.x) / 2, // Centrify window.
-                                                  r.top  + (r.bottom - r.top - dtvt::cellsz * dtvt::window.size.y) / 2 };
+                            if (cell_height == 0) cell_height = 20;
+                            //if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
+                            dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
+                                                  r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
                             dtvt::vtmode |= ui::console::gui;
 
                             os::stdin_fd  = os::invalid_fd;
@@ -3544,7 +3544,7 @@ namespace netxs::os
                             os::stderr_fd = os::invalid_fd;
                             if constexpr (!debugmode) ::FreeConsole();
                             auto term = "Native GUI console";
-                            log("%%Terminal type: %term%, font: %font%, cell height: %height%", prompt::os, term, dtvt::uifont, dtvt::cellsz);
+                            log("%%Terminal type: %term%", prompt::os, term);
                             return;
                         }
                         // We are hosted by a shell.
@@ -5752,25 +5752,27 @@ namespace netxs::os
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
-        auto native()
+        auto native(xipc client, rect win_area, std::list<text> fontlist, si32 cellsize, si32 winstate, bool aliasing, text testtext)
         {
+            os::dtvt::client = client;
             #if defined(WIN32)
-                if (auto w = gui::window{ dtvt::window, dtvt::uifont, dtvt::cellsz, dtvt::iconic, true })
+                if (win_area.size != dot_00) dtvt::window.size = win_area.size;
+                if (win_area.coor != dot_00) dtvt::window.coor = win_area.coor;
+                if (auto w = gui::window{ dtvt::window, fontlist, cellsize, winstate, aliasing, testtext })
                 {
-                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::cellsz=", dtvt::cellsz, " dtvt::iconic=", dtvt::iconic);
+                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate);
                     w.dispatch();
                 }
             #else
                 //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, " dtvt::uifont=", dtvt::uifont, " dtvt::cellsz=", dtvt::cellsz, " dtvt::iconic=", dtvt::iconic);
+                log("dtvt::window=", dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " testtext=", testtext);
             #endif
         }
         auto splice(xipc client)
         {
             os::dtvt::client = client;
-            os::dtvt::active ? tty::direct() :
-            os::dtvt::vtmode & ui::console::gui ? tty::native()
-                                                : tty::legacy();
+            os::dtvt::active ? tty::direct()
+                             : tty::legacy();
         }
 
         struct readline

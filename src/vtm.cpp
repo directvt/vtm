@@ -396,7 +396,7 @@ int main(int argc, char* argv[])
                 auto cfg = config.utf8();
                 auto win = os::dtvt::window.size;
                 userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
-                os::tty::splice(client);
+                app::shared::splice(client, config);
                 return 0;
             }
             else return failed(denied ? code::noaccess : code::noserver);

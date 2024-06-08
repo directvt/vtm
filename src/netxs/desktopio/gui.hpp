@@ -18,8 +18,19 @@ namespace netxs::gui
     //test strings
     template<auto ...Args>
     auto vss = utf::matrix::vss<Args...>;
-    auto canvas_text = ansi::add("").wrp(wrap::on).fgc(cyanlt)
+    auto intro = ansi::add("").wrp(wrap::on).fgc(cyanlt)
         .add("\2Hello", utf::vs10, vss<11>, "\n")
+        .add("        LeftDrag: Move window.\n"
+             "       RightDrag: Panoramic scrolling.\n"
+             "           Wheel: Vertical scrolling.\n"
+             "         HzWheel: Horizontal scrolling.\n"
+             "      Ctrl+Wheel: Change cell height.\n"
+             "F11/DblLeftClick: Toggle fullsceen mode.\n"
+             "               A: Toggle antialiasing mode.\n"
+             "               0: Roll font fallback list.\n"
+             "             1-9: Reorder font fallback list.\n"
+             "             ESC: Close window.\n\n");
+    auto canvas_text = ansi::add("\n").bld(faux).wrp(wrap::on).fgc(cyanlt)
         .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
         .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
         .add("             ⎝⎩\n")
@@ -60,13 +71,12 @@ Using large type pieces:
         //todo multiline graphemes
         //.add("\2line1\nline2", vss<52,01>, "\n")
         //.add("\2line1\nline2", vss<52,02>, "\n")
-        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
         .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-        .fgc(tint::greenlt).add("Press Esc to close.\n")
         .add("\n")
         .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
         .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
@@ -113,7 +123,7 @@ Using large type pieces:
 
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
-    auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};
+    auto canvas_page = ui::page{};
     auto header_page = ui::page{ header_text };
     auto footer_page = ui::page{ footer_text };
 
@@ -371,10 +381,12 @@ Using large type pieces:
             return lut[code];
         }
 
-        void set_fonts(auto family_names)
+        void set_fonts(auto family_names, bool fresh = true)
         {
+            if (family_names.empty()) family_names.push_back("Courier New"); //todo unify
             families = family_names;
             fallback.clear();
+            if (!fresh) for (auto& s : fontstat) s.s &= ~fontcat::loaded;
             for (auto& family_utf8 : families)
             {
                 auto found = BOOL{};   
@@ -383,6 +395,7 @@ Using large type pieces:
                 fontlist->FindFamilyName(family_utf16.data(), &index, &found);
                 if (found)
                 {
+                    if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
                     fontstat[index].s |= fontcat::loaded;
@@ -1381,10 +1394,12 @@ Using large type pieces:
         twod scroll_pos;
         twod scroll_origin;
         twod scroll_delta;
+        text font_list_str;
+        text testtext;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, twod grip_cell = dot_21)
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
@@ -1408,6 +1423,8 @@ Using large type pieces:
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
+            this->testtext = testtext;
+            print_font_list();
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output<true>(canvas_page);
@@ -1456,11 +1473,12 @@ Using large type pieces:
                 gridsz = (area - fsdent).size / cellsz;
                 normsz.size = normsz.size / prev_cellsz * cellsz;
                 //todo temp
-                refillgrid();
+                print_font_list(true);
             }
             else
             {
                 layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+                print_font_list(true);
                 sync_pixel_size();
             }
         }
@@ -1471,10 +1489,22 @@ Using large type pieces:
             gcache.reset();
             reload |= task::all;
         }
+        //todo temp
+        void print_font_list(bool refill = faux)
+        {
+            auto i = 0;
+            font_list_str = utf::concat("Test text: ", testtext, "\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
+                                      "\n Cell Size ", cellsz.x, "x", cellsz.y,
+                                      "\n Font Fallback\n");
+            for (auto& f : fcache.families) font_list_str += utf::concat(ansi::bld(i++ == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
+            canvas_page = intro + font_list_str + canvas_text;
+            if (refill) refillgrid();
+        }
         void set_font_list(auto& flist)
         {
             log("Font list: ", flist);
-            fcache.set_fonts(flist);
+            fcache.set_fonts(flist, faux);
+            print_font_list();
             change_cell_size(0);
             reload |= task::all;
         }
@@ -1896,11 +1926,21 @@ Using large type pieces:
         }
         void mouse_press(si32 button, bool pressed)
         {
+            static auto dblclick = datetime::now() - 1s;
             if (pressed && !mbttns) mouse_capture();
             pressed ? mbttns |= button
                     : mbttns &= ~button;
             if (!mbttns) mouse_release();
             //if (!pressed & (button == bttn::right)) manager::close();
+            if (!pressed & (button == bttn::left))
+            {
+                if (datetime::now() - dblclick < 500ms)
+                {
+                    set_fullscreen_mode(!fsmode);
+                    dblclick -= 1s;
+                }
+                else dblclick = datetime::now();
+            }
             if (pressed & (button == bttn::right))
             {
                 scroll_origin = scroll_pos;
@@ -1930,7 +1970,9 @@ Using large type pieces:
             if (vkey == 0x1b) manager::close();
             else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
             {
-                set_aa_mode(!gcache.aamode);
+                gcache.aamode = !gcache.aamode;
+                print_font_list(true);
+                set_aa_mode(gcache.aamode);
             }
             else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
             {
@@ -1939,7 +1981,7 @@ Using large type pieces:
             else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
                 auto flen = fcache.families.size();
-                auto index = vkey - 0x30;
+                auto index = vkey == 0x30 ? fcache.families.size() - 1 : vkey - 0x30;
                 if (index > 0 && index < flen)
                 {
                     auto& flist = fcache.families;
