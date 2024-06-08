@@ -60,6 +60,8 @@ Using large type pieces:
         //todo multiline graphemes
         //.add("\2line1\nline2", vss<52,01>, "\n")
         //.add("\2line1\nline2", vss<52,02>, "\n")
+        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
         .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
         .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
         .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
@@ -747,8 +749,9 @@ Using large type pieces:
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto actual_width = is_box_drawing ? std::max(1.f, std::floor(length / cellsz.x)) * cellsz.x
-                                               : length;
+            auto actual_width = swapxy ? length :
+                                is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
+                                               : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
