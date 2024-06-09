@@ -17,7 +17,7 @@ namespace netxs::gui
 
     //test strings
     template<auto ...Args>
-    auto vss = utf::matrix::vss<Args...>;
+    constexpr auto vss = utf::matrix::vss<Args...>;
     auto intro = ansi::add("").wrp(wrap::on).fgc(cyanlt)
         .add("\2Hello", utf::vs10, vss<11>, "\n")
         .add("        LeftDrag: Move window.\n"
@@ -99,10 +99,10 @@ Using large type pieces:
         .add("\n")
         .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
         .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,02>).add("\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,03>).add("\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs12, vss<24,04>).add("\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
         .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
                   .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
                   .fgc(purecyan).bgc(argb{}).add("<VS11\n")
@@ -126,6 +126,10 @@ Using large type pieces:
     auto canvas_page = ui::page{};
     auto header_page = ui::page{ header_text };
     auto footer_page = ui::page{ footer_text };
+    static constexpr auto tttest1 = utf::matrix::vs_code<11>;
+    static constexpr auto tttest2 = vss<11>;
+    static constexpr auto tttest3 = utf::utf8bytes<tttest1>;
+    static constexpr auto tttest4 = utf::utf8bytes<utf::vs12_code>;
 
     struct font
     {
@@ -639,8 +643,8 @@ Using large type pieces:
                     else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011); // +90°  CCW
                     else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011); // +180° CCW
                     else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
-                    else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011);
-                    else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011);
+                    else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011); // Hz flip
+                    else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011); // Vt flip
                     else if (codepoint.cdpoint == utf::vs04_code) glyfalignment.x = snap::head;
                     else if (codepoint.cdpoint == utf::vs05_code) glyfalignment.x = snap::center;
                     else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::tail;
@@ -1493,7 +1497,7 @@ Using large type pieces:
         void print_font_list(bool refill = faux)
         {
             auto i = 0;
-            font_list_str = utf::concat("Test text: ", testtext, "\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
+            font_list_str = utf::concat("Test text: \033[10m", testtext, "\033[m\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
                                       "\n Cell Size ", cellsz.x, "x", cellsz.y,
                                       "\n Font Fallback\n");
             for (auto& f : fcache.families) font_list_str += utf::concat(ansi::bld(i++ == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');

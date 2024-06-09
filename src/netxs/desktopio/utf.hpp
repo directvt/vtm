@@ -88,7 +88,7 @@ namespace netxs::utf
         static constexpr auto mx = p(kx + 1);
         static constexpr auto my = p(ky + 1);
         static auto s = [](auto w, auto h, auto x, auto y){ return p(w) + x + (p(h) + y) * mx; };
-        template<si32 wh, si32 xy>
+        template<si32 wh, si32 xy = 0>
         static constexpr auto vs = []
         {
             auto w = wh / 10;
@@ -99,7 +99,7 @@ namespace netxs::utf
             return v;
         }();
         static constexpr auto vs_block = 0xD0000;
-        template<si32 wh, si32 xy>
+        template<si32 wh, si32 xy = 0>
         static constexpr auto vs_code = vs_block + vs<wh, xy>;
         template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
         static constexpr auto vss = utf8view<code>;
