@@ -24,40 +24,6 @@ namespace netxs::input
 }
 namespace netxs::ui
 {
-    enum axis { X, Y };
-
-    enum class sort
-    {
-        forward,
-        reverse,
-    };
-
-    enum class snap
-    {
-        none,
-        head,
-        tail,
-        both,
-        center,
-    };
-
-    enum class slot { _1, _2, _I };
-
-    enum class axes
-    {
-        none   = 0,
-        X_only = 1 << 0,
-        Y_only = 1 << 1,
-        all    = X_only | Y_only,
-    };
-    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
-
-    struct bind
-    {
-        snap x = snap::both;
-        snap y = snap::both;
-    };
-
     struct base;
 
     using namespace netxs::input;

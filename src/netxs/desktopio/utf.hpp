@@ -40,10 +40,20 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls;
 
-    static constexpr auto replacement      = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
-    static constexpr auto vs15_code        = utfx{ 0x0000'FE0E };
-    static constexpr auto vs16_code        = utfx{ 0x0000'FE0F };
+    static constexpr auto vs04_code = utfx{ 0x0000'FE03 };
+    static constexpr auto vs05_code = utfx{ 0x0000'FE04 };
+    static constexpr auto vs06_code = utfx{ 0x0000'FE05 };
+    static constexpr auto vs07_code = utfx{ 0x0000'FE06 };
+    static constexpr auto vs08_code = utfx{ 0x0000'FE07 };
+    static constexpr auto vs09_code = utfx{ 0x0000'FE08 };
+    static constexpr auto vs10_code = utfx{ 0x0000'FE09 };
+    static constexpr auto vs11_code = utfx{ 0x0000'FE0A };
+    static constexpr auto vs12_code = utfx{ 0x0000'FE0B };
+    static constexpr auto vs13_code = utfx{ 0x0000'FE0C };
+    static constexpr auto vs14_code = utfx{ 0x0000'FE0D };
+    static constexpr auto vs15_code = utfx{ 0x0000'FE0E };
+    static constexpr auto vs16_code = utfx{ 0x0000'FE0F };
 
     template<utfx code>
     static constexpr auto utf8bytes = code <= 0x007f ? std::array<char, 4>{ static_cast<char>(code) }
@@ -52,6 +62,18 @@ namespace netxs::utf
                                                      : std::array<char, 4>{ static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)), static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)), static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)), static_cast<char>(0x80 | ( code & 0x3f)) };
     template<utfx code>
     static constexpr auto utf8view = view{ utf8bytes<code>.data(), code <= 0x007f ? 1u : code <= 0x07ff ? 2u : code <= 0xffff ? 3u : 4u };
+    static constexpr auto replacement = utf8view<replacement_code>; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto vs04 = utf8view<vs04_code>;
+    static constexpr auto vs05 = utf8view<vs05_code>;
+    static constexpr auto vs06 = utf8view<vs06_code>;
+    static constexpr auto vs07 = utf8view<vs07_code>;
+    static constexpr auto vs08 = utf8view<vs08_code>;
+    static constexpr auto vs09 = utf8view<vs09_code>;
+    static constexpr auto vs10 = utf8view<vs10_code>;
+    static constexpr auto vs11 = utf8view<vs11_code>;
+    static constexpr auto vs12 = utf8view<vs12_code>;
+    static constexpr auto vs13 = utf8view<vs13_code>;
+    static constexpr auto vs14 = utf8view<vs14_code>;
     static constexpr auto vs15 = utf8view<vs15_code>;
     static constexpr auto vs16 = utf8view<vs16_code>;
 
@@ -66,7 +88,7 @@ namespace netxs::utf
         static constexpr auto mx = p(kx + 1);
         static constexpr auto my = p(ky + 1);
         static auto s = [](auto w, auto h, auto x, auto y){ return p(w) + x + (p(h) + y) * mx; };
-        template<si32 wh, si32 xy>
+        template<si32 wh, si32 xy = 0>
         static constexpr auto vs = []
         {
             auto w = wh / 10;
@@ -77,9 +99,9 @@ namespace netxs::utf
             return v;
         }();
         static constexpr auto vs_block = 0xD0000;
-        template<si32 wh, si32 xy>
+        template<si32 wh, si32 xy = 0>
         static constexpr auto vs_code = vs_block + vs<wh, xy>;
-        template<si32 wh, si32 xy, auto code = vs_code<wh, xy>>
+        template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
         static constexpr auto vss = utf8view<code>;
 
         auto whxy(si32 vs)
@@ -724,6 +746,23 @@ namespace netxs::utf
     void to_utf(TextOrView<char, Args...> const& utf8, wide& wide_text)
     {
         to_utf(utf8.data(), utf8.size(), wide_text);
+    }
+    void to_utf(std::vector<prop> const& codepoints, wide& wide_text)
+    {
+        for (auto& r : codepoints)
+        {
+            auto code = r.cdpoint;
+            if (code < 0xD800 || (code >= 0xE000 && code <= 0xFFFF))
+            {
+                wide_text.push_back((wchr)code);
+            }
+            else if (code > 0xFFFF && code <= 0x10FFFF) // surrogate pair
+            {
+                wide_text.append({ (wchr)(0xD800 + ((code - 0x10000) >> 10)),
+                                   (wchr)(0xDC00 + (code & 0x03FF)) });
+            }
+            else wide_text.push_back(replacement_code);
+        }
     }
     wide to_utf(char const* utf8, size_t size)
     {

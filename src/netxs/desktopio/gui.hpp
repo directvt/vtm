@@ -16,90 +16,120 @@ namespace netxs::gui
     using namespace input;
 
     //test strings
-    auto vss11 = utf::matrix::vss<11,00>;
-    auto vss21 = utf::matrix::vss<21,00>;
-    auto vss21_01 = utf::matrix::vss<21,01>;
-    auto vss21_21 = utf::matrix::vss<21,21>;
-    auto vss21_11 = utf::matrix::vss<21,11>;
-    auto vss31 = utf::matrix::vss<31,00>;
-    auto vss41 = utf::matrix::vss<41,00>;
-    auto vss51 = utf::matrix::vss<51,00>;
-    auto vss84_01 = utf::matrix::vss<84,01>;
-    auto vss84_02 = utf::matrix::vss<84,02>;
-    auto vss84_03 = utf::matrix::vss<84,03>;
-    auto vss84_04 = utf::matrix::vss<84,04>;
-    auto vss22_01 = utf::matrix::vss<22,01>;
-    auto vss22_02 = utf::matrix::vss<22,02>;
-    auto vss42_01 = utf::matrix::vss<42,01>;
-    auto vss42_02 = utf::matrix::vss<42,02>;
-    auto canvas_text = ansi::wrp(wrap::on).fgc(tint::purecyan)
-        //.add("  के है क्त क्ष ङ्क क्ख क्क क्ल क्व क्न कर\n")
-        //.add("\002च्छे", vss21, " क कि", vss21, " कु कृ कॢ के कै को", vss21, " कौ", vss21, "\n\n")
-        // \U0000A8FB
-        .add("\002अनुच्छेद", vss51, " १.\n"     // अनुच्छेद १.
-             "\002सभी", vss31, " \002मनुष्यों", vss41, " को", vss21, " \002गौरव", vss31, " \002और", vss31, " \002अधिका", vss41, "\002रों", vss21, " के", vss21, " \002मामले", vss41, " में\n"  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "\002जन्मजात", vss51, " \002स्वतन्त्रता", vss51, " \002और", vss31, " \002समान", vss31, "\002ताप्राप्त", vss51, " है ।\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है ।
-             "\002उन्हें", vss31, " \002बुद्धि", vss31, " \002और", vss31, " \002अन्तरात्मा", vss51, " की", vss21, " \002देन", vss21, " \002प्राप्त", vss31, " है \002और", vss31, "\n" // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\002परस्पर", vss41, " \002उन्हें", vss31, " \002भाईचारे", vss51, " के", vss21, " \002भाव", vss31, " से \002बर्ताव", vss31, " \002करना", vss31, " \002चाहिए", vss41, " ।\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए ।
+    template<auto ...Args>
+    constexpr auto vss = utf::matrix::vss<Args...>;
+    auto intro = ansi::add("").wrp(wrap::on).fgc(cyanlt)
+        .add("\2Hello", utf::vs10, vss<11>, "\n")
+        .add("        LeftDrag: Move window.\n"
+             "       RightDrag: Panoramic scrolling.\n"
+             "           Wheel: Vertical scrolling.\n"
+             "         HzWheel: Horizontal scrolling.\n"
+             "      Ctrl+Wheel: Change cell height.\n"
+             "F11/DblLeftClick: Toggle fullsceen mode.\n"
+             "               A: Toggle antialiasing mode.\n"
+             "               0: Roll font fallback list.\n"
+             "             1-9: Reorder font fallback list.\n"
+             "             ESC: Close window.\n\n");
+    auto canvas_text = ansi::add("\n").bld(faux).wrp(wrap::on).fgc(cyanlt)
+        .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
+        .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
+        .add("             ⎝⎩\n")
+        .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
+            .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
+        .fgc(tint::whitelt).add(
+R"==(
+CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
+)==")
+        .add("\nThai sentence: สวัสดี ครับ\n")
+        .fgc(tint::purecyan)
+        .add(
+R"==(
+Box drawing alignment tests:                                          █
+                                                                      ▉
+  ╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    ▊ ╱╲╱╲╳╳╳
+  ║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▋ ╲╱╲╱╳╳╳
+  ║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▌ ╱╲╱╲╳╳╳
+  ╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▍ ╲╱╲╱╳╳╳
+  ║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▎
+  ║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▏
+  ╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋  ▁▂▃▄▅▆▇█
+)==")
+        .add(
+R"==(
+Using large type pieces:
+𜸜 𜸜𜸚𜸟𜸤𜸜𜸝𜸢𜸜𜸚𜸟𜸤  𜸜  𜸚𜸟𜸤𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸥  𜸞𜸠𜸥𜸜 𜸜𜸛𜸟𜸤𜸛𜸟𜸥  𜸛𜸟𜸤𜸜𜸛𜸟𜸥𜸚𜸟𜸤𜸛𜸟𜸥𜸚𜸟𜸤
+𜸩 𜸩𜸾𜸟𜸤𜸩𜸩𜸫𜸹𜸩 𜸧  𜸩  𜸨𜸟𜸶𜸨𜸟𜸷𜸩 𜸧𜸨𜸟    𜸩 𜸫𜸳𜸻𜸨𜸟𜹃𜸨𜸟   𜸨𜸟𜹃𜸩𜸨𜸟 𜸩  𜸨𜸟 𜸾𜸟𜸤
+𜸾𜸟𜹃𜸾𜸟𜹃𜸼𜸼 𜸼𜸾𜸟𜹃  𜸽𜸟𜸥𜸼 𜸼𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜸥   𜸼  𜸼 𜸼  𜸽𜸟𜸥  𜸼  𜸼𜸽𜸟𜸥𜸾𜸟𜹃𜸽𜸟𜸥𜸾𜸟𜹃
+
+𜸜𜸝𜸢𜸜𜸞𜸠𜸥𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸤𜸜 𜸜𜸚𜸟𜸤𜸞𜸠𜸥𜸜𜸚𜸟𜸤𜸝𜸢𜸜
+𜸩𜸩𜸫𜸹 𜸩 𜸨𜸟𜸷𜸩 𜸩𜸩 𜸩𜸩 𜸩𜸩   𜸩 𜸩𜸩 𜸩𜸩𜸫𜸹
+𜸼𜸼 𜸼 𜸼 𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜹃𜸾𜸟𜹃𜸾𜸟𜹃 𜸼 𜸼𜸾𜸟𜹃𜸼 𜸼
+)==")
+        .add("\n")
+        .add("\2aaaa", utf::vs07, vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
+        .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
+        //todo multiline graphemes
+        //.add("\2line1\nline2", vss<52,01>, "\n")
+        //.add("\2line1\nline2", vss<52,02>, "\n")
+        .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
+        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
+        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
+                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
+        .add("\n")
+        .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
+        .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
+             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
+             "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
+             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
+             "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
                         .add("\n")
-        //.add("❤", vss21, "<VS21_00 😎", vss11, "<VS11_00 👩‍👩‍👧‍👧", vss31, "<VS31_00\n")
-        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss21, "<VS21_00 😎", vss11, "<VS11_00 😎", vss21, "<VS21_00 ❤", vss11, "<VS11_00 ❤", vss21, "<VS21_00\n")
-        .add("😎", vss21_11, " 😃", vss21_21, "<VS21_11/VS21_21\n")
-        .add("😎", vss84_01, " <VS84_00\n")
-        .add("😎", vss84_02, "\n")
-        .add("😎", vss84_03, "\n")
-        .add("😎", vss84_04, "\n")
-        .add("Advanced ").add("T", vss22_01)
-                         .add("e", vss22_01)
-                         .add("r", vss22_01)
-                         .add("m", vss22_01)
-                         .add("i", vss22_01)
-                         .add("n", vss22_01)
-                         .add("a", vss22_01)
-                         .add("l", vss22_01)
-                         .add("\n")
-        .add("Terminal ").add("T", vss22_02)
-                         .add("e", vss22_02)
-                         .add("r", vss22_02)
-                         .add("m", vss22_02)
-                         .add("i", vss22_02)
-                         .add("n", vss22_02)
-                         .add("a", vss22_02)
-                         .add("l", vss22_02)
-                         .add("\n")
-        .add("Emulator ").fgc(tint::pureyellow)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21)
-                        .add("★", vss21).fgc(tint::purecyan)
-                        .add("☆", vss21)
+        //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
+        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
+        .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
+        .add("\n")
+        .add("G", vss<21>,              "<VS21_00:WideG   ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
+        .add("\2G", utf::vs10, vss<21>, "<VS10:  90°CCW   ").add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW    ").add("\2G", utf::vs14, utf::vs10, vss<21>, "<VS14+VS10: VtFlip+90°CCW\n")
+        .add("\2G", utf::vs11, vss<21>, "<VS11: 180°CCW   ").add("\2G", utf::vs13, utf::vs11, vss<21>, "<VS13+VS11: HzFlip+180°CCW   ").add("\2G", utf::vs14, utf::vs11, vss<21>, "<VS14+VS11: VtFlip+180°CCW\n")
+        .add("😎",  utf::vs12, vss<21>, "<VS12: 270°CCW   ").add("\2G", utf::vs13, utf::vs12, vss<21>, "<VS13+VS12: HzFlip+270°CCW   ").add("\2G", utf::vs14, utf::vs12, vss<21>, "<VS14+VS12: VtFlip+270°CCW\n")
+        .add("\n")
+        .add("\2G", utf::vs10, utf::vs13, vss<21>, "<VS10+VS13: 90°CCW+HzFlip\n")
+        .add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW\n")
+        .add("\n")
+        .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
+        .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
+        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
+        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
+        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
+                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
+                  .fgc(purecyan).bgc(argb{}).add("<VS11\n")
+        .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
+        .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
+        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(purecyan).add("☆", vss<21>, "\n")
                         .add("\n")
-                        .add("\n")
-                        //.add("Advanced T\U000E0154e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                        //     "Terminal T\U000E0164e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                        //     "Emulator ★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0124★\U000E0135").fgc(tint::pureyellow).add("☆\U000E0136☆\U000E0124\n\n").fgc(tint::purecyan)
-                        //.add("A\U000E0124d\U000E0124v\U000E0124a\U000E0124n\U000E0124c\U000E0124e\U000E0124d\U000E0124⚙\U0000FE0E\U000E0136\n"
-                        //     "T\U000E0187e\U000E0154r\U000E0154m\U000E0154i\U000E0154n\U000E0154a\U000E0154l\U000E0154\n"
-                        //     "T\U000E0197e\U000E0164r\U000E0164m\U000E0164i\U000E0164n\U000E0164a\U000E0164l\U000E0164\n"
-                        //     "T\U000E01a7Emulator").fgc(tint::pureyellow).add("★\U000E0124★\U000E0124★\U000E0135☆\U000E0136\n\n").fgc(tint::purecyan)
-                        //.add("\n")
-        .add("😎", vss42_01, " <VS42_00\n")
-        .add("😎", vss42_02, "\n")
+        .add("😎", vss<42,01>, " <VS42_00\n")
+        .add("😎", vss<42,02>, "\n")
                         .add("\n")
         .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
-        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\")
-        .itc(true).add("\nvtm GUI frontend").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
-        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss11, "🦚😀⛷🏂😁😂😃😄😅😆 👌🐞😎👪.\n\n")
-        .fgc(tint::greenlt).add("Press Esc or Right click to close.\n\n");
+        .fgc(purered).bgc(pureblue).add(" test \n")
+        .fgc(puregreen).bgc(pureblue).add(" test \n")
+        .fgc(purecyan).bgc(purered).add(" test \n")
+        //.fgc(purewhite).bgc(pureblack).add(" test \n")
+        .bgc(argb{})
+        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\\n\n");
+
     auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
     auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
-    auto canvas_page = ui::page{ canvas_text + canvas_text + canvas_text + canvas_text + canvas_text};
+    auto canvas_page = ui::page{};
     auto header_page = ui::page{ header_text };
     auto footer_page = ui::page{ footer_text };
+    static constexpr auto tttest1 = utf::matrix::vs_code<11>;
+    static constexpr auto tttest2 = vss<11>;
+    static constexpr auto tttest3 = utf::utf8bytes<tttest1>;
+    static constexpr auto tttest4 = utf::utf8bytes<utf::vs12_code>;
 
     struct font
     {
@@ -119,139 +149,196 @@ namespace netxs::gui
         };
         struct typeface
         {
-            std::vector<IDWriteFontFace2*>    fontface;
-            DWRITE_FONT_METRICS               metrics{};
-            si32                              baseline{};
-            si32                              emheight{};
-            twod                              facesize; // Typeface cell size.
+            struct face_rec
+            {
+                IDWriteFontFace2* face_inst{};
+                fp32              transform{};
+                fp32              em_height{};
+                fp32              transform_letters{};
+                fp32              em_height_letters{};
+                fp2d              actual_sz{};
+                fp2d              base_line{};
+            };
+            std::vector<face_rec>             fontface;
+            fp32                              base_descent{};
+            fp32                              base_ascent{};
+            si32                              base_emheight{};
+            si32                              base_x_height{};
+            fp2d                              facesize; // Typeface cell size.
+            fp32                              ratio{};
             ui32                              index{ ~0u };
             bool                              color{ faux };
             bool                              fixed{ faux }; // Preserve specified font order.
+            text                              font_name;
 
-            static auto iscolor(auto faceinst)
+            static auto iscolor(auto face_inst)
             {
                 auto tableSize = ui32{};
                 auto tableData = (void const*)nullptr;
                 auto tableContext = (void*)nullptr;
                 auto exists = BOOL{};
-                faceinst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
-                                          &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
-                                          &tableSize,    //_Out_ UINT32* tableSize,
-                                          &tableContext, //_Out_ void** tableContext,
-                                          &exists);      //_Out_ BOOL* exists
-                if (exists) faceinst->ReleaseFontTable(tableContext);
+                face_inst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
+                                           &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
+                                           &tableSize,    //_Out_ UINT32* tableSize,
+                                           &tableContext, //_Out_ void** tableContext,
+                                           &exists);      //_Out_ BOOL* exists
+                if (exists) face_inst->ReleaseFontTable(tableContext);
                 return exists;
-            }
-            auto load(auto& faceinst, auto barefont, auto weight, auto stretch, auto style)
-            {
-                auto fontfile = (IDWriteFont2*)nullptr;
-                barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
-                if (!fontfile) return;
-                fontfile->CreateFontFace((IDWriteFontFace**)&faceinst);
-                if (faceinst && !metrics.designUnitsPerEm)
-                {
-                    faceinst->GetMetrics(&metrics);
-                    emheight = metrics.ascent + metrics.descent;
-                    facesize.x = metrics.designUnitsPerEm / 2;
-                    facesize.y = emheight + metrics.lineGap;
-                    baseline = metrics.ascent + metrics.lineGap / 2;
-                    color = iscolor(faceinst);
-
-                    // formats 8, 10 and 12 with 32-bit encoding
-                    // format 13 - last-resort
-                    // format 14 for Unicode variation sequences
-                    struct cmap_table
-                    {
-                        enum platforms
-                        {
-                            Unicode   = 0, // Various
-                            Macintosh = 1, // Script manager code
-                            ISO       = 2, // ISO encoding
-                            Windows   = 3, // Windows encoding
-                            Custom    = 4, // Custom encoding
-                        };
-                        enum encodings
-                        {
-                            Symbol            = 0, // Symbols
-                            Windows_1_0       = 1, // Unicode BMP
-                            Unicode_2_0       = 3, // Unicode 2.0 and onwards semantics, Unicode BMP only
-                            Unicode_2_0f      = 4, // Unicode 2.0 and onwards semantics, Unicode full repertoire
-                            Unicode_Variation = 5, // Unicode Variation Sequences—for use with subtable format 14
-                            Unicode_full      = 6, // Unicode full repertoire—for use with subtable format 13
-                            Windows_2_0       = 10,// Unicode full repertoire
-                        };
-                        struct rect
-                        {
-                            ui16 platformID;
-                            ui16 encodingID;
-                            ui32 subtableOffset; // Byte offset from beginning of table to the subtable for this encoding.
-                        };
-                        ui16 version;
-                        ui16 numTables;
-                        //rect records[];
-                    };
-                    struct colr_table
-                    {
-                        struct baseGlyphRecord
-                        {
-                            ui16 glyphID;         // Glyph ID of the base glyph.
-                            ui16 firstLayerIndex; // Index (base 0) into the layerRecords array.
-                            ui16 numLayers;       // Number of color layers associated with this glyph.
-                        };
-                        struct layerRecord
-                        {
-                            ui16 glyphID;      // Glyph ID of the glyph used for a given layer.
-                            ui16 paletteIndex; // Index (base 0) for a palette entry in the CPAL table.
-                        };
-                        ui16 version;                   // Table version number—set to 0.
-                        ui16 numBaseGlyphRecords;       // Number of base glyphs.
-                        ui32 baseGlyphRecordsOffset;    // Offset to baseGlyphRecords array.
-                        ui32 layerRecordsOffset;        // Offset to layerRecords array.
-                        ui16 numLayerRecords;           // Number of Layer records.
-                        //baseGlyphRecord baseGlyphRecs[];
-                        //layerRecord     layersRecs[];
-                    };
-
-                    //auto cmap_data = (void const*)nullptr;
-                    //auto cmap_size = ui32{};
-                    //auto cmap_ctx = (void*)nullptr;
-                    //auto exists = BOOL{};
-                    //fontface->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('c','m','a','p'), &cmap_data, &cmap_size, &cmap_ctx, &exists);
-                    // 1. cmap: codepoints -> indices
-                    // 2. GSUB: indices -> indices
-                    // 3. BASE: take font-wise metrics
-                    // 4. GPOS: glyph positions
-                    // 5. COLR+CPAL: multicolored glyphs (version 0)
-                }
-                fontfile->Release();
             }
             void load(IDWriteFontFamily* barefont)
             {
+                auto get = [&](auto& face_inst, auto weight, auto stretch, auto style)
+                {
+                    auto fontfile = (IDWriteFont2*)nullptr;
+                    barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
+                    if (!fontfile) return;
+                    fontfile->CreateFontFace((IDWriteFontFace**)&face_inst);
+                    fontfile->Release();
+                };
                 fontface.resize(4);
-                load(fontface[style::normal     ], barefont, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                load(fontface[style::italic     ], barefont, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-                load(fontface[style::bold       ], barefont, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-                load(fontface[style::bold_italic], barefont, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::normal     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::italic     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+                get(fontface[style::bold       ].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+                get(fontface[style::bold_italic].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
                 auto names = (IDWriteLocalizedStrings*)nullptr;
                 barefont->GetFamilyNames(&names);
                 auto buff = wide(100, 0);
                 names->GetString(0, buff.data(), (ui32)buff.size());
-                log("%%Using font '%fontname%' (%iscolor%).", prompt::gui, utf::to_utf(buff.data()), color ? "color" : "monochromatic");
+                font_name = utf::to_utf(buff.data());
                 names->Release();
+
+                auto& face_inst = fontface[style::normal].face_inst;
+                if (face_inst)
+                {
+                    auto m = DWRITE_FONT_METRICS1{};
+                    face_inst->GetMetrics(&m);
+                    base_emheight = m.designUnitsPerEm;
+                    base_x_height = m.xHeight;
+                    base_ascent = m.ascent + m.lineGap / 2.0f;
+                    base_descent = m.descent + m.lineGap / 2.0f;
+                    auto glyph_metrics = DWRITE_GLYPH_METRICS{};
+                    // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
+                    //auto code_points = ui32{ 'x' };
+                    auto code_points = ui32{ 'U' }; // U is approximately half an emoji square in the Segoe Emoji font.
+                    auto glyph_index = ui16{ 0 };
+                    face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                    face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                    facesize.y = (fp32)std::max(2, m.ascent + m.descent + m.lineGap);
+                    facesize.x = glyph_metrics.advanceWidth ? (fp32)glyph_metrics.advanceWidth : facesize.y / 2;
+                    ratio = facesize.x / facesize.y;
+                    color = iscolor(face_inst);
+                }
+            }
+            void recalc_metrics(twod& cellsize, bool isbase)
+            {
+                auto k0 = cellsize.y / facesize.y;
+                auto b0 = base_ascent * k0;
+                auto b_f = std::floor(b0);
+                auto b_c = std::ceil(b0);
+                auto asc_f = b_f;
+                auto asc_c = b_c;
+                auto des_f = cellsize.y - b_f;
+                auto des_c = cellsize.y - b_c;
+                auto k1_f = asc_f / base_ascent;
+                auto k2_f = des_f / base_descent;
+                auto k1_c = asc_c / base_ascent;
+                auto k2_c = des_c / base_descent;
+                auto m1 = std::max(k1_f, k2_f);
+                auto m2 = std::max(k1_c, k2_c);
+                auto b2 = fp32{};
+                auto transform = fp32{};
+                auto transform_letters = fp32{};
+                if (m1 < m2)
+                {
+                    transform = m1;
+                    b2 = b_f;
+                }
+                else
+                {
+                    transform = m2;
+                    b2 = b_c;
+                }
+                auto base_line = fp2d{ 0.f, b2 };
+                if (isbase)
+                {
+                    auto mx = facesize.x * transform;
+                    auto dx = std::ceil(mx) - 1.f; // Grid fitting can move the glyph back more than 1px.
+                    cellsize.x = std::max(1, (si32)dx);
+                    transform_letters = std::min(transform, cellsize.x / facesize.x); // Respect letter width.
+                }
+                else
+                {
+                    transform = std::min(transform, cellsize.x  / facesize.x);
+                    transform_letters = transform;
+                }
+                transform_letters = std::floor(base_x_height * transform_letters) / base_x_height; // Respect x-height.
+                auto em_height = base_emheight * transform;
+                auto em_height_letters = base_emheight * transform_letters;
+                auto actual_sz = facesize * transform;
+                //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
+                fontface[style::normal].transform = transform;
+                fontface[style::normal].em_height = em_height;
+                fontface[style::normal].transform_letters = transform_letters;
+                fontface[style::normal].em_height_letters = em_height_letters;
+                fontface[style::normal].base_line = base_line;
+                fontface[style::normal].actual_sz = actual_sz;
+                fontface[style::bold  ].transform = transform;
+                fontface[style::bold  ].em_height = em_height;
+                fontface[style::bold  ].transform_letters = transform_letters;
+                fontface[style::bold  ].em_height_letters = em_height_letters;
+                fontface[style::bold  ].base_line = base_line;
+                fontface[style::bold  ].actual_sz = actual_sz;
+                // Detect right bearing delta for italics.
+                auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
+                auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
+                auto code_points = ui32{ 'M' };
+                auto glyph_index = ui16{ 0 };
+                fontface[style::normal].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
+                fontface[style::italic].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                fontface[style::italic].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
+                auto proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
+                auto normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
+                auto italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
+                auto w = proportional && normal_width ? (fp32)normal_width : facesize.x;
+                auto k = w / (w + (italic_width - normal_width));
+                transform *= k;
+                em_height *= k;
+                transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
+                em_height_letters = base_emheight * transform_letters;
+                actual_sz *= k;
+                fontface[style::italic     ].transform = transform;
+                fontface[style::italic     ].em_height = em_height;
+                fontface[style::italic     ].transform_letters = transform_letters;
+                fontface[style::italic     ].em_height_letters = em_height_letters;
+                fontface[style::italic     ].base_line = base_line;
+                fontface[style::italic     ].actual_sz = actual_sz;
+                fontface[style::bold_italic].transform = transform;
+                fontface[style::bold_italic].em_height = em_height;
+                fontface[style::bold_italic].transform_letters = transform_letters;
+                fontface[style::bold_italic].em_height_letters = em_height_letters;
+                fontface[style::bold_italic].base_line = base_line;
+                fontface[style::bold_italic].actual_sz = actual_sz;
             }
 
-            //todo make software font
             typeface() = default;
             typeface(typeface&&) = default;
-            typeface(IDWriteFontFamily* barefont, ui32 index, bool fixed = faux)
+            typeface(IDWriteFontFamily* barefont, ui32 index)
                 : index{ index },
-                  fixed{ fixed }
+                  fixed{ true }
             {
                 load(barefont);
             }
+            typeface(IDWriteFontFamily* barefont, ui32 index, twod cellsz, bool isbase)
+                : index{ index },
+                  fixed{ faux }
+            {
+                load(barefont);
+                recalc_metrics(cellsz, isbase);
+            }
             ~typeface()
             {
-                for (auto f : fontface) if (f) f->Release();
+                for (auto& f : fontface) if (f.face_inst) f.face_inst->Release();
             }
             explicit operator bool () { return index != ~0u; }
         };
@@ -267,6 +354,10 @@ namespace netxs::gui
         std::vector<stat>              fontstat; // font: System font collection status list.
         std::vector<typeface>          fallback; // font: Fallback font list.
         wide                           oslocale; // font: User locale.
+        flag                           complete; // font: Fallback index is ready.
+        std::thread                    bgworker; // font: Background thread.
+        twod                           cellsize; // font: Terminal cell size in pixels.
+        std::list<text>                families; // font: Primary font name list.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -294,19 +385,13 @@ namespace netxs::gui
             return lut[code];
         }
 
-        font(std::list<text>& family_names)
-            : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
-              fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
-              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
-              fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
-              oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
+        void set_fonts(auto family_names, bool fresh = true)
         {
-            if (!fontlist || !analyzer)
-            {
-                log("%%No fonts found in the system.", prompt::gui);
-                return;
-            }
-            for (auto& family_utf8 : family_names)
+            if (family_names.empty()) family_names.push_back("Courier New"); //todo unify
+            families = family_names;
+            fallback.clear();
+            if (!fresh) for (auto& s : fontstat) s.s &= ~fontcat::loaded;
+            for (auto& family_utf8 : families)
             {
                 auto found = BOOL{};   
                 auto index = ui32{};
@@ -314,10 +399,12 @@ namespace netxs::gui
                 fontlist->FindFamilyName(family_utf16.data(), &index, &found);
                 if (found)
                 {
+                    if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
                     fontstat[index].s |= fontcat::loaded;
-                    fallback.emplace_back(barefont, index, true);
+                    auto& f = fallback.emplace_back(barefont, index);
+                    log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                     barefont->Release();
 
                     //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
@@ -330,6 +417,22 @@ namespace netxs::gui
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
+        }
+        font(std::list<text>& family_names, si32 cell_height)
+            : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
+              fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
+              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
+              fontstat(fontlist ? fontlist->GetFontFamilyCount() : 0),
+              oslocale(LOCALE_NAME_MAX_LENGTH, '\0'),
+              complete{ faux }
+        {
+            if (!fontlist || !analyzer)
+            {
+                log("%%No fonts found in the system.", prompt::gui);
+                return;
+            }
+            set_fonts(family_names);
+            set_cellsz(cell_height);
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
             {
@@ -337,65 +440,80 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            for (auto i = 0u; i < fontstat.size(); i++)
+            bgworker = std::thread{ [&]
             {
-                fontstat[i].i = i;
-                if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
+                for (auto i = 0u; i < fontstat.size(); i++)
                 {
-                    if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
+                    fontstat[i].i = i;
+                    if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
                     {
-                        fontstat[i].s |= fontcat::valid;
-                        if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
-                        if (auto faceinst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&faceinst), faceinst)
+                        if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
                         {
-                            if (typeface::iscolor(faceinst)) fontstat[i].s |= fontcat::color;
-                            auto numberOfFiles = ui32{};
-                            faceinst->GetFiles(&numberOfFiles, nullptr);
-                            auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
-                            if (S_OK == faceinst->GetFiles(&numberOfFiles, fontFiles.data()))
+                            fontstat[i].s |= fontcat::valid;
+                            if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
+                            if (auto face_inst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&face_inst), face_inst)
                             {
-                                if (numberOfFiles)
-                                if (auto f = fontFiles.front())
+                                if (typeface::iscolor(face_inst)) fontstat[i].s |= fontcat::color;
+                                auto numberOfFiles = ui32{};
+                                face_inst->GetFiles(&numberOfFiles, nullptr);
+                                auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
+                                if (S_OK == face_inst->GetFiles(&numberOfFiles, fontFiles.data()))
                                 {
-                                    auto fontFileReferenceKey = (void const*)nullptr;
-                                    auto fontFileReferenceKeySize = ui32{};
-                                    f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
-                                    auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
-                                    if (fontFileReferenceKeySize)
-                                    if (f->GetLoader(&fontFileLoader); fontFileLoader)
+                                    if (numberOfFiles)
+                                    if (auto f = fontFiles.front())
                                     {
-                                        auto fontFileStream = (IDWriteFontFileStream*)nullptr;
-                                        if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
+                                        auto fontFileReferenceKey = (void const*)nullptr;
+                                        auto fontFileReferenceKeySize = ui32{};
+                                        f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
+                                        auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
+                                        if (fontFileReferenceKeySize)
+                                        if (f->GetLoader(&fontFileLoader); fontFileLoader)
                                         {
-                                            auto lastWriteTime = ui64{};
-                                            fontFileStream->GetLastWriteTime(&lastWriteTime);
-                                            fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
-                                            fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then file date.
-                                            fontFileStream->Release();
+                                            auto fontFileStream = (IDWriteFontFileStream*)nullptr;
+                                            if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
+                                            {
+                                                auto lastWriteTime = ui64{};
+                                                fontFileStream->GetLastWriteTime(&lastWriteTime);
+                                                fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
+                                                fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then by file_date.
+                                                fontFileStream->Release();
+                                            }
+                                            fontFileLoader->Release();
                                         }
-                                        fontFileLoader->Release();
+                                        f->Release();
                                     }
-                                    f->Release();
                                 }
+                                face_inst->Release();
                             }
-                            faceinst->Release();
+                            fontfile->Release();
                         }
-                        fontfile->Release();
+                        barefont->Release();
                     }
-                    barefont->Release();
                 }
-            }
-            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
-            //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
+                std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+                //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
+                complete.exchange(true);
+                complete.notify_all();
+                log("%%Font fallback index initialized.", prompt::gui);
+            }};
         }
         ~font()
         {
+            if (bgworker.joinable()) bgworker.join();
             if (analyzer) analyzer->Release();
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
         }
+        void set_cellsz(si32 cell_height)
+        {
+            cellsize = { 1, std::clamp(cell_height, 2, 256) };
+            auto base_font = true;
+            for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            log("%%Set cell size: ", prompt::gui, cellsize);
+        }
         auto& take_font(utfx codepoint)
         {
+            //return fallback.front();
             auto hittest = [&](auto& fontface)
             {
                 if (!fontface) return faux;
@@ -403,8 +521,9 @@ namespace netxs::gui
                 fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
                 return !!glyphindex;
             };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0])) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0])) return f;
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            complete.wait(faux);
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
@@ -418,7 +537,7 @@ namespace netxs::gui
                             {
                                 hit = true;
                                 fontstat[i].s |= fontcat::loaded;
-                                fallback.emplace_back(barefont, i);
+                                fallback.emplace_back(barefont, i, cellsize, faux);
                             }
                             fontface->Release();
                         }
@@ -459,6 +578,11 @@ namespace netxs::gui
                 : bits{ &pool },
                   type{ undef }
             { }
+            template<class Elem>
+            auto raster()
+            {
+                return netxs::raster{ std::span{ (Elem*)bits.data(), bits.size() / sizeof(Elem) }, area };
+            }
         };
         struct color_layer
         {
@@ -472,41 +596,62 @@ namespace netxs::gui
         };
 
         using gmap = std::unordered_map<ui64, sprite>;
-        static constexpr auto dpi72_96 = 0.75f; // CreateGlyphRunAnalysis2 operates with 72dpi, so 72/96 = 0.75.
 
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
         font& fcache; // glyf: Font cache.
-        twod  cellsz; // glyf: Narrow glyph black-box size in pixels.
+        twod& cellsz; // glyf: Terminal cell size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
         wide                                         text_utf16; // glyf: UTF-16 buffer.
         std::vector<utf::prop>                       codepoints; // glyf: .
         std::vector<ui16>                            clustermap; // glyf: .
         std::vector<ui16>                            glyf_index; // glyf: .
-        std::vector<FLOAT>                           glyf_width; // glyf: .
+        std::vector<FLOAT>                           glyf_steps; // glyf: .
         std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyf: .
+        std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyf: .
         std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyf: .
         std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
         std::vector<color_layer>                     glyf_masks; // glyf: .
 
-        glyf(font& fcache, twod cellsz, bool aamode)
+        glyf(font& fcache, bool aamode)
             : fcache{ fcache },
-              cellsz{ cellsz },
+              cellsz{ fcache.cellsize },
               aamode{ aamode }
         { }
+        void reset()
+        {
+            glyphs.clear();
+            mono_buffer.release();
+        }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
             glyph_mask.type = sprite::alpha;
             if (c.xy() == 0) return;
             auto code_iter = utf::cpit{ c.txt() };
             codepoints.clear();
+            auto flipandrotate = 0;
             auto monochromatic = faux;
+            auto glyfalignment = bind{ snap::none, snap::none };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
-                     if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
-                else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
+                if (codepoint.cdpoint >= utf::vs04_code && codepoint.cdpoint <= utf::vs16_code)
+                {
+                         if (codepoint.cdpoint == utf::vs15_code) monochromatic = true;
+                    else if (codepoint.cdpoint == utf::vs16_code) monochromatic = faux;
+                    else if (codepoint.cdpoint == utf::vs10_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b001) & 0b011); // +90°  CCW
+                    else if (codepoint.cdpoint == utf::vs11_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b010) & 0b011); // +180° CCW
+                    else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
+                    else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011); // Hz flip
+                    else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011); // Vt flip
+                    else if (codepoint.cdpoint == utf::vs04_code) glyfalignment.x = snap::head;
+                    else if (codepoint.cdpoint == utf::vs05_code) glyfalignment.x = snap::center;
+                    else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs07_code) glyfalignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs08_code) glyfalignment.y = snap::center;
+                    else if (codepoint.cdpoint == utf::vs09_code) glyfalignment.y = snap::tail;
+                }
                 else codepoints.push_back(codepoint);
             }
             if (codepoints.empty()) return;
@@ -514,23 +659,30 @@ namespace netxs::gui
             auto format = font::style::normal;
             if (c.itc()) format |= font::style::italic;
             if (c.bld()) format |= font::style::bold;
-            auto& f = fcache.take_font(codepoints.front().cdpoint);
-            auto font_face = f.fontface[format];
-            if (!font_face) return;
-
-            auto transform = std::min((fp32)cellsz.x / f.facesize.x, (fp32)cellsz.y / f.facesize.y);
-            auto base_line = fp2d{ 0, f.baseline * transform };
-            auto em_height = f.emheight * transform * glyf::dpi72_96;
+            auto base_char = codepoints.front().cdpoint;
+            auto& f = fcache.take_font(base_char);
+            auto face_inst = f.fontface[format].face_inst;
+            if (!face_inst) return;
+            auto is_box_drawing = (base_char >= 0x2320  && base_char <= 0x23D0)   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
+                               || (base_char >= 0x2500  && base_char <= 0x25FF)   // Box Elements
+                               || (base_char >= 0xE0B0  && base_char <= 0xE0B3)   // Powerline Arrows
+                               || (base_char >= 0x1CC00 && base_char <= 0x1CEBF)  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
+                               || (base_char >= 0x1F67C && base_char <= 0x1F67F)  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
+                               || (base_char >= 0x1FB00 && base_char <= 0x1FBFF); // Symbols for Legacy Computing
+            auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
+            auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
+            auto base_line = f.fontface[format].base_line;
+            auto actual_sz = f.fontface[format].actual_sz;
 
             //todo use otf tables directly: GSUB etc
             //gindex.resize(codepoints.size());
-            //hr = font_face->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
-            //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = font_face,
+            //hr = face_inst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
+            //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = face_inst,
             //                                   .fontEmSize   = em_height,
             //                                   .glyphCount   = (ui32)gindex.size(),
             //                                   .glyphIndices = gindex.data() };
             text_utf16.clear();
-            utf::to_utf(c.txt(), text_utf16);
+            utf::to_utf(codepoints, text_utf16);
             auto text_count = (ui32)text_utf16.size();
             auto glyf_count = 3 * text_count / 2 + 16;
             glyf_index.resize(glyf_count);
@@ -538,131 +690,130 @@ namespace netxs::gui
             text_props.resize(text_count);
             clustermap.resize(text_count);
 
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(codepoints.front().wscript) };
-            auto fs = std::to_array<std::pair<ui32, ui32>>({{}
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'i', 'g', 'a'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('m', 'a', 'r', 'k'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('l', 'o', 'c', 'l'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'l', 'i', 'g'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'f', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'c', 'm', 'p'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 'm'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'b', 'v', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('a', 'k', 'h', 'n'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 'm'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('b', 'l', 'w', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'a', 'l', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('c', 'j', 'c', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('d', 'i', 's', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('h', 'a', 'l', 'n'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('n', 'u', 'k', 't'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 'r', 'e', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('p', 's', 't', 's'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'k', 'r', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('r', 'p', 'h', 'f'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('v', 'a', 't', 'u'), 1 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'b', 's'), 0 },
-                                                          //{ DWRITE_MAKE_OPENTYPE_TAG('s', 'u', 'p', 's'), 0 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALF_FORMS, 0 },
-                                                          //{ DWRITE_FONT_FEATURE_TAG_HALANT_FORMS, 0 },
-                                                        });
-            auto const features = DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() };
-            auto feat_table = &features;
+            //todo make it configurable (and face_inst based)
+            //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
+            //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
+            //auto feat_table = features.data();
 
-            auto hr = fcache.analyzer->GetGlyphs(
-                text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
-                text_count,              //UINT32 textLength,
-                font_face,               //_In_ IDWriteFontFace* fontFace,
-                faux,                    //BOOL isSideways,
-                faux,                    //BOOL isRightToLeft,
-                &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
-                nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                &feat_table,             //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                1,                       //UINT32 featureRanges,
-                glyf_count,              //UINT32 maxGlyphCount,
-                clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
-                text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-                glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-                &glyf_count);            //_Out_ UINT32* actualGlyphCount
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
+            auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
+                                                 text_count,              //UINT32 textLength,
+                                                 face_inst,               //_In_ IDWriteFontFace* fontFace,
+                                                 faux,                    //BOOL isSideways,
+                                                 faux,                    //BOOL isRightToLeft,
+                                                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
+                                                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
+                                                 nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                 &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                 0,//f.features.size(),   //UINT32 featureRanges,
+                                                 glyf_count,              //UINT32 maxGlyphCount,
+                                                 clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
+                                                 text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                 glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
+                                                 glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
+                                                 &glyf_count);            //_Out_ UINT32* actualGlyphCount
             if (hr != S_OK) return;
 
-            glyf_width.resize(glyf_count);
+            glyf_steps.resize(glyf_count);
             glyf_align.resize(glyf_count);
-
-            auto recalc_layout = [&]
+            glyf_sizes.resize(glyf_count);
+            auto actual_height = (fp32)cellsz.y;
+            auto mtx = c.mtx();
+            auto matrix = fp2d{ mtx * cellsz };
+            auto swapxy = flipandrotate & 1;
+            if (swapxy)
             {
-                return fcache.analyzer->GetGlyphPlacements(
-                text_utf16.data(),                 // _In_reads_(textLength) WCHAR const* textString,
-                clustermap.data(),                 // _In_reads_(textLength) UINT16 const* clusterMap,
-                text_props.data(),                 // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                text_count,                        // UINT32 textLength,
-                glyf_index.data(),                 // _In_reads_(glyphCount) UINT16 const* glyphIndices,
-                glyf_props.data(),                 // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
-                glyf_count,                        // UINT32 glyphCount,
-                font_face,                         // _In_ IDWriteFontFace* fontFace,
-                em_height,                         // FLOAT fontEmSize,
-                faux,                              // BOOL isSideways,
-                faux,                              // BOOL isRightToLeft,
-                &script_opt,                       // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                fcache.oslocale.data(),            // _In_opt_z_ WCHAR const* localeName,
-                &feat_table,                       // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                &text_count,                       // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                1,                                 // UINT32 featureRanges,
-                glyf_width.data(),                 // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
-                glyf_align.data());                // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-            };
-            if (recalc_layout() != S_OK) return;
+                std::swap(matrix.x, matrix.y);
+                transform *= f.ratio;
+                em_height *= f.ratio;
+                base_line *= f.ratio;
+                actual_height *= f.ratio;
+            }
+            hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
+                                                     clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
+                                                     text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                     text_count,              // UINT32 textLength,
+                                                     glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
+                                                     glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
+                                                     glyf_count,              // UINT32 glyphCount,
+                                                     face_inst,               // _In_ IDWriteFontFace* fontFace,
+                                                     em_height,               // FLOAT fontEmSize,
+                                                     faux,                    // BOOL isSideways,
+                                                     faux,                    // BOOL isRightToLeft,
+                                                     &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                     fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
+                                                     nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                     &text_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                     0,//f.features.size(),   // UINT32 featureRanges,
+                                                     glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
+                                                     glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
+            if (hr != S_OK) return;
 
-            auto matrix = c.mtx() * cellsz;
+            hr = face_inst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+            if (hr != S_OK) return;
             auto length = fp32{};
+            auto penpos = fp32{};
             for (auto i = 0u; i < glyf_count; ++i)
             {
-                length = std::max(length, glyf_align[i].advanceOffset + glyf_width[i]);
+                auto w = glyf_sizes[i].advanceWidth;
+                auto r = glyf_sizes[i].rightSideBearing;
+                auto bearing = ((si32)w - r) * transform;
+                auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
+                length = std::max(length, right_most);
+                penpos += glyf_steps[i];
             }
-            if (length > matrix.x + cellsz.x / 2.f) // Check if the glyph exceeds the matrix.
+            auto actual_width = swapxy ? length :
+                                is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
+                                               : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
+            auto k = 1.f;
+            if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
-                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix.x / actual_width;
-                em_height = f.emheight * transform * glyf::dpi72_96;
-                if (recalc_layout() != S_OK) return;
+                k = matrix.x / length;
+                actual_width = matrix.x;
+                actual_height *= k;
+                em_height *= k;
+                for (auto& w : glyf_steps) w *= k;
+                for (auto& [h, v] : glyf_align) h *= k;
             }
-            else if (length < matrix.x - cellsz.x / 2.f && em_height < matrix.y - cellsz.y / 2.f) // Check if the glyph is too small for the matrix.
+            else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
             {
-                auto actual_width = std::floor((length + cellsz.x / 2) / cellsz.x) * cellsz.x;
-                transform *= (fp32)matrix.x / actual_width;
-                base_line = fp2d{ 0, f.baseline * transform };
-                em_height = f.emheight * transform * glyf::dpi72_96;
-                if (recalc_layout() != S_OK) return;
+                k = std::min(matrix.x / actual_width, matrix.y / actual_height);
+                actual_width *= k;
+                actual_height *= k;
+                base_line *= k;
+                em_height *= k;
+                for (auto& w : glyf_steps) w *= k;
+                for (auto& [h, v] : glyf_align) h *= k;
+                k = 1.f;
             }
-            else if (length < matrix.x - cellsz.x / 2.f) // Centrify glyph.
+            if (glyfalignment.x != snap::none && actual_width < matrix.x)
             {
-                //base_line.x += (matrix.x - length) / 2.f;
+                     if (glyfalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                else if (glyfalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
+                //else if (glyfalignment.x == snap::head  ) base_line.x = 0;
             }
-
-            auto glyph_run  = DWRITE_GLYPH_RUN{ .fontFace      = font_face,
-                                                .fontEmSize    = em_height,
-                                                .glyphCount    = glyf_count,
-                                                .glyphIndices  = glyf_index.data(),
-                                                .glyphAdvances = glyf_width.data(),
-                                                .glyphOffsets  = glyf_align.data() };
-
+            if (glyfalignment.y != snap::none && actual_height < matrix.y)
+            {
+                base_line.y *= k;
+                     if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
+                else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
+                //else if (glyfalignment.y == snap::head  ) base_line.y *= k;
+            }
+            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = face_inst,
+                                               .fontEmSize    = em_height,
+                                               .glyphCount    = glyf_count,
+                                               .glyphIndices  = glyf_index.data(),
+                                               .glyphAdvances = glyf_steps.data(),
+                                               .glyphOffsets  = glyf_align.data() };
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
             hr = monochromatic ? DWRITE_E_NOCOLOR
                                : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
             auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = DWRITE_GRID_FIT_MODE_ENABLED; //DWRITE_GRID_FIT_MODE_DEFAULT
-            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE; //DWRITE_TEXT_ANTIALIAS_MODE_CLEARTYPE
+            auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
+                                                                  : DWRITE_GRID_FIT_MODE_ENABLED;
+            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE;
             auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
             {
                 auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
@@ -708,7 +859,7 @@ namespace netxs::gui
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
                 glyph_mask.bits.resize(l * sizeof(irgb));
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)l }, glyph_mask.area };
+                auto raster = glyph_mask.raster<irgb>();
                 for (auto& m : glyf_masks)
                 {
                     auto alpha_mask = netxs::raster{ m.bits, m.area };
@@ -743,6 +894,68 @@ namespace netxs::gui
                 colored_glyphs->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
+            //auto src_bitmap = glyph_mask.raster<byte>();
+            //auto bline = rect{base_line, { cellsz.x, 1 } };
+            //netxs::misc::fill(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
+            if (glyph_mask.area && flipandrotate)
+            {
+                //todo optimize
+                static auto buffer = std::vector<byte>{};
+                static constexpr auto l0 = std::to_array({ 1, -1, -1,  1, -1, 1,  1, -1 });
+                static constexpr auto l1 = std::to_array({ 1,  1, -1, -1,  1, 1, -1, -1 });
+                buffer.assign(glyph_mask.bits.begin(), glyph_mask.bits.end());
+                auto xform = [&](auto elem)
+                {
+                    using type = decltype(elem);
+                    auto count = buffer.size() / sizeof(type);
+                    auto src = netxs::raster{ std::span{ (type*)buffer.data(), count }, glyph_mask.area };
+                    auto mx = glyph_mask.area.size.x;
+                    if (swapxy)
+                    {
+                        std::swap(glyph_mask.area.size.x, glyph_mask.area.size.y);
+                        std::swap(glyph_mask.area.coor.x, glyph_mask.area.coor.y);
+                    }
+                    auto dst = glyph_mask.raster<type>();
+                    auto s__dx = 1;
+                    auto s__dy = mx;
+                    auto dmx = glyph_mask.area.size.x;
+                    auto dmy = glyph_mask.area.size.y;
+                    auto sx = l0[flipandrotate];
+                    auto sy = l1[flipandrotate];
+                    auto d__dx = sx * ((flipandrotate & 0b1) ? dmx :   1);
+                    auto d__dy = sy * ((flipandrotate & 0b1) ? 1   : dmx);
+                    if (flipandrotate & 0b100) std::swap(sx, sy);
+                    auto d__px = (sy > 0 ? 0 : dmx - 1);
+                    auto d__py = (sx > 0 ? 0 : dmy - 1);
+                    auto s_beg = src.begin();
+                    auto s_eol = s_beg + mx - 1;
+                    auto s_end = s_beg + count - 1;
+                    auto d_beg = dst.begin() + (d__px + d__py * dmx);
+                    auto d_eol = d_beg + d__dx * (mx - 1);
+                    auto s_ptr = s_beg;
+                    auto d_ptr = d_beg;
+                    while (true)
+                    {
+                        *d_ptr = *s_ptr;
+                        if (s_ptr != s_eol) s_ptr += s__dx;
+                        else
+                        {
+                            if (s_ptr == s_end) break;
+                            s_beg += s__dy;
+                            s_ptr = s_beg;
+                            s_eol += s__dy;
+                        }
+                        if (d_ptr != d_eol) d_ptr += d__dx;
+                        else
+                        {
+                            d_beg += d__dy;
+                            d_ptr = d_beg;
+                            d_eol += d__dy;
+                        }
+                    }
+                };
+                glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
+            }
         }
         void draw_cell(auto& canvas, twod coor, cell const& c)
         {
@@ -895,11 +1108,8 @@ namespace netxs::gui
             if (sync || !hdc) return;
             static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto scr_coor = POINT{};
-            auto old_size =  SIZE{ prev.size.x, prev.size.y };
-            auto old_coor = POINT{ prev.coor.x, prev.coor.y };
-            auto win_size =  SIZE{      size.x,      size.y };
             auto win_coor = POINT{ area.coor.x, area.coor.y };
-            //auto sized = prev.size(     size);
+            auto win_size =  SIZE{      size.x,      size.y };
             auto moved = prev.coor(area.coor);
             auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (syscall, copy bitmap to hardware)
                                             HDC{},                       // No color palette matching.  HDC hdcDst,
@@ -925,16 +1135,18 @@ namespace netxs::gui
             right  = 1 << 1,
             middle = 1 << 2,
         };
+        enum state
+        {
+            normal,
+            minimized,
+            fullscreen,
+        };
 
-        font fcache; // manager: Font cache.
-        glyf gcache; // manager: Glyph cache.
         bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
 
-        manager(std::list<text>& font_names_utf8, twod cellsz, bool antialiasing)
-            : fcache{ font_names_utf8 },
-              gcache{ fcache, cellsz, antialiasing },
-              isfine{ true }
+        manager()
+            : isfine{ true }
         {
             set_dpi_awareness();
         }
@@ -956,7 +1168,6 @@ namespace netxs::gui
         }
         auto set_dpi(auto new_dpi)
         {
-            //for (auto& w : layers) w.set_dpi(new_dpi);
             log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
         }
         auto moveby(twod delta)
@@ -987,20 +1198,37 @@ namespace netxs::gui
                 ::DispatchMessageW(&msg);
             }
         }
+        void set_active()
+        {
+            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+        }
         void shown_event(bool shown, arch reason)
         {
-            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."
-                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."
-                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."
-                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."
-                                                                            : "unknown reason");
+            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
+                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
+                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
+                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
+                                                                            : utf::concat("Unknown reason. (", reason, ")"));
+            set_active();
         }
         void show(si32 win_state)
         {
-            if (win_state == 0 || win_state == 2) //todo fullscreen mode (=2). 0 - normal, 1 - minimized, 2 - fullscreen
+            if (win_state == state::normal)
             {
                 auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+                for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
+                set_active();
+            }
+            else if (win_state == state::fullscreen)
+            {
+                auto mode = SW_SHOWNORMAL;
+                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE));
+                set_active();
+            }
+            else if (win_state == state::minimized)
+            {
+                auto mode = SW_HIDE;
+                for (auto& w : layers) ::ShowWindow(w.hWnd, mode);
             }
         }
         void mouse_capture()
@@ -1018,19 +1246,22 @@ namespace netxs::gui
         void activate()
         {
             log("activated");
-            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+            set_active();
         }
         void state_event(bool activated, bool minimized)
         {
             log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+            set_active();
         }
 
         virtual void update() = 0;
+        virtual void mouse_leave() = 0;
         virtual void mouse_shift(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
-        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
+        virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
+        virtual void check_fsmode(arch hWnd) = 0;
 
         auto add(manager* host_ptr = nullptr)
         {
@@ -1049,11 +1280,10 @@ namespace netxs::gui
                 static auto f = 0;
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE:
-                        if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
-                        if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
-                        break;
-                    case WM_MOUSELEAVE:  if (!--h) w->mouse_shift(dot_mx), hover_win = {}; break; //todo reimplement mouse leaving
+                    case WM_MOUSEMOVE:   if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
+                                         if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
+                                         break;
+                    case WM_MOUSELEAVE:  if (!--h) w->mouse_leave(), hover_win = {};   break;
                     case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
                     case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
                     case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
@@ -1063,8 +1293,8 @@ namespace netxs::gui
                     case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
                     case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), faux);           break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), true);           break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), faux);           break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), true);           break;
                     case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
                     //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
@@ -1073,6 +1303,9 @@ namespace netxs::gui
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
                     case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
+                    case WM_WINDOWPOSCHANGED:
+                    case WM_DISPLAYCHANGE:
+                    case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
@@ -1134,14 +1367,20 @@ namespace netxs::gui
         ui::face head_grid;
         ui::face foot_grid;
 
+        font fcache; // window: Font cache.
+        glyf gcache; // window: Glyph cache.
         twod gridsz; // window: Grid size in cells.
-        twod cellsz; // window: Cell size in pixels.
+        fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         dent border; // window: Border around window for resizing grips (dent in pixels).
         shad shadow; // window: Shadow generator.
         grip szgrip; // window: Resizing grips UI-control.
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
+        bool mhover; // window: Mouse hover.
+        bool fsmode; // window: Fullscreen mode.
+        dent fsdent; // window: Fullscreen border.
+        rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
         si32 grip_l; // window: Surface index for Left resizing grip.
@@ -1150,18 +1389,31 @@ namespace netxs::gui
         si32 grip_b; // window: Surface index for Bottom resizing grip.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
-        bool drop_shadow{ true };
+        twod h_size; // window: Header grid size.
+        twod f_size; // window: Footer grid size.
+        bool drop_shadow{ true }; // window: .
+        twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
+
+        //test
+        twod scroll_pos;
+        twod scroll_origin;
+        twod scroll_delta;
+        text font_list_str;
+        text testtext;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, twod cell_size = { 10, 20 }, si32 win_mode = 0, twod grip_cell = { 2, 1 }, bool antialiasing = faux)
-            : manager{ font_names, cell_size, antialiasing },
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
+            : fcache{ font_names, cell_height },
+              gcache{ fcache, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
-              cellsz{ cell_size },
-              gripsz{ grip_cell * cell_size },
+              height{ (fp32)fcache.cellsize.y },
+              gripsz{ grip_cell * fcache.cellsize },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
+              mhover{},
+              fsmode{},
               reload{ task::all },
               client{ add(this) },
               grip_l{ add(this) },
@@ -1175,6 +1427,8 @@ namespace netxs::gui
             layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
             recalc_layout();
             //todo temp
+            this->testtext = testtext;
+            print_font_list();
             main_grid.size(layers[client].area.size / cellsz);
             main_grid.cup(dot_00);
             main_grid.output<true>(canvas_page);
@@ -1187,17 +1441,13 @@ namespace netxs::gui
             update();
             manager::show(win_mode);
         }
-        void recalc_layout()
+        void sync_pixel_size()
         {
             auto base_rect = layers[client].area;
             layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
             layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
             layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
             layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
-            auto h_size = base_rect.size / cellsz;
-            auto f_size = base_rect.size / cellsz;
-            head_grid.calc_page_height(header_page, h_size);
-            head_grid.calc_page_height(footer_page, f_size);
             auto header_height = cellsz.y * h_size.y;
             auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
@@ -1205,26 +1455,180 @@ namespace netxs::gui
             layers[header].area.coor.y -= shadow_dent.b;
             layers[footer].area.coor.y += shadow_dent.t;
         }
+        void change_cell_size(fp32 dy = {})
+        {
+            gcache.reset();
+            auto grip_cell = gripsz / cellsz;
+            height += dy;
+            auto prev_cellsz = cellsz;
+            fcache.set_cellsz((si32)height);
+            //cellsz = fcache.cellsize;
+            gripsz = grip_cell * cellsz;
+            border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+            shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
+            if (fsmode)
+            {
+                auto area = layers[client].area;
+                auto over = area.size % cellsz;
+                fsdent.l = over.x / 2;
+                fsdent.r = over.x - fsdent.l;
+                fsdent.t = over.y / 2;
+                fsdent.b = over.y - fsdent.t;
+                gridsz = (area - fsdent).size / cellsz;
+                normsz.size = normsz.size / prev_cellsz * cellsz;
+                //todo temp
+                print_font_list(true);
+            }
+            else
+            {
+                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
+                print_font_list(true);
+                sync_pixel_size();
+            }
+        }
+        void set_aa_mode(bool mode)
+        {
+            log("AA ", mode ? "enabled" : "disabled");
+            gcache.aamode = mode;
+            gcache.reset();
+            reload |= task::all;
+        }
+        //todo temp
+        void print_font_list(bool refill = faux)
+        {
+            auto i = 0;
+            font_list_str = utf::concat("Test text: \033[10m", testtext, "\033[m\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
+                                      "\n Cell Size ", cellsz.x, "x", cellsz.y,
+                                      "\n Font Fallback\n");
+            for (auto& f : fcache.families) font_list_str += utf::concat(ansi::bld(i++ == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
+            canvas_page = intro + font_list_str + canvas_text;
+            if (refill) refillgrid();
+        }
+        void set_font_list(auto& flist)
+        {
+            log("Font list: ", flist);
+            fcache.set_fonts(flist, faux);
+            print_font_list();
+            change_cell_size(0);
+            reload |= task::all;
+        }
+        void refillgrid(bool wipe = true)
+        {
+            auto area = layers[client].area - fsdent;
+            main_grid.size(area.size / cellsz);
+            if (wipe)
+            {
+                main_grid.wipe();
+                foot_grid.wipe();
+            }
+            main_grid.zz(scroll_pos);
+            main_grid.vsize(std::min(0, -scroll_pos.y) + area.size.y);
+            main_grid.output<true>(canvas_page);
+            if (!fsmode)
+            {
+                head_grid.size(layers[header].area.size / cellsz);
+                head_grid.cup(dot_00);
+                head_grid.output(header_page);
+                foot_grid.size(layers[footer].area.size / cellsz);
+                foot_grid.cup(dot_00);
+                foot_grid.output(footer_page);
+            }
+        }
+        auto get_fs_area(rect window_area)
+        {
+            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
+            {
+                auto& r = *monitor_rect_ptr;
+                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
+                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
+                return TRUE;
+            };
+            auto area_pair = std::pair<rect, rect>{{}, window_area };
+            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
+            return area_pair.first;
+        }
+        void set_fullscreen_mode(bool mode)
+        {
+            if (fsmode == mode || layers.empty()) return;
+            log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
+            fsmode = mode;
+            if (mode)
+            {
+                auto fs_area = get_fs_area(layers[client].area);
+                auto over_sz = fs_area.size % cellsz;
+                fsdent.l = over_sz.x / 2;
+                fsdent.r = over_sz.x - fsdent.l;
+                fsdent.t = over_sz.y / 2;
+                fsdent.b = over_sz.y - fsdent.t;
+                normsz = std::exchange(layers[client].area, fs_area);
+                show(state::fullscreen);
+            }
+            else
+            {
+                layers[client].area = normsz;
+                fsdent = {};
+                sync_pixel_size();
+                show(state::normal);
+            }
+            reload |= task::all;
+            //todo temp
+            refillgrid();
+        }
+        void check_fsmode(arch hWnd)
+        {
+            if ((arch)(layers[client].hWnd) != hWnd) return;
+            if (layers.empty()) return;
+            if (fsmode)
+            {
+                auto fs_area = get_fs_area(layers[client].area);
+                if (fs_area != layers[client].area)
+                {
+                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    avail_area.coor += gripsz;
+                    avail_area.size -= std::min(avail_area.size, normsz.size + gripsz * 2);
+                    normsz.coor = avail_area.clamp(normsz.coor);
+                    set_fullscreen_mode(faux);
+                }
+            }
+            else
+            {
+                auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                if (!avail_area.trim(layers[client].area))
+                {
+                    auto area = layers[client].area;
+                    avail_area.coor += gripsz;
+                    avail_area.size -= std::min(avail_area.size, area.size + gripsz * 2);
+                    auto delta = avail_area.clamp(area.coor) - area.coor;
+                    manager::moveby(delta);
+                }
+            }
+            for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+            reload |= task::all;
+        }
+        void recalc_layout()
+        {
+            auto c_size = gridsz;
+            h_size = gridsz;
+            f_size = gridsz;
+            main_grid.calc_page_height(canvas_page, c_size);
+            head_grid.calc_page_height(header_page, h_size);
+            head_grid.calc_page_height(footer_page, f_size);
+            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",gridsz.x, ":", gridsz.y);
+            sync_pixel_size();
+        }
         auto move_window(twod coor_delta)
         {
             manager::moveby(coor_delta);
             reload |= task::moved;
         }
-        auto size_window(twod size_delta)
+        auto size_window(twod size_delta, bool wipe = faux)
         {
             layers[client].area.size += size_delta;
             recalc_layout();
             reload |= task::sized;
             //todo temp
-            main_grid.size(layers[client].area.size / cellsz);
-            main_grid.cup(dot_00);
-            main_grid.output<true>(canvas_page);
-            head_grid.size(layers[header].area.size / cellsz);
-            head_grid.cup(dot_00);
-            head_grid.output(header_page);
-            foot_grid.size(layers[footer].area.size / cellsz);
-            foot_grid.cup(dot_00);
-            foot_grid.output(footer_page);
+            refillgrid(wipe);
         }
         auto resize_window(twod size_delta)
         {
@@ -1277,7 +1681,7 @@ namespace netxs::gui
             auto fx = [&](cell& c)
             {
                 auto dc = x++ / m.x;
-                c.bgc(argb::transit(lc, rc, dc));
+                if (!c.bgc()) c.bgc(argb::transit(lc, rc, dc));
             };
             netxs::onrect(grid_cells, grid_cells.area(), fx, eol);
         }
@@ -1285,7 +1689,7 @@ namespace netxs::gui
         {
             auto inner_rect = layers[client].area;
             auto outer_rect = layers[client].area + border;
-            auto hit = !szgrip.zoomon && (szgrip.seized || (outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
+            auto hit = !szgrip.zoomon && (szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
             return hit;
         }
         void fill_grips(rect area, auto fx)
@@ -1350,11 +1754,15 @@ namespace netxs::gui
                 {
                     auto canvas = layers[client].canvas();
                     fill_back(main_grid);
-                    gcache.fill_grid(canvas, dot_00, main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, fsdent.corner(), main_grid); // 0.500 ms);
+                    if (fsmode && (what & task::sized)) netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
                 }
-                if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
-                if (what & (task::sized | task::header)) draw_header();
-                if (what & (task::sized | task::footer)) draw_footer();
+                if (!fsmode)
+                {
+                    if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
+                    if (what & (task::sized | task::header)) draw_header();
+                    if (what & (task::sized | task::footer)) draw_footer();
+                }
                 //if (layers[client].area.hittest(mcoord))
                 //{
                 //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
@@ -1384,10 +1792,27 @@ namespace netxs::gui
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
             return state;
         }
-        void mouse_wheel(si32 delta, bool /*hz*/)
+        void mouse_wheel(si32 delta, si32 cntrl, bool hz)
         {
-            auto wheeldt = delta / 120;
-            auto kb = kbs();
+            auto wheeldt = delta / 120.f;
+            auto kb = keybd_state();//kbs();
+            //if (kb & hids::LCtrl)
+            //log("cntrl=", utf::to_hex(cntrl));
+            if (cntrl & MK_CONTROL)
+            {
+                change_cell_size(wheeldt);
+                reload |= task::all;
+                return;
+            }
+            //else if (kb & hids::LAlt)
+            else if (cntrl & MK_SHIFT)
+            {
+                netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+                log("_k0=", _k0, "_k1=", _k1);
+                change_cell_size();
+                reload |= task::all;
+                return;
+            }
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
             //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
@@ -1397,6 +1822,7 @@ namespace netxs::gui
             //netxs::_k0 += wheeldt > 0 ? 1 : -1;
             //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
 
+            //todo Activate it in another way.
             if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
             {
                 if (!szgrip.zoomon)
@@ -1408,15 +1834,23 @@ namespace netxs::gui
                     mouse_capture();
                 }
             }
-            else if (szgrip.zoomon)
+            else
             {
-                szgrip.zoomon = faux;
-                mouse_release();
+                if (szgrip.zoomon)
+                {
+                    szgrip.zoomon = faux;
+                    mouse_release();
+                }
+                hz ? scroll_pos.x += (si32)wheeldt
+                   : scroll_pos.y += (si32)wheeldt;
+                size_window({}, true);
+                reload |= task::all;
+                reload &= ~task::sized;
             }
             if (szgrip.zoomon)
             {
                 auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                auto step = szgrip.zoomdt + warp * wheeldt;
+                auto step = szgrip.zoomdt + warp * (si32)wheeldt;
                 auto next = szgrip.zoomsz + step;
                 next.size = std::max(dot_00, next.size);
                 ///auto viewport = ...get max win size (multimon)
@@ -1424,11 +1858,27 @@ namespace netxs::gui
                 if (warp_window(next - layers[client].area)) szgrip.zoomdt = step;
             }
         }
+        void mouse_leave()
+        {
+            mhover = faux;
+            if (szgrip.leave()) reload |= task::grips;
+        }
         void mouse_shift(twod coord)
         {
+            mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area;
-            if (hit_grips() || szgrip.seized)
+            auto inner_rect = layers[client].area - fsdent;
+            if (mbttns & bttn::right)
+            {
+                scroll_delta += coord - mcoord;
+                if (scroll_pos(scroll_origin + scroll_delta / cellsz))
+                {
+                    size_window({}, true);
+                    reload |= task::all;
+                    reload &= ~task::sized;
+                }
+            }
+            else if (hit_grips() || szgrip.seized)
             {
                 if (mbttns & bttn::left)
                 {
@@ -1461,10 +1911,11 @@ namespace netxs::gui
             {
                 reload |= task::grips;
             }
-            if (!szgrip.seized && mbttns & bttn::left)
+            if (!szgrip.seized && (mbttns & bttn::left))
             {
                 if (auto dxdy = coord - mcoord)
                 {
+                    if (fsmode) set_fullscreen_mode(faux);
                     manager::moveby(dxdy);
                     reload |= task::moved;
                 }
@@ -1479,11 +1930,26 @@ namespace netxs::gui
         }
         void mouse_press(si32 button, bool pressed)
         {
+            static auto dblclick = datetime::now() - 1s;
             if (pressed && !mbttns) mouse_capture();
             pressed ? mbttns |= button
                     : mbttns &= ~button;
             if (!mbttns) mouse_release();
-            if (!pressed & (button == bttn::right)) manager::close();
+            //if (!pressed & (button == bttn::right)) manager::close();
+            if (!pressed & (button == bttn::left))
+            {
+                if (datetime::now() - dblclick < 500ms)
+                {
+                    set_fullscreen_mode(!fsmode);
+                    dblclick -= 1s;
+                }
+                else dblclick = datetime::now();
+            }
+            if (pressed & (button == bttn::right))
+            {
+                scroll_origin = scroll_pos;
+                scroll_delta = {};
+            }
         }
         void keybd_press(arch vkey, arch lParam)
         {
@@ -1499,13 +1965,36 @@ namespace netxs::gui
                 } v;
             };
             auto param = key_state{ .token = (ui32)lParam };
-            log("vkey: ", utf::to_hex(vkey),
-                " scode: ", utf::to_hex(param.v.scancode),
-                " state: ", param.v.state == 0 ? "pressed"
-                          : param.v.state == 1 ? "rep"
-                          : param.v.state == 3 ? "released" : "unknown");
-            if (vkey == 0x1b) manager::close();
+            //log("vkey: ", utf::to_hex(vkey),
+            //    " scode: ", utf::to_hex(param.v.scancode),
+            //    " state: ", param.v.state == 0 ? "pressed"
+            //              : param.v.state == 1 ? "rep"
+            //              : param.v.state == 3 ? "released" : "unknown");
             kbs() = keybd_state();
+            if (vkey == 0x1b) manager::close();
+            else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
+            {
+                gcache.aamode = !gcache.aamode;
+                print_font_list(true);
+                set_aa_mode(gcache.aamode);
+            }
+            else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
+            {
+                set_fullscreen_mode(!fsmode);
+            }
+            else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
+            {
+                auto flen = fcache.families.size();
+                auto index = vkey == 0x30 ? fcache.families.size() - 1 : vkey - 0x30;
+                if (index > 0 && index < flen)
+                {
+                    auto& flist = fcache.families;
+                    auto iter = flist.begin();
+                    std::advance(iter, index);
+                    flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
+                    set_font_list(flist);
+                }
+            }
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
             //static auto keybd_state = std::array<byte, 256>{};

@@ -67,7 +67,7 @@ namespace netxs::app::tile
             : skill{ boss },
               depth{ 0    }
         {
-            client = ui::list::ctor(axis::Y, ui::sort::reverse);
+            client = ui::list::ctor(axis::Y, sort::reverse);
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
             boss.LISTEN(tier::release, e2::area, new_area, memo)
@@ -775,8 +775,8 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
-                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
+                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
+                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
                 slot->attach(node);
                 utf::trim_front(utf8, ") ");
             }
