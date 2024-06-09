@@ -554,7 +554,7 @@ namespace netxs
                          std::max(0, size.y - (pad.t + pad.b)) };
         }
         // dent: Return area with padding.
-        friend constexpr auto operator + (rect area, dent pad)
+        friend constexpr rect operator + (rect area, dent pad) //todo msvc 17.10.1 don't get auto as return type
         {
             if (area.size.x < 0) { area.coor.x += pad.l; area.size.x -= pad.l + pad.r; }
             else                 { area.coor.x -= pad.l; area.size.x += pad.l + pad.r; }

@@ -13,7 +13,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /W4",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ],
@@ -54,7 +54,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /W4",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ]
@@ -99,7 +99,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ],
@@ -118,7 +118,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ],
@@ -137,7 +137,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ]
@@ -155,7 +155,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         }
       ]
