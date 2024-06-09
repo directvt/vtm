@@ -394,32 +394,17 @@ namespace netxs::events
     #define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
     #define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
-    //todo starting from msvc 17.10.1 the behavior of the preprocessor has been changed
-    //#if defined(_WIN32)
-    //    #define LISTEN(...) ARG_EVAL_XS(LISTEN_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
-    //#else
-        #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
-    //#endif
+    #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
     #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
     #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
-    //todo starting from msvc 17.10.1 the behavior of the preprocessor has been changed
-    //#if defined(_WIN32)
-    //    #define SIGNAL(...) ARG_EVAL_XS(SIGNAL_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
-    //#else
-        #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
-    //#endif
+    #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
     #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
     #define RISEUP_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, RISEUP_N, RISEUP_S))
-    //todo starting from msvc 17.10.1 the behavior of the preprocessor has been changed
-    //#if defined(_WIN32)
-    //    #define RISEUP(...) ARG_EVAL_XS(RISEUP_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
-    //#else
-        #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
-    //#endif
+    #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
 
     //todo deprecated?
     //#define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&](typename decltype( event )::type && param)
