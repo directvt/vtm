@@ -5765,7 +5765,7 @@ namespace netxs::os
                 }
             #else
                 //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " testtext=", testtext);
+                log("dtvt::window=", dtvt::window, "win_area=", win_area, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, "aliasing=", aliasing, " testtext=", testtext);
             #endif
         }
         auto splice(xipc client)
