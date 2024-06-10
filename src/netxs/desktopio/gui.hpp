@@ -957,16 +957,17 @@ Using large type pieces:
                 glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
             }
         }
-        void draw_cell(auto& canvas, twod coor, cell const& c)
+        void draw_cell(auto& canvas, auto& blinks, twod coor, cell const& c)
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
+            if (c.inv()) { }
             if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
-            if (c.inv()) { }
             if (c.xy() == 0) return;
+            auto& target = c.blk() ? (placeholder.coor -= blinks.coor(), blinks) : canvas;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
@@ -981,9 +982,9 @@ Using large type pieces:
 
             auto [w, h, x, y] = c.whxy();
             if (x == 0 || y == 0) return;
-            auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-            canvas.clip(placeholder);
-            //canvas.clip(canvas.area());
+            auto box = glyph_mask.area.shift(placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
+            target.clip(placeholder);
+            //target.clip(target.area());
 
             auto fgc = c.fgc();
             auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
@@ -1007,7 +1008,7 @@ Using large type pieces:
                     else dst = fgc; // src.a >= 256 + 255.f
                 };
                 auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
-                netxs::onclip(canvas, raster, fx);
+                netxs::onclip(target, raster, fx);
             }
             else
             {
@@ -1022,19 +1023,20 @@ Using large type pieces:
                     }
                 };
                 auto raster = netxs::raster{ glyph_mask.bits, box };
-                netxs::onclip(canvas, raster, fx);
+                netxs::onclip(target, raster, fx);
             }
         }
-        void fill_grid(auto& canvas, twod origin, auto& grid_cells)
+        void fill_grid(auto& canvas, auto& blinks, twod origin, auto& grid_cells)
         {
             auto coor = origin;
-            auto size = grid_cells.size() * cellsz;
-            auto maxc = coor + size;
+            auto maxc = coor + grid_cells.size() * cellsz;
             auto base = canvas.coor();
+            auto base_blinks = blinks.coor();
+            blinks.move(coor);
             canvas.step(-base);
             for (auto& c : grid_cells)
             {
-                draw_cell(canvas, coor, c);
+                draw_cell(canvas, blinks, coor, c);
                 coor.x += cellsz.x;
                 if (coor.x >= maxc.x)
                 {
@@ -1044,6 +1046,7 @@ Using large type pieces:
                 }
             }
             canvas.step(base);
+            blinks.move(base_blinks);
         }
     };
 
@@ -1402,6 +1405,7 @@ Using large type pieces:
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
+        si32 blinky; // window: Surface index for blinking characters.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
         rect grip_l; // window: .
@@ -1436,11 +1440,13 @@ Using large type pieces:
               fsmode{},
               reload{ task::all },
               client{ add(this) },
+              blinky{ add() },
               header{ add() },
               footer{ add() }
         {
             if (!*this) return;
-            layers[client].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
+            layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
+            layers[client].area = layers[blinky].area + border;
             recalc_layout();
 
             //test
@@ -1485,12 +1491,14 @@ Using large type pieces:
                 fsdent.r = over.x - fsdent.l;
                 fsdent.t = over.y / 2;
                 fsdent.b = over.y - fsdent.t;
-                gridsz = (area - fsdent).size / cellsz;
+                layers[blinky].area = area - fsdent;
+                gridsz = layers[blinky].area.size / cellsz;
                 normsz.size = normsz.size / prev_cellsz * cellsz;
             }
             else
             {
-                layers[client].area.size = gridsz * cellsz + border;
+                layers[blinky].area.size = gridsz * cellsz;
+                layers[client].area.size = layers[blinky].area.size + border;
                 sync_pixel_size();
             }
         }
@@ -1543,6 +1551,7 @@ Using large type pieces:
             change_cell_size();
             reload |= task::all;
         }
+        //todo move to manager
         auto get_fs_area(rect window_area)
         {
             auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
@@ -1571,6 +1580,7 @@ Using large type pieces:
                 fsdent.t = over_sz.y / 2;
                 fsdent.b = over_sz.y - fsdent.t;
                 normsz = std::exchange(layers[client].area, fs_area);
+                layers[blinky].area = fs_area - fsdent;
                 layers[header].area.coor.y = si16max / 2; // Windows Server Core doesn't hide windows.
                 layers[footer].area.coor.y = si16max / 2;
                 show(state::fullscreen);
@@ -1578,6 +1588,7 @@ Using large type pieces:
             else
             {
                 layers[client].area = normsz;
+                layers[blinky].area = normsz - border;
                 fsdent = {};
                 sync_pixel_size();
                 show(state::normal);
@@ -1637,6 +1648,7 @@ Using large type pieces:
         auto size_window(twod size_delta, bool wipe = faux)
         {
             layers[client].area.size += size_delta;
+            layers[blinky].area.size += size_delta;
             recalc_layout();
             reload |= task::sized;
 
@@ -1754,7 +1766,8 @@ Using large type pieces:
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
             auto canvas = layers[index].canvas(true);
-            gcache.fill_grid(canvas, shadow_dent.corner(), facedata);
+            auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
+            gcache.fill_grid(canvas, blinks, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
             layers[index].sync.push_back({ .size = canvas.size() });
         }
@@ -1772,15 +1785,17 @@ Using large type pieces:
                 {
                     fill_back(main_grid);
                     auto canvas = layers[client].canvas();
+                    auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
                     auto dirty_area = canvas.area() - (fsmode ? fsdent : border);
-                    gcache.fill_grid(canvas, dirty_area.coor, main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, blinks, dirty_area.coor, main_grid); // 0.500 ms);
                     if (fsmode && (what & task::sized))
                     {
                         netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
                         dirty_area += fsdent;
                     }
                     layers[client].sync.push_back(dirty_area);
+                    layers[blinky].sync.push_back(dirty_area);
                 }
                 if (!fsmode)
                 {
@@ -1888,6 +1903,9 @@ Using large type pieces:
             mhover = true;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[client].area - (fsmode ? fsdent : border);
+
+            ::ShowWindow(layers[blinky].hWnd, (coord.x & 1) ? SW_HIDE : SW_SHOWNA);
+
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
