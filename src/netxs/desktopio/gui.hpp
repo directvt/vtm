@@ -1050,24 +1050,22 @@ Using large type pieces:
     struct surface
     {
         using bits = netxs::raster<std::span<argb>, rect>;
+        using regs = std::vector<rect>;
 
         HDC   hdc;
         HWND hWnd;
-        bool sync;
         rect prev;
         rect area;
-        twod size;
         bits data;
+        regs sync;
 
         surface(surface const&) = default;
         surface(surface&&) = default;
         surface(HWND hWnd)
             :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
               hWnd{ hWnd },
-              sync{ faux },
               prev{ .coor = dot_mx },
-              area{ dot_00, dot_00 },
-              size{ dot_00 }
+              area{ dot_00, dot_00 }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
@@ -1079,7 +1077,7 @@ Using large type pieces:
         {
             if (area)
             {
-                if (area.size != size)
+                if (area.size != prev.size)
                 {
                     auto ptr = (void*)nullptr;
                     auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
@@ -1092,36 +1090,61 @@ Using large type pieces:
                     {
                         ::DeleteObject(::SelectObject(hdc, hbm));
                         wipe = faux;
-                        size = area.size;
-                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)size.x * size.y }, rect{ area.coor, size }};
+                        prev.size = area.size;
+                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
                     }
                     else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
                 }
-                if (wipe) std::memset(data.data(), 0, (sz_t)size.x * size.y * sizeof(argb));
-                sync = faux;
+                if (wipe) std::memset(data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
             }
             data.move(area.coor);
             return data;
         }
         void present()
         {
-            if (sync || !hdc) return;
-            static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
-            auto scr_coor = POINT{};
-            auto win_coor = POINT{ area.coor.x, area.coor.y };
-            auto win_size =  SIZE{      size.x,      size.y };
-            auto moved = prev.coor(area.coor);
-            auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (syscall, copy bitmap to hardware)
-                                            HDC{},                       // No color palette matching.  HDC hdcDst,
-                                            moved ? &win_coor : nullptr, // POINT         *pptDst,
-                                            &win_size,                   // SIZE          *psize,
-                                            hdc,                         // HDC           hdcSrc,
-                                            &scr_coor,                   // POINT         *pptSrc,
-                                            {},                          // COLORREF      crKey,
-                                            &blend_props,                // BLENDFUNCTION *pblend,
-                                            ULW_ALPHA);                  // DWORD         dwFlags
-            if (!rc) log("%%UpdateLayeredWindow returns unexpected result ", prompt::gui, rc);
-            sync = true;
+            auto windowmoved = prev.coor(area.coor);
+            if ((!windowmoved && sync.empty()) || !hdc) return;
+            auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
+            auto bitmap_coor = POINT{};
+            auto window_coor = POINT{ area.coor.x, area.coor.y };
+            auto bitmap_size = SIZE{ area.size.x, area.size.y };
+            auto update_area = RECT{};
+            auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
+                                                        .pptDst   = windowmoved ? &window_coor : nullptr,
+                                                        .psize    = &bitmap_size,
+                                                        .hdcSrc   = hdc,
+                                                        .pptSrc   = &bitmap_coor,
+                                                        .pblend   = &blend_props,
+                                                        .dwFlags  = ULW_ALPHA,
+                                                        .prcDirty = &update_area };
+            //log("hWnd=", hWnd);
+            auto update_proc = [&]
+            {
+                //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
+                auto ok = ::UpdateLayeredWindowIndirect(hWnd, &update_info);
+                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+            };
+            //todo revise/optimize
+            //if (sync.size() > 100) // Full redraw if too much changes.
+            //{
+            //    update_area = RECT{ .right = size.x, .bottom = size.y };
+            //    update_proc();
+            //}
+            //else
+            {
+                for (auto r : sync)
+                {
+                    update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                    update_proc();
+                    update_info.pptDst = {};
+                }
+                if (update_info.pptDst) // Just move window.
+                {
+                    update_area = {};
+                    update_proc();
+                }
+            }
+            sync.clear();
         }
     };
 
@@ -1188,7 +1211,7 @@ Using large type pieces:
                 }
                 ::EndDeferWindowPos(lock);
             }
-            else for (auto& w : layers) w.present(); // 3.000 ms
+            else for (auto& w : layers) w.present();
         }
         void dispatch()
         {
@@ -1222,7 +1245,7 @@ Using large type pieces:
             else if (win_state == state::fullscreen)
             {
                 auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE));
+                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE)); //todo revise, (SW_HIDE doesn't work on windows core)
                 set_active();
             }
             else if (win_state == state::minimized)
@@ -1248,15 +1271,15 @@ Using large type pieces:
             log("activated");
             set_active();
         }
-        void state_event(bool activated, bool minimized)
-        {
-            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
-            set_active();
-        }
+        //void state_event(bool activated, bool minimized)
+        //{
+        //    log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+        //    set_active();
+        //}
 
         virtual void update() = 0;
         virtual void mouse_leave() = 0;
-        virtual void mouse_shift(twod coord) = 0;
+        virtual void mouse_move(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
@@ -1276,16 +1299,14 @@ Using large type pieces:
                 static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
                 static auto hover_win = testy<HWND>{};
                 static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
-                static auto h = 0;
-                static auto f = 0;
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE:   if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
-                                         if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
-                                         break;
-                    case WM_MOUSELEAVE:  if (!--h) w->mouse_leave(), hover_win = {};   break;
-                    case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
-                    case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
+                    case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
+                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_move({ r.left + lo(lParam), r.top + hi(lParam) });
+                                       break;
+                    case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
+                    case WM_ACTIVATEAPP:   w->focus_event(wParam);                     break; // Focus between apps.
+                    //case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
                     case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
                     case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
                     case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
@@ -1383,23 +1404,24 @@ Using large type pieces:
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
-        si32 grip_l; // window: Surface index for Left resizing grip.
-        si32 grip_r; // window: Surface index for Right resizing grip.
-        si32 grip_t; // window: Surface index for Top resizing grip.
-        si32 grip_b; // window: Surface index for Bottom resizing grip.
         si32 header; // window: Surface index for Header.
         si32 footer; // window: Surface index for Footer.
+        rect grip_l; // window: .
+        rect grip_r; // window: .
+        rect grip_t; // window: .
+        rect grip_b; // window: .
         twod h_size; // window: Header grid size.
         twod f_size; // window: Footer grid size.
         bool drop_shadow{ true }; // window: .
         twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
 
         //test
-        twod scroll_pos;
+        fp2d scroll_pos;
         twod scroll_origin;
         twod scroll_delta;
         text font_list_str;
         text testtext;
+        bool panoramic_scroll{};
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -1416,38 +1438,30 @@ Using large type pieces:
               fsmode{},
               reload{ task::all },
               client{ add(this) },
-              grip_l{ add(this) },
-              grip_r{ add(this) },
-              grip_t{ add(this) },
-              grip_b{ add(this) },
               header{ add() },
               footer{ add() }
         {
             if (!*this) return;
-            layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
+            layers[client].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
             recalc_layout();
-            //todo temp
+
+            //test
             this->testtext = testtext;
             print_font_list();
-            main_grid.size(layers[client].area.size / cellsz);
-            main_grid.cup(dot_00);
-            main_grid.output<true>(canvas_page);
-            head_grid.size(layers[header].area.size / cellsz);
-            head_grid.cup(dot_00);
-            head_grid.output(header_page);
-            foot_grid.size(layers[footer].area.size / cellsz);
-            foot_grid.cup(dot_00);
-            foot_grid.output(footer_page);
+            refillgrid();
             update();
+
+            //todo fullscreen/minimized mode
             manager::show(win_mode);
         }
         void sync_pixel_size()
         {
             auto base_rect = layers[client].area;
-            layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
-            layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
-            layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
-            layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
+            grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
+            grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
+            grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
+            grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
+            base_rect -= (fsmode ? fsdent : border);
             auto header_height = cellsz.y * h_size.y;
             auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
@@ -1462,7 +1476,6 @@ Using large type pieces:
             height += dy;
             auto prev_cellsz = cellsz;
             fcache.set_cellsz((si32)height);
-            //cellsz = fcache.cellsize;
             gripsz = grip_cell * cellsz;
             border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
@@ -1476,24 +1489,22 @@ Using large type pieces:
                 fsdent.b = over.y - fsdent.t;
                 gridsz = (area - fsdent).size / cellsz;
                 normsz.size = normsz.size / prev_cellsz * cellsz;
-                //todo temp
-                print_font_list(true);
             }
             else
             {
-                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
-                print_font_list(true);
+                layers[client].area.size = gridsz * cellsz + border;
                 sync_pixel_size();
             }
         }
         void set_aa_mode(bool mode)
         {
-            log("AA ", mode ? "enabled" : "disabled");
+            log("%%AA mode %state%", prompt::gui, mode ? "enabled" : "disabled");
             gcache.aamode = mode;
             gcache.reset();
             reload |= task::all;
         }
-        //todo temp
+
+        //test
         void print_font_list(bool refill = faux)
         {
             auto i = 0;
@@ -1504,17 +1515,9 @@ Using large type pieces:
             canvas_page = intro + font_list_str + canvas_text;
             if (refill) refillgrid();
         }
-        void set_font_list(auto& flist)
-        {
-            log("Font list: ", flist);
-            fcache.set_fonts(flist, faux);
-            print_font_list();
-            change_cell_size(0);
-            reload |= task::all;
-        }
         void refillgrid(bool wipe = true)
         {
-            auto area = layers[client].area - fsdent;
+            auto area = layers[client].area - (fsmode ? fsdent : border);
             main_grid.size(area.size / cellsz);
             if (wipe)
             {
@@ -1522,17 +1525,25 @@ Using large type pieces:
                 foot_grid.wipe();
             }
             main_grid.zz(scroll_pos);
-            main_grid.vsize(std::min(0, -scroll_pos.y) + area.size.y);
+            main_grid.vsize(std::min(0, (si32)-scroll_pos.y) + area.size.y);
             main_grid.output<true>(canvas_page);
             if (!fsmode)
             {
-                head_grid.size(layers[header].area.size / cellsz);
+                head_grid.size((layers[header].area.size - shadow_dent) / cellsz);
                 head_grid.cup(dot_00);
                 head_grid.output(header_page);
-                foot_grid.size(layers[footer].area.size / cellsz);
+                foot_grid.size((layers[footer].area.size - shadow_dent) / cellsz);
                 foot_grid.cup(dot_00);
                 foot_grid.output(footer_page);
             }
+        }
+
+        void set_font_list(auto& flist)
+        {
+            log("%%Font list changed: ", prompt::gui, flist);
+            fcache.set_fonts(flist, faux);
+            change_cell_size();
+            reload |= task::all;
         }
         auto get_fs_area(rect window_area)
         {
@@ -1551,11 +1562,11 @@ Using large type pieces:
         void set_fullscreen_mode(bool mode)
         {
             if (fsmode == mode || layers.empty()) return;
-            log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
+            log("%%Fullscreen mode ", prompt::gui, mode ? "enabled" : "disabled", ".");
             fsmode = mode;
             if (mode)
             {
-                auto fs_area = get_fs_area(layers[client].area);
+                auto fs_area = get_fs_area(layers[client].area - border);
                 auto over_sz = fs_area.size % cellsz;
                 fsdent.l = over_sz.x / 2;
                 fsdent.r = over_sz.x - fsdent.l;
@@ -1572,7 +1583,8 @@ Using large type pieces:
                 show(state::normal);
             }
             reload |= task::all;
-            //todo temp
+
+            //test
             refillgrid();
         }
         void check_fsmode(arch hWnd)
@@ -1585,8 +1597,7 @@ Using large type pieces:
                 if (fs_area != layers[client].area)
                 {
                     auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    avail_area.coor += gripsz;
-                    avail_area.size -= std::min(avail_area.size, normsz.size + gripsz * 2);
+                    avail_area.size -= std::min(avail_area.size, normsz.size);
                     normsz.coor = avail_area.clamp(normsz.coor);
                     set_fullscreen_mode(faux);
                 }
@@ -1597,8 +1608,7 @@ Using large type pieces:
                 if (!avail_area.trim(layers[client].area))
                 {
                     auto area = layers[client].area;
-                    avail_area.coor += gripsz;
-                    avail_area.size -= std::min(avail_area.size, area.size + gripsz * 2);
+                    avail_area.size -= std::min(avail_area.size, area.size);
                     auto delta = avail_area.clamp(area.coor) - area.coor;
                     manager::moveby(delta);
                 }
@@ -1608,13 +1618,15 @@ Using large type pieces:
         }
         void recalc_layout()
         {
+            //test
             auto c_size = gridsz;
+            main_grid.calc_page_height(canvas_page, c_size);
+            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add((si32)scroll_pos.x, ":", (si32)scroll_pos.y, "/", c_size.y, " ", gridsz.x, ":", gridsz.y);
+
             h_size = gridsz;
             f_size = gridsz;
-            main_grid.calc_page_height(canvas_page, c_size);
             head_grid.calc_page_height(header_page, h_size);
-            head_grid.calc_page_height(footer_page, f_size);
-            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",gridsz.x, ":", gridsz.y);
+            foot_grid.calc_page_height(footer_page, f_size);
             sync_pixel_size();
         }
         auto move_window(twod coor_delta)
@@ -1627,12 +1639,13 @@ Using large type pieces:
             layers[client].area.size += size_delta;
             recalc_layout();
             reload |= task::sized;
-            //todo temp
+
+            //test
             refillgrid(wipe);
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[client].area;
+            auto old_client = layers[client].area - (fsmode ? fsdent : border);
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = dot_00;
             if (gridsz != new_gridsz)
@@ -1645,7 +1658,7 @@ Using large type pieces:
         }
         auto warp_window(dent warp_delta)
         {
-            auto old_client = layers[client].area;
+            auto old_client = layers[client].area - (fsmode ? fsdent : border);
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
@@ -1687,30 +1700,30 @@ Using large type pieces:
         }
         bool hit_grips()
         {
-            auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + border;
-            auto hit = !szgrip.zoomon && (szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
+            if (fsmode || szgrip.zoomon || panoramic_scroll) return faux;
+            auto inner_rect = layers[client].area - border;
+            auto outer_rect = layers[client].area;
+            auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
             return hit;
-        }
-        void fill_grips(rect area, auto fx)
-        {
-            for (auto g : { grip_l, grip_r, grip_t, grip_b })
-            {
-                auto& layer = layers[g];
-                if (auto r = layer.area.trim(area))
-                {
-                    auto canvas = layer.canvas();
-                    fx(canvas, r);
-                }
-            }
         }
         void draw_grips()
         {
+            if (fsmode) return;
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
-            auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + border;
+            auto& layer = layers[client];
+            auto canvas = layer.canvas();
+            canvas.move(dot_00);
+            auto outer_rect = canvas.area();
+            auto inner_rect = outer_rect - border;
+            auto fill_grips = [&](rect area, auto fx)
+            {
+                for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+                {
+                    if (auto r = g_area.trim(area)) fx(canvas, r);
+                }
+            };
             fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, cell::shaders::full(trans)); });
             if (hit_grips())
             {
@@ -1733,12 +1746,17 @@ Using large type pieces:
             {
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
+            for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+            {
+                layer.sync.push_back(g_area);
+            }
         }
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
             auto canvas = layers[index].canvas(true);
             gcache.fill_grid(canvas, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
+            layers[index].sync.push_back({ .size = canvas.size() });
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
@@ -1752,10 +1770,17 @@ Using large type pieces:
             {
                 if (what & (task::sized | task::inner))
                 {
-                    auto canvas = layers[client].canvas();
                     fill_back(main_grid);
-                    gcache.fill_grid(canvas, fsdent.corner(), main_grid); // 0.500 ms);
-                    if (fsmode && (what & task::sized)) netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
+                    auto canvas = layers[client].canvas();
+                    canvas.move(dot_00);
+                    auto dirty_area = canvas.area() - (fsmode ? fsdent : border);
+                    gcache.fill_grid(canvas, dirty_area.coor, main_grid); // 0.500 ms);
+                    if (fsmode && (what & task::sized))
+                    {
+                        netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
+                        dirty_area += fsdent;
+                    }
+                    layers[client].sync.push_back(dirty_area);
                 }
                 if (!fsmode)
                 {
@@ -1763,11 +1788,6 @@ Using large type pieces:
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                //if (layers[client].area.hittest(mcoord))
-                //{
-                //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
-                //    netxs::onrect(layers[client].canvas(), cursor, cell::shaders::full(0x7F'00'3f'00));
-                //}
                 manager::present();
             }
         }
@@ -1796,12 +1816,11 @@ Using large type pieces:
         {
             auto wheeldt = delta / 120.f;
             auto kb = keybd_state();//kbs();
-            //if (kb & hids::LCtrl)
-            //log("cntrl=", utf::to_hex(cntrl));
             if (cntrl & MK_CONTROL)
             {
                 change_cell_size(wheeldt);
                 reload |= task::all;
+                print_font_list(true);
                 return;
             }
             //else if (kb & hids::LAlt)
@@ -1811,6 +1830,7 @@ Using large type pieces:
                 log("_k0=", _k0, "_k1=", _k1);
                 change_cell_size();
                 reload |= task::all;
+                print_font_list(true);
                 return;
             }
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
@@ -1841,8 +1861,8 @@ Using large type pieces:
                     szgrip.zoomon = faux;
                     mouse_release();
                 }
-                hz ? scroll_pos.x += (si32)wheeldt
-                   : scroll_pos.y += (si32)wheeldt;
+                hz ? scroll_pos.x -= wheeldt
+                   : scroll_pos.y += wheeldt;
                 size_window({}, true);
                 reload |= task::all;
                 reload &= ~task::sized;
@@ -1863,11 +1883,11 @@ Using large type pieces:
             mhover = faux;
             if (szgrip.leave()) reload |= task::grips;
         }
-        void mouse_shift(twod coord)
+        void mouse_move(twod coord)
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area - fsdent;
+            auto inner_rect = layers[client].area - (fsmode ? fsdent : border);
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
@@ -1924,31 +1944,50 @@ Using large type pieces:
             if (!mbttns)
             {
                 static auto s = testy{ faux };
-                reload |= s(hit_grips()) ? task::grips | task::inner
-                                     : s ? task::grips : task::inner;
+                reload |= s(hit_grips()) ? task::grips// | task::inner
+                                     : s ? task::grips : 0;//task::inner;
             }
         }
         void mouse_press(si32 button, bool pressed)
         {
+            if (pressed) { if (0 == std::exchange(mbttns, mbttns | button)) mouse_capture(); }
+            else           if (0 == (mbttns &= ~button)) mouse_release();
+
+            //test
+            //if (!pressed && (button == bttn::right)) manager::close();
             static auto dblclick = datetime::now() - 1s;
-            if (pressed && !mbttns) mouse_capture();
-            pressed ? mbttns |= button
-                    : mbttns &= ~button;
-            if (!mbttns) mouse_release();
-            //if (!pressed & (button == bttn::right)) manager::close();
-            if (!pressed & (button == bttn::left))
+            if (pressed)
             {
-                if (datetime::now() - dblclick < 500ms)
+                if (button == bttn::right)
                 {
-                    set_fullscreen_mode(!fsmode);
-                    dblclick -= 1s;
+                    panoramic_scroll = true;
+                    scroll_origin = scroll_pos;
+                    scroll_delta = {};
                 }
-                else dblclick = datetime::now();
             }
-            if (pressed & (button == bttn::right))
+            else
             {
-                scroll_origin = scroll_pos;
-                scroll_delta = {};
+                if (button == bttn::left)
+                {
+                    if (datetime::now() - dblclick < 500ms)
+                    {
+                        set_fullscreen_mode(!fsmode);
+                        dblclick -= 1s;
+                    }
+                    else
+                    {
+                        dblclick = datetime::now();
+                        if (szgrip.seized) // drag stop
+                        {
+                            szgrip.drop();
+                            reload |= task::grips;
+                        }
+                    }
+                }
+                else if (button == bttn::right)
+                {
+                    panoramic_scroll = faux;
+                }
             }
         }
         void keybd_press(arch vkey, arch lParam)
@@ -1974,9 +2013,8 @@ Using large type pieces:
             if (vkey == 0x1b) manager::close();
             else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
             {
-                gcache.aamode = !gcache.aamode;
+                set_aa_mode(!gcache.aamode);
                 print_font_list(true);
-                set_aa_mode(gcache.aamode);
             }
             else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
             {
@@ -1993,6 +2031,7 @@ Using large type pieces:
                     std::advance(iter, index);
                     flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
                     set_font_list(flist);
+                    print_font_list(true);
                 }
             }
             //auto s = keybd_state();
