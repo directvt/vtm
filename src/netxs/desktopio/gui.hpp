@@ -1240,13 +1240,11 @@ Using large type pieces:
             {
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
-                set_active();
             }
             else if (win_state == state::fullscreen)
             {
                 auto mode = SW_SHOWNORMAL;
                 for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE)); //todo revise, (SW_HIDE doesn't work on windows core)
-                set_active();
             }
             else if (win_state == state::minimized)
             {
@@ -1573,6 +1571,8 @@ Using large type pieces:
                 fsdent.t = over_sz.y / 2;
                 fsdent.b = over_sz.y - fsdent.t;
                 normsz = std::exchange(layers[client].area, fs_area);
+                layers[header].area.coor.y = si16max / 2; // Windows Server Core doesn't hide windows.
+                layers[footer].area.coor.y = si16max / 2;
                 show(state::fullscreen);
             }
             else
