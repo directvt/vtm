@@ -1055,12 +1055,16 @@ Using large type pieces:
         using bits = netxs::raster<std::span<argb>, rect>;
         using regs = std::vector<rect>;
 
+        static constexpr auto eventid = 0;
+
         HDC   hdc;
         HWND hWnd;
         rect prev;
         rect area;
         bits data;
         regs sync;
+        bool live;
+        si32 klok;
 
         surface(surface const&) = default;
         surface(surface&&) = default;
@@ -1068,11 +1072,14 @@ Using large type pieces:
             :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
               hWnd{ hWnd },
               prev{ .coor = dot_mx },
-              area{ dot_00, dot_00 }
+              area{ dot_00, dot_00 },
+              live{ faux },
+              klok{ -1 }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
             if (hdc) ::DeleteDC(hdc);
+            if (klok != -1) ::KillTimer(hWnd, eventid);
         }
         void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
         { }
@@ -1105,8 +1112,9 @@ Using large type pieces:
         }
         void present()
         {
+            if (!live || !hdc) return;
             auto windowmoved = prev.coor(area.coor);
-            if ((!windowmoved && sync.empty()) || !hdc) return;
+            if (!windowmoved && sync.empty()) return;
             auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto bitmap_coor = POINT{};
             auto window_coor = POINT{ area.coor.x, area.coor.y };
@@ -1148,6 +1156,27 @@ Using large type pieces:
                 }
             }
             sync.clear();
+        }
+        void show(bool state, bool activate = faux)
+        {
+            if (std::exchange(live, state) != state)
+            {
+                ::ShowWindow(hWnd, state ? activate ? SW_NORMAL : SW_SHOWNA : SW_HIDE);
+                if (live)
+                {
+                    //todo move window in additional to hiding
+                    //layers[header].area.coor.y = si16max / 2; // Windows Server Core doesn't hide windows.
+                    //layers[footer].area.coor.y = si16max / 2;
+                }
+                else
+                {
+                    
+                }
+            }
+        }
+        void start_timer(span elapse)
+        {
+            klok = ::SetCoalescableTimer(hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
         }
     };
 
@@ -1196,10 +1225,6 @@ Using large type pieces:
         {
             log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
         }
-        auto moveby(twod delta)
-        {
-            for (auto& w : layers) w.area.coor += delta;
-        }
         template<bool JustMove = faux>
         void present()
         {
@@ -1215,6 +1240,20 @@ Using large type pieces:
                 ::EndDeferWindowPos(lock);
             }
             else for (auto& w : layers) w.present();
+        }
+        auto get_fs_area(rect window_area)
+        {
+            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
+            {
+                auto& r = *monitor_rect_ptr;
+                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
+                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
+                return TRUE;
+            };
+            auto area_pair = std::pair<rect, rect>{{}, window_area };
+            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
+            return area_pair.first;
         }
         void dispatch()
         {
@@ -1236,24 +1275,6 @@ Using large type pieces:
                                                : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
                                                                             : utf::concat("Unknown reason. (", reason, ")"));
             set_active();
-        }
-        void show(si32 win_state)
-        {
-            if (win_state == state::normal)
-            {
-                auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
-            }
-            else if (win_state == state::fullscreen)
-            {
-                auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE)); //todo revise, (SW_HIDE doesn't work on windows core)
-            }
-            else if (win_state == state::minimized)
-            {
-                auto mode = SW_HIDE;
-                for (auto& w : layers) ::ShowWindow(w.hWnd, mode);
-            }
         }
         void mouse_capture()
         {
@@ -1282,6 +1303,7 @@ Using large type pieces:
         virtual void mouse_leave() = 0;
         virtual void mouse_move(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
+        virtual void timer_event() = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
@@ -1305,6 +1327,7 @@ Using large type pieces:
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
                                        if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_move({ r.left + lo(lParam), r.top + hi(lParam) });
                                        break;
+                    case WM_TIMER:         w->timer_event();                           break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
                     case WM_ACTIVATEAPP:   w->focus_event(wParam);                     break; // Focus between apps.
                     //case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
@@ -1400,8 +1423,8 @@ Using large type pieces:
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
         bool mhover; // window: Mouse hover.
-        bool fsmode; // window: Fullscreen mode.
-        dent fsdent; // window: Fullscreen border.
+        si32 fsmode; // window: Window size state.
+        dent fsdent; // window: Fullscreen mode border.
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
@@ -1427,7 +1450,7 @@ Using large type pieces:
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
@@ -1437,7 +1460,7 @@ Using large type pieces:
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
               mhover{},
-              fsmode{},
+              fsmode{ -1 },
               reload{ task::all },
               client{ add(this) },
               blinky{ add() },
@@ -1447,25 +1470,24 @@ Using large type pieces:
             if (!*this) return;
             layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
             layers[client].area = layers[blinky].area + border;
+            normsz = layers[client].area;
+            set_state(win_state);
             recalc_layout();
-
+            layers[client].start_timer(400ms); //todo make it configurable
             //test
             this->testtext = testtext;
             print_font_list();
             refillgrid();
             update();
-
-            //todo fullscreen/minimized mode
-            manager::show(win_mode);
         }
-        void sync_pixel_size()
+        void sync_titles_size()
         {
             auto base_rect = layers[client].area;
             grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
             grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
             grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
             grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
-            base_rect -= (fsmode ? fsdent : border);
+            base_rect -= (fsmode == state::fullscreen ? fsdent : border);
             auto header_height = cellsz.y * h_size.y;
             auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
@@ -1483,7 +1505,7 @@ Using large type pieces:
             gripsz = grip_cell * cellsz;
             border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-            if (fsmode)
+            if (fsmode == state::fullscreen)
             {
                 auto area = layers[client].area;
                 auto over = area.size % cellsz;
@@ -1499,7 +1521,7 @@ Using large type pieces:
             {
                 layers[blinky].area.size = gridsz * cellsz;
                 layers[client].area.size = layers[blinky].area.size + border;
-                sync_pixel_size();
+                sync_titles_size();
             }
         }
         void set_aa_mode(bool mode)
@@ -1523,7 +1545,7 @@ Using large type pieces:
         }
         void refillgrid(bool wipe = true)
         {
-            auto area = layers[client].area - (fsmode ? fsdent : border);
+            auto area = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
             main_grid.size(area.size / cellsz);
             if (wipe)
             {
@@ -1533,7 +1555,7 @@ Using large type pieces:
             main_grid.zz(scroll_pos);
             main_grid.vsize(std::min(0, (si32)-scroll_pos.y) + area.size.y);
             main_grid.output<true>(canvas_page);
-            if (!fsmode)
+            if (fsmode != state::fullscreen)
             {
                 head_grid.size((layers[header].area.size - shadow_dent) / cellsz);
                 head_grid.cup(dot_00);
@@ -1551,29 +1573,29 @@ Using large type pieces:
             change_cell_size();
             reload |= task::all;
         }
-        //todo move to manager
-        auto get_fs_area(rect window_area)
+        auto moveby(twod delta)
         {
-            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
-            {
-                auto& r = *monitor_rect_ptr;
-                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
-                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
-                return TRUE;
-            };
-            auto area_pair = std::pair<rect, rect>{{}, window_area };
-            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
-            return area_pair.first;
+            for (auto& w : layers) w.area.coor += delta;
         }
-        void set_fullscreen_mode(bool mode)
+        void set_state(si32 win_state)
         {
-            if (fsmode == mode || layers.empty()) return;
-            log("%%Fullscreen mode ", prompt::gui, mode ? "enabled" : "disabled", ".");
-            fsmode = mode;
-            if (mode)
+            if (fsmode == win_state) return;
+            fsmode = win_state;
+            log("%%Set window to ", prompt::gui, fsmode == state::fullscreen ? "fullscreen" : fsmode == state::normal ? "normal" : "minimized", " state.");
+            if (fsmode == state::normal)
             {
-                auto fs_area = get_fs_area(layers[client].area - border);
+                layers[client].area = normsz;
+                layers[blinky].area = normsz - border;
+                fsdent = {};
+                sync_titles_size();
+                layers[client].show(true, true);
+                layers[blinky].show(true);
+                layers[header].show(true);
+                layers[footer].show(true);
+            }
+            else if (fsmode == state::fullscreen)
+            {
+                auto fs_area = manager::get_fs_area(layers[client].area - border);
                 auto over_sz = fs_area.size % cellsz;
                 fsdent.l = over_sz.x / 2;
                 fsdent.r = over_sz.x - fsdent.l;
@@ -1581,18 +1603,19 @@ Using large type pieces:
                 fsdent.b = over_sz.y - fsdent.t;
                 normsz = std::exchange(layers[client].area, fs_area);
                 layers[blinky].area = fs_area - fsdent;
-                layers[header].area.coor.y = si16max / 2; // Windows Server Core doesn't hide windows.
-                layers[footer].area.coor.y = si16max / 2;
-                show(state::fullscreen);
+                layers[client].show(true, true);
+                layers[blinky].show(true);
+                layers[header].show(faux);
+                layers[footer].show(faux);
             }
-            else
+            else if (fsmode == state::minimized)
             {
-                layers[client].area = normsz;
-                layers[blinky].area = normsz - border;
-                fsdent = {};
-                sync_pixel_size();
-                show(state::normal);
+                layers[client].show(faux);
+                layers[blinky].show(faux);
+                layers[header].show(faux);
+                layers[footer].show(faux);
             }
+            gridsz = layers[blinky].area.size / cellsz;
             reload |= task::all;
 
             //test
@@ -1602,26 +1625,26 @@ Using large type pieces:
         {
             if ((arch)(layers[client].hWnd) != hWnd) return;
             if (layers.empty()) return;
-            if (fsmode)
+            else if (fsmode == state::fullscreen)
             {
-                auto fs_area = get_fs_area(layers[client].area);
+                auto fs_area = manager::get_fs_area(layers[client].area);
                 if (fs_area != layers[client].area)
                 {
-                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     avail_area.size -= std::min(avail_area.size, normsz.size);
                     normsz.coor = avail_area.clamp(normsz.coor);
-                    set_fullscreen_mode(faux);
+                    set_state(state::normal);
                 }
             }
             else
             {
-                auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
                 if (!avail_area.trim(layers[client].area))
                 {
                     auto area = layers[client].area;
                     avail_area.size -= std::min(avail_area.size, area.size);
                     auto delta = avail_area.clamp(area.coor) - area.coor;
-                    manager::moveby(delta);
+                    moveby(delta);
                 }
             }
             for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
@@ -1638,11 +1661,11 @@ Using large type pieces:
             f_size = gridsz;
             head_grid.calc_page_height(header_page, h_size);
             foot_grid.calc_page_height(footer_page, f_size);
-            sync_pixel_size();
+            sync_titles_size();
         }
         auto move_window(twod coor_delta)
         {
-            manager::moveby(coor_delta);
+            moveby(coor_delta);
             reload |= task::moved;
         }
         auto size_window(twod size_delta, bool wipe = faux)
@@ -1657,7 +1680,7 @@ Using large type pieces:
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[client].area - (fsmode ? fsdent : border);
+            auto old_client = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = dot_00;
             if (gridsz != new_gridsz)
@@ -1670,7 +1693,7 @@ Using large type pieces:
         }
         auto warp_window(dent warp_delta)
         {
-            auto old_client = layers[client].area - (fsmode ? fsdent : border);
+            auto old_client = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
@@ -1712,7 +1735,7 @@ Using large type pieces:
         }
         bool hit_grips()
         {
-            if (fsmode || szgrip.zoomon || panoramic_scroll) return faux;
+            if (fsmode == state::fullscreen || szgrip.zoomon || panoramic_scroll) return faux;
             auto inner_rect = layers[client].area - border;
             auto outer_rect = layers[client].area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
@@ -1720,7 +1743,7 @@ Using large type pieces:
         }
         void draw_grips()
         {
-            if (fsmode) return;
+            if (fsmode == state::fullscreen) return;
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
@@ -1787,9 +1810,9 @@ Using large type pieces:
                     auto canvas = layers[client].canvas();
                     auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
-                    auto dirty_area = canvas.area() - (fsmode ? fsdent : border);
+                    auto dirty_area = canvas.area() - (fsmode == state::fullscreen ? fsdent : border);
                     gcache.fill_grid(canvas, blinks, dirty_area.coor, main_grid); // 0.500 ms);
-                    if (fsmode && (what & task::sized))
+                    if (fsmode == state::fullscreen && (what & task::sized))
                     {
                         netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
                         dirty_area += fsdent;
@@ -1797,7 +1820,7 @@ Using large type pieces:
                     layers[client].sync.push_back(dirty_area);
                     layers[blinky].sync.push_back(dirty_area);
                 }
-                if (!fsmode)
+                if (fsmode == state::normal)
                 {
                     if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                     if (what & (task::sized | task::header)) draw_header();
@@ -1902,10 +1925,7 @@ Using large type pieces:
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area - (fsmode ? fsdent : border);
-
-            ::ShowWindow(layers[blinky].hWnd, (coord.x & 1) ? SW_HIDE : SW_SHOWNA);
-
+            auto inner_rect = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
@@ -1953,8 +1973,8 @@ Using large type pieces:
             {
                 if (auto dxdy = coord - mcoord)
                 {
-                    if (fsmode) set_fullscreen_mode(faux);
-                    manager::moveby(dxdy);
+                    if (fsmode == state::fullscreen) set_state(state::normal);
+                    moveby(dxdy);
                     reload |= task::moved;
                 }
             }
@@ -1989,7 +2009,7 @@ Using large type pieces:
                 {
                     if (datetime::now() - dblclick < 500ms)
                     {
-                        set_fullscreen_mode(!fsmode);
+                        if (fsmode != state::minimized) set_state(fsmode ? state::normal : state::fullscreen);
                         dblclick -= 1s;
                     }
                     else
@@ -2036,7 +2056,7 @@ Using large type pieces:
             }
             else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
             {
-                set_fullscreen_mode(!fsmode);
+                if (fsmode != state::minimized) set_state(fsmode ? state::normal : state::fullscreen);
             }
             else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
@@ -2079,6 +2099,10 @@ Using large type pieces:
         void focus_event(bool focused)
         {
             log(focused ? "focused" : "unfocused");
+        }
+        void timer_event()
+        {
+            layers[blinky].show(!layers[blinky].live);
         }
     };
 }
