@@ -1054,8 +1054,7 @@ Using large type pieces:
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using regs = std::vector<rect>;
-
-        static constexpr auto eventid = 0;
+        using tset = std::unordered_map<ui32, netxs::sptr<ui32>>;
 
         HDC   hdc;
         HWND hWnd;
@@ -1064,7 +1063,7 @@ Using large type pieces:
         bits data;
         regs sync;
         bool live;
-        si32 klok;
+        tset klok;
 
         surface(surface const&) = default;
         surface(surface&&) = default;
@@ -1073,13 +1072,12 @@ Using large type pieces:
               hWnd{ hWnd },
               prev{ .coor = dot_mx },
               area{ dot_00, dot_00 },
-              live{ faux },
-              klok{ -1 }
+              live{ faux }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
             if (hdc) ::DeleteDC(hdc);
-            if (klok != -1) ::KillTimer(hWnd, eventid);
+            for (auto [eventid, eventid_ptr] : klok) ::KillTimer(hWnd, (UINT_PTR)eventid_ptr.get());
         }
         void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
         { }
@@ -1174,9 +1172,19 @@ Using large type pieces:
                 }
             }
         }
-        void start_timer(span elapse)
+        void start_timer(span elapse, ui32 eventid = 0)
         {
-            klok = ::SetCoalescableTimer(hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+            auto [iter, ok] = klok.insert(std::pair{ eventid, ptr::shared(eventid) });
+            ::SetCoalescableTimer(hWnd, (UINT_PTR)iter->second.get(), datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+        }
+        void stop_timer(ui32 eventid = 0)
+        {
+            auto iter = klok.find(eventid);
+            if (iter != klok.end())
+            {
+                ::KillTimer(hWnd, (UINT_PTR)iter->second.get());
+                klok.erase(iter);
+            }
         }
     };
 
@@ -1473,7 +1481,7 @@ Using large type pieces:
             normsz = layers[client].area;
             set_state(win_state);
             recalc_layout();
-            layers[client].start_timer(400ms); //todo make it configurable
+            layers[client].start_timer(400ms); //todo make it configurable; activate only if blinks count is non-zero
             //test
             this->testtext = testtext;
             print_font_list();
