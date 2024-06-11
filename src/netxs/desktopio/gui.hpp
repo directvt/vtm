@@ -1054,7 +1054,7 @@ Using large type pieces:
     {
         using bits = netxs::raster<std::span<argb>, rect>;
         using regs = std::vector<rect>;
-        using tset = std::unordered_map<ui32, netxs::sptr<ui32>>;
+        using tset = std::list<ui32>;
 
         HDC   hdc;
         HWND hWnd;
@@ -1077,13 +1077,13 @@ Using large type pieces:
         void reset() // We don't use custom copy/move ctors.
         {
             if (hdc) ::DeleteDC(hdc);
-            for (auto [eventid, eventid_ptr] : klok) ::KillTimer(hWnd, (UINT_PTR)eventid_ptr.get());
+            for (auto eventid : klok) ::KillTimer(hWnd, eventid);
         }
         void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
         { }
         auto canvas(bool wipe = faux)
         {
-            if (area)
+            if (hdc && area)
             {
                 if (area.size != prev.size)
                 {
@@ -1172,17 +1172,20 @@ Using large type pieces:
                 }
             }
         }
-        void start_timer(span elapse, ui32 eventid = 0)
+        void start_timer(span elapse, ui32 eventid)
         {
-            auto [iter, ok] = klok.insert(std::pair{ eventid, ptr::shared(eventid) });
-            ::SetCoalescableTimer(hWnd, (UINT_PTR)iter->second.get(), datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+            if (eventid)
+            {
+                if (std::find(klok.begin(), klok.end(), eventid) == klok.end()) klok.push_back(eventid);
+                ::SetCoalescableTimer(hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+            }
         }
-        void stop_timer(ui32 eventid = 0)
+        void stop_timer(ui32 eventid)
         {
-            auto iter = klok.find(eventid);
+            auto iter = std::find(klok.begin(), klok.end(), eventid);
             if (iter != klok.end())
             {
-                ::KillTimer(hWnd, (UINT_PTR)iter->second.get());
+                ::KillTimer(hWnd, eventid);
                 klok.erase(iter);
             }
         }
@@ -1203,6 +1206,11 @@ Using large type pieces:
             normal,
             minimized,
             fullscreen,
+        };
+        enum timers
+        {
+            none,
+            blink,
         };
 
         bool isfine; // manager: All is ok.
@@ -1311,7 +1319,7 @@ Using large type pieces:
         virtual void mouse_leave() = 0;
         virtual void mouse_move(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
-        virtual void timer_event() = 0;
+        virtual void timer_event(ui32 eventid) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
@@ -1335,7 +1343,7 @@ Using large type pieces:
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
                                        if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_move({ r.left + lo(lParam), r.top + hi(lParam) });
                                        break;
-                    case WM_TIMER:         w->timer_event();                           break;
+                    case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
                     case WM_ACTIVATEAPP:   w->focus_event(wParam);                     break; // Focus between apps.
                     //case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
@@ -1481,7 +1489,7 @@ Using large type pieces:
             normsz = layers[client].area;
             set_state(win_state);
             recalc_layout();
-            layers[client].start_timer(400ms); //todo make it configurable; activate only if blinks count is non-zero
+            layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             //test
             this->testtext = testtext;
             print_font_list();
@@ -2108,9 +2116,12 @@ Using large type pieces:
         {
             log(focused ? "focused" : "unfocused");
         }
-        void timer_event()
+        void timer_event(ui32 eventid)
         {
-            layers[blinky].show(!layers[blinky].live);
+            if (eventid == timers::blink)
+            {
+                layers[blinky].show(!layers[blinky].live);
+            }
         }
     };
 }
