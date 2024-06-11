@@ -1270,20 +1270,20 @@ Using large type pieces:
                 ::DispatchMessageW(&msg);
             }
         }
-        void activate()
-        {
-            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
-            log("activated");
-        }
-        void shown_event(bool shown, arch reason)
-        {
-            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
-                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
-                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
-                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
-                                                                            : utf::concat("Unknown reason. (", reason, ")"));
-            activate();
-        }
+        //void activate()
+        //{
+        //    if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+        //    log("activated");
+        //}
+        //void shown_event(bool shown, arch reason)
+        //{
+        //    log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
+        //                                       : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
+        //                                       : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
+        //                                       : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
+        //                                                                    : utf::concat("Unknown reason. (", reason, ")"));
+        //    activate();
+        //}
         void mouse_capture()
         {
             if (!layers.empty()) ::SetCapture(layers.front().hWnd);
@@ -1310,7 +1310,7 @@ Using large type pieces:
         virtual void mouse_leave() = 0;
         virtual void mouse_move(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
-        virtual void state_event(bool activated, bool minimized) = 0;
+        //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void timer_event(ui32 eventid) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
@@ -1322,7 +1322,6 @@ Using large type pieces:
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
                 auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
@@ -1338,12 +1337,6 @@ Using large type pieces:
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
                     case WM_ACTIVATEAPP:   w->focus_event(wParam);                     break; // Focus between apps.
-                    case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
-                    //todo revise
-                    case WM_NCACTIVATE: 
-                    if (wParam == FALSE) stat = TRUE;
-                    log("ncactivate=============== ", wParam?"on":"off");break;
-                    case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
                     case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
                     case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
                     case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
@@ -1352,8 +1345,14 @@ Using large type pieces:
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), faux);           break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), true);           break;
-                    case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
-                    //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
+                    // These should be processed on the system side.
+                    //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
+                    //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
+                    //case WM_NCHITTEST:
+                    //case WM_ACTIVATE: // Window focus within the app.
+                    //case WM_NCACTIVATE:
+                    //case WM_SETCURSOR:
+                    //case WM_GETMINMAXINFO:
                     //case WM_SYSCOMMAND:    w->sys_command(wParam, lParam);             break; // Taskbar ctx menu to change the size and position.
                     case WM_KEYDOWN:
                     case WM_KEYUP:
@@ -1361,12 +1360,37 @@ Using large type pieces:
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
                     case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
                     case WM_WINDOWPOSCHANGED:
+                    {
+                        auto& info = *(WINDOWPOS*)lParam;
+                        log("WM_WINDOWPOSCHANGED:",
+                            "\n\t", "hwndInsertAfter=", info.hwndInsertAfter,
+                            "\n\t", "x=", info.x,
+                            "\n\t", "y=", info.y,
+                            "\n\t", "cx=", info.cx,
+                            "\n\t", "cy=", info.cy,
+                            "\n\t", info.flags & SWP_DRAWFRAME ? "SWP_DRAWFRAME" : "-",
+                            "\n\t", info.flags & SWP_FRAMECHANGED ? "SWP_FRAMECHANGED" : "-",
+                            "\n\t", info.flags & SWP_HIDEWINDOW ? "SWP_HIDEWINDOW" : "-",
+                            "\n\t", info.flags & SWP_NOACTIVATE ? "SWP_NOACTIVATE" : "-",
+                            "\n\t", info.flags & SWP_NOCOPYBITS ? "SWP_NOCOPYBITS" : "-",
+                            "\n\t", info.flags & SWP_NOMOVE ? "SWP_NOMOVE" : "-",
+                            "\n\t", info.flags & SWP_NOOWNERZORDER ? "SWP_NOOWNERZORDER" : "-",
+                            "\n\t", info.flags & SWP_NOREDRAW ? "SWP_NOREDRAW" : "-",
+                            "\n\t", info.flags & SWP_NOREPOSITION ? "SWP_NOREPOSITION" : "-",
+                            "\n\t", info.flags & SWP_NOSENDCHANGING ? "SWP_NOSENDCHANGING" : "-",
+                            "\n\t", info.flags & SWP_NOSIZE ? "SWP_NOSIZE" : "-",
+                            "\n\t", info.flags & SWP_NOZORDER ? "SWP_NOZORDER" : "-",
+                            "\n\t", info.flags & SWP_SHOWWINDOW ? "SWP_SHOWWINDOW" : "-");
+                        break;
+                    }
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                    default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    default:
+                    //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
                 w->update();
                 return stat;
@@ -1384,7 +1408,8 @@ Using large type pieces:
             auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
                                           wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
                                           /*WS_VISIBLE it is not visible to suppress messages until initialized | */
-                                          WS_POPUP /*todo | owner ? WS_SYSMENU : 0  taskbar ctx menu*/, 0, 0, 0, 0, owner, 0, 0, 0);
+                                          WS_POPUP
+                                          /*todo | (owner ? WS_SYSMENU : 0)  taskbar ctx menu*/, 0, 0, 0, 0, owner, 0, 0, 0);
             auto layer = (si32)layers.size();
             if (!hWnd)
             {
@@ -1394,8 +1419,6 @@ Using large type pieces:
             else if (host_ptr)
             {
                 ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
-                //::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
-                //::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
             }
             layers.emplace_back(hWnd);
             return layer;
@@ -1436,6 +1459,7 @@ Using large type pieces:
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
         bool mhover; // window: Mouse hover.
+        bool active; // window: Window is focused.
         si32 fsmode; // window: Window size state.
         dent fsdent; // window: Fullscreen mode border.
         rect normsz; // window: Non-fullscreen window area backup.
@@ -1473,6 +1497,7 @@ Using large type pieces:
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
               mhover{},
+              active{},
               fsmode{ -1 },
               reload{ task::all },
               client{ add(this) },
@@ -2114,26 +2139,24 @@ Using large type pieces:
         void focus_event(bool focused)
         {
             log(focused ? "focused" : "unfocused");
-            if (focused) manager::activate();
+            active = focused;
         }
-        void state_event(bool activated, bool minimized)
-        {
-            //todo revise
-            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
-            //if (!activated) set_state(state::minimized);
-            if (!activated && minimized) set_state(state::minimized);
-            else
-            {
-                set_state(state::normal);
-                manager::activate();
-            }
-        }
+        //void state_event(bool activated, bool minimized)
+        //{
+        //    //todo revise
+        //    log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+        //    //if (!activated) set_state(state::minimized);
+        //    if (!activated && minimized) set_state(state::minimized);
+        //    else                         set_state(state::normal);
+        //}
         void timer_event(ui32 eventid)
         {
-            if (fsmode != state::minimized && eventid == timers::blink)
+            if (fsmode == state::minimized || eventid != timers::blink) return;
+            if (active)
             {
                 layers[blinky].show(!layers[blinky].live);
             }
+            else if (!layers[blinky].live) layers[blinky].show(true); // Do not blink without focus.
         }
     };
 }
