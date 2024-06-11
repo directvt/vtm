@@ -1159,8 +1159,8 @@ Using large type pieces:
         {
             if (std::exchange(live, state) != state)
             {
-                if (live) ::SetWindowPos(hWnd, 0, area.coor.x, area.coor.y, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOZORDER | (activate ? 0 : SWP_NOACTIVATE));
-                else      ::SetWindowPos(hWnd, 0, si16max / 2, si16max / 2, 0, 0, SWP_HIDEWINDOW | SWP_NOSENDCHANGING | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE); // Windows Server Core doesn't hide windows by ShowWindow().
+                if (live) ::SetWindowPos(hWnd, 0, area.coor.x, area.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | (activate ? 0 : SWP_NOACTIVATE));
+                else      ::SetWindowPos(hWnd, 0,      -32000,      -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING); // Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453 .
             }
         }
         void start_timer(span elapse, ui32 eventid)
