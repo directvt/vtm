@@ -1079,8 +1079,8 @@ Using large type pieces:
             if (hdc) ::DeleteDC(hdc);
             for (auto eventid : klok) ::KillTimer(hWnd, eventid);
         }
-        void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
-        { }
+        //void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
+        //{ }
         auto canvas(bool wipe = faux)
         {
             if (hdc && area)
@@ -1241,10 +1241,10 @@ Using large type pieces:
                 if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
-        auto set_dpi(auto new_dpi)
-        {
-            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
-        }
+        //auto set_dpi(auto new_dpi)
+        //{
+        //    log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
+        //}
         template<bool JustMove = faux>
         void present()
         {
@@ -1309,30 +1309,9 @@ Using large type pieces:
         {
             if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
         }
-        //void update_menu(si32 fsmode)
-        //{
-        //    auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
-        //    if (fsmode == state::normal)
-        //    {
-        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_GRAYED);
-        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
-        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_ENABLED);
-        //    }
-        //    else if (fsmode == state::minimized)
-        //    {
-        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_ENABLED);
-        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_GRAYED);
-        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_ENABLED);
-        //    }
-        //    else if (fsmode == state::fullscreen)
-        //    {
-        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_ENABLED);
-        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
-        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_GRAYED);
-        //    }
-        //}
-        void run() // The first ShowWindow() call ignores SW_SHOW.
+        void run()
         {
+            // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
             auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
             auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), closecmd.size(), MF_BYCOMMAND);
@@ -1344,13 +1323,14 @@ Using large type pieces:
             //todo implement
             ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
+            // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
             for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
         }
 
         virtual void update() = 0;
         virtual void mouse_leave() = 0;
-        virtual void mouse_move(twod coord) = 0;
+        virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
@@ -1375,7 +1355,7 @@ Using large type pieces:
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_move({ r.left + lo(lParam), r.top + hi(lParam) });
+                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_moved({ r.left + lo(lParam), r.top + hi(lParam) });
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -1386,8 +1366,8 @@ Using large type pieces:
                     case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
                     case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), faux);           break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), true);           break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), 0);  break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), 1);  break;
                     // These should be processed on the system side.
                     //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
@@ -1396,52 +1376,25 @@ Using large type pieces:
                     //case WM_NCACTIVATE:
                     //case WM_SETCURSOR:
                     //case WM_GETMINMAXINFO:
-                    // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
-                    //case WM_INITMENU:
-                    case WM_SYSCOMMAND:
-                        switch (wParam & 0xFFF0)
-                        {
-                            case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
-                            case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
-                            case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
-                            //todo implement
-                            //case SC_MOVE:         w->sys_command(syscmd::move);         break;
-                            //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
-                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
-                            default:
-                                //log("Unknown ctx command: ", utf::to_hex_0x(wParam));
-                                stat = TRUE; // An application should return zero only if it processes this message.
-                        }
-                        break; // Taskbar ctx menu to change the size and position.
+                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0)
+                                        {
+                                            case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
+                                            case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
+                                            case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
+                                            //todo implement
+                                            //case SC_MOVE:         w->sys_command(syscmd::move);         break;
+                                            //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
+                                            default: stat = TRUE; // An application should return zero only if it processes this message.
+                                        }
+                                        break; // Taskbar ctx menu to change the size and position.
+                    //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
                     case WM_KEYDOWN:
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
-                    case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
                     case WM_WINDOWPOSCHANGED:
-                    //{
-                    //    auto& info = *(WINDOWPOS*)lParam;
-                    //    log("WM_WINDOWPOSCHANGED:",
-                    //        "\n\t", "hwndInsertAfter=", info.hwndInsertAfter,
-                    //        "\n\t", "x=", info.x,
-                    //        "\n\t", "y=", info.y,
-                    //        "\n\t", "cx=", info.cx,
-                    //        "\n\t", "cy=", info.cy,
-                    //        "\n\t", info.flags & SWP_DRAWFRAME ? "SWP_DRAWFRAME" : "-",
-                    //        "\n\t", info.flags & SWP_FRAMECHANGED ? "SWP_FRAMECHANGED" : "-",
-                    //        "\n\t", info.flags & SWP_HIDEWINDOW ? "SWP_HIDEWINDOW" : "-",
-                    //        "\n\t", info.flags & SWP_NOACTIVATE ? "SWP_NOACTIVATE" : "-",
-                    //        "\n\t", info.flags & SWP_NOCOPYBITS ? "SWP_NOCOPYBITS" : "-",
-                    //        "\n\t", info.flags & SWP_NOMOVE ? "SWP_NOMOVE" : "-",
-                    //        "\n\t", info.flags & SWP_NOOWNERZORDER ? "SWP_NOOWNERZORDER" : "-",
-                    //        "\n\t", info.flags & SWP_NOREDRAW ? "SWP_NOREDRAW" : "-",
-                    //        "\n\t", info.flags & SWP_NOREPOSITION ? "SWP_NOREPOSITION" : "-",
-                    //        "\n\t", info.flags & SWP_NOSENDCHANGING ? "SWP_NOSENDCHANGING" : "-",
-                    //        "\n\t", info.flags & SWP_NOSIZE ? "SWP_NOSIZE" : "-",
-                    //        "\n\t", info.flags & SWP_NOZORDER ? "SWP_NOZORDER" : "-",
-                    //        "\n\t", info.flags & SWP_SHOWWINDOW ? "SWP_SHOWWINDOW" : "-");
-                    //    //break;
-                    //}
+                    case WM_DPICHANGED://    w->set_dpi(lo(wParam));                     break;
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
@@ -1678,10 +1631,9 @@ Using large type pieces:
         void set_state(si32 win_state)
         {
             if (fsmode == win_state) return;
-            log("%%Set window to ", prompt::gui, fsmode == state::fullscreen ? "fullscreen" : fsmode == state::normal ? "normal" : "minimized", " state.");
-            //manager::update_menu(fsmode); // It doesn't work because explorer.exe tracks our window state on their side.
+            log("%%Set window to ", prompt::gui, win_state == state::fullscreen ? "fullscreen" : win_state == state::normal ? "normal" : "minimized", " state.");
             fsmode = state::undefined;
-            ::ShowWindow(layers[client].hWnd, (4 - win_state) * 3); //SW_MAXIMIZE=3 SW_MINIMIZE=6 SW_RESTORE=9: In order to be in sync with win32 taskbar.
+            ::ShowWindow(layers[client].hWnd, (4 - win_state) * 3); //SW_MAXIMIZE=3 SW_MINIMIZE=6 SW_RESTORE=9: In order to be in sync with win32 taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             fsmode = win_state;
             if (fsmode == state::normal)
             {
@@ -2027,7 +1979,7 @@ Using large type pieces:
             mhover = faux;
             if (szgrip.leave()) reload |= task::grips;
         }
-        void mouse_move(twod coord)
+        void mouse_moved(twod coord)
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
