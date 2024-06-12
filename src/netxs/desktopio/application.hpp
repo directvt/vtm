@@ -111,26 +111,23 @@ namespace netxs::app::shared
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
-    namespace winform
+    namespace win
     {
+        using state = gui::window::state;
+
         namespace type
         {
             static const auto undefined = "undefined"s;
+            static const auto normal    = "normal"s;
             static const auto minimized = "minimized"s;
             static const auto maximized = "maximized"s;
         }
 
-        enum form
-        {
-            undefined,
-            minimized,
-            maximized,
-        };
-
-        static auto options = std::unordered_map<text, form>
-           {{ type::undefined, form::undefined },
-            { type::minimized, form::minimized },
-            { type::maximized, form::maximized }};
+        static auto options = std::unordered_map<text, si32>
+           {{ type::undefined, state::normal    },
+            { type::normal,    state::normal    },
+            { type::minimized, state::minimized },
+            { type::maximized, state::maximized }};
     }
 
     namespace menu
@@ -543,7 +540,7 @@ namespace netxs::app::shared
             config.cd("/config/gui/");
             auto wincoord = config.take("wincoor", twod{ 100, 100 });
             auto gridsize = config.take("gridsize", twod{ 80, 25 });
-            auto winstate = config.take("winstate", winform::undefined, app::shared::winform::options);
+            auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
             auto testtext = config.take("testtext", ""s);
             auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);

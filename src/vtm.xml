@@ -20,7 +20,7 @@ R"==(
         <cellheight = 20 />      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize = 0,0 />       <!-- Window initial grid size in text cells. -->
         <wincoor = 0,0 />        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
-        <winstate = undefined /> <!-- Window initial state: undefined | maximized | minimized -->
+        <winstate = normal />    <!-- Window initial state: normal | maximized | minimized -->
         <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
             "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
             "Iosevka Term\n"
@@ -50,7 +50,7 @@ R"==(
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"

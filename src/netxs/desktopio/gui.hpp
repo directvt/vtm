@@ -1192,11 +1192,11 @@ Using large type pieces:
         };
         struct state
         {
-            static constexpr auto _counter   = __COUNTER__ + 1;
-            static constexpr auto undefined  = __COUNTER__ - _counter;
-            static constexpr auto normal     = __COUNTER__ - _counter;
-            static constexpr auto minimized  = __COUNTER__ - _counter;
-            static constexpr auto fullscreen = __COUNTER__ - _counter;
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto undefined = __COUNTER__ - _counter;
+            static constexpr auto normal    = __COUNTER__ - _counter;
+            static constexpr auto minimized = __COUNTER__ - _counter;
+            static constexpr auto maximized = __COUNTER__ - _counter;
         };
         struct timers
         {
@@ -1308,7 +1308,7 @@ Using large type pieces:
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
             auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
-            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), closecmd.size(), MF_BYCOMMAND);
+            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
             closecmd.resize(datalen);
             auto temp = utf::to_utf(closecmd);
             utf::replace_all(temp, "Alt+F4", "Esc");
@@ -1326,9 +1326,9 @@ Using large type pieces:
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
+        virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
-        virtual void timer_event(ui32 eventid) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
@@ -1516,7 +1516,7 @@ Using large type pieces:
             layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
             layers[client].area = layers[blinky].area + border;
             normsz = layers[client].area;
-            set_state(win_state + 1); //todo +1 to convert from winform::... to state::...
+            set_state(win_state);
             recalc_layout();
             layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             //test
@@ -1534,7 +1534,7 @@ Using large type pieces:
             grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
             grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
             grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
-            base_rect -= (fsmode == state::fullscreen ? fsdent : border);
+            base_rect -= (fsmode == state::maximized ? fsdent : border);
             auto header_height = cellsz.y * h_size.y;
             auto footer_height = cellsz.y * f_size.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
@@ -1552,7 +1552,7 @@ Using large type pieces:
             gripsz = grip_cell * cellsz;
             border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-            if (fsmode == state::fullscreen)
+            if (fsmode == state::maximized)
             {
                 auto area = layers[client].area;
                 auto over = area.size % cellsz;
@@ -1592,7 +1592,7 @@ Using large type pieces:
         }
         void refillgrid(bool wipe = true)
         {
-            auto area = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
+            auto area = layers[client].area - (fsmode == state::maximized ? fsdent : border);
             main_grid.size(area.size / cellsz);
             if (wipe)
             {
@@ -1602,7 +1602,7 @@ Using large type pieces:
             main_grid.zz(scroll_pos);
             main_grid.vsize(std::min(0, (si32)-scroll_pos.y) + area.size.y);
             main_grid.output<true>(canvas_page);
-            if (fsmode != state::fullscreen)
+            if (fsmode != state::maximized)
             {
                 head_grid.size((layers[header].area.size - shadow_dent) / cellsz);
                 head_grid.cup(dot_00);
@@ -1627,10 +1627,10 @@ Using large type pieces:
         void set_state(si32 win_state)
         {
             if (fsmode == win_state) return;
-            log("%%Set window to ", prompt::gui, win_state == state::fullscreen ? "fullscreen" : win_state == state::normal ? "normal" : "minimized", " state.");
+            log("%%Set window to ", prompt::gui, win_state == state::maximized ? "maximized" : win_state == state::normal ? "normal" : "minimized", " state.");
             fsmode = state::undefined;
-            ::ShowWindow(layers[client].hWnd, win_state == state::minimized  ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
-                                            : win_state == state::fullscreen ? SW_MAXIMIZE : SW_RESTORE); //
+            ::ShowWindow(layers[client].hWnd, win_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+                                            : win_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
             fsmode = win_state;
             if (fsmode == state::normal)
             {
@@ -1643,7 +1643,7 @@ Using large type pieces:
                 layers[header].show(true);
                 layers[footer].show(true);
             }
-            else if (fsmode == state::fullscreen)
+            else if (fsmode == state::maximized)
             {
                 auto fs_area = manager::get_fs_area(layers[client].area - border);
                 auto over_sz = fs_area.size % cellsz;
@@ -1676,7 +1676,7 @@ Using large type pieces:
         {
             if ((arch)(layers[client].hWnd) != hWnd) return;
             if (fsmode == state::undefined || layers.empty()) return;
-            else if (fsmode == state::fullscreen)
+            else if (fsmode == state::maximized)
             {
                 auto fs_area = manager::get_fs_area(layers[client].area);
                 if (fs_area != layers[client].area)
@@ -1735,7 +1735,7 @@ Using large type pieces:
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
+            auto old_client = layers[client].area - (fsmode == state::maximized ? fsdent : border);
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = dot_00;
             if (gridsz != new_gridsz)
@@ -1748,7 +1748,7 @@ Using large type pieces:
         }
         auto warp_window(dent warp_delta)
         {
-            auto old_client = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
+            auto old_client = layers[client].area - (fsmode == state::maximized ? fsdent : border);
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
@@ -1790,7 +1790,7 @@ Using large type pieces:
         }
         bool hit_grips()
         {
-            if (fsmode == state::fullscreen || szgrip.zoomon || panoramic_scroll) return faux;
+            if (fsmode == state::maximized || szgrip.zoomon || panoramic_scroll) return faux;
             auto inner_rect = layers[client].area - border;
             auto outer_rect = layers[client].area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
@@ -1798,7 +1798,7 @@ Using large type pieces:
         }
         void draw_grips()
         {
-            if (fsmode == state::fullscreen) return;
+            if (fsmode == state::maximized) return;
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
@@ -1865,9 +1865,9 @@ Using large type pieces:
                     auto canvas = layers[client].canvas();
                     auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
-                    auto dirty_area = canvas.area() - (fsmode == state::fullscreen ? fsdent : border);
+                    auto dirty_area = canvas.area() - (fsmode == state::maximized ? fsdent : border);
                     gcache.fill_grid(canvas, blinks, dirty_area.coor, main_grid); // 0.500 ms);
-                    if (fsmode == state::fullscreen && (what & task::sized))
+                    if (fsmode == state::maximized && (what & task::sized))
                     {
                         netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
                         dirty_area += fsdent;
@@ -1980,7 +1980,7 @@ Using large type pieces:
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area - (fsmode == state::fullscreen ? fsdent : border);
+            auto inner_rect = layers[client].area - (fsmode == state::maximized ? fsdent : border);
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
@@ -2028,7 +2028,7 @@ Using large type pieces:
             {
                 if (auto dxdy = coord - mcoord)
                 {
-                    if (fsmode == state::fullscreen) set_state(state::normal);
+                    if (fsmode == state::maximized) set_state(state::normal);
                     moveby(dxdy);
                     reload |= task::moved;
                 }
@@ -2064,7 +2064,7 @@ Using large type pieces:
                 {
                     if (datetime::now() - dblclick < 500ms)
                     {
-                        if (fsmode != state::minimized) set_state(fsmode == state::fullscreen ? state::normal : state::fullscreen);
+                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                         dblclick -= 1s;
                     }
                     else
@@ -2109,9 +2109,9 @@ Using large type pieces:
                 set_aa_mode(!gcache.aamode);
                 print_font_list(true);
             }
-            else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
+            else if (vkey == VK_F11 && param.v.state == 3) // Toggle maximized mode.
             {
-                if (fsmode != state::minimized) set_state(fsmode == state::fullscreen ? state::normal : state::fullscreen);
+                if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
             }
             else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
@@ -2164,7 +2164,7 @@ Using large type pieces:
         //    if (!activated && minimized) set_state(state::minimized);
         //    else                         set_state(state::normal);
         //}
-        void timer_event(ui32 eventid)
+        void timer_event(arch eventid)
         {
             if (fsmode == state::minimized || eventid != timers::blink) return;
             if (active)
@@ -2178,9 +2178,9 @@ Using large type pieces:
             //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
             switch (menucmd)
             {
-                case syscmd::minimize:     set_state(state::minimized);  break;
-                case syscmd::maximize:     set_state(state::fullscreen); break;
-                case syscmd::restore:      set_state(state::normal);     break;
+                case syscmd::minimize:     set_state(state::minimized); break;
+                case syscmd::maximize:     set_state(state::maximized); break;
+                case syscmd::restore:      set_state(state::normal);    break;
                 //todo implement
                 //case syscmd::move:          break;
                 //case syscmd::monitorpower:  break;

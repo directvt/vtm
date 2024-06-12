@@ -21,7 +21,7 @@ namespace netxs::app::desk
         text   footer{};
         twod  winsize{};
         twod  wincoor{};
-        shared::winform::form winform{};
+        si32  winform{};
         bool splitter{};
         text   hotkey{};
         eccc   appcfg{};

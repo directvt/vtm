@@ -1574,7 +1574,7 @@ namespace netxs::app::vtm
             conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
             conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
-            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
+            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
             conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
@@ -1648,9 +1648,9 @@ namespace netxs::app::vtm
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
             auto itemptr = appconf.homelist.front();
-            auto appspec = desk::spec{ .fixed    = true,
-                                       .winform  = shared::winform::undefined,
-                                       .type     = app::vtty::id };
+            auto appspec = desk::spec{ .fixed   = true,
+                                       .winform = shared::win::state::normal,
+                                       .type    = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
             {
@@ -1712,10 +1712,10 @@ namespace netxs::app::vtm
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
             auto itemptr = appconf.homelist.front();
-            auto appspec = desk::spec{ .hidden   = true,
-                                       .winform  = shared::winform::undefined,
-                                       .type     = app::vtty::id,
-                                       .gearid   = script.hid };
+            auto appspec = desk::spec{ .hidden  = true,
+                                       .winform = shared::win::state::normal,
+                                       .type    = app::vtty::id,
+                                       .gearid  = script.hid };
             auto menuid = itemptr->take(attr::id, ""s);
             if (dbase.menu.contains(menuid))
             {
@@ -1770,7 +1770,7 @@ namespace netxs::app::vtm
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
-                                          .winform  = shared::winform::undefined,
+                                          .winform  = shared::win::state::normal,
                                           .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
@@ -1984,8 +1984,8 @@ namespace netxs::app::vtm
                     {
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                             if (appbase.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                             if (appbase.winform == shared::win::state::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (appbase.winform == shared::win::state::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -2025,8 +2025,8 @@ namespace netxs::app::vtm
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                         auto& cfg = dbase.menu[what.menuid];
-                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                             if (cfg.winform == shared::win::state::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (cfg.winform == shared::win::state::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
                     }
                 }
             };
@@ -2178,13 +2178,13 @@ namespace netxs::app::vtm
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
                                     app.take(attr::winsize, twod{ 80,27 }) };
-                    auto winform =  app.take(attr::winform, shared::winform::undefined, shared::winform::options);
+                    auto winform =  app.take(attr::winform, shared::win::state::normal, shared::win::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (winform == shared::winform::minimized) window_ptr->base::hidden = true;
+                        if (winform == shared::win::state::minimized) window_ptr->base::hidden = true;
                         else if (focused) foci.push_back(window_ptr);
                     }
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
