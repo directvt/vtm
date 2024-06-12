@@ -1159,8 +1159,8 @@ Using large type pieces:
         {
             if (std::exchange(live, state) != state)
             {
-                if (live) ::SetWindowPos(hWnd, 0, area.coor.x, area.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | (activate ? 0 : SWP_NOACTIVATE));
-                else      ::SetWindowPos(hWnd, 0,      -32000,      -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING); // Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453 .
+                if (live) ::SetWindowPos(hWnd, 0, area.coor.x, area.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | (activate ? 0 : SWP_NOACTIVATE));
+                else      ::SetWindowPos(hWnd, 0,      -32000,      -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE); // Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453 .
             }
         }
         void start_timer(span elapse, ui32 eventid)
@@ -1186,22 +1186,35 @@ Using large type pieces:
     {
         using wins = std::vector<surface>;
 
-        enum bttn
+        struct bttn
         {
-            left   = 1 << 0,
-            right  = 1 << 1,
-            middle = 1 << 2,
+            static constexpr auto left   = 1 << 0;
+            static constexpr auto right  = 1 << 1;
+            static constexpr auto middle = 1 << 2;
         };
-        enum state
+        struct state
         {
-            normal,
-            minimized,
-            fullscreen,
+            static constexpr auto _counter   = __COUNTER__ + 1;
+            static constexpr auto undefined  = __COUNTER__ - _counter;
+            static constexpr auto normal     = __COUNTER__ - _counter;
+            static constexpr auto minimized  = __COUNTER__ - _counter;
+            static constexpr auto fullscreen = __COUNTER__ - _counter;
         };
-        enum timers
+        struct timers
         {
-            none,
-            blink,
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto none     = __COUNTER__ - _counter;
+            static constexpr auto blink    = __COUNTER__ - _counter;
+        };
+        struct syscmd
+        {
+            static constexpr auto _counter     = __COUNTER__ + 1;
+            static constexpr auto minimize     = __COUNTER__ - _counter;
+            static constexpr auto maximize     = __COUNTER__ - _counter;
+            static constexpr auto restore      = __COUNTER__ - _counter;
+            static constexpr auto move         = __COUNTER__ - _counter;
+            static constexpr auto monitorpower = __COUNTER__ - _counter;
+            static constexpr auto close        = __COUNTER__ - _counter;
         };
 
         bool isfine; // manager: All is ok.
@@ -1296,21 +1309,51 @@ Using large type pieces:
         {
             if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
         }
+        //void update_menu(si32 fsmode)
+        //{
+        //    auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+        //    if (fsmode == state::normal)
+        //    {
+        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_GRAYED);
+        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
+        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_ENABLED);
+        //    }
+        //    else if (fsmode == state::minimized)
+        //    {
+        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_ENABLED);
+        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_GRAYED);
+        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_ENABLED);
+        //    }
+        //    else if (fsmode == state::fullscreen)
+        //    {
+        //        ::EnableMenuItem(ctxmenu, SC_RESTORE, MF_BYCOMMAND | MF_ENABLED);
+        //        ::EnableMenuItem(ctxmenu, SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
+        //        ::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_BYCOMMAND | MF_GRAYED);
+        //    }
+        //}
         void run() // The first ShowWindow() call ignores SW_SHOW.
         {
+            auto closecmd = wide(100, '\0');
+            auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), closecmd.size(), MF_BYCOMMAND);
+            closecmd.resize(datalen);
+            auto temp = utf::to_utf(closecmd);
+            utf::replace_all(temp, "Alt+F4", "Esc");
+            closecmd = utf::to_utf(temp);
+            ::ModifyMenuW(ctxmenu, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED | MF_STRING, SC_CLOSE, closecmd.data());
+            //todo implement
+            ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
+            ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
             auto mode = SW_SHOW;
             for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
         }
-        //void sys_command(si32 wParam, si32 lParam)
-        //{
-        //    log("sys_command: wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
-        //}
 
         virtual void update() = 0;
         virtual void mouse_leave() = 0;
         virtual void mouse_move(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
+        virtual void sys_command(si32 menucmd) = 0;
         virtual void timer_event(ui32 eventid) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
@@ -1353,36 +1396,52 @@ Using large type pieces:
                     //case WM_NCACTIVATE:
                     //case WM_SETCURSOR:
                     //case WM_GETMINMAXINFO:
-                    //case WM_SYSCOMMAND:    w->sys_command(wParam, lParam);             break; // Taskbar ctx menu to change the size and position.
+                    // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    //case WM_INITMENU:
+                    case WM_SYSCOMMAND:
+                        switch (wParam & 0xFFF0)
+                        {
+                            case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
+                            case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
+                            case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
+                            //todo implement
+                            //case SC_MOVE:         w->sys_command(syscmd::move);         break;
+                            //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
+                            default:
+                                //log("Unknown ctx command: ", utf::to_hex_0x(wParam));
+                                stat = TRUE; // An application should return zero only if it processes this message.
+                        }
+                        break; // Taskbar ctx menu to change the size and position.
                     case WM_KEYDOWN:
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
                     case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
                     case WM_WINDOWPOSCHANGED:
-                    {
-                        auto& info = *(WINDOWPOS*)lParam;
-                        log("WM_WINDOWPOSCHANGED:",
-                            "\n\t", "hwndInsertAfter=", info.hwndInsertAfter,
-                            "\n\t", "x=", info.x,
-                            "\n\t", "y=", info.y,
-                            "\n\t", "cx=", info.cx,
-                            "\n\t", "cy=", info.cy,
-                            "\n\t", info.flags & SWP_DRAWFRAME ? "SWP_DRAWFRAME" : "-",
-                            "\n\t", info.flags & SWP_FRAMECHANGED ? "SWP_FRAMECHANGED" : "-",
-                            "\n\t", info.flags & SWP_HIDEWINDOW ? "SWP_HIDEWINDOW" : "-",
-                            "\n\t", info.flags & SWP_NOACTIVATE ? "SWP_NOACTIVATE" : "-",
-                            "\n\t", info.flags & SWP_NOCOPYBITS ? "SWP_NOCOPYBITS" : "-",
-                            "\n\t", info.flags & SWP_NOMOVE ? "SWP_NOMOVE" : "-",
-                            "\n\t", info.flags & SWP_NOOWNERZORDER ? "SWP_NOOWNERZORDER" : "-",
-                            "\n\t", info.flags & SWP_NOREDRAW ? "SWP_NOREDRAW" : "-",
-                            "\n\t", info.flags & SWP_NOREPOSITION ? "SWP_NOREPOSITION" : "-",
-                            "\n\t", info.flags & SWP_NOSENDCHANGING ? "SWP_NOSENDCHANGING" : "-",
-                            "\n\t", info.flags & SWP_NOSIZE ? "SWP_NOSIZE" : "-",
-                            "\n\t", info.flags & SWP_NOZORDER ? "SWP_NOZORDER" : "-",
-                            "\n\t", info.flags & SWP_SHOWWINDOW ? "SWP_SHOWWINDOW" : "-");
-                        break;
-                    }
+                    //{
+                    //    auto& info = *(WINDOWPOS*)lParam;
+                    //    log("WM_WINDOWPOSCHANGED:",
+                    //        "\n\t", "hwndInsertAfter=", info.hwndInsertAfter,
+                    //        "\n\t", "x=", info.x,
+                    //        "\n\t", "y=", info.y,
+                    //        "\n\t", "cx=", info.cx,
+                    //        "\n\t", "cy=", info.cy,
+                    //        "\n\t", info.flags & SWP_DRAWFRAME ? "SWP_DRAWFRAME" : "-",
+                    //        "\n\t", info.flags & SWP_FRAMECHANGED ? "SWP_FRAMECHANGED" : "-",
+                    //        "\n\t", info.flags & SWP_HIDEWINDOW ? "SWP_HIDEWINDOW" : "-",
+                    //        "\n\t", info.flags & SWP_NOACTIVATE ? "SWP_NOACTIVATE" : "-",
+                    //        "\n\t", info.flags & SWP_NOCOPYBITS ? "SWP_NOCOPYBITS" : "-",
+                    //        "\n\t", info.flags & SWP_NOMOVE ? "SWP_NOMOVE" : "-",
+                    //        "\n\t", info.flags & SWP_NOOWNERZORDER ? "SWP_NOOWNERZORDER" : "-",
+                    //        "\n\t", info.flags & SWP_NOREDRAW ? "SWP_NOREDRAW" : "-",
+                    //        "\n\t", info.flags & SWP_NOREPOSITION ? "SWP_NOREPOSITION" : "-",
+                    //        "\n\t", info.flags & SWP_NOSENDCHANGING ? "SWP_NOSENDCHANGING" : "-",
+                    //        "\n\t", info.flags & SWP_NOSIZE ? "SWP_NOSIZE" : "-",
+                    //        "\n\t", info.flags & SWP_NOZORDER ? "SWP_NOZORDER" : "-",
+                    //        "\n\t", info.flags & SWP_SHOWWINDOW ? "SWP_SHOWWINDOW" : "-");
+                    //    //break;
+                    //}
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
@@ -1407,9 +1466,8 @@ Using large type pieces:
             auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
             auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
                                           wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
-                                          /*WS_VISIBLE it is not visible to suppress messages until initialized | */
-                                          WS_POPUP
-                                          /*todo | (owner ? WS_SYSMENU : 0)  taskbar ctx menu*/, 0, 0, 0, 0, owner, 0, 0, 0);
+                                          /*WS_VISIBLE: it is invisible to suppress messages until initialized | */
+                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU, 0, 0, 0, 0, owner, 0, 0, 0);
             auto layer = (si32)layers.size();
             if (!hWnd)
             {
@@ -1498,7 +1556,7 @@ Using large type pieces:
               mbttns{},
               mhover{},
               active{},
-              fsmode{ -1 },
+              fsmode{ state::undefined },
               reload{ task::all },
               client{ add(this) },
               blinky{ add() },
@@ -1509,7 +1567,7 @@ Using large type pieces:
             layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
             layers[client].area = layers[blinky].area + border;
             normsz = layers[client].area;
-            set_state(win_state);
+            set_state(win_state + 1); //todo +1 to convert from winform::... to state::...
             recalc_layout();
             layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             //test
@@ -1620,8 +1678,11 @@ Using large type pieces:
         void set_state(si32 win_state)
         {
             if (fsmode == win_state) return;
-            fsmode = win_state;
             log("%%Set window to ", prompt::gui, fsmode == state::fullscreen ? "fullscreen" : fsmode == state::normal ? "normal" : "minimized", " state.");
+            //manager::update_menu(fsmode); // It doesn't work because explorer.exe tracks our window state on their side.
+            fsmode = state::undefined;
+            ::ShowWindow(layers[client].hWnd, (4 - win_state) * 3); //SW_MAXIMIZE=3 SW_MINIMIZE=6 SW_RESTORE=9: In order to be in sync with win32 taskbar.
+            fsmode = win_state;
             if (fsmode == state::normal)
             {
                 layers[client].area = normsz;
@@ -1650,6 +1711,7 @@ Using large type pieces:
             }
             else if (fsmode == state::minimized)
             {
+                normsz = layers[client].area;
                 layers[client].show(faux);
                 layers[blinky].show(faux);
                 layers[header].show(faux);
@@ -1664,7 +1726,7 @@ Using large type pieces:
         void check_fsmode(arch hWnd)
         {
             if ((arch)(layers[client].hWnd) != hWnd) return;
-            if (layers.empty()) return;
+            if (fsmode == state::undefined || layers.empty()) return;
             else if (fsmode == state::fullscreen)
             {
                 auto fs_area = manager::get_fs_area(layers[client].area);
@@ -1674,9 +1736,10 @@ Using large type pieces:
                     avail_area.size -= std::min(avail_area.size, normsz.size);
                     normsz.coor = avail_area.clamp(normsz.coor);
                     set_state(state::normal);
+                    reload |= task::all;
                 }
             }
-            else
+            else if (fsmode == state::normal)
             {
                 auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
                 if (!avail_area.trim(layers[client].area))
@@ -1687,8 +1750,11 @@ Using large type pieces:
                     moveby(delta);
                 }
             }
-            for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
-            reload |= task::all;
+            if (fsmode != state::minimized)
+            {
+                for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                reload |= task::moved;
+            }
         }
         void recalc_layout()
         {
@@ -2049,7 +2115,7 @@ Using large type pieces:
                 {
                     if (datetime::now() - dblclick < 500ms)
                     {
-                        if (fsmode != state::minimized) set_state(fsmode ? state::normal : state::fullscreen);
+                        if (fsmode != state::minimized) set_state(fsmode == state::fullscreen ? state::normal : state::fullscreen);
                         dblclick -= 1s;
                     }
                     else
@@ -2096,7 +2162,7 @@ Using large type pieces:
             }
             else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
             {
-                if (fsmode != state::minimized) set_state(fsmode ? state::normal : state::fullscreen);
+                if (fsmode != state::minimized) set_state(fsmode == state::fullscreen ? state::normal : state::fullscreen);
             }
             else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             {
@@ -2157,6 +2223,20 @@ Using large type pieces:
                 layers[blinky].show(!layers[blinky].live);
             }
             else if (!layers[blinky].live) layers[blinky].show(true); // Do not blink without focus.
+        }
+        void sys_command(si32 menucmd)
+        {
+            //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
+            switch (menucmd)
+            {
+                case syscmd::minimize:     set_state(state::minimized);  break;
+                case syscmd::maximize:     set_state(state::fullscreen); break;
+                case syscmd::restore:      set_state(state::normal);     break;
+                //todo implement
+                //case syscmd::move:          break;
+                //case syscmd::monitorpower:  break;
+                case syscmd::close:        manager::close();             break;
+            }
         }
     };
 }
