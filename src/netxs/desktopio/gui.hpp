@@ -1079,8 +1079,6 @@ Using large type pieces:
             if (hdc) ::DeleteDC(hdc);
             for (auto eventid : klok) ::KillTimer(hWnd, eventid);
         }
-        //void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
-        //{ }
         auto canvas(bool wipe = faux)
         {
             if (hdc && area)
@@ -1241,10 +1239,6 @@ Using large type pieces:
                 if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
-        //auto set_dpi(auto new_dpi)
-        //{
-        //    log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
-        //}
         template<bool JustMove = faux>
         void present()
         {
@@ -1359,7 +1353,6 @@ Using large type pieces:
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
-                    case WM_ACTIVATEAPP:   w->focus_event(wParam);                     break; // Focus between apps.
                     case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
                     case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
                     case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
@@ -1368,11 +1361,14 @@ Using large type pieces:
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), 0);  break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), 1);  break;
+                    case WM_SETFOCUS:      w->focus_event(true);                       break;
+                    case WM_KILLFOCUS:     w->focus_event(faux);                       break;
                     // These should be processed on the system side.
                     //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
                     //case WM_NCHITTEST:
                     //case WM_ACTIVATE: // Window focus within the app.
+                    //case WM_ACTIVATEAPP:
                     //case WM_NCACTIVATE:
                     //case WM_SETCURSOR:
                     //case WM_GETMINMAXINFO:
@@ -1381,11 +1377,11 @@ Using large type pieces:
                                             case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
                                             case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
                                             case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
+                                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
+                                            default: stat = TRUE; // An application should return zero only if it processes this message.
                                             //todo implement
                                             //case SC_MOVE:         w->sys_command(syscmd::move);         break;
                                             //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
-                                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
-                                            default: stat = TRUE; // An application should return zero only if it processes this message.
                                         }
                                         break; // Taskbar ctx menu to change the size and position.
                     //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
@@ -1394,7 +1390,7 @@ Using large type pieces:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
                     case WM_WINDOWPOSCHANGED:
-                    case WM_DPICHANGED://    w->set_dpi(lo(wParam));                     break;
+                    case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     case WM_DESTROY:       ::PostQuitMessage(0);                       break;
@@ -1633,7 +1629,8 @@ Using large type pieces:
             if (fsmode == win_state) return;
             log("%%Set window to ", prompt::gui, win_state == state::fullscreen ? "fullscreen" : win_state == state::normal ? "normal" : "minimized", " state.");
             fsmode = state::undefined;
-            ::ShowWindow(layers[client].hWnd, (4 - win_state) * 3); //SW_MAXIMIZE=3 SW_MINIMIZE=6 SW_RESTORE=9: In order to be in sync with win32 taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+            ::ShowWindow(layers[client].hWnd, win_state == state::minimized  ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+                                            : win_state == state::fullscreen ? SW_MAXIMIZE : SW_RESTORE); //
             fsmode = win_state;
             if (fsmode == state::normal)
             {
