@@ -1862,7 +1862,7 @@ Using large type pieces:
                         dirty_area += border;
                     }
                     layers[client].strike(dirty_area);
-                    layers[blinky].strike(dirty_area);
+                    layers[blinky].strike({ .size = layers[blinky].area.size });
                 }
                 if (fsmode == state::normal)
                 {
