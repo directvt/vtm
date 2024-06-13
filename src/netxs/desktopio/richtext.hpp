@@ -2522,6 +2522,16 @@ namespace netxs::ui
             core::size(new_size);
             flow::size(new_size);
         }
+        auto resize(twod new_size) // face: Change the size of the face/core.
+        {
+            auto changed = new_size != core::size();
+            if (changed)
+            {
+                core::size(new_size);
+                flow::size(new_size);
+            }
+            return changed;
+        }
         auto size() // face: Return size of the face/core.
         {
             return core::size();

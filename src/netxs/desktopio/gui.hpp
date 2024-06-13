@@ -1052,18 +1052,20 @@ Using large type pieces:
 
     struct surface
     {
+        static constexpr auto hidden = twod{ -32000, -32000 };
+
         using bits = netxs::raster<std::span<argb>, rect>;
         using regs = std::vector<rect>;
         using tset = std::list<ui32>;
 
-        HDC   hdc;
-        HWND hWnd;
-        rect prev;
-        rect area;
-        bits data;
-        regs sync;
-        bool live;
-        tset klok;
+        HDC   hdc; // surface: .
+        HWND hWnd; // surface: .
+        rect prev; // surface: Last presented layer area.
+        rect area; // surface: Current layer area.
+        bits data; // surface: Layer bitmap.
+        regs sync; // surface: Dirty region list.
+        bool live; // surface: Should the layer be presented.
+        tset klok; // surface: Active timer list.
 
         surface(surface const&) = default;
         surface(surface&&) = default;
@@ -1106,11 +1108,18 @@ Using large type pieces:
             data.move(area.coor);
             return data;
         }
+        void hide() { live = faux; }
+        void show() { live = true; }
         void present()
         {
-            if (!live || !hdc) return;
-            auto windowmoved = prev.coor(area.coor);
-            if (!windowmoved && sync.empty()) return;
+            if (!hdc) return;
+            auto windowmoved = prev.coor(live ? area.coor : hidden);
+            if (!windowmoved && (sync.empty() || !live)) return;
+            if (!live) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+            {
+                ::SetWindowPos(hWnd, 0, hidden.x, hidden.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                return;
+            }
             auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto bitmap_coor = POINT{};
             auto window_coor = POINT{ area.coor.x, area.coor.y };
@@ -1152,14 +1161,6 @@ Using large type pieces:
                 }
             }
             sync.clear();
-        }
-        void show(bool state, bool activate = faux)
-        {
-            if (std::exchange(live, state) != state)
-            {
-                if (live) ::SetWindowPos(hWnd, 0, area.coor.x, area.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | (activate ? 0 : SWP_NOACTIVATE));
-                else      ::SetWindowPos(hWnd, 0,      -32000,      -32000, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE); // Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453 .
-            }
         }
         void start_timer(span elapse, ui32 eventid)
         {
@@ -1245,11 +1246,10 @@ Using large type pieces:
             if constexpr (JustMove)
             {
                 auto lock = ::BeginDeferWindowPos((si32)layers.size());
-                for (auto& w : layers) if (w.live)
+                for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
                 {
                     lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                     if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
-                    w.prev.coor = w.area.coor;
                 }
                 ::EndDeferWindowPos(lock);
             }
@@ -1441,6 +1441,7 @@ Using large type pieces:
         struct task
         {
             static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
             static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
             static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
             static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
@@ -1459,7 +1460,6 @@ Using large type pieces:
 
         font fcache; // window: Font cache.
         glyf gcache; // window: Glyph cache.
-        twod gridsz; // window: Grid size in cells.
         fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         dent border; // window: Border around window for resizing grips (dent in pixels).
@@ -1496,7 +1496,6 @@ Using large type pieces:
         window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
-              gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               height{ (fp32)fcache.cellsize.y },
               gripsz{ grip_cell * fcache.cellsize },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
@@ -1512,9 +1511,8 @@ Using large type pieces:
               footer{ add() }
         {
             if (!*this) return;
-            layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
-            layers[client].area = layers[blinky].area + border;
-            normsz = layers[client].area;
+            normsz = rect{ win_coor_px_size_cell.coor, std::max(dot_11, win_coor_px_size_cell.size) * cellsz } + border;
+            layers[client].area = normsz;
             size_window();
             set_state(win_state);
 
@@ -1554,22 +1552,16 @@ Using large type pieces:
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == state::maximized)
             {
-                auto area = layers[client].area;
-                auto over = area.size % cellsz;
-                border.l = over.x / 2;
-                border.r = over.x - border.l;
-                border.t = over.y / 2;
-                border.b = over.y - border.t;
-                layers[blinky].area = area - border;
-                if (gridsz(layers[blinky].area.size / cellsz))
-                {
-                    size_window();
-                }
                 normsz.size = normsz.size / prev_cellsz * cellsz;
+                auto over_sz = layers[client].area.size % cellsz;
+                auto half_sz = over_sz / 2;
+                border = { half_sz.x, over_sz.x - half_sz.x,
+                           half_sz.y, over_sz.y - half_sz.y };
+                size_window();
             }
             else
             {
-                layers[blinky].area.size = gridsz * cellsz;
+                layers[blinky].area.size = main_grid.size() * cellsz;
                 layers[client].area.size = layers[blinky].area.size + border;
                 sync_titles_pixel_layout();
             }
@@ -1622,51 +1614,35 @@ Using large type pieces:
         {
             for (auto& w : layers) w.area.coor += delta;
         }
-        void set_state(si32 win_state)
+        void set_state(si32 new_state)
         {
-            if (fsmode == win_state) return;
-            log("%%Set window to ", prompt::gui, win_state == state::maximized ? "maximized" : win_state == state::normal ? "normal" : "minimized", " state.");
-            auto prev_state = std::exchange(fsmode, state::undefined);
-            ::ShowWindow(layers[client].hWnd, win_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
-                                            : win_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
-            fsmode = win_state;
+            if (fsmode == new_state) return;
+            log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
+            auto old_state = std::exchange(fsmode, state::undefined);                                    //
+            ::ShowWindow(layers[client].hWnd, new_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+                                            : new_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
+            fsmode = new_state;
+            if (old_state == state::normal) normsz = layers[client].area;
             if (fsmode == state::normal)
             {
-                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 layers[client].area = normsz;
-                layers[blinky].area = normsz - border;
-                gridsz = layers[blinky].area.size / cellsz;
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 size_window();
-                sync_titles_pixel_layout();
-                layers[client].show(true, true);
-                layers[blinky].show(true);
-                layers[header].show(true);
-                layers[footer].show(true);
-            }
-            else if (fsmode == state::maximized)
-            {
-                auto fs_area = manager::get_fs_area(layers[client].area - border);
-                auto over_sz = fs_area.size % cellsz;
-                border.l = over_sz.x / 2;
-                border.r = over_sz.x - border.l;
-                border.t = over_sz.y / 2;
-                border.b = over_sz.y - border.t;
-                normsz = std::exchange(layers[client].area, fs_area);
-                layers[blinky].area = fs_area - border;
-                gridsz = layers[blinky].area.size / cellsz;
-                size_window();
-                layers[client].show(true, true);
-                layers[blinky].show(true);
-                layers[header].show(faux);
-                layers[footer].show(faux);
+                for (auto& l : layers) l.show();
             }
             else if (fsmode == state::minimized)
             {
-                if (prev_state == state::normal) normsz = layers[client].area;
-                layers[client].show(faux);
-                layers[blinky].show(faux);
-                layers[header].show(faux);
-                layers[footer].show(faux);
+                for (auto& l : layers) l.hide();
+            }
+            else if (fsmode == state::maximized)
+            {
+                layers[client].area = manager::get_fs_area(layers[client].area - border);
+                auto over_sz = layers[client].area.size % cellsz;
+                auto half_sz = over_sz / 2;
+                border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
+                size_window();
+                for (auto l : { header, footer }) layers[l].hide();
+                for (auto l : { client, blinky }) layers[l].show();
             }
             reload |= task::all;
 
@@ -1714,9 +1690,10 @@ Using large type pieces:
         void size_window(twod size_delta = {})
         {
             layers[client].area.size += size_delta;
-            layers[blinky].area.size += size_delta;
+            layers[blinky].area = layers[client].area - border;
+            auto gridsz = layers[blinky].area.size / cellsz;
             main_grid.size(gridsz);
-            blink_synch.resize(main_grid.volume());
+            blink_synch.assign(main_grid.volume(), 0);
             blink_count = 0;
             if (fsmode != state::maximized)
             {
@@ -1742,11 +1719,9 @@ Using large type pieces:
         {
             auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
-            size_delta = dot_00;
-            if (gridsz != new_gridsz)
+            size_delta = new_gridsz * cellsz - old_client.size;
+            if (size_delta)
             {
-                gridsz = new_gridsz;
-                size_delta = gridsz * cellsz - old_client.size;
                 size_window(size_delta);
             }
             return size_delta;
@@ -1756,10 +1731,9 @@ Using large type pieces:
             auto old_client = layers[blinky].area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
-            if (gridsz != new_gridsz)
+            if (main_grid.size() != new_gridsz)
             {
-                gridsz = new_gridsz;
-                auto size_delta = gridsz * cellsz - old_client.size;
+                auto size_delta = new_gridsz * cellsz - old_client.size;
                 auto coor_delta = new_client.coor - old_client.coor;
                 size_window(size_delta);
                 move_window(coor_delta);
@@ -2172,11 +2146,17 @@ Using large type pieces:
         void timer_event(arch eventid)
         {
             if (fsmode == state::minimized || eventid != timers::blink) return;
-            if (active)
+            auto visible = layers[blinky].live;
+            if (active && visible)
             {
-                layers[blinky].show(!layers[blinky].live);
+                layers[blinky].hide();
+                reload |= task::blink;
             }
-            else if (!layers[blinky].live) layers[blinky].show(true); // Do not blink without focus.
+            else if (!visible) // Do not blink without focus.
+            {
+                layers[blinky].show();
+                reload |= task::blink;
+            }
         }
         void sys_command(si32 menucmd)
         {
