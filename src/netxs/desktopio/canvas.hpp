@@ -2574,6 +2574,10 @@ namespace netxs
             }
             return true;
         }
+        auto volume() const // core: Return cell count.
+        {
+            return canvas.size();
+        }
         auto operator == (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a == b;        }); }
         auto  same       (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
         constexpr auto& size() const           { return region.size;                                                        }

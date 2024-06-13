@@ -1451,6 +1451,8 @@ Using large type pieces:
             static constexpr auto all = -1;
         };
 
+        std::vector<byte> blink_synch;
+        si32              blink_count{};
         ui::face main_grid;
         ui::face head_grid;
         ui::face foot_grid;
@@ -1468,7 +1470,6 @@ Using large type pieces:
         bool mhover; // window: Mouse hover.
         bool active; // window: Window is focused.
         si32 fsmode; // window: Window size state.
-        dent fsdent; // window: Fullscreen mode border.
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
         si32 client; // window: Surface index for Client.
@@ -1479,8 +1480,6 @@ Using large type pieces:
         rect grip_r; // window: .
         rect grip_t; // window: .
         rect grip_b; // window: .
-        twod h_size; // window: Header grid size.
-        twod f_size; // window: Footer grid size.
         bool drop_shadow{ true }; // window: .
         twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
 
@@ -1516,27 +1515,28 @@ Using large type pieces:
             layers[blinky].area = rect{ win_coor_px_size_cell.coor, gridsz * cellsz };
             layers[client].area = layers[blinky].area + border;
             normsz = layers[client].area;
+            size_window();
             set_state(win_state);
-            recalc_layout();
-            layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
+
             //test
             this->testtext = testtext;
             print_font_list();
             refillgrid();
 
             update();
+            layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             manager::run();
         }
-        void sync_titles_size()
+        void sync_titles_pixel_layout()
         {
             auto base_rect = layers[client].area;
             grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
             grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
             grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
             grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
-            base_rect -= (fsmode == state::maximized ? fsdent : border);
-            auto header_height = cellsz.y * h_size.y;
-            auto footer_height = cellsz.y * f_size.y;
+            base_rect -= border;
+            auto header_height = head_grid.size().y * cellsz.y;
+            auto footer_height = foot_grid.size().y * cellsz.y;
             layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             layers[header].area.coor.y -= shadow_dent.b;
@@ -1556,19 +1556,22 @@ Using large type pieces:
             {
                 auto area = layers[client].area;
                 auto over = area.size % cellsz;
-                fsdent.l = over.x / 2;
-                fsdent.r = over.x - fsdent.l;
-                fsdent.t = over.y / 2;
-                fsdent.b = over.y - fsdent.t;
-                layers[blinky].area = area - fsdent;
-                gridsz = layers[blinky].area.size / cellsz;
+                border.l = over.x / 2;
+                border.r = over.x - border.l;
+                border.t = over.y / 2;
+                border.b = over.y - border.t;
+                layers[blinky].area = area - border;
+                if (gridsz(layers[blinky].area.size / cellsz))
+                {
+                    size_window();
+                }
                 normsz.size = normsz.size / prev_cellsz * cellsz;
             }
             else
             {
                 layers[blinky].area.size = gridsz * cellsz;
                 layers[client].area.size = layers[blinky].area.size + border;
-                sync_titles_size();
+                sync_titles_pixel_layout();
             }
         }
         void set_aa_mode(bool mode)
@@ -1590,24 +1593,19 @@ Using large type pieces:
             canvas_page = intro + font_list_str + canvas_text;
             if (refill) refillgrid();
         }
-        void refillgrid(bool wipe = true)
+        void refillgrid()
         {
-            auto area = layers[client].area - (fsmode == state::maximized ? fsdent : border);
-            main_grid.size(area.size / cellsz);
-            if (wipe)
-            {
-                main_grid.wipe();
-                foot_grid.wipe();
-            }
+            auto area = layers[blinky].area;
+            main_grid.wipe();
             main_grid.zz(scroll_pos);
             main_grid.vsize(std::min(0, (si32)-scroll_pos.y) + area.size.y);
             main_grid.output<true>(canvas_page);
             if (fsmode != state::maximized)
             {
-                head_grid.size((layers[header].area.size - shadow_dent) / cellsz);
+                head_grid.wipe();
+                foot_grid.wipe();
                 head_grid.cup(dot_00);
                 head_grid.output(header_page);
-                foot_grid.size((layers[footer].area.size - shadow_dent) / cellsz);
                 foot_grid.cup(dot_00);
                 foot_grid.output(footer_page);
             }
@@ -1628,16 +1626,18 @@ Using large type pieces:
         {
             if (fsmode == win_state) return;
             log("%%Set window to ", prompt::gui, win_state == state::maximized ? "maximized" : win_state == state::normal ? "normal" : "minimized", " state.");
-            fsmode = state::undefined;
+            auto prev_state = std::exchange(fsmode, state::undefined);
             ::ShowWindow(layers[client].hWnd, win_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
                                             : win_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
             fsmode = win_state;
             if (fsmode == state::normal)
             {
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 layers[client].area = normsz;
                 layers[blinky].area = normsz - border;
-                fsdent = {};
-                sync_titles_size();
+                gridsz = layers[blinky].area.size / cellsz;
+                size_window();
+                sync_titles_pixel_layout();
                 layers[client].show(true, true);
                 layers[blinky].show(true);
                 layers[header].show(true);
@@ -1647,12 +1647,14 @@ Using large type pieces:
             {
                 auto fs_area = manager::get_fs_area(layers[client].area - border);
                 auto over_sz = fs_area.size % cellsz;
-                fsdent.l = over_sz.x / 2;
-                fsdent.r = over_sz.x - fsdent.l;
-                fsdent.t = over_sz.y / 2;
-                fsdent.b = over_sz.y - fsdent.t;
+                border.l = over_sz.x / 2;
+                border.r = over_sz.x - border.l;
+                border.t = over_sz.y / 2;
+                border.b = over_sz.y - border.t;
                 normsz = std::exchange(layers[client].area, fs_area);
-                layers[blinky].area = fs_area - fsdent;
+                layers[blinky].area = fs_area - border;
+                gridsz = layers[blinky].area.size / cellsz;
+                size_window();
                 layers[client].show(true, true);
                 layers[blinky].show(true);
                 layers[header].show(faux);
@@ -1660,13 +1662,12 @@ Using large type pieces:
             }
             else if (fsmode == state::minimized)
             {
-                normsz = layers[client].area;
+                if (prev_state == state::normal) normsz = layers[client].area;
                 layers[client].show(faux);
                 layers[blinky].show(faux);
                 layers[header].show(faux);
                 layers[footer].show(faux);
             }
-            gridsz = layers[blinky].area.size / cellsz;
             reload |= task::all;
 
             //test
@@ -1705,37 +1706,41 @@ Using large type pieces:
                 reload |= task::moved;
             }
         }
-        void recalc_layout()
-        {
-            //test
-            auto c_size = gridsz;
-            main_grid.calc_page_height(canvas_page, c_size);
-            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add((si32)scroll_pos.x, ":", (si32)scroll_pos.y, "/", c_size.y, " ", gridsz.x, ":", gridsz.y);
-
-            h_size = gridsz;
-            f_size = gridsz;
-            head_grid.calc_page_height(header_page, h_size);
-            foot_grid.calc_page_height(footer_page, f_size);
-            sync_titles_size();
-        }
         auto move_window(twod coor_delta)
         {
             moveby(coor_delta);
             reload |= task::moved;
         }
-        auto size_window(twod size_delta, bool wipe = faux)
+        void size_window(twod size_delta = {})
         {
             layers[client].area.size += size_delta;
             layers[blinky].area.size += size_delta;
-            recalc_layout();
+            main_grid.size(gridsz);
+            blink_synch.resize(main_grid.volume());
+            blink_count = 0;
+            if (fsmode != state::maximized)
+            {
+                //test
+                auto c_size = gridsz;
+                main_grid.calc_page_height(canvas_page, c_size);
+                footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add((si32)scroll_pos.x, ":", (si32)scroll_pos.y, "/", c_size.y, " ", gridsz.x, ":", gridsz.y);
+
+                auto h_size = gridsz;
+                auto f_size = gridsz;
+                head_grid.calc_page_height(header_page, h_size);
+                foot_grid.calc_page_height(footer_page, f_size);
+                head_grid.size(h_size);
+                foot_grid.size(f_size);
+                sync_titles_pixel_layout();
+            }
             reload |= task::sized;
 
             //test
-            refillgrid(wipe);
+            refillgrid();
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[client].area - (fsmode == state::maximized ? fsdent : border);
+            auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = dot_00;
             if (gridsz != new_gridsz)
@@ -1748,7 +1753,7 @@ Using large type pieces:
         }
         auto warp_window(dent warp_delta)
         {
-            auto old_client = layers[client].area - (fsmode == state::maximized ? fsdent : border);
+            auto old_client = layers[blinky].area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
@@ -1791,7 +1796,7 @@ Using large type pieces:
         bool hit_grips()
         {
             if (fsmode == state::maximized || szgrip.zoomon || panoramic_scroll) return faux;
-            auto inner_rect = layers[client].area - border;
+            auto inner_rect = layers[blinky].area;
             auto outer_rect = layers[client].area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
             return hit;
@@ -1865,12 +1870,12 @@ Using large type pieces:
                     auto canvas = layers[client].canvas();
                     auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
-                    auto dirty_area = canvas.area() - (fsmode == state::maximized ? fsdent : border);
+                    auto dirty_area = canvas.area() - border;
                     gcache.fill_grid(canvas, blinks, dirty_area.coor, main_grid); // 0.500 ms);
                     if (fsmode == state::maximized && (what & task::sized))
                     {
-                        netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
-                        dirty_area += fsdent;
+                        netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
+                        dirty_area += border;
                     }
                     layers[client].sync.push_back(dirty_area);
                     layers[blinky].sync.push_back(dirty_area);
@@ -1956,7 +1961,7 @@ Using large type pieces:
                 }
                 hz ? scroll_pos.x -= wheeldt
                    : scroll_pos.y += wheeldt;
-                size_window({}, true);
+                size_window();
                 reload |= task::all;
                 reload &= ~task::sized;
             }
@@ -1980,13 +1985,13 @@ Using large type pieces:
         {
             mhover = true;
             auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area - (fsmode == state::maximized ? fsdent : border);
+            auto inner_rect = layers[blinky].area;
             if (mbttns & bttn::right)
             {
                 scroll_delta += coord - mcoord;
                 if (scroll_pos(scroll_origin + scroll_delta / cellsz))
                 {
-                    size_window({}, true);
+                    size_window();
                     reload |= task::all;
                     reload &= ~task::sized;
                 }
