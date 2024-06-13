@@ -315,6 +315,13 @@ namespace netxs
                 && coor.x + size.x > r.coor.x
                 && coor.y + size.y > r.coor.y;
         }
+        constexpr bool nearby(rect r) const
+        {
+            return coor.x          <= r.coor.x + r.size.x
+                && coor.y          <= r.coor.y + r.size.y
+                && coor.x + size.x >= r.coor.x
+                && coor.y + size.y >= r.coor.y;
+        }
         // rect: To string.
         auto str() const
         {

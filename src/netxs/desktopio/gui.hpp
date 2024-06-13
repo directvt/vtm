@@ -1108,6 +1108,16 @@ Using large type pieces:
             data.move(area.coor);
             return data;
         }
+        void strike(rect r)
+        {
+            if (sync.empty()) sync.push_back(r);
+            else
+            {
+                auto& back = sync.back();
+                if (back.nearby(r)) back.unitewith(r);
+                else                sync.push_back(r);
+            }
+        }
         void hide() { live = faux; }
         void show() { live = true; }
         void present()
@@ -1851,8 +1861,8 @@ Using large type pieces:
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                         dirty_area += border;
                     }
-                    layers[client].sync.push_back(dirty_area);
-                    layers[blinky].sync.push_back(dirty_area);
+                    layers[client].strike(dirty_area);
+                    layers[blinky].strike(dirty_area);
                 }
                 if (fsmode == state::normal)
                 {
