@@ -3,17 +3,79 @@
 
 #pragma once
 
-#undef GetGlyphIndices
-#include <DWrite_2.h>
 #include <memory_resource>
-#pragma comment(lib, "Gdi32")
-#pragma comment(lib, "dwrite")
-
-#define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
 
 namespace netxs::gui
 {
     using namespace input;
+
+    struct manager_base
+    {
+        struct bttn
+        {
+            static constexpr auto left   = 1 << 0;
+            static constexpr auto right  = 1 << 1;
+            static constexpr auto middle = 1 << 2;
+        };
+        struct state
+        {
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto undefined = __COUNTER__ - _counter;
+            static constexpr auto normal    = __COUNTER__ - _counter;
+            static constexpr auto minimized = __COUNTER__ - _counter;
+            static constexpr auto maximized = __COUNTER__ - _counter;
+        };
+        struct timers
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto none     = __COUNTER__ - _counter;
+            static constexpr auto blink    = __COUNTER__ - _counter;
+        };
+        struct syscmd
+        {
+            static constexpr auto _counter     = __COUNTER__ + 1;
+            static constexpr auto minimize     = __COUNTER__ - _counter;
+            static constexpr auto maximize     = __COUNTER__ - _counter;
+            static constexpr auto restore      = __COUNTER__ - _counter;
+            static constexpr auto move         = __COUNTER__ - _counter;
+            static constexpr auto monitorpower = __COUNTER__ - _counter;
+            static constexpr auto close        = __COUNTER__ - _counter;
+        };
+        
+        bool isfine = true; // manager: All is ok.
+        explicit operator bool () const { return isfine; }
+    };
+    struct surface_base
+    {
+        using bits = netxs::raster<std::span<argb>, rect>;
+        using regs = std::vector<rect>;
+        using tset = std::list<ui32>;
+
+        rect prev; // surface: Last presented layer area.
+        rect area; // surface: Current layer area.
+        bits data; // surface: Layer bitmap.
+        regs sync; // surface: Dirty region list.
+        bool live; // surface: Should the layer be presented.
+        tset klok; // surface: Active timer list.
+
+        surface_base()
+          : prev{ .coor = dot_mx },
+            area{ dot_00, dot_00 },
+            live{ faux }
+        { }
+        void hide() { live = faux; }
+        void show() { live = true; }
+        void strike(rect r)
+        {
+            if (sync.empty()) sync.push_back(r);
+            else
+            {
+                auto& back = sync.back();
+                if (back.nearby(r)) back.unitewith(r);
+                else                sync.push_back(r);
+            }
+        }
+    };
 
     //test strings
     template<auto ...Args>
@@ -130,7 +192,19 @@ Using large type pieces:
     static constexpr auto tttest2 = vss<11>;
     static constexpr auto tttest3 = utf::utf8bytes<tttest1>;
     static constexpr auto tttest4 = utf::utf8bytes<utf::vs12_code>;
+}
 
+#if defined(_WIN32)
+
+#undef GetGlyphIndices
+#include <DWrite_2.h>
+#pragma comment(lib, "Gdi32")
+#pragma comment(lib, "dwrite")
+
+#define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
+
+namespace netxs::gui
+{
     struct font
     {
         struct style
@@ -1059,31 +1133,18 @@ Using large type pieces:
         }
     };
 
-    struct surface
+    struct surface : surface_base
     {
         static constexpr auto hidden = twod{ -32000, -32000 };
 
-        using bits = netxs::raster<std::span<argb>, rect>;
-        using regs = std::vector<rect>;
-        using tset = std::list<ui32>;
-
         HDC   hdc; // surface: .
         HWND hWnd; // surface: .
-        rect prev; // surface: Last presented layer area.
-        rect area; // surface: Current layer area.
-        bits data; // surface: Layer bitmap.
-        regs sync; // surface: Dirty region list.
-        bool live; // surface: Should the layer be presented.
-        tset klok; // surface: Active timer list.
 
         surface(surface const&) = default;
         surface(surface&&) = default;
         surface(HWND hWnd)
             :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
-              hWnd{ hWnd },
-              prev{ .coor = dot_mx },
-              area{ dot_00, dot_00 },
-              live{ faux }
+              hWnd{ hWnd }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
@@ -1117,18 +1178,6 @@ Using large type pieces:
             data.move(area.coor);
             return data;
         }
-        void strike(rect r)
-        {
-            if (sync.empty()) sync.push_back(r);
-            else
-            {
-                auto& back = sync.back();
-                if (back.nearby(r)) back.unitewith(r);
-                else                sync.push_back(r);
-            }
-        }
-        void hide() { live = faux; }
-        void show() { live = true; }
         void present()
         {
             if (!hdc) return;
@@ -1200,46 +1249,13 @@ Using large type pieces:
         }
     };
 
-    struct manager
+    struct manager : manager_base
     {
         using wins = std::vector<surface>;
 
-        struct bttn
-        {
-            static constexpr auto left   = 1 << 0;
-            static constexpr auto right  = 1 << 1;
-            static constexpr auto middle = 1 << 2;
-        };
-        struct state
-        {
-            static constexpr auto _counter  = __COUNTER__ + 1;
-            static constexpr auto undefined = __COUNTER__ - _counter;
-            static constexpr auto normal    = __COUNTER__ - _counter;
-            static constexpr auto minimized = __COUNTER__ - _counter;
-            static constexpr auto maximized = __COUNTER__ - _counter;
-        };
-        struct timers
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto none     = __COUNTER__ - _counter;
-            static constexpr auto blink    = __COUNTER__ - _counter;
-        };
-        struct syscmd
-        {
-            static constexpr auto _counter     = __COUNTER__ + 1;
-            static constexpr auto minimize     = __COUNTER__ - _counter;
-            static constexpr auto maximize     = __COUNTER__ - _counter;
-            static constexpr auto restore      = __COUNTER__ - _counter;
-            static constexpr auto move         = __COUNTER__ - _counter;
-            static constexpr auto monitorpower = __COUNTER__ - _counter;
-            static constexpr auto close        = __COUNTER__ - _counter;
-        };
-
-        bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
 
         manager()
-            : isfine{ true }
         {
             set_dpi_awareness();
         }
@@ -1247,8 +1263,6 @@ Using large type pieces:
         {
             for (auto& w : layers) w.reset();
         }
-        auto& operator [] (si32 layer) { return layers[layer]; }
-        explicit operator bool () const { return isfine; }
 
         void set_dpi_awareness()
         {
@@ -1321,6 +1335,18 @@ Using large type pieces:
         void close()
         {
             if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
+        }
+        auto client_animation()
+        {
+            auto a = TRUE;
+            ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
+            return a;
+        }
+        void sync_taskbar(si32 new_state)
+        {
+            if (layers.empty()) return;
+            ::ShowWindow(layers.front().hWnd, new_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+                                            : new_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
         }
         void run()
         {
@@ -1450,7 +1476,115 @@ Using large type pieces:
             return layer;
         }
     };
+}
 
+#else
+
+namespace netxs::gui
+{
+    struct font
+    {
+        twod cellsize;
+        std::list<text> families;
+        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        { }
+        void set_fonts(std::list<text>&, bool)
+        {
+            //...
+        }
+        void set_cellsz(si32 /*height*/)
+        {
+            //...
+        }
+    };
+    struct glyf
+    {
+        si32 aamode{};
+        glyf(font& /*fcache*/ , bool /*aamode*/)
+        { }
+        void reset()
+        {
+            //...
+        }
+        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, twod /*origin*/, auto& /*grid_cells*/)
+        {
+            //...
+        }
+    };
+    struct surface : surface_base
+    {
+        arch hWnd{};
+        auto canvas(bool wipe = faux)
+        {
+            if (wipe)
+            {
+                //...
+            }
+            //...
+            return data;
+        }
+        void start_timer(span /*elapse*/, ui32 /*eventid*/)
+        {
+            //...
+        }
+        void stop_timer(ui32 /*eventid*/)
+        {
+            //...
+        }
+    };
+    struct manager : manager_base
+    {
+        using wins = std::vector<surface>;
+
+        wins layers; // manager: ARGB layers.
+
+        auto add(auto ...)
+        {
+            //...
+            return 0;
+        }
+        void run()
+        {
+            //...
+        }
+        bool client_animation()
+        {
+            //...
+            return true;
+        }
+        void sync_taskbar(si32 /*new_state*/)
+        {
+            //...
+        }
+        rect get_fs_area(rect area)
+        {
+            //...
+            return area;
+        }
+        template<bool JustMove = faux>
+        void present()
+        {
+            //...
+        }
+        void close()
+        {
+            //...
+        }
+        void mouse_capture()
+        {
+            //...
+        }
+        void mouse_release()
+        {
+            //...
+        }
+    };
+}
+
+#endif
+
+namespace netxs::gui
+{
     struct window : manager
     {
         using gray = netxs::raster<std::vector<byte>, rect>;
@@ -1524,10 +1658,10 @@ Using large type pieces:
               active{},
               fsmode{ state::undefined },
               reload{ task::all },
-              client{ add(this) },
-              blinky{ add() },
-              header{ add() },
-              footer{ add() }
+              client{ manager::add(this) },
+              blinky{ manager::add() },
+              header{ manager::add() },
+              footer{ manager::add() }
         {
             if (!*this) return;
             normsz = rect{ win_coor_px_size_cell.coor, std::max(dot_11, win_coor_px_size_cell.size) * cellsz } + border;
@@ -1541,8 +1675,7 @@ Using large type pieces:
             refillgrid();
 
             update();
-            if (blinkrate != span::zero())
-            if (auto a = TRUE; (::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0), a))
+            if (blinkrate != span::zero() && manager::client_animation())
             {
                 layers[client].start_timer(blinkrate, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             }
@@ -1604,7 +1737,11 @@ Using large type pieces:
             font_list_str = utf::concat("Test text: \033[10m", testtext, "\033[m\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
                                       "\n Cell Size ", cellsz.x, "x", cellsz.y,
                                       "\n Font Fallback\n");
-            for (auto& f : fcache.families) font_list_str += utf::concat(ansi::bld(i++ == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
+            for (auto& f : fcache.families)
+            {
+                font_list_str += utf::concat(ansi::bld(i == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
+                i++;
+            }
             canvas_page = intro + font_list_str + canvas_text;
             if (refill) refillgrid();
         }
@@ -1641,9 +1778,8 @@ Using large type pieces:
         {
             if (fsmode == new_state) return;
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
-            auto old_state = std::exchange(fsmode, state::undefined);                                    //
-            ::ShowWindow(layers[client].hWnd, new_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
-                                            : new_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
+            auto old_state = std::exchange(fsmode, state::undefined);
+            manager::sync_taskbar(new_state);
             fsmode = new_state;
             if (old_state == state::normal) normsz = layers[client].area;
             if (fsmode == state::normal)
@@ -1769,8 +1905,6 @@ Using large type pieces:
             auto ltc = argb{ tint::pureblack };
             auto rbc = argb{ tint::purered };
             auto lbc = argb{ tint::puregreen  };//.alpha(0.5f);
-            auto white = argb{ tint::whitedk };
-            auto black = argb{ tint::blackdk };
             auto lc = ltc;
             auto rc = rtc;
             auto x = 0.f;
@@ -1894,7 +2028,9 @@ Using large type pieces:
         auto keybd_state()
         {
             //todo unify
-            auto state = hids::LShift   * !!::GetAsyncKeyState(VK_LSHIFT)
+            auto state = 0;
+            #if defined(_WIN32)
+            state = hids::LShift   * !!::GetAsyncKeyState(VK_LSHIFT)
                        | hids::RShift   * !!::GetAsyncKeyState(VK_RSHIFT)
                        | hids::LWin     * !!::GetAsyncKeyState(VK_LWIN)
                        | hids::RWin     * !!::GetAsyncKeyState(VK_RWIN)
@@ -1905,12 +2041,18 @@ Using large type pieces:
                        | hids::ScrlLock * !!::GetKeyState(VK_SCROLL)
                        | hids::NumLock  * !!::GetKeyState(VK_NUMLOCK)
                        | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
+            #endif
             return state;
         }
         void mouse_wheel(si32 delta, si32 cntrl, bool hz)
         {
             auto wheeldt = delta / 120.f;
             auto kb = keybd_state();//kbs();
+            if (cntrl || hz)
+            {
+                //...
+            }
+            #if defined(_WIN32)
             if (cntrl & MK_CONTROL)
             {
                 change_cell_size(wheeldt);
@@ -1928,6 +2070,7 @@ Using large type pieces:
                 print_font_list(true);
                 return;
             }
+            #endif
             //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
             //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
             //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
@@ -2087,6 +2230,12 @@ Using large type pieces:
         }
         void keybd_press(arch vkey, arch lParam)
         {
+            if (vkey || lParam)
+            {
+                //...
+            }
+            #if defined(_WIN32)
+
             union key_state
             {
                 ui32 token;
@@ -2129,6 +2278,7 @@ Using large type pieces:
                     print_font_list(true);
                 }
             }
+            #endif
             //auto s = keybd_state();
             //log("keybd ", utf::to_bin(s));
             //static auto keybd_state = std::array<byte, 256>{};

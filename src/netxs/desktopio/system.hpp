@@ -24,7 +24,6 @@
     #include <Psapi.h>               // ::GetModuleFileNameEx
     #include <winternl.h>            // ::NtOpenFile
     #include <Sddl.h>                // ::ConvertSidToStringSidA()
-    #include "gui.hpp"
     #pragma comment(lib, "User32")
     #pragma comment(lib, "UserEnv")
     #pragma comment(lib, "AdvAPI32") // ::StartService() for arm arch
@@ -74,6 +73,7 @@
     extern char **environ;
 
 #endif
+#include "gui.hpp"
 
 #define EEET(...) { auto et_start = datetime::now(); \
                     __VA_ARGS__; \
@@ -5765,7 +5765,7 @@ namespace netxs::os
                 }
             #else
                 //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, "win_area=", win_area, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, "aliasing=", aliasing, " blinkrate=", blinkrate, " testtext=", testtext);
+                log("dtvt::window=", dtvt::window, "win_area=", win_area, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, "aliasing=", aliasing, " blinkrate=", datetime::round<si32>(blinkrate), " testtext=", testtext);
             #endif
         }
         auto splice(xipc client)
