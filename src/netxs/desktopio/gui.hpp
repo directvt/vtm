@@ -1541,7 +1541,10 @@ Using large type pieces:
             refillgrid();
 
             update();
-            layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
+            if (auto a = TRUE; (::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0), a))
+            {
+                layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
+            }
             manager::run();
         }
         void sync_titles_pixel_layout()
