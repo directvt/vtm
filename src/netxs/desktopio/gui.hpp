@@ -1704,21 +1704,21 @@ namespace netxs::gui
             auto prev_cellsz = cellsz;
             fcache.set_cellsz((si32)height);
             gripsz = grip_cell * cellsz;
-            border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == state::maximized)
             {
                 normsz.size = normsz.size / prev_cellsz * cellsz;
                 auto over_sz = layers[client].area.size % cellsz;
                 auto half_sz = over_sz / 2;
-                border = { half_sz.x, over_sz.x - half_sz.x,
-                           half_sz.y, over_sz.y - half_sz.y };
+                border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                 size_window();
             }
             else
             {
-                layers[blinky].area.size = main_grid.size() * cellsz;
-                layers[client].area.size = layers[blinky].area.size + border;
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                auto new_size = main_grid.size() * cellsz;
+                layers[client].area.size = new_size + border;
+                layers[blinky].area = layers[client].area - border;
                 sync_titles_pixel_layout();
             }
         }
@@ -2107,7 +2107,7 @@ namespace netxs::gui
             }
             if (szgrip.zoomon)
             {
-                auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y }; // border. exclude state::maximized
                 auto step = szgrip.zoomdt + warp * (si32)wheeldt;
                 auto next = szgrip.zoomsz + step;
                 next.size = std::max(dot_00, next.size);
