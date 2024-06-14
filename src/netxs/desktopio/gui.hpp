@@ -1109,7 +1109,7 @@ namespace netxs::gui
                 netxs::onclip(target, raster, fx);
             }
         }
-        void fill_grid(auto& canvas, auto& blinks, twod origin, auto& grid_cells)
+        void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
         {
             auto coor = origin;
             auto maxc = coor + grid_cells.size() * cellsz;
@@ -1119,6 +1119,7 @@ namespace netxs::gui
             canvas.step(-base);
             for (auto& c : grid_cells)
             {
+                if (c.blk()) blink_count++;//todo sync with blink_synch
                 draw_cell(canvas, blinks, coor, c);
                 coor.x += cellsz.x;
                 if (coor.x >= maxc.x)
@@ -1635,6 +1636,8 @@ namespace netxs::gui
         rect grip_b; // window: .
         bool drop_shadow{ true }; // window: .
         twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
+        span blinkrate; // window: .
+        bool blinking; // window: .
 
         //test
         fp2d scroll_pos;
@@ -1661,7 +1664,9 @@ namespace netxs::gui
               client{ manager::add(this) },
               blinky{ manager::add() },
               header{ manager::add() },
-              footer{ manager::add() }
+              footer{ manager::add() },
+              blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
+              blinking{ faux }
         {
             if (!*this) return;
             normsz = rect{ win_coor_px_size_cell.coor, std::max(dot_11, win_coor_px_size_cell.size) * cellsz } + border;
@@ -1675,10 +1680,6 @@ namespace netxs::gui
             refillgrid();
 
             update();
-            if (blinkrate != span::zero() && manager::client_animation())
-            {
-                layers[client].start_timer(blinkrate, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
-            }
             manager::run();
         }
         void sync_titles_pixel_layout()
@@ -1696,7 +1697,7 @@ namespace netxs::gui
             layers[header].area.coor.y -= shadow_dent.b;
             layers[footer].area.coor.y += shadow_dent.t;
         }
-        void change_cell_size(fp32 dy = {})
+        void reset_blinky()
         {
             if (active && layers[blinky].live) // Hide blinking layer to avoid visual desync.
             {
@@ -1704,6 +1705,10 @@ namespace netxs::gui
                 manager::present<true>();
                 layers[blinky].show();
             }
+        }
+        void change_cell_size(fp32 dy = {})
+        {
+            reset_blinky();
             gcache.reset();
             auto grip_cell = gripsz / cellsz;
             height += dy;
@@ -1785,6 +1790,7 @@ namespace netxs::gui
             if (fsmode == new_state) return;
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
             auto old_state = std::exchange(fsmode, state::undefined);
+            if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
             manager::sync_taskbar(new_state);
             fsmode = new_state;
             if (old_state == state::normal) normsz = layers[client].area;
@@ -1793,7 +1799,8 @@ namespace netxs::gui
                 layers[client].area = normsz;
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 size_window();
-                for (auto& l : layers) l.show();
+                for (auto l : { client, header, footer }) layers[l].show();
+                if (blink_count) layers[blinky].show();
             }
             else if (fsmode == state::minimized)
             {
@@ -1806,8 +1813,10 @@ namespace netxs::gui
                 auto half_sz = over_sz / 2;
                 border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                 size_window();
-                for (auto l : { header, footer }) layers[l].hide();
-                for (auto l : { client, blinky }) layers[l].show();
+                layers[header].hide();
+                layers[footer].hide();
+                layers[client].show();
+                if (blink_count) layers[blinky].show();
             }
             reload |= task::all;
 
@@ -1905,7 +1914,7 @@ namespace netxs::gui
             }
             return layers[client].area - old_client;
         }
-        void fill_back(auto& grid_cells)
+        void _test_fill_back(auto& grid_cells)
         {
             auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
             auto ltc = argb{ tint::pureblack };
@@ -1987,12 +1996,29 @@ namespace netxs::gui
         {
             auto canvas = layers[index].canvas(true);
             auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
-            gcache.fill_grid(canvas, blinks, shadow_dent.corner(), facedata);
+            gcache.fill_grid(canvas, blinks, blink_count, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
             layers[index].sync.push_back({ .size = canvas.size() });
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
+        void check_blinky()
+        {
+            if (blinking != !!blink_count)
+            {
+                blinking = !!blink_count;
+                if (blink_count)
+                {
+                    if (blinkrate != span::zero()) layers[client].start_timer(blinkrate, timers::blink);
+                    else                           layers[blinky].show();
+                }
+                else
+                {
+                    if (active && layers[blinky].live) layers[blinky].hide();
+                    layers[client].stop_timer(timers::blink);
+                }
+            }
+        }
         void update()
         {
             if (!reload) return;
@@ -2003,12 +2029,14 @@ namespace netxs::gui
             {
                 if (what & (task::sized | task::inner))
                 {
-                    fill_back(main_grid);
+                    _test_fill_back(main_grid);
                     auto canvas = layers[client].canvas();
                     auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
                     auto dirty_area = canvas.area() - border;
-                    gcache.fill_grid(canvas, blinks, dirty_area.coor, main_grid); // 0.500 ms);
+                    blink_count = 0;
+                    gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid); // 0.500 ms);
+                    check_blinky();
                     if (fsmode == state::maximized && (what & task::sized))
                     {
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
