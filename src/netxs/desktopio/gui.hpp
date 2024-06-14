@@ -1035,19 +1035,20 @@ namespace netxs::gui
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
-            if (c.inv()) { }
+            auto fgc = c.fgc();
+            auto bgc = c.bgc();
+            if (c.inv()) std::swap(fgc, bgc);
             canvas.clip(placeholder);
             if (c.blk())
             {
                 placeholder.coor -= blinks.coor();
                 blinks.clip(placeholder);
-                if (c.bga()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
+                if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
                 {
-                    auto bgc = c.bgc();
                     netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
                 }
             }
-            else if (c.bga()) netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc()));
+            else if (bgc.alpha()) netxs::misc::fill(canvas, placeholder, cell::shaders::full(bgc));
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
@@ -1069,8 +1070,7 @@ namespace netxs::gui
             if (x == 0 || y == 0) return;
             auto box = glyph_mask.area.shift(placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
 
-            auto fgc = c.fgc();
-            auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
+            auto f_fgc = irgb{ fgc }.sRGB2Linear();
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
