@@ -73,7 +73,6 @@
     extern char **environ;
 
 #endif
-#include "gui.hpp"
 
 #define EEET(...) { auto et_start = datetime::now(); \
                     __VA_ARGS__; \
@@ -4613,20 +4612,17 @@ namespace netxs::os
                 }
             });
         }
-        void direct()
+        void direct(auto& extio)
         {
-            auto  stdio = os::ipc::stdio();
-            auto& extio = *stdio;
             auto& intio = *dtvt::client;
             auto  input = std::thread{ [&]
             {
                 while (extio && extio.send(intio.recv())) { }
                 extio.shut();
             }};
-            //todo // Forward signals to intio.
             while (intio && intio.send(extio.recv())) { }
 
-            //todo wait extio reconnection
+            //todo wait extio reconnection ?
             //extio.shut();
             //while (true)
             //{
@@ -5752,27 +5748,16 @@ namespace netxs::os
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
-        auto native(xipc client, rect win_area, std::list<text> fontlist, si32 cellsize, si32 winstate, bool aliasing, span blinkrate, text testtext)
-        {
-            os::dtvt::client = client;
-            #if defined(WIN32)
-                if (win_area.size != dot_00) dtvt::window.size = win_area.size;
-                if (win_area.coor != dot_00) dtvt::window.coor = win_area.coor;
-                if (auto w = gui::window{ dtvt::window, fontlist, cellsize, winstate, aliasing, blinkrate, testtext })
-                {
-                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", blinkrate);
-                    w.dispatch();
-                }
-            #else
-                //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, "win_area=", win_area, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, "aliasing=", aliasing, " blinkrate=", datetime::round<si32>(blinkrate), " testtext=", testtext);
-            #endif
-        }
         auto splice(xipc client)
         {
             os::dtvt::client = client;
-            os::dtvt::active ? tty::direct()
-                             : tty::legacy();
+            if (os::dtvt::active)
+            {
+                auto  stdio = os::ipc::stdio();
+                auto& extio = *stdio;
+                tty::direct(extio);
+            }
+            else tty::legacy();
         }
 
         struct readline

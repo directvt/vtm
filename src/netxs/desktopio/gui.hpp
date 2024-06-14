@@ -2345,5 +2345,19 @@ namespace netxs::gui
                 case syscmd::close:        manager::close();             break;
             }
         }
+        auto send(auto ...)
+        {
+            //...
+            return faux;
+        }
+        auto recv()
+        {
+            //...
+            return ""s;
+        }
+        auto shut()
+        {
+            //...
+        }
     };
 }
