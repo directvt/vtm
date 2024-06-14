@@ -1698,6 +1698,12 @@ namespace netxs::gui
         }
         void change_cell_size(fp32 dy = {})
         {
+            if (active && layers[blinky].live) // Hide blinking layer to avoid visual desync.
+            {
+                layers[blinky].hide();
+                manager::present<true>();
+                layers[blinky].show();
+            }
             gcache.reset();
             auto grip_cell = gripsz / cellsz;
             height += dy;
