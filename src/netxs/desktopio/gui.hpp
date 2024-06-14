@@ -232,10 +232,14 @@ namespace netxs::gui
                 fp32              em_height_letters{};
                 fp2d              actual_sz{};
                 fp2d              base_line{};
+                fp2d              underline{};
+                fp2d              strikethr{};
             };
             std::vector<face_rec>             fontface;
             fp32                              base_descent{};
             fp32                              base_ascent{};
+            fp2d                              base_underline{};
+            fp2d                              base_strikethr{};
             si32                              base_emheight{};
             si32                              base_x_height{};
             fp2d                              facesize; // Typeface cell size.
@@ -286,6 +290,8 @@ namespace netxs::gui
                 {
                     auto m = DWRITE_FONT_METRICS1{};
                     face_inst->GetMetrics(&m);
+                    base_underline = { (fp32)m.underlinePosition, (fp32)m.underlineThickness };
+                    base_strikethr = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
                     base_emheight = m.designUnitsPerEm;
                     base_x_height = m.xHeight;
                     base_ascent = m.ascent + m.lineGap / 2.0f;
@@ -349,6 +355,8 @@ namespace netxs::gui
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
+                auto underline = base_underline * transform;
+                auto strikethr = base_strikethr * transform;
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 fontface[style::normal].transform = transform;
                 fontface[style::normal].em_height = em_height;
@@ -356,12 +364,16 @@ namespace netxs::gui
                 fontface[style::normal].em_height_letters = em_height_letters;
                 fontface[style::normal].base_line = base_line;
                 fontface[style::normal].actual_sz = actual_sz;
+                fontface[style::normal].underline = underline;
+                fontface[style::normal].strikethr = strikethr;
                 fontface[style::bold  ].transform = transform;
                 fontface[style::bold  ].em_height = em_height;
                 fontface[style::bold  ].transform_letters = transform_letters;
                 fontface[style::bold  ].em_height_letters = em_height_letters;
                 fontface[style::bold  ].base_line = base_line;
                 fontface[style::bold  ].actual_sz = actual_sz;
+                fontface[style::bold  ].underline = underline;
+                fontface[style::bold  ].strikethr = strikethr;
                 // Detect right bearing delta for italics.
                 auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
                 auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
@@ -387,12 +399,16 @@ namespace netxs::gui
                 fontface[style::italic     ].em_height_letters = em_height_letters;
                 fontface[style::italic     ].base_line = base_line;
                 fontface[style::italic     ].actual_sz = actual_sz;
+                fontface[style::italic     ].underline = underline;
+                fontface[style::italic     ].strikethr = strikethr;
                 fontface[style::bold_italic].transform = transform;
                 fontface[style::bold_italic].em_height = em_height;
                 fontface[style::bold_italic].transform_letters = transform_letters;
                 fontface[style::bold_italic].em_height_letters = em_height_letters;
                 fontface[style::bold_italic].base_line = base_line;
                 fontface[style::bold_italic].actual_sz = actual_sz;
+                fontface[style::bold_italic].underline = underline;
+                fontface[style::bold_italic].strikethr = strikethr;
             }
 
             typeface() = default;
