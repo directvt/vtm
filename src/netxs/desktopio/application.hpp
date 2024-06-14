@@ -542,11 +542,12 @@ namespace netxs::app::shared
             auto gridsize = config.take("gridsize", twod{ 80, 25 });
             auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
+            auto blinkrate = config.take("blinkrate", span{ 400ms });
             auto testtext = config.take("testtext", ""s);
             auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
             auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
             auto win_area = rect{ wincoord, gridsize };
-            os::tty::native(client, win_area, fontlist, cellsize, winstate, aliasing, testtext);
+            os::tty::native(client, win_area, fontlist, cellsize, winstate, aliasing, blinkrate, testtext);
         }
     }
     void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)

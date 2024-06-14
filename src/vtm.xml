@@ -21,6 +21,7 @@ R"==(
         <gridsize = 0,0 />       <!-- Window initial grid size in text cells. -->
         <wincoor = 0,0 />        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
         <winstate = normal />    <!-- Window initial state: normal | maximized | minimized -->
+        <blinkrate = 400ms />    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
             "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
             "Iosevka Term\n"

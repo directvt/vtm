@@ -1512,7 +1512,7 @@ Using large type pieces:
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
+        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, span blinkrate, text testtext = {},  twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               height{ (fp32)fcache.cellsize.y },
@@ -1541,9 +1541,10 @@ Using large type pieces:
             refillgrid();
 
             update();
+            if (blinkrate != span::zero())
             if (auto a = TRUE; (::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0), a))
             {
-                layers[client].start_timer(400ms, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
+                layers[client].start_timer(blinkrate, timers::blink); //todo make it configurable; activate only if blinks count is non-zero
             }
             manager::run();
         }
