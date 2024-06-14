@@ -18,7 +18,7 @@ namespace netxs::gui
     //test strings
     template<auto ...Args>
     constexpr auto vss = utf::matrix::vss<Args...>;
-    auto intro = ansi::add("").wrp(wrap::on).fgc(cyanlt)
+    auto intro = ansi::add("").wrp(wrap::on).fgc(purecyan)
         .add("\2Hello", utf::vs10, vss<11>, "\n")
         .add("        LeftDrag: Move window.\n"
              "       RightDrag: Panoramic scrolling.\n"
@@ -30,13 +30,13 @@ namespace netxs::gui
              "               0: Roll font fallback list.\n"
              "             1-9: Reorder font fallback list.\n"
              "             ESC: Close window.\n\n");
-    auto canvas_text = ansi::add("\n").bld(faux).wrp(wrap::on).fgc(cyanlt)
+    auto canvas_text = ansi::add("\n").blk(true).bld(faux).wrp(wrap::on).fgc(purecyan)
         .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
         .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
         .add("             ⎝⎩\n")
         .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
             .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
-        .fgc(tint::whitelt).add(
+        .fgc(tint::purecyan).add(
 R"==(
 CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
 )==")
@@ -75,7 +75,7 @@ Using large type pieces:
         .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
         .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
         .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
-        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
+        .fgc(tint::purecyan).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
                                " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
         .add("\n")
         .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
@@ -962,12 +962,23 @@ Using large type pieces:
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
             if (!placeholder) return;
             if (c.inv()) { }
-            if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
+            canvas.clip(placeholder);
+            if (c.blk())
+            {
+                placeholder.coor -= blinks.coor();
+                blinks.clip(placeholder);
+                if (c.bga()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
+                {
+                    auto bgc = c.bgc();
+                    netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
+                }
+            }
+            else if (c.bga()) netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc()));
             if (c.und()) { }
             if (c.stk()) { }
             if (c.ovr()) { }
             if (c.xy() == 0) return;
-            auto& target = c.blk() ? (placeholder.coor -= blinks.coor(), blinks) : canvas;
+            auto& target = c.blk() ? blinks : canvas;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
@@ -983,8 +994,6 @@ Using large type pieces:
             auto [w, h, x, y] = c.whxy();
             if (x == 0 || y == 0) return;
             auto box = glyph_mask.area.shift(placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-            target.clip(placeholder);
-            //target.clip(target.area());
 
             auto fgc = c.fgc();
             auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
