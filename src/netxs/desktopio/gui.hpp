@@ -233,13 +233,15 @@ namespace netxs::gui
                 fp2d              actual_sz{};
                 fp2d              base_line{};
                 fp2d              underline{};
-                fp2d              strikethr{};
+                fp2d              strikeout{};
+                fp2d              overline{};
             };
             std::vector<face_rec>             fontface;
             fp32                              base_descent{};
             fp32                              base_ascent{};
             fp2d                              base_underline{};
-            fp2d                              base_strikethr{};
+            fp2d                              base_strikeout{};
+            fp2d                              base_overline{};
             si32                              base_emheight{};
             si32                              base_x_height{};
             fp2d                              facesize; // Typeface cell size.
@@ -291,7 +293,8 @@ namespace netxs::gui
                     auto m = DWRITE_FONT_METRICS1{};
                     face_inst->GetMetrics(&m);
                     base_underline = { (fp32)m.underlinePosition, (fp32)m.underlineThickness };
-                    base_strikethr = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
+                    base_strikeout = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
+                    base_overline = { std::min((fp32)m.ascent, (fp32)(m.capHeight - m.underlinePosition)), (fp32)m.underlineThickness };
                     base_emheight = m.designUnitsPerEm;
                     base_x_height = m.xHeight;
                     base_ascent = m.ascent + m.lineGap / 2.0f;
@@ -355,25 +358,25 @@ namespace netxs::gui
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
-                auto underline = base_underline * transform;
-                auto strikethr = base_strikethr * transform;
+                auto underline = fp2d{ base_line.y - std::round(base_underline.x * transform), std::max(1.f, std::round(base_underline.y * transform)) };
+                auto strikeout = fp2d{ base_line.y - std::round(base_strikeout.x * transform), std::max(1.f, std::round(base_strikeout.y * transform)) };
+                auto overline =  fp2d{ base_line.y - std::round(base_overline.x * transform), std::max(1.f, std::round(base_overline.y * transform)) };
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
-                fontface[style::normal].transform = transform;
-                fontface[style::normal].em_height = em_height;
-                fontface[style::normal].transform_letters = transform_letters;
-                fontface[style::normal].em_height_letters = em_height_letters;
-                fontface[style::normal].base_line = base_line;
-                fontface[style::normal].actual_sz = actual_sz;
-                fontface[style::normal].underline = underline;
-                fontface[style::normal].strikethr = strikethr;
-                fontface[style::bold  ].transform = transform;
-                fontface[style::bold  ].em_height = em_height;
-                fontface[style::bold  ].transform_letters = transform_letters;
-                fontface[style::bold  ].em_height_letters = em_height_letters;
-                fontface[style::bold  ].base_line = base_line;
-                fontface[style::bold  ].actual_sz = actual_sz;
-                fontface[style::bold  ].underline = underline;
-                fontface[style::bold  ].strikethr = strikethr;
+                for (auto& f : fontface)
+                {
+                    f.base_line = base_line;
+                    f.underline = underline;
+                    f.strikeout = strikeout;
+                    f.overline = overline;
+                }
+                for (auto s : { style::normal, style::bold })
+                {
+                    fontface[s].transform = transform;
+                    fontface[s].em_height = em_height;
+                    fontface[s].actual_sz = actual_sz;
+                    fontface[s].transform_letters = transform_letters;
+                    fontface[s].em_height_letters = em_height_letters;
+                }
                 // Detect right bearing delta for italics.
                 auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
                 auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
@@ -393,22 +396,14 @@ namespace netxs::gui
                 transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
                 em_height_letters = base_emheight * transform_letters;
                 actual_sz *= k;
-                fontface[style::italic     ].transform = transform;
-                fontface[style::italic     ].em_height = em_height;
-                fontface[style::italic     ].transform_letters = transform_letters;
-                fontface[style::italic     ].em_height_letters = em_height_letters;
-                fontface[style::italic     ].base_line = base_line;
-                fontface[style::italic     ].actual_sz = actual_sz;
-                fontface[style::italic     ].underline = underline;
-                fontface[style::italic     ].strikethr = strikethr;
-                fontface[style::bold_italic].transform = transform;
-                fontface[style::bold_italic].em_height = em_height;
-                fontface[style::bold_italic].transform_letters = transform_letters;
-                fontface[style::bold_italic].em_height_letters = em_height_letters;
-                fontface[style::bold_italic].base_line = base_line;
-                fontface[style::bold_italic].actual_sz = actual_sz;
-                fontface[style::bold_italic].underline = underline;
-                fontface[style::bold_italic].strikethr = strikethr;
+                for (auto s : { style::italic, style::bold_italic })
+                {
+                    fontface[s].transform = transform;
+                    fontface[s].em_height = em_height;
+                    fontface[s].actual_sz = actual_sz;
+                    fontface[s].transform_letters = transform_letters;
+                    fontface[s].em_height_letters = em_height_letters;
+                }
             }
 
             typeface() = default;
@@ -448,6 +443,9 @@ namespace netxs::gui
         std::thread                    bgworker; // font: Background thread.
         twod                           cellsize; // font: Terminal cell size in pixels.
         std::list<text>                families; // font: Primary font name list.
+        fp2d                           underline; // font .
+        fp2d                           strikeout; // font .
+        fp2d                           overline;  // font .
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -599,6 +597,13 @@ namespace netxs::gui
             cellsize = { 1, std::clamp(cell_height, 2, 256) };
             auto base_font = true;
             for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            if (fallback.size()) // Keep the same *line positions for all fonts.
+            {
+                auto& f = fallback.front().fontface.front();
+                underline = f.underline;
+                strikeout = f.strikeout;
+                overline  = f.overline;
+            }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
         auto& take_font(utfx codepoint)
@@ -1065,9 +1070,25 @@ namespace netxs::gui
                 }
             }
             else if (bgc.alpha()) netxs::misc::fill(canvas, placeholder, cell::shaders::full(bgc));
-            if (c.und()) { }
-            if (c.stk()) { }
-            if (c.ovr()) { }
+            if (c.und())
+            {
+                auto index = c.unc();
+                auto color = index ? argb{ argb::vt256[index] }.alpha(c.fga()) : c.fgc();
+                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.underline.x }, { placeholder.size.x, (si32)fcache.underline.y }};
+                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+            }
+            if (c.stk())
+            {
+                auto color = c.fgc();
+                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.strikeout.x }, { placeholder.size.x, (si32)fcache.strikeout.y }};
+                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+            }
+            if (c.ovr())
+            {
+                auto color = c.fgc();
+                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.overline.x }, { placeholder.size.x, (si32)fcache.overline.y }};
+                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+            }
             if (c.xy() == 0) return;
             auto& target = c.blk() ? blinks : canvas;
             auto token = c.tkn() & ~3;

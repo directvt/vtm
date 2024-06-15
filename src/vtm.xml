@@ -38,7 +38,10 @@ R"==(
             "NSimSun\n"
             "Noto Sans Devanagari\n"
         </fontlist>
-        <testtext="test \e[41;94m UTF-8 \e[m string 👌︌︉︅󐀮😃👌︋︅󐀮 (See ~/.config/vtm/settings.xml: /config/gui/testtext/)"/>
+        <testtext>
+            "test \e[41;94m UTF-8 \e[m string 👌︌︉︅󐀮😃👌︋︅󐀮 (See ~/.config/vtm/settings.xml: /config/gui/testtext/)\n"
+            "\t\e[4mUnderline\e[m  \e[58:2:255:0:255;4mColored Underline\e[m  \e[9mStrikeout\e[m  \e[53mOverline\e[m"
+        </testtext>
     </gui>
     <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
