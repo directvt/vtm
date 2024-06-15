@@ -36,9 +36,9 @@ namespace netxs
             : x{ netxs::saturate_cast<T>(d.x) },
               y{ netxs::saturate_cast<T>(d.y) }
         { }
-        constexpr xy2d(fifo& queue)
-            : x{ queue(0) },
-              y{ queue(0) }
+        constexpr xy2d(fifo& q)
+            : x{ q(0) },
+              y{ q(0) }
         { }
 
         template<class D>
@@ -364,12 +364,12 @@ namespace netxs
             : l{ a.coor.x }, r{ a.coor.x + a.size.x },
               t{ a.coor.y }, b{ a.coor.y + a.size.y }
         { }
-        side(fifo& queue)
+        side(fifo& q)
         {
-            l = queue(0);
-            r = queue(0);
-            t = queue(0);
-            b = queue(0);
+            l = q.subarg(0);
+            r = q.subarg(0);
+            t = q.subarg(0);
+            b = q.subarg(0);
         }
         constexpr side& operator = (side const&) = default;
         bool operator == (side const&) const = default;
@@ -533,10 +533,10 @@ namespace netxs
         }
         void set(fifo& q)
         {
-            l = q(0);
-            r = q(0);
-            t = q(0);
-            b = q(0);
+            l = q.subarg(0);
+            r = q.subarg(0);
+            t = q.subarg(0);
+            b = q.subarg(0);
         }
         // dent: Unary minus operator.
         constexpr auto operator - () const

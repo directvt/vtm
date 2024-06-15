@@ -118,26 +118,26 @@ namespace netxs
         constexpr argb(tint c)
             : argb{ vt256[c] }
         { }
-        argb(fifo& queue)
+        argb(fifo& q)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
-            auto mode = queue.rawarg(mode_RGB);
+            auto mode = q.rawarg(mode_RGB);
             if (fifo::issub(mode))
             {
                 switch (fifo::desub(mode))
                 {
                     case mode_RGB:
                     {
-                        auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
-                        chan.r = (byte)(r == -1 ? queue.subarg(0) : r);
-                        chan.g = (byte)(queue.subarg(0));
-                        chan.b = (byte)(queue.subarg(0));
-                        chan.a = (byte)(queue.subarg(0xFF));
+                        auto r = q.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
+                        chan.r = (byte)(r == -1 ? q.subarg(0) : r);
+                        chan.g = (byte)(q.subarg(0));
+                        chan.b = (byte)(q.subarg(0));
+                        chan.a = (byte)(q.subarg(0xFF));
                         break;
                     }
                     case mode_256:
-                        token = netxs::letoh(vt256[queue.subarg(0)]);
+                        token = netxs::letoh(vt256[q.subarg(0)]);
                         break;
                     default:
                         break;
@@ -148,13 +148,13 @@ namespace netxs
                 switch (mode)
                 {
                     case mode_RGB:
-                        chan.r = (byte)(queue(0));
-                        chan.g = (byte)(queue(0));
-                        chan.b = (byte)(queue(0));
+                        chan.r = (byte)(q(0));
+                        chan.g = (byte)(q(0));
+                        chan.b = (byte)(q(0));
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = netxs::letoh(vt256[queue(0)]);
+                        token = netxs::letoh(vt256[q(0)]);
                         break;
                     default:
                         break;

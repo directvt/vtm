@@ -818,9 +818,9 @@ namespace netxs::ui
                 vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
                 vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
-                vt.csier.table[csi_ccc][ccc_lsr] = V{ p->owner.setlsr(q(1)); };           // CCC_LSR: Enable line style reporting.
-                vt.csier.table[csi_ccc][ccc_sel] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
-                vt.csier.table[csi_ccc][ccc_pad] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
+                vt.csier.table[csi_ccc][ccc_lsr] = V{ p->owner.setlsr(q.subarg(1)); };           // CCC_LSR: Enable line style reporting.
+                vt.csier.table[csi_ccc][ccc_sel] = V{ p->owner.selection_selmod(q.subarg(0)); }; // CCC_SEL: Set selection mode.
+                vt.csier.table[csi_ccc][ccc_pad] = V{ p->setpad(q.subarg(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
                 vt.intro[ctrl::esc][esc_ind   ] = V{ p->lf(1); };          // ESC D  Index. Cursor down and scroll if needed (IND).
                 vt.intro[ctrl::esc][esc_ir    ] = V{ p->ri();  };          // ESC M  Reverse index (RI).
@@ -1661,14 +1661,14 @@ namespace netxs::ui
                 }
             }
             // bufferbase: CSI Char ; Top ; Left ; Bottom ; Right $ x  Fill rectangular area (DECFRA).
-            void fra(fifo& queue)
+            void fra(fifo& q)
             {
                 parser::flush();
-                auto c = queue(' ');
-                auto t = queue(1);
-                auto l = queue(1);
-                auto b = queue(panel.y);
-                auto r = queue(panel.x);
+                auto c = q(' ');
+                auto t = q(1);
+                auto l = q(1);
+                auto b = q(panel.y);
+                auto r = q(panel.x);
                 if (t > b) t = b;
                 if (l > r) l = r;
                 l -= 1;
@@ -1787,10 +1787,10 @@ namespace netxs::ui
                 else scroll_region(y_top, y_end, 1, true);
             }
             // bufferbase: CSI t;b r  Set scrolling region (t/b: top+bottom).
-            void scr(fifo& queue)
+            void scr(fifo& q)
             {
-                auto top = queue(0);
-                auto end = queue(0);
+                auto top = q(0);
+                auto end = q(0);
                 set_scroll_region(top, end);
             }
             // bufferbase: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
@@ -1865,10 +1865,10 @@ namespace netxs::ui
                 _cup(p);
             }
             // bufferbase: CSI y; x H/F  Cursor position (1-based).
-    virtual void cup(fifo& queue)
+    virtual void cup(fifo& q)
             {
-                auto y = queue(1);
-                auto x = queue(1);
+                auto y = q(1);
+                auto x = q(1);
                 cup({ x, y });
             }
             // bufferbase: Move cursor up.
@@ -6554,10 +6554,10 @@ namespace netxs::ui
             _decset(n);
         }
         // term: Set termnail parameters. (DECSET).
-        void decset(fifo& queue)
+        void decset(fifo& q)
         {
             target->flush();
-            while (auto q = queue(0)) _decset(q);
+            while (auto next = q(0)) _decset(next);
         }
         // term: Switch buffer to normal and reset viewport to the basis.
         template<class T>
@@ -6663,18 +6663,18 @@ namespace netxs::ui
             _decrst(n);
         }
         // term: Reset termnail parameters. (DECRST).
-        void decrst(fifo& queue)
+        void decrst(fifo& q)
         {
             target->flush();
-            while (auto q = queue(0)) _decrst(q);
+            while (auto next = q(0)) _decrst(next);
         }
         // term: Set scrollback buffer size and grow step.
-        void sbsize(fifo& queue)
+        void sbsize(fifo& q)
         {
             target->flush();
-            auto ring_size = queue(config.def_length);
-            auto grow_step = queue(config.def_growdt);
-            auto grow_mxsz = queue(config.def_growmx);
+            auto ring_size = q.subarg(config.def_length);
+            auto grow_step = q.subarg(config.def_growdt);
+            auto grow_mxsz = q.subarg(config.def_growmx);
             normal.resize_history(ring_size, grow_step, grow_mxsz);
         }
         // term: Check and update scrollback buffer limits.
@@ -6774,7 +6774,7 @@ namespace netxs::ui
             cursor.style(config.def_cursor);
         }
         // term: Set terminal background.
-        void setsgr(fifo& queue)
+        void setsgr(fifo& q)
         {
             struct marker
             {
@@ -6786,12 +6786,12 @@ namespace netxs::ui
 
             auto mark = marker{};
             mark.brush = defclr;
-            auto param = queue.front(ansi::sgr_rst);
-            if (queue.issub(param))
+            auto param = q.front(ansi::sgr_rst);
+            if (q.issub(param))
             {
                 auto ptr = &mark;
-                queue.settop(queue.desub(param));
-                parser.table[ansi::csi_sgr].execute(queue, ptr);
+                q.settop(q.desub(param));
+                parser.table[ansi::csi_sgr].execute(q, ptr);
             }
             else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor);
             set_color(mark.brush);

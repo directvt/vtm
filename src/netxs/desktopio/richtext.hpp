@@ -1656,8 +1656,8 @@ namespace netxs::ui
             vt.csier.table[csi__ed]          = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
             vt.csier.table[csi__el]          = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
             vt.csier.table[csi_ccc][ccc_nop] = V{ p->fork(); };
-            vt.csier.table[csi_ccc][ccc_idx] = V{ p->fork(q(0)); };
-            vt.csier.table[csi_ccc][ccc_ref] = V{ p->bind(q(0)); };
+            vt.csier.table[csi_ccc][ccc_idx] = V{ p->fork(q.subarg(0)); };
+            vt.csier.table[csi_ccc][ccc_ref] = V{ p->bind(q.subarg(0)); };
             vt.csier.table_hash[csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
             vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
             #undef V

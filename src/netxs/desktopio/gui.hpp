@@ -358,16 +358,16 @@ namespace netxs::gui
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
-                auto underline = fp2d{ base_line.y - std::round(base_underline.x * transform), std::max(1.f, std::round(base_underline.y * transform)) };
-                auto strikeout = fp2d{ base_line.y - std::round(base_strikeout.x * transform), std::max(1.f, std::round(base_strikeout.y * transform)) };
-                auto overline =  fp2d{ base_line.y - std::round(base_overline.x * transform), std::max(1.f, std::round(base_overline.y * transform)) };
+                auto underline2 = fp2d{ base_line.y - std::round(base_underline.x * transform), std::max(1.f, std::round(base_underline.y * transform)) }; //todo underline2: msvc 17.10.1 complains: warning C4458 : declaration of 'underline' hides class member
+                auto strikeout2 = fp2d{ base_line.y - std::round(base_strikeout.x * transform), std::max(1.f, std::round(base_strikeout.y * transform)) };
+                auto overline2 =  fp2d{ base_line.y - std::round(base_overline.x * transform), std::max(1.f, std::round(base_overline.y * transform)) };
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 for (auto& f : fontface)
                 {
                     f.base_line = base_line;
-                    f.underline = underline;
-                    f.strikeout = strikeout;
-                    f.overline = overline;
+                    f.underline = underline2;
+                    f.strikeout = strikeout2;
+                    f.overline = overline2;
                 }
                 for (auto s : { style::normal, style::bold })
                 {

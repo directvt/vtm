@@ -750,18 +750,18 @@ namespace netxs::os
                             stack.pop_back();
                         }
                     }
-                    void decset(fifo& queue)
+                    void decset(fifo& q)
                     {
                         parser::flush();
-                        while (auto n = queue(0))
+                        while (auto n = q(0))
                         {
                             if (n == 25) cursor(true); // Show cursor and sync viewport.
                         }
                     }
-                    void decrst(fifo& queue)
+                    void decrst(fifo& q)
                     {
                         parser::flush();
-                        while (auto n = queue(0))
+                        while (auto n = q(0))
                         {
                             if (n == 25) cursor(faux); // Hide cursor.
                         }
