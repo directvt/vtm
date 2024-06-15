@@ -358,9 +358,9 @@ namespace netxs::gui
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
-                auto underline2 = fp2d{ base_line.y - std::round(base_underline.x * transform), std::max(1.f, std::round(base_underline.y * transform)) }; //todo underline2: msvc 17.10.1 complains: warning C4458 : declaration of 'underline' hides class member
-                auto strikeout2 = fp2d{ base_line.y - std::round(base_strikeout.x * transform), std::max(1.f, std::round(base_strikeout.y * transform)) };
-                auto overline2 =  fp2d{ base_line.y - std::round(base_overline.x * transform), std::max(1.f, std::round(base_overline.y * transform)) };
+                auto underline2 = fp2d{ std::clamp(base_line.y - std::round(base_underline.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_underline.y * transform)) }; //todo underline2: msvc 17.10.1 complains: warning C4458 : declaration of 'underline' hides class member
+                auto strikeout2 = fp2d{ std::clamp(base_line.y - std::round(base_strikeout.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_strikeout.y * transform)) };
+                auto overline2 =  fp2d{ std::clamp(base_line.y - std::round(base_overline.x  * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_overline.y  * transform)) };
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 for (auto& f : fontface)
                 {
@@ -991,7 +991,7 @@ namespace netxs::gui
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
-            //netxs::misc::fill(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
+            //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
                 //todo optimize
@@ -1069,28 +1069,32 @@ namespace netxs::gui
                     netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
                 }
             }
-            else if (bgc.alpha()) netxs::misc::fill(canvas, placeholder, cell::shaders::full(bgc));
+            else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            auto& target = c.blk() ? blinks : canvas;
             if (c.und())
             {
                 auto index = c.unc();
                 auto color = index ? argb{ argb::vt256[index] }.alpha(c.fga()) : c.fgc();
+                //todo optimize
                 auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.underline.x }, { placeholder.size.x, (si32)fcache.underline.y }};
-                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+                block.coor += target.coor();
+                netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.stk())
             {
                 auto color = c.fgc();
                 auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.strikeout.x }, { placeholder.size.x, (si32)fcache.strikeout.y }};
-                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+                block.coor += target.coor();
+                netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.ovr())
             {
                 auto color = c.fgc();
                 auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.overline.x }, { placeholder.size.x, (si32)fcache.overline.y }};
-                netxs::misc::fill(canvas, block, cell::shaders::full(color));
+                block.coor += target.coor();
+                netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.xy() == 0) return;
-            auto& target = c.blk() ? blinks : canvas;
             auto token = c.tkn() & ~3;
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
@@ -1152,7 +1156,7 @@ namespace netxs::gui
             auto maxc = coor + grid_cells.size() * cellsz;
             auto base = canvas.coor();
             auto base_blinks = blinks.coor();
-            blinks.move(coor);
+            blinks.move(origin);
             canvas.step(-base);
             for (auto& c : grid_cells)
             {
@@ -1544,7 +1548,7 @@ namespace netxs::gui
         {
             //...
         }
-        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, twod /*origin*/, auto& /*grid_cells*/)
+        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, si32& /*blink_count*/, twod /*origin*/, auto& /*grid_cells*/)
         {
             //...
         }
@@ -1613,6 +1617,10 @@ namespace netxs::gui
             //...
         }
         void mouse_release()
+        {
+            //...
+        }
+        void dispatch()
         {
             //...
         }
@@ -2002,7 +2010,7 @@ namespace netxs::gui
                     if (auto r = g_area.trim(area)) fx(canvas, r);
                 }
             };
-            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, cell::shaders::full(trans)); });
+            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::onrect(canvas, r, cell::shaders::full(trans)); });
             if (hit_grips())
             {
                 auto s = szgrip.sector;
@@ -2011,12 +2019,12 @@ namespace netxs::gui
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
                 fill_grips(side_x, [&](auto& canvas, auto r)
                 {
-                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
                 fill_grips(side_y, [&](auto& canvas, auto r)
                 {
-                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
             }

@@ -1147,13 +1147,6 @@ namespace netxs::os
             arch += sizeof(size_t) == 4 ? "32-bit" : "64-bit";
             return std::pair{ "Windows"s, arch };
         }();
-        template<class ...Args>
-        void logstd(Args&&... args)
-        {
-            auto count = DWORD{};
-            auto yield = utf::concat(std::forward<Args>(args)..., "\n");
-            ::WriteFile(::GetStdHandle(STD_OUTPUT_HANDLE), yield.data(), (DWORD)yield.size(), &count, 0);
-        }
 
     #else
 
@@ -1255,6 +1248,17 @@ namespace netxs::os
 
     #endif
 
+    template<class ...Args>
+    void logstd(Args&&... args)
+    {
+        auto yield = utf::concat(std::forward<Args>(args)..., "\n");
+        #if defined(_WIN32)
+            auto count = DWORD{};
+            ::WriteFile(::GetStdHandle(STD_OUTPUT_HANDLE), yield.data(), (DWORD)yield.size(), &count, 0);
+        #else
+            ::write(stdout_fd, yield.data(), yield.size());
+        #endif
+    }
     template<class T, class E = std::invoke_result_t<decltype(os::error)>>
     struct syscall
     {
