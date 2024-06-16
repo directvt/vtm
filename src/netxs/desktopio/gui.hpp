@@ -473,12 +473,29 @@ namespace netxs::gui
             return lut[code];
         }
 
+        void sort()
+        {
+            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+        }
         void set_fonts(auto family_names, bool fresh = true)
         {
             if (family_names.empty()) family_names.push_back("Courier New"); //todo unify
             families = family_names;
             fallback.clear();
-            if (!fresh) for (auto& s : fontstat) s.s &= ~fontcat::loaded;
+            if (!fresh) // Restore the original font index order and clear the "loaded" flag.
+            {
+                auto tempstat = fontstat;
+                auto src = fontstat.begin();
+                auto end = fontstat.end();
+                while (src != end)
+                {
+                    auto& s = *src++;
+                    auto& d = tempstat[s.i];
+                    d = s;
+                    d.s &= ~fontcat::loaded;
+                }
+                std::swap(fontstat, tempstat);
+            }
             for (auto& family_utf8 : families)
             {
                 auto found = BOOL{};   
@@ -505,6 +522,7 @@ namespace netxs::gui
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
+            sort();
         }
         font(std::list<text>& family_names, si32 cell_height)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
@@ -578,7 +596,7 @@ namespace netxs::gui
                         barefont->Release();
                     }
                 }
-                std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+                sort();
                 //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
                 complete.exchange(true);
                 complete.notify_all();
