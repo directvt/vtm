@@ -232,9 +232,10 @@ namespace netxs::gui
                 fp32              em_height_letters{};
                 fp2d              actual_sz{};
                 fp2d              base_line{};
-                fp2d              underline{};
-                fp2d              strikeout{};
-                fp2d              overline{};
+                rect              underline{}; // face_rec: Underline rectangle block within the cell.
+                rect              doubline{};  // face_rec: Two single underlines: at the top of the rect and at the bottom.
+                rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
+                rect              overline{};  // face_rec: Overline rectangle block within the cell.
             };
             std::vector<face_rec>             fontface;
             fp32                              base_descent{};
@@ -358,16 +359,85 @@ namespace netxs::gui
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
+                //todo revise/optimize
                 auto underline2 = fp2d{ std::clamp(base_line.y - std::round(base_underline.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_underline.y * transform)) }; //todo underline2: msvc 17.10.1 complains: warning C4458 : declaration of 'underline' hides class member
                 auto strikeout2 = fp2d{ std::clamp(base_line.y - std::round(base_strikeout.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_strikeout.y * transform)) };
                 auto overline2 =  fp2d{ std::clamp(base_line.y - std::round(base_overline.x  * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_overline.y  * transform)) };
+                auto doubline2 =  fp2d{ std::clamp(base_line.y - std::round(base_overline.x  * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_overline.y  * transform)) };
+                auto vertpos = (si32)underline2.x;
+                auto bheight = (si32)underline2.y;
+                auto between = std::max(1, (bheight + 1) / 2);
+                auto vtcoor2 = vertpos + bheight + between;
+                auto oversize = vtcoor2 + bheight - cellsize.y;
+                if (oversize > 0)
+                {
+                    vertpos -= oversize;
+                    auto overpos = vertpos - ((si32)base_line.y + 1 + between);
+                    if (overpos < 0)
+                    {
+                        auto half = (overpos + between) / 2;
+                        if (half > 0) // Set equal distance between baseline/underline and lin21/line2.
+                        {
+                            vertpos = (si32)base_line.y + half;
+                            between = half;
+                        }
+                        else
+                        {
+                            vertpos = (si32)base_line.y + 2;
+                            between = 1;
+                            bheight = cellsize.y - vertpos - between;
+                            if (bheight < 3)
+                            {
+                                if (bheight == 2)
+                                {
+                                    bheight = 1;
+                                    between = 1;
+                                }
+                                else if (bheight == 1)
+                                {
+                                    vertpos--;
+                                    bheight = 1;
+                                    between = 1;
+                                }
+                                else
+                                {
+                                    auto dv = cellsize.y - vertpos;
+                                    if (dv == 2)
+                                    {
+                                        bheight = 1;
+                                        between = 0;
+                                    }
+                                    else if (dv == 1)
+                                    {
+                                        vertpos--;
+                                        bheight = 1;
+                                        between = 0;
+                                    }
+                                    else
+                                    {
+                                        vertpos = std::min(vertpos - 1, (si32)underline2.x);
+                                        bheight = 0;
+                                        between = 0;
+                                    }
+                                }
+                            }
+                            else bheight /= 2;
+                        }
+                    }
+                }
+                auto doubline3 = rect{{ 0, vertpos }, { cellsize.x, std::max(1, between + bheight * 2) }};
+                auto underline3 = rect{{ 0, (si32)underline2.x }, { cellsize.x, std::max(1, bheight) }};
+                auto strikeout3 = rect{{ 0, (si32)strikeout2.x }, { cellsize.x, (si32)strikeout2.y }};
+                auto od = (si32)overline2.y - underline3.size.y;
+                auto overline3 = rect{{ 0, (si32)overline2.x + od }, underline3.size };
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 for (auto& f : fontface)
                 {
                     f.base_line = base_line;
-                    f.underline = underline2;
-                    f.strikeout = strikeout2;
-                    f.overline = overline2;
+                    f.underline = underline3;
+                    f.strikeout = strikeout3;
+                    f.overline = overline3;
+                    f.doubline = doubline3;
                 }
                 for (auto s : { style::normal, style::bold })
                 {
@@ -443,9 +513,10 @@ namespace netxs::gui
         std::thread                    bgworker; // font: Background thread.
         twod                           cellsize; // font: Terminal cell size in pixels.
         std::list<text>                families; // font: Primary font name list.
-        fp2d                           underline; // font .
-        fp2d                           strikeout; // font .
-        fp2d                           overline;  // font .
+        rect                           underline; // font: Single underline rectangle block within the cell.
+        rect                           doubline;  // font: Two single underlines: at the top of the rect and at the bottom.
+        rect                           strikeout; // font: Strikethrough rectangle block within the cell.
+        rect                           overline;  // font: Overline rectangle block within the cell.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -621,6 +692,7 @@ namespace netxs::gui
                 underline = f.underline;
                 strikeout = f.strikeout;
                 overline  = f.overline;
+                doubline  = f.doubline;
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
@@ -1090,27 +1162,66 @@ namespace netxs::gui
             }
             else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             auto& target = c.blk() ? blinks : canvas;
-            if (c.und())
+            if (auto u = c.und())
             {
                 auto index = c.unc();
                 auto color = index ? argb{ argb::vt256[index] }.alpha(c.fga()) : c.fgc();
-                //todo optimize
-                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.underline.x }, { placeholder.size.x, (si32)fcache.underline.y }};
-                block.coor += target.coor();
-                netxs::onrect(target, block, cell::shaders::full(color));
+                if (u == unln::line)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else if (u == unln::dotted)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else if (u == unln::dashed)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else if (u == unln::biline)
+                {
+                    //todo precalc: doubline1/doubline2
+                    auto block = fcache.doubline;
+                    block.coor += placeholder.coor + target.coor();
+                    auto b1 = block;
+                    auto b2 = block;
+                    b2.size.y = fcache.underline.size.y;
+                    b1.size.y = b2.size.y;
+                    b2.coor.y = block.coor.y + block.size.y - b2.size.y;
+                    netxs::onrect(target, b1, cell::shaders::full(color));
+                    netxs::onrect(target, b2, cell::shaders::full(color));
+                }
+                else if (u == unln::wavy)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
             }
             if (c.stk())
             {
                 auto color = c.fgc();
-                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.strikeout.x }, { placeholder.size.x, (si32)fcache.strikeout.y }};
-                block.coor += target.coor();
+                auto block = fcache.strikeout;
+                block.coor += placeholder.coor + target.coor();
                 netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.ovr())
             {
                 auto color = c.fgc();
-                auto block = rect{{ placeholder.coor.x, placeholder.coor.y + (si32)fcache.overline.x }, { placeholder.size.x, (si32)fcache.overline.y }};
-                block.coor += target.coor();
+                auto block = fcache.overline;
+                block.coor += placeholder.coor + target.coor();
                 netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.xy() == 0) return;

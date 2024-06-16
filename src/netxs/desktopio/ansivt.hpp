@@ -833,7 +833,7 @@ namespace netxs::ansi
     auto dch(si32 n)           { return escx{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
-    auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
+    auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
     auto unc(argb c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
