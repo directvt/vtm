@@ -360,30 +360,30 @@ namespace netxs::gui
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
                 //todo revise/optimize
-                auto underline2 = fp2d{ std::clamp(base_line.y - std::round(base_underline.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_underline.y * transform)) }; //todo underline2: msvc 17.10.1 complains: warning C4458 : declaration of 'underline' hides class member
-                auto strikeout2 = fp2d{ std::clamp(base_line.y - std::round(base_strikeout.x * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_strikeout.y * transform)) };
-                auto overline2 =  fp2d{ std::clamp(base_line.y - std::round(base_overline.x  * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_overline.y  * transform)) };
-                auto doubline2 =  fp2d{ std::clamp(base_line.y - std::round(base_overline.x  * transform), 0.f, cellsize.y - 1.f), std::max(1.f, std::round(base_overline.y  * transform)) };
-                auto vertpos = (si32)underline2.x;
-                auto bheight = (si32)underline2.y;
+                auto baseline_y = (si32)base_line.y;
+                auto underline2 = twod{ std::clamp(baseline_y - (si32)std::round(base_underline.x * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_underline.y * transform)) };
+                auto strikeout2 = twod{ std::clamp(baseline_y - (si32)std::round(base_strikeout.x * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_strikeout.y * transform)) };
+                auto overline2 =  twod{ std::clamp(baseline_y - (si32)std::round(base_overline.x  * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_overline.y  * transform)) };
+                auto vertpos = underline2.x;
+                auto bheight = underline2.y;
                 auto between = std::max(1, (bheight + 1) / 2);
                 auto vtcoor2 = vertpos + bheight + between;
                 auto oversize = vtcoor2 + bheight - cellsize.y;
                 if (oversize > 0)
                 {
                     vertpos -= oversize;
-                    auto overpos = vertpos - ((si32)base_line.y + 1 + between);
+                    auto overpos = vertpos - (baseline_y + 1 + between);
                     if (overpos < 0)
                     {
                         auto half = (overpos + between) / 2;
                         if (half > 0) // Set equal distance between baseline/underline and lin21/line2.
                         {
-                            vertpos = (si32)base_line.y + half;
+                            vertpos = baseline_y + half;
                             between = half;
                         }
                         else
                         {
-                            vertpos = (si32)base_line.y + 2;
+                            vertpos = baseline_y + 2;
                             between = 1;
                             bheight = cellsize.y - vertpos - between;
                             if (bheight < 3)
@@ -415,7 +415,7 @@ namespace netxs::gui
                                     }
                                     else
                                     {
-                                        vertpos = std::min(vertpos - 1, (si32)underline2.x);
+                                        vertpos = std::min(vertpos - 1, underline2.x);
                                         bheight = 0;
                                         between = 0;
                                     }
@@ -426,10 +426,10 @@ namespace netxs::gui
                     }
                 }
                 auto doubline3 = rect{{ 0, vertpos }, { cellsize.x, std::max(1, between + bheight * 2) }};
-                auto underline3 = rect{{ 0, (si32)underline2.x }, { cellsize.x, std::max(1, bheight) }};
-                auto strikeout3 = rect{{ 0, (si32)strikeout2.x }, { cellsize.x, (si32)strikeout2.y }};
-                auto od = (si32)overline2.y - underline3.size.y;
-                auto overline3 = rect{{ 0, (si32)overline2.x + od }, underline3.size };
+                auto underline3 = rect{{ 0, underline2.x }, { cellsize.x, std::max(1, bheight) }};
+                auto strikeout3 = rect{{ 0, strikeout2.x }, { cellsize.x, strikeout2.y }};
+                auto od = overline2.y - underline3.size.y;
+                auto overline3 = rect{{ 0, overline2.x + od }, underline3.size };
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 for (auto& f : fontface)
                 {
