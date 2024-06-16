@@ -650,7 +650,8 @@ namespace netxs::gui
                             {
                                 hit = true;
                                 fontstat[i].s |= fontcat::loaded;
-                                fallback.emplace_back(barefont, i, cellsize, faux);
+                                auto& f = fallback.emplace_back(barefont, i, cellsize, faux);
+                                log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                             }
                             fontface->Release();
                         }
@@ -662,7 +663,7 @@ namespace netxs::gui
             };
             for (auto i = 0u; i < fontstat.size(); i++)
             {
-                if ((fontstat[i].s & fontcat::valid && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+                if (((fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
             }
             if (fallback.size()) return fallback.front();
             for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
