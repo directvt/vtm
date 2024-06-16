@@ -233,7 +233,8 @@ namespace netxs::gui
                 fp2d              actual_sz{};
                 fp2d              base_line{};
                 rect              underline{}; // face_rec: Underline rectangle block within the cell.
-                rect              doubline{};  // face_rec: Two single underlines: at the top of the rect and at the bottom.
+                rect              doubline1{}; // font: The first line of the double underline: at the top of the rect.
+                rect              doubline2{}; // font: The second line of the double underline: at the bottom.
                 rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
                 rect              overline{};  // face_rec: Overline rectangle block within the cell.
             };
@@ -372,13 +373,13 @@ namespace netxs::gui
                 if (oversize > 0)
                 {
                     vertpos -= oversize;
-                    auto overpos = vertpos - (baseline_y + 1 + between);
-                    if (overpos < 0)
+                    auto overpos = vertpos - (baseline_y + 1);
+                    if (overpos < between)
                     {
-                        auto half = (overpos + between) / 2;
-                        if (half > 0) // Set equal distance between baseline/underline and lin21/line2.
+                        auto half = overpos / 2;
+                        if (half > 0) // Set equal distance between baseline/underline and line1/line2.
                         {
-                            vertpos = baseline_y + half;
+                            vertpos = baseline_y + 1 + half;
                             between = half;
                         }
                         else
@@ -388,36 +389,17 @@ namespace netxs::gui
                             bheight = cellsize.y - vertpos - between;
                             if (bheight < 3)
                             {
-                                if (bheight == 2)
-                                {
-                                    bheight = 1;
-                                    between = 1;
-                                }
-                                else if (bheight == 1)
-                                {
-                                    vertpos--;
-                                    bheight = 1;
-                                    between = 1;
-                                }
+                                     if (bheight == 2) bheight--;
+                                else if (bheight == 1) vertpos--;
                                 else
                                 {
-                                    auto dv = cellsize.y - vertpos;
-                                    if (dv == 2)
-                                    {
-                                        bheight = 1;
-                                        between = 0;
-                                    }
-                                    else if (dv == 1)
-                                    {
-                                        vertpos--;
-                                        bheight = 1;
-                                        between = 0;
-                                    }
+                                    between = 0;
+                                    bheight = cellsize.y - vertpos;
+                                    if (bheight == 1) vertpos--;
                                     else
                                     {
                                         vertpos = std::min(vertpos - 1, underline2.x);
                                         bheight = 0;
-                                        between = 0;
                                     }
                                 }
                             }
@@ -437,7 +419,12 @@ namespace netxs::gui
                     f.underline = underline3;
                     f.strikeout = strikeout3;
                     f.overline = overline3;
-                    f.doubline = doubline3;
+                    auto r1 = doubline3;
+                    r1.size.y = underline3.size.y;
+                    auto r2 = r1;
+                    r2.coor.y += doubline3.size.y - r2.size.y;
+                    f.doubline1 = r1;
+                    f.doubline2 = r2;
                 }
                 for (auto s : { style::normal, style::bold })
                 {
@@ -514,7 +501,8 @@ namespace netxs::gui
         twod                           cellsize; // font: Terminal cell size in pixels.
         std::list<text>                families; // font: Primary font name list.
         rect                           underline; // font: Single underline rectangle block within the cell.
-        rect                           doubline;  // font: Two single underlines: at the top of the rect and at the bottom.
+        rect                           doubline1; // font: The first line of the double underline: at the top of the rect.
+        rect                           doubline2; // font: The second line of the double underline: at the bottom.
         rect                           strikeout; // font: Strikethrough rectangle block within the cell.
         rect                           overline;  // font: Overline rectangle block within the cell.
 
@@ -691,8 +679,9 @@ namespace netxs::gui
                 auto& f = fallback.front().fontface.front();
                 underline = f.underline;
                 strikeout = f.strikeout;
+                doubline1 = f.doubline1;
+                doubline2 = f.doubline2;
                 overline  = f.overline;
-                doubline  = f.doubline;
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
@@ -1186,14 +1175,11 @@ namespace netxs::gui
                 }
                 else if (u == unln::biline)
                 {
-                    //todo precalc: doubline1/doubline2
-                    auto block = fcache.doubline;
-                    block.coor += placeholder.coor + target.coor();
-                    auto b1 = block;
-                    auto b2 = block;
-                    b2.size.y = fcache.underline.size.y;
-                    b1.size.y = b2.size.y;
-                    b2.coor.y = block.coor.y + block.size.y - b2.size.y;
+                    auto b1 = fcache.doubline1;
+                    auto b2 = fcache.doubline2;
+                    auto offset = placeholder.coor + target.coor();
+                    b1.coor += offset;
+                    b2.coor += offset;
                     netxs::onrect(target, b1, cell::shaders::full(color));
                     netxs::onrect(target, b2, cell::shaders::full(color));
                 }
