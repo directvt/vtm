@@ -1406,8 +1406,18 @@ namespace netxs::gui
         void sync_taskbar(si32 new_state)
         {
             if (layers.empty()) return;
-            ::ShowWindow(layers.front().hWnd, new_state == state::minimized ? SW_MINIMIZE                // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
-                                            : new_state == state::maximized ? SW_MAXIMIZE : SW_RESTORE); //
+            if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+            {
+                ::ShowWindow(layers.front().hWnd, SW_MINIMIZE);
+            }
+            else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
+            {
+                //todo It doesn't work that way. Sync with system ctx menu.
+                //auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+                //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
+                //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
+            }
+            else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
         }
         void run()
         {
@@ -2434,13 +2444,13 @@ namespace netxs::gui
             //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
             switch (menucmd)
             {
-                case syscmd::minimize:     set_state(state::minimized); break;
-                case syscmd::maximize:     set_state(state::maximized); break;
-                case syscmd::restore:      set_state(state::normal);    break;
+                case syscmd::maximize: set_state(fsmode == state::maximized ? state::normal : state::maximized); break;
+                case syscmd::minimize: set_state(state::minimized); break;
+                case syscmd::restore:  set_state(state::normal);    break;
                 //todo implement
                 //case syscmd::move:          break;
                 //case syscmd::monitorpower:  break;
-                case syscmd::close:        manager::close();             break;
+                case syscmd::close: manager::close(); break;
             }
         }
         auto send(auto ...)
