@@ -1179,10 +1179,17 @@ namespace netxs::gui
                 }
                 else if (u == unln::dotted)
                 {
-                    //todo
                     auto block = fcache.underline;
                     block.coor += placeholder.coor + target.coor();
-                    netxs::onrect(target, block, cell::shaders::full(color));
+                    auto limit = block.coor.x + block.size.x;
+                    block.size.x = std::max(2, block.size.y);
+                    auto stepx = 3 * block.size.x;
+                    block.coor.x -= placeholder.coor.x % stepx;
+                    while (block.coor.x < limit)
+                    {
+                        netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
+                        block.coor.x += stepx;
+                    }
                 }
                 else if (u == unln::dashed)
                 {
