@@ -237,6 +237,8 @@ namespace netxs::gui
                 rect              doubline2{}; // font: The second line of the double underline: at the bottom.
                 rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
                 rect              overline{};  // face_rec: Overline rectangle block within the cell.
+                rect              dashline{};  // face_rec: Dashed underline rectangle block within the cell.
+                rect              wavyline{};  // face_rec: Wavy underline outer rectangle block within the cell.
             };
             std::vector<face_rec>             fontface;
             fp32                              base_descent{};
@@ -409,6 +411,17 @@ namespace netxs::gui
                 auto strikeout3 = rect{{ 0, strikeout2.x }, { cellsize.x, strikeout2.y }};
                 auto od = overline2.y - underline3.size.y;
                 auto overline3 = rect{{ 0, overline2.x + od }, underline3.size };
+                auto dashpad_l = underline3.size.y;
+                auto dashpad_r = underline3.size.y;
+                auto dashpad_s = cellsize.x - dashpad_l * 2;
+                if (dashpad_s < 1)
+                {
+                    dashpad_l = 1;
+                    dashpad_s = std::max(1, cellsize.x - dashpad_l);
+                    dashpad_r = std::max(0, cellsize.x - dashpad_l - dashpad_s);
+                    dashpad_l = std::max(0, cellsize.x - dashpad_r - dashpad_s);
+                }
+                auto dashline3 = rect{{ dashpad_l, underline2.x }, { dashpad_s, underline3.size.y }};
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
                 for (auto& f : fontface)
                 {
@@ -416,12 +429,14 @@ namespace netxs::gui
                     f.underline = underline3;
                     f.strikeout = strikeout3;
                     f.overline = overline3;
+                    f.dashline = dashline3;
                     auto r1 = doubline3;
                     r1.size.y = underline3.size.y;
                     auto r2 = r1;
                     r2.coor.y += doubline3.size.y - r2.size.y;
                     f.doubline1 = r1;
                     f.doubline2 = r2;
+                    f.wavyline = doubline3;
                 }
                 for (auto s : { style::normal, style::bold })
                 {
@@ -501,7 +516,9 @@ namespace netxs::gui
         rect                           doubline1; // font: The first line of the double underline: at the top of the rect.
         rect                           doubline2; // font: The second line of the double underline: at the bottom.
         rect                           strikeout; // font: Strikethrough rectangle block within the cell.
-        rect                           overline;  // font: Overline rectangle block within the cell.
+        rect                           overline; // font: Overline rectangle block within the cell.
+        rect                           dashline; // font: Dashed underline rectangle block within the cell.
+        rect                           wavyline; // font: Wavy underline outer rectangle block within the cell.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -679,6 +696,8 @@ namespace netxs::gui
                 doubline1 = f.doubline1;
                 doubline2 = f.doubline2;
                 overline  = f.overline;
+                dashline  = f.dashline;
+                wavyline  = f.wavyline;
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
@@ -1160,13 +1179,14 @@ namespace netxs::gui
                 }
                 else if (u == unln::dotted)
                 {
+                    //todo
                     auto block = fcache.underline;
                     block.coor += placeholder.coor + target.coor();
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
                 else if (u == unln::dashed)
                 {
-                    auto block = fcache.underline;
+                    auto block = fcache.dashline;
                     block.coor += placeholder.coor + target.coor();
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
@@ -1182,7 +1202,8 @@ namespace netxs::gui
                 }
                 else if (u == unln::wavy)
                 {
-                    auto block = fcache.underline;
+                    //todo
+                    auto block = fcache.wavyline;
                     block.coor += placeholder.coor + target.coor();
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
