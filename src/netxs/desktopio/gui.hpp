@@ -387,23 +387,20 @@ namespace netxs::gui
                             vertpos = baseline_y + 2;
                             between = 1;
                             bheight = cellsize.y - vertpos - between;
-                            if (bheight < 3)
+                                 if (bheight >= 3) bheight /= 2;
+                            else if (bheight == 2) bheight--;
+                            else if (bheight == 1) vertpos--;
+                            else
                             {
-                                     if (bheight == 2) bheight--;
-                                else if (bheight == 1) vertpos--;
+                                between = 0;
+                                bheight = cellsize.y - vertpos;
+                                if (bheight == 1) vertpos--;
                                 else
                                 {
-                                    between = 0;
-                                    bheight = cellsize.y - vertpos;
-                                    if (bheight == 1) vertpos--;
-                                    else
-                                    {
-                                        vertpos = std::min(vertpos - 1, underline2.x);
-                                        bheight = 0;
-                                    }
+                                    vertpos = std::min(vertpos - 1, underline2.x);
+                                    bheight = 0;
                                 }
                             }
-                            else bheight /= 2;
                         }
                     }
                 }
