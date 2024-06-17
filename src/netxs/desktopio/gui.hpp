@@ -1209,10 +1209,40 @@ namespace netxs::gui
                 }
                 else if (u == unln::wavy)
                 {
-                    //todo
+                    //todo optimize
                     auto block = fcache.wavyline;
                     block.coor += placeholder.coor + target.coor();
-                    netxs::onrect(target, block, cell::shaders::full(color));
+                    auto width = fcache.underline.size.y;
+                    auto vsize = std::max(1, block.size.y - width + 1) / 2.f;
+                    auto y0 = block.coor.y + vsize;
+                    vsize *= 0.99f;
+                    auto start = block.coor.x;
+                    auto limit = start + block.size.x;
+                    auto fract = width * 3 + width % 2;
+                    auto k = 3.14159265359f / 2.f / fract;
+                    block.size.x = 1;
+                    block.size.y = width;
+                    block.coor.x -= block.coor.x % (fract * 4);
+                    while (block.coor.x < limit)
+                    {
+                        for (auto x = 0; x < fract; x++)
+                        {
+                            auto p = block;
+                            p.coor.y = (si32)(y0 - std::sin(k * (x)) * vsize - 0.00001f);
+                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
+                            p.coor.x += fract;
+                            p.coor.y = (si32)(y0 - std::sin(k * (fract - x)) * vsize - 0.00001f);
+                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
+                            p.coor.x += fract;
+                            p.coor.y = (si32)(y0 + std::sin(k * (x)) * vsize + 0.00001f);
+                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
+                            p.coor.x += fract;
+                            p.coor.y = (si32)(y0 + std::sin(k * (fract - x)) * vsize + 0.00001f);
+                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
+                            block.coor.x++;
+                        }
+                        block.coor.x += fract * 3;
+                    }
                 }
                 else
                 {
