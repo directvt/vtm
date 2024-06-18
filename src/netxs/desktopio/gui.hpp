@@ -1503,6 +1503,14 @@ namespace netxs::gui
             for (auto& w : layers) w.reset();
         }
 
+        auto get_window_title()
+        {
+            auto hWnd = layers.front().hWnd;
+            auto size = ::GetWindowTextLengthW(hWnd);
+            auto crop = wide(size, '\0');
+            ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
+            return utf::to_utf(crop);
+        }
         void set_window_title(view utf8)
         {
             ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data());
@@ -1545,12 +1553,22 @@ namespace netxs::gui
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
-        void dispatch()
+        void dispatch(os::fire& alarm)
         {
-            auto msg = MSG{};
-            while (::GetMessageW(&msg, 0, 0, 0) > 0)
+            auto stop = os::fd_t{ alarm };
+            auto next = MSG{};
+            while (next.message != WM_QUIT)
             {
-                ::DispatchMessageW(&msg);
+                if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT); yield == WAIT_OBJECT_0)
+                {
+                    manager::close();
+                    //::DestroyWindow(hWnd);
+                    break;
+                }
+                while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                {
+                    ::DispatchMessageW(&next);
+                }
             }
         }
         void activate()
@@ -1630,6 +1648,7 @@ namespace netxs::gui
         virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
+        virtual void sync_clipboard() = 0;
 
         auto add(manager* host_ptr = nullptr)
         {
@@ -1690,9 +1709,25 @@ namespace netxs::gui
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
-                    case WM_DESTROY:       ::PostQuitMessage(0);                       break;
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    case WM_CREATE: ::AddClipboardFormatListener(hWnd); break;
+                    case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
+                    case WM_DESTROY: ::RemoveClipboardFormatListener(hWnd);
+                                     ::PostQuitMessage(0);
+                                     //if (alive.exchange(faux))
+                                     //{
+                                     //    os::signals::place(os::signals::close); // taskkill /pid nnn
+                                     //}
+                                     break;
+                    //case WM_ENDSESSION:
+                    //    if (wParam && alive.exchange(faux))
+                    //    {
+                    //             if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                    //        else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                    //        else                                   os::signals::place(os::signals::shutdown);
+                    //    }
+                    //    break;
                     default:
                     //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                     stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
@@ -1939,6 +1974,7 @@ namespace netxs::gui
             print_font_list();
             refillgrid();
 
+            sync_clipboard();
             update();
             manager::set_window_title(header_page.to_utf8());
             manager::run();
@@ -2641,27 +2677,36 @@ namespace netxs::gui
                 case syscmd::close: manager::close(); break;
             }
         }
-        auto send(auto ...)
+        void sync_clipboard()
         {
-            //...
-            return faux;
+            auto gridsz = layers[blinky].area.size / cellsz;
+            os::clipboard::sync(layers[client].hWnd, os::tty::binary::proxy(), os::dtvt::client, gridsz);
         }
-        auto recv()
+        void start()
         {
-            //...
-            return ""s;
+            auto& proxy = os::tty::binary::proxy();
+            auto& intio = *os::dtvt::client;
+            auto title = get_window_title();
+            proxy.header.set(id_t{}, title);
+            proxy.footer.set(id_t{}, ""s);
+            proxy.mousebar.send(intio, !!(os::dtvt::vtmode & ui::console::mouse));
+
+            auto alarm = os::fire{};
+            auto alive = flag{ true };
+            auto keybd = [&](auto& data){ if (alive)                proxy.syskeybd.send(intio, data); };
+            auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
+            auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
+            auto focus = [&](auto& data){ if (alive)                proxy.sysfocus.send(intio, data); };
+            auto paste = [&](auto& data){ if (alive)                proxy.syspaste.send(intio, data); };
+            auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
+            //auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
+            auto clips = std::thread{ [&]{ dispatch(alarm); } };
+            directvt::binary::stream::reading_loop(intio, [&](view data){ proxy.sync(data); });
+            proxy.stop(); // Wake up waiting objects, if any.
+            alarm.bell(); // Forced to call close().
+            clips.join();
+            //input.join(); // Wait close() to complete.
+            intio.shut(); // Close link to server.
         }
-        auto shut()
-        {
-            //...
-        }
-        //void native()
-        //{
-        //    static auto proxy = os::tty::binary::adapter{}; // Serialization proxy.
-        //    auto& intio = *os::dtvt::client;
-        //    proxy.header.set(id_t{}, title);
-        //    proxy.footer.set(id_t{}, ""s);
-        //    proxy.mousebar.send(intio, !!(os::dtvt::vtmode & ui::console::mouse));
-        //}
     };
 }

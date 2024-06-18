@@ -1946,6 +1946,7 @@ namespace netxs::os
 
             void sync(HWND hWnd, auto& proxy, auto& client, twod& window_size)
             {
+                if (!client) return;
                 auto sync = [&](qiew utf8, auto form)
                 {
                     auto meta = qiew{};

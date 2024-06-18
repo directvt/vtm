@@ -541,12 +541,7 @@ namespace netxs::app::shared
         if (auto window = gui::window{ os::dtvt::window, fontlist, cellsize, winstate, aliasing, blinking, testtext })
         {
             if constexpr (debugmode) os::logstd("dtvt::window=", os::dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", datetime::round<si32>(blinking));
-            auto thread = std::thread{ [&]
-            {
-                os::tty::direct(window);
-            }};
-            window.dispatch();
-            thread.join();
+            window.start();
         }
     }
     void splice(xipc client, xmls& config)
