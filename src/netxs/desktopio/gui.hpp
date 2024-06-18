@@ -1553,11 +1553,10 @@ namespace netxs::gui
                 ::DispatchMessageW(&msg);
             }
         }
-        //void activate()
-        //{
-        //    if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
-        //    log("activated");
-        //}
+        void activate()
+        {
+            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+        }
         //void shown_event(bool shown, arch reason)
         //{
         //    log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
@@ -2603,6 +2602,7 @@ namespace netxs::gui
         {
             log(focused ? "focused" : "unfocused");
             active = focused;
+            if (active) activate();
         }
         //void state_event(bool activated, bool minimized)
         //{
