@@ -1503,6 +1503,10 @@ namespace netxs::gui
             for (auto& w : layers) w.reset();
         }
 
+        void set_window_title(view utf8)
+        {
+            ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data());
+        }
         void set_dpi_awareness()
         {
             auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
@@ -1787,6 +1791,11 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
 
+
+        void set_window_title(view /*utf8*/)
+        {
+            //...
+        }
         auto add(auto ...)
         {
             //...
@@ -1932,6 +1941,7 @@ namespace netxs::gui
             refillgrid();
 
             update();
+            manager::set_window_title(header_page.to_utf8());
             manager::run();
         }
         void sync_titles_pixel_layout()
@@ -2120,7 +2130,6 @@ namespace netxs::gui
             auto gridsz = layers[blinky].area.size / cellsz;
             main_grid.size(gridsz);
             blink_synch.assign(main_grid.volume(), 0);
-            blink_count = 0;
             if (fsmode != state::maximized)
             {
                 //test
@@ -2248,7 +2257,8 @@ namespace netxs::gui
         {
             auto canvas = layers[index].canvas(true);
             auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
-            gcache.fill_grid(canvas, blinks, blink_count, shadow_dent.corner(), facedata);
+            auto title_blink_count = 0;
+            gcache.fill_grid(canvas, blinks, title_blink_count, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
             layers[index].sync.push_back({ .size = canvas.size() });
         }
