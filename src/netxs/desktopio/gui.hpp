@@ -785,6 +785,11 @@ namespace netxs::gui
                   fill{       }
             { }
         };
+        struct synthetic
+        {
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto wavyunderline = __COUNTER__ - _counter;
+        };
 
         using gmap = std::unordered_map<ui64, sprite>;
 
@@ -794,6 +799,7 @@ namespace netxs::gui
         twod& cellsz; // glyf: Terminal cell size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
+        std::vector<sprite>                          cgi_glyphs; // glyf: Synthetic glyphs.
         wide                                         text_utf16; // glyf: UTF-16 buffer.
         std::vector<utf::prop>                       codepoints; // glyf: .
         std::vector<ui16>                            clustermap; // glyf: .
@@ -809,11 +815,56 @@ namespace netxs::gui
             : fcache{ fcache },
               cellsz{ fcache.cellsize },
               aamode{ aamode }
-        { }
+        {
+            generate_glyphs();
+        }
+        void generate_glyphs()
+        {
+            // Generate wavy underline.
+            auto block = fcache.wavyline;
+            auto height = block.size.y;
+            auto thick = fcache.underline.size.y;
+            auto vsize = std::max(1, block.size.y - thick + 1) / 2.f; // Vertical space/amp for wave.
+            auto y0 = block.coor.y + vsize;
+            vsize *= 0.99f; // Make the wave amp a little smaller to aviod pixels get outside.
+            auto fract = (thick * 3) & ~1; // &~1: To make it look better for small sizes.
+            auto width = block.size.x + fract * 4; // Bump for texture sliding.
+            auto k = 3.14f / 2.f / fract; // Aling fract with the sine period.
+            block.size.x = 1;
+            block.size.y = thick;
+            auto c = byte{ 255 }; // Opaque alpha texture.
+            auto& m = cgi_glyphs.emplace_back(buffer_pool);
+            m.area = {{ 0, block.coor.y }, { width, height }};
+            m.type = sprite::alpha;
+            m.bits.resize(m.area.length());
+            auto raster = m.raster<byte>();
+            while (block.coor.x < width)
+            {
+                for (auto x = 0; x < fract; x++) // Split the sine wave on four parts in order to keep absolute pixel symmetry.
+                {
+                    auto p = block;
+                    p.coor.y = (si32)(y0 - std::sin(k * (x)) * vsize - 0.00001f); // -0.00001f: To move first pixel up (x=0).
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 - std::sin(k * (fract - x)) * vsize - 0.00001f);
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 + std::sin(k * (x)) * vsize + 0.00001f); // +0.00001f: To move first pixel down.
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 + std::sin(k * (fract - x)) * vsize + 0.00001f);
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    block.coor.x++;
+                }
+                block.coor.x += fract * 3;
+            }
+        }
         void reset()
         {
             glyphs.clear();
+            cgi_glyphs.clear();
             mono_buffer.release();
+            generate_glyphs();
         }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
@@ -1148,6 +1199,48 @@ namespace netxs::gui
                 glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
             }
         }
+        void draw_glyf(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
+        {
+            auto box = glyph_mask.area.shift(offset);
+            auto f_fgc = irgb{ fgc }.sRGB2Linear();
+            if (glyph_mask.type == sprite::color)
+            {
+                auto fx = [fgc, f_fgc](argb& dst, irgb src)
+                {
+                         if (src.a == 0.f) return;
+                    else if (src.a == 1.f) dst = src.linear2sRGB();
+                    else if (src.a < 256.f + 255.f)
+                    {
+                        auto f_dst = irgb{ dst }.sRGB2Linear();
+                        if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
+                        {
+                            auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
+                            src.a -= (si32)src.a;
+                            f_dst.blend_nonpma(f_fgc, fgc_alpha);
+                        }
+                        dst = f_dst.blend_pma(src).linear2sRGB();
+                    }
+                    else dst = fgc; // src.a >= 256 + 255.f
+                };
+                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
+                netxs::onclip(canvas, raster, fx);
+            }
+            else
+            {
+                auto fx = [fgc, f_fgc](argb& dst, byte src)
+                {
+                         if (src == 0) return;
+                    else if (src == 255) dst = fgc;
+                    else
+                    {
+                        auto f_dst = irgb{ dst }.sRGB2Linear();;
+                        dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
+                    }
+                };
+                auto raster = netxs::raster{ glyph_mask.bits, box };
+                netxs::onclip(canvas, raster, fx);
+            }
+        }
         void draw_cell(auto& canvas, auto& blinks, twod coor, cell const& c)
         {
             auto placeholder = canvas.area().trim(rect{ coor, cellsz });
@@ -1209,40 +1302,11 @@ namespace netxs::gui
                 }
                 else if (u == unln::wavy)
                 {
-                    //todo optimize
-                    auto block = fcache.wavyline;
-                    block.coor += placeholder.coor + target.coor();
-                    auto width = fcache.underline.size.y;
-                    auto vsize = std::max(1, block.size.y - width + 1) / 2.f;
-                    auto y0 = block.coor.y + vsize;
-                    vsize *= 0.99f;
-                    auto start = block.coor.x;
-                    auto limit = start + block.size.x;
-                    auto fract = width * 3 + width % 2;
-                    auto k = 3.14159265359f / 2.f / fract;
-                    block.size.x = 1;
-                    block.size.y = width;
-                    block.coor.x -= block.coor.x % (fract * 4);
-                    while (block.coor.x < limit)
-                    {
-                        for (auto x = 0; x < fract; x++)
-                        {
-                            auto p = block;
-                            p.coor.y = (si32)(y0 - std::sin(k * (x)) * vsize - 0.00001f);
-                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
-                            p.coor.x += fract;
-                            p.coor.y = (si32)(y0 - std::sin(k * (fract - x)) * vsize - 0.00001f);
-                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
-                            p.coor.x += fract;
-                            p.coor.y = (si32)(y0 + std::sin(k * (x)) * vsize + 0.00001f);
-                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
-                            p.coor.x += fract;
-                            p.coor.y = (si32)(y0 + std::sin(k * (fract - x)) * vsize + 0.00001f);
-                            netxs::onrect(target, p.trim(placeholder), cell::shaders::full(color));
-                            block.coor.x++;
-                        }
-                        block.coor.x += fract * 3;
-                    }
+                    auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
+                    auto offset = placeholder.coor + target.coor();
+                    auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
+                    offset.x -= offset.x % fract4;
+                    draw_glyf(target, wavy_raster, offset, fgc);
                 }
                 else
                 {
@@ -1280,46 +1344,8 @@ namespace netxs::gui
 
             auto [w, h, x, y] = c.whxy();
             if (x == 0 || y == 0) return;
-            auto box = glyph_mask.area.shift(placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-
-            auto f_fgc = irgb{ fgc }.sRGB2Linear();
-            if (glyph_mask.type == sprite::color)
-            {
-                auto fx = [fgc, f_fgc](argb& dst, irgb src)
-                {
-                         if (src.a == 0.f) return;
-                    else if (src.a == 1.f) dst = src.linear2sRGB();
-                    else if (src.a < 256.f + 255.f)
-                    {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();
-                        if (src.a > 256.f) // Alpha contains non-zero integer for fgc's aplha.
-                        {
-                            auto fgc_alpha = netxs::saturate_cast<byte>(src.a - 256.f);
-                            src.a -= (si32)src.a;
-                            f_dst.blend_nonpma(f_fgc, fgc_alpha);
-                        }
-                        dst = f_dst.blend_pma(src).linear2sRGB();
-                    }
-                    else dst = fgc; // src.a >= 256 + 255.f
-                };
-                auto raster = netxs::raster{ std::span{ (irgb*)glyph_mask.bits.data(), (size_t)glyph_mask.area.length() }, box };
-                netxs::onclip(target, raster, fx);
-            }
-            else
-            {
-                auto fx = [fgc, f_fgc](argb& dst, byte src)
-                {
-                         if (src == 0) return;
-                    else if (src == 255) dst = fgc;
-                    else
-                    {
-                        auto f_dst = irgb{ dst }.sRGB2Linear();;
-                        dst = f_dst.blend_nonpma(f_fgc, src).linear2sRGB();
-                    }
-                };
-                auto raster = netxs::raster{ glyph_mask.bits, box };
-                netxs::onclip(target, raster, fx);
-            }
+            auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
+            draw_glyf(target, glyph_mask, offset, fgc);
         }
         void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
         {
@@ -1935,11 +1961,11 @@ namespace netxs::gui
         void change_cell_size(fp32 dy = {})
         {
             reset_blinky();
-            gcache.reset();
             auto grip_cell = gripsz / cellsz;
             height += dy;
             auto prev_cellsz = cellsz;
             fcache.set_cellsz((si32)height);
+            gcache.reset();
             gripsz = grip_cell * cellsz;
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == state::maximized)
