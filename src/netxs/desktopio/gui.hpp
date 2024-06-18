@@ -2655,5 +2655,13 @@ namespace netxs::gui
         {
             //...
         }
+        //void native()
+        //{
+        //    static auto proxy = os::tty::binary::adapter{}; // Serialization proxy.
+        //    auto& intio = *os::dtvt::client;
+        //    proxy.header.set(id_t{}, title);
+        //    proxy.footer.set(id_t{}, ""s);
+        //    proxy.mousebar.send(intio, !!(os::dtvt::vtmode & ui::console::mouse));
+        //}
     };
 }
