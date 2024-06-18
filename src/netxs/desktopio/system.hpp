@@ -4654,6 +4654,12 @@ namespace netxs::os
                       proc{  proc }
                 { }
             };
+
+            auto& proxy()
+            {
+                static auto proxy = os::tty::binary::adapter{}; // Serialization proxy.
+                return proxy;
+            }
         }
         auto logger()
         {
@@ -5576,14 +5582,9 @@ namespace netxs::os
             if constexpr (debugmode) log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             close(c);
         }
-        auto& get_proxy()
-        {
-            static auto proxy = os::tty::binary::adapter{}; // Serialization proxy.
-            return proxy;
-        }
         auto legacy()
         {
-            auto& proxy = get_proxy();
+            auto& proxy = binary::proxy();
             auto clipbd = []([[maybe_unused]] auto& alarm)
             {
                 if constexpr (debugmode) log(prompt::tty, "Clipboard sync started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
@@ -5600,7 +5601,7 @@ namespace netxs::os
                                 ok(::AddClipboardFormatListener(hWnd), "::AddClipboardFormatListener()", os::unexpected);
                                 // Continue processing the switch to initialize the clipboard state after startup.
                             case WM_CLIPBOARDUPDATE:
-                                os::clipboard::sync(hWnd, get_proxy(), dtvt::client, dtvt::window.size);
+                                os::clipboard::sync(hWnd, binary::proxy(), dtvt::client, dtvt::window.size);
                                 break;
                             case WM_DESTROY:
                                 ok(::RemoveClipboardFormatListener(hWnd), "::RemoveClipboardFormatListener()", os::unexpected);
