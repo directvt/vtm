@@ -4560,7 +4560,13 @@ namespace netxs::os
                         auto update = noop{};
                     #endif
                     bitmap.get(data, update);
-                    bitmap.newgc.clear(); // Ignore jumbo clusters.
+                    s11n::request_jgc(dtvt::client, lock);
+                    //bitmap.newgc.clear(); // Ignore jumbo clusters.
+                }
+                void handle(s11n::xs::jgc_list         lock)
+                {
+                    s11n::receive_jgc(lock);
+                    //todo trigger to redraw viewport to update jumbo clusters
                 }
                 void handle(s11n::xs::header_request /*lock*/)
                 {

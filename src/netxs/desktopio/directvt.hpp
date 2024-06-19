@@ -1383,6 +1383,8 @@ namespace netxs::directvt
             #undef X
 
             std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
+            escx s11n_output; // s11n: Logs buffer.
+            escx s11n_logpad; // s11n: Logs left margin.
 
             // s11n: Deserialize objects.
             void sync(view& data)
@@ -1396,6 +1398,55 @@ namespace netxs::directvt
                         iter->second(frame.data);
                     }
                     else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
+                }
+            }
+            // s11n: Request jumbo clusters (after received bitmap synchronization).
+            void request_jgc(auto& master, s11n::xs::bitmap_dtvt& lock)
+            {
+                auto& bitmap = lock.thing;
+                if (bitmap.newgc.size())
+                {
+                    auto list = s11n::request_gc.freeze();
+                    for (auto& gc_map : bitmap.newgc)
+                    {
+                        list.thing.push(gc_map.first);
+                    }
+                    bitmap.newgc.clear();
+                    list.thing.sendby(master);
+                }
+            }
+            // s11n: Receive jumbo clusters.
+            void receive_jgc(s11n::xs::jgc_list& lock)
+            {
+                auto jumbos = cell::glyf::jumbos();
+                for (auto& jgc : lock.thing)
+                {
+                    jumbos.set(jgc.token, jgc.cluster);
+                    if constexpr (debugmode) log(prompt::s11n, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                }
+            }
+            // s11n: Recycle logs.
+            void recycle_log(s11n::xs::logs& lock, auto process_guid)
+            {
+                if (lock.thing.guid != process_guid) // To avoid overflow on recursive dtvt connections.
+                {
+                    auto utf8 = view{ lock.thing.data };
+                    if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    if (lock.thing.id == 0) // Message from our process.
+                    {
+                        log(utf8);
+                    }
+                    else
+                    {
+                        s11n_logpad.add(prompt::pads, lock.thing.id, ": "); // Local host pid and remote host pid can be different. It is different if sshed.
+                        utf::split(utf8, '\n', [&](auto line)
+                        {
+                            s11n_output.add(s11n_logpad, line, '\n');
+                        });
+                        log<faux>(s11n_output);
+                        s11n_output.clear();
+                        s11n_logpad.clear();
+                    }
                 }
             }
             // s11n: Wake up waiting objects.
