@@ -906,7 +906,8 @@ namespace netxs::gui
             auto face_inst = f.fontface[format].face_inst;
             if (!face_inst) return;
             auto is_box_drawing = (base_char >= 0x2320  && base_char <= 0x23D0)   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
-                               || (base_char >= 0x2500  && base_char <= 0x25FF)   // Box Elements
+                               || (base_char >= 0x2500  && base_char <  0x259F)   // Box Elements
+                               //|| (base_char >= 0x25A0  && base_char <= 0x25FF)   // Geometric Shapes
                                || (base_char >= 0xE0B0  && base_char <= 0xE0B3)   // Powerline Arrows
                                || (base_char >= 0x1CC00 && base_char <= 0x1CEBF)  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
                                || (base_char >= 0x1F67C && base_char <= 0x1F67F)  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
