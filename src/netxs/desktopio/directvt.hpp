@@ -1449,6 +1449,24 @@ namespace netxs::directvt
                     }
                 }
             }
+            // s11n: Recycle clipboard request.
+            void recycle_cliprequest(auto& master, s11n::xs::clipdata_request& lock)
+            {
+                auto& item = lock.thing;
+                auto data = s11n::clipdata.freeze();
+                if (data.thing.hash != item.hash)
+                {
+                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                }
+                else // Send without payload if hash the same.
+                {
+                    auto temp = std::move(data.thing.utf8);
+                    data.thing.set();
+                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.thing.utf8 = std::move(temp);
+                    data.thing.set();
+                }
+            }
             // s11n: Wake up waiting objects.
             void stop(bool alive = faux)
             {

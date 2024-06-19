@@ -1825,7 +1825,11 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
 
-
+        auto get_window_title()
+        {
+            //...
+            return ""s;
+        }
         void set_window_title(view /*utf8*/)
         {
             //...
@@ -1870,7 +1874,11 @@ namespace netxs::gui
         {
             //...
         }
-        void dispatch()
+        void dispatch(os::fire& /*alarm*/)
+        {
+            //...
+        }
+        void activate()
         {
             //...
         }

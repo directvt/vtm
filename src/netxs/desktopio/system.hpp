@@ -2025,6 +2025,11 @@ namespace netxs::os
                 }
                 ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
             }
+        #else
+            void sync(auto&&...)
+            {
+                //...
+            }
         #endif
 
         auto set(input::clipdata& clipdata)
@@ -4608,20 +4613,7 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::clipdata_request lock)
                 {
-                    auto& item = lock.thing;
-                    auto data = s11n::clipdata.freeze();
-                    if (data.thing.hash != item.hash)
-                    {
-                        data.thing.sendby<faux, faux>(dtvt::client);
-                    }
-                    else // Send without payload if hash the same.
-                    {
-                        auto temp = std::move(data.thing.utf8);
-                        data.thing.set();
-                        data.thing.sendby<faux, faux>(dtvt::client);
-                        data.thing.utf8 = std::move(temp);
-                        data.thing.set();
-                    }
+                    s11n::recycle_cliprequest(dtvt::client, lock);
                 }
 
                 adapter()
