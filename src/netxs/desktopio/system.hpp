@@ -4549,37 +4549,18 @@ namespace netxs::os
                 void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
                     auto& bitmap = lock.thing;
-                    if (os::dtvt::vtmode & ui::console::gui)
-                    {
-                        //todo gui-bridge
-                        //auto update = [](auto size, auto head, auto iter, auto tail)
-                        //{
-                        //    #if defined(_WIN32)
-                        //        auto offset = (si32)(iter - head);
-                        //        auto coor = twod{ offset % size.x, offset / size.x };
-                        //        //todo update client area
-                        //    #else
-                        //        auto offset = (si32)(iter - head);
-                        //        auto coor = twod{ offset % size.x, offset / size.x };
-                        //        //todo update client area
-                        //    #endif
-                        //};
-                        //bitmap.get(data, update);
-                    }
-                    else
-                    {
-                        #if defined(_WIN32)
-                            auto update = [](auto size, auto head, auto iter, auto tail)
-                            {
-                                auto offset = (si32)(iter - head);
-                                auto coor = twod{ offset % size.x, offset / size.x };
-                                nt::console::print<svga::vt16>(size, coor, iter, tail);
-                            };
-                        #else
-                            auto update = noop{};
-                        #endif
-                        bitmap.get(data, update);
-                    }
+                    #if defined(_WIN32)
+                        auto update = [](auto size, auto head, auto iter, auto tail)
+                        {
+                            auto offset = (si32)(iter - head);
+                            auto coor = twod{ offset % size.x, offset / size.x };
+                            nt::console::print<svga::vt16>(size, coor, iter, tail);
+                        };
+                    #else
+                        auto update = noop{};
+                    #endif
+                    bitmap.get(data, update);
+                    bitmap.newgc.clear(); // Ignore jumbo clusters.
                 }
                 void handle(s11n::xs::header_request /*lock*/)
                 {
