@@ -905,13 +905,13 @@ namespace netxs::gui
             auto& f = fcache.take_font(base_char);
             auto face_inst = f.fontface[format].face_inst;
             if (!face_inst) return;
-            auto is_box_drawing = (base_char >= 0x2320  && base_char <= 0x23D0)   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
-                               || (base_char >= 0x2500  && base_char <  0x259F)   // Box Elements
-                               //|| (base_char >= 0x25A0  && base_char <= 0x25FF)   // Geometric Shapes
-                               || (base_char >= 0xE0B0  && base_char <= 0xE0B3)   // Powerline Arrows
-                               || (base_char >= 0x1CC00 && base_char <= 0x1CEBF)  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
-                               || (base_char >= 0x1F67C && base_char <= 0x1F67F)  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
-                               || (base_char >= 0x1FB00 && base_char <= 0x1FBFF); // Symbols for Legacy Computing
+            auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
+                              || (base_char >= 0x2500  && (base_char <  0x259F   // Box Elements
+                              //|| (base_char >= 0x25A0  && (base_char <= 0x25FF   // Geometric Shapes
+                              || (base_char >= 0xE0B0  && (base_char <= 0xE0B3   // Powerline Arrows
+                              || (base_char >= 0x1CC00 && (base_char <= 0x1CEBF  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
+                              || (base_char >= 0x1F67C && (base_char <= 0x1F67F  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
+                              || (base_char >= 0x1FB00 && (base_char <= 0x1FBFF))))))))))); // Symbols for Legacy Computing
             auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
             auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
             auto base_line = f.fontface[format].base_line;
