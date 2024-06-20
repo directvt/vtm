@@ -76,122 +76,6 @@ namespace netxs::gui
             }
         }
     };
-
-    //test strings
-    template<auto ...Args>
-    constexpr auto vss = utf::matrix::vss<Args...>;
-    auto intro = ansi::add("").wrp(wrap::on).fgc(purecyan)
-        .add("\2Hello", utf::vs10, vss<11>, "\n")
-        .add("        LeftDrag: Move window.\n"
-             "       RightDrag: Panoramic scrolling.\n"
-             "           Wheel: Vertical scrolling.\n"
-             "         HzWheel: Horizontal scrolling.\n"
-             "      Ctrl+Wheel: Change cell height.\n"
-             "F11/DblLeftClick: Toggle fullsceen mode.\n"
-             "               A: Toggle antialiasing mode.\n"
-             "               0: Roll font fallback list.\n"
-             "             1-9: Reorder font fallback list.\n"
-             "             ESC: Close window.\n\n");
-    auto canvas_text = ansi::add("\n").blk(true).bld(faux).wrp(wrap::on).fgc(purecyan)
-        .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
-        .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
-        .add("             ⎝⎩\n")
-        .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
-            .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
-        .fgc(tint::purecyan).add(
-R"==(
-CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
-)==")
-        .add("\nThai sentence: สวัสดี ครับ\n")
-        .fgc(tint::purecyan)
-        .add(
-R"==(
-Box drawing alignment tests:                                          █
-                                                                      ▉
-  ╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    ▊ ╱╲╱╲╳╳╳
-  ║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▋ ╲╱╲╱╳╳╳
-  ║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▌ ╱╲╱╲╳╳╳
-  ╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▍ ╲╱╲╱╳╳╳
-  ║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▎
-  ║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▏
-  ╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋  ▁▂▃▄▅▆▇█
-)==")
-        .add(
-R"==(
-Using large type pieces:
-𜸜 𜸜𜸚𜸟𜸤𜸜𜸝𜸢𜸜𜸚𜸟𜸤  𜸜  𜸚𜸟𜸤𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸥  𜸞𜸠𜸥𜸜 𜸜𜸛𜸟𜸤𜸛𜸟𜸥  𜸛𜸟𜸤𜸜𜸛𜸟𜸥𜸚𜸟𜸤𜸛𜸟𜸥𜸚𜸟𜸤
-𜸩 𜸩𜸾𜸟𜸤𜸩𜸩𜸫𜸹𜸩 𜸧  𜸩  𜸨𜸟𜸶𜸨𜸟𜸷𜸩 𜸧𜸨𜸟    𜸩 𜸫𜸳𜸻𜸨𜸟𜹃𜸨𜸟   𜸨𜸟𜹃𜸩𜸨𜸟 𜸩  𜸨𜸟 𜸾𜸟𜸤
-𜸾𜸟𜹃𜸾𜸟𜹃𜸼𜸼 𜸼𜸾𜸟𜹃  𜸽𜸟𜸥𜸼 𜸼𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜸥   𜸼  𜸼 𜸼  𜸽𜸟𜸥  𜸼  𜸼𜸽𜸟𜸥𜸾𜸟𜹃𜸽𜸟𜸥𜸾𜸟𜹃
-
-𜸜𜸝𜸢𜸜𜸞𜸠𜸥𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸤𜸜 𜸜𜸚𜸟𜸤𜸞𜸠𜸥𜸜𜸚𜸟𜸤𜸝𜸢𜸜
-𜸩𜸩𜸫𜸹 𜸩 𜸨𜸟𜸷𜸩 𜸩𜸩 𜸩𜸩 𜸩𜸩   𜸩 𜸩𜸩 𜸩𜸩𜸫𜸹
-𜸼𜸼 𜸼 𜸼 𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜹃𜸾𜸟𜹃𜸾𜸟𜹃 𜸼 𜸼𜸾𜸟𜹃𜸼 𜸼
-)==")
-        .add("\n")
-        .add("\2aaaa", utf::vs07, vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-        .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-        //todo multiline graphemes
-        //.add("\2line1\nline2", vss<52,01>, "\n")
-        //.add("\2line1\nline2", vss<52,02>, "\n")
-        .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
-        .fgc(tint::purecyan).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-        .add("\n")
-        .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
-        .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
-             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
-             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
-                        .add("\n")
-        //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
-        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
-        .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
-        .add("\n")
-        .add("G", vss<21>,              "<VS21_00:WideG   ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
-        .add("\2G", utf::vs10, vss<21>, "<VS10:  90°CCW   ").add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW    ").add("\2G", utf::vs14, utf::vs10, vss<21>, "<VS14+VS10: VtFlip+90°CCW\n")
-        .add("\2G", utf::vs11, vss<21>, "<VS11: 180°CCW   ").add("\2G", utf::vs13, utf::vs11, vss<21>, "<VS13+VS11: HzFlip+180°CCW   ").add("\2G", utf::vs14, utf::vs11, vss<21>, "<VS14+VS11: VtFlip+180°CCW\n")
-        .add("😎",  utf::vs12, vss<21>, "<VS12: 270°CCW   ").add("\2G", utf::vs13, utf::vs12, vss<21>, "<VS13+VS12: HzFlip+270°CCW   ").add("\2G", utf::vs14, utf::vs12, vss<21>, "<VS14+VS12: VtFlip+270°CCW\n")
-        .add("\n")
-        .add("\2G", utf::vs10, utf::vs13, vss<21>, "<VS10+VS13: 90°CCW+HzFlip\n")
-        .add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW\n")
-        .add("\n")
-        .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
-        .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
-        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
-                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
-                  .fgc(purecyan).bgc(argb{}).add("<VS11\n")
-        .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
-        .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
-        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(purecyan).add("☆", vss<21>, "\n")
-                        .add("\n")
-        .add("😎", vss<42,01>, " <VS42_00\n")
-        .add("😎", vss<42,02>, "\n")
-                        .add("\n")
-        .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
-        .fgc(purered).bgc(pureblue).add(" test \n")
-        .fgc(puregreen).bgc(pureblue).add(" test \n")
-        .fgc(purecyan).bgc(purered).add(" test \n")
-        //.fgc(purewhite).bgc(pureblack).add(" test \n")
-        .bgc(argb{})
-        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\\n\n");
-
-    auto test_header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
-    auto test_footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
-    auto test_canvas_page = ui::page{};
-    auto test_header_page = ui::page{ test_header_text };
-    auto test_footer_page = ui::page{ test_footer_text };
-    static constexpr auto tttest1 = utf::matrix::vs_code<11>;
-    static constexpr auto tttest2 = vss<11>;
-    static constexpr auto tttest3 = utf::utf8bytes<tttest1>;
-    static constexpr auto tttest4 = utf::utf8bytes<utf::vs12_code>;
 }
 
 #if defined(_WIN32)
@@ -1918,8 +1802,22 @@ namespace netxs::gui
         };
         struct evnt : s11n
         {
-            window& master;
+            window&         owner; // evnt: .
+            ui::pipe&       intio; // evnt: .
+            flag            alive; // evnt: .
+            input::sysmouse m = {}; // evnt: .
+            input::syskeybd k = {}; // evnt: .
+            input::sysfocus f = {}; // evnt: .
+            input::sysclose c = {}; // evnt: .
+            input::syspaste p = {}; // evnt: .
+            input::syswinsz w = {}; // evnt: .
 
+            auto keybd(auto& data) { if (alive)                s11n::syskeybd.send(intio, data); }
+            auto mouse(auto& data) { if (alive)                s11n::sysmouse.send(intio, data); }
+            auto winsz(auto& data) { if (alive)                s11n::syswinsz.send(intio, data); }
+            auto focus(auto& data) { if (alive)                s11n::sysfocus.send(intio, data); }
+            auto paste(auto& data) { if (alive)                s11n::syspaste.send(intio, data); }
+            auto close(auto& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
@@ -1928,42 +1826,42 @@ namespace netxs::gui
                     //todo sync size/area
                     auto offset = (si32)(iter - head);
                     auto coor = twod{ offset % size.x, offset / size.x };
-                    master.print(size, coor, iter, tail);
+                    owner.print(size, coor, iter, tail);
                     //todo dirty rect
                 };
                 bitmap.get(data, update);
-                s11n::request_jgc(os::dtvt::client, lock);
-                master.reload |= task::inner;
-                master.update();
+                s11n::request_jgc(intio, lock);
+                owner.reload |= task::inner;
+                owner.update();
             }
             void handle(s11n::xs::jgc_list         lock)
             {
                 s11n::receive_jgc(lock);
                 //todo trigger to redraw viewport to update jumbo clusters
-                master.reload |= task::inner;
-                master.update();
+                owner.reload |= task::inner;
+                owner.update();
             }
             void handle(s11n::xs::header_request /*lock*/)
             {
                 auto item = s11n::header.freeze();
-                item.thing.sendby<faux, faux>(os::dtvt::client);
+                item.thing.sendby<faux, faux>(intio);
             }
             void handle(s11n::xs::footer_request /*lock*/)
             {
                 auto item = s11n::footer.freeze();
-                item.thing.sendby<faux, faux>(os::dtvt::client);
+                item.thing.sendby<faux, faux>(intio);
             }
             void handle(s11n::xs::header           lock)
             {
                 auto& item = lock.thing;
-                master.set_header(item.utf8);
+                owner.set_header(item.utf8);
                 item.set();
                 //todo trigger to redraw
             }
             void handle(s11n::xs::footer           lock)
             {
                 auto& item = lock.thing;
-                master.set_footer(item.utf8);
+                owner.set_footer(item.utf8);
                 item.set();
                 //todo trigger to redraw
             }
@@ -1973,18 +1871,18 @@ namespace netxs::gui
                 if (item.form == mime::disabled) input::board::normalize(item);
                 else                             item.set();
                 os::clipboard::set(item);
-                auto crop = utf::trunc(item.utf8, master.gridsz.y / 2); // Trim preview before sending.
-                s11n::sysboard.send(os::dtvt::client, id_t{}, item.size, crop.str(), item.form);
+                auto crop = utf::trunc(item.utf8, owner.gridsz.y / 2); // Trim preview before sending.
+                s11n::sysboard.send(intio, id_t{}, item.size, crop.str(), item.form);
             }
             void handle(s11n::xs::clipdata_request lock)
             {
-                s11n::recycle_cliprequest(os::dtvt::client, lock);
+                s11n::recycle_cliprequest(intio, lock);
             }
             void handle(s11n::xs::tooltips         lock)
             {
                 auto copy = lock.thing;
                 //todo implement
-                //netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
+                //netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
                 //{
                 //    for (auto& tooltip : tooltips)
                 //    {
@@ -1997,36 +1895,36 @@ namespace netxs::gui
             }
             void handle(s11n::xs::fullscreen       lock)
             {
-                master.set_state(state::maximized);
+                owner.set_state(state::maximized);
             }
             void handle(s11n::xs::maximize         lock)
             {
                 //todo diff fullscreen and maximized
-                master.set_state(state::maximized);
+                owner.set_state(state::maximized);
             }
             void handle(s11n::xs::minimize         lock)
             {
                 //todo restore minimized
-                master.set_state(state::minimized);
+                owner.set_state(state::minimized);
             }
             void handle(s11n::xs::expose         /*lock*/)
             {
                 //todo revise
-                //netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
+                //netxs::events::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
-                //    master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                //    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 //});
             }
             void handle(s11n::xs::focus_cut        lock)
             {
                 //todo revise
                 //auto& k = lock.thing;
-                //master.trysync(master.active, [&]
+                //owner.trysync(owner.active, [&]
                 //{
                 //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = master.base::parent())
+                //    if (auto parent_ptr = owner.base::parent())
                 //    {
-                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = master.This() }));
+                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
                 //    }
                 //});
             }
@@ -2034,12 +1932,12 @@ namespace netxs::gui
             {
                 //todo revise
                 //auto& k = lock.thing;
-                //master.trysync(master.active, [&]
+                //owner.trysync(owner.active, [&]
                 //{
                 //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = master.base::parent())
+                //    if (auto parent_ptr = owner.base::parent())
                 //    {
-                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = master.This() }));
+                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
                 //    }
                 //});
             }
@@ -2047,10 +1945,10 @@ namespace netxs::gui
             {
                 //todo keybd event back, revise
                 //auto& k = lock.thing;
-                //master.trysync(master.active, [&]
+                //owner.trysync(owner.active, [&]
                 //{
                 //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = master.base::parent())
+                //    if (auto parent_ptr = owner.base::parent())
                 //    {
                 //        auto& gear = *gear_ptr;
                 //        //todo use temp gear object
@@ -2075,15 +1973,15 @@ namespace netxs::gui
             {
                 //todo mouse event back, revise
                 //auto& m = lock.thing;
-                //master.trysync(master.active, [&]
+                //owner.trysync(owner.active, [&]
                 //{
                 //    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                //    if (auto parent_ptr = master.base::parent())
+                //    if (auto parent_ptr = owner.base::parent())
                 //    {
                 //        auto& gear = *gear_ptr;
-                //        if (gear.captured(master.id)) gear.setfree(true);
+                //        if (gear.captured(owner.id)) gear.setfree(true);
                 //        auto basis = gear.owner.base::coor();
-                //        master.global(basis);
+                //        owner.global(basis);
                 //        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
                 //        gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                 //    }
@@ -2093,19 +1991,19 @@ namespace netxs::gui
             {
                 auto& w = lock.thing;
                 //todo make it async
-                master.warp_window(w.warpdata);
-                //netxs::events::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
+                owner.warp_window(w.warpdata);
+                //netxs::events::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 //{
                 //    //todo use window_id
-                //    master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
+                //    owner.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 //});
             }
             void handle(s11n::xs::fps              lock)
             {
                 //todo revise
-                //netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                //netxs::events::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 //{
-                //    master.SIGNAL(tier::general, e2::config::fps, fps);
+                //    owner.SIGNAL(tier::general, e2::config::fps, fps);
                 //});
             }
             void handle(s11n::xs::logs             lock)
@@ -2115,47 +2013,56 @@ namespace netxs::gui
             void handle(s11n::xs::fatal            lock)
             {
                 //todo revise
-                //netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                //netxs::events::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 //{
-                //    master.errmsg = master.genmsg(utf8);
-                //    master.deface();
+                //    owner.errmsg = owner.genmsg(utf8);
+                //    owner.deface();
                 //});
             }
             void handle(s11n::xs::sysclose       /*lock*/)
             {
                 //todo revise
-                master.manager::close();
-                //master.active.exchange(faux);
-                //master.stop(true);
+                owner.manager::close();
+                //owner.active.exchange(faux);
+                //owner.stop(true);
             }
             void handle(s11n::xs::sysstart       /*lock*/)
             {
                 //todo revise
-                //netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
+                //netxs::events::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
-                //    master.RISEUP(tier::release, e2::form::global::sysstart, 1);
+                //    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 //});
             }
             void handle(s11n::xs::cwd              lock)
             {
                 //todo revise
-                //netxs::events::enqueue(master.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                //netxs::events::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 //{
-                //    master.RISEUP(tier::preview, e2::form::prop::cwd, path);
+                //    owner.RISEUP(tier::preview, e2::form::prop::cwd, path);
                 //});
             }
-            evnt(window& master)
+            evnt(window& owner, ui::pipe& intio)
                 : s11n{ *this },
-                master{ master }
-            { }
+                 owner{ owner },
+                 intio{ intio }
+            {
+                m.enabled = input::hids::stat::ok;
+                m.coordxy = { si16min, si16min };
+                c.fast = true;
+                w.winsize = owner.gridsz;
+                f.state = faux;
+                f.gear_id = 1;
+                focus(f);
+            }
         };
 
         std::vector<byte> blink_synch;
         si32              blink_count{};
+        text     header_utf8;
+        text     footer_utf8;
         ui::page header_page;
         ui::page footer_page;
-        text header_utf8;
-        text footer_utf8;
         ui::face main_grid;
         ui::face head_grid;
         ui::face foot_grid;
@@ -2191,21 +2098,6 @@ namespace netxs::gui
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        ui::pipe& intio; // evnt: .
-        flag alive; // evnt: .
-        auto keybd(auto& data) { if (alive)                proxy.syskeybd.send(intio, data); }
-        auto mouse(auto& data) { if (alive)                proxy.sysmouse.send(intio, data); }
-        auto winsz(auto& data) { if (alive)                proxy.syswinsz.send(intio, data); }
-        auto focus(auto& data) { if (alive)                proxy.sysfocus.send(intio, data); }
-        auto paste(auto& data) { if (alive)                proxy.syspaste.send(intio, data); }
-        auto close(auto& data) { if (alive.exchange(faux)) proxy.sysclose.send(intio, data); }
-        input::sysmouse sysm = {};
-        input::syskeybd sysk = {};
-        input::sysfocus sysf = {};
-        input::sysclose sysc = {};
-        input::syspaste sysp = {};
-        input::syswinsz sysw = {};
-
         window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
@@ -2225,18 +2117,9 @@ namespace netxs::gui
               footer{ manager::add() },
               blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
               blinking{ faux },
-              proxy{ *this },
-              intio{ *os::dtvt::client },
-              alive{ true }
+              proxy{ *this, *os::dtvt::client }
         {
             if (!*this) return;
-            sysm.enabled = input::hids::stat::ok;
-            sysm.coordxy = { si16min, si16min };
-            sysc.fast = true;
-            sysw.winsize = gridsz;
-            sysf.state = faux;
-            sysf.gear_id = 1;
-            focus(sysf);
             normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
             layers[client].area = normsz;
             size_window();
@@ -2443,8 +2326,8 @@ namespace netxs::gui
                 sync_titles_pixel_layout();
             }
             reload |= task::sized;
-            sysw.winsize = gridsz;
-            winsz(sysw);
+            proxy.w.winsize = gridsz;
+            proxy.winsz(proxy.w);
         }
         auto resize_window(twod size_delta)
         {
@@ -2703,13 +2586,13 @@ namespace netxs::gui
                 auto coords = mcoord - inner_rect.coor;
                 auto intcoor = coords / cellsz;
                 //auto fractcoor = (mcoord - inner_rect.coor) / cellsz;
-                if (auto changed = sysm.coordxy != intcoor)
+                if (auto changed = proxy.m.coordxy != intcoor)
                 {
                     auto timecode = datetime::now();
-                    sysm.coordxy = intcoor;
-                    sysm.changed++;
-                    sysm.timecod = timecode;
-                    mouse(sysm);
+                    proxy.m.coordxy = intcoor;
+                    proxy.m.changed++;
+                    proxy.m.timecod = timecode;
+                    proxy.mouse(proxy.m);
                 }
             }
             if (!mbttns)
@@ -2724,11 +2607,11 @@ namespace netxs::gui
             if (pressed) { if (0 == std::exchange(mbttns, mbttns | button)) mouse_capture(); }
             else           if (0 == (mbttns &= ~button)) mouse_release();
 
-            sysm.buttons = mbttns;
+            proxy.m.buttons = mbttns;
             auto timecode = datetime::now();
-            sysm.changed++;
-            sysm.timecod = timecode;
-            mouse(sysm);
+            proxy.m.changed++;
+            proxy.m.timecod = timecode;
+            proxy.mouse(proxy.m);
             return;
             //test
             //if (!pressed && (button == bttn::right)) manager::close();
@@ -2789,15 +2672,15 @@ namespace netxs::gui
             else if (utf::to_code(UnicodeChar, point))
             {
                 if (point) utf::to_utf_from_code(point, toutf);
-                sysk.extflag = 0;//r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
-                sysk.virtcod = vkey;//r.Event.KeyEvent.wVirtualKeyCode;
-                sysk.scancod = param.v.scancode;//r.Event.KeyEvent.wVirtualScanCode;
-                sysk.pressed = param.v.state == 0;//r.Event.KeyEvent.bKeyDown;
-                sysk.keycode = input::key::xlat(sysk.virtcod, sysk.scancod, (si32)ControlKeyState);
-                sysk.cluster = toutf;
+                proxy.k.extflag = 0;//r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
+                proxy.k.virtcod = vkey;//r.Event.KeyEvent.wVirtualKeyCode;
+                proxy.k.scancod = param.v.scancode;//r.Event.KeyEvent.wVirtualScanCode;
+                proxy.k.pressed = param.v.state == 0;//r.Event.KeyEvent.bKeyDown;
+                proxy.k.keycode = input::key::xlat(proxy.k.virtcod, proxy.k.scancod, (si32)ControlKeyState);
+                proxy.k.cluster = toutf;
                 do
                 {
-                    keybd(sysk);
+                    proxy.keybd(proxy.k);
                 }
                 while (param.v.repeat-- > 1);
             }
@@ -2839,9 +2722,9 @@ namespace netxs::gui
             log(focused ? "focused" : "unfocused");
             active = focused;
             if (active) activate();
-            sysf.state = active;
-            focus(sysf);
-            //if (!sysf.state) kbmod = {}; // To keep the modifiers from sticking.
+            proxy.f.state = active;
+            proxy.focus(proxy.f);
+            //if (!proxy.f.state) kbmod = {}; // To keep the modifiers from sticking.
         }
         //void state_event(bool activated, bool minimized)
         //{
@@ -2882,26 +2765,27 @@ namespace netxs::gui
         }
         void sync_clipboard()
         {
-            os::clipboard::sync(layers[client].hWnd, proxy, os::dtvt::client, gridsz);
+            os::clipboard::sync(layers[client].hWnd, proxy, proxy.intio, gridsz);
         }
         void connect()
         {
             auto title = get_window_title();
             proxy.header.set(id_t{}, title);
             proxy.footer.set(id_t{}, ""s);
-            proxy.mousebar.send(intio, !!(os::dtvt::vtmode & ui::console::mouse));
+            proxy.mousebar.send(proxy.intio, !!(os::dtvt::vtmode & ui::console::mouse));
 
             //auto alarm = os::fire{};
             //auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
             auto winio = std::thread{[&]
             {
-                directvt::binary::stream::reading_loop(intio, [&](view data){ proxy.sync(data); });
+                //todo move to proxy
+                directvt::binary::stream::reading_loop(proxy.intio, [&](view data){ proxy.sync(data); });
                 proxy.stop(); // Wake up waiting objects, if any.
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();//alarm);
             //alarm.bell(); // Forced to call close().
-            intio.shut(); // Close link to server. Interrupt binary reading loop.
+            proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
             winio.join();
         }
     };
