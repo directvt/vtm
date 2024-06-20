@@ -533,33 +533,28 @@ namespace netxs::app::shared
         }
     };
 
-    auto native(xipc client, rect win_area, std::list<text> fontlist, si32 cellsize, si32 winstate, bool aliasing, span blinking)
-    {
-        os::dtvt::client = client;
-        if (win_area.size != dot_00) os::dtvt::window.size = win_area.size;
-        if (win_area.coor != dot_00) os::dtvt::window.coor = win_area.coor;
-        if (auto window = gui::window{ os::dtvt::window, fontlist, cellsize, winstate, aliasing, blinking })
-        {
-            if constexpr (debugmode) os::logstd("dtvt::window=", os::dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", datetime::round<si32>(blinking));
-            window.connect();
-        }
-    }
     void splice(xipc client, xmls& config)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
         else
         {
+            os::dtvt::client = client;
             config.cd("/config/gui/");
             auto wincoord = config.take("wincoor", twod{ 100, 100 });
             auto gridsize = config.take("gridsize", twod{ 80, 25 });
             auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
             auto blinking = config.take("blinkrate", span{ 400ms });
-            //auto testtext = config.take("testtext", ""s);
             auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
             auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
             auto win_area = rect{ wincoord, gridsize };
-            native(client, win_area, fontlist, cellsize, winstate, aliasing, blinking);
+            if (win_area.size != dot_00) os::dtvt::window.size = win_area.size;
+            if (win_area.coor != dot_00) os::dtvt::window.coor = win_area.coor;
+            if (auto window = gui::window{ os::dtvt::window, fontlist, cellsize, winstate, aliasing, blinking })
+            {
+                if constexpr (debugmode) os::logstd("dtvt::window=", os::dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", datetime::round<si32>(blinking));
+                window.connect();
+            }
         }
     }
     void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)

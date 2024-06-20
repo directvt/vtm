@@ -1359,6 +1359,7 @@ namespace netxs::gui
             for (auto& c : grid_cells)
             {
                 if (c.blk()) blink_count++;//todo sync with blink_synch
+                //if (src.cur()) draw_cursor();
                 draw_cell(canvas, blinks, coor, c);
                 coor.x += cellsz.x;
                 if (coor.x >= maxc.x)
@@ -1924,9 +1925,11 @@ namespace netxs::gui
                 auto& bitmap = lock.thing;
                 auto update = [&](auto size, auto head, auto iter, auto tail)
                 {
+                    //todo sync size/area
                     auto offset = (si32)(iter - head);
                     auto coor = twod{ offset % size.x, offset / size.x };
                     master.print(size, coor, iter, tail);
+                    //todo dirty rect
                 };
                 bitmap.get(data, update);
                 s11n::request_jgc(os::dtvt::client, lock);
@@ -2185,19 +2188,11 @@ namespace netxs::gui
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt proxy; // window: .
-        ui::pipe& intio; // window: .
-        flag alive; // window: .
-
-        //test
-        //fp2d scroll_pos;
-        //twod scroll_origin;
-        //twod scroll_delta;
-        //text font_list_str;
-        //text testtext;
-        //bool panoramic_scroll{};
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
+        ui::pipe& intio; // evnt: .
+        flag alive; // evnt: .
         auto keybd(auto& data) { if (alive)                proxy.syskeybd.send(intio, data); }
         auto mouse(auto& data) { if (alive)                proxy.sysmouse.send(intio, data); }
         auto winsz(auto& data) { if (alive)                proxy.syswinsz.send(intio, data); }
@@ -2211,7 +2206,6 @@ namespace netxs::gui
         input::syspaste sysp = {};
         input::syswinsz sysw = {};
 
-        //window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, span blinkrate, text testtext = {},  twod grip_cell = dot_21)
         window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_state, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
             : fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
@@ -2239,26 +2233,17 @@ namespace netxs::gui
             sysm.enabled = input::hids::stat::ok;
             sysm.coordxy = { si16min, si16min };
             sysc.fast = true;
-            //sysf.state = faux;
             sysw.winsize = gridsz;
-            //focus(sysf);
-
+            sysf.state = faux;
+            sysf.gear_id = 1;
+            focus(sysf);
             normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
             layers[client].area = normsz;
             size_window();
             set_state(win_state);
-
-            //test
-            //this->testtext = testtext;
-            //print_font_list();
-            //header_page = test_header_text;
-            //footer_page = test_footer_text;
-            //refillgrid();
-
             sync_clipboard();
             update();
-            //manager::set_window_title(header_page.to_utf8());
-            manager::run();
+            manager::run();//todo call run() only after receiving the first frame
         }
         void sync_header_pixel_layout()
         {
@@ -2336,7 +2321,7 @@ namespace netxs::gui
             }
             header_utf8 = utf8;
             header_page = utf8;
-            size_header();
+            size_title(head_grid, header_page);
             head_grid.wipe();
             head_grid.cup(dot_00);
             head_grid.output(header_page);
@@ -2347,47 +2332,13 @@ namespace netxs::gui
         {
             footer_utf8 = utf8;
             footer_page = utf8;
-            size_footer();
+            size_title(foot_grid, footer_page);
             foot_grid.wipe();
             foot_grid.cup(dot_00);
             foot_grid.output(footer_page);
             sync_titles_pixel_layout();
             reload |= task::footer;
         }
-
-        //test
-        //void print_font_list(bool refill = faux)
-        //{
-        //    auto i = 0;
-        //    font_list_str = utf::concat("Test text: \033[10m", testtext, "\033[m\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
-        //                              "\n Cell Size ", cellsz.x, "x", cellsz.y,
-        //                              "\n Font Fallback\n");
-        //    for (auto& f : fcache.families)
-        //    {
-        //        font_list_str += utf::concat(ansi::bld(i == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
-        //        i++;
-        //    }
-        //    test_canvas_page = intro + font_list_str + canvas_text;
-        //    if (refill) refillgrid();
-        //}
-        //void refillgrid()
-        //{
-        //    auto area = layers[blinky].area;
-        //    main_grid.wipe();
-        //    main_grid.zz(scroll_pos);
-        //    main_grid.vsize(std::min(0, (si32)-scroll_pos.y) + area.size.y);
-        //    main_grid.output<true>(test_canvas_page);
-        //    if (fsmode != state::maximized)
-        //    {
-        //        head_grid.wipe();
-        //        foot_grid.wipe();
-        //        head_grid.cup(dot_00);
-        //        head_grid.output(header_page);
-        //        foot_grid.cup(dot_00);
-        //        foot_grid.output(footer_page);
-        //    }
-        //}
-
         void set_font_list(auto& flist)
         {
             log("%%Font list changed: ", prompt::gui, flist);
@@ -2433,9 +2384,6 @@ namespace netxs::gui
                 if (blink_count) layers[blinky].show();
             }
             reload |= task::all;
-
-            //test
-            //refillgrid();
         }
         void check_fsmode(arch hWnd)
         {
@@ -2475,17 +2423,11 @@ namespace netxs::gui
             moveby(coor_delta);
             reload |= task::moved;
         }
-        void size_header()
+        void size_title(ui::face& title_grid, ui::page& title_page)
         {
-            auto h_size = gridsz;
-            head_grid.calc_page_height(header_page, h_size);
-            head_grid.size(h_size);
-        }
-        void size_footer()
-        {
-            auto f_size = gridsz;
-            foot_grid.calc_page_height(header_page, f_size);
-            foot_grid.size(f_size);
+            auto grid_size = gridsz;
+            title_grid.calc_page_height(title_page, grid_size);
+            title_grid.size(grid_size);
         }
         void size_window(twod size_delta = {})
         {
@@ -2496,22 +2438,13 @@ namespace netxs::gui
             blink_synch.assign(main_grid.volume(), 0);
             if (fsmode != state::maximized)
             {
-                //test
-                //auto c_size = gridsz;
-                //main_grid.calc_page_height(test_canvas_page, c_size);
-                //footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add((si32)scroll_pos.x, ":", (si32)scroll_pos.y, "/", c_size.y, " ", gridsz.x, ":", gridsz.y);
-
-                size_header();
-                size_footer();
+                size_title(head_grid, header_page);
+                size_title(foot_grid, footer_page);
                 sync_titles_pixel_layout();
             }
             reload |= task::sized;
-
             sysw.winsize = gridsz;
             winsz(sysw);
-
-            //test
-            //refillgrid();
         }
         auto resize_window(twod size_delta)
         {
@@ -2538,34 +2471,8 @@ namespace netxs::gui
             }
             return layers[client].area - old_client;
         }
-        //void _test_fill_back(auto& grid_cells)
-        //{
-        //    auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
-        //    auto ltc = argb{ tint::pureblack };
-        //    auto rbc = argb{ tint::purered };
-        //    auto lbc = argb{ tint::puregreen  };//.alpha(0.5f);
-        //    auto lc = ltc;
-        //    auto rc = rtc;
-        //    auto x = 0.f;
-        //    auto y = 0.f;
-        //    auto m = std::max(dot_11, grid_cells.size() - dot_11);
-        //    auto eol = [&]
-        //    {
-        //        x = 0.f;
-        //        auto dc = ++y / m.y;
-        //        lc = argb::transit(ltc, lbc, dc);
-        //        rc = argb::transit(rtc, rbc, dc);
-        //    };
-        //    auto fx = [&](cell& c)
-        //    {
-        //        auto dc = x++ / m.x;
-        //        if (!c.bgc()) c.bgc(argb::transit(lc, rc, dc));
-        //    };
-        //    netxs::onrect(grid_cells, grid_cells.area(), fx, eol);
-        //}
         bool hit_grips()
         {
-            //if (fsmode == state::maximized || szgrip.zoomon || panoramic_scroll) return faux;
             if (fsmode == state::maximized || szgrip.zoomon) return faux;
             auto inner_rect = layers[blinky].area;
             auto outer_rect = layers[client].area;
@@ -2652,10 +2559,8 @@ namespace netxs::gui
             while (head != tail)
             {
                 auto src = *head++;
-                //if (src.cur()) src.draw_cursor();
                 auto& dst = *dest++;
                 dst = src;
-                //todo dirty rect
             }
         }
         void update()
@@ -2668,13 +2573,12 @@ namespace netxs::gui
             {
                 if (what & (task::sized | task::inner))
                 {
-                    //_test_fill_back(main_grid);
                     auto canvas = layers[client].canvas();
                     auto blinks = layers[blinky].canvas(true);
                     canvas.move(dot_00);
                     auto dirty_area = canvas.area() - border;
                     blink_count = 0;
-                    gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid); // 0.500 ms);
+                    gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid);
                     check_blinky();
                     if (fsmode == state::maximized && (what & task::sized))
                     {
@@ -2730,64 +2634,9 @@ namespace netxs::gui
             {
                 change_cell_size(wheeldt);
                 reload |= task::all;
-                //print_font_list(true);
                 return;
             }
-            //else if (kb & hids::LAlt)
-            //else if (cntrl & MK_SHIFT)
-            //{
-            //    netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-            //    log("_k0=", _k0, "_k1=", _k1);
-            //    change_cell_size();
-            //    reload |= task::all;
-            //    print_font_list(true);
-            //    return;
-            //}
             #endif
-            //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
-            //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-            //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
-            //else if (kb & hids::RCtrl)                netxs::_k3 += wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
-            //shadow = build_shadow_corner(cellsz.x);
-            //reload |= task::sized;
-            //netxs::_k0 += wheeldt > 0 ? 1 : -1;
-            //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
-
-            //todo Activate it in another way.
-            //if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
-            //{
-            //    if (!szgrip.zoomon)
-            //    {
-            //        szgrip.zoomdt = {};
-            //        szgrip.zoomon = true;
-            //        szgrip.zoomsz = layers[client].area;
-            //        szgrip.zoomat = mcoord;
-            //        mouse_capture();
-            //    }
-            //}
-            //else
-            //{
-            //    if (szgrip.zoomon)
-            //    {
-            //        szgrip.zoomon = faux;
-            //        mouse_release();
-            //    }
-            //    hz ? scroll_pos.x -= wheeldt
-            //       : scroll_pos.y += wheeldt;
-            //    size_window();
-            //    reload |= task::all;
-            //    reload &= ~task::sized;
-            //}
-            //if (szgrip.zoomon)
-            //{
-            //    auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y }; // border. exclude state::maximized
-            //    auto step = szgrip.zoomdt + warp * (si32)wheeldt;
-            //    auto next = szgrip.zoomsz + step;
-            //    next.size = std::max(dot_00, next.size);
-            //    ///auto viewport = ...get max win size (multimon)
-            //    //next.trimby(viewport);
-            //    if (warp_window(next - layers[client].area)) szgrip.zoomdt = step;
-            //}
         }
         void mouse_leave()
         {
@@ -2834,11 +2683,6 @@ namespace netxs::gui
                     reload |= task::grips;
                 }
             }
-            //if (szgrip.zoomon && !(kb & hids::anyCtrl))
-            //{
-            //    szgrip.zoomon = faux;
-            //    mouse_release();
-            //}
             if (szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
                 reload |= task::grips;
@@ -2891,12 +2735,6 @@ namespace netxs::gui
             //static auto dblclick = datetime::now() - 1s;
             //if (pressed)
             //{
-            //    if (button == bttn::right)
-            //    {
-            //        panoramic_scroll = true;
-            //        scroll_origin = scroll_pos;
-            //        scroll_delta = {};
-            //    }
             //}
             //else
             //{
@@ -2916,10 +2754,6 @@ namespace netxs::gui
             //                reload |= task::grips;
             //            }
             //        }
-            //    }
-            //    else if (button == bttn::right)
-            //    {
-            //        panoramic_scroll = faux;
             //    }
             //}
         }
@@ -2979,7 +2813,6 @@ namespace netxs::gui
             //else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
             //{
             //    set_aa_mode(!gcache.aamode);
-            //    print_font_list(true);
             //}
             //else if (vkey == VK_F11 && param.v.state == 3) // Toggle maximized mode.
             //{
@@ -3000,29 +2833,6 @@ namespace netxs::gui
             //    }
             //}
             #endif
-            //auto s = keybd_state();
-            //log("keybd ", utf::to_bin(s));
-            //static auto keybd_state = std::array<byte, 256>{};
-            //::GetKeyboardState(keybd_state.data());
-            //auto l_shift = keybd_state[VK_LSHIFT];
-            //auto r_shift = keybd_state[VK_RSHIFT];
-            //auto l_win   = keybd_state[VK_LWIN];
-            //auto r_win   = keybd_state[VK_RWIN];
-            //bool alt     = keybd_state[VK_MENU];
-            //bool l_alt   = keybd_state[VK_LMENU];
-            //bool r_alt   = keybd_state[VK_RMENU];
-            //bool l_ctrl  = keybd_state[VK_LCONTROL];
-            //bool r_ctrl  = keybd_state[VK_RCONTROL];
-            //log("keybd",
-            //    "\n\t l_shift ", utf::to_hex(l_shift ),
-            //    "\n\t r_shift ", utf::to_hex(r_shift ),
-            //    "\n\t l_win   ", utf::to_hex(l_win   ),
-            //    "\n\t r_win   ", utf::to_hex(r_win   ),
-            //    "\n\t alt     ", utf::to_hex(alt     ),
-            //    "\n\t l_alt   ", utf::to_hex(l_alt   ),
-            //    "\n\t r_alt   ", utf::to_hex(r_alt   ),
-            //    "\n\t l_ctrl  ", utf::to_hex(l_ctrl  ),
-            //    "\n\t r_ctrl  ", utf::to_hex(r_ctrl  ));
         }
         void focus_event(bool focused)
         {
