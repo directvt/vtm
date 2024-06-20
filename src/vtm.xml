@@ -1,7 +1,4 @@
 R"==(<config>
-)=="
-#if defined(DEBUG)
-R"==(
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
         <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive" run="\"Hello World!\""/>
@@ -12,9 +9,6 @@ R"==(
             </run>
         </javascript>
     </scripting>
-)=="
-#endif
-R"==(
     <gui> <!-- GUI related settings. (win32 platform only for now) -->
         <antialiasing = off />   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight = 20 />      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->

@@ -748,9 +748,9 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            area.coor += base::region.coor;
             if (auto parent_ptr = parent())
             {
+                area.coor += base::region.coor;
                 parent_ptr->deface(area);
             }
         }

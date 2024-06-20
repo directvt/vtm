@@ -138,38 +138,39 @@ namespace netxs::ui
                   inner{ inner_rect    },
                   alive{ true          }
             {
-                boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
-                {
-                    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock))
-                    {
-                        auto& g = items.take(gear);
-                        if (!g.zoomon)// && g.inside)
-                        {
-                            g.zoomdt = {};
-                            g.zoomon = true;
-                            g.zoomsz = boss.base::area();
-                            g.zoomat = gear.coord;
-                            gear.capture(boss.id);
-                        }
-                        static constexpr auto warp = dent{ 2, 2, 1, 1 } * 2;
-                        //todo respect pivot
-                        auto prev = g.zoomdt;
-                        auto coor = boss.base::coor();
-                        auto deed = boss.bell::protos<tier::release>();
-                        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
-                        else                                              g.zoomdt += warp;
-                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto next = g.zoomsz + g.zoomdt;
-                        next.size = std::max(dot_00, next.size);
-                        next.trimby(viewport);
-                        auto step = boss.base::extend(next);
-                        if (!step.size) // Undo if can't zoom.
-                        {
-                            g.zoomdt = prev;
-                            boss.base::moveto(coor);
-                        }
-                    }
-                };
+                // Drop it in favor of changing the cell size in GUI mode.
+                //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
+                //{
+                //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock))
+                //    {
+                //        auto& g = items.take(gear);
+                //        if (!g.zoomon)// && g.inside)
+                //        {
+                //            g.zoomdt = {};
+                //            g.zoomon = true;
+                //            g.zoomsz = boss.base::area();
+                //            g.zoomat = gear.coord;
+                //            gear.capture(boss.id);
+                //        }
+                //        static constexpr auto warp = dent{ 2, 2, 1, 1 } * 2;
+                //        //todo respect pivot
+                //        auto prev = g.zoomdt;
+                //        auto coor = boss.base::coor();
+                //        auto deed = boss.bell::protos<tier::release>();
+                //        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
+                //        else                                              g.zoomdt += warp;
+                //        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                //        auto next = g.zoomsz + g.zoomdt;
+                //        next.size = std::max(dot_00, next.size);
+                //        next.trimby(viewport);
+                //        auto step = boss.base::extend(next);
+                //        if (!step.size) // Undo if can't zoom.
+                //        {
+                //            g.zoomdt = prev;
+                //            boss.base::moveto(coor);
+                //        }
+                //    }
+                //};
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state, memo)
                 {
                     alive = state;

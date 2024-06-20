@@ -989,14 +989,15 @@ namespace netxs::directvt
                 }
                 delta = sum;
             }
-            template<class P = noop>
-            void get(view& data, P update = {})
+            template<class P = noop, class S = noop>
+            void get(view& data, P update = {}, S resize = {})
             {
                 auto [myid, area] = stream::take<id_t, rect>(data);
                 //todo head.myid
                 if (image.size() != area.size)
                 {
                     image.crop(area.size);
+                    resize(area.size);
                 }
                 auto mark = image.mark();
                 auto head = image.begin();

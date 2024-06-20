@@ -511,12 +511,12 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.mark(new_filler);
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.face::area(new_area);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
