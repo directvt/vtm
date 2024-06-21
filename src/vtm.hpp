@@ -308,7 +308,7 @@ namespace netxs::app::vtm
                                 //boss.SIGNAL(tier::preview, e2::area, preview_area);
                                 //boss.base::moveby(delta);
                                 //boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
-                                if (auto delta = twod{ gear.coord - drag_origin })
+                                if (auto delta = twod{ std::floor(gear.coord) } - twod{ std::floor(drag_origin) }) // +dot_mx to ceiling negatives.
                                 {
                                     boss.base::anchor = drag_origin; // See pro::align unbind.
                                     auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };

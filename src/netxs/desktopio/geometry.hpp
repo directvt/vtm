@@ -194,6 +194,8 @@ namespace std
     template<class T> constexpr netxs::xy2d<T>   max(netxs::xy2d<T> p1, netxs::xy2d<T> p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
     template<class T> constexpr netxs::xy2d<T> round(netxs::xy2d<T> p)                     { return { std::round(p.x), std::round(p.y) }; }
     template<class T> constexpr netxs::xy2d<T>   abs(netxs::xy2d<T> p)                     { return { std::abs(p.x), std::abs(p.y) }; }
+    template<class T> constexpr netxs::xy2d<T> floor(netxs::xy2d<T> p)                     { return { std::floor(p.x), std::floor(p.y) }; }
+    template<class T> constexpr netxs::xy2d<T>  ceil(netxs::xy2d<T> p)                     { return { std::ceil(p.x), std::ceil(p.y) }; }
     template<class T> constexpr netxs::xy2d<T> clamp(netxs::xy2d<T> p, netxs::xy2d<T> p1, netxs::xy2d<T> p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
 }
 
