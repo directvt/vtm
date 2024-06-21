@@ -89,10 +89,18 @@ namespace netxs
         //xy2d operator << (T i) const { return { x << i, y << i }; }
         //xy2d operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator / (D i) const { return xy2d<D>{ x / i, y / i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator + (D i) const { return xy2d<D>{ x + i, y + i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator - (D i) const { return xy2d<D>{ x - i, y - i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator * (D i) const { return xy2d<D>{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (D i) const { return xy2d<D>{ x + i, y + i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (D i) const { return xy2d<D>{ x - i, y - i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (D i) const { return xy2d<D>{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (D i) const { return xy2d<D>{ x / i, y / i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x + f.x), netxs::saturate_cast<T>(y + f.y) }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x - f.x), netxs::saturate_cast<T>(y - f.y) }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x * f.x), netxs::saturate_cast<T>(y * f.y) }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x / f.x), netxs::saturate_cast<T>(y / f.y) }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator += (xy2d<D> f)       { x = netxs::saturate_cast<T>(x + f.x); y = netxs::saturate_cast<T>(y + f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x - f.x); y = netxs::saturate_cast<T>(y - f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x * f.x); y = netxs::saturate_cast<T>(y * f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x / f.x); y = netxs::saturate_cast<T>(y / f.y); return *this; }
 
         xy2d   less(xy2d what, xy2d if_yes, xy2d if_no) const
         {
