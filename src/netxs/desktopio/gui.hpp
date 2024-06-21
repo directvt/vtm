@@ -2575,19 +2575,9 @@ namespace netxs::gui
             mhover = true;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
-            //if (mbttns & bttn::right)
-            //{
-            //    scroll_delta += coord - mcoord;
-            //    if (scroll_pos(scroll_origin + scroll_delta / cellsz))
-            //    {
-            //        size_window();
-            //        reload |= task::all;
-            //        reload &= ~task::sized;
-            //    }
-            //}
-            //else
             //auto wait_reply = faux;
-            if ((!seized && hit_grips()) || szgrip.seized)
+            auto ingrip = hit_grips();
+            if ((!seized && ingrip) || szgrip.seized)
             {
                 if (mbttns & bttn::right)
                 {
@@ -2630,6 +2620,7 @@ namespace netxs::gui
             auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
             if (inside)
             {
+                //auto coordxy = (mcoord - inner_rect.coor) / cellsz;
                 auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
                 if (proxy.m.coordxy(coordxy))
                 {
@@ -2648,11 +2639,9 @@ namespace netxs::gui
                 proxy.m.enabled = hids::stat::halt;
                 proxy.mouse(proxy.m);
             }
-            if (!mbttns)
+            if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
             {
-                static auto s = testy{ faux };
-                reload |= s(hit_grips()) ? task::grips// | task::inner
-                                     : s ? task::grips : 0;//task::inner;
+                reload |= task::grips;
             }
         }
         void mouse_press(si32 button, bool pressed)
