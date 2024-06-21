@@ -2123,7 +2123,6 @@ namespace netxs::gui
         shad shadow; // window: Shadow generator.
         grip szgrip; // window: Resizing grips UI-control.
         twod mcoord; // window: Mouse cursor coord.
-        si32 mbttns; // window: Mouse button state.
         bool inside; // window: Mouse is inside the client area.
         bool seized; // window: Mouse is locked inside the client area.
         bool mhover; // window: Mouse hover.
@@ -2157,7 +2156,6 @@ namespace netxs::gui
               gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
-              mbttns{},
               inside{},
               seized{},
               mhover{},
@@ -2574,6 +2572,7 @@ namespace netxs::gui
         }
         void mouse_moved(twod coord)
         {
+            auto& mbttns = proxy.m.buttons;
             mhover = true;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
@@ -2581,11 +2580,11 @@ namespace netxs::gui
             auto ingrip = hit_grips();
             if ((!seized && ingrip) || szgrip.seized)
             {
-                if (mbttns & bttn::right)
+                if (mbttns == bttn::right) // Move window.
                 {
-                    //todo Move window.
+                    moving = true;
                 }
-                else if (mbttns & bttn::left)
+                else if (mbttns == bttn::left)
                 {
                     if (!szgrip.seized) // drag start
                     {
@@ -2614,7 +2613,7 @@ namespace netxs::gui
                     reload |= task::grips;
                 }
             }
-            if (!seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
+            if (!moving && !seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
                 reload |= task::grips;
             }
@@ -2659,30 +2658,32 @@ namespace netxs::gui
         }
         void mouse_press(si32 button, bool pressed)
         {
+            auto& mbttns = proxy.m.buttons;
+            auto prev_state = mbttns;
+            auto changed = std::exchange(mbttns, pressed ? mbttns | button : mbttns & ~button) != mbttns;
             if (pressed)
             {
-                if (0 == std::exchange(mbttns, mbttns | button))
+                if (!prev_state)
                 {
                     mouse_capture();
                     if (inside) seized = true;
                 }
             }
-            else if (0 == (mbttns &= ~button))
+            else if (!mbttns)
             {
                 mouse_release();
                 seized = faux;
             }
-            if (!pressed && button == bttn::left)
+            if (!pressed)
             {
-                if (szgrip.seized) // Grips drag stop.
+                if (szgrip.seized && button == bttn::left) // Grips drag stop.
                 {
                     szgrip.drop();
                     reload |= task::grips;
                 }
-                if (moving)
+                if (moving && (button == bttn::left || button == bttn::right)) // Stop window dragging.
                 {
                     moving = faux;
-                    proxy.m.buttons = mbttns;
                     return;
                 }
             }
@@ -2692,7 +2693,6 @@ namespace netxs::gui
                 auto timecode = datetime::now();
                 proxy.m.changed++;
                 proxy.m.timecod = timecode;
-                proxy.m.buttons = mbttns;
                 proxy.m.enabled = hids::stat::ok;
                 proxy.mouse(proxy.m);
             }
