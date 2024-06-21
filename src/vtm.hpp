@@ -301,14 +301,7 @@ namespace netxs::app::vtm
                             case e2::form::drag::pull::left.id:
                             case e2::form::drag::pull::leftright.id:
                             {
-                                //todo fp2d
-                                //auto delta = gear.delta.get();
-                                //boss.base::anchor = gear.coord - delta; // See pro::align unbind.
-                                //auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
-                                //boss.SIGNAL(tier::preview, e2::area, preview_area);
-                                //boss.base::moveby(delta);
-                                //boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
-                                if (auto delta = twod{ std::floor(gear.coord) } - twod{ std::floor(drag_origin) }) // +dot_mx to ceiling negatives.
+                                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                                 {
                                     boss.base::anchor = drag_origin; // See pro::align unbind.
                                     auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
@@ -492,14 +485,7 @@ namespace netxs::app::vtm
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
-
                     step += gear.delta.get();
-
-                    //todo fp2d
-                    //slot.coor = std::min(init, step);
-                    //slot.size = std::max(std::abs(step - init), dot_00);
-                    //boss.deface(slot);
-
                     auto moved = slot.coor(std::min(init, step));
                     auto dsize = twod{ step - init };
                     auto sized = slot.size(std::max(std::abs(dsize), dot_00));
@@ -861,11 +847,6 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
             {
                 if (gear.owner.id != this->id) return;
-
-                //todo fp2d
-                //base::moveby(-gear.delta.get());
-                //base::deface();
-
                 if (auto delta = twod{ gear.coord - drag_origin })
                 {
                     drag_origin = gear.coord;

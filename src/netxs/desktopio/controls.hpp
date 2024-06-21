@@ -289,8 +289,6 @@ namespace netxs::ui
                     auto delta = coord - drag_origin;
                     auto center = master.base::size() / 2;
                     delta -= center;
-                    //todo fp2d
-                    //master.base::moveby(delta);
                     auto step = twod{ delta };
                     if (step)
                     {
@@ -338,10 +336,6 @@ namespace netxs::ui
                 {
                     if (dest_object)
                     {
-                        //todo fp2d
-                        //items.take(gear).drag(*dest_object, gear.coord);
-                        //auto delta = gear.delta.get();
-                        //dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
                         if (auto delta = items.take(gear).drag(*dest_object, gear.coord))
                         {
                             dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
@@ -3169,10 +3163,6 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    //todo fp2d
-                    //auto delta = gear.mouse::delta.get();
-                    //auto value = permit * delta;
-                    //if (value) scroll(value);
                     if (auto delta = twod{ gear.coord - drag_origin })
                     {
                         drag_origin = gear.coord;
@@ -3344,11 +3334,9 @@ namespace netxs::ui
             strict[Axis] = true;
             robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
             {
-                //todo fp2d
-                //auto delta = Axis == X ? twod{ p, 0 }
-                //                       : twod{ 0, p };
-                //scroll(delta);
-                if (auto step = netxs::saturate_cast<twod::type>(p))
+                //todo revise
+                //if (auto step = netxs::saturate_cast<twod::type>(p))
+                if (auto step = twod::cast(p))
                 {
                     auto delta = Axis == X ? twod{ step, 0 }
                                            : twod{ 0, step };
@@ -3781,8 +3769,6 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        //todo fp2d
-                        //if (auto delta = gear.mouse::delta.get()[Axis])
                         if (auto delta = twod{ gear.coord - drag_origin }[Axis])
                         {
                             drag_origin = gear.coord;
@@ -4367,10 +4353,6 @@ namespace netxs::ui
                 {
                     if (gear.captured(grip_ctl->id))
                     {
-                        //todo fp2d
-                        //deltas += gear.mouse::delta.get().x;
-                        //move_grip(next_val(deltas));
-                        //gear.dismiss();
                         if (auto delta = twod{ gear.coord - drag_origin }.x)
                         {
                             drag_origin = gear.coord;

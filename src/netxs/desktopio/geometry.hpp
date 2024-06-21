@@ -22,6 +22,9 @@ namespace netxs
 
         T x, y;
 
+        template<class D> constexpr static auto cast(D x) requires(std::is_floating_point_v<T> || (std::is_integral_v<T> == std::is_integral_v<D>)) { return netxs::saturate_cast<T>(x); }
+        template<class D> constexpr static auto cast(D x) requires(std::is_integral_v<T> && std::is_floating_point_v<D>)                            { return netxs::saturate_cast<T>(std::floor(x)); }
+
         constexpr xy2d(xy2d const&) = default;
         constexpr xy2d()
             : x{ },
@@ -32,9 +35,13 @@ namespace netxs
               y{ y }
         { }
         template<class D>
+        constexpr xy2d(D x, D y)
+            : x{ cast(x) },
+              y{ cast(y) }
+        { }
+        template<class D>
         constexpr xy2d(xy2d<D> d)
-            : x{ netxs::saturate_cast<T>(d.x) },
-              y{ netxs::saturate_cast<T>(d.y) }
+            : xy2d{ d.x, d.y }
         { }
         constexpr xy2d(fifo& q)
             : x{ q(0) },
@@ -44,8 +51,8 @@ namespace netxs
         template<class D>
         constexpr bool operator == (xy2d<D> p) const //todo Apple clang don't get auto result.
         {
-            return x == netxs::saturate_cast<T>(p.x)
-                && y == netxs::saturate_cast<T>(p.y);
+            return x == cast(p.x)
+                && y == cast(p.y);
         }
         template<class D>
         bool operator () (xy2d<D> p)
@@ -93,14 +100,14 @@ namespace netxs
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (D i) const { return xy2d<D>{ x - i, y - i }; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (D i) const { return xy2d<D>{ x * i, y * i }; }
         template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (D i) const { return xy2d<D>{ x / i, y / i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x + f.x), netxs::saturate_cast<T>(y + f.y) }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x - f.x), netxs::saturate_cast<T>(y - f.y) }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x * f.x), netxs::saturate_cast<T>(y * f.y) }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (xy2d<D> f) const { return xy2d{ netxs::saturate_cast<T>(x / f.x), netxs::saturate_cast<T>(y / f.y) }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator += (xy2d<D> f)       { x = netxs::saturate_cast<T>(x + f.x); y = netxs::saturate_cast<T>(y + f.y); return *this; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x - f.x); y = netxs::saturate_cast<T>(y - f.y); return *this; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x * f.x); y = netxs::saturate_cast<T>(y * f.y); return *this; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /= (xy2d<D> f)       { x = netxs::saturate_cast<T>(x / f.x); y = netxs::saturate_cast<T>(y / f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (xy2d<D> f) const { return xy2d{ x + f.x, y + f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (xy2d<D> f) const { return xy2d{ x - f.x, y - f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (xy2d<D> f) const { return xy2d{ x * f.x, y * f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (xy2d<D> f) const { return xy2d{ x / f.x, y / f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator += (xy2d<D> f)       { x = cast(x + f.x); y = cast(y + f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -= (xy2d<D> f)       { x = cast(x - f.x); y = cast(y - f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *= (xy2d<D> f)       { x = cast(x * f.x); y = cast(y * f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /= (xy2d<D> f)       { x = cast(x / f.x); y = cast(y / f.y); return *this; }
 
         xy2d   less(xy2d what, xy2d if_yes, xy2d if_no) const
         {

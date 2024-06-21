@@ -680,15 +680,6 @@ namespace netxs::app::desk
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            
-                            //todo fp2d
-                            //auto delta = twod{ gear.delta.get() };
-                            //taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta.x);
-                            //taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
-                            //active ? menu_max_size = taskbar_grips->base::min_sz.x
-                            //       : menu_min_size = taskbar_grips->base::min_sz.x;
-                            //taskbar_grips->base::reflow();
-
                             if (auto delta = twod{ gear.coord - *drag_origin }[axis::X])
                             {
                                 taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
