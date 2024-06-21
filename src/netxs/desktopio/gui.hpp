@@ -1406,8 +1406,9 @@ namespace netxs::gui
             auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc)
             {
-                auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
+                proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
         template<bool JustMove = faux>
@@ -1623,7 +1624,7 @@ namespace netxs::gui
                     //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                     stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
-                //w->update();
+                w->update();
                 return stat;
             };
             static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
@@ -1850,6 +1851,7 @@ namespace netxs::gui
                     //client_layers.strike(dirty_area);
                     //blinky_layers.strike({ .size = layers[blinky].area.size });
                 };
+                auto guard = std::lock_guard{ owner.bitaccess };
                 bitmap.get(data, update, resize);
                 s11n::request_jgc(intio, lock);
                 owner.reload |= task::inner;
@@ -2122,6 +2124,8 @@ namespace netxs::gui
         grip szgrip; // window: Resizing grips UI-control.
         twod mcoord; // window: Mouse cursor coord.
         si32 mbttns; // window: Mouse button state.
+        bool inside; // window: Mouse is inside the client area.
+        bool seized; // window: Mouse is locked inside the client area.
         bool mhover; // window: Mouse hover.
         bool active; // window: Window is focused.
         si32 fsmode; // window: Window size state.
@@ -2140,6 +2144,7 @@ namespace netxs::gui
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt proxy; // window: .
+        std::mutex bitaccess;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -2152,6 +2157,8 @@ namespace netxs::gui
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               mbttns{},
+              inside{},
+              seized{},
               mhover{},
               active{},
               fsmode{ state::undefined },
@@ -2276,10 +2283,10 @@ namespace netxs::gui
             change_cell_size();
             reload |= task::all;
         }
-        auto move_window(twod delta)
+        auto move_window(twod delta, bool silent = faux)
         {
             for (auto& w : layers) w.area.coor += delta;
-            reload |= task::moved;
+            if (!silent) reload |= task::moved;
         }
         void set_state(si32 new_state)
         {
@@ -2341,6 +2348,7 @@ namespace netxs::gui
                     avail_area.size -= std::min(avail_area.size, area.size);
                     auto delta = avail_area.clamp(area.coor) - area.coor;
                     move_window(delta);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
                 }
             }
             if (fsmode != state::minimized)
@@ -2444,6 +2452,7 @@ namespace netxs::gui
             });
             for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
             {
+                //todo push diffs only
                 layer.sync.push_back(g_area);
             }
         }
@@ -2483,6 +2492,7 @@ namespace netxs::gui
                  if (what == task::moved) manager::present<true>();
             else if (what)
             {
+                auto lock = std::lock_guard{ bitaccess };
                 if (what & (task::sized | task::inner))
                 {
                     auto canvas = layers[client].canvas();
@@ -2576,9 +2586,14 @@ namespace netxs::gui
             //    }
             //}
             //else
-            if (hit_grips() || szgrip.seized)
+            //auto wait_reply = faux;
+            if ((!seized && hit_grips()) || szgrip.seized)
             {
-                if (mbttns & bttn::left)
+                if (mbttns & bttn::right)
+                {
+                    //todo Move window.
+                }
+                else if (mbttns & bttn::left)
                 {
                     if (!szgrip.seized) // drag start
                     {
@@ -2593,8 +2608,10 @@ namespace netxs::gui
                     {
                         if (auto move_delta = szgrip.move(size_delta, zoom))
                         {
-                            move_window(move_delta);
+                            move_window(move_delta, true);
+                            sync_titles_pixel_layout(); // Align grips and shadow.
                         }
+                        //wait_reply = true;
                         proxy.w.winsize = new_gridsz;
                         proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
                     }
@@ -2605,33 +2622,31 @@ namespace netxs::gui
                     reload |= task::grips;
                 }
             }
-            if (szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
+            if (!seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
                 reload |= task::grips;
             }
-            //todo move only when mouse events get back
-            //if (!szgrip.seized && (mbttns & bttn::left))
-            //{
-            //    if (auto dxdy = coord - mcoord)
-            //    {
-            //        if (fsmode == state::maximized) set_state(state::normal);
-            //        move_window(dxdy);
-            //    }
-            //}
             mcoord = coord;
-            if (inner_rect.hittest(mcoord))
+            auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
+            if (inside)
             {
-                auto coords = mcoord - inner_rect.coor;
-                auto intcoor = coords / cellsz;
-                //auto fractcoor = (mcoord - inner_rect.coor) / cellsz;
-                if (auto changed = proxy.m.coordxy != intcoor)
+                auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+                if (proxy.m.coordxy(coordxy))
                 {
                     auto timecode = datetime::now();
-                    proxy.m.coordxy = intcoor;
                     proxy.m.changed++;
                     proxy.m.timecod = timecode;
+                    proxy.m.enabled = hids::stat::ok;
                     proxy.mouse(proxy.m);
                 }
+            }
+            else if (leave) // Mouse leaves viewport.
+            {
+                auto timecode = datetime::now();
+                proxy.m.changed++;
+                proxy.m.timecod = timecode;
+                proxy.m.enabled = hids::stat::halt;
+                proxy.mouse(proxy.m);
             }
             if (!mbttns)
             {
@@ -2642,41 +2657,49 @@ namespace netxs::gui
         }
         void mouse_press(si32 button, bool pressed)
         {
-            if (pressed) { if (0 == std::exchange(mbttns, mbttns | button)) mouse_capture(); }
-            else           if (0 == (mbttns &= ~button)) mouse_release();
-
-            proxy.m.buttons = mbttns;
-            auto timecode = datetime::now();
-            proxy.m.changed++;
-            proxy.m.timecod = timecode;
-            proxy.mouse(proxy.m);
-            return;
-            //test
-            //if (!pressed && (button == bttn::right)) manager::close();
-            //static auto dblclick = datetime::now() - 1s;
-            //if (pressed)
-            //{
-            //}
-            //else
-            //{
-            //    if (button == bttn::left)
-            //    {
-            //        if (datetime::now() - dblclick < 500ms)
-            //        {
-            //            if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
-            //            dblclick -= 1s;
-            //        }
-            //        else
-            //        {
-            //            dblclick = datetime::now();
-            //            if (szgrip.seized) // drag stop
-            //            {
-            //                szgrip.drop();
-            //                reload |= task::grips;
-            //            }
-            //        }
-            //    }
-            //}
+            if (pressed)
+            {
+                if (0 == std::exchange(mbttns, mbttns | button))
+                {
+                    mouse_capture();
+                    if (inside) seized = true;
+                }
+            }
+            else if (0 == (mbttns &= ~button))
+            {
+                mouse_release();
+                seized = faux;
+            }
+            if (!pressed && button == bttn::left && szgrip.seized) // Grips drag stop.
+            {
+                szgrip.drop();
+                reload |= task::grips;
+            }
+            static auto dblclick = datetime::now() - 1s;
+            if (seized || inside)
+            {
+                auto timecode = datetime::now();
+                proxy.m.changed++;
+                proxy.m.timecod = timecode;
+                proxy.m.buttons = mbttns;
+                proxy.m.enabled = hids::stat::ok;
+                proxy.mouse(proxy.m);
+            }
+            else
+            {
+                if (!pressed && button == bttn::left) // Maximize window by dbl click on resizing grips.
+                {
+                    if (datetime::now() - dblclick < 500ms)
+                    {
+                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                        dblclick -= 1s;
+                    }
+                    else
+                    {
+                        dblclick = datetime::now();
+                    }
+                }
+            }
         }
         //todo unify
         utfx point = {};
@@ -2811,33 +2834,30 @@ namespace netxs::gui
             {
                 //todo
             };
+            LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear) // Move window only when mouse events get back.
+            {
+                if (auto dxdy = twod{ gear.delta.get() * cellsz }) // Return back to the pixels.
+                {
+                    if (fsmode == state::maximized) set_state(state::normal);
+                    //todo centrify to mouse cursor
+                    move_window(dxdy);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
+                }
+            };
 
             auto title = get_window_title();
             proxy.header.set(id_t{}, title);
             proxy.footer.set(id_t{}, ""s);
 
-            //auto winio = std::thread{[&]
-            //{
-            //    dispatch();
-            //    proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
-            //}};
-            ////todo move to proxy
-            //directvt::binary::stream::reading_loop(proxy.intio, [&](view data){ proxy.sync(data); });
-            //proxy.stop(); // Wake up waiting objects, if any.
-            //manager::close(); // Interrupt dispatching.
-            //winio.join();
-
-
             //auto alarm = os::fire{};
-            //auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
             auto winio = std::thread{[&]
             {
-                //todo move to proxy
-                directvt::binary::stream::reading_loop(proxy.intio, [&](view data)
+                auto sync = [&](view data)
                 {
                     proxy.sync(data);
                     update();
-                });
+                };
+                directvt::binary::stream::reading_loop(proxy.intio, sync);
                 proxy.stop(); // Wake up waiting objects, if any.
                 manager::close(); // Interrupt dispatching.
             }};
