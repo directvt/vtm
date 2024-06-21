@@ -2128,6 +2128,7 @@ namespace netxs::gui
         bool seized; // window: Mouse is locked inside the client area.
         bool mhover; // window: Mouse hover.
         bool active; // window: Window is focused.
+        bool moving; // window: Window is in d_n_d state.
         si32 fsmode; // window: Window size state.
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
@@ -2161,6 +2162,7 @@ namespace netxs::gui
               seized{},
               mhover{},
               active{},
+              moving{},
               fsmode{ state::undefined },
               reload{ task::all },
               client{ manager::add(this) },
@@ -2616,6 +2618,17 @@ namespace netxs::gui
             {
                 reload |= task::grips;
             }
+            if (moving)
+            {
+                if (auto dxdy = coord - mcoord)
+                {
+                    if (fsmode == state::maximized) set_state(state::normal);
+                    move_window(dxdy);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
+                }
+                mcoord = coord;
+                return;
+            }
             mcoord = coord;
             auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
             if (inside)
@@ -2659,10 +2672,19 @@ namespace netxs::gui
                 mouse_release();
                 seized = faux;
             }
-            if (!pressed && button == bttn::left && szgrip.seized) // Grips drag stop.
+            if (!pressed && button == bttn::left)
             {
-                szgrip.drop();
-                reload |= task::grips;
+                if (szgrip.seized) // Grips drag stop.
+                {
+                    szgrip.drop();
+                    reload |= task::grips;
+                }
+                if (moving)
+                {
+                    moving = faux;
+                    proxy.m.buttons = mbttns;
+                    return;
+                }
             }
             static auto dblclick = datetime::now() - 1s;
             if (seized || inside)
@@ -2825,13 +2847,26 @@ namespace netxs::gui
             };
             LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear) // Move window only when mouse events get back.
             {
-                if (auto dxdy = twod{ gear.delta.get() * cellsz }) // Return back to the pixels.
+                if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                 {
+                    // Mouse leaves viewport.
+                    auto timecode = datetime::now();
+                    proxy.m.changed++;
+                    proxy.m.timecod = timecode;
+                    proxy.m.enabled = hids::stat::halt;
+                    proxy.mouse(proxy.m);
+
                     if (fsmode == state::maximized) set_state(state::normal);
                     //todo centrify to mouse cursor
                     move_window(dxdy);
                     sync_titles_pixel_layout(); // Align grips and shadow.
+                    moving = true;
                 }
+            };
+            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            {
+                     if (fsmode == state::maximized) set_state(state::normal);
+                else if (fsmode == state::normal)    set_state(state::maximized);
             };
 
             auto title = get_window_title();
