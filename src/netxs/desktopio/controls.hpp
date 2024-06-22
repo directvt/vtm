@@ -3163,7 +3163,7 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (auto delta = twod{ gear.coord - drag_origin })
+                    if (auto delta = twod{ gear.coord } - twod { drag_origin })
                     {
                         drag_origin = gear.coord;
                         auto value = permit * delta;
@@ -3769,7 +3769,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = twod{ gear.coord - drag_origin }[Axis])
+                        if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[Axis])
                         {
                             drag_origin = gear.coord;
                             calc.stepby(delta);
@@ -4353,7 +4353,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(grip_ctl->id))
                     {
-                        if (auto delta = twod{ gear.coord - drag_origin }.x)
+                        if (auto delta = twod{ gear.coord } - twod{ drag_origin }.x)
                         {
                             drag_origin = gear.coord;
                             deltas += delta;

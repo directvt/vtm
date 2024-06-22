@@ -680,7 +680,7 @@ namespace netxs::app::desk
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            if (auto delta = twod{ gear.coord - *drag_origin }[axis::X])
+                            if (auto delta = (twod{ gear.coord } - twod{ *drag_origin })[axis::X])
                             {
                                 taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
                                 taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;

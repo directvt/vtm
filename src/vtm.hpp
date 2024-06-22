@@ -487,7 +487,7 @@ namespace netxs::app::vtm
                     auto& step = data.step;
                     step += gear.delta.get();
                     auto moved = slot.coor(std::min(init, step));
-                    auto dsize = twod{ step - init };
+                    auto dsize = twod{ step } - twod{ init };
                     auto sized = slot.size(std::max(std::abs(dsize), dot_00));
                     if (moved || sized) boss.deface(slot);
                     gear.dismiss();
@@ -847,7 +847,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
             {
                 if (gear.owner.id != this->id) return;
-                if (auto delta = twod{ gear.coord - drag_origin })
+                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                 {
                     drag_origin = gear.coord;
                     base::moveby(-delta);
