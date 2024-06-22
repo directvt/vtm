@@ -2196,7 +2196,7 @@ namespace netxs::gui
                 layers[blinky].show();
             }
         }
-        void change_cell_size(fp32 dy = {})
+        void change_cell_size(fp32 dy = {}, twod resize_center = {})
         {
             reset_blinky();
             auto grip_cell = gripsz / cellsz;
@@ -2217,8 +2217,11 @@ namespace netxs::gui
             else
             {
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                auto new_size = gridsz * cellsz;
-                layers[client].area.size = new_size + border;
+                auto new_size = gridsz * cellsz + border;
+                auto old_size = layers[client].area.size;
+                auto xy_delta = resize_center - resize_center * new_size / old_size;
+                layers[client].area.coor += xy_delta;
+                layers[client].area.size = new_size;
                 layers[blinky].area = layers[client].area - border;
                 sync_titles_pixel_layout();
             }
@@ -2857,11 +2860,10 @@ namespace netxs::gui
             };
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
-                //todo centrify to mouse cursor
                 //todo uncomment
                 //if (gear.meta(hids::anyCtrl))
                 {
-                    change_cell_size(gear.whldt);
+                    change_cell_size(gear.whldt, mcoord - layers[client].area.coor);
                     reload |= task::all;
                 }
             };
