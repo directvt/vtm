@@ -42,7 +42,8 @@ namespace netxs::gui
             static constexpr auto close        = __COUNTER__ - _counter;
         };
         
-        bool isfine = true; // manager: All is ok.
+        bool isfine = true; // manager_base: All is ok.
+        //std::recursive_mutex uisync; // manager_base: UI thread sync.
         explicit operator bool () const { return isfine; }
     };
     struct surface_base

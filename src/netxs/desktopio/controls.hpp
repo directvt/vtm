@@ -4353,7 +4353,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(grip_ctl->id))
                     {
-                        if (auto delta = twod{ gear.coord } - twod{ drag_origin }.x)
+                        if (auto delta = (twod{ gear.coord } - twod{ drag_origin }).x)
                         {
                             drag_origin = gear.coord;
                             deltas += delta;
