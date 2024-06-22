@@ -279,23 +279,23 @@ namespace netxs::ui
             struct sock
             {
                 fp2d drag_origin; // sock: Drag origin.
+                twod drag_center; // sock: Master center.
                 void grab(base const& master, fp2d coord)
                 {
-                    auto center = master.base::size() / 2;
-                    drag_origin = coord - center;
+                    drag_center = master.base::size() / 2;
+                    drag_origin = coord - drag_center;
                 }
                 auto drag(base& master, fp2d coord)
                 {
-                    auto delta = coord - drag_origin;
                     auto center = master.base::size() / 2;
-                    delta -= center;
-                    auto step = twod{ delta };
-                    if (step)
+                    auto delta = twod{ coord } - twod{ drag_origin } - center;
+                    if (delta)
                     {
-                        drag_origin = coord - center;
-                        master.base::moveby(step);
+                        drag_origin += center - drag_center; // Keep origin tied to the master center.
+                        drag_center = center;
+                        master.base::moveby(delta);
                     }
-                    return step;
+                    return delta;
                 }
             };
 
