@@ -2632,7 +2632,6 @@ namespace netxs::gui
             auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
             if (inside)
             {
-                //auto coordxy = (mcoord - inner_rect.coor) / cellsz;
                 auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
                 if (proxy.m.coordxy(coordxy))
                 {
@@ -2674,17 +2673,23 @@ namespace netxs::gui
                 mouse_release();
                 seized = faux;
             }
-            if (!pressed)
+            if (pressed)
+            {
+                if (moving && mbttns) // Stop GUI window dragging if any addition mouse button pressed.
+                {
+                    moving = faux;
+                }
+            }
+            else
             {
                 if (szgrip.seized && button == bttn::left) // Grips drag stop.
                 {
                     szgrip.drop();
                     reload |= task::grips;
                 }
-                if (moving && (button == bttn::left || button == bttn::right)) // Stop window dragging.
+                if (moving) // Stop window dragging on button release.
                 {
                     moving = faux;
-                    return;
                 }
             }
             static auto dblclick = datetime::now() - 1s;
