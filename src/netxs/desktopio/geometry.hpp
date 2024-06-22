@@ -160,20 +160,26 @@ namespace netxs
         {
             return xy2d{ netxs::letoh(p.x), netxs::letoh(p.y) };
         }
-        friend auto   min(xy2d a, xy2d b) { return xy2d{ std::min(a.x, b.x), std::min(a.y, b.y) }; }
-        friend auto   max(xy2d a, xy2d b) { return xy2d{ std::max(a.x, b.x), std::max(a.y, b.y) }; }
-        friend auto   abs(xy2d p)         { return xy2d{ std::abs(p.x), std::abs(p.y) }; }
-        friend auto round(xy2d p)         { return xy2d{ std::round(p.x), std::round(p.y) }; }
-        friend auto clamp(xy2d p, xy2d a, xy2d b)
-        {
-            return xy2d{ std::clamp(p.x, a.x, b.x),
-                         std::clamp(p.y, a.y, b.y) };
-        }
         static constexpr auto sort(xy2d a, xy2d b)
         {
             if (a.x > b.x) std::swap(a.x, b.x);
             if (a.y > b.y) std::swap(a.y, b.y);
             return std::pair{ a, b };
+        }
+        friend auto   min(xy2d a, xy2d b) { return xy2d{ std::min(a.x, b.x), std::min(a.y, b.y) }; }
+        friend auto   max(xy2d a, xy2d b) { return xy2d{ std::max(a.x, b.x), std::max(a.y, b.y) }; }
+        friend auto   abs(xy2d p)         { return xy2d{ std::abs(p.x), std::abs(p.y) }; }
+        friend auto round(xy2d p)         { return xy2d{ std::round(p.x), std::round(p.y) }; }
+        friend auto clamp(xy2d p, xy2d p1, xy2d p2)
+        {
+            auto [a, b] = sort(p1, p2);
+            return xy2d{ std::clamp(p.x, a.x, b.x),
+                         std::clamp(p.y, a.y, b.y) };
+        }
+        constexpr auto clampby(xy2d p) const
+        {
+            auto [a, b] = sort(xy2d{}, p);
+            return xy2d{ std::clamp(x, a.x, b.x), std::clamp(y, a.y, b.y) };
         }
     };
 

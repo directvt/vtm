@@ -2274,7 +2274,7 @@ namespace netxs::gui
             for (auto& w : layers) w.area.coor += delta;
             if (!silent) reload |= task::moved;
         }
-        void set_state(si32 new_state)
+        void set_state(si32 new_state)//, twod new_blinky_coor = dot_mx)
         {
             if (fsmode == new_state) return;
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
@@ -2285,8 +2285,12 @@ namespace netxs::gui
             if (old_state == state::normal) normsz = layers[client].area;
             if (fsmode == state::normal)
             {
-                layers[client].area = normsz;
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                layers[client].area = normsz;
+                //if (new_blinky_coor != dot_mx)
+                //{
+                //    layers[client].area.coor = new_blinky_coor - border.corner();
+                //}
                 size_window();
                 for (auto l : { client, header, footer }) layers[l].show();
                 if (blink_count) layers[blinky].show();
@@ -2488,8 +2492,8 @@ namespace netxs::gui
                     blink_count = 0;
                     {
                         //todo update while sync
-                        auto lock = proxy.bitmap_dtvt.freeze();
-                        auto& main_grid = lock.thing.image;
+                        auto bitmap_lock = proxy.bitmap_dtvt.freeze();
+                        auto& main_grid = bitmap_lock.thing.image;
                         gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid);
                     }
                     check_blinky();
@@ -2678,7 +2682,7 @@ namespace netxs::gui
                 }
             }
             static auto dblclick = datetime::now() - 1s;
-            if (seized || inside)
+            if (changed && (seized || inside))
             {
                 auto timecode = datetime::now();
                 proxy.m.changed++;
@@ -2838,17 +2842,23 @@ namespace netxs::gui
             {
                 if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                 {
-                    // Mouse leaves viewport.
-                    auto timecode = datetime::now();
                     proxy.m.changed++;
-                    proxy.m.timecod = timecode;
-                    proxy.m.enabled = hids::stat::halt;
+                    proxy.m.timecod = datetime::now();
+                    proxy.m.enabled = hids::stat::halt; // Mouse leaves viewport.
                     proxy.mouse(proxy.m);
                     proxy.m.enabled = hids::stat::ok;
-
-                    if (fsmode == state::maximized) set_state(state::normal);
-                    //todo centrify to mouse cursor
-                    move_window(dxdy);
+                    if (fsmode == state::maximized)
+                    {
+                        auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
+                        auto cur_blinky_size = normsz.size - gripsz * 2;
+                        auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
+                        normsz.coor = new_blinky_coor - gripsz;
+                        set_state(state::normal);
+                    }
+                    else
+                    {
+                        move_window(dxdy);
+                    }
                     sync_titles_pixel_layout(); // Align grips and shadow.
                     moving = true;
                 }
