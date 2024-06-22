@@ -7695,7 +7695,7 @@ namespace netxs::ui
                         if (gear.captured(master.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         master.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whldt, m.hzwhl);
                         gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
                 });

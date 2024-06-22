@@ -1403,13 +1403,15 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate)
+        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whldt, bool new_hzwhl)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
             ctlstate = new_ctlstate;
             mouse::coord = new_coord;
+            mouse::whldt = new_whldt;
+            mouse::hzwhl = new_hzwhl;
             mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(new_delta);
             mouse::load_button_state(new_button_state);

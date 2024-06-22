@@ -2003,28 +2003,11 @@ namespace netxs::gui
             };
             void handle(s11n::xs::mouse_event      lock)
             {
-                //todo mouse event back, revise
                 auto& mouse = lock.thing;
-                //if (gear.captured(owner.id)) gear.setfree(true);
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
-                gear.replay(mouse.cause, mouse.coord - basis, mouse.delta, mouse.buttons, mouse.ctlstat);
+                gear.replay(mouse.cause, mouse.coord - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whldt, mouse.hzwhl);
                 gear.pass<tier::release>(owner.This(), gear.owner.base::coor(), true);
-                //log("mouse: ", "cause = ", utf::to_hex(mouse.cause), " coor = ", mouse.coord);
-
-                //owner.trysync(owner.active, [&]
-                //{
-                //    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                //    if (auto parent_ptr = owner.base::parent())
-                //    {
-                //        auto& gear = *gear_ptr;
-                //        if (gear.captured(owner.id)) gear.setfree(true);
-                //        auto basis = gear.owner.base::coor();
-                //        owner.global(basis);
-                //        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
-                //        gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
-                //    }
-                //});
             }
             void handle(s11n::xs::warping          lock)
             {
@@ -2551,19 +2534,18 @@ namespace netxs::gui
         void mouse_wheel(si32 delta, si32 cntrl, bool hz)
         {
             auto wheeldt = delta / 120.f;
-            auto kb = keybd_state();//kbs();
-            if (cntrl || hz)
-            {
-                //...
-            }
-            #if defined(_WIN32)
-            if (cntrl & MK_CONTROL)
-            {
-                change_cell_size(wheeldt);
-                reload |= task::all;
-                return;
-            }
-            #endif
+            //auto kb = keybd_state();//kbs();
+            auto timecode = datetime::now();
+            proxy.m.changed++;
+            proxy.m.timecod = timecode;
+            proxy.m.ctlstat = cntrl; //todo update it in keybd_press
+            proxy.m.hzwheel = hz;
+            proxy.m.wheeled = true;
+            proxy.m.wheeldt = wheeldt;
+            proxy.mouse(proxy.m);
+            proxy.m.hzwheel = {};
+            proxy.m.wheeled = {};
+            proxy.m.wheeldt = {};
         }
         void mouse_leave()
         {
@@ -2638,7 +2620,6 @@ namespace netxs::gui
                     auto timecode = datetime::now();
                     proxy.m.changed++;
                     proxy.m.timecod = timecode;
-                    proxy.m.enabled = hids::stat::ok;
                     proxy.mouse(proxy.m);
                 }
             }
@@ -2649,6 +2630,7 @@ namespace netxs::gui
                 proxy.m.timecod = timecode;
                 proxy.m.enabled = hids::stat::halt;
                 proxy.mouse(proxy.m);
+                proxy.m.enabled = hids::stat::ok;
             }
             if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
             {
@@ -2687,7 +2669,7 @@ namespace netxs::gui
                     szgrip.drop();
                     reload |= task::grips;
                 }
-                if (moving) // Stop window dragging on button release.
+                if (moving) // Stop GUI window dragging on button release.
                 {
                     moving = faux;
                 }
@@ -2698,7 +2680,6 @@ namespace netxs::gui
                 auto timecode = datetime::now();
                 proxy.m.changed++;
                 proxy.m.timecod = timecode;
-                proxy.m.enabled = hids::stat::ok;
                 proxy.mouse(proxy.m);
             }
             else
@@ -2860,6 +2841,7 @@ namespace netxs::gui
                     proxy.m.timecod = timecode;
                     proxy.m.enabled = hids::stat::halt;
                     proxy.mouse(proxy.m);
+                    proxy.m.enabled = hids::stat::ok;
 
                     if (fsmode == state::maximized) set_state(state::normal);
                     //todo centrify to mouse cursor
@@ -2872,6 +2854,16 @@ namespace netxs::gui
             {
                      if (fsmode == state::maximized) set_state(state::normal);
                 else if (fsmode == state::normal)    set_state(state::maximized);
+            };
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                //todo centrify to mouse cursor
+                //todo uncomment
+                //if (gear.meta(hids::anyCtrl))
+                {
+                    change_cell_size(gear.whldt);
+                    reload |= task::all;
+                }
             };
 
             auto title = get_window_title();
