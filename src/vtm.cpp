@@ -334,7 +334,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id;     apname = app::dtty::name;       }
         else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name;   }
         else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name;   }
-        #if defined(DEBUG)
+        //#if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
         else if (shadow.starts_with(app::test::id))      { aptype = app::test::id;      apname = app::test::name;      }
@@ -343,7 +343,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::textancy::id))  { aptype = app::textancy::id;  apname = app::textancy::name;  }
         else if (shadow.starts_with(app::settings::id))  { aptype = app::settings::id;  apname = app::settings::name;  }
         else if (shadow.starts_with(app::truecolor::id)) { aptype = app::truecolor::id; apname = app::truecolor::name; }
-        #endif
+        //#endif
         else if (shadow.starts_with("ssh"))//app::ssh::id))
         {
             params = " "s + params;

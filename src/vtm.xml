@@ -417,9 +417,6 @@ R"==(
             <slim=true/>
         </menu>
     </tile>
-)=="
-#if defined(DEBUG)
-R"==(
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
@@ -432,7 +429,4 @@ R"==(
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
-)=="
-#endif
-R"==(
 </config>)=="

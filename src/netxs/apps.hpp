@@ -36,7 +36,7 @@ namespace netxs::app::info
 
 #include "apps/term.hpp"
 
-#if defined(DEBUG)
+//#if defined(DEBUG)
 #include "apps/calc.hpp"
 #include "apps/text.hpp"
 #include "apps/shop.hpp"
@@ -270,7 +270,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_truecolor { app::truecolor::id, build_truecolor  };
     }
 }
-#endif
+//#endif
 
 namespace netxs::app::shared
 {
