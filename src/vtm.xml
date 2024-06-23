@@ -278,6 +278,8 @@ R"==(
             <layout = QWERTY/>  <!-- Not implemented. QWERTY, AZERTY, Dvorak, etc. -->
         </keyboard>
     </client>
+)==" // C2026 String too big, trailing characters truncated.
+R"==(
     <term>       <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>

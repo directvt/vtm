@@ -1825,6 +1825,7 @@ namespace netxs::gui
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
+                //auto oldhash = bitmap.image.hash();
                 auto resize = [&](auto new_size)
                 {
                     auto size_delta = (new_size - owner.gridsz) * owner.cellsz;
@@ -1855,6 +1856,12 @@ namespace netxs::gui
                 bitmap.get(data, update, resize);
                 s11n::request_jgc(intio, lock);
                 owner.reload |= task::inner;
+                //auto resized = oldhash != bitmap.image.hash();
+                //if (resized)
+                //{
+                //    owner.wait_reply = faux;
+                //    if (owner.deferred_resize != dot_mx) owner.resize_by_grips(owner.deferred_resize, true);
+                //}
             }
             void handle(s11n::xs::jgc_list         lock)
             {
@@ -2574,13 +2581,37 @@ namespace netxs::gui
             mhover = faux;
             if (szgrip.leave()) reload |= task::grips;
         }
+        bool wait_reply = faux;
+        twod deferred_resize = dot_mx;
+        void resize_by_grips(twod coord, bool synced)
+        {
+            deferred_resize = dot_mx;
+            auto kb = kbs();// keybd_state();
+            auto inner_rect = layers[blinky].area;
+            auto zoom = kb & hids::anyCtrl;
+            auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
+            auto old_client = layers[blinky].area;
+            auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
+            size_delta = new_gridsz * cellsz - old_client.size;
+            if (size_delta)
+            {
+                //todo sync ui
+                if (auto move_delta = szgrip.move(size_delta, zoom))
+                {
+                    move_window(move_delta, true);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
+                }
+                wait_reply = true;
+                proxy.w.winsize = new_gridsz;
+                proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
+            }
+        }
         void mouse_moved(twod coord)
         {
             auto& mbttns = proxy.m.buttons;
             mhover = true;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
-            //auto wait_reply = faux;
             auto ingrip = hit_grips();
             if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
             {
@@ -2598,23 +2629,9 @@ namespace netxs::gui
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    auto zoom = kb & hids::anyCtrl;
-                    auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
-                    auto old_client = layers[blinky].area;
-                    auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
-                    size_delta = new_gridsz * cellsz - old_client.size;
-                    if (size_delta)
-                    {
-                        //todo sync ui
-                        if (auto move_delta = szgrip.move(size_delta, zoom))
-                        {
-                            move_window(move_delta, true);
-                            sync_titles_pixel_layout(); // Align grips and shadow.
-                        }
-                        //wait_reply = true;
-                        proxy.w.winsize = new_gridsz;
-                        proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
-                    }
+                    resize_by_grips(coord, faux);
+                    //if (!wait_reply) resize_by_grips(coord, faux);
+                    //else deferred_resize = coord;
                 }
                 else drop_grips();
             }
