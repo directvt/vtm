@@ -2588,7 +2588,7 @@ namespace netxs::gui
             }
             if ((!seized && ingrip) || szgrip.seized)
             {
-                if (mbttns == bttn::right) // Move window.
+                if (mbttns == bttn::right && fsmode == state::normal) // Move window.
                 {
                     moving = true;
                 }
@@ -2622,14 +2622,14 @@ namespace netxs::gui
             {
                 reload |= task::grips;
             }
-            if (moving)
+            if (moving && fsmode == state::normal)
             {
                 if (auto dxdy = coord - mcoord)
                 {
                     mcoord = coord;
                     netxs::events::enqueue(This(), [&, dxdy](auto& /*boss*/)
                     {
-                        if (fsmode == state::maximized) set_state(state::normal);
+                        //if (fsmode == state::maximized) set_state(state::normal);
                         move_window(dxdy);
                         sync_titles_pixel_layout(); // Align grips and shadow.
                         update();
@@ -2866,11 +2866,35 @@ namespace netxs::gui
                 {
                     //todo
                 };
+                static auto accum = fp2d{};
+                LISTEN(tier::release, hids::events::mouse::button::drag::start::left, gear) // Move window only when mouse events get back.
+                {
+                    accum = {};
+                    log("start");
+                };
+                LISTEN(tier::release, hids::events::mouse::button::drag::stop::left, gear) // Move window only when mouse events get back.
+                {
+                    accum = {};
+                    log("stop");
+                };
+                LISTEN(tier::release, hids::events::mouse::button::drag::cancel::left, gear) // Move window only when mouse events get back.
+                {
+                    accum = {};
+                    log("cancel");
+                };
                 LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear) // Move window only when mouse events get back.
                 {
                     if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
                     if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                     {
+                        accum += gear.delta.get();
+                        auto threashold = gripsz.x / 4;
+                        if (std::abs(accum.x) + std::abs(accum.y) > threashold)
+                        {
+                            accum = {};
+                        }
+                        else return;
+
                         proxy.m.changed++;
                         proxy.m.timecod = datetime::now();
                         proxy.m.enabled = hids::stat::halt; // Mouse leaves viewport.
