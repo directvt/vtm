@@ -1829,7 +1829,7 @@ namespace netxs::gui
                 auto resize = [&](auto new_size)
                 {
                     auto size_delta = (new_size - owner.gridsz) * owner.cellsz;
-                    owner.resize_window(size_delta);
+                    if (owner.waitsz == new_size) owner.waitsz = dot_00;
                 };
                 auto update = [&](auto size, auto head, auto iter, auto tail)
                 {
@@ -1856,12 +1856,6 @@ namespace netxs::gui
                 bitmap.get(data, update, resize);
                 s11n::request_jgc(intio, lock);
                 owner.reload |= task::inner;
-                //auto resized = oldhash != bitmap.image.hash();
-                //if (resized)
-                //{
-                //    owner.wait_reply = faux;
-                //    if (owner.deferred_resize != dot_mx) owner.resize_by_grips(owner.deferred_resize, true);
-                //}
             }
             void handle(s11n::xs::jgc_list         lock)
             {
@@ -2113,6 +2107,7 @@ namespace netxs::gui
         shad shadow; // window: Shadow generator.
         grip szgrip; // window: Resizing grips UI-control.
         twod mcoord; // window: Mouse cursor coord.
+        twod waitsz; // window: Window is waiting resize acknowledge.
         bool inside; // window: Mouse is inside the client area.
         bool seized; // window: Mouse is locked inside the client area.
         bool mhover; // window: Mouse hover.
@@ -2271,10 +2266,10 @@ namespace netxs::gui
             change_cell_size();
             reload |= task::all;
         }
-        auto move_window(twod delta, bool silent = faux)
+        auto move_window(twod delta)
         {
             for (auto& w : layers) w.area.coor += delta;
-            if (!silent) reload |= task::moved;
+            reload |= task::moved;
         }
         void drop_grips()
         {
@@ -2502,7 +2497,7 @@ namespace netxs::gui
         }
         void update()
         {
-            if (!reload) return;
+            if (!reload || waitsz) return;
             auto what = reload;
             reload = {};
                  if (what == task::moved) manager::present<true>();
@@ -2581,11 +2576,8 @@ namespace netxs::gui
             mhover = faux;
             if (szgrip.leave()) reload |= task::grips;
         }
-        bool wait_reply = faux;
-        twod deferred_resize = dot_mx;
-        void resize_by_grips(twod coord, bool synced)
+        void resize_by_grips(twod coord)
         {
-            deferred_resize = dot_mx;
             auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
             auto zoom = kb & hids::anyCtrl;
@@ -2598,10 +2590,11 @@ namespace netxs::gui
                 //todo sync ui
                 if (auto move_delta = szgrip.move(size_delta, zoom))
                 {
-                    move_window(move_delta, true);
+                    move_window(move_delta);
                     sync_titles_pixel_layout(); // Align grips and shadow.
                 }
-                wait_reply = true;
+                resize_window(size_delta);
+                waitsz = new_gridsz;
                 proxy.w.winsize = new_gridsz;
                 proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
@@ -2629,9 +2622,10 @@ namespace netxs::gui
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    resize_by_grips(coord, faux);
-                    //if (!wait_reply) resize_by_grips(coord, faux);
-                    //else deferred_resize = coord;
+                    netxs::events::enqueue(This(), [&, coord](auto& /*boss*/)
+                    {
+                        resize_by_grips(coord);
+                    });
                 }
                 else drop_grips();
             }
@@ -2646,6 +2640,7 @@ namespace netxs::gui
                     mcoord = coord;
                     netxs::events::enqueue(This(), [&, dxdy](auto& /*boss*/)
                     {
+                        //todo revise
                         //if (fsmode == state::maximized) set_state(state::normal);
                         move_window(dxdy);
                         sync_titles_pixel_layout(); // Align grips and shadow.
