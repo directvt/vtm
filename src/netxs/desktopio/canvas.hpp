@@ -2755,7 +2755,7 @@ namespace netxs
         {
             auto mx = (fp32)region.size.x;
             auto my = (fp32)region.size.y;
-            auto len = std::sqrt(mx * mx + my * my * 4);
+            auto len = std::max(1.f, std::sqrt(mx * mx + my * my * 4));
 
             auto dr = (c2.chan.r - c1.chan.r) / len;
             auto dg = (c2.chan.g - c1.chan.g) / len;
@@ -2996,8 +2996,8 @@ namespace netxs
             auto maxs = static_cast<si32>(canvas.size());
             if (!maxs) return dot_00;
             offset = std::clamp(offset, 0, maxs - 1);
-            return twod{ offset % region.size.x,
-                         offset / region.size.x };
+            auto sx = std::max(1, region.size.x);
+            return twod{ offset % sx, offset / sx };
         }
         auto line(si32 from, si32 upto) const // core: Get stripe.
         {

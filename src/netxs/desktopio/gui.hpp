@@ -185,9 +185,9 @@ namespace netxs::gui
                     base_strikeout = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
                     base_overline = { std::min((fp32)m.ascent, (fp32)(m.capHeight - m.underlinePosition)), (fp32)m.underlineThickness };
                     base_emheight = m.designUnitsPerEm;
-                    base_x_height = m.xHeight;
-                    base_ascent = m.ascent + m.lineGap / 2.0f;
-                    base_descent = m.descent + m.lineGap / 2.0f;
+                    base_x_height = std::max(1, (si32)m.xHeight);
+                    base_ascent = std::max(1.f, m.ascent + m.lineGap / 2.0f);
+                    base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                     // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                     //auto code_points = ui32{ 'x' };
@@ -240,7 +240,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    transform = std::min(transform, cellsize.x  / facesize.x);
+                    transform = std::min(transform, cellsize.x / facesize.x);
                     transform_letters = transform;
                 }
                 transform_letters = std::floor(base_x_height * transform_letters) / base_x_height; // Respect x-height.
@@ -891,9 +891,9 @@ namespace netxs::gui
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto actual_width = swapxy ? length :
-                                is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
-                                               : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
+            auto actual_width = swapxy ? std::max(1.f, length) :
+                        is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
+                                       : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
@@ -1825,16 +1825,15 @@ namespace netxs::gui
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
-                //auto oldhash = bitmap.image.hash();
-                auto resize = [&](auto new_size)
+                auto resize = [&](auto new_gridsz)
                 {
-                    auto size_delta = (new_size - owner.gridsz) * owner.cellsz;
-                    if (owner.waitsz == new_size) owner.waitsz = dot_00;
+                    if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
                 };
-                auto update = [&](auto size, auto head, auto iter, auto tail)
+                auto update = [&](auto size, auto head, auto iter, [[maybe_unused]] auto tail)
                 {
                     auto offset = (si32)(iter - head);
-                    auto coor = twod{ offset % size.x, offset / size.x };
+                    auto mx = std::max(1, size.x);
+                    auto coor = twod{ offset % mx, offset / mx };
                     //todo render in pixels
                     //see gcache.fill_grid()
                     //owner.print(size, coor, iter, tail);
@@ -2216,7 +2215,7 @@ namespace netxs::gui
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 auto new_size = gridsz * cellsz + border;
                 auto old_size = layers[client].area.size;
-                auto xy_delta = resize_center - resize_center * new_size / old_size;
+                auto xy_delta = resize_center - resize_center * new_size / std::max(dot_11, old_size);
                 layers[client].area.coor += xy_delta;
                 layers[client].area.size = new_size;
                 layers[blinky].area = layers[client].area - border;
@@ -2387,6 +2386,12 @@ namespace netxs::gui
                 sync_titles_pixel_layout();
             }
             reload |= task::sized;
+            if (proxy.w.winsize != gridsz)
+            {
+                waitsz = gridsz;
+                proxy.w.winsize = gridsz;
+                proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
+            }
         }
         auto resize_window(twod size_delta)
         {
@@ -2594,9 +2599,6 @@ namespace netxs::gui
                     sync_titles_pixel_layout(); // Align grips and shadow.
                 }
                 resize_window(size_delta);
-                waitsz = new_gridsz;
-                proxy.w.winsize = new_gridsz;
-                proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
         }
         void mouse_moved(twod coord)
@@ -2907,15 +2909,16 @@ namespace netxs::gui
                         proxy.m.enabled = hids::stat::halt; // Mouse leaves viewport.
                         proxy.mouse(proxy.m);
                         proxy.m.enabled = hids::stat::ok;
-                        if (fsmode == state::maximized)
-                        {
-                            auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
-                            auto cur_blinky_size = normsz.size - gripsz * 2;
-                            auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
-                            normsz.coor = new_blinky_coor - gripsz;
-                            set_state(state::normal);
-                        }
-                        else
+                        //todo revise
+                        //if (fsmode == state::maximized)
+                        //{
+                        //    auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
+                        //    auto cur_blinky_size = normsz.size - gripsz * 2;
+                        //    auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
+                        //    normsz.coor = new_blinky_coor - gripsz;
+                        //    set_state(state::normal);
+                        //}
+                        //else
                         {
                             move_window(dxdy);
                         }

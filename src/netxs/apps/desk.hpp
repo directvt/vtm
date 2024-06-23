@@ -335,7 +335,7 @@ namespace netxs::app::desk
                             }
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                             gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                            offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32 + dot_11;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;

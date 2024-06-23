@@ -209,7 +209,7 @@ namespace netxs::app::vtm
                         auto& window = *window_ptr;
                         auto window_size = window.base::size();
                         auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                        anchor = anchor * prev.size / window_size;
+                        anchor = anchor * prev.size / std::max(dot_11, window_size);
                         prev.coor = boss.base::coor();
                         prev.coor += window.base::anchor - anchor; // Follow the mouse cursor. See pro::frame pull.
                         window.base::extend(prev);
@@ -1494,7 +1494,7 @@ namespace netxs::app::vtm
                                     if (new_area.size == boss.base::size()) // Restore saved size.
                                     {
                                         auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
-                                        anchor = anchor * saved_area.size / new_area.size;
+                                        anchor = anchor * saved_area.size / std::max(dot_11, new_area.size);
                                         saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensating header height.
                                         saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
                                     }
@@ -1956,7 +1956,7 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                     if (wincoor == dot_00)
                     {
-                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
                         wincoor = viewport.coor + offset + viewport.size * 1 / 32;
                     }
                     what.square.coor = wincoor;

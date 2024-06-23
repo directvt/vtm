@@ -851,7 +851,7 @@ namespace netxs::os
                     void data(si32 count, grid const& proto)
                     {
                         auto start = coord;
-                        auto panel = console::buffer;
+                        auto panel = std::max(dot_11, console::buffer);
                         coord.x += count;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
@@ -3485,7 +3485,7 @@ namespace netxs::os
                 log("%%Fallback tty window size %defsize% (consider using 'ssh -tt ...')", prompt::tty, winsz_fallback);
                 winsz = winsz_fallback;
             }
-            return winsz;
+            return std::max(dot_11, winsz);
         }
         auto initialize(bool trygui = faux)
         {
@@ -4558,7 +4558,8 @@ namespace netxs::os
                         auto update = [](auto size, auto head, auto iter, auto tail)
                         {
                             auto offset = (si32)(iter - head);
-                            auto coor = twod{ offset % size.x, offset / size.x };
+                            auto mx = std::max(1, size.x);
+                            auto coor = twod{ offset % mx, offset / mx };
                             nt::console::print<svga::vt16>(size, coor, iter, tail);
                         };
                     #else

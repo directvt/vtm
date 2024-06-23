@@ -810,7 +810,7 @@ namespace netxs::app::terminal
             if (region.size.x != bground.size().x)
             {
                 auto spline = netxs::spline01{ -0.30f };
-                auto mx = region.size.x;
+                auto mx = std::max(2, region.size.x);
                 auto my = std::min(3, region.size.y);
                 bground.size({ mx, my }, skin::color(tone::kb_focus));
                 auto it = bground.begin();

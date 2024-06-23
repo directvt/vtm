@@ -3508,9 +3508,9 @@ namespace netxs::ui
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
             si32  scroll_box = 0; // math: Scrollbar grip len.
-            si32   m         = 0; // math: Master max pos.
-            si32   s         = 0; // math: Scroll max pos.
-            double r         = 1; // math: Scroll/master len ratio.
+            si32  m          = 0; // math: Master max pos.
+            si32  s          = 0; // math: Scroll max pos.
+            fp64  r          = 1; // math: Scroll/master len ratio.
 
             si32  cursor_pos = 0; // math: Mouse cursor position.
 
@@ -3531,7 +3531,7 @@ namespace netxs::ui
             {
                 if (master_box == 0) return;
                 if (master_len == 0) master_len = master_box;
-                r = (double)scroll_len / master_len;
+                r = (fp64)scroll_len / master_len;
                 auto master_middle = master_pos + master_box / 2.0;
                 auto scroll_middle = master_middle * r;
                 scroll_box = std::max(1, (si32)(master_box * r));

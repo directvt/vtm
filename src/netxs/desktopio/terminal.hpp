@@ -2071,7 +2071,7 @@ namespace netxs::ui
             {
                 auto find = [&](auto a, auto b, auto& uinext, auto& uiprev)
                 {
-                    auto length = canvas.size().x;
+                    auto length = std::max(1, canvas.size().x);
                     auto offset = from + a;
                     if (canvas.find(match, offset, direction))
                     {
@@ -8050,10 +8050,10 @@ namespace netxs::ui
                 }
             };
             SIGNAL(tier::general, e2::config::fps, fps, (-1));
-            maxoff = span{ span::period::den / fps };
+            maxoff = span{ span::period::den / std::max(1, fps) };
             LISTEN(tier::general, e2::config::fps, fps)
             {
-                maxoff = span{ span::period::den / fps };
+                maxoff = span{ span::period::den / std::max(1, fps) };
             };
             LISTEN(tier::anycast, e2::form::prop::lucidity, value)
             {
