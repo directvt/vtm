@@ -1914,12 +1914,14 @@ namespace netxs::gui
             }
             void handle(s11n::xs::fullscreen       lock)
             {
-                owner.set_state(state::maximized);
+                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
+                else                                  owner.set_state(state::maximized);
             }
             void handle(s11n::xs::maximize         lock)
             {
                 //todo diff fullscreen and maximized
-                owner.set_state(state::maximized);
+                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
+                else                                  owner.set_state(state::maximized);
             }
             void handle(s11n::xs::minimize         lock)
             {
