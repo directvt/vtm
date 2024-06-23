@@ -2866,34 +2866,29 @@ namespace netxs::gui
                 {
                     //todo
                 };
-                static auto accum = fp2d{};
-                LISTEN(tier::release, hids::events::mouse::button::drag::start::left, gear) // Move window only when mouse events get back.
+                auto accum_ptr = ptr::shared(dot_00);
+                LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (accum_ptr))
                 {
-                    accum = {};
-                    log("start");
+                    *accum_ptr = {};
                 };
-                LISTEN(tier::release, hids::events::mouse::button::drag::stop::left, gear) // Move window only when mouse events get back.
+                LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear, -, (accum_ptr)) // Move window only when mouse events get back.
                 {
-                    accum = {};
-                    log("stop");
-                };
-                LISTEN(tier::release, hids::events::mouse::button::drag::cancel::left, gear) // Move window only when mouse events get back.
-                {
-                    accum = {};
-                    log("cancel");
-                };
-                LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear) // Move window only when mouse events get back.
-                {
+                    if (fsmode == state::normal) //todo revise this restriction
                     if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
                     if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                     {
-                        accum += gear.delta.get();
-                        auto threashold = gripsz.x / 4;
-                        if (std::abs(accum.x) + std::abs(accum.y) > threashold)
-                        {
-                            accum = {};
-                        }
-                        else return;
+                        //todo revise
+                        //auto& accum = *accum_ptr;
+                        //accum += dxdy;
+                        //log("accum=", accum);
+                        //auto threshold = 2 * cellsz.y;
+                        //if (std::abs(accum.x) > threshold || std::abs(accum.y) > threshold)
+                        //{
+                        //    log("\tgo");
+                        //    dxdy = accum;
+                        //    accum = {};
+                        //}
+                        //else return;
 
                         proxy.m.changed++;
                         proxy.m.timecod = datetime::now();
