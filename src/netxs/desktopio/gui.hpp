@@ -2269,6 +2269,14 @@ namespace netxs::gui
             for (auto& w : layers) w.area.coor += delta;
             if (!silent) reload |= task::moved;
         }
+        void drop_grips()
+        {
+            if (szgrip.seized) // drag stop
+            {
+                szgrip.drop();
+                reload |= task::grips;
+            }
+        }
         void set_state(si32 new_state)
         {
             if (fsmode == new_state) return;
@@ -2282,10 +2290,6 @@ namespace netxs::gui
             {
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 layers[client].area = normsz;
-                //if (new_blinky_coor != dot_mx)
-                //{
-                //    layers[client].area.coor = new_blinky_coor - border.corner();
-                //}
                 size_window();
                 for (auto l : { client, header, footer }) layers[l].show();
                 if (blink_count) layers[blinky].show();
@@ -2296,6 +2300,7 @@ namespace netxs::gui
             }
             else if (fsmode == state::maximized)
             {
+                drop_grips();
                 layers[client].area = manager::get_fs_area(layers[client].area - border);
                 auto over_sz = layers[client].area.size % cellsz;
                 auto half_sz = over_sz / 2;
@@ -2312,8 +2317,22 @@ namespace netxs::gui
         {
             if ((arch)(layers[client].hWnd) != hWnd) return;
             if (fsmode == state::undefined || layers.empty()) return;
-            //todo optimize: try lock ui for fast check
-            netxs::events::enqueue(This(), [&](auto& /*boss*/)
+            auto unsync = true;
+            if (auto lock = netxs::events::try_sync{}) // Try to sync with ui thread for fast checking.
+            {
+                if (fsmode == state::maximized)
+                {
+                    auto fs_area = manager::get_fs_area(layers[client].area);
+                    unsync = fs_area != layers[client].area;
+                }
+                else if (fsmode == state::normal)
+                {
+                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    unsync = !avail_area.trim(layers[client].area);
+                }
+                else unsync = faux;
+            }
+            if (unsync) netxs::events::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
             {
                 if (fsmode == state::maximized)
                 {
@@ -2563,6 +2582,10 @@ namespace netxs::gui
             auto inner_rect = layers[blinky].area;
             //auto wait_reply = faux;
             auto ingrip = hit_grips();
+            if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
+            {
+                moving = faux;
+            }
             if ((!seized && ingrip) || szgrip.seized)
             {
                 if (mbttns == bttn::right) // Move window.
@@ -2593,11 +2616,7 @@ namespace netxs::gui
                         proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
                     }
                 }
-                else if (szgrip.seized) // drag stop
-                {
-                    szgrip.drop();
-                    reload |= task::grips;
-                }
+                else drop_grips();
             }
             if (!moving && !seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
@@ -2607,6 +2626,7 @@ namespace netxs::gui
             {
                 if (auto dxdy = coord - mcoord)
                 {
+                    mcoord = coord;
                     netxs::events::enqueue(This(), [&, dxdy](auto& /*boss*/)
                     {
                         if (fsmode == state::maximized) set_state(state::normal);
@@ -2615,7 +2635,6 @@ namespace netxs::gui
                         update();
                     });
                 }
-                mcoord = coord;
                 return;
             }
             mcoord = coord;
@@ -2665,22 +2684,15 @@ namespace netxs::gui
             }
             if (pressed)
             {
-                if (moving && mbttns) // Stop GUI window dragging if any addition mouse button pressed.
+                if (moving && prev_state) // Stop GUI window dragging if any addition mouse button pressed.
                 {
                     moving = faux;
                 }
             }
             else
             {
-                if (szgrip.seized && button == bttn::left) // Grips drag stop.
-                {
-                    szgrip.drop();
-                    reload |= task::grips;
-                }
-                if (moving) // Stop GUI window dragging on button release.
-                {
-                    moving = faux;
-                }
+                if (button == bttn::left) drop_grips();
+                moving = faux; // Stop GUI window dragging if any button released.
             }
             static auto dblclick = datetime::now() - 1s;
             if (changed && (seized || inside))
@@ -2856,6 +2868,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear) // Move window only when mouse events get back.
                 {
+                    if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
                     if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                     {
                         proxy.m.changed++;
