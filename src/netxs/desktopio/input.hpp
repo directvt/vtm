@@ -1275,8 +1275,9 @@ namespace netxs::input
         kmap other_key; // hids: Dynamic key-vt mapping.
 
         template<class T>
-        hids(T& props, base& owner, core const& idmap)
-            : relay{ 0 },
+        hids(auth& indexer, T& props, base& owner, core const& idmap)
+            : bell{ indexer },
+              relay{ 0 },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },

@@ -893,6 +893,11 @@ namespace netxs::directvt
                 auto dst = image.begin();
                 auto dtx = fsz.x - csz.x;
                 auto min = std::min(csz, fsz);
+                if (src == end)
+                {
+                    delta = {};
+                    return;
+                }
                 auto beg = src + 1;
                 auto mid = src + csz.x * min.y;
                 bool bad = true;

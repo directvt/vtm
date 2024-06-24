@@ -550,7 +550,8 @@ namespace netxs::app::shared
             auto win_area = rect{ wincoord, gridsize };
             if (win_area.size != dot_00) os::dtvt::window.size = win_area.size;
             if (win_area.coor != dot_00) os::dtvt::window.coor = win_area.coor;
-            if (auto window = base::create<gui::window>(os::dtvt::window, fontlist, cellsize, aliasing, blinking))
+            auto event_domain = netxs::events::auth{};
+            if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, cellsize, aliasing, blinking))
             {
                 if constexpr (debugmode) os::logstd("dtvt::window=", os::dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", datetime::round<si32>(blinking));
                 window->connect(winstate);

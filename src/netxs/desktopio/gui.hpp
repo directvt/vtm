@@ -1782,7 +1782,7 @@ namespace netxs::gui
 
 namespace netxs::gui
 {
-    struct window : manager, ui::form<window>
+    struct window : manager, ui::base
     {
         using e2 = netxs::events::userland::e2;
         using gray = netxs::raster<std::vector<byte>, rect>;
@@ -1906,11 +1906,11 @@ namespace netxs::gui
             {
                 auto copy = lock.thing;
                 //todo implement
-                //netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
+                //owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 //{
                 //    for (auto& tooltip : tooltips)
                 //    {
-                //        if (auto gear_ptr = bell::getref<hids>(tooltip.gear_id))
+                //        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
                 //        {
                 //            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                 //        }
@@ -1935,7 +1935,7 @@ namespace netxs::gui
             }
             void handle(s11n::xs::expose         /*lock*/)
             {
-                netxs::events::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
                     owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
@@ -1979,7 +1979,7 @@ namespace netxs::gui
             void handle(s11n::xs::fps              lock)
             {
                 //todo revise
-                //netxs::events::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                //owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 //{
                 //    owner.SIGNAL(tier::general, e2::config::fps, fps);
                 //});
@@ -1991,7 +1991,7 @@ namespace netxs::gui
             void handle(s11n::xs::fatal            lock)
             {
                 //todo revise
-                //netxs::events::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                //owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 //{
                 //    owner.errmsg = owner.genmsg(utf8);
                 //    owner.deface();
@@ -2007,7 +2007,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysstart       /*lock*/)
             {
                 //todo revise
-                //netxs::events::enqueue(owner.This(), [&](auto& /*boss*/)
+                //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
                 //    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 //});
@@ -2015,7 +2015,7 @@ namespace netxs::gui
             void handle(s11n::xs::cwd              lock)
             {
                 //todo revise
-                //netxs::events::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                //owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 //{
                 //    owner.RISEUP(tier::preview, e2::form::prop::cwd, path);
                 //});
@@ -2035,7 +2035,7 @@ namespace netxs::gui
                  owner{ owner },
                  intio{ intio },
                  alive{ true },
-                 gear{ props, owner, s11n::bitmap_dtvt.freeze().thing.image }
+                 gear{ owner.indexer, props, owner, s11n::bitmap_dtvt.freeze().thing.image }
             {
                 m.gear_id = gear.id;
                 f.gear_id = gear.id;
@@ -2090,8 +2090,9 @@ namespace netxs::gui
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
-            : fcache{ font_names, cell_height },
+        window(auth& indexer, rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
+            : base{ indexer },
+              fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               height{ (fp32)fcache.cellsize.y },
               gripsz{ grip_cell * fcache.cellsize },
@@ -2263,7 +2264,7 @@ namespace netxs::gui
             if ((arch)(layers[client].hWnd) != hWnd) return;
             if (fsmode == state::undefined || layers.empty()) return;
             auto unsync = true;
-            if (auto lock = netxs::events::try_sync{}) // Try to sync with ui thread for fast checking.
+            if (auto lock = bell::try_sync()) // Try to sync with ui thread for fast checking.
             {
                 if (fsmode == state::maximized)
                 {
@@ -2277,7 +2278,7 @@ namespace netxs::gui
                 }
                 else unsync = faux;
             }
-            if (unsync) netxs::events::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
+            if (unsync) bell::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
             {
                 if (fsmode == state::maximized)
                 {
@@ -2571,7 +2572,7 @@ namespace netxs::gui
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    netxs::events::enqueue(This(), [&, coord](auto& /*boss*/)
+                    bell::enqueue(This(), [&, coord](auto& /*boss*/)
                     {
                         resize_by_grips(coord);
                     });
@@ -2587,7 +2588,7 @@ namespace netxs::gui
                 if (auto dxdy = coord - mcoord)
                 {
                     mcoord = coord;
-                    netxs::events::enqueue(This(), [&, dxdy](auto& /*boss*/)
+                    bell::enqueue(This(), [&, dxdy](auto& /*boss*/)
                     {
                         //todo revise
                         //if (fsmode == state::maximized) set_state(state::normal);
@@ -2763,7 +2764,7 @@ namespace netxs::gui
             if (active) activate();
             proxy.f.state = active;
             proxy.focus(proxy.f);
-            //netxs::events::enqueue(This(), [&](auto& /*boss*/)
+            //bell::enqueue(This(), [&](auto& /*boss*/)
             //{
             //    if (active) ui::pro::focus::set(This(), proxy.gear.id, ui::pro::focus::solo::on, ui::pro::focus::flip::off);
             //    else        ui::pro::focus::off(This());
@@ -2781,7 +2782,7 @@ namespace netxs::gui
         //}
         void timer_event(arch eventid)
         {
-            netxs::events::enqueue(This(), [&, eventid](auto& /*boss*/)
+            bell::enqueue(This(), [&, eventid](auto& /*boss*/)
             {
                 if (fsmode == state::minimized || eventid != timers::blink) return;
                 auto visible = layers[blinky].live;
@@ -2800,7 +2801,7 @@ namespace netxs::gui
         void sys_command(si32 menucmd)
         {
             if (menucmd == syscmd::update && !reload) return;
-            netxs::events::enqueue(This(), [&, menucmd](auto& /*boss*/)
+            bell::enqueue(This(), [&, menucmd](auto& /*boss*/)
             {
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
@@ -2823,7 +2824,7 @@ namespace netxs::gui
         void connect(si32 win_state)
         {
             {
-                auto lock = netxs::events::sync{};
+                auto lock = bell::sync();
                 set_state(win_state);
                 sync_clipboard();
                 update();
@@ -2921,7 +2922,7 @@ namespace netxs::gui
             {
                 auto sync = [&](view data)
                 {
-                    auto lock = netxs::events::sync{};
+                    auto lock = bell::sync();
                     proxy.sync(data);
                     update();
                 };

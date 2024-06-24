@@ -6419,7 +6419,7 @@ namespace netxs::ui
                 if (type == cwdsync)
                 {
                     auto path = text{ data.substr(delimpos) };
-                    netxs::events::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
+                    bell::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
                     {
                         this->RISEUP(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
                     });
@@ -7280,10 +7280,10 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
+            else bell::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
             {
                 ipccon.payoff(io_log);
-                auto lock = netxs::events::sync{};
+                auto lock = bell::sync();
                 auto error = [&]
                 {
                     auto byemsg = escx{};
@@ -7358,7 +7358,7 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+                    bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
                     {
                         ipccon.payoff(io_log); // Wait child process.
                         this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
@@ -7407,6 +7407,8 @@ namespace netxs::ui
             new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
+
+    public:
         term(xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
@@ -7577,7 +7579,7 @@ namespace netxs::ui
             {
                 s11n::request_jgc(master, lock);
                 lock.unlock();
-                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7585,7 +7587,7 @@ namespace netxs::ui
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7593,11 +7595,11 @@ namespace netxs::ui
             void handle(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
-                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(tooltip.gear_id))
+                        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
                         {
                             gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                         }
@@ -7609,7 +7611,7 @@ namespace netxs::ui
                 auto& m = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -7623,7 +7625,7 @@ namespace netxs::ui
                 auto& m = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -7637,7 +7639,7 @@ namespace netxs::ui
                 auto& k = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = master.This() }));
@@ -7649,7 +7651,7 @@ namespace netxs::ui
                 auto& k = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = master.This() }));
@@ -7661,7 +7663,7 @@ namespace netxs::ui
                 auto& k = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -7688,7 +7690,7 @@ namespace netxs::ui
                 auto& m = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
@@ -7703,9 +7705,9 @@ namespace netxs::ui
             void handle(s11n::xs::minimize            lock)
             {
                 auto& m = lock.thing;
-                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         master.RISEUP(tier::release, e2::form::size::minimize, gear);
@@ -7714,7 +7716,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
@@ -7724,7 +7726,7 @@ namespace netxs::ui
                 auto& c = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(c.gear_id))
                     {
                         gear_ptr->set_clipboard(c);
                     }
@@ -7735,7 +7737,7 @@ namespace netxs::ui
                 auto& c = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    if (auto gear_ptr = bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = master.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
@@ -7753,7 +7755,7 @@ namespace netxs::ui
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(master.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
@@ -7761,7 +7763,7 @@ namespace netxs::ui
             void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(master.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -7789,7 +7791,7 @@ namespace netxs::ui
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                netxs::events::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
@@ -7797,7 +7799,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fps                 lock)
             {
-                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                master.bell::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
                     master.SIGNAL(tier::general, e2::config::fps, fps);
                 });
@@ -7808,7 +7810,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
                     master.errmsg = master.genmsg(utf8);
                     master.deface();
@@ -7821,14 +7823,14 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                netxs::events::enqueue(master.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                master.bell::enqueue(master.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 {
                     master.RISEUP(tier::preview, e2::form::prop::cwd, path);
                 });
@@ -7872,7 +7874,7 @@ namespace netxs::ui
         void onexit()
         {
             if (!active.exchange(faux)) return;
-            netxs::events::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
+            bell::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -7925,7 +7927,7 @@ namespace netxs::ui
                 stream.sysclose.send(*this, fast);
                 return;
             }
-            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+            bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
@@ -7965,7 +7967,6 @@ namespace netxs::ui
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
 
-    protected:
         dtvt()
             : stream{*this },
               active{ true },

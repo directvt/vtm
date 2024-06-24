@@ -137,7 +137,7 @@ namespace netxs::ui
             template<tier Tier = tier::release, class E, class T>
             void notify(E, T&& data)
             {
-                netxs::events::enqueue(owner.This(), [d = data](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [d = data](auto& boss) mutable
                 {
                     //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
                     boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
@@ -148,7 +148,7 @@ namespace netxs::ui
                 auto& focus = lock.thing;
                 auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
                 if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
-                netxs::events::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
                     boss.bell::template signal<tier::release>(deed, seed);
@@ -478,7 +478,7 @@ namespace netxs::ui
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(boss.props, boss, xmap)).first;
+                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -1047,7 +1047,6 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::upon::stopped, true);
         }
 
-    protected:
         //todo revise
         gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
@@ -1472,7 +1471,6 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
-    protected:
         host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
@@ -1589,7 +1587,6 @@ namespace netxs::ui
             log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
         }
 
-    public:
         // host: Mark dirty region.
         void denote(rect updateregion)
         {
@@ -1606,7 +1603,7 @@ namespace netxs::ui
         // host: Create a new root of the specified subtype and attach it.
         auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)
         {
-            auto lock = events::unique_lock();
+            auto lock = bell::unique_lock();
             auto portal = ui::gate::ctor(uplink, vtmode, host::config);
             portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             portal->attach(applet);
@@ -1624,13 +1621,13 @@ namespace netxs::ui
             };
             lock.unlock();
             portal->launch();
-            netxs::events::dequeue();
+            bell::dequeue();
             quartz.stop();
         }
         // host: Shutdown.
         void stop()
         {
-            auto lock = events::sync{};
+            auto lock = bell::sync();
             mouse.reset();
             tokens.reset();
         }

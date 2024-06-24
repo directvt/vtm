@@ -31,47 +31,6 @@ namespace netxs::events
         anycast, // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
     };
 
-    struct globals
-    {
-        static auto& mutex()
-        {
-            static auto m = std::recursive_mutex{};
-            return m;
-        }
-        static auto& queue()
-        {
-            static auto q = std::vector<void*>{};
-            return q;
-        }
-    };
-
-    struct sync
-    {
-        std::lock_guard<std::recursive_mutex> lock;
-
-        sync             (sync const&) = delete; // deleted copy constructor.
-        sync& operator = (sync const&) = delete; // deleted copy assignment operator.
-
-        sync() : lock(globals::mutex()) { }
-       ~sync() { }
-    };
-    static auto unique_lock()
-    {
-        return std::unique_lock{ globals::mutex() };
-    }
-    struct try_sync
-    {
-        std::unique_lock<std::recursive_mutex> lock;
-
-        operator bool () { return lock.owns_lock(); }
-
-        try_sync             (try_sync const&) = delete; // deleted copy constructor.
-        try_sync& operator = (try_sync const&) = delete; // deleted copy assignment operator.
-
-        try_sync() : lock(globals::mutex(), std::try_to_lock) { }
-       ~try_sync() { }
-    };
-
     /*************************************************************************************************
     toplevel = 0
 
@@ -144,6 +103,10 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
+    struct bell;
+    using ftor = std::function<bool(sptr<bell>)>;
+
+
     struct handler
     {
         virtual ~handler() { }
@@ -153,7 +116,6 @@ namespace netxs::events
         using sptr<handler>::sptr;
         auto& operator - (si32) { return *this; }
     };
-
     template<execution_order Order = execution_order::forward>
     struct reactor
     {
@@ -166,7 +128,7 @@ namespace netxs::events
         struct wrapper : handler
         {
             hndl<F> proc;
-            wrapper(hndl<F> && proc)
+            wrapper(hndl<F>&& proc)
                 : proc{ proc }
             { }
         };
@@ -210,10 +172,7 @@ namespace netxs::events
         hook subscribe(hint event, hndl<F> proc)
         {
             auto proc_ptr = std::make_shared<wrapper<F>>(std::move(proc));
-
-            auto lock = sync{};
             stock[event].push_back(proc_ptr);
-
             return proc_ptr;
         }
         inline void _refreshandcopy(list& target)
@@ -224,8 +183,6 @@ namespace netxs::events
         template<class F>
         auto notify(hint event, F&& param)
         {
-            auto lock = sync{};
-
             alive = branch::proceed;
             queue.push_back(event);
             auto head = qcopy.size();
@@ -290,72 +247,125 @@ namespace netxs::events
         }
     };
 
-    template<class T>
-    struct indexer
-    {
-        const  id_t                       id;
-        static id_t                    newid;
-        static wptr<T>                 empty;
-        static std::map<id_t, wptr<T>> store;
+    using fwd_reactor = reactor<execution_order::forward>;
+    using rev_reactor = reactor<execution_order::reverse>;
 
-        // indexer: Return sptr of the object by its id.
-        template<class TT = T>
-        static auto getref(id_t id)
+    struct auth
+    {
+        id_t                       newid;
+        wptr<bell>                 empty;
+        std::recursive_mutex       mutex;
+        std::map<id_t, wptr<bell>> store;
+        generics::jobs<wptr<bell>> agent;
+        fwd_reactor              general;
+
+        // auth: .
+        auto sync()
         {
-            auto lock = sync{};
+            return std::lock_guard{ mutex };
+        }
+        // auth: .
+        auto try_sync()
+        {
+            struct try_sync_t : std::unique_lock<std::recursive_mutex>
+            {
+                using unique_lock::unique_lock;
+                operator bool () { return unique_lock::owns_lock(); }
+            };
+            return try_sync_t{ mutex, std::try_to_lock };
+        }
+        // auth: .
+        auto unique_lock()
+        {
+            return std::unique_lock{ mutex };
+        }
+        // auth: Return sptr of the object by its id.
+        template<class T = bell>
+        auto getref(id_t id)
+        {
+            auto lock = sync();
             if (auto item_ptr = netxs::get_or(store, id, empty).lock())
-            if (auto real_ptr = std::dynamic_pointer_cast<TT>(item_ptr))
+            if (auto real_ptr = std::dynamic_pointer_cast<T>(item_ptr))
             {
                 return real_ptr;
             }
-            return sptr<TT>{};
+            return sptr<T>{};
         }
-        // indexer: Create a new object of the specified subtype and return its sptr.
-        template<class TT, class ...Args>
-        static auto create(Args&&... args) -> sptr<TT>
+        // auth: Create a new object of the specified subtype and return its sptr.
+        template<class T, class ...Args>
+        auto create(Args&&... args) -> sptr<T>
         {
-            struct activator : public TT // Enables the use of a protected ctor by std::make_shared<TT>.
-            {
-                activator(Args&&... args)
-                    //: TT{ std::forward<Args>(args)... } //todo since 17.10.1, msvc don't understand curly braces here (initialization list)
-                    : TT(std::forward<Args>(args)...)
-                { }
-            };
-
-            auto lock = sync{};
-            auto inst = std::shared_ptr<activator>(new activator(std::forward<Args>(args)...),
-                [](activator* inst)
-                {
-                    auto lock = sync{};
-                    delete inst;
-                });
+            auto lock = sync();
+            // Use new/delete to be able lock before destruction.
+            auto inst = std::shared_ptr<T>(new T(std::forward<Args>(args)...), [](T* inst)
+                                                                               {
+                                                                                    auto& indexer = inst->indexer;
+                                                                                    auto lock = indexer.sync(); // Sync with all dtors.
+                                                                                    auto id = inst->id;
+                                                                                    delete inst;
+                                                                                    indexer.store.erase(id);
+                                                                               });
             store[inst->id] = inst;
             return inst;
         }
-
-    private:
-        static inline auto _counter()
+        // auth: Return next available id.
+        auto new_id()
         {
             while (netxs::on_key(store, ++newid))
             { }
             return newid;
         }
-
-    protected:
-        indexer(indexer const&) = delete; // id is flushed out when a copy of the object is deleted.
-                                          // Thus, the original object instance becomes invalid.
-        indexer()
-            : id{ _counter() }
-        { }
-       ~indexer()
+        // auth: .
+        template<bool Sync = true, class T>
+        void enqueue(wptr<bell> object_wptr, T&& proc)
         {
-           store.erase(id);
+            agent.add(object_wptr, [&, proc](auto& object_wptr) mutable
+            {
+                auto lock = unique_lock();
+                if (auto object_ptr = object_wptr.lock())
+                {
+                    if constexpr (!Sync) lock.unlock();
+                    proc(*object_ptr);
+                    if constexpr (!Sync) lock.lock();
+                }
+            });
+        }
+        // auth: .
+        void dequeue()
+        {
+            agent.stop();
+        }
+        // auth: .
+        template<class T, class P>
+        auto synced(T& object_sptr, P proc)
+        {
+            using buff = generics::buff<text>;
+            return [&, proc, buffer = buff{}](auto utf8) mutable
+            {
+                auto lock = buffer.freeze();
+                lock.block += utf8;
+                if (!lock.await)
+                {
+                    if (auto sync = try_sync())
+                    {
+                        proc(view{ lock.block });
+                        lock.block.clear();
+                    }
+                    else
+                    {
+                        lock.await = true;
+                        enqueue(object_sptr, [&](auto& /*boss*/)
+                        {
+                            auto lock = buffer.freeze();
+                            lock.await = faux;
+                            proc(view{ lock.block });
+                            lock.block.clear();
+                        });
+                    }
+                }
+            };
         }
     };
-
-    template<class T> id_t                    indexer<T>::newid{};
-    template<class T> wptr<T>                 indexer<T>::empty{};
-    template<class T> std::map<id_t, wptr<T>> indexer<T>::store{};
 
     class subs
     {
@@ -397,12 +407,12 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
     #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
     #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
-    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var) // Multi-statement macro. Use with caution.
     #define RISEUP_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, RISEUP_N, RISEUP_S))
     #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
 
@@ -421,9 +431,6 @@ namespace netxs::events
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
-
-    struct bell;
-    using ftor = std::function<bool(sptr<bell>)>;
 
     struct ref_count_t
     {
@@ -451,23 +458,20 @@ namespace netxs::events
         };
     }
 
+    static auto saveme_queue = std::vector<void*>{};
+    static auto saveme_mutex = std::mutex{};
+
     // events: Event x-mitter.
-    struct bell : public indexer<bell>
+    struct bell
     {
         static constexpr auto noid = std::numeric_limits<id_t>::max();
-        subs tracker;
+
+        auth&        indexer;
+        fwd_reactor& general;
+        const id_t   id;
+        subs         tracker;
 
     private:
-        using fwd_reactor = reactor<execution_order::forward>;
-        using rev_reactor = reactor<execution_order::reverse>;
-
-        static fwd_reactor& _general()
-        {
-            static auto g = fwd_reactor{};
-            return g;
-        }
-
-        fwd_reactor& general{ _general() };
         fwd_reactor  release;
         fwd_reactor  request;
         rev_reactor  preview;
@@ -539,19 +543,6 @@ namespace netxs::events
                 owner.submit<Tier>(Event{}, token, h);
             }
         };
-        template<class Event>
-        struct submit_helper_token_global
-        {
-            hook& token;
-            submit_helper_token_global(hook& token)
-                : token{ token }
-            { }
-            template<class F>
-            void operator = (F h)
-            {
-                token = _general().subscribe(Event::id, std::function<void(typename Event::type &&)>{ h });
-            }
-        };
 
     public:
         //todo deprecated?
@@ -565,6 +556,7 @@ namespace netxs::events
         template<tier Tier, class Event>
         void submit(Event, std::function<void(typename Event::type &&)> handler)
         {
+            auto lock = indexer.sync();
                  if constexpr (Tier == tier::preview) tracker.admit(preview.subscribe(Event::id, handler));
             else if constexpr (Tier == tier::general) tracker.admit(general.subscribe(Event::id, handler));
             else if constexpr (Tier == tier::request) tracker.admit(request.subscribe(Event::id, handler));
@@ -574,6 +566,7 @@ namespace netxs::events
         template<tier Tier, class Event>
         void submit(Event, hook& token, std::function<void(typename Event::type &&)> handler)
         {
+            auto lock = indexer.sync();
                  if constexpr (Tier == tier::preview) token = preview.subscribe(Event::id, handler);
             else if constexpr (Tier == tier::general) token = general.subscribe(Event::id, handler);
             else if constexpr (Tier == tier::request) token = request.subscribe(Event::id, handler);
@@ -583,6 +576,7 @@ namespace netxs::events
         template<tier Tier, class F>
         auto signal(hint event, F&& data)
         {
+            auto lock = indexer.sync();
                  if constexpr (Tier == tier::preview) return preview.notify(event, std::forward<F>(data));
             else if constexpr (Tier == tier::general) return general.notify(event, std::forward<F>(data));
             else if constexpr (Tier == tier::request) return request.notify(event, std::forward<F>(data));
@@ -637,7 +631,7 @@ namespace netxs::events
         {
             while (active)
             {
-                if (auto guard = netxs::events::try_sync{})
+                if (auto guard = indexer.try_sync())
                 {
                     proc();
                     return true;
@@ -648,22 +642,59 @@ namespace netxs::events
         }
         void _saveme()
         {
-            globals::mutex().lock();
-            globals::queue().push_back(this);
+            saveme_mutex.lock();
+            saveme_queue.push_back(this);
         }
         static auto _revive()
         {
-            auto& queue = globals::queue();
-            auto ptr = queue.back();
-                       queue.pop_back();
+            auto ptr = saveme_queue.back();
+                       saveme_queue.pop_back();
+            saveme_mutex.unlock();
             return static_cast<bell*>(ptr);
         }
-        static void _unlock()
+        // bell: Create a new object of the specified subtype and return its sptr.
+        template<class T, class ...Args>
+        auto create(Args&&... args) -> sptr<T>
         {
-            globals::mutex().unlock();
+            return indexer.create<T>(indexer, std::forward<Args>(args)...);
+        }
+        // bell: .
+        void dequeue()
+        {
+            indexer.agent.stop();
+        }
+        // bell: .
+        template<bool Sync = true, class ...Args>
+        void enqueue(Args&&... args)
+        {
+            indexer.enqueue<Sync>(std::forward<Args>(args)...);
+        }
+        // bell: .
+        auto sync()
+        {
+            return indexer.sync();
+        }
+        // bell: .
+        auto try_sync()
+        {
+            return indexer.try_sync();
+        }
+        // bell: .
+        auto unique_lock()
+        {
+            return indexer.unique_lock();
+        }
+        // bell: Return sptr of the object by its id.
+        template<class T = bell>
+        auto getref(id_t id)
+        {
+            return indexer.getref<T>(id);
         }
 
-        bell()
+        bell(auth& indexer)
+            : indexer{ indexer },
+              general{ indexer.general },
+              id{ indexer.new_id() }
         {
             LISTEN(tier::general, userland::root::cleanup, counter)
             {
@@ -680,65 +711,6 @@ namespace netxs::events
         }
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
-
-    namespace
-    {
-        template<class T>
-        auto& _agent()
-        {
-            static auto agent = generics::jobs<netxs::wptr<bell>>{};
-            return agent;
-        }
-    }
-    template<bool sync = true, class T>
-    void enqueue(netxs::wptr<bell> object_wptr, T&& proc)
-    {
-        auto& agent = _agent<void>();
-        agent.add(object_wptr, [proc](auto& object_wptr) mutable
-        {
-            auto lock = events::unique_lock();
-            if (auto object_ptr = object_wptr.lock())
-            {
-                if constexpr (!sync) lock.unlock();
-                proc(*object_ptr);
-                if constexpr (!sync) lock.lock();
-            }
-        });
-    }
-    void dequeue()
-    {
-        auto& agent = _agent<void>();
-        agent.stop();
-    }
-    template<class T, class P>
-    auto synced(T& object_sptr, P proc)
-    {
-        using buff = generics::buff<text>;
-        return [&, proc, buffer = buff{}](auto utf8) mutable
-        {
-            auto lock = buffer.freeze();
-            lock.block += utf8;
-            if (!lock.await)
-            {
-                if (auto sync = events::try_sync{})
-                {
-                    proc(view{ lock.block });
-                    lock.block.clear();
-                }
-                else
-                {
-                    lock.await = true;
-                    events::enqueue(object_sptr, [&](auto& /*boss*/)
-                    {
-                        auto lock = buffer.freeze();
-                        lock.await = faux;
-                        proc(view{ lock.block });
-                        lock.block.clear();
-                    });
-                }
-            }
-        };
-    }
 }
 namespace netxs
 {

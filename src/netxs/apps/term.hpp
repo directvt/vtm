@@ -883,7 +883,7 @@ namespace netxs::app::terminal
                     {
                         boss.RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ());
                         if (gates.size())
-                        if (auto gate_ptr = bell::getref(gates.back()))
+                        if (auto gate_ptr = boss.bell::getref(gates.back()))
                         {
                             gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                             {

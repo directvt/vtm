@@ -507,7 +507,7 @@ namespace netxs::app::desk
                 return window;
             }
 
-            auto client = bell::getref(my_id);
+            auto client = window->bell::getref(my_id);
             if (!client)
             {
                 log(prompt::desk, "Non-existent user ID=", my_id);

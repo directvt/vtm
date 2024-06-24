@@ -437,9 +437,9 @@ int main(int argc, char* argv[])
         signal->bell(); // Signal we are started and ready for connections.
         signal.reset();
 
-        using e2 = netxs::ui::e2;
+        using e2 = ui::e2;
         config.cd("/config/appearance/defaults/");
-        auto domain = ui::base::create<app::vtm::hall>(server, config);
+        auto domain = ui::host::ctor<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();
 

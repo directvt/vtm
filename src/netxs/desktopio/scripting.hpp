@@ -118,7 +118,7 @@ namespace netxs::scripting
         {
             //todo initiate global shutdown
 
-            //netxs::events::enqueue(owner.This(), [&, code](auto& boss) mutable
+            //owner.bell::enqueue(owner.This(), [&, code](auto& boss) mutable
             //{
             //    if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::repl, "Exit code ", utf::to_hex_0x(code), ' ').nil());
             //    else      log(prompt::repl, "Exit code 0");

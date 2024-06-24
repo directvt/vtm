@@ -1036,7 +1036,7 @@ namespace netxs::ui
                     if (!gear_id) return;
                     auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
                     if (iter == user_icon.end())
-                    if (auto gear_ptr = bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                     {
                         auto index = gear_ptr->user_index;
                         auto color = argb::vt256[4 + index % (256 - 4)];
@@ -1625,7 +1625,7 @@ namespace netxs::ui
                         auto& parent = *parent_ptr;
                         mice.foreach([&](auto& gear)
                         {
-                            if (auto gear_ptr = bell::getref<hids>(gear.id))
+                            if (auto gear_ptr = boss.bell::getref<hids>(gear.id))
                             {
                                 gear_ptr->redirect_mouse_focus(parent);
                             }
@@ -1719,7 +1719,7 @@ namespace netxs::ui
             }
             void reset()
             {
-                auto lock = events::sync{};
+                auto lock = boss.bell::sync();
                 if (full)
                 {
                     full = 0;
@@ -2186,17 +2186,15 @@ namespace netxs::ui
         pro::mouse mouse{ *this }; // form: Mouse controller.
         //pro::keybd keybd{ *this }; // form: Keybd controller.
 
-    protected:
         form(size_t nested_count = 0)
-            : base{ nested_count }
+            : base{ ui::indexer, nested_count }
         { }
 
-    public:
         auto This() { return base::This<T>(); }
-        template<class ...Args>
+        template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
         {
-            auto item = base::create<T>(std::forward<Args>(args)...);
+            auto item = ui::indexer.create<TT>(std::forward<Args>(args)...);
             return item;
         }
         // form: Attach feature and return itself.
@@ -2445,31 +2443,6 @@ namespace netxs::ui
         }
 
     protected:
-        fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
-            : form{ 3 },
-              object_1{ base::subset[0] },
-              object_2{ base::subset[1] },
-              splitter{ base::subset[2] },
-              rotation{ },
-              fraction{ },
-              adaptive{ }
-        {
-            _config(orientation, grip_width, s1, s2);
-            LISTEN(tier::preview, e2::form::layout::swarp, warp)
-            {
-                adaptive = true; // Adjust the grip ratio on coming resize.
-                this->bell::expire<tier::preview>(true);
-            };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                if (auto context = form::nested_context(parent_canvas))
-                {
-                    if (splitter) splitter->render(parent_canvas);
-                    if (object_1) object_1->render(parent_canvas);
-                    if (object_2) object_2->render(parent_canvas);
-                }
-            };
-        }
         // fork: .
         void deform(rect& new_area) override
         {
@@ -2539,6 +2512,32 @@ namespace netxs::ui
         }
 
     public:
+        fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
+            : form{ 3 },
+              object_1{ base::subset[0] },
+              object_2{ base::subset[1] },
+              splitter{ base::subset[2] },
+              rotation{ },
+              fraction{ },
+              adaptive{ }
+        {
+            _config(orientation, grip_width, s1, s2);
+            LISTEN(tier::preview, e2::form::layout::swarp, warp)
+            {
+                adaptive = true; // Adjust the grip ratio on coming resize.
+                this->bell::expire<tier::preview>(true);
+            };
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    if (splitter) splitter->render(parent_canvas);
+                    if (object_1) object_1->render(parent_canvas);
+                    if (object_2) object_2->render(parent_canvas);
+                }
+            };
+        }
+
         static constexpr auto min_ratio = si32{ 0           };
         static constexpr auto max_ratio = si32{ 0xFFFF      };
         static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
@@ -2640,31 +2639,6 @@ namespace netxs::ui
         sort lineup; // list: Attachment order.
 
     protected:
-        list(axis orientation = axis::Y, sort attach_order = sort::forward)
-            : updown{ orientation == axis::Y },
-              lineup{ attach_order }
-        {
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                if (auto context = form::nested_context(parent_canvas))
-                {
-                    auto basis = parent_canvas.full();
-                    auto frame = parent_canvas.clip();
-                    auto min_y = frame.coor[updown] - basis.coor[updown];
-                    auto max_y = frame.size[updown] + min_y;
-                    auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
-                    auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
-                    while (start != base::subset.end())
-                    {
-                        if (auto& object = *start++)
-                        {
-                            object->render(parent_canvas);
-                            if (!object->base::hidden && bound(object) >= max_y) break;
-                        }
-                    }
-                }
-            };
-        }
         // list: .
         void deform(rect& new_area) override
         {
@@ -2722,6 +2696,31 @@ namespace netxs::ui
         }
 
     public:
+        list(axis orientation = axis::Y, sort attach_order = sort::forward)
+            : updown{ orientation == axis::Y },
+              lineup{ attach_order }
+        {
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    auto basis = parent_canvas.full();
+                    auto frame = parent_canvas.clip();
+                    auto min_y = frame.coor[updown] - basis.coor[updown];
+                    auto max_y = frame.size[updown] + min_y;
+                    auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
+                    auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
+                    while (start != base::subset.end())
+                    {
+                        if (auto& object = *start++)
+                        {
+                            object->render(parent_canvas);
+                            if (!object->base::hidden && bound(object) >= max_y) break;
+                        }
+                    }
+                }
+            };
+        }
         // list: .
         void clear()
         {
@@ -2763,19 +2762,6 @@ namespace netxs::ui
         : public form<cake>
     {
     protected: 
-        cake()
-        {
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                if (auto context = form::nested_context(parent_canvas))
-                {
-                    for (auto& object : subset)
-                    {
-                        object->render(parent_canvas);
-                    }
-                }
-            };
-        }
         // cake: .
         void deform(rect& new_area) override
         {
@@ -2805,6 +2791,19 @@ namespace netxs::ui
         }
 
     public:
+        cake()
+        {
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    for (auto& object : subset)
+                    {
+                        object->render(parent_canvas);
+                    }
+                }
+            };
+        }
         // cake: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
@@ -2836,20 +2835,6 @@ namespace netxs::ui
         : public form<veer>
     {
     protected:
-        veer()
-        {
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                if (auto context = form::nested_context(parent_canvas))
-                {
-                    if (subset.size())
-                    if (auto object = subset.back())
-                    {
-                        object->render(parent_canvas);
-                    }
-                }
-            };
-        }
         // veer: .
         void deform(rect& new_area) override
         {
@@ -2870,6 +2855,20 @@ namespace netxs::ui
         }
 
     public:
+        veer()
+        {
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    if (subset.size())
+                    if (auto object = subset.back())
+                    {
+                        object->render(parent_canvas);
+                    }
+                }
+            };
+        }
         // veer: Return the last object or empty sptr.
         auto back()
         {
@@ -2943,19 +2942,6 @@ namespace netxs::ui
         bool recent; // post: Paragraphs are not aligned.
 
     protected:
-        postfx(bool scroll_beyond = faux)
-            :   flow{ square        },
-              beyond{ scroll_beyond },
-              recent{               }
-        {
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                output(parent_canvas);
-                //auto mark = rect{ base::anchor + base::coor(), {10,5} };
-                //mark.coor += parent_canvas.clip().coor; // Set client's basis
-                //parent_canvas.fill(mark, [](cell& c){ c.alpha(0x80).bgc().chan.r = 0xff; });
-            };
-        }
         // post: .
         void deform(rect& new_area) override
         {
@@ -3006,6 +2992,19 @@ namespace netxs::ui
     public:
         page topic; // post: Text content.
 
+        postfx(bool scroll_beyond = faux)
+            :   flow{ square        },
+              beyond{ scroll_beyond },
+              recent{               }
+        {
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                output(parent_canvas);
+                //auto mark = rect{ base::anchor + base::coor(), {10,5} };
+                //mark.coor += parent_canvas.clip().coor; // Set client's basis
+                //parent_canvas.fill(mark, [](cell& c){ c.alpha(0x80).bgc().chan.r = 0xff; });
+            };
+        }
         // post: .
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         // post: .
@@ -3089,6 +3088,22 @@ namespace netxs::ui
         }
 
     protected:
+        // rail: Resize nested object with scroll bounds checking.
+        void inform(rect new_area) override
+        {
+            if (empty()) return;
+            auto& item = *base::subset.back();
+            item.base::anchor = base::anchor - item.base::region.coor;
+            auto block = item.base::resize(new_area.size - item.base::extpad, faux);
+            auto frame = new_area.size;
+            auto delta = dot_00;
+            revise(item, block, frame, delta);
+            block += item.base::extpad;
+            item.base::socket = block;
+            item.base::accept(block);
+        }
+
+    public:
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all, bool smooth_scrolling = true)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
@@ -3241,22 +3256,7 @@ namespace netxs::ui
                 }
             };
         }
-        // rail: Resize nested object with scroll bounds checking.
-        void inform(rect new_area) override
-        {
-            if (empty()) return;
-            auto& item = *base::subset.back();
-            item.base::anchor = base::anchor - item.base::region.coor;
-            auto block = item.base::resize(new_area.size - item.base::extpad, faux);
-            auto frame = new_area.size;
-            auto delta = dot_00;
-            revise(item, block, frame, delta);
-            block += item.base::extpad;
-            item.base::socket = block;
-            item.base::accept(block);
-        }
 
-    public:
         // rail: .
         auto smooth(bool smooth_scroll = true)
         {
@@ -3659,6 +3659,13 @@ namespace netxs::ui
         }
 
     protected:
+        // gripfx: .
+        void inform(rect new_area) override
+        {
+            calc.resize(new_area.size);
+        }
+
+    public:
         gripfx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               wide{ faux       },
@@ -3857,11 +3864,6 @@ namespace netxs::ui
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
-        // gripfx: .
-        void inform(rect new_area) override
-        {
-            calc.resize(new_area.size);
-        }
     };
 
     namespace drawfx
@@ -3910,24 +3912,6 @@ namespace netxs::ui
         }
 
     protected:
-        pads(dent intpad_value = {}, dent extpad_value = {})
-            : intpad{ intpad_value },
-              extpad{ extpad_value }
-        {
-            LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
-            {
-                auto clip = parent_canvas.clip();
-                parent_canvas.clip(clip + extpad);
-                this->SIGNAL(tier::release, e2::render::any, parent_canvas);
-                parent_canvas.clip(clip);
-                if (!empty())
-                {
-                    auto& item = *base::subset.back();
-                    item.render(parent_canvas);
-                }
-                this->bell::expire<tier::release>();
-            };
-        }
         // pads: .
         void deform(rect& new_area) override
         {
@@ -3947,6 +3931,24 @@ namespace netxs::ui
         }
 
     public:
+        pads(dent intpad_value = {}, dent extpad_value = {})
+            : intpad{ intpad_value },
+              extpad{ extpad_value }
+        {
+            LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
+            {
+                auto clip = parent_canvas.clip();
+                parent_canvas.clip(clip + extpad);
+                this->SIGNAL(tier::release, e2::render::any, parent_canvas);
+                parent_canvas.clip(clip);
+                if (!empty())
+                {
+                    auto& item = *base::subset.back();
+                    item.render(parent_canvas);
+                }
+                this->bell::expire<tier::release>();
+            };
+        }
         // pads: Attach specified object.
         template<class T>
         auto attach(T object)
@@ -3991,6 +3993,14 @@ namespace netxs::ui
         bool ulin{}; // item: Draw full-width underline.
 
     protected:
+        // item: .
+        void deform(rect& new_area) override
+        {
+            new_area.size.x = flex ? new_area.size.x : data.size().x;
+            new_area.size.y = std::max(data.size().y, new_area.size.y);
+        }
+
+    public:
         item(view label = {})
             : data{ label }
         {
@@ -4039,14 +4049,6 @@ namespace netxs::ui
             };
         }
         // item: .
-        void deform(rect& new_area) override
-        {
-            new_area.size.x = flex ? new_area.size.x : data.size().x;
-            new_area.size.y = std::max(data.size().y, new_area.size.y);
-        }
-
-    public:
-        // item: .
         auto flexible(bool b = true) { flex = b; return This(); }
         // item: .
         auto drawdots(bool b = true) { test = b; return This(); }
@@ -4073,7 +4075,7 @@ namespace netxs::ui
     {
         page data;
 
-    protected:
+    public:
         edit()
         {
         }
@@ -4133,13 +4135,6 @@ namespace netxs::ui
             return box_len;
         }
 
-    protected:
-        // stem_rate_grip: .
-        void deform(rect& new_area) override
-        {
-            new_area.size = box_len; // Suppress resize.
-        }
-
         stem_rate_grip(view sfx_string)
             : coreface{ ptr::shared<face>() },
                 canvas{ *coreface           },
@@ -4179,6 +4174,13 @@ namespace netxs::ui
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
+        }
+
+    protected:
+        // stem_rate_grip: .
+        void deform(rect& new_area) override
+        {
+            new_area.size = box_len; // Suppress resize.
         }
     };
 
@@ -4284,7 +4286,6 @@ namespace netxs::ui
             }
         }
 
-    protected:
         stem_rate(text const& caption, si32 min_value, si32 max_value, view suffix)
             : coreface{ ptr::shared<face>() },
               canvas{ *coreface },
@@ -4337,7 +4338,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                grip_ctl = base::create<stem_rate_grip>(grip_suffix);
+                grip_ctl = stem_rate_grip::ctor(grip_suffix);
                 grip_ctl->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
 
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::button::drag::start::left, gear)

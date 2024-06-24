@@ -709,11 +709,11 @@ namespace netxs::app::vtm
                         if (under != new_under)
                         {
                             auto object = vtm::events::d_n_d::ask.param();
-                            if (auto old_object = bell::getref<base>(under))
+                            if (auto old_object = boss.bell::getref<base>(under))
                             {
                                 old_object->RISEUP(tier::release, vtm::events::d_n_d::abort, object);
                             }
-                            if (auto new_object = bell::getref<base>(new_under))
+                            if (auto new_object = boss.bell::getref<base>(new_under))
                             {
                                 new_object->RISEUP(tier::release, vtm::events::d_n_d::ask, object);
                             }
@@ -1504,7 +1504,7 @@ namespace netxs::app::vtm
                             };
                             boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
                             {
-                                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                                if (auto gear_ptr = boss.bell::getref<hids>(seed.id))
                                 {
                                     auto& gear = *gear_ptr;
                                     auto forbidden = gear.owner.id != owner_id;
@@ -1740,7 +1740,7 @@ namespace netxs::app::vtm
             return "ok"s;
         }
 
-    protected:
+    public:
         hall(xipc server, xmls& config)
             : host{ server, config, pro::focus::mode::focusable },
               focus{ id_t{} }
@@ -2142,7 +2142,6 @@ namespace netxs::app::vtm
             };
         }
 
-    public:
         // hall: Autorun apps from config.
         void autorun()
         {
@@ -2213,8 +2212,8 @@ namespace netxs::app::vtm
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
             if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
-            auto lock = netxs::events::unique_lock();
-            auto user = base::create<gate>(client, userid, vtmode, app_config, session_id);
+            auto lock = bell::unique_lock();
+            auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
             dbase.append(user);
             os::ipc::users = users.size();
@@ -2275,9 +2274,9 @@ namespace netxs::app::vtm
             SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
-            netxs::events::dequeue(); // Wait until all cleanups are completed.
+            bell::dequeue(); // Wait until all cleanups are completed.
             host::quartz.stop();
-            auto lock = netxs::events::sync{};
+            auto lock = bell::sync();
             host::mouse.reset(); // Release the captured mouse.
             host::tokens.reset();
             dbase.reset();

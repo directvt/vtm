@@ -339,7 +339,7 @@ namespace netxs::app::shared
                     };
                     parent.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, boss.relyon)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gear_id))
+                        if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
                             gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, parent);
