@@ -1790,6 +1790,9 @@ namespace netxs::gui
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
 
+        ui::pro::title titles; // window: .
+        ui::pro::focus wfocus; // window: .
+
         struct task
         {
             static constexpr auto _counter = 1 + __COUNTER__;
@@ -1808,6 +1811,8 @@ namespace netxs::gui
             window&         owner; // evnt: .
             ui::pipe&       intio; // evnt: .
             flag            alive; // evnt: .
+
+            //todo use gear.m_sys
             input::sysmouse m = {}; // evnt: .
             input::syskeybd k = {}; // evnt: .
             input::sysfocus f = {}; // evnt: .
@@ -1862,27 +1867,27 @@ namespace netxs::gui
                 //todo repaint jgc cells
                 owner.reload |= task::inner; // Trigger to redraw viewport to update jumbo clusters.
             }
-            void handle(s11n::xs::header_request /*lock*/)
+            void handle(s11n::xs::header_request   lock)
             {
-                auto item = s11n::header.freeze();
-                item.thing.sendby<faux, faux>(intio);
+                auto& item = lock.thing;
+                owner.RISEUP(tier::request, e2::form::prop::ui::header, header_utf8, ());
+                s11n::header.send(intio, item.window_id, header_utf8);
             }
-            void handle(s11n::xs::footer_request /*lock*/)
+            void handle(s11n::xs::footer_request   lock)
             {
-                auto item = s11n::footer.freeze();
-                item.thing.sendby<faux, faux>(intio);
+                auto& item = lock.thing;
+                owner.RISEUP(tier::request, e2::form::prop::ui::footer, footer_utf8, ());
+                s11n::footer.send(intio, item.window_id, footer_utf8);
             }
             void handle(s11n::xs::header           lock)
             {
                 auto& item = lock.thing;
-                owner.set_header(item.utf8);
-                item.set();
+                owner.RISEUP(tier::preview, e2::form::prop::ui::header, item.utf8);
             }
             void handle(s11n::xs::footer           lock)
             {
                 auto& item = lock.thing;
-                owner.set_footer(item.utf8);
-                item.set();
+                owner.RISEUP(tier::preview, e2::form::prop::ui::footer, item.utf8);
             }
             void handle(s11n::xs::clipdata         lock)
             {
@@ -1937,36 +1942,16 @@ namespace netxs::gui
             }
             void handle(s11n::xs::focus_cut        lock)
             {
-                log(prompt::gui, "xs::focus_cut");
-                //todo revise
-                //auto& k = lock.thing;
-                //owner.trysync(owner.active, [&]
-                //{
-                //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = owner.base::parent())
-                //    {
-                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
-                //    }
-                //});
+                auto& item = lock.thing;
+                owner.RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = item.gear_id, .item = owner.This() }));
             }
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                owner.RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id_t{}, .solo = item.solo, .item = owner.This() }));
-
-                //todo revise
-                //owner.trysync(owner.active, [&]
-                //{
-                //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = owner.base::parent())
-                //    {
-                //        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
-                //    }
-                //});
+                owner.RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
             }
             void handle(s11n::xs::keybd_event      lock)
             {
-                //todo keybd event back, revise
                 auto& keybd = lock.thing;
                 gear.alive    = true;
                 gear.ctlstate = keybd.ctlstat;
@@ -1977,31 +1962,6 @@ namespace netxs::gui
                 gear.cluster  = keybd.cluster;
                 gear.handled  = keybd.handled;
                 owner.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
-
-                //todo keybd event back, revise
-                //owner.trysync(owner.active, [&]
-                //{
-                //    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                //    if (auto parent_ptr = owner.base::parent())
-                //    {
-                //        auto& gear = *gear_ptr;
-                //        //todo use temp gear object
-                //        gear.alive    = true;
-                //        gear.ctlstate = k.ctlstat;
-                //        gear.extflag  = k.extflag;
-                //        gear.virtcod  = k.virtcod;
-                //        gear.scancod  = k.scancod;
-                //        gear.pressed  = k.pressed;
-                //        gear.cluster  = k.cluster;
-                //        gear.handled  = k.handled;
-                //        do
-                //        {
-                //            parent_ptr->SIGNAL(tier::release, hids::events::keybd::key::post, gear);
-                //            parent_ptr = parent_ptr->parent();
-                //        }
-                //        while (gear && parent_ptr);
-                //    }
-                //});
             };
             void handle(s11n::xs::mouse_event      lock)
             {
@@ -2014,13 +1974,7 @@ namespace netxs::gui
             void handle(s11n::xs::warping          lock)
             {
                 auto& warp = lock.thing;
-                //todo make it async
                 owner.warp_window(warp.warpdata);
-                //netxs::events::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
-                //{
-                //    //todo use window_id
-                //    owner.RISEUP(tier::preview, e2::form::layout::swarp, warp);
-                //});
             }
             void handle(s11n::xs::fps              lock)
             {
@@ -2083,6 +2037,11 @@ namespace netxs::gui
                  alive{ true },
                  gear{ props, owner, s11n::bitmap_dtvt.freeze().thing.image }
             {
+                m.gear_id = gear.id;
+                f.gear_id = gear.id;
+                k.gear_id = gear.id;
+                w.gear_id = gear.id;
+                p.gear_id = gear.id;
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
                 c.fast = true;
@@ -2094,8 +2053,6 @@ namespace netxs::gui
 
         std::vector<byte> blink_synch;
         si32              blink_count{};
-        ui::page header_page;
-        ui::page footer_page;
         ui::face head_grid;
         ui::face foot_grid;
 
@@ -2154,7 +2111,9 @@ namespace netxs::gui
               footer{ manager::add() },
               blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
               blinking{ faux },
-              proxy{ *this, *os::dtvt::client }
+              proxy{ *this, *os::dtvt::client },
+              titles{ *this, "", "", faux },
+              wfocus{ *this }
         {
             if (!*this) return;
             normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
@@ -2231,34 +2190,17 @@ namespace netxs::gui
             gcache.reset();
             reload |= task::all;
         }
-        void set_header(view utf8)
+        void update_header()
         {
-            if (utf8.length())
-            {
-                auto filtered = ui::para{ utf8 }.lyric->utf8();
-                manager::set_window_title(filtered);
-            }
-            header_page = utf8;
-            size_title(head_grid, header_page);
-            head_grid.wipe();
-            head_grid.cup(dot_00);
-            head_grid.output(header_page);
+            size_title(head_grid, titles.head_page);
             sync_titles_pixel_layout();
             reload |= task::header;
-            //todo render in pixels and set dirty area
-            //todo use pro::title
         }
-        void set_footer(view utf8)
+        void update_footer()
         {
-            footer_page = utf8;
-            size_title(foot_grid, footer_page);
-            foot_grid.wipe();
-            foot_grid.cup(dot_00);
-            foot_grid.output(footer_page);
+            size_title(foot_grid, titles.foot_page);
             sync_titles_pixel_layout();
             reload |= task::footer;
-            //todo render in pixels and set dirty area
-            //todo use pro::title
         }
         void set_font_list(auto& flist)
         {
@@ -2374,6 +2316,9 @@ namespace netxs::gui
             auto grid_size = gridsz;
             title_grid.calc_page_height(title_page, grid_size);
             title_grid.size(grid_size);
+            title_grid.wipe();
+            title_grid.cup(dot_00);
+            title_grid.output(title_page, cell::shaders::contrast);
         }
         void size_window(twod size_delta = {})
         {
@@ -2383,8 +2328,8 @@ namespace netxs::gui
             blink_synch.assign(gridsz.x * gridsz.y, 0);
             if (fsmode != state::maximized)
             {
-                size_title(head_grid, header_page);
-                size_title(foot_grid, footer_page);
+                size_title(head_grid, titles.head_page);
+                size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
             reload |= task::sized;
@@ -2818,6 +2763,12 @@ namespace netxs::gui
             if (active) activate();
             proxy.f.state = active;
             proxy.focus(proxy.f);
+            //netxs::events::enqueue(This(), [&](auto& /*boss*/)
+            //{
+            //    if (active) ui::pro::focus::set(This(), proxy.gear.id, ui::pro::focus::solo::on, ui::pro::focus::flip::off);
+            //    else        ui::pro::focus::off(This());
+            //});
+
             //if (!proxy.f.state) kbmod = {}; // To keep the modifiers from sticking.
         }
         //void state_event(bool activated, bool minimized)
@@ -2942,10 +2893,28 @@ namespace netxs::gui
                         reload |= task::all;
                     }
                 };
-
-                auto title = get_window_title();
-                proxy.header.set(id_t{}, title);
-                proxy.footer.set(id_t{}, ""s);
+                LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
+                {
+                    auto deed = this->bell::template protos<tier::release>();
+                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    {
+                        seed.guid = os::process::id.second;
+                    }
+                    proxy.focusbus.send(proxy.intio, seed.id, seed.guid, netxs::events::subindex(deed));
+                };
+                LISTEN(tier::release, e2::form::prop::ui::header, utf8)
+                {
+                    update_header();
+                    if (utf8.length())
+                    {
+                        auto filtered = ui::para{ utf8 }.lyric->utf8();
+                        manager::set_window_title(filtered);
+                    }
+                };
+                LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
+                {
+                    update_footer();
+                };
             }
             //auto alarm = os::fire{};
             auto winio = std::thread{[&]
