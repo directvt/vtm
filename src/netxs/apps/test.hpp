@@ -95,22 +95,6 @@ namespace netxs::app::test
                     "The following text doesn't make much sense, "
                     "it's just a bunch of text samples.\n"
                     "\n")
-                    .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                    .fgc(0xffFFFFFF).bgc(0xff'FF0000).add(" ! ", "\n")
-                    .cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
-                    .add("Make sure your terminal supports mouse reporting.\n"
-                    "\n")
-                    .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                    .fgc(0xffFFFFFF).bgc(0xff'FF0000).add(" ! ", "\n")
-                    .cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
-                    .add("At the moment terminal "
-                    "emulators are not able to display wide characters "
-                    "in parts, as well as independently color the left "
-                    "and right parts. In every case, when such a wide "
-                    "character separation is required, we have to replace "
-                    "the corresponding parts with 'REPLACEMENT CHARACTER' "
-                    "(U+FFFD).\n"
-                    "\n")
 
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
                     .add("Test Samples\n\n")
