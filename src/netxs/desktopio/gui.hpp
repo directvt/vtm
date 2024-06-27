@@ -1819,12 +1819,11 @@ namespace netxs::gui
             input::syspaste p = {}; // evnt: .
             input::syswinsz w = {}; // evnt: .
             input::sysclose c = {}; // evnt: .
-            input::hids gear;
+            netxs::sptr<input::hids> gears; // evnt: .
 
             auto keybd(auto& data) { if (alive)                s11n::syskeybd.send(intio, data); }
             auto mouse(auto& data) { if (alive)                s11n::sysmouse.send(intio, data); }
             auto winsz(auto& data) { if (alive)                s11n::syswinsz.send(intio, data); }
-            auto focus(auto& data) { if (alive)                s11n::sysfocus.send(intio, data); }
             auto paste(auto& data) { if (alive)                s11n::syspaste.send(intio, data); }
             auto close(auto& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
@@ -1943,15 +1942,19 @@ namespace netxs::gui
             void handle(s11n::xs::focus_cut        lock)
             {
                 auto& item = lock.thing;
-                owner.RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = item.gear_id, .item = owner.This() }));
+                // We are the focus tree endpoint. Signal back the focus set up.
+                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = item.gear_id }));
+
             }
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                owner.RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
+                // We are the focus tree endpoint. Signal back the focus set up.
+                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
             }
             void handle(s11n::xs::keybd_event      lock)
             {
+                auto& gear = *gears;
                 auto& keybd = lock.thing;
                 gear.alive    = true;
                 gear.ctlstate = keybd.ctlstat;
@@ -1965,6 +1968,7 @@ namespace netxs::gui
             };
             void handle(s11n::xs::mouse_event      lock)
             {
+                auto& gear = *gears;
                 auto& mouse = lock.thing;
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
@@ -2035,10 +2039,10 @@ namespace netxs::gui
                  owner{ owner },
                  intio{ intio },
                  alive{ true },
-                 gear{ owner.indexer, props, owner, s11n::bitmap_dtvt.freeze().thing.image }
+                 gears{ owner.bell::create<hids>(props, owner, s11n::bitmap_dtvt.freeze().thing.image) }
             {
+                auto& gear = *gears;
                 m.gear_id = gear.id;
-                f.gear_id = gear.id;
                 k.gear_id = gear.id;
                 w.gear_id = gear.id;
                 p.gear_id = gear.id;
@@ -2046,8 +2050,6 @@ namespace netxs::gui
                 m.coordxy = { si16min, si16min };
                 c.fast = true;
                 w.winsize = owner.gridsz;
-                f.state = faux;
-                focus(f);
             }
         };
 
@@ -2762,15 +2764,17 @@ namespace netxs::gui
             log(focused ? "focused" : "unfocused");
             active = focused;
             if (active) activate();
-            proxy.f.state = active;
-            proxy.focus(proxy.f);
-            //bell::enqueue(This(), [&](auto& /*boss*/)
-            //{
-            //    if (active) ui::pro::focus::set(This(), proxy.gear.id, ui::pro::focus::solo::on, ui::pro::focus::flip::off);
-            //    else        ui::pro::focus::off(This());
-            //});
-
-            //if (!proxy.f.state) kbmod = {}; // To keep the modifiers from sticking.
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                if (active)
+                {
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = proxy.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
+                }
+                else
+                {
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = proxy.gears->id }));
+                }
+            });
         }
         //void state_event(bool activated, bool minimized)
         //{
@@ -2903,10 +2907,13 @@ namespace netxs::gui
                     }
                     proxy.focusbus.send(proxy.intio, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
+                LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
+                {
+                    update_header(); // Update focus indicator.
+                };
                 LISTEN(tier::release, e2::form::prop::ui::header, utf8)
                 {
-                    update_header();
-                    if (utf8.length())
+                    if (utf8.length()) // Update os window title.
                     {
                         auto filtered = ui::para{ utf8 }.lyric->utf8();
                         manager::set_window_title(filtered);
@@ -2917,7 +2924,6 @@ namespace netxs::gui
                     update_footer();
                 };
             }
-            //auto alarm = os::fire{};
             auto winio = std::thread{[&]
             {
                 auto sync = [&](view data)
@@ -2932,7 +2938,6 @@ namespace netxs::gui
             }};
             dispatch();
             proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
-            //alarm.bell(); // Forced to call close().
             winio.join();
         }
     };
