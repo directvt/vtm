@@ -431,7 +431,7 @@ namespace netxs::ui
                 return utf8;
             }
             // w_tracking: Set terminal window property.
-            void set(text const& property, qiew txt)
+            void set(text const& property, qiew txt = {})
             {
                 if (txt.empty()) txt = owner.appcfg.cmd; // Deny empty titles.
                 owner.target->flush();
@@ -7341,6 +7341,11 @@ namespace netxs::ui
             fdlink = fds;
             if (!ipccon)
             {
+                bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable // We can't request the title before conio.run(), so we queue the request.
+                {
+                    auto& title = wtrack.get(ansi::osc_title);
+                    if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
+                });
                 appcfg.win = target->panel;
                 ipccon.runapp(*this, appcfg, fdlink);
             }
