@@ -4151,7 +4151,7 @@ struct impl : consrv
           "\n\twindow size: ", windowsz,
           "\n\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y },
           "\n\tpopup color: ", packet.input.popupcolor,
-          "\n\tfull screen: ", packet.input.fullscreen,
+          "\n\tfull screen: ", (si32)packet.input.fullscreen,
           "\n\trgb palette: ");
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
@@ -4167,7 +4167,7 @@ struct impl : consrv
             while (i < 16)
             {
                 auto m = netxs::swap_bits<0, 2>(i++); // ANSI<->DOS color scheme reindex.
-                *head++ = argb::swap_rb(rgbpalette[m]);
+                *head++ = argb::swap_rb(rgbpalette[m]) | 0xFF'00'00'00;
             }
         }
         unsync = true;
