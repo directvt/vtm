@@ -23,6 +23,7 @@ int main(int argc, char* argv[])
     auto vtpipe = text{};
     auto script = text{};
     auto trygui = true;
+    auto forced = faux;
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))//app::ssh::id))
     {
@@ -39,6 +40,11 @@ int main(int argc, char* argv[])
         else if (getopt.match("--tui"))
         {
             trygui = faux;
+        }
+        else if (getopt.match("--gui"))
+        {
+            trygui = true;
+            forced = true;
         }
         else if (getopt.match("-r", "--", "--run", /*UD*/"--runapp"))
         {
@@ -129,7 +135,7 @@ int main(int argc, char* argv[])
     trygui = trygui && (whoami == type::runapp
                      || whoami == type::client
                      || whoami == type::hlpmsg);
-    os::dtvt::initialize(trygui);
+    os::dtvt::initialize(trygui, forced);
     os::dtvt::checkpoint();
 
     if (whoami == type::hlpmsg)
@@ -154,7 +160,7 @@ int main(int argc, char* argv[])
             "\n    By default, " + vtm + " runs Desktop Client, running an additional"
             "\n    instance with Desktop Server in background if it is not found."
             "\n"
-            "\n    --tui                Force TUI mode."
+            "\n    --tui | --gui        Force TUI/GUI mode."
             "\n    -h, -?, --help       Print command-line options."
             "\n    -v, --version        Print version."
             "\n    -l, --listconfig     Print configuration."

@@ -3487,7 +3487,7 @@ namespace netxs::os
             }
             return std::max(dot_11, winsz);
         }
-        auto initialize(bool trygui = faux)
+        auto initialize(bool trygui = faux, bool forced = faux)
         {
             #if defined(_WIN32)
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
@@ -3605,28 +3605,29 @@ namespace netxs::os
 
                         auto processpid = DWORD{};
                         auto proc_count = ::GetConsoleProcessList(&processpid, 1);
-                        if (1 == proc_count) // Run gui console.
+                        if (forced || 1 == proc_count) // Run gui console.
                         {
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
                             ok(::GetWindowRect(h, &r));
-                            auto modeflags = DWORD{};
-                            ok(::GetConsoleDisplayMode(&modeflags));
-                            auto maximized = modeflags == CONSOLE_FULLSCREEN;
+                            //auto modeflags = DWORD{};
+                            //ok(::GetConsoleDisplayMode(&modeflags));
+                            //auto maximized = modeflags == CONSOLE_FULLSCREEN;
                             //dtvt::iconic = maximized ? gui::window::state::fullscreen
                             //                         : ::IsIconic(h) ? gui::window::state::minimized
                             //                                         : gui::window::state::normal;
-                            auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                            auto cell_height = 0;
-                            if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
-                            {
-                                //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
-                                cell_height = font_info.dwFontSize.Y;
-                            }
-                            if (cell_height == 0) cell_height = 20;
+                            //auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                            //auto cell_height = 0;
+                            //if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
+                            //{
+                            //    //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
+                            //    cell_height = font_info.dwFontSize.Y;
+                            //}
+                            //if (cell_height == 0) cell_height = 20;
                             //if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
-                            dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
-                                                  r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
+                            //dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
+                            //                      r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
+                            dtvt::window.coor = { r.left, r.top };
                             dtvt::vtmode |= ui::console::gui;
 
                             os::stdin_fd  = os::invalid_fd;

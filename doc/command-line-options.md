@@ -17,7 +17,7 @@ vtm -i | -u | -v | -?
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
-`--tui`                 | Force TUI mode.
+`--tui` \| `--gui`      | Force TUI/GUI mode.
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
