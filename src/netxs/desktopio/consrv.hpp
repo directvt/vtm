@@ -2300,8 +2300,9 @@ struct impl : consrv
     }
     void check_buffer_size(auto& console, auto& size)
     {
-        if (size.x > 165)
+        if (size.x > 1280)
         {
+            // Far Manager explicitly sets the buffer size as wide as viewport.
             // Just disable wrapping if user application requests too much (Explicit requirement for horizontal scrolling).
             // E.g. wmic requests { x=1500, y=300 }.
             //      Indep stat for dwSize.X = N: max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
@@ -2310,7 +2311,7 @@ struct impl : consrv
             console.style.wrp(faux);
             size.x = console.panel.x;
         }
-        if (size.y > 99)
+        if (size.y > 299)
         {
              // Applications usually request real viewport heights: 20, 24, 25, 50
              //         or extra large values for the scrollbuffer: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (stat for dwSize.Y = N)

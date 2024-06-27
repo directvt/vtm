@@ -2765,7 +2765,6 @@ namespace netxs::gui
         }
         void focus_event(bool focused)
         {
-            log(focused ? "focused" : "unfocused");
             active = focused;
             if (active) activate();
             bell::enqueue(This(), [&](auto& /*boss*/)
