@@ -2526,10 +2526,19 @@ namespace netxs::gui
             proxy.m.wheeled = {};
             proxy.m.wheeldt = {};
         }
+        void send_mouse_halt()
+        {
+            proxy.m.changed++;
+            proxy.m.timecod = datetime::now();
+            proxy.m.enabled = hids::stat::halt;
+            proxy.mouse(proxy.m);
+            proxy.m.enabled = hids::stat::ok;
+        }
         void mouse_leave()
         {
             mhover = faux;
             if (szgrip.leave()) reload |= task::grips;
+            send_mouse_halt();
         }
         void resize_by_grips(twod coord)
         {
@@ -2616,12 +2625,7 @@ namespace netxs::gui
             }
             else if (leave) // Mouse leaves viewport.
             {
-                auto timecode = datetime::now();
-                proxy.m.changed++;
-                proxy.m.timecod = timecode;
-                proxy.m.enabled = hids::stat::halt;
-                proxy.mouse(proxy.m);
-                proxy.m.enabled = hids::stat::ok;
+                send_mouse_halt();
             }
             if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
             {
@@ -2861,12 +2865,7 @@ namespace netxs::gui
                         //    accum = {};
                         //}
                         //else return;
-
-                        proxy.m.changed++;
-                        proxy.m.timecod = datetime::now();
-                        proxy.m.enabled = hids::stat::halt; // Mouse leaves viewport.
-                        proxy.mouse(proxy.m);
-                        proxy.m.enabled = hids::stat::ok;
+                        send_mouse_halt();
                         //todo revise
                         //if (fsmode == state::maximized)
                         //{
@@ -2937,6 +2936,10 @@ namespace netxs::gui
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();
+            {
+                auto lock = bell::sync();
+                proxy.gears.reset();
+            }
             proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
             winio.join();
         }
