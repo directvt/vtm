@@ -3487,7 +3487,7 @@ namespace netxs::os
             }
             return std::max(dot_11, winsz);
         }
-        auto initialize(bool trygui = faux, bool forced = faux)
+        auto initialize(bool trygui = faux, [[maybe_unused]] bool forced = faux)
         {
             #if defined(_WIN32)
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
