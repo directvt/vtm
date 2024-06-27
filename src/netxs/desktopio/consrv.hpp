@@ -948,12 +948,12 @@ struct impl : consrv
                 }
             }
             mstate = bttns;
-            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheeldt);
+            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheeldt * 120);
             if (wheeldt)
             {
-                     if (gear.m_sys.wheeled) flags |= MOUSE_WHEELED;
-                else if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
                 bttns |= wheeldt << 16;
+                flags |= MOUSE_WHEELED;
+                if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
             }
             auto lock = std::lock_guard{ locker };
             stream.emplace_back(INPUT_RECORD

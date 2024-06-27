@@ -4910,7 +4910,7 @@ namespace netxs::os
                             check(changed, m.buttons, static_cast<si32>(r.Event.MouseEvent.dwButtonState & 0b00011111));
                             check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
+                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16) / 120.f); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (!((dtvt::vtmode & ui::console::nt16) && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
