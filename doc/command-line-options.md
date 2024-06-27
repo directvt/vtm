@@ -17,10 +17,11 @@ vtm -i | -u | -v | -?
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
-`--tui` \| `--gui`      | Force TUI/GUI mode.
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
+`-t`, `--tui`           | Force TUI mode.
+`-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-q`, `--quiet`         | Disable logging.

@@ -37,11 +37,11 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("--tui"))
+        else if (getopt.match("-t", "--tui"))
         {
             trygui = faux;
         }
-        else if (getopt.match("--gui"))
+        else if (getopt.match("-g", "--gui"))
         {
             trygui = true;
             forced = true;
@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
             "\n  Syntax:"
             "\n"
             "\n    " + vtm + " [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
-            "\n    " + vtm + " [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]"
+            "\n    " + vtm + " [ -c <file> ][ -q ][ -t | -g ][ -r [ <type> ]][ <args...> ]"
             "\n    " + vtm + " [ -c <file> ]  -l"
             "\n    " + vtm + " -i | -u | -v | -?"
             "\n"
@@ -160,10 +160,11 @@ int main(int argc, char* argv[])
             "\n    By default, " + vtm + " runs Desktop Client, running an additional"
             "\n    instance with Desktop Server in background if it is not found."
             "\n"
-            "\n    --tui | --gui        Force TUI/GUI mode."
             "\n    -h, -?, --help       Print command-line options."
             "\n    -v, --version        Print version."
             "\n    -l, --listconfig     Print configuration."
+            "\n    -t, --tui            Force TUI mode."
+            "\n    -g, --gui            Force GUI mode."
             "\n    -i, --install        Perform system-wide installation."
             "\n    -u, --uninstall      Perform system-wide deinstallation."
             "\n    -q, --quiet          Disable logging."
