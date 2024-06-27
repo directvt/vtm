@@ -1457,7 +1457,7 @@ namespace netxs::ui
         : public form<host>
     {
     public:
-        using tick = datetime::quartz<events::reactor<>, hint>;
+        using tick = datetime::quartz<bell, tier::general, e2::timer::tick.id>;
         using list = std::vector<rect>;
 
         pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
@@ -1473,7 +1473,7 @@ namespace netxs::ui
 
         host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
-              quartz{ bell::router<tier::general>(), e2::timer::tick.id },
+              quartz{ *this },
               config{ config },
               active{ true }
         {
