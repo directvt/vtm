@@ -18,17 +18,8 @@ R"==(<config>
         <blinkrate = 400ms />    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
             "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
-            "Iosevka Term\n"
-            "JetBrains Mono\n"
             "Cascadia Mono\n"
-            "DejaVu Sans Mono\n"
-            "Envy Code R\n"
             "Fira Code\n"
-            "monofur for Powerline\n"
-            "Lucida Console\n"
-            "Consolas\n"
-            "Anonymous Pro\n"
-            "Source Code Pro\n"
             "NSimSun\n"
             "Noto Sans Devanagari\n"
         </fontlist>
