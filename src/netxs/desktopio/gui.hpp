@@ -1465,7 +1465,7 @@ namespace netxs::gui
                 auto lock = ::BeginDeferWindowPos((si32)layers.size());
                 for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
                 {
-                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.prev.coor.x, w.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                     if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
                 }
                 ::EndDeferWindowPos(lock);
