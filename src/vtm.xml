@@ -61,7 +61,7 @@ R"==(<config>
                         <wrap="on"/>    <!-- Lines wrapping mode. -->
                     </scrollback>
                     <cursor>
-                        <style="underline"/> <!-- block | underline  -->
+                        <style="bar"/> <!-- bar | block | underline  -->
                     </cursor>
                     <menu>
                         <autohide=off/>  <!--  If true, show window menu only on hover. -->
@@ -327,8 +327,8 @@ R"==(
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
-            <style="underline"/> <!-- Cursor style: underline | block -->
-            <blink=400ms/>       <!-- Cursor blink period. Set to zero for a steady cursor. -->
+            <style="bar"/> <!-- Cursor style: bar "|" | block "█" | underline "_" -->
+            <blink=400ms/> <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
             <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
         </cursor>

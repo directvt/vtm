@@ -1904,7 +1904,7 @@ namespace netxs
                 px.token = ((ui64)color.uv.bg.token << 32) | (ui64)color.uv.fg.token;
             }
         }
-        auto cursor_color()
+        auto cursor_color() const
         {
             auto colored = st.attrs.bitmap == body::pxtype::colors;
             return colored ? std::pair{ argb{ (ui32)(px.token >> 32) }, argb{ (ui32)(px.token & 0xFFFF'FFFF) }}
