@@ -212,7 +212,7 @@ namespace netxs::ui
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    argb{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    argb{ blackdk });
-                def_filler =             config.take("color/bground",        argb{ 0x00'ff'ff'ff });
+                def_filler =             config.take("color/bground",        argb{ argb::default_color });
 
                 def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -7168,7 +7168,7 @@ namespace netxs::ui
         {
             auto& console = *target;
             brush.link(base::id);
-            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            if (config.def_filler == argb::default_color) // Sync with SGR49.
             {
                 base::color(cell{ brush }.txt(whitespace));
             }
@@ -7182,7 +7182,7 @@ namespace netxs::ui
             auto brush = defclr;
             brush.bgc(bg);
             brush.link(base::id);
-            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            if (config.def_filler == argb::default_color) // Sync with SGR49.
             {
                 base::color(cell{ brush }.txt(whitespace));
             }
@@ -7443,7 +7443,7 @@ namespace netxs::ui
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
-            if (config.def_filler != 0x00'ff'ff'ff) // Unsync with SGR default background.
+            if (config.def_filler != argb::default_color) // Unsync with SGR default background.
             {
                 auto c = cell{whitespace}.bgc(config.def_filler).link(base::id);
                 base::color(c);

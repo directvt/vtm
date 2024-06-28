@@ -541,6 +541,8 @@ namespace netxs
                        + std::to_string(chan.a) + "}";
         }
 
+        static constexpr auto default_color = 0x00'FF'FF'FF;
+
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
             i == tint::blackdk   ? 0xFF'10'10'10 :

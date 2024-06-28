@@ -1127,9 +1127,9 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void draw_cell(auto& canvas, auto& blinks, twod coor, cell const& c)
+        void draw_cell(auto& canvas, auto& blinks, rect placeholder, cell const& c)
         {
-            auto placeholder = canvas.area().trim(rect{ coor, cellsz });
+            placeholder.trimby(canvas.area());
             if (!placeholder) return;
             auto fgc = c.fgc();
             auto bgc = c.bgc();
@@ -1233,54 +1233,47 @@ namespace netxs::gui
             auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
             draw_glyf(target, glyph_mask, offset, fgc);
         }
-        void draw_cursor(auto& canvas, twod coor, cell const& c)
+        void draw_cell_with_cursor(auto& canvas, auto& blinks, rect placeholder, cell c)
         {
-            if (auto style = c.cur())
+            //todo hilight grapheme cluster.
+            //todo hint for ime
+            auto style = c.cur();
+            if (style == text_cursor::invisible)
             {
-                auto [cursor_bgc, cursor_fgc] = c.cursor_color();
-                auto block = rect{};
+                draw_cell(canvas, blinks, placeholder, c);
+            }
+            else
+            {
+                auto [bgcolor, fgcolor] = c.cursor_color();
                 auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
+                if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
+                if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
                 if (style == text_cursor::block)
                 {
-                    block = { coor, cellsz };
-                    if (cursor_bgc.chan.a == 0)
-                    {
-                        auto b = c.inv() ? c.fgc() : c.bgc();
-                        auto f = cursor_fgc.chan.a ? cursor_fgc : b;
-                        b = cell::shaders::contrast.invert(b);
-                        //...
-                    }
-                    else
-                    {
-                        auto b = cursor_bgc;
-                        auto f = cursor_fgc.chan.a ? cursor_fgc : cell::shaders::contrast.invert(b);
-                        //...
-                    }
+                    c.fgc(fgcolor).bgc(bgcolor);
+                    draw_cell(canvas, blinks, placeholder, c);
                 }
                 else if (style == text_cursor::I_bar)
                 {
-                    block = { coor, { width, cellsz.y }};
+                    draw_cell(canvas, blinks, placeholder, c);
+                    placeholder.size.x = width;
+                    //todo draw glyph inside the cursor
+                    netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
                 }
                 else if (style == text_cursor::underline)
                 {
-                    block = {{ coor.x, coor.y + cellsz.y - width }, { cellsz.x, width }};
-                    if (cursor_bgc.chan.a == 0)
-                    {
-                        auto b = c.inv() ? c.fgc() : c.bgc();
-                        //auto u = argb{ cell::shaders::contrast.invert(b) };
-                    }
-                    else
-                    {
-                        //auto u = cursor_bgc.to_256cube();
-                    }
+                    draw_cell(canvas, blinks, placeholder, c);
+                    placeholder.coor.y += cellsz.y - width;
+                    placeholder.size.y = width;
+                    //todo draw glyph inside the cursor
+                    netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
                 }
-                if (block) netxs::onrect(canvas, block, cell::shaders::full(tint::purewhite));
             }
         }
         void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
         {
-            auto coor = origin;
-            auto maxc = coor + grid_cells.size() * cellsz;
+            auto area = rect{ origin, cellsz };
+            auto maxc = area.coor + grid_cells.size() * cellsz;
             auto base = canvas.coor();
             auto base_blinks = blinks.coor();
             blinks.move(origin);
@@ -1288,14 +1281,14 @@ namespace netxs::gui
             for (cell& c : grid_cells)
             {
                 if (c.blk()) blink_count++;//todo sync with blink_synch
-                draw_cell(canvas, blinks, coor, c);
-                draw_cursor(canvas, coor, c);
-                coor.x += cellsz.x;
-                if (coor.x >= maxc.x)
+                if (c.cur()) draw_cell_with_cursor(canvas, blinks, area, c);
+                else         draw_cell(canvas, blinks, area, c);
+                area.coor.x += cellsz.x;
+                if (area.coor.x >= maxc.x)
                 {
-                    coor.x = origin.x;
-                    coor.y += cellsz.y;
-                    if (coor.y >= maxc.y) break;
+                    area.coor.x = origin.x;
+                    area.coor.y += cellsz.y;
+                    if (area.coor.y >= maxc.y) break;
                 }
             }
             canvas.step(base);
