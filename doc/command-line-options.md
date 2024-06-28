@@ -6,7 +6,7 @@
 
 ```
 vtm [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]
-vtm [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]
+vtm [ -c <file> ][ -q ][ -t | -g ][ -r [ <type> ]][ <args...> ]
 vtm [ -c <file> ]  -l
 vtm -i | -u | -v | -?
 
