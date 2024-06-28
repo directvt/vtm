@@ -1833,6 +1833,7 @@ namespace netxs
             return *this;
         }
 
+        auto jgc_token() const { return gc.token & cell::glyf::token_mask; } // cell: Return grapheme cluster registration token.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
@@ -1854,8 +1855,8 @@ namespace netxs
                                                 (si32)(st.attrs.mosaic >> 4) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
-        auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
-        auto& egc() const  { return gc;            } // cell: Get grapheme cluster token.
+        auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
+        auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
         auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
         auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
         auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.

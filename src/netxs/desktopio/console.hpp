@@ -219,7 +219,11 @@ namespace netxs::ui
                     auto jumbos = cell::glyf::jumbos();
                     for (auto& gc : items)
                     {
-                        list.thing.push(gc.token, jumbos.get(gc.token));
+                        auto& cluster = jumbos.get(gc.token);
+                        if (cluster.length())
+                        {
+                            list.thing.push(gc.token, cluster);
+                        }
                     }
                 }
                 list.thing.sendby(canal);

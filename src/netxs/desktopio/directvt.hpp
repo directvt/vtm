@@ -1019,7 +1019,7 @@ namespace netxs::directvt
                     {
                         auto [size] = stream::take<byte>(data);
                         stream::take(c.egc().glyph, size, data);
-                        if (c.jgc() == faux) newgc[c.tkn()];
+                        if (c.jgc() == faux) newgc[c.jgc_token()];
                     }
                     return c;
                 };

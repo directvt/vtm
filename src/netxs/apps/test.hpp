@@ -148,10 +148,10 @@ Using large type pieces:
                     //.add("\2line1\nline2", vss<52,02>, "\n")
                     .fgc(purecyan)
                     .bld(faux).itc(faux).add(" Normal        WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-                    .bld(true).itc(faux).add(" Bold          WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
+                    .blk(true)          .add(" Blinking      WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
+                    .bld(true).blk(faux).add(" Bold          WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
                     .bld(true).itc(true).add(" Bold + Italic WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
                     .bld(faux).itc(true).add("        Italic WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-                    .blk(true)          .add(" Blinking      WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
                     .nil()
                     .fgc(purecyan).bld(faux).add("Devanagari script:\n")
                     .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.

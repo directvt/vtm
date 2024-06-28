@@ -1222,8 +1222,12 @@ namespace netxs::gui
             auto iter = glyphs.find(token);
             if (iter == glyphs.end())
             {
-                iter = glyphs.emplace(token, mono_buffer).first;
-                rasterize(iter->second, c);
+                if (c.jgc())
+                {
+                    iter = glyphs.emplace(token, mono_buffer).first;
+                    rasterize(iter->second, c);
+                }
+                else return;
             }
             auto& glyph_mask = iter->second;
             if (!glyph_mask.area) return;
@@ -2844,6 +2848,7 @@ namespace netxs::gui
                     layers[blinky].show();
                     reload |= task::blink;
                 }
+                update();
             });
         }
         void sys_command(si32 menucmd)
