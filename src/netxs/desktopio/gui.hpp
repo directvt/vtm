@@ -1257,7 +1257,9 @@ namespace netxs::gui
                 {
                     draw_cell(canvas, blinks, placeholder, c);
                     placeholder.size.x = width;
-                    //todo draw glyph inside the cursor
+                    //todo draw glyph inside the cursor (respect blinking glyphs)
+                    //c.fgc(fgcolor).bgc(bgcolor);
+                    //draw_cell(canvas, blinks, placeholder, c);
                     netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
                 }
                 else if (style == text_cursor::underline)
@@ -1265,7 +1267,9 @@ namespace netxs::gui
                     draw_cell(canvas, blinks, placeholder, c);
                     placeholder.coor.y += cellsz.y - width;
                     placeholder.size.y = width;
-                    //todo draw glyph inside the cursor
+                    c.fgc(fgcolor).bgc(bgcolor);
+                    //todo draw glyph inside the cursor (respect blinking glyphs)
+                    //draw_cell(canvas, blinks, placeholder, c);
                     netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
                 }
             }
