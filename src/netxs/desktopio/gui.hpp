@@ -2753,7 +2753,7 @@ namespace netxs::gui
             };
             auto param = key_state{ .token = (ui32)lParam };
             auto ControlKeyState = 0;
-            auto UnicodeChar = vkey;
+            auto UnicodeChar = utf::to_low(vkey);
             auto modstat = os::nt::modstat(kbmod, ControlKeyState, param.v.scancode, param.v.state == 0);
                  if (modstat.repeats) return; // We don't repeat modifiers.
             else if (utf::to_code(UnicodeChar, point))
