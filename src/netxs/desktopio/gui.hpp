@@ -2657,10 +2657,11 @@ namespace netxs::gui
             }
             mcoord = coord;
             auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
+            auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+            auto changed = proxy.m.coordxy(coordxy);
             if (inside)
             {
-                auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
-                if (proxy.m.coordxy(coordxy))
+                if (changed)
                 {
                     auto timecode = datetime::now();
                     proxy.m.changed++;
