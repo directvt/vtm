@@ -54,7 +54,7 @@ namespace netxs::app::test
 
         auto get_text = []
         {
-            static text topic;
+            static auto topic = text{};
 
             if (topic.empty())
             {
