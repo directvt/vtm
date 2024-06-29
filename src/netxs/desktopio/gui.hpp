@@ -1189,10 +1189,10 @@ namespace netxs::gui
                 else if (u == unln::wavy)
                 {
                     auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
-                    auto offset = placeholder.coor + target.coor();
+                    auto offset = placeholder.coor;
                     auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
                     offset.x -= offset.x % fract4;
-                    draw_glyf(target, wavy_raster, offset, fgc);
+                    draw_glyf(target, wavy_raster, offset, color);
                 }
                 else
                 {
