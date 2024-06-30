@@ -1425,6 +1425,7 @@ namespace netxs::gui
         using wins = std::vector<surface>;
 
         wins layers; // manager: ARGB layers.
+        std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
 
         manager()
         {
@@ -1512,6 +1513,11 @@ namespace netxs::gui
         void activate()
         {
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+            ::GetKeyboardState(kbstate.data()); // Sync with current keybd state.
+        }
+        void deactivate()
+        {
+            kbstate = {}; // Clear current keybd state.
         }
         //void shown_event(bool shown, arch reason)
         //{
@@ -1583,8 +1589,9 @@ namespace netxs::gui
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
-        virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
+        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
+        virtual void keybd_paste(arch vkey, arch lParam) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
 
@@ -1613,8 +1620,8 @@ namespace netxs::gui
                     case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
                     case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), 0);  break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), 1);  break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), 0);              break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
                     case WM_SETFOCUS:      w->focus_event(true);                       break;
                     case WM_KILLFOCUS:     w->focus_event(faux);                       break;
                     // These should be processed on the system side.
@@ -1639,10 +1646,22 @@ namespace netxs::gui
                                         }
                                         break; // Taskbar ctx menu to change the size and position.
                     //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    case WM_INPUTLANGCHANGE:
+                    {
+                        //todo sync kb layout
+                        //auto hkl = ::GetKeyboardLayout(0);
+                        auto kblayout = wide(KL_NAMELENGTH, '\0');
+                        ::GetKeyboardLayoutNameW(kblayout.data());
+                        log("%%Keyboard layout has changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+                        break;
+                    }
                     case WM_KEYDOWN:
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
+                    case WM_UNICHAR:
+                    case WM_CHAR:
+                    case WM_SYSCHAR:       w->keybd_paste(wParam, lParam);             break;
                     case WM_WINDOWPOSCHANGED:
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
@@ -1817,6 +1836,10 @@ namespace netxs::gui
             //...
         }
         void activate()
+        {
+            //...
+        }
+        void deactivate()
         {
             //...
         }
@@ -2134,6 +2157,9 @@ namespace netxs::gui
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt proxy; // window: .
+        wide toWIDE = wide(32, '\0'); // window: UTF-16 temp buffer.
+        text toUTF8;
+        si32 kbmod = {};
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -2558,11 +2584,11 @@ namespace netxs::gui
             #endif
             return state;
         }
-        void mouse_wheel(si32 delta, si32 cntrl, bool hz)
+        void mouse_wheel(si32 delta, bool hz)
         {
             proxy.m.changed++;
             proxy.m.timecod = datetime::now();
-            proxy.m.ctlstat = cntrl; //todo update it in keybd_press
+            proxy.m.ctlstat = proxy.k.ctlstat;
             proxy.m.hzwheel = hz;
             proxy.m.wheeled = true;
             proxy.m.wheeldt = delta / 120.f;
@@ -2609,7 +2635,6 @@ namespace netxs::gui
         {
             auto& mbttns = proxy.m.buttons;
             mhover = true;
-            auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
             auto ingrip = hit_grips();
             if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
@@ -2732,71 +2757,104 @@ namespace netxs::gui
                 }
             }
         }
-        //todo unify
-        utfx point = {};
-        text toutf = {};
-        wide wcopy = {};
-        si32 kbmod = {};
+        void keybd_paste(arch vkey, arch lParam)
+        {
+            vkey = std::clamp<arch>(vkey, 0, 255);
+            log("vkey=", vkey, " lParam=", utf::to_hex(lParam));
+        }
+        void sync_kbstat(si32 cs = {}, si32 virtcod = {}, si32 scancod = {}, bool pressed = {}, bool extflag = {}, view cluster = {})
+        {
+            if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
+            if (kbstate[VK_LMENU   ] & 0x80) cs |= LEFT_ALT_PRESSED;
+            if (kbstate[VK_RCONTROL] & 0x80) cs |= RIGHT_CTRL_PRESSED;
+            if (kbstate[VK_LCONTROL] & 0x80) cs |= LEFT_CTRL_PRESSED;
+            if (kbstate[VK_SHIFT   ] & 0x80) cs |= SHIFT_PRESSED;
+            if (kbstate[VK_NUMLOCK ] & 0x01) cs |= NUMLOCK_ON;
+            if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
+            if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
+            auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
+            if (modstat.repeats) return; // We don't repeat modifiers.
+            else
+            {
+                if (modstat.changed)
+                {
+                    proxy.k.ctlstat = kbmod;
+                    proxy.m.ctlstat = kbmod;
+                    proxy.m.timecod = datetime::now();
+                    proxy.m.changed++;
+                    proxy.mouse(proxy.m); // Fire mouse event to update kb modifiers.
+                }
+                proxy.k.extflag = extflag;
+                proxy.k.virtcod = virtcod;
+                proxy.k.scancod = scancod;
+                proxy.k.pressed = pressed;
+                proxy.k.keycode = input::key::xlat(virtcod, scancod, cs);
+                proxy.k.cluster = cluster;
+                proxy.keybd(proxy.k);
+            }
+        }
         void keybd_press(arch vkey, arch lParam)
         {
-            if (vkey || lParam)
+            auto virtcod = std::clamp((si32)vkey, 0, 255);
+            if (virtcod || lParam)
             {
                 //...
             }
             #if defined(_WIN32)
 
-            union key_state
+            union key_state_t
             {
                 ui32 token;
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
-                    ui32 scancode : 9; // 16-24 (24 - extended)
+                    si32 scancode : 9; // 16-24 (24 - extended)
                     ui32 reserved : 5; // 25-29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
-            auto param = key_state{ .token = (ui32)lParam };
-            auto ControlKeyState = 0;
-            auto UnicodeChar = utf::to_low(vkey);
-            auto modstat = os::nt::modstat(kbmod, ControlKeyState, param.v.scancode, param.v.state == 0);
-                 if (modstat.repeats) return; // We don't repeat modifiers.
-            else if (utf::to_code(UnicodeChar, point))
+            auto param = key_state_t{ .token = (ui32)lParam };
+            auto pressed = param.v.state != 3;
+            auto extflag = !!(param.v.scancode >> 9);
+            auto scancod = param.v.scancode;
+            if (pressed)
             {
-                if (point) utf::to_utf_from_code(point, toutf);
-                proxy.k.extflag = 0;//r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
-                proxy.k.virtcod = vkey;//r.Event.KeyEvent.wVirtualKeyCode;
-                proxy.k.scancod = param.v.scancode;//r.Event.KeyEvent.wVirtualScanCode;
-                proxy.k.pressed = param.v.state == 0;//r.Event.KeyEvent.bKeyDown;
-                proxy.k.keycode = input::key::xlat(proxy.k.virtcod, proxy.k.scancod, (si32)ControlKeyState);
-                proxy.k.cluster = toutf;
-                do
-                {
-                    proxy.keybd(proxy.k);
-                }
-                while (param.v.repeat-- > 1);
+                kbstate[virtcod] |= 0x80;
+                     if (virtcod == VK_CONTROL) kbstate[extflag ? VK_RCONTROL : VK_LCONTROL] |= 0x80;
+                else if (virtcod == VK_MENU)    kbstate[extflag ? VK_RMENU    : VK_LMENU   ] |= 0x80;
             }
-            point = {};
-            toutf.clear();
-            //log("vkey: ", utf::to_hex(vkey),
-            //    " scode: ", utf::to_hex(param.v.scancode),
-            //    " state: ", param.v.state == 0 ? "pressed"
-            //              : param.v.state == 1 ? "rep"
-            //              : param.v.state == 3 ? "released" : "unknown");
-            //kbs() = keybd_state();
-            //if (vkey == 0x1b) manager::close();
-            //else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
+            else
+            {
+                kbstate[virtcod] &= ~0x80;
+                     if (virtcod == VK_CONTROL) kbstate[extflag ? VK_RCONTROL : VK_LCONTROL] &= ~0x80;
+                else if (virtcod == VK_MENU)    kbstate[extflag ? VK_RMENU    : VK_LMENU   ] &= ~0x80;
+            }
+            auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
+                                     scancod,              // UINT wScanCode,
+                                     kbstate.data(),       // const BYTE *lpKeyState,
+                                     toWIDE.data(),        // [out] LPWSTR pwszBuff,
+                                     (si32)toWIDE.size(),  // [in]  int    cchBuff,
+                                     1,                    // [in]  UINT   wFlags, - Do not process Alt+Numpad
+                                     0);                   // [in, optional] HKL dwhkl
+            if (len >= 0)
+            {
+                auto ctlstat = extflag ? ENHANCED_KEY : 0;
+                if (len > 0) utf::to_utf(toWIDE.data(), len, toUTF8);
+                else         toUTF8.clear();
+                sync_kbstat(ctlstat, virtcod, scancod, pressed, extflag, toUTF8);
+            }
+            //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
             //{
             //    set_aa_mode(!gcache.aamode);
             //}
-            //else if (vkey == VK_F11 && param.v.state == 3) // Toggle maximized mode.
+            //else if (virtcod == VK_F11 && param.v.state == 3) // Toggle maximized mode.
             //{
             //    if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
             //}
             //else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             //{
             //    auto flen = fcache.families.size();
-            //    auto index = vkey == 0x30 ? fcache.families.size() - 1 : vkey - 0x30;
+            //    auto index = virtcod == 0x30 ? fcache.families.size() - 1 : virtcod - 0x30;
             //    if (index > 0 && index < flen)
             //    {
             //        auto& flist = fcache.families;
@@ -2813,6 +2871,8 @@ namespace netxs::gui
         {
             active = focused;
             if (active) activate();
+            else        deactivate();
+            sync_kbstat();
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
                 if (active)
