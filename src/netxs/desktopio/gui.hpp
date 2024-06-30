@@ -1278,8 +1278,9 @@ namespace netxs::gui
                 }
             }
         }
-        void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
+        void fill_grid(auto& canvas, auto& blinks, auto& imepos, si32& blink_count, twod origin, auto& grid_cells)
         {
+            imepos = dot_mx;
             auto area = rect{ origin, cellsz };
             auto maxc = area.coor + grid_cells.size() * cellsz;
             auto base = canvas.coor();
@@ -1289,8 +1290,12 @@ namespace netxs::gui
             for (cell& c : grid_cells)
             {
                 if (c.blk()) blink_count++;//todo sync with blink_synch
-                if (c.cur()) draw_cell_with_cursor(canvas, blinks, area, c);
-                else         draw_cell(canvas, blinks, area, c);
+                if (c.cur())
+                {
+                    imepos = area.coor;
+                    draw_cell_with_cursor(canvas, blinks, area, c);
+                }
+                else draw_cell(canvas, blinks, area, c);
                 area.coor.x += cellsz.x;
                 if (area.coor.x >= maxc.x)
                 {
@@ -1664,6 +1669,7 @@ namespace netxs::gui
                     //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
                     //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
                     case WM_IME_CHAR:      w->keybd_paste(wParam);                     break;
+                    case WM_IME_REQUEST: stat = w->set_ime_pos(wParam, lParam);        break;
                     case WM_WINDOWPOSCHANGED:
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
@@ -1752,7 +1758,7 @@ namespace netxs::gui
         {
             //...
         }
-        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, si32& /*blink_count*/, twod /*origin*/, auto& /*grid_cells*/)
+        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, auto& /*imepos*/, si32& /*blink_count*/, twod /*origin*/, auto& /*grid_cells*/)
         {
             //...
         }
@@ -2162,6 +2168,7 @@ namespace netxs::gui
         text toUTF8;
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
+        twod imepos;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -2500,7 +2507,7 @@ namespace netxs::gui
             auto canvas = layers[index].canvas(true);
             auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
             auto title_blink_count = 0;
-            gcache.fill_grid(canvas, blinks, title_blink_count, shadow_dent.corner(), facedata);
+            gcache.fill_grid(canvas, blinks, imepos, title_blink_count, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
             layers[index].sync.push_back({ .size = canvas.size() });
         }
@@ -2542,7 +2549,7 @@ namespace netxs::gui
                         //todo update while sync
                         auto bitmap_lock = proxy.bitmap_dtvt.freeze();
                         auto& main_grid = bitmap_lock.thing.image;
-                        gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid);
+                        gcache.fill_grid(canvas, blinks, imepos, blink_count, dirty_area.coor, main_grid);
                     }
                     check_blinky();
                     if (fsmode == state::maximized && (what & task::sized))
@@ -2561,30 +2568,6 @@ namespace netxs::gui
                 }
                 manager::present();
             }
-        }
-        auto& kbs()
-        {
-            static auto state_kb = 0;
-            return state_kb;
-        }
-        auto keybd_state()
-        {
-            //todo unify
-            auto state = 0;
-            #if defined(_WIN32)
-            state = hids::LShift   * !!::GetAsyncKeyState(VK_LSHIFT)
-                       | hids::RShift   * !!::GetAsyncKeyState(VK_RSHIFT)
-                       | hids::LWin     * !!::GetAsyncKeyState(VK_LWIN)
-                       | hids::RWin     * !!::GetAsyncKeyState(VK_RWIN)
-                       | hids::LAlt     * !!::GetAsyncKeyState(VK_LMENU)
-                       | hids::RAlt     * !!::GetAsyncKeyState(VK_RMENU)
-                       | hids::LCtrl    * !!::GetAsyncKeyState(VK_LCONTROL)
-                       | hids::RCtrl    * !!::GetAsyncKeyState(VK_RCONTROL)
-                       | hids::ScrlLock * !!::GetKeyState(VK_SCROLL)
-                       | hids::NumLock  * !!::GetKeyState(VK_NUMLOCK)
-                       | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
-            #endif
-            return state;
         }
         void mouse_wheel(si32 delta, bool hz)
         {
@@ -2615,9 +2598,8 @@ namespace netxs::gui
         }
         void resize_by_grips(twod coord)
         {
-            auto kb = kbs();// keybd_state();
             auto inner_rect = layers[blinky].area;
-            auto zoom = kb & hids::anyCtrl;
+            auto zoom = proxy.k.ctlstat & hids::anyCtrl;
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
@@ -2881,17 +2863,19 @@ namespace netxs::gui
         bool set_ime_pos(arch cmd, arch lParam)
         {
             auto stat = faux;
-            if (cmd == IMR_QUERYCHARPOSITION)
+            if (imepos != dot_mx && cmd == IMR_QUERYCHARPOSITION)
             {
+                auto p = imepos + layers[blinky].area.coor;
                 auto charPos = (IMECHARPOSITION*)lParam;
                 charPos->dwSize = sizeof(IMECHARPOSITION);
-                charPos->pt.x = 100;
-                charPos->pt.y = 100;
-                charPos->cLineHeight = 50;
-                charPos->rcDocument.left = 50;
-                charPos->rcDocument.top = 50;
-                charPos->rcDocument.right = 200;
-                charPos->rcDocument.bottom = 200;
+                charPos->pt.x = p.x;
+                charPos->pt.y = p.y;
+                charPos->dwCharPos = 0;
+                charPos->cLineHeight = cellsz.y;
+                //charPos->rcDocument.left = p.x;
+                //charPos->rcDocument.top = p.y;
+                //charPos->rcDocument.right = p.x + cellsz.x * 10;
+                //charPos->rcDocument.bottom = p.y + cellsz.y;
                 stat = true;
             }
             return stat;
