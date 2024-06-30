@@ -2157,7 +2157,6 @@ namespace netxs::gui
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt proxy; // window: .
-        wide toWIDE = wide(32, '\0'); // window: UTF-16 temp buffer.
         text toUTF8;
         si32 kbmod = {};
 
@@ -2829,18 +2828,19 @@ namespace netxs::gui
                      if (virtcod == VK_CONTROL) kbstate[extflag ? VK_RCONTROL : VK_LCONTROL] &= ~0x80;
                 else if (virtcod == VK_MENU)    kbstate[extflag ? VK_RMENU    : VK_LMENU   ] &= ~0x80;
             }
+            auto to_WIDE = std::array<wchr, 32>{};
             auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
                                      scancod,              // UINT wScanCode,
                                      kbstate.data(),       // const BYTE *lpKeyState,
-                                     toWIDE.data(),        // [out] LPWSTR pwszBuff,
-                                     (si32)toWIDE.size(),  // [in]  int    cchBuff,
+                                     to_WIDE.data(),       // [out] LPWSTR pwszBuff,
+                                     (si32)to_WIDE.size(), // [in]  int    cchBuff,
                                      1,                    // [in]  UINT   wFlags, - Do not process Alt+Numpad
                                      0);                   // [in, optional] HKL dwhkl
             if (len >= 0)
             {
                 auto ctlstat = extflag ? ENHANCED_KEY : 0;
-                if (len > 0) utf::to_utf(toWIDE.data(), len, toUTF8);
-                else         toUTF8.clear();
+                toUTF8.clear();
+                if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
                 sync_kbstat(ctlstat, virtcod, scancod, pressed, extflag, toUTF8);
             }
             //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
