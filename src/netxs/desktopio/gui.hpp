@@ -1591,7 +1591,8 @@ namespace netxs::gui
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam) = 0;
-        virtual void keybd_paste(arch vkey, arch lParam) = 0;
+        virtual void keybd_paste(arch wide_char) = 0;
+        virtual bool set_ime_pos(arch vkey, arch lParam) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
 
@@ -1662,7 +1663,7 @@ namespace netxs::gui
                     //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_paste(wParam, lParam); break;
                     //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
                     //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
-                    case WM_IME_CHAR:      w->keybd_paste(wParam, lParam);             break;
+                    case WM_IME_CHAR:      w->keybd_paste(wParam);                     break;
                     case WM_WINDOWPOSCHANGED:
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
@@ -2789,9 +2790,9 @@ namespace netxs::gui
                 proxy.keybd(proxy.k);
             }
         }
-        void keybd_paste(arch wide_char, arch lParam)
+        void keybd_paste(arch wide_char)
         {
-            if (utf::to_code(wide_char, point))
+            if (utf::to_code((wchr)wide_char, point))
             {
                 auto pressed = true;
                 toUTF8.clear();
@@ -2816,11 +2817,13 @@ namespace netxs::gui
                 {
                     ui32 repeat   : 16;// 0-15
                     si32 scancode : 9; // 16-24 (24 - extended)
-                    ui32 reserved : 5; // 25-29 (29 - context)
+                    ui32 reserved : 4; // 25-28 (reserved)
+                    ui32 context  : 1; // 29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
             auto param = key_state_t{ .token = (ui32)lParam };
+            if (param.v.state == 2/*unknown*/) return;
             auto pressed = param.v.state != 3;
             auto extflag = !!(param.v.scancode >> 9);
             auto scancod = param.v.scancode;
@@ -2874,6 +2877,24 @@ namespace netxs::gui
             //    }
             //}
             #endif
+        }
+        bool set_ime_pos(arch cmd, arch lParam)
+        {
+            auto stat = faux;
+            if (cmd == IMR_QUERYCHARPOSITION)
+            {
+                auto charPos = (IMECHARPOSITION*)lParam;
+                charPos->dwSize = sizeof(IMECHARPOSITION);
+                charPos->pt.x = 100;
+                charPos->pt.y = 100;
+                charPos->cLineHeight = 50;
+                charPos->rcDocument.left = 50;
+                charPos->rcDocument.top = 50;
+                charPos->rcDocument.right = 200;
+                charPos->rcDocument.bottom = 200;
+                stat = true;
+            }
+            return stat;
         }
         void focus_event(bool focused)
         {
