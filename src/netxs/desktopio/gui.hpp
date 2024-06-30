@@ -1659,9 +1659,10 @@ namespace netxs::gui
                     case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
-                    case WM_UNICHAR:
-                    case WM_CHAR:
-                    case WM_SYSCHAR:       w->keybd_paste(wParam, lParam);             break;
+                    //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_paste(wParam, lParam); break;
+                    //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
+                    //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
+                    case WM_IME_CHAR:      w->keybd_paste(wParam, lParam);             break;
                     case WM_WINDOWPOSCHANGED:
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
@@ -2158,6 +2159,7 @@ namespace netxs::gui
         bool blinking; // window: .
         evnt proxy; // window: .
         text toUTF8;
+        utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -2756,12 +2758,7 @@ namespace netxs::gui
                 }
             }
         }
-        void keybd_paste(arch vkey, arch lParam)
-        {
-            vkey = std::clamp<arch>(vkey, 0, 255);
-            log("vkey=", vkey, " lParam=", utf::to_hex(lParam));
-        }
-        void sync_kbstat(si32 cs = {}, si32 virtcod = {}, si32 scancod = {}, bool pressed = {}, bool extflag = {}, view cluster = {})
+        void sync_kbstat(view cluster = {}, bool pressed = {}, si32 cs = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
             if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
             if (kbstate[VK_LMENU   ] & 0x80) cs |= LEFT_ALT_PRESSED;
@@ -2790,6 +2787,17 @@ namespace netxs::gui
                 proxy.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 proxy.k.cluster = cluster;
                 proxy.keybd(proxy.k);
+            }
+        }
+        void keybd_paste(arch wide_char, arch lParam)
+        {
+            if (utf::to_code(wide_char, point))
+            {
+                auto pressed = true;
+                toUTF8.clear();
+                utf::to_utf_from_code(point, toUTF8);
+                sync_kbstat(toUTF8, pressed);
+                point = {};
             }
         }
         void keybd_press(arch vkey, arch lParam)
@@ -2841,7 +2849,7 @@ namespace netxs::gui
                 auto ctlstat = extflag ? ENHANCED_KEY : 0;
                 toUTF8.clear();
                 if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
-                sync_kbstat(ctlstat, virtcod, scancod, pressed, extflag, toUTF8);
+                sync_kbstat(toUTF8, pressed, ctlstat, virtcod, scancod, extflag);
             }
             //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
             //{
