@@ -7676,6 +7676,7 @@ namespace netxs::ui
                         gear.alive    = true;
                         gear.ctlstate = k.ctlstat;
                         gear.extflag  = k.extflag;
+                        gear.imeview  = faux;
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
@@ -8017,11 +8018,12 @@ namespace netxs::ui
                 }
                 stream.focusbus.send(*this, seed.id, seed.guid, netxs::events::subindex(deed));
             };
-            LISTEN(tier::release, hids::events::keybd::key::post, gear)
+            LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {
                 stream.syskeybd.send(*this, gear.id,
                                             gear.ctlstate, // It is expanded because of ctlstate is not ctlstat.
                                             gear.extflag,
+                                            gear.imeview,
                                             gear.virtcod,
                                             gear.scancod,
                                             gear.pressed,

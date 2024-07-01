@@ -822,6 +822,7 @@ namespace netxs::directvt
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag) //todo deprecated
+                                        (bool, imeview)  // syskeybd: IME string preview (only cluster has meaning).
                                         (si32, virtcod) //todo deprecated
                                         (si32, scancod)  // syskeybd: Scancode.
                                         (bool, pressed)  // syskeybd: Key is pressed.

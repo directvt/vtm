@@ -55,7 +55,8 @@ namespace netxs::events::userland
 
                 SUBSET_XS( key )
                 {
-                    EVENT_XS( post, input::hids ),
+                    EVENT_XS( post   , input::hids ),
+                    EVENT_XS( imeview, input::hids ), // IME preview notification (only cluster has meaning).
                 };
                 SUBSET_XS( control )
                 {
@@ -926,6 +927,7 @@ namespace netxs::input
         si32 nullkey = key::Key2;
 
         text cluster{};
+        bool imeview{}; // keybd: IME preview (only cluster has meaning).
         bool extflag{};
         bool pressed{};
         bool handled{};
@@ -944,6 +946,7 @@ namespace netxs::input
         void update(syskeybd& k)
         {
             extflag = k.extflag;
+            imeview = k.imeview;
             pressed = k.pressed;
             virtcod = k.virtcod;
             scancod = k.scancod;
@@ -1641,7 +1644,8 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
+            if (keybd::imeview) owner.SIGNAL(tier::preview, hids::events::keybd::key::imeview, *this);
+            else                owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_paste()
         {
