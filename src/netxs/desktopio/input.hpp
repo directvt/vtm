@@ -617,8 +617,7 @@ namespace netxs::input
         tail delta{}; // mouse: History of mouse movements for a specified period of time.
         bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
         bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
-        bool scrll{}; // mouse: Vertical scrolling.
-        bool hzwhl{}; // mouse: Horizontal scrolling.
+        bool hzwhl{}; // mouse: If true: Horizontal scrolling. If faux: Vertical scrolling.
         fp32 whldt{}; // mouse: Scroll delta (1.f/120).
         si32 locks{}; // mouse: State of the captured buttons (bit field).
         si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
@@ -844,14 +843,12 @@ namespace netxs::input
             }
 
             coord = m_sys.coordxy;
-            if (m_sys.wheeled || m_sys.hzwheel)
+            if (m_sys.wheeldt)
             {
-                scrll = m_sys.wheeled;
                 hzwhl = m_sys.hzwheel;
                 whldt = m_sys.wheeldt;
                 fire(m_sys.wheeldt > 0 ? scrollup : scrolldn);
-                m_sys.wheeled = {}; // Clear one-shot events.
-                m_sys.hzwheel = {};
+                m_sys.hzwheel = {}; // Clear one-shot events.
                 m_sys.wheeldt = {};
             }
         }
@@ -1447,7 +1444,7 @@ namespace netxs::input
         void take(sysmouse& m)
         {
             #if defined(DEBUG)
-            if (m.wheeled)
+            if (m.wheeldt)
             {
                 auto s = m.ctlstat;
                 auto alt     = s & hids::anyAlt ? 1 : 0;
@@ -1631,7 +1628,6 @@ namespace netxs::input
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
-                        m_sys.wheeled = {};
                         m_sys.wheeldt = {};
                         m_sys.hzwheel = {};
                     }

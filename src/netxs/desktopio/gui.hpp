@@ -2564,15 +2564,14 @@ namespace netxs::gui
         }
         void mouse_wheel(si32 delta, bool hz)
         {
+            if (delta == 0) return;
             proxy.m.changed++;
             proxy.m.timecod = datetime::now();
             proxy.m.ctlstat = proxy.k.ctlstat;
             proxy.m.hzwheel = hz;
-            proxy.m.wheeled = true;
             proxy.m.wheeldt = delta / 120.f;
             proxy.mouse(proxy.m);
             proxy.m.hzwheel = {};
-            proxy.m.wheeled = {};
             proxy.m.wheeldt = {};
         }
         void send_mouse_halt()

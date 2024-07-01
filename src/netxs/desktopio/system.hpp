@@ -4167,7 +4167,7 @@ namespace netxs::os
                     {
                         if (state & mode::move
                         || (state & mode::drag && (gear.m_sys.buttons && moved))
-                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeled)))
+                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeldt)))
                         {
                             auto guard = std::lock_guard{ writemtx };
                                  if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
@@ -4828,7 +4828,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
                                 m.timecod = timecode;
@@ -4909,14 +4908,13 @@ namespace netxs::os
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
                             check(changed, m.buttons, static_cast<si32>(r.Event.MouseEvent.dwButtonState & 0b00011111));
-                            check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                             check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16) / 120.f); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (!((dtvt::vtmode & ui::console::nt16) && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                             }
-                            if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
+                            if (changed || m.wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
                                 m.timecod = timecode;
@@ -5386,7 +5384,6 @@ namespace netxs::os
                                 auto ctl = ctrl.value();
 
                                 m.enabled = {};
-                                m.wheeled = {};
                                 m.hzwheel = {};
                                 m.wheeldt = {};
                                 m.ctlstat = {};
@@ -5414,11 +5411,9 @@ namespace netxs::os
                                     case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
                                     case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                     case 64:
-                                        m.wheeled = true;
                                         m.wheeldt = 1;
                                         break;
                                     case 65:
-                                        m.wheeled = true;
                                         m.wheeldt = -1;
                                         break;
                                 }
@@ -5484,7 +5479,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
                                 m.timecod = datetime::now();
@@ -5516,7 +5510,6 @@ namespace netxs::os
                             mcoord = std::clamp(mcoord, dot_00, limit - dot_11);
                             k.ctlstat = get_kb_state();
                             m.wheeldt = size == 4 ? -data[3] : 0;
-                            m.wheeled = m.wheeldt;
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;

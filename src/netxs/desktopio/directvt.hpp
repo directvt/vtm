@@ -833,8 +833,7 @@ namespace netxs::directvt
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
                                         (si32, buttons)  // sysmouse: Buttons bit state.
-                                        (bool, wheeled)  // sysmouse: Vertical scroll wheel.
-                                        (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
+                                        (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
                                         (fp32, wheeldt)  // sysmouse: Scroll delta.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.

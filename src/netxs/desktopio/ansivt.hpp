@@ -677,7 +677,7 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
-            else if (gear.m_sys.wheeled)
+            else if (gear.m_sys.wheeldt)
             {
                 ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
                                                : wheel_dn;
@@ -729,8 +729,8 @@ namespace netxs::ansi
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m_sys.wheeled  ) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
-                                                                          : wheel_dn;
+            else if (gear.m_sys.wheeldt) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
+                                                                        : wheel_dn;
             else if (gear.m_sys.buttons)
             {
                      if (m_left) ctrl |= left;
