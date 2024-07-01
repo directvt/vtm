@@ -204,7 +204,7 @@ namespace netxs::ui
                 def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::format);
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
-                def_cursor =             config.take("cursor/style",         text_cursor::underline, xml::options::cursor);
+                def_cursor =             config.take("cursor/style",         text_cursor::I_bar, xml::options::cursor);
                 def_curclr =             config.take("cursor/color",         cell{});
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
                 def_io_log =             config.take("logs",                 faux);

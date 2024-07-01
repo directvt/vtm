@@ -42,7 +42,6 @@ namespace netxs
         static constexpr auto underline = 1;
         static constexpr auto block     = 2;
         static constexpr auto I_bar     = 3;
-        static constexpr auto invisible = 7; // Hint for IME.
     }
 
     enum tint
@@ -1144,7 +1143,8 @@ namespace netxs
                 ui32 strike : 1;
                 ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                 ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
-                ui32 cursor : 3; // 0: None, 1: Underline, 2: Block, 3: I-bar, 7: Transparent - hint for IME. cell::px stores cursor fg/bg if cursor is set.
+                ui32 cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+                ui32 hyperlink : 1; // cell::px strores string hash.
                 ui32 blinks : 1;
                 ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
                 ui32 fusion : 2; // Background interpolation current c0 with neighbor c1 and c2 cells:

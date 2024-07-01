@@ -1242,40 +1242,33 @@ namespace netxs::gui
             //todo hilight grapheme cluster.
             //todo hint for ime
             auto style = c.cur();
-            if (style == text_cursor::invisible)
+            auto [bgcolor, fgcolor] = c.cursor_color();
+            auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
+            if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (style == text_cursor::block)
             {
+                c.fgc(fgcolor).bgc(bgcolor);
                 draw_cell(canvas, blinks, placeholder, c);
             }
-            else
+            else if (style == text_cursor::I_bar)
             {
-                auto [bgcolor, fgcolor] = c.cursor_color();
-                auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
-                if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
-                if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
-                if (style == text_cursor::block)
-                {
-                    c.fgc(fgcolor).bgc(bgcolor);
-                    draw_cell(canvas, blinks, placeholder, c);
-                }
-                else if (style == text_cursor::I_bar)
-                {
-                    draw_cell(canvas, blinks, placeholder, c);
-                    placeholder.size.x = width;
-                    //todo draw glyph inside the cursor (respect blinking glyphs)
-                    //c.fgc(fgcolor).bgc(bgcolor);
-                    //draw_cell(canvas, blinks, placeholder, c);
-                    netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
-                }
-                else if (style == text_cursor::underline)
-                {
-                    draw_cell(canvas, blinks, placeholder, c);
-                    placeholder.coor.y += cellsz.y - width;
-                    placeholder.size.y = width;
-                    c.fgc(fgcolor).bgc(bgcolor);
-                    //todo draw glyph inside the cursor (respect blinking glyphs)
-                    //draw_cell(canvas, blinks, placeholder, c);
-                    netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
-                }
+                draw_cell(canvas, blinks, placeholder, c);
+                placeholder.size.x = width;
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //c.fgc(fgcolor).bgc(bgcolor);
+                //draw_cell(canvas, blinks, placeholder, c);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
+            }
+            else if (style == text_cursor::underline)
+            {
+                draw_cell(canvas, blinks, placeholder, c);
+                placeholder.coor.y += cellsz.y - width;
+                placeholder.size.y = width;
+                c.fgc(fgcolor).bgc(bgcolor);
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //draw_cell(canvas, blinks, placeholder, c);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
             }
         }
         void fill_grid(auto& canvas, auto& blinks, auto& imepos, si32& blink_count, twod origin, auto& grid_cells)

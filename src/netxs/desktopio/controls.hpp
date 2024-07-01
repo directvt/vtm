@@ -633,19 +633,21 @@ namespace netxs::ui
             bool unfocused; // caret: Is the cursor suppressed (lost focus).
             rect body; // caret: Cursor position.
             si32 form; // caret: Cursor style (netxs::text_cursor).
+            si32 original_form; // caret: Original cursor form.
             span step; // caret: Blink interval. span::zero() if steady.
             time next; // caret: Time of next blinking.
             cell mark; // caret: Cursor brush.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, si32 cursor_style = text_cursor::underline, twod position = dot_00, span freq = skin::globals().blink_period, cell default_color = cell{})
+            caret(base& boss, bool visible = faux, si32 cursor_style = text_cursor::I_bar, twod position = dot_00, span freq = skin::globals().blink_period, cell default_color = cell{})
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
                    unfocused{ true },
                    body{ position, dot_11 }, // Cursor is always one cell size (see the term::scrollback definition).
                    form{ cursor_style },
+                   original_form{ cursor_style },
                    step{ freq },
                    mark{ default_color }
             {
@@ -727,7 +729,6 @@ namespace netxs::ui
             {
                 switch (mode)
                 {
-                    case 0: // n = 0  blinking box
                     case 1: // n = 1  blinking box (default)
                         blink_period();
                         style(text_cursor::block);
@@ -744,6 +745,7 @@ namespace netxs::ui
                         blink_period(span::zero());
                         style(text_cursor::underline);
                         break;
+                    case 0: // n = 0  blinking I-bar
                     case 5: // n = 5  blinking I-bar
                         blink_period();
                         style(text_cursor::I_bar);
@@ -759,7 +761,8 @@ namespace netxs::ui
             }
             void toggle()
             {
-                style(form == text_cursor::underline ? text_cursor::block : text_cursor::underline);
+                if (original_form == text_cursor::underline) style(form != text_cursor::block ? text_cursor::block : text_cursor::underline);
+                else                                         style(form != text_cursor::block ? text_cursor::block : text_cursor::I_bar);
                 reset();
             }
             // pro::caret: Set cursor position.
@@ -863,20 +866,20 @@ namespace netxs::ui
                                 auto chr = area.coor.x ? '>' : '<';
                                 area.coor.x -= area.coor.x ? 1 : 0;
                                 area.size.x = 1;
-                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())).cur(text_cursor::invisible); });
+                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())).cur(text_cursor::none); });
                             }
                         }
                         else
                         {
                             if (area)
                             {
-                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::invisible); });
+                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::none); });
                             }
                             else if (area.size.y)
                             {
                                 area.size.x = 1;
                                 area.coor.x -= area.coor.x ? 1 : 0;
-                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::invisible); });
+                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::none); });
                             }
                         }
                     };
