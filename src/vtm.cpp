@@ -371,7 +371,7 @@ int main(int argc, char* argv[])
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
-        app::shared::start(params, aptype, os::dtvt::vtmode, os::dtvt::window.size, config);
+        app::shared::start(params, aptype, config);
     }
     else
     {
@@ -402,6 +402,7 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
+                app::shared::update_winsz(config);
                 auto userinit = directvt::binary::init{};
                 auto env = os::env::add();
                 auto cwd = os::env::cwd();

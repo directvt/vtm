@@ -2726,8 +2726,10 @@ namespace netxs::gui
                 }
             }
         }
-        void sync_kbstat(view cluster = {}, bool pressed = {}, si32 cs = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
+        void sync_kbstat(view cluster = {}, bool pressed = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
+            auto cs = 0;
+            if (extflag) cs |= ENHANCED_KEY;
             if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
             if (kbstate[VK_LMENU   ] & 0x80) cs |= LEFT_ALT_PRESSED;
             if (kbstate[VK_RCONTROL] & 0x80) cs |= RIGHT_CTRL_PRESSED;
@@ -2737,8 +2739,9 @@ namespace netxs::gui
             if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
             if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
             auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
-            if (modstat.repeats) return; // We don't repeat modifiers.
-            else
+            //todo revise
+            //if (modstat.repeats) return; // We don't repeat modifiers.
+            //else
             {
                 if (modstat.changed)
                 {
@@ -2816,10 +2819,9 @@ namespace netxs::gui
                                      0);                   // [in, optional] HKL dwhkl
             if (len >= 0)
             {
-                auto ctlstat = extflag ? ENHANCED_KEY : 0;
                 toUTF8.clear();
                 if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
-                sync_kbstat(toUTF8, pressed, ctlstat, virtcod, scancod, extflag);
+                sync_kbstat(toUTF8, pressed, virtcod, scancod, extflag);
             }
             //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
             //{
@@ -2850,15 +2852,16 @@ namespace netxs::gui
             active = focused;
             if (active) activate();
             else        deactivate();
-            sync_kbstat();
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
                 if (active)
                 {
                     SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = proxy.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
+                    sync_kbstat();
                 }
                 else
                 {
+                    sync_kbstat();
                     SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = proxy.gears->id }));
                 }
             });
