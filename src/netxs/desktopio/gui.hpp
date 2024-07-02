@@ -2558,14 +2558,30 @@ namespace netxs::gui
         void mouse_wheel(si32 delta, bool hz)
         {
             if (delta == 0) return;
-            proxy.m.changed++;
-            proxy.m.timecod = datetime::now();
-            proxy.m.ctlstat = proxy.k.ctlstat;
-            proxy.m.hzwheel = hz;
-            proxy.m.wheeldt = delta / 120.f;
-            proxy.mouse(proxy.m);
-            proxy.m.hzwheel = {};
-            proxy.m.wheeldt = {};
+            auto wheeldt = delta / 120.f;
+            if (inside)
+            {
+                proxy.m.changed++;
+                proxy.m.timecod = datetime::now();
+                proxy.m.ctlstat = proxy.k.ctlstat;
+                proxy.m.hzwheel = hz;
+                proxy.m.wheeldt = wheeldt;
+                proxy.mouse(proxy.m);
+                proxy.m.hzwheel = {};
+                proxy.m.wheeldt = {};
+            }
+            else
+            {
+                bell::enqueue(This(), [&, wheeldt](auto& /*boss*/)
+                {
+                    //if (gear.meta(hids::anyCtrl))
+                    {
+                        change_cell_size(wheeldt, mcoord - layers[client].area.coor);
+                        reload |= task::all;
+                        update();
+                    }
+                });
+            }
         }
         void send_mouse_halt()
         {
@@ -2650,7 +2666,8 @@ namespace netxs::gui
                 return;
             }
             mcoord = coord;
-            auto leave = std::exchange(inside, !szgrip.seized && (seized || inner_rect.hittest(mcoord))) != inside;
+            auto new_state = !szgrip.seized && (seized || (border.t ? inner_rect : inner_rect - dent{ 0,0,1,0 }).hittest(mcoord)); // Allow 1px border at the top of the maximized window.
+            auto leave = std::exchange(inside, new_state) != inside;
             auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
             auto changed = proxy.m.coordxy(coordxy);
             if (inside)
