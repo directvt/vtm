@@ -540,7 +540,10 @@ namespace netxs::app::shared
             config.cd("/config/gui/");
             auto wincoord = config.take("wincoor", twod{ 100, 100 });
             auto gridsize = config.take("gridsize", twod{ 80, 25 });
-            if (gridsize != dot_00) os::dtvt::window.size = std::max(dot_11, gridsize);
+            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
+            os::dtvt::cellsz = cellsize ? std::abs(cellsize) : 20;
+            os::dtvt::window.size = std::max(dot_11, gridsize ? gridsize
+                                                              : os::dtvt::wingui.size / twod{ std::max(1, os::dtvt::cellsz / 2), os::dtvt::cellsz });
             if (wincoord != dot_00) os::dtvt::window.coor = wincoord;
         }
     }
@@ -554,12 +557,10 @@ namespace netxs::app::shared
             auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
             auto blinking = config.take("blinkrate", span{ 400ms });
-            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
             auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
             auto event_domain = netxs::events::auth{};
-            if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, cellsize, aliasing, blinking))
+            if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, os::dtvt::cellsz, aliasing, blinking))
             {
-                if constexpr (debugmode) os::logstd("dtvt::window=", os::dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, " blinkrate=", datetime::round<si32>(blinking));
                 window->connect(winstate);
             }
         }

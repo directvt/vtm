@@ -3453,10 +3453,11 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto window = rect{}; // dtvt: Initial window area.
+        static auto wingui = rect{}; // dtvt: Initial GUI window area.
         static auto client = xipc{}; // dtvt: Internal IO link.
         //static auto iconic = si32{}; // dtvt: Initial window state: normal = 0, minimized = 1, fullscreen = 2.
         //static auto uifont = std::list<text>{}; // dtvt: Font list for gui console.
-        //static auto cellsz = si32{}; // dtvt: Font size for gui console.
+        static auto cellsz = si32{}; // dtvt: Font size for gui console.
 
         auto consize()
         {
@@ -3610,24 +3611,27 @@ namespace netxs::os
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
                             ok(::GetWindowRect(h, &r));
-                            //auto modeflags = DWORD{};
-                            //ok(::GetConsoleDisplayMode(&modeflags));
-                            //auto maximized = modeflags == CONSOLE_FULLSCREEN;
+                            auto modeflags = DWORD{};
+                            ok(::GetConsoleDisplayMode(&modeflags));
+                            auto maximized = modeflags == CONSOLE_FULLSCREEN;
                             //dtvt::iconic = maximized ? gui::window::state::fullscreen
                             //                         : ::IsIconic(h) ? gui::window::state::minimized
                             //                                         : gui::window::state::normal;
-                            //auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                            //auto cell_height = 0;
-                            //if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
-                            //{
-                            //    //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
-                            //    cell_height = font_info.dwFontSize.Y;
-                            //}
+                            auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                            auto cell_height = 20;
+                            if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)) && font_info.dwFontSize.Y)
+                            {
+                                //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
+                                cell_height = font_info.dwFontSize.Y;
+                            }
                             //if (cell_height == 0) cell_height = 20;
                             //if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
                             //dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
                             //                      r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
                             dtvt::window.coor = { r.left, r.top };
+                            //dtvt::wingui = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }}; // It doesn't work with WT.
+                            dtvt::wingui = dtvt::window;
+                            dtvt::wingui.size *= twod{ std::max(1, cell_height / 2), cell_height};
                             dtvt::vtmode |= ui::console::gui;
 
                             os::stdin_fd  = os::invalid_fd;
