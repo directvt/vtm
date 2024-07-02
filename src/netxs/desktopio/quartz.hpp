@@ -55,21 +55,20 @@ namespace netxs::datetime
         return std::tuple{ days, hours, minutes, seconds };
     }
 
-    template<class Reactor, class Context>
+    template<class Bell, auto Tier, auto Deed>
     class quartz
     {
         using cond = std::condition_variable;
         using work = std::thread;
 
-        Reactor& alarm;
-        Context  cause;
-        flag     alive;
-        flag     letup;
-        span     delay;
-        span     watch;
-        span     pulse;
-        work     fiber;
-        cond     synch;
+        Bell& owner;
+        flag  alive;
+        flag  letup;
+        span  delay;
+        span  watch;
+        span  pulse;
+        work  fiber;
+        cond  synch;
 
         void worker()
         {
@@ -85,7 +84,7 @@ namespace netxs::datetime
                 prior =  now;
 
                 now = datetime::now();
-                alarm.notify(cause, now);
+                owner.template signal<Tier>(Deed, now);
 
                 if (letup.exchange(faux))
                 {
@@ -101,9 +100,8 @@ namespace netxs::datetime
         }
 
     public:
-        quartz(Reactor& router, Context cause)
-            : alarm{ router       },
-              cause{ cause        },
+        quartz(Bell& owner)
+            : owner{ owner        },
               alive{ faux         },
               letup{ faux         },
               delay{ span::zero() },

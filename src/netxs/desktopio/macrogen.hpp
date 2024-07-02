@@ -72,18 +72,11 @@
         #define SEQ_TYPE_even_last
         #define SEQ_TYPE__odd_last
 
-    //todo starting from msvc 17.10.1 the behavior of the preprocessor has been changed
-    //#if defined(_WIN32)
-    //    #define SEQ_SIGN_macro(args) EVAL_macro(CAT_macro(SEQ_SIGN__odd args, _last))
-    //    #define SEQ_NAME_macro(args) EVAL_macro(CAT_macro(SEQ_NAME__odd args, _last))
-    //    #define SEQ_TYPE_macro(args) EVAL_macro(CAT_macro(SEQ_TYPE__odd args, _last))
-    //#else
         #define DEL_macro_(...)
         #define DEL_TAIL_macro DEL_macro_(
         #define SEQ_SIGN_macro(args) SEQ_SIGN__odd args ((,DEL_TAIL_macro ))) // Trailing comma workaround.
         #define SEQ_NAME_macro(args) SEQ_NAME__odd args ((,DEL_TAIL_macro ))) //
         #define SEQ_TYPE_macro(args) SEQ_TYPE__odd args (( DEL_TAIL_macro,))) //
-    //#endif
 
 #endif
 #if defined(UNDEFINE_macro)

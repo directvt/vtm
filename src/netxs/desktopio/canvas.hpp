@@ -42,7 +42,6 @@ namespace netxs
         static constexpr auto underline = 1;
         static constexpr auto block     = 2;
         static constexpr auto I_bar     = 3;
-        static constexpr auto invisible = 7; // Hint for IME.
     }
 
     enum tint
@@ -118,26 +117,26 @@ namespace netxs
         constexpr argb(tint c)
             : argb{ vt256[c] }
         { }
-        argb(fifo& queue)
+        argb(fifo& q)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
-            auto mode = queue.rawarg(mode_RGB);
+            auto mode = q.rawarg(mode_RGB);
             if (fifo::issub(mode))
             {
                 switch (fifo::desub(mode))
                 {
                     case mode_RGB:
                     {
-                        auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
-                        chan.r = (byte)(r == -1 ? queue.subarg(0) : r);
-                        chan.g = (byte)(queue.subarg(0));
-                        chan.b = (byte)(queue.subarg(0));
-                        chan.a = (byte)(queue.subarg(0xFF));
+                        auto r = q.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
+                        chan.r = (byte)(r == -1 ? q.subarg(0) : r);
+                        chan.g = (byte)(q.subarg(0));
+                        chan.b = (byte)(q.subarg(0));
+                        chan.a = (byte)(q.subarg(0xFF));
                         break;
                     }
                     case mode_256:
-                        token = netxs::letoh(vt256[queue.subarg(0)]);
+                        token = netxs::letoh(vt256[q.subarg(0)]);
                         break;
                     default:
                         break;
@@ -148,13 +147,13 @@ namespace netxs
                 switch (mode)
                 {
                     case mode_RGB:
-                        chan.r = (byte)(queue(0));
-                        chan.g = (byte)(queue(0));
-                        chan.b = (byte)(queue(0));
+                        chan.r = (byte)(q(0));
+                        chan.g = (byte)(q(0));
+                        chan.b = (byte)(q(0));
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = netxs::letoh(vt256[queue(0)]);
+                        token = netxs::letoh(vt256[q(0)]);
                         break;
                     default:
                         break;
@@ -540,6 +539,8 @@ namespace netxs
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
+
+        static constexpr auto default_color = 0x00'FF'FF'FF;
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
@@ -1142,7 +1143,8 @@ namespace netxs
                 ui32 strike : 1;
                 ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                 ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
-                ui32 cursor : 3; // 0: None, 1: Underline, 2: Block, 3: I-bar, 7: Transparent - hint for IME. cell::px stores cursor fg/bg if cursor is set.
+                ui32 cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+                ui32 hyperlink : 1; // cell::px strores string hash.
                 ui32 blinks : 1;
                 ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
                 ui32 fusion : 2; // Background interpolation current c0 with neighbor c1 and c2 cells:
@@ -1831,6 +1833,7 @@ namespace netxs
             return *this;
         }
 
+        auto jgc_token() const { return gc.token & cell::glyf::token_mask; } // cell: Return grapheme cluster registration token.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
@@ -1852,8 +1855,8 @@ namespace netxs
                                                 (si32)(st.attrs.mosaic >> 4) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
-        auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
-        auto& egc() const  { return gc;            } // cell: Get grapheme cluster token.
+        auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
+        auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
         auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
         auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
         auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
@@ -1904,7 +1907,7 @@ namespace netxs
                 px.token = ((ui64)color.uv.bg.token << 32) | (ui64)color.uv.fg.token;
             }
         }
-        auto cursor_color()
+        auto cursor_color() const
         {
             auto colored = st.attrs.bitmap == body::pxtype::colors;
             return colored ? std::pair{ argb{ (ui32)(px.token >> 32) }, argb{ (ui32)(px.token & 0xFFFF'FFFF) }}
@@ -2574,6 +2577,10 @@ namespace netxs
             }
             return true;
         }
+        auto volume() const // core: Return cell count.
+        {
+            return canvas.size();
+        }
         auto operator == (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a == b;        }); }
         auto  same       (core const& c) const { return same(c, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
         constexpr auto& size() const           { return region.size;                                                        }
@@ -2751,7 +2758,7 @@ namespace netxs
         {
             auto mx = (fp32)region.size.x;
             auto my = (fp32)region.size.y;
-            auto len = std::sqrt(mx * mx + my * my * 4);
+            auto len = std::max(1.f, std::sqrt(mx * mx + my * my * 4));
 
             auto dr = (c2.chan.r - c1.chan.r) / len;
             auto dg = (c2.chan.g - c1.chan.g) / len;
@@ -2992,8 +2999,8 @@ namespace netxs
             auto maxs = static_cast<si32>(canvas.size());
             if (!maxs) return dot_00;
             offset = std::clamp(offset, 0, maxs - 1);
-            return twod{ offset % region.size.x,
-                         offset / region.size.x };
+            auto sx = std::max(1, region.size.x);
+            return twod{ offset % sx, offset / sx };
         }
         auto line(si32 from, si32 upto) const // core: Get stripe.
         {

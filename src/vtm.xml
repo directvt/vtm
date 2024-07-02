@@ -1,7 +1,4 @@
 R"==(<config>
-)=="
-#if defined(DEBUG)
-R"==(
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
         <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive" run="\"Hello World!\""/>
@@ -12,32 +9,20 @@ R"==(
             </run>
         </javascript>
     </scripting>
-)=="
-#endif
-R"==(
     <gui> <!-- GUI related settings. (win32 platform only for now) -->
         <antialiasing = off />   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight = 20 />      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize = 0,0 />       <!-- Window initial grid size in text cells. -->
         <wincoor = 0,0 />        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
-        <winstate = undefined /> <!-- Window initial state: undefined | maximized | minimized -->
+        <winstate = normal />    <!-- Window initial state: normal | maximized | minimized -->
+        <blinkrate = 400ms />    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
             "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
-            "Iosevka Term\n"
-            "JetBrains Mono\n"
             "Cascadia Mono\n"
-            "DejaVu Sans Mono\n"
-            "Envy Code R\n"
             "Fira Code\n"
-            "monofur for Powerline\n"
-            "Lucida Console\n"
-            "Consolas\n"
-            "Anonymous Pro\n"
-            "Source Code Pro\n"
             "NSimSun\n"
             "Noto Sans Devanagari\n"
         </fontlist>
-        <testtext="test \e[41;94m UTF-8 \e[m string 👌︌︉︅󐀮😃👌︋︅󐀮 (See ~/.config/vtm/settings.xml: /config/gui/testtext/)"/>
     </gui>
     <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
@@ -50,7 +35,7 @@ R"==(
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"
@@ -67,7 +52,7 @@ R"==(
                         <wrap="on"/>    <!-- Lines wrapping mode. -->
                     </scrollback>
                     <cursor>
-                        <style="underline"/> <!-- block | underline  -->
+                        <style="bar"/> <!-- bar | block | underline  -->
                     </cursor>
                     <menu>
                         <autohide=off/>  <!--  If true, show window menu only on hover. -->
@@ -239,29 +224,32 @@ R"==(
         </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
-        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
-        <reddk     = 0xFFc40f1f />
-        <greendk   = 0xFF12a10e />
-        <yellowdk  = 0xFFc09c00 />
-        <bluedk    = 0xFF0037db />
-        <magentadk = 0xFF871798 />
-        <cyandk    = 0xFF3b96dd />
-        <whitedk   = 0xFFbbbbbb />
-        <blacklt   = 0xFF757575 />
-        <redlt     = 0xFFe64856 />
-        <greenlt   = 0xFF15c60c />
-        <yellowlt  = 0xFFf8f1a5 />
-        <bluelt    = 0xFF3a78ff />
-        <magentalt = 0xFFb3009e />
-        <cyanlt    = 0xFF60d6d6 />
-        <whitelt   = 0xFFf3f3f3 />
-        <pureblack = 0xFF000000 />
-        <purewhite = 0xFFffffff />
-        <purered   = 0xFFff0000 />
-        <puregreen = 0xFF00ff00 />
-        <pureblue  = 0xFF0000ff />
-        <nocolor   = 0x00000000 />
-        <default   = 0x00ffffff />
+        <blackdk     = 0xFF101010 /> <!-- Color reference literals. -->
+        <reddk       = 0xFFc40f1f />
+        <greendk     = 0xFF12a10e />
+        <yellowdk    = 0xFFc09c00 />
+        <bluedk      = 0xFF0037db />
+        <magentadk   = 0xFF871798 />
+        <cyandk      = 0xFF3b96dd />
+        <whitedk     = 0xFFbbbbbb />
+        <blacklt     = 0xFF757575 />
+        <redlt       = 0xFFe64856 />
+        <greenlt     = 0xFF15c60c />
+        <yellowlt    = 0xFFf8f1a5 />
+        <bluelt      = 0xFF3a78ff />
+        <magentalt   = 0xFFb3009e />
+        <cyanlt      = 0xFF60d6d6 />
+        <whitelt     = 0xFFf3f3f3 />
+        <pureblack   = 0xFF000000 />
+        <purewhite   = 0xFFffffff />
+        <purered     = 0xFFff0000 />
+        <puregreen   = 0xFF00ff00 />
+        <pureblue    = 0xFF0000ff />
+        <puremagenta = 0xFFff00ff />
+        <purecyan    = 0xFF00ffff />
+        <pureyellow  = 0xFFff00ff />
+        <nocolor     = 0x00000000 />
+        <default     = 0x00ffffff />
         <transparent = nocolor  />
     </set>
     <client>
@@ -284,6 +272,8 @@ R"==(
             <layout = QWERTY/>  <!-- Not implemented. QWERTY, AZERTY, Dvorak, etc. -->
         </keyboard>
     </client>
+)==" // C2026 String too big, trailing characters truncated.
+R"==(
     <term>       <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
@@ -331,8 +321,8 @@ R"==(
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
-            <style="underline"/> <!-- Cursor style: underline | block -->
-            <blink=400ms/>       <!-- Cursor blink period. Set to zero for a steady cursor. -->
+            <style="bar"/> <!-- Cursor style: bar "|" | block "█" | underline "_" -->
+            <blink=400ms/> <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
             <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
         </cursor>
@@ -423,9 +413,6 @@ R"==(
             <slim=true/>
         </menu>
     </tile>
-)=="
-#if defined(DEBUG)
-R"==(
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
@@ -438,7 +425,4 @@ R"==(
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
-)=="
-#endif
-R"==(
 </config>)=="

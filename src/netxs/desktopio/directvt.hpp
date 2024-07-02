@@ -792,7 +792,7 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons) (fp32, whldt) (bool, hzwhl))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
@@ -822,6 +822,7 @@ namespace netxs::directvt
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag) //todo deprecated
+                                        (bool, imeview)  // syskeybd: IME string preview (only cluster has meaning).
                                         (si32, virtcod) //todo deprecated
                                         (si32, scancod)  // syskeybd: Scancode.
                                         (bool, pressed)  // syskeybd: Key is pressed.
@@ -832,8 +833,7 @@ namespace netxs::directvt
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
                                         (si32, buttons)  // sysmouse: Buttons bit state.
-                                        (bool, wheeled)  // sysmouse: Vertical scroll wheel.
-                                        (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
+                                        (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
                                         (fp32, wheeldt)  // sysmouse: Scroll delta.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.
@@ -893,6 +893,11 @@ namespace netxs::directvt
                 auto dst = image.begin();
                 auto dtx = fsz.x - csz.x;
                 auto min = std::min(csz, fsz);
+                if (src == end)
+                {
+                    delta = {};
+                    return;
+                }
                 auto beg = src + 1;
                 auto mid = src + csz.x * min.y;
                 bool bad = true;
@@ -989,14 +994,15 @@ namespace netxs::directvt
                 }
                 delta = sum;
             }
-            template<class P = noop>
-            void get(view& data, P update = {})
+            template<class P = noop, class S = noop>
+            void get(view& data, P update = {}, S resize = {})
             {
                 auto [myid, area] = stream::take<id_t, rect>(data);
                 //todo head.myid
                 if (image.size() != area.size)
                 {
                     image.crop(area.size);
+                    resize(area.size);
                 }
                 auto mark = image.mark();
                 auto head = image.begin();
@@ -1013,7 +1019,7 @@ namespace netxs::directvt
                     {
                         auto [size] = stream::take<byte>(data);
                         stream::take(c.egc().glyph, size, data);
-                        if (c.jgc() == faux) newgc[c.tkn()];
+                        if (c.jgc() == faux) newgc[c.jgc_token()];
                     }
                     return c;
                 };
@@ -1383,6 +1389,8 @@ namespace netxs::directvt
             #undef X
 
             std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
+            escx s11n_output; // s11n: Logs buffer.
+            escx s11n_logpad; // s11n: Logs left margin.
 
             // s11n: Deserialize objects.
             void sync(view& data)
@@ -1396,6 +1404,73 @@ namespace netxs::directvt
                         iter->second(frame.data);
                     }
                     else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
+                }
+            }
+            // s11n: Request jumbo clusters (after received bitmap synchronization).
+            void request_jgc(auto& master, s11n::xs::bitmap_dtvt& lock)
+            {
+                auto& bitmap = lock.thing;
+                if (bitmap.newgc.size())
+                {
+                    auto list = s11n::request_gc.freeze();
+                    for (auto& gc_map : bitmap.newgc)
+                    {
+                        list.thing.push(gc_map.first);
+                    }
+                    bitmap.newgc.clear();
+                    list.thing.sendby(master);
+                }
+            }
+            // s11n: Receive jumbo clusters.
+            void receive_jgc(s11n::xs::jgc_list& lock)
+            {
+                auto jumbos = cell::glyf::jumbos();
+                for (auto& jgc : lock.thing)
+                {
+                    jumbos.set(jgc.token, jgc.cluster);
+                    if constexpr (debugmode) log(prompt::s11n, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                }
+            }
+            // s11n: Recycle logs.
+            void recycle_log(s11n::xs::logs& lock, auto process_guid)
+            {
+                if (lock.thing.guid != process_guid) // To avoid overflow on recursive dtvt connections.
+                {
+                    auto utf8 = view{ lock.thing.data };
+                    if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
+                    if (lock.thing.id == 0) // Message from our process.
+                    {
+                        log(utf8);
+                    }
+                    else
+                    {
+                        s11n_logpad.add(prompt::pads, lock.thing.id, ": "); // Local host pid and remote host pid can be different. It is different if sshed.
+                        utf::split(utf8, '\n', [&](auto line)
+                        {
+                            s11n_output.add(s11n_logpad, line, '\n');
+                        });
+                        log<faux>(s11n_output);
+                        s11n_output.clear();
+                        s11n_logpad.clear();
+                    }
+                }
+            }
+            // s11n: Recycle clipboard request.
+            void recycle_cliprequest(auto& master, s11n::xs::clipdata_request& lock)
+            {
+                auto& item = lock.thing;
+                auto data = s11n::clipdata.freeze();
+                if (data.thing.hash != item.hash)
+                {
+                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                }
+                else // Send without payload if hash the same.
+                {
+                    auto temp = std::move(data.thing.utf8);
+                    data.thing.set();
+                    data.thing.template sendby<faux, faux>(master); //todo gcc 11.4.0 requires template keyword
+                    data.thing.utf8 = std::move(temp);
+                    data.thing.set();
                 }
             }
             // s11n: Wake up waiting objects.

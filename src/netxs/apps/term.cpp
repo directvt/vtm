@@ -78,6 +78,6 @@ int main(int argc, char* argv[])
     else
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
-        app::shared::start(params, app::terminal::id, os::dtvt::vtmode, os::dtvt::window.size, config);
+        app::shared::start(params, app::terminal::id, config);
     }
 }

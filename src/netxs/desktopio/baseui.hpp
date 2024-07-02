@@ -21,6 +21,9 @@ namespace netxs::input
     using syspaste = directvt::binary::syspaste_t;
     using sysboard = directvt::binary::sysboard_t;
     using clipdata = directvt::binary::clipdata_t;
+    using auth = netxs::events::auth;
+
+    static auto indexer = auth{};
 }
 namespace netxs::ui
 {
@@ -748,9 +751,9 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            area.coor += base::region.coor;
             if (auto parent_ptr = parent())
             {
+                area.coor += base::region.coor;
                 parent_ptr->deface(area);
             }
         }
@@ -793,7 +796,7 @@ namespace netxs::ui
         // base: Remove visual tree branch.
         void destroy()
         {
-            auto lock = events::sync{};
+            auto lock = bell::sync();
             auto shadow = This();
             if (auto parent_ptr = parent())
             {
@@ -939,8 +942,11 @@ namespace netxs::ui
             }
         }
         virtual ~base() = default;
-        base(size_t nested_count = 0)
-            : subset{ nested_count },
+
+    public:
+        base(auth& indexer, size_t nested_count = 0)
+            : bell{ indexer },
+              subset{ nested_count },
               min_sz{ skin::globals().min_value },
               max_sz{ skin::globals().max_value },
               wasted{ true },

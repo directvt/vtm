@@ -21,7 +21,7 @@ namespace netxs::app::desk
         text   footer{};
         twod  winsize{};
         twod  wincoor{};
-        shared::winform::form winform{};
+        si32  winform{};
         bool splitter{};
         text   hotkey{};
         eccc   appcfg{};
@@ -335,7 +335,7 @@ namespace netxs::app::desk
                             }
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                             gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                            offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                            offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32 + dot_11;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
@@ -507,7 +507,7 @@ namespace netxs::app::desk
                 return window;
             }
 
-            auto client = bell::getref(my_id);
+            auto client = window->bell::getref(my_id);
             if (!client)
             {
                 log(prompt::desk, "Non-existent user ID=", my_id);
@@ -680,16 +680,7 @@ namespace netxs::app::desk
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            
-                            //todo fp2d
-                            //auto delta = twod{ gear.delta.get() };
-                            //taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta.x);
-                            //taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
-                            //active ? menu_max_size = taskbar_grips->base::min_sz.x
-                            //       : menu_min_size = taskbar_grips->base::min_sz.x;
-                            //taskbar_grips->base::reflow();
-
-                            if (auto delta = twod{ gear.coord - *drag_origin }[axis::X])
+                            if (auto delta = (twod{ gear.coord } - twod{ *drag_origin })[axis::X])
                             {
                                 taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
                                 taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
