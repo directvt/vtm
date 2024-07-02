@@ -562,9 +562,12 @@ namespace netxs::ui
             {
                 for (auto& [gear_id, gear_ptr] : gears)
                 {
-                    auto& gear = *gear_ptr;
-                    gear.fire_fast();
-                    gear.fire(event_id);
+                    if (gear_id)
+                    {
+                        auto& gear = *gear_ptr;
+                        gear.fire_fast();
+                        gear.fire(event_id);
+                    }
                 }
             }
             auto get_foreign_gear_id(id_t gear_id)
