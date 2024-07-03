@@ -1523,30 +1523,44 @@ namespace netxs::gui
         void activate()
         {
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
-            ::GetKeyboardState(kbstate.data()); // Get some state (modifiers and locks are outdated).
-            for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,            // Get current modifiers state.
-                               VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
-                               VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            
+            //kbstate = {}; // !!! ::GetKeyboardState() pulls pressed VK_RETURN without successive release.
+            //::GetKeyboardState(kbstate.data()); // Get some state (modifiers and locks are outdated).
+            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,            // Get current modifiers state.
+            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            //{
+            //    auto s = ::GetAsyncKeyState(vkey);
+            //    kbstate[vkey] = (s >> 8) | (s & 0x1);
+            //}
+            for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA }) // Get current locks state. All other keys will be received through auto-repeat.
             {
-                auto s = ::GetAsyncKeyState(vkey);
-                kbstate[vkey] = (s >> 8) | (s & 0x1);
-            }
-            for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL }) // Get current locks state.
-            {
-                auto s = ::GetKeyState(vkey);
-                kbstate[vkey] = (s >> 8) | (s & 0x1);
+                auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
+                kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
             }
             //print_kbstate("::GetKeyboardState");
         }
         void deactivate()
         {
-            //kbstate = {};
-            for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
-                               VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
-                               VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
-            {
-                kbstate[vkey] = 0;
-            }
+            auto n = kbstate[VK_NUMLOCK];
+            auto c = kbstate[VK_CAPITAL];
+            auto s = kbstate[VK_SCROLL ];
+            auto k = kbstate[VK_KANA   ];
+            //auto r = kbstate[VK_OEM_FJ_ROYA];
+            //auto p = kbstate[VK_OEM_FJ_LOYA];
+            kbstate = {}; // Keep locks only.
+            kbstate[VK_NUMLOCK] = n;
+            kbstate[VK_CAPITAL] = c;
+            kbstate[VK_SCROLL ] = s;
+            kbstate[VK_KANA   ] = k;
+            //kbstate[VK_OEM_FJ_ROYA] = r;
+            //kbstate[VK_OEM_FJ_LOYA] = p;
+            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
+            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            //{
+            //    kbstate[vkey] = 0;
+            //}
             //print_kbstate("deactivate");
         }
         //void shown_event(bool shown, arch reason)
@@ -1654,11 +1668,11 @@ namespace netxs::gui
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
                     case WM_SETFOCUS:      w->focus_event(true);                       break;
                     case WM_KILLFOCUS:     w->focus_event(faux);                       break;
+                    case WM_ACTIVATEAPP:   if (!!wParam) ::SetFocus(hWnd);             break; // explorer.exe gives us focus from the other window. Call SetFocus() to restore thread's keyboard state.
                     // These should be processed on the system side.
                     //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
                     //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
                     //case WM_NCHITTEST:
-                    //case WM_ACTIVATE: // Window focus within the app.
                     //case WM_ACTIVATEAPP:
                     //case WM_NCACTIVATE:
                     //case WM_SETCURSOR:
@@ -2330,7 +2344,7 @@ namespace netxs::gui
         }
         void set_state(si32 new_state)
         {
-            if (fsmode == new_state) return;
+            if (fsmode == new_state && fsmode != state::normal) return; // Restore to normal if it was silently hidden by the system.
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
             auto old_state = std::exchange(fsmode, state::undefined);
             if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
@@ -2855,9 +2869,12 @@ namespace netxs::gui
             {
                 if (pressed)
                 {
-                         if (virtcod == VK_CAPITAL) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_NUMLOCK) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_SCROLL)  kbstate[virtcod] ^= 0x01;
+                         if (virtcod == VK_CAPITAL    ) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_NUMLOCK    ) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_SCROLL     ) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_KANA       ) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_OEM_FJ_ROYA) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_OEM_FJ_LOYA) kbstate[virtcod] ^= 0x01;
                 }
                 kbstate[virtcod] |= 0x80;
                      if (virtcod == VK_CONTROL) kbstate[extflag ?         VK_RCONTROL : VK_LCONTROL] |= 0x80;
@@ -2925,9 +2942,11 @@ namespace netxs::gui
         }
         void focus_event(bool focused)
         {
+            if (active == focused) return;
             active = focused;
             if (active) activate(); // It must be called in current thread.
             else        deactivate();
+            //os::logstd("", active ? "focused" : "unfocused");
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
                 if (active)
