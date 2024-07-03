@@ -1538,6 +1538,7 @@ namespace netxs::gui
                 auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
                 kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
             }
+            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
             //print_kbstate("::GetKeyboardState");
         }
         void deactivate()
@@ -2865,44 +2866,23 @@ namespace netxs::gui
             auto repeat = param.v.state == 1;
             auto extflag = !!(param.v.scancode >> 9);
             auto scancod = param.v.scancode;
-            if (pressed || repeat)
-            {
-                if (pressed)
-                {
-                         if (virtcod == VK_CAPITAL    ) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_NUMLOCK    ) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_SCROLL     ) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_KANA       ) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_OEM_FJ_ROYA) kbstate[virtcod] ^= 0x01;
-                    else if (virtcod == VK_OEM_FJ_LOYA) kbstate[virtcod] ^= 0x01;
-                }
-                kbstate[virtcod] |= 0x80;
-                     if (virtcod == VK_CONTROL) kbstate[extflag ?         VK_RCONTROL : VK_LCONTROL] |= 0x80;
-                else if (virtcod == VK_MENU)    kbstate[extflag ?         VK_RMENU    : VK_LMENU   ] |= 0x80;
-                else if (virtcod == VK_SHIFT)   kbstate[scancod != 0x2a ? VK_RSHIFT   : VK_LSHIFT  ] |= 0x80;
-            }
-            else
-            {
-                kbstate[virtcod] &= ~0x80;
-                     if (virtcod == VK_CONTROL) kbstate[extflag ?         VK_RCONTROL : VK_LCONTROL] &= ~0x80;
-                else if (virtcod == VK_MENU)    kbstate[extflag ?         VK_RMENU    : VK_LMENU   ] &= ~0x80;
-                else if (virtcod == VK_SHIFT)   kbstate[scancod != 0x2a ? VK_RSHIFT   : VK_LSHIFT  ] &= ~0x80;
-            }
             auto to_WIDE = std::array<wchr, 32>{};
+            auto sc = !(pressed || repeat) ? scancod | 0x8000 : scancod; // 15-bit indicate pressed state for ToUnicodeEx.
             auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
-                                     scancod,              // UINT wScanCode,
+                                     sc,                   // UINT wScanCode,
                                      kbstate.data(),       // const BYTE *lpKeyState,
                                      to_WIDE.data(),       // [out] LPWSTR pwszBuff,
                                      (si32)to_WIDE.size(), // [in]  int    cchBuff,
                                      1,                    // [in]  UINT   wFlags, - Do not process Alt+Numpad
                                      0);                   // [in, optional] HKL dwhkl
-            //print_kbstate("key press:");
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
             if (len >= 0)
             {
                 toUTF8.clear();
                 if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
                 sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
+            //print_kbstate("key press:");
             //if (virtcod == 'A' && param.v.state == 3) // Toggle AA mode.
             //{
             //    set_aa_mode(!gcache.aamode);
