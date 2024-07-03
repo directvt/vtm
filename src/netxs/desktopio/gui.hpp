@@ -2886,14 +2886,27 @@ namespace netxs::gui
                 if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
                 sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
-            //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
+            //if (virtcod == 'A' && param.v.state == 3) // Toggle AA mode.
             //{
             //    set_aa_mode(!gcache.aamode);
             //}
-            //else if (virtcod == VK_F11 && param.v.state == 3) // Toggle maximized mode.
-            //{
-            //    if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
-            //}
+            if (pressed)
+            {
+                if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                    });
+                }
+                else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        manager::close();
+                    });
+                }
+            }
             //else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
             //{
             //    auto flen = fcache.families.size();

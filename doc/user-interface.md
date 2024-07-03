@@ -1,5 +1,7 @@
 # Text-based Desktop Environment UI
 
+## All modes (GUI/TUI)
+
 <table>
 <thead>
   <tr>
@@ -149,6 +151,48 @@
     <th>Ctrl+Wheel</th>
     <td colspan="7">Zoom window</td>
     <td colspan="2"></td>
+  </tr>
+</tbody>
+</table>
+
+## GUI mode only
+
+<table>
+<thead>
+  <tr>
+    <th></th>
+    <th>GUI window</th>
+    <th>Resizing grips</th>
+    <th>Window 1px-height row (in maximized state)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <th>Alt+Enter</th>
+    <td colspan="3">Toggle fullscreen mode</td>
+  </tr>
+  <tr>
+    <th>DblLeftClick</th>
+    <td colspan="3">Toggle fullscreen mode (if the click is not handled)</td>
+  </tr>
+  <tr>
+    <th>Home+End</th>
+    <td colspan="3">Close GUI window</td>
+  </tr>
+  <tr>
+    <th>Wheel</th>
+    <td colspan="3">Change text cell size (if the wheel is not handled)</td>
+  </tr>
+  <tr>
+    <th>LeftDrag</th>
+    <td colspan="1">Move GUI window (if the drag is not handled)</td>
+    <td colspan="1">Resize GUI window</td>
+    <td colspan="1"></td>
+  </tr>
+  <tr>
+    <th>RightDrag</th>
+    <td colspan="1"></td>
+    <td colspan="2">Move GUI window</td>
   </tr>
 </tbody>
 </table>
