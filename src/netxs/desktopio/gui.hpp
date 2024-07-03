@@ -1624,6 +1624,8 @@ namespace netxs::gui
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
             for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
+            ::AddClipboardFormatListener(layers.front().hWnd);
+            sync_clipboard();
         }
 
         virtual void update() = 0;
@@ -1714,7 +1716,7 @@ namespace netxs::gui
                     case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                    case WM_CREATE: ::AddClipboardFormatListener(hWnd); break;
+                    //case WM_CREATE: ::AddClipboardFormatListener(hWnd); break;
                     case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
                     case WM_DESTROY: ::RemoveClipboardFormatListener(hWnd);
                                      ::PostQuitMessage(0);
@@ -2989,14 +2991,13 @@ namespace netxs::gui
         }
         void sync_clipboard()
         {
-            os::clipboard::sync(layers[client].hWnd, proxy, proxy.intio, gridsz);
+            os::clipboard::sync((arch)layers[client].hWnd, proxy, proxy.intio, gridsz);
         }
         void connect(si32 win_state)
         {
             {
                 auto lock = bell::sync();
                 set_state(win_state);
-                sync_clipboard();
                 update();
                 manager::run();//todo call run() only after receiving the first frame
 

@@ -1944,7 +1944,7 @@ namespace netxs::os
             static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
             static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
 
-            void sync(HWND hWnd, auto& proxy, auto& client, twod& window_size)
+            void sync(arch hWnd, auto& proxy, auto& client, twod& window_size)
             {
                 if (!client) return;
                 auto sync = [&](qiew utf8, auto form)
@@ -1965,7 +1965,7 @@ namespace netxs::os
                     proxy.sysboard.send(client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
                 };
                 auto lock = std::lock_guard{ os::clipboard::mutex };
-                while (!::OpenClipboard(hWnd)) // Waiting clipboard access.
+                while (!::OpenClipboard((HWND)hWnd)) // Waiting clipboard access.
                 {
                     if (os::error() != ERROR_ACCESS_DENIED)
                     {
@@ -5580,7 +5580,7 @@ namespace netxs::os
                                 ok(::AddClipboardFormatListener(hWnd), "::AddClipboardFormatListener()", os::unexpected);
                                 // Continue processing the switch to initialize the clipboard state after startup.
                             case WM_CLIPBOARDUPDATE:
-                                os::clipboard::sync(hWnd, binary::proxy(), dtvt::client, dtvt::window.size);
+                                os::clipboard::sync((arch)hWnd, binary::proxy(), dtvt::client, dtvt::window.size);
                                 break;
                             case WM_DESTROY:
                                 ok(::RemoveClipboardFormatListener(hWnd), "::RemoveClipboardFormatListener()", os::unexpected);
