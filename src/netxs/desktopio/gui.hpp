@@ -1503,14 +1503,51 @@ namespace netxs::gui
             //    }
             //}
         }
+        void print_kbstate(text s)
+        {
+            s += "\n"s;
+            auto i = 0;
+            for (auto k : kbstate)
+            {
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+                if (i % 16 == 0)s += '\n';
+            }
+            os::logstd(s);
+        }
         void activate()
         {
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
-            ::GetKeyboardState(kbstate.data()); // Sync with current keybd state.
+            ::GetKeyboardState(kbstate.data()); // Get some state (modifiers and locks are outdated).
+            for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,            // Get current modifiers state.
+                               VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+                               VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            {
+                auto s = ::GetAsyncKeyState(vkey);
+                kbstate[vkey] = (s >> 8) | (s & 0x1);
+            }
+            for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL }) // Get current locks state.
+            {
+                auto s = ::GetKeyState(vkey);
+                kbstate[vkey] = (s >> 8) | (s & 0x1);
+            }
+            //print_kbstate("::GetKeyboardState");
         }
         void deactivate()
         {
-            kbstate = {}; // Clear current keybd state.
+            //kbstate = {};
+            for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
+                               VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+                               VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            {
+                kbstate[vkey] = 0;
+            }
+            //print_kbstate("deactivate");
         }
         //void shown_event(bool shown, arch reason)
         //{
@@ -2756,11 +2793,10 @@ namespace netxs::gui
             if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
             if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
             auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
-            //todo revise
-            //if (modstat.repeats) return; // We don't repeat modifiers.
-            //else
+            if (modstat.repeats) return; // We don't repeat modifiers.
+            else
             {
-                if (modstat.changed)
+                if (modstat.changed || proxy.k.ctlstat != kbmod)
                 {
                     proxy.k.ctlstat = kbmod;
                     proxy.m.ctlstat = kbmod;
@@ -2811,20 +2847,29 @@ namespace netxs::gui
             };
             auto param = key_state_t{ .token = (ui32)lParam };
             if (param.v.state == 2/*unknown*/) return;
-            auto pressed = param.v.state != 3;
+            auto pressed = param.v.state == 0;
+            auto repeat = param.v.state == 1;
             auto extflag = !!(param.v.scancode >> 9);
             auto scancod = param.v.scancode;
-            if (pressed)
+            if (pressed || repeat)
             {
+                if (pressed)
+                {
+                         if (virtcod == VK_CAPITAL) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_NUMLOCK) kbstate[virtcod] ^= 0x01;
+                    else if (virtcod == VK_SCROLL)  kbstate[virtcod] ^= 0x01;
+                }
                 kbstate[virtcod] |= 0x80;
-                     if (virtcod == VK_CONTROL) kbstate[extflag ? VK_RCONTROL : VK_LCONTROL] |= 0x80;
-                else if (virtcod == VK_MENU)    kbstate[extflag ? VK_RMENU    : VK_LMENU   ] |= 0x80;
+                     if (virtcod == VK_CONTROL) kbstate[extflag ?         VK_RCONTROL : VK_LCONTROL] |= 0x80;
+                else if (virtcod == VK_MENU)    kbstate[extflag ?         VK_RMENU    : VK_LMENU   ] |= 0x80;
+                else if (virtcod == VK_SHIFT)   kbstate[scancod != 0x2a ? VK_RSHIFT   : VK_LSHIFT  ] |= 0x80;
             }
             else
             {
                 kbstate[virtcod] &= ~0x80;
-                     if (virtcod == VK_CONTROL) kbstate[extflag ? VK_RCONTROL : VK_LCONTROL] &= ~0x80;
-                else if (virtcod == VK_MENU)    kbstate[extflag ? VK_RMENU    : VK_LMENU   ] &= ~0x80;
+                     if (virtcod == VK_CONTROL) kbstate[extflag ?         VK_RCONTROL : VK_LCONTROL] &= ~0x80;
+                else if (virtcod == VK_MENU)    kbstate[extflag ?         VK_RMENU    : VK_LMENU   ] &= ~0x80;
+                else if (virtcod == VK_SHIFT)   kbstate[scancod != 0x2a ? VK_RSHIFT   : VK_LSHIFT  ] &= ~0x80;
             }
             auto to_WIDE = std::array<wchr, 32>{};
             auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
@@ -2834,11 +2879,12 @@ namespace netxs::gui
                                      (si32)to_WIDE.size(), // [in]  int    cchBuff,
                                      1,                    // [in]  UINT   wFlags, - Do not process Alt+Numpad
                                      0);                   // [in, optional] HKL dwhkl
+            //print_kbstate("key press:");
             if (len >= 0)
             {
                 toUTF8.clear();
                 if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
-                sync_kbstat(toUTF8, pressed, virtcod, scancod, extflag);
+                sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
             //else if (virtcod == 'A' && param.v.state == 3) // Toggle aa mode.
             //{
@@ -2867,7 +2913,7 @@ namespace netxs::gui
         void focus_event(bool focused)
         {
             active = focused;
-            if (active) activate();
+            if (active) activate(); // It must be called in current thread.
             else        deactivate();
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
