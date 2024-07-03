@@ -1213,6 +1213,11 @@ struct impl : consrv
                                     while (n--) nums = nums * 10 + v - VK_NUMPAD0;
                                     break;
                                 }
+                            case VK_RETURN:
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Ignore Alt+Enter.
+                                {
+                                    break;
+                                }
                             default:
                             {
                                 n--;
