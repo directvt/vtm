@@ -1504,7 +1504,7 @@ namespace netxs::app::vtm
                             };
                             boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
                             {
-                                if (auto gear_ptr = boss.bell::getref<hids>(seed.id))
+                                if (auto gear_ptr = boss.bell::template getref<hids>(seed.id)) //todo Apple clang requires template.
                                 {
                                     auto& gear = *gear_ptr;
                                     auto forbidden = gear.owner.id != owner_id;

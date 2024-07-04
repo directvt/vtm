@@ -7604,7 +7604,7 @@ namespace netxs::ui
                 {
                     for (auto& tooltip : tooltips)
                     {
-                        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
+                        if (auto gear_ptr = boss.bell::template getref<hids>(tooltip.gear_id)) //todo Apple clang requires template.
                         {
                             gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                         }

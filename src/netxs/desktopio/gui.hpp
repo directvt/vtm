@@ -1628,7 +1628,7 @@ namespace netxs::gui
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
-        virtual void update() = 0;
+        virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
@@ -2432,7 +2432,7 @@ namespace netxs::gui
                     for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
                     netxs::set_flag<task::moved>(reload);
                 }
-                update();
+                update_gui();
             });
         }
         void size_title(ui::face& title_grid, ui::page& title_page)
@@ -2522,12 +2522,12 @@ namespace netxs::gui
                 auto [side_x, side_y] = szgrip.layout(outer_rect);
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
-                fill_grips(side_x, [&](auto& canvas, auto r)
+                fill_grips(side_x, [&, &side_x = side_x](auto& canvas, auto r) //todo &side_x: Apple clang still disallows capturing structured bindings
                 {
                     netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
-                fill_grips(side_y, [&](auto& canvas, auto r)
+                fill_grips(side_y, [&, &side_y = side_y](auto& canvas, auto r) //todo &side_y: Apple clang still disallows capturing structured bindings
                 {
                     netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
@@ -2571,7 +2571,7 @@ namespace netxs::gui
                 }
             }
         }
-        void update()
+        void update_gui()
         {
             if (!reload || waitsz) return;
             auto what = reload;
@@ -2633,7 +2633,7 @@ namespace netxs::gui
                     {
                         change_cell_size(wheeldt, mcoord - layers[client].area.coor);
                         netxs::set_flag<task::all>(reload);
-                        update();
+                        update_gui();
                     }
                 });
             }
@@ -2715,7 +2715,7 @@ namespace netxs::gui
                         //if (fsmode == state::maximized) set_state(state::normal);
                         move_window(dxdy);
                         sync_titles_pixel_layout(); // Align grips and shadow.
-                        update();
+                        update_gui();
                     });
                 }
                 return;
@@ -2980,7 +2980,7 @@ namespace netxs::gui
                     layers[blinky].show();
                     netxs::set_flag<task::blink>(reload);
                 }
-                update();
+                update_gui();
             });
         }
         void sys_command(si32 menucmd)
@@ -2998,7 +2998,7 @@ namespace netxs::gui
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
                     case syscmd::close:  manager::close(); break;
-                    case syscmd::update: update(); break;
+                    case syscmd::update: update_gui(); break;
                 }
             });
         }
@@ -3011,7 +3011,7 @@ namespace netxs::gui
             {
                 auto lock = bell::sync();
                 set_state(win_state);
-                update();
+                update_gui();
                 manager::run();
 
                 LISTEN(tier::preview, e2::form::layout::expose, area)
@@ -3113,7 +3113,7 @@ namespace netxs::gui
                 {
                     auto lock = bell::sync();
                     proxy.sync(data);
-                    update();
+                    update_gui();
                 };
                 directvt::binary::stream::reading_loop(proxy.intio, sync);
                 proxy.stop(); // Wake up waiting objects, if any.
