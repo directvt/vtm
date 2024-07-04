@@ -2880,7 +2880,7 @@ namespace netxs::gui
                                      kbstate.data(),       // const BYTE *lpKeyState,
                                      to_WIDE.data(),       // [out] LPWSTR pwszBuff,
                                      (si32)to_WIDE.size(), // [in]  int    cchBuff,
-                                     1,                    // [in]  UINT   wFlags, - Do not process Alt+Numpad
+                                     0,                    // [in]  UINT   wFlags, - 0: Process Alt+Numpad, 1: Do not process Alt+Numpad
                                      0);                   // [in, optional] HKL dwhkl
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
             if (len >= 0)
