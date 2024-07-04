@@ -3,9 +3,86 @@
 
 #pragma once
 
+#include <memory_resource>
+
+namespace netxs::gui
+{
+    using namespace input;
+
+    struct manager_base
+    {
+        struct bttn
+        {
+            static constexpr auto left   = 1 << 0;
+            static constexpr auto right  = 1 << 1;
+            static constexpr auto middle = 1 << 2;
+        };
+        struct state
+        {
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto undefined = __COUNTER__ - _counter;
+            static constexpr auto normal    = __COUNTER__ - _counter;
+            static constexpr auto minimized = __COUNTER__ - _counter;
+            static constexpr auto maximized = __COUNTER__ - _counter;
+        };
+        struct timers
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto none     = __COUNTER__ - _counter;
+            static constexpr auto blink    = __COUNTER__ - _counter;
+        };
+        struct syscmd
+        {
+            static constexpr auto _counter     = __COUNTER__ + 1;
+            static constexpr auto minimize     = __COUNTER__ - _counter;
+            static constexpr auto maximize     = __COUNTER__ - _counter;
+            static constexpr auto restore      = __COUNTER__ - _counter;
+            static constexpr auto move         = __COUNTER__ - _counter;
+            static constexpr auto monitorpower = __COUNTER__ - _counter;
+            static constexpr auto update       = __COUNTER__ - _counter;
+            static constexpr auto close        = __COUNTER__ - _counter;
+        };
+        
+        bool isfine = true; // manager_base: All is ok.
+        explicit operator bool () const { return isfine; }
+    };
+    struct surface_base
+    {
+        using bits = netxs::raster<std::span<argb>, rect>;
+        using regs = std::vector<rect>;
+        using tset = std::list<ui32>;
+
+        rect prev; // surface: Last presented layer area.
+        rect area; // surface: Current layer area.
+        bits data; // surface: Layer bitmap.
+        regs sync; // surface: Dirty region list.
+        bool live; // surface: Should the layer be presented.
+        tset klok; // surface: Active timer list.
+
+        surface_base()
+          : prev{ .coor = dot_mx },
+            area{ dot_00, dot_00 },
+            live{ faux }
+        { }
+        void hide() { live = faux; }
+        void show() { live = true; }
+        void strike(rect r)
+        {
+            if (sync.empty()) sync.push_back(r);
+            else
+            {
+                auto& back = sync.back();
+                if (back.nearby(r)) back.unitewith(r);
+                else                sync.push_back(r);
+            }
+        }
+    };
+}
+
+#if defined(_WIN32)
+
 #undef GetGlyphIndices
 #include <DWrite_2.h>
-#include <memory_resource>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "dwrite")
 
@@ -13,124 +90,6 @@
 
 namespace netxs::gui
 {
-    using namespace input;
-
-    //test strings
-    template<auto ...Args>
-    constexpr auto vss = utf::matrix::vss<Args...>;
-    auto intro = ansi::add("").wrp(wrap::on).fgc(cyanlt)
-        .add("\2Hello", utf::vs10, vss<11>, "\n")
-        .add("        LeftDrag: Move window.\n"
-             "       RightDrag: Panoramic scrolling.\n"
-             "           Wheel: Vertical scrolling.\n"
-             "         HzWheel: Horizontal scrolling.\n"
-             "      Ctrl+Wheel: Change cell height.\n"
-             "F11/DblLeftClick: Toggle fullsceen mode.\n"
-             "               A: Toggle antialiasing mode.\n"
-             "               0: Roll font fallback list.\n"
-             "             1-9: Reorder font fallback list.\n"
-             "             ESC: Close window.\n\n");
-    auto canvas_text = ansi::add("\n").bld(faux).wrp(wrap::on).fgc(cyanlt)
-        .add(">←→< >↑< ⌠ ⎲ ⎛⎧ ...   ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ \n")
-        .add("     >↓< ⌡ ⎳ ⎜⎨⇀⇁\n")
-        .add("             ⎝⎩\n")
-        .fgc(whitelt).bgc(bluelt).add("\n gggjjj INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
-            .add("Powerline test   \uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
-        .fgc(tint::whitelt).add(
-R"==(
-CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、韓文的朝鮮漢字及諺文和越南文的儒字和喃字。
-)==")
-        .add("\nThai sentence: สวัสดี ครับ\n")
-        .fgc(tint::purecyan)
-        .add(
-R"==(
-Box drawing alignment tests:                                          █
-                                                                      ▉
-  ╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    ▊ ╱╲╱╲╳╳╳
-  ║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▋ ╲╱╲╱╳╳╳
-  ║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▌ ╱╲╱╲╳╳╳
-  ╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▍ ╲╱╲╱╳╳╳
-  ║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▎
-  ║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▏
-  ╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋  ▁▂▃▄▅▆▇█
-)==")
-        .add(
-R"==(
-Using large type pieces:
-𜸜 𜸜𜸚𜸟𜸤𜸜𜸝𜸢𜸜𜸚𜸟𜸤  𜸜  𜸚𜸟𜸤𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸥  𜸞𜸠𜸥𜸜 𜸜𜸛𜸟𜸤𜸛𜸟𜸥  𜸛𜸟𜸤𜸜𜸛𜸟𜸥𜸚𜸟𜸤𜸛𜸟𜸥𜸚𜸟𜸤
-𜸩 𜸩𜸾𜸟𜸤𜸩𜸩𜸫𜸹𜸩 𜸧  𜸩  𜸨𜸟𜸶𜸨𜸟𜸷𜸩 𜸧𜸨𜸟    𜸩 𜸫𜸳𜸻𜸨𜸟𜹃𜸨𜸟   𜸨𜸟𜹃𜸩𜸨𜸟 𜸩  𜸨𜸟 𜸾𜸟𜸤
-𜸾𜸟𜹃𜸾𜸟𜹃𜸼𜸼 𜸼𜸾𜸟𜹃  𜸽𜸟𜸥𜸼 𜸼𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜸥   𜸼  𜸼 𜸼  𜸽𜸟𜸥  𜸼  𜸼𜸽𜸟𜸥𜸾𜸟𜹃𜸽𜸟𜸥𜸾𜸟𜹃
-
-𜸜𜸝𜸢𜸜𜸞𜸠𜸥𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸤𜸜 𜸜𜸚𜸟𜸤𜸞𜸠𜸥𜸜𜸚𜸟𜸤𜸝𜸢𜸜
-𜸩𜸩𜸫𜸹 𜸩 𜸨𜸟𜸷𜸩 𜸩𜸩 𜸩𜸩 𜸩𜸩   𜸩 𜸩𜸩 𜸩𜸩𜸫𜸹
-𜸼𜸼 𜸼 𜸼 𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜹃𜸾𜸟𜹃𜸾𜸟𜹃 𜸼 𜸼𜸾𜸟𜹃𜸼 𜸼
-)==")
-        .add("\n")
-        .add("\2aaaa", utf::vs07, vss<21>, "<VS22_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-        .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-        //todo multiline graphemes
-        //.add("\2line1\nline2", vss<52,01>, "\n")
-        //.add("\2line1\nline2", vss<52,02>, "\n")
-        .bld(true).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(true).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(faux).itc(true).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M\n")
-        .bld(faux).itc(faux).add("vtm GUI frontend WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M").itc(faux).fgc(tint::purered).bld(true).add(" is currently under development.").nil()
-        .fgc(tint::cyanlt).add(" You can try it on any versions/editions of Windows platforms starting from Windows 8.1"
-                               " (with colored emoji!), including Windows Server Core. 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪.\n")
-        .add("\n")
-        .fgc(tint::purecyan).bld(faux).add("Devanagari script:\n")
-        .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
-             "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
-             "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
-             "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
-             "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
-                        .add("\n")
-        //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
-        .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
-        .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
-        .add("\n")
-        .add("G", vss<21>,              "<VS21_00:WideG   ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
-        .add("\2G", utf::vs10, vss<21>, "<VS10:  90°CCW   ").add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW    ").add("\2G", utf::vs14, utf::vs10, vss<21>, "<VS14+VS10: VtFlip+90°CCW\n")
-        .add("\2G", utf::vs11, vss<21>, "<VS11: 180°CCW   ").add("\2G", utf::vs13, utf::vs11, vss<21>, "<VS13+VS11: HzFlip+180°CCW   ").add("\2G", utf::vs14, utf::vs11, vss<21>, "<VS14+VS11: VtFlip+180°CCW\n")
-        .add("😎",  utf::vs12, vss<21>, "<VS12: 270°CCW   ").add("\2G", utf::vs13, utf::vs12, vss<21>, "<VS13+VS12: HzFlip+270°CCW   ").add("\2G", utf::vs14, utf::vs12, vss<21>, "<VS14+VS12: VtFlip+270°CCW\n")
-        .add("\n")
-        .add("\2G", utf::vs10, utf::vs13, vss<21>, "<VS10+VS13: 90°CCW+HzFlip\n")
-        .add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW\n")
-        .add("\n")
-        .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
-        .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
-        .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
-        .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
-        .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
-                  .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
-                  .fgc(purecyan).bgc(argb{}).add("<VS11\n")
-        .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
-        .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
-        .add("Emulator ").fgc(tint::pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(purecyan).add("☆", vss<21>, "\n")
-                        .add("\n")
-        .add("😎", vss<42,01>, " <VS42_00\n")
-        .add("😎", vss<42,02>, "\n")
-                        .add("\n")
-        .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
-        .fgc(purered).bgc(pureblue).add(" test \n")
-        .fgc(puregreen).bgc(pureblue).add(" test \n")
-        .fgc(purecyan).bgc(purered).add(" test \n")
-        //.fgc(purewhite).bgc(pureblack).add(" test \n")
-        .bgc(argb{})
-        .fgc(tint::purered).add("test").fgc(tint::purecyan).add("test 1234567890 !@#$%^&*()_+=[]\\\n\n");
-
-    auto header_text = ansi::fgc(tint::purewhite).add("Windows Command Prompt - 😎 - C:\\Windows\\System32\\").nop().pushsgr().chx(0).jet(bias::right).fgc(argb::vt256[4]).add("\0▀"sv).nop().popsgr();
-    auto footer_text = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add("4/40000 80:25");
-    auto canvas_page = ui::page{};
-    auto header_page = ui::page{ header_text };
-    auto footer_page = ui::page{ footer_text };
-    static constexpr auto tttest1 = utf::matrix::vs_code<11>;
-    static constexpr auto tttest2 = vss<11>;
-    static constexpr auto tttest3 = utf::utf8bytes<tttest1>;
-    static constexpr auto tttest4 = utf::utf8bytes<utf::vs12_code>;
-
     struct font
     {
         struct style
@@ -158,10 +117,20 @@ Using large type pieces:
                 fp32              em_height_letters{};
                 fp2d              actual_sz{};
                 fp2d              base_line{};
+                rect              underline{}; // face_rec: Underline rectangle block within the cell.
+                rect              doubline1{}; // font: The first line of the double underline: at the top of the rect.
+                rect              doubline2{}; // font: The second line of the double underline: at the bottom.
+                rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
+                rect              overline{};  // face_rec: Overline rectangle block within the cell.
+                rect              dashline{};  // face_rec: Dashed underline rectangle block within the cell.
+                rect              wavyline{};  // face_rec: Wavy underline outer rectangle block within the cell.
             };
             std::vector<face_rec>             fontface;
             fp32                              base_descent{};
             fp32                              base_ascent{};
+            fp2d                              base_underline{};
+            fp2d                              base_strikeout{};
+            fp2d                              base_overline{};
             si32                              base_emheight{};
             si32                              base_x_height{};
             fp2d                              facesize; // Typeface cell size.
@@ -212,10 +181,13 @@ Using large type pieces:
                 {
                     auto m = DWRITE_FONT_METRICS1{};
                     face_inst->GetMetrics(&m);
+                    base_underline = { (fp32)m.underlinePosition, (fp32)m.underlineThickness };
+                    base_strikeout = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
+                    base_overline = { std::min((fp32)m.ascent, (fp32)(m.capHeight - m.underlinePosition)), (fp32)m.underlineThickness };
                     base_emheight = m.designUnitsPerEm;
-                    base_x_height = m.xHeight;
-                    base_ascent = m.ascent + m.lineGap / 2.0f;
-                    base_descent = m.descent + m.lineGap / 2.0f;
+                    base_x_height = std::max(1, (si32)m.xHeight);
+                    base_ascent = std::max(1.f, m.ascent + m.lineGap / 2.0f);
+                    base_descent = std::max(1.f, m.descent + m.lineGap / 2.0f);
                     auto glyph_metrics = DWRITE_GLYPH_METRICS{};
                     // Take metrics for "x" or ".notdef" in case of missing 'x'. Note: ".notdef" is double sized ("x" is narrow) in CJK fonts.
                     //auto code_points = ui32{ 'x' };
@@ -268,26 +240,97 @@ Using large type pieces:
                 }
                 else
                 {
-                    transform = std::min(transform, cellsize.x  / facesize.x);
+                    transform = std::min(transform, cellsize.x / facesize.x);
                     transform_letters = transform;
                 }
                 transform_letters = std::floor(base_x_height * transform_letters) / base_x_height; // Respect x-height.
                 auto em_height = base_emheight * transform;
                 auto em_height_letters = base_emheight * transform_letters;
                 auto actual_sz = facesize * transform;
+                //todo revise/optimize
+                auto baseline_y = (si32)base_line.y;
+                auto underline2 = twod{ std::clamp(baseline_y - (si32)std::round(base_underline.x * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_underline.y * transform)) };
+                auto strikeout2 = twod{ std::clamp(baseline_y - (si32)std::round(base_strikeout.x * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_strikeout.y * transform)) };
+                auto overline2 =  twod{ std::clamp(baseline_y - (si32)std::round(base_overline.x  * transform), 0, cellsize.y - 1), std::max(1, (si32)std::round(base_overline.y  * transform)) };
+                auto vertpos = underline2.x;
+                auto bheight = underline2.y;
+                auto between = std::max(1, (bheight + 1) / 2);
+                auto vtcoor2 = vertpos + bheight + between;
+                auto oversize = vtcoor2 + bheight - cellsize.y;
+                if (oversize > 0)
+                {
+                    vertpos -= oversize;
+                    auto overpos = vertpos - (baseline_y + 1);
+                    if (overpos < between)
+                    {
+                        auto half = overpos / 2;
+                        if (half > 0) // Set equal distance between baseline/underline and line1/line2.
+                        {
+                            vertpos = baseline_y + 1 + half;
+                            between = half;
+                        }
+                        else
+                        {
+                            vertpos = baseline_y + 2;
+                            between = 1;
+                            bheight = cellsize.y - vertpos - between;
+                                 if (bheight >= 3) bheight /= 2;
+                            else if (bheight == 2) bheight--;
+                            else if (bheight == 1) vertpos--;
+                            else
+                            {
+                                between = 0;
+                                bheight = cellsize.y - vertpos;
+                                if (bheight == 1) vertpos--;
+                                else
+                                {
+                                    vertpos = std::min(vertpos - 1, underline2.x);
+                                    bheight = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                auto doubline3 = rect{{ 0, vertpos }, { cellsize.x, std::max(1, between + bheight * 2) }};
+                auto underline3 = rect{{ 0, underline2.x }, { cellsize.x, std::max(1, bheight) }};
+                auto strikeout3 = rect{{ 0, strikeout2.x }, { cellsize.x, strikeout2.y }};
+                auto od = overline2.y - underline3.size.y;
+                auto overline3 = rect{{ 0, overline2.x + od }, underline3.size };
+                auto dashpad_l = underline3.size.y;
+                auto dashpad_r = underline3.size.y;
+                auto dashpad_s = cellsize.x - dashpad_l * 2;
+                if (dashpad_s < 1)
+                {
+                    dashpad_l = 1;
+                    dashpad_s = std::max(1, cellsize.x - dashpad_l);
+                    dashpad_r = std::max(0, cellsize.x - dashpad_l - dashpad_s);
+                    dashpad_l = std::max(0, cellsize.x - dashpad_r - dashpad_s);
+                }
+                auto dashline3 = rect{{ dashpad_l, underline2.x }, { dashpad_s, underline3.size.y }};
                 //log("font_name=", font_name, "\tasc=", base_ascent, "\tdes=", base_descent, "\tem=", base_emheight, "\tbasline=", b2, "\tdy=", transform, "\tk0=", k0, "\tm1=", m1, "\tm2=", m2);
-                fontface[style::normal].transform = transform;
-                fontface[style::normal].em_height = em_height;
-                fontface[style::normal].transform_letters = transform_letters;
-                fontface[style::normal].em_height_letters = em_height_letters;
-                fontface[style::normal].base_line = base_line;
-                fontface[style::normal].actual_sz = actual_sz;
-                fontface[style::bold  ].transform = transform;
-                fontface[style::bold  ].em_height = em_height;
-                fontface[style::bold  ].transform_letters = transform_letters;
-                fontface[style::bold  ].em_height_letters = em_height_letters;
-                fontface[style::bold  ].base_line = base_line;
-                fontface[style::bold  ].actual_sz = actual_sz;
+                for (auto& f : fontface)
+                {
+                    f.base_line = base_line;
+                    f.underline = underline3;
+                    f.strikeout = strikeout3;
+                    f.overline = overline3;
+                    f.dashline = dashline3;
+                    auto r1 = doubline3;
+                    r1.size.y = underline3.size.y;
+                    auto r2 = r1;
+                    r2.coor.y += doubline3.size.y - r2.size.y;
+                    f.doubline1 = r1;
+                    f.doubline2 = r2;
+                    f.wavyline = doubline3;
+                }
+                for (auto s : { style::normal, style::bold })
+                {
+                    fontface[s].transform = transform;
+                    fontface[s].em_height = em_height;
+                    fontface[s].actual_sz = actual_sz;
+                    fontface[s].transform_letters = transform_letters;
+                    fontface[s].em_height_letters = em_height_letters;
+                }
                 // Detect right bearing delta for italics.
                 auto italic_glyph_metrics = DWRITE_GLYPH_METRICS{};
                 auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
@@ -307,18 +350,14 @@ Using large type pieces:
                 transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
                 em_height_letters = base_emheight * transform_letters;
                 actual_sz *= k;
-                fontface[style::italic     ].transform = transform;
-                fontface[style::italic     ].em_height = em_height;
-                fontface[style::italic     ].transform_letters = transform_letters;
-                fontface[style::italic     ].em_height_letters = em_height_letters;
-                fontface[style::italic     ].base_line = base_line;
-                fontface[style::italic     ].actual_sz = actual_sz;
-                fontface[style::bold_italic].transform = transform;
-                fontface[style::bold_italic].em_height = em_height;
-                fontface[style::bold_italic].transform_letters = transform_letters;
-                fontface[style::bold_italic].em_height_letters = em_height_letters;
-                fontface[style::bold_italic].base_line = base_line;
-                fontface[style::bold_italic].actual_sz = actual_sz;
+                for (auto s : { style::italic, style::bold_italic })
+                {
+                    fontface[s].transform = transform;
+                    fontface[s].em_height = em_height;
+                    fontface[s].actual_sz = actual_sz;
+                    fontface[s].transform_letters = transform_letters;
+                    fontface[s].em_height_letters = em_height_letters;
+                }
             }
 
             typeface() = default;
@@ -358,6 +397,13 @@ Using large type pieces:
         std::thread                    bgworker; // font: Background thread.
         twod                           cellsize; // font: Terminal cell size in pixels.
         std::list<text>                families; // font: Primary font name list.
+        rect                           underline; // font: Single underline rectangle block within the cell.
+        rect                           doubline1; // font: The first line of the double underline: at the top of the rect.
+        rect                           doubline2; // font: The second line of the double underline: at the bottom.
+        rect                           strikeout; // font: Strikethrough rectangle block within the cell.
+        rect                           overline; // font: Overline rectangle block within the cell.
+        rect                           dashline; // font: Dashed underline rectangle block within the cell.
+        rect                           wavyline; // font: Wavy underline outer rectangle block within the cell.
 
         static auto msscript(ui32 code) // font: ISO<->MS script map.
         {
@@ -385,12 +431,29 @@ Using large type pieces:
             return lut[code];
         }
 
+        void sort()
+        {
+            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+        }
         void set_fonts(auto family_names, bool fresh = true)
         {
             if (family_names.empty()) family_names.push_back("Courier New"); //todo unify
             families = family_names;
             fallback.clear();
-            if (!fresh) for (auto& s : fontstat) s.s &= ~fontcat::loaded;
+            if (!fresh) // Restore the original font index order and clear the "loaded" flag.
+            {
+                auto tempstat = fontstat;
+                auto src = fontstat.begin();
+                auto end = fontstat.end();
+                while (src != end)
+                {
+                    auto& s = *src++;
+                    auto& d = tempstat[s.i];
+                    d = s;
+                    netxs::set_flag<fontcat::loaded>(d.s, faux);
+                }
+                std::swap(fontstat, tempstat);
+            }
             for (auto& family_utf8 : families)
             {
                 auto found = BOOL{};   
@@ -402,9 +465,9 @@ Using large type pieces:
                     if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
-                    fontstat[index].s |= fontcat::loaded;
+                    netxs::set_flag<fontcat::loaded>(fontstat[index].s);
                     auto& f = fallback.emplace_back(barefont, index);
-                    log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                     barefont->Release();
 
                     //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
@@ -417,6 +480,7 @@ Using large type pieces:
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
+            sort();
         }
         font(std::list<text>& family_names, si32 cell_height)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
@@ -449,11 +513,11 @@ Using large type pieces:
                     {
                         if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
                         {
-                            fontstat[i].s |= fontcat::valid;
-                            if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
+                            netxs::set_flag<fontcat::valid>(fontstat[i].s);
+                            if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
                             if (auto face_inst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&face_inst), face_inst)
                             {
-                                if (typeface::iscolor(face_inst)) fontstat[i].s |= fontcat::color;
+                                if (typeface::iscolor(face_inst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
                                 auto numberOfFiles = ui32{};
                                 face_inst->GetFiles(&numberOfFiles, nullptr);
                                 auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
@@ -490,7 +554,7 @@ Using large type pieces:
                         barefont->Release();
                     }
                 }
-                std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+                sort();
                 //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
                 complete.exchange(true);
                 complete.notify_all();
@@ -509,6 +573,17 @@ Using large type pieces:
             cellsize = { 1, std::clamp(cell_height, 2, 256) };
             auto base_font = true;
             for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            if (fallback.size()) // Keep the same *line positions for all fonts.
+            {
+                auto& f = fallback.front().fontface.front();
+                underline = f.underline;
+                strikeout = f.strikeout;
+                doubline1 = f.doubline1;
+                doubline2 = f.doubline2;
+                overline  = f.overline;
+                dashline  = f.dashline;
+                wavyline  = f.wavyline;
+            }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
         auto& take_font(utfx codepoint)
@@ -536,8 +611,9 @@ Using large type pieces:
                             if (hittest(fontface) || !test)
                             {
                                 hit = true;
-                                fontstat[i].s |= fontcat::loaded;
-                                fallback.emplace_back(barefont, i, cellsize, faux);
+                                netxs::set_flag<fontcat::loaded>(fontstat[i].s);
+                                auto& f = fallback.emplace_back(barefont, i, cellsize, faux);
+                                log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                             }
                             fontface->Release();
                         }
@@ -549,7 +625,7 @@ Using large type pieces:
             };
             for (auto i = 0u; i < fontstat.size(); i++)
             {
-                if ((fontstat[i].s & fontcat::valid && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+                if (((fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
             }
             if (fallback.size()) return fallback.front();
             for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
@@ -594,6 +670,11 @@ Using large type pieces:
                   fill{       }
             { }
         };
+        struct synthetic
+        {
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto wavyunderline = __COUNTER__ - _counter;
+        };
 
         using gmap = std::unordered_map<ui64, sprite>;
 
@@ -603,6 +684,7 @@ Using large type pieces:
         twod& cellsz; // glyf: Terminal cell size in pixels.
         bool  aamode; // glyf: Enable AA.
         gmap  glyphs; // glyf: Glyph map.
+        std::vector<sprite>                          cgi_glyphs; // glyf: Synthetic glyphs.
         wide                                         text_utf16; // glyf: UTF-16 buffer.
         std::vector<utf::prop>                       codepoints; // glyf: .
         std::vector<ui16>                            clustermap; // glyf: .
@@ -618,11 +700,56 @@ Using large type pieces:
             : fcache{ fcache },
               cellsz{ fcache.cellsize },
               aamode{ aamode }
-        { }
+        {
+            generate_glyphs();
+        }
+        void generate_glyphs()
+        {
+            // Generate wavy underline.
+            auto block = fcache.wavyline;
+            auto height = block.size.y;
+            auto thick = fcache.underline.size.y;
+            auto vsize = std::max(1, block.size.y - thick + 1) / 2.f; // Vertical space/amp for wave.
+            auto y0 = block.coor.y + vsize;
+            vsize *= 0.99f; // Make the wave amp a little smaller to aviod pixels get outside.
+            auto fract = (thick * 3) & ~1; // &~1: To make it look better for small sizes.
+            auto width = block.size.x + fract * 4; // Bump for texture sliding.
+            auto k = 3.14f / 2.f / fract; // Aling fract with the sine period.
+            block.size.x = 1;
+            block.size.y = thick;
+            auto c = byte{ 255 }; // Opaque alpha texture.
+            auto& m = cgi_glyphs.emplace_back(buffer_pool);
+            m.area = {{ 0, block.coor.y }, { width, height }};
+            m.type = sprite::alpha;
+            m.bits.resize(m.area.length());
+            auto raster = m.raster<byte>();
+            while (block.coor.x < width)
+            {
+                for (auto x = 0; x < fract; x++) // Split the sine wave on four parts in order to keep absolute pixel symmetry.
+                {
+                    auto p = block;
+                    p.coor.y = (si32)(y0 - std::sin(k * (x)) * vsize - 0.00001f); // -0.00001f: To move first pixel up (x=0).
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 - std::sin(k * (fract - x)) * vsize - 0.00001f);
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 + std::sin(k * (x)) * vsize + 0.00001f); // +0.00001f: To move first pixel down.
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    p.coor.x += fract;
+                    p.coor.y = (si32)(y0 + std::sin(k * (fract - x)) * vsize + 0.00001f);
+                    netxs::onrect(raster, p, cell::shaders::full(c));
+                    block.coor.x++;
+                }
+                block.coor.x += fract * 3;
+            }
+        }
         void reset()
         {
             glyphs.clear();
+            cgi_glyphs.clear();
             mono_buffer.release();
+            generate_glyphs();
         }
         void rasterize(sprite& glyph_mask, cell const& c)
         {
@@ -663,12 +790,13 @@ Using large type pieces:
             auto& f = fcache.take_font(base_char);
             auto face_inst = f.fontface[format].face_inst;
             if (!face_inst) return;
-            auto is_box_drawing = (base_char >= 0x2320  && base_char <= 0x23D0)   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
-                               || (base_char >= 0x2500  && base_char <= 0x25FF)   // Box Elements
-                               || (base_char >= 0xE0B0  && base_char <= 0xE0B3)   // Powerline Arrows
-                               || (base_char >= 0x1CC00 && base_char <= 0x1CEBF)  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
-                               || (base_char >= 0x1F67C && base_char <= 0x1F67F)  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
-                               || (base_char >= 0x1FB00 && base_char <= 0x1FBFF); // Symbols for Legacy Computing
+            auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
+                              || (base_char >= 0x2500  && (base_char <  0x259F   // Box Elements
+                              //|| (base_char >= 0x25A0  && (base_char <= 0x25FF   // Geometric Shapes
+                              || (base_char >= 0xE0B0  && (base_char <= 0xE0B3   // Powerline Arrows
+                              || (base_char >= 0x1CC00 && (base_char <= 0x1CEBF  // Legacy Computing Supplement. inc Large Type Pieces: U+1CE1A-1CE50
+                              || (base_char >= 0x1F67C && (base_char <= 0x1F67F  // Ornamental Dingbats: U+1F67C-1F67F 🙼 🙽 🙾 🙿
+                              || (base_char >= 0x1FB00 && (base_char <= 0x1FBFF))))))))))); // Symbols for Legacy Computing
             auto transform = is_box_drawing ? f.fontface[format].transform : f.fontface[format].transform_letters;
             auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
             auto base_line = f.fontface[format].base_line;
@@ -763,9 +891,9 @@ Using large type pieces:
                 length = std::max(length, right_most);
                 penpos += glyf_steps[i];
             }
-            auto actual_width = swapxy ? length :
-                                is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
-                                               : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
+            auto actual_width = swapxy ? std::max(1.f, length) :
+                        is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
+                                       : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
             auto k = 1.f;
             if (actual_width > matrix.x) // Check if the glyph exceeds the matrix width. (scale down)
             {
@@ -896,7 +1024,7 @@ Using large type pieces:
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
-            //netxs::misc::fill(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
+            //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
             if (glyph_mask.area && flipandrotate)
             {
                 //todo optimize
@@ -957,36 +1085,10 @@ Using large type pieces:
                 glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
             }
         }
-        void draw_cell(auto& canvas, twod coor, cell const& c)
+        void draw_glyf(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
-            auto placeholder = canvas.area().trim(rect{ coor, cellsz });
-            if (!placeholder) return;
-            if (c.bga()) { netxs::misc::fill(canvas, placeholder, cell::shaders::full(c.bgc())); }
-            if (c.und()) { }
-            if (c.stk()) { }
-            if (c.ovr()) { }
-            if (c.inv()) { }
-            if (c.xy() == 0) return;
-            auto token = c.tkn() & ~3;
-            if (c.itc()) token |= font::style::italic;
-            if (c.bld()) token |= font::style::bold;
-            auto iter = glyphs.find(token);
-            if (iter == glyphs.end())
-            {
-                iter = glyphs.emplace(token, mono_buffer).first;
-                rasterize(iter->second, c);
-            }
-            auto& glyph_mask = iter->second;
-            if (!glyph_mask.area) return;
-
-            auto [w, h, x, y] = c.whxy();
-            if (x == 0 || y == 0) return;
-            auto box = glyph_mask.area.shift(coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) });
-            canvas.clip(placeholder);
-            //canvas.clip(canvas.area());
-
-            auto fgc = c.fgc();
-            auto f_fgc = irgb{ c.fgc() }.sRGB2Linear();
+            auto box = glyph_mask.area.shift(offset);
+            auto f_fgc = irgb{ fgc }.sRGB2Linear();
             if (glyph_mask.type == sprite::color)
             {
                 auto fx = [fgc, f_fgc](argb& dst, irgb src)
@@ -1025,61 +1127,199 @@ Using large type pieces:
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void fill_grid(auto& canvas, twod origin, auto& grid_cells)
+        void draw_cell(auto& canvas, auto& blinks, rect placeholder, cell const& c)
         {
-            auto coor = origin;
-            auto size = grid_cells.size() * cellsz;
-            auto maxc = coor + size;
-            auto base = canvas.coor();
-            canvas.step(-base);
-            for (auto& c : grid_cells)
+            placeholder.trimby(canvas.area());
+            if (!placeholder) return;
+            auto fgc = c.fgc();
+            auto bgc = c.bgc();
+            if (c.inv()) std::swap(fgc, bgc);
+            canvas.clip(placeholder);
+            if (c.blk())
             {
-                draw_cell(canvas, coor, c);
-                coor.x += cellsz.x;
-                if (coor.x >= maxc.x)
+                placeholder.coor -= blinks.coor();
+                blinks.clip(placeholder);
+                if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
                 {
-                    coor.x = origin.x;
-                    coor.y += cellsz.y;
-                    if (coor.y >= maxc.y) break;
+                    netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
+                }
+            }
+            else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            auto& target = c.blk() ? blinks : canvas;
+            if (auto u = c.und())
+            {
+                auto index = c.unc();
+                auto color = index ? argb{ argb::vt256[index] }.alpha(c.fga()) : c.fgc();
+                if (u == unln::line)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else if (u == unln::dotted)
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    auto limit = block.coor.x + block.size.x;
+                    block.size.x = std::max(2, block.size.y);
+                    auto stepx = 3 * block.size.x;
+                    block.coor.x -= placeholder.coor.x % stepx;
+                    while (block.coor.x < limit)
+                    {
+                        netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
+                        block.coor.x += stepx;
+                    }
+                }
+                else if (u == unln::dashed)
+                {
+                    auto block = fcache.dashline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+                else if (u == unln::biline)
+                {
+                    auto b1 = fcache.doubline1;
+                    auto b2 = fcache.doubline2;
+                    auto offset = placeholder.coor + target.coor();
+                    b1.coor += offset;
+                    b2.coor += offset;
+                    netxs::onrect(target, b1, cell::shaders::full(color));
+                    netxs::onrect(target, b2, cell::shaders::full(color));
+                }
+                else if (u == unln::wavy)
+                {
+                    auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
+                    auto offset = placeholder.coor;
+                    auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
+                    offset.x -= offset.x % fract4;
+                    draw_glyf(target, wavy_raster, offset, color);
+                }
+                else
+                {
+                    auto block = fcache.underline;
+                    block.coor += placeholder.coor + target.coor();
+                    netxs::onrect(target, block, cell::shaders::full(color));
+                }
+            }
+            if (c.stk())
+            {
+                auto color = c.fgc();
+                auto block = fcache.strikeout;
+                block.coor += placeholder.coor + target.coor();
+                netxs::onrect(target, block, cell::shaders::full(color));
+            }
+            if (c.ovr())
+            {
+                auto color = c.fgc();
+                auto block = fcache.overline;
+                block.coor += placeholder.coor + target.coor();
+                netxs::onrect(target, block, cell::shaders::full(color));
+            }
+            if (c.xy() == 0) return;
+            auto token = c.tkn() & ~3;
+            if (c.itc()) token |= font::style::italic;
+            if (c.bld()) token |= font::style::bold;
+            auto iter = glyphs.find(token);
+            if (iter == glyphs.end())
+            {
+                if (c.jgc())
+                {
+                    iter = glyphs.emplace(token, mono_buffer).first;
+                    rasterize(iter->second, c);
+                }
+                else return;
+            }
+            auto& glyph_mask = iter->second;
+            if (!glyph_mask.area) return;
+
+            auto [w, h, x, y] = c.whxy();
+            if (x == 0 || y == 0) return;
+            auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
+            draw_glyf(target, glyph_mask, offset, fgc);
+        }
+        void draw_cell_with_cursor(auto& canvas, auto& blinks, rect placeholder, cell c)
+        {
+            //todo hilight grapheme cluster.
+            //todo hint for ime
+            auto style = c.cur();
+            auto [bgcolor, fgcolor] = c.cursor_color();
+            auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
+            if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (style == text_cursor::block)
+            {
+                c.fgc(fgcolor).bgc(bgcolor);
+                draw_cell(canvas, blinks, placeholder, c);
+            }
+            else if (style == text_cursor::I_bar)
+            {
+                draw_cell(canvas, blinks, placeholder, c);
+                placeholder.size.x = width;
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //c.fgc(fgcolor).bgc(bgcolor);
+                //draw_cell(canvas, blinks, placeholder, c);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
+            }
+            else if (style == text_cursor::underline)
+            {
+                draw_cell(canvas, blinks, placeholder, c);
+                placeholder.coor.y += cellsz.y - width;
+                placeholder.size.y = width;
+                c.fgc(fgcolor).bgc(bgcolor);
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //draw_cell(canvas, blinks, placeholder, c);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
+            }
+        }
+        void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
+        {
+            auto area = rect{ origin, cellsz };
+            auto maxc = area.coor + grid_cells.size() * cellsz;
+            auto base = canvas.coor();
+            auto base_blinks = blinks.coor();
+            blinks.move(origin);
+            canvas.step(-base);
+            for (cell& c : grid_cells)
+            {
+                if (c.blk()) blink_count++;//todo sync with blink_synch
+                if (c.cur()) draw_cell_with_cursor(canvas, blinks, area, c);
+                else         draw_cell(canvas, blinks, area, c);
+                area.coor.x += cellsz.x;
+                if (area.coor.x >= maxc.x)
+                {
+                    area.coor.x = origin.x;
+                    area.coor.y += cellsz.y;
+                    if (area.coor.y >= maxc.y) break;
                 }
             }
             canvas.step(base);
+            blinks.move(base_blinks);
         }
     };
 
-    struct surface
+    struct surface : surface_base
     {
-        using bits = netxs::raster<std::span<argb>, rect>;
+        static constexpr auto hidden = twod{ -32000, -32000 };
 
-        HDC   hdc;
-        HWND hWnd;
-        bool sync;
-        rect prev;
-        rect area;
-        twod size;
-        bits data;
+        HDC   hdc; // surface: .
+        HWND hWnd; // surface: .
 
         surface(surface const&) = default;
         surface(surface&&) = default;
         surface(HWND hWnd)
             :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
-              hWnd{ hWnd },
-              sync{ faux },
-              prev{ .coor = dot_mx },
-              area{ dot_00, dot_00 },
-              size{ dot_00 }
+              hWnd{ hWnd }
         { }
         void reset() // We don't use custom copy/move ctors.
         {
             if (hdc) ::DeleteDC(hdc);
+            for (auto eventid : klok) ::KillTimer(hWnd, eventid);
         }
-        void set_dpi(auto /*dpi*/) // We are do not rely on dpi. Users should configure all metrics in pixels.
-        { }
         auto canvas(bool wipe = faux)
         {
-            if (area)
+            if (hdc && area)
             {
-                if (area.size != size)
+                if (area.size != prev.size)
                 {
                     auto ptr = (void*)nullptr;
                     auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
@@ -1092,61 +1332,95 @@ Using large type pieces:
                     {
                         ::DeleteObject(::SelectObject(hdc, hbm));
                         wipe = faux;
-                        size = area.size;
-                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)size.x * size.y }, rect{ area.coor, size }};
+                        prev.size = area.size;
+                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
                     }
                     else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
                 }
-                if (wipe) std::memset(data.data(), 0, (sz_t)size.x * size.y * sizeof(argb));
-                sync = faux;
+                if (wipe) std::memset(data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
             }
             data.move(area.coor);
             return data;
         }
         void present()
         {
-            if (sync || !hdc) return;
-            static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
-            auto scr_coor = POINT{};
-            auto win_coor = POINT{ area.coor.x, area.coor.y };
-            auto win_size =  SIZE{      size.x,      size.y };
-            auto moved = prev.coor(area.coor);
-            auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (syscall, copy bitmap to hardware)
-                                            HDC{},                       // No color palette matching.  HDC hdcDst,
-                                            moved ? &win_coor : nullptr, // POINT         *pptDst,
-                                            &win_size,                   // SIZE          *psize,
-                                            hdc,                         // HDC           hdcSrc,
-                                            &scr_coor,                   // POINT         *pptSrc,
-                                            {},                          // COLORREF      crKey,
-                                            &blend_props,                // BLENDFUNCTION *pblend,
-                                            ULW_ALPHA);                  // DWORD         dwFlags
-            if (!rc) log("%%UpdateLayeredWindow returns unexpected result ", prompt::gui, rc);
-            sync = true;
+            if (!hdc) return;
+            auto windowmoved = prev.coor(live ? area.coor : hidden);
+            if (!windowmoved && (sync.empty() || !live)) return;
+            if (!live) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+            {
+                ::SetWindowPos(hWnd, 0, hidden.x, hidden.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                return;
+            }
+            auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
+            auto bitmap_coor = POINT{};
+            auto window_coor = POINT{ area.coor.x, area.coor.y };
+            auto bitmap_size = SIZE{ area.size.x, area.size.y };
+            auto update_area = RECT{};
+            auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
+                                                        .pptDst   = windowmoved ? &window_coor : nullptr,
+                                                        .psize    = &bitmap_size,
+                                                        .hdcSrc   = hdc,
+                                                        .pptSrc   = &bitmap_coor,
+                                                        .pblend   = &blend_props,
+                                                        .dwFlags  = ULW_ALPHA,
+                                                        .prcDirty = &update_area };
+            //log("hWnd=", hWnd);
+            auto update_proc = [&]
+            {
+                //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
+                auto ok = ::UpdateLayeredWindowIndirect(hWnd, &update_info);
+                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+            };
+            //todo revise/optimize
+            //if (sync.size() > 100) // Full redraw if too much changes.
+            //{
+            //    update_area = RECT{ .right = size.x, .bottom = size.y };
+            //    update_proc();
+            //}
+            //else
+            {
+                for (auto r : sync)
+                {
+                    update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                    update_proc();
+                    update_info.pptDst = {};
+                }
+                if (update_info.pptDst) // Just move window.
+                {
+                    update_area = {};
+                    update_proc();
+                }
+            }
+            sync.clear();
+        }
+        void start_timer(span elapse, ui32 eventid)
+        {
+            if (eventid)
+            {
+                if (std::find(klok.begin(), klok.end(), eventid) == klok.end()) klok.push_back(eventid);
+                ::SetCoalescableTimer(hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+            }
+        }
+        void stop_timer(ui32 eventid)
+        {
+            auto iter = std::find(klok.begin(), klok.end(), eventid);
+            if (iter != klok.end())
+            {
+                ::KillTimer(hWnd, eventid);
+                klok.erase(iter);
+            }
         }
     };
 
-    struct manager
+    struct manager : manager_base
     {
         using wins = std::vector<surface>;
 
-        enum bttn
-        {
-            left   = 1 << 0,
-            right  = 1 << 1,
-            middle = 1 << 2,
-        };
-        enum state
-        {
-            normal,
-            minimized,
-            fullscreen,
-        };
-
-        bool isfine; // manager: All is ok.
         wins layers; // manager: ARGB layers.
+        std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
 
         manager()
-            : isfine{ true }
         {
             set_dpi_awareness();
         }
@@ -1154,25 +1428,28 @@ Using large type pieces:
         {
             for (auto& w : layers) w.reset();
         }
-        auto& operator [] (si32 layer) { return layers[layer]; }
-        explicit operator bool () const { return isfine; }
 
+        auto get_window_title()
+        {
+            auto hWnd = layers.front().hWnd;
+            auto size = ::GetWindowTextLengthW(hWnd);
+            auto crop = wide(size, '\0');
+            ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
+            return utf::to_utf(crop);
+        }
+        void set_window_title(view utf8)
+        {
+            ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data());
+        }
         void set_dpi_awareness()
         {
             auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
             if (proc)
             {
-                auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
+                proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
-        }
-        auto set_dpi(auto new_dpi)
-        {
-            log("%%DPI changed to %dpi%", prompt::gui, new_dpi);
-        }
-        auto moveby(twod delta)
-        {
-            for (auto& w : layers) w.area.coor += delta;
         }
         template<bool JustMove = faux>
         void present()
@@ -1180,359 +1457,14 @@ Using large type pieces:
             if constexpr (JustMove)
             {
                 auto lock = ::BeginDeferWindowPos((si32)layers.size());
-                for (auto& w : layers)
+                for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
                 {
-                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.prev.coor.x, w.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                     if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
-                    w.prev.coor = w.area.coor;
                 }
                 ::EndDeferWindowPos(lock);
             }
-            else for (auto& w : layers) w.present(); // 3.000 ms
-        }
-        void dispatch()
-        {
-            auto msg = MSG{};
-            while (::GetMessageW(&msg, 0, 0, 0) > 0)
-            {
-                ::DispatchMessageW(&msg);
-            }
-        }
-        void set_active()
-        {
-            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
-        }
-        void shown_event(bool shown, arch reason)
-        {
-            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
-                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
-                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
-                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
-                                                                            : utf::concat("Unknown reason. (", reason, ")"));
-            set_active();
-        }
-        void show(si32 win_state)
-        {
-            if (win_state == state::normal)
-            {
-                auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) { ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA)); }
-                set_active();
-            }
-            else if (win_state == state::fullscreen)
-            {
-                auto mode = SW_SHOWNORMAL;
-                for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_HIDE));
-                set_active();
-            }
-            else if (win_state == state::minimized)
-            {
-                auto mode = SW_HIDE;
-                for (auto& w : layers) ::ShowWindow(w.hWnd, mode);
-            }
-        }
-        void mouse_capture()
-        {
-            if (!layers.empty()) ::SetCapture(layers.front().hWnd);
-        }
-        void mouse_release()
-        {
-            ::ReleaseCapture();
-        }
-        void close()
-        {
-            if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
-        }
-        void activate()
-        {
-            log("activated");
-            set_active();
-        }
-        void state_event(bool activated, bool minimized)
-        {
-            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
-            set_active();
-        }
-
-        virtual void update() = 0;
-        virtual void mouse_leave() = 0;
-        virtual void mouse_shift(twod coord) = 0;
-        virtual void focus_event(bool state) = 0;
-        virtual void mouse_press(si32 index, bool pressed) = 0;
-        virtual void mouse_wheel(si32 delta, si32 cntrl, bool hzwheel) = 0;
-        virtual void keybd_press(arch vkey, arch lParam) = 0;
-        virtual void check_fsmode(arch hWnd) = 0;
-
-        auto add(manager* host_ptr = nullptr)
-        {
-            auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-            {
-                //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                //auto layer = (si32)::GetWindowLongPtrW(hWnd, sizeof(LONG_PTR));
-                auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
-                if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
-                auto stat = LRESULT{};
-                static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
-                static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
-                static auto hover_win = testy<HWND>{};
-                static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
-                static auto h = 0;
-                static auto f = 0;
-                switch (msg)
-                {
-                    case WM_MOUSEMOVE:   if (hover_win(hWnd)) ::TrackMouseEvent((++h, hover_rec.hwndTrack = hWnd, &hover_rec));
-                                         if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_shift({ r.left + lo(lParam), r.top + hi(lParam) });
-                                         break;
-                    case WM_MOUSELEAVE:  if (!--h) w->mouse_leave(), hover_win = {};   break;
-                    case WM_ACTIVATEAPP: if (!(wParam ? f++ : --f)) w->focus_event(f); break; // Focus between apps.
-                    case WM_ACTIVATE:      w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
-                    case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
-                    case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
-                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
-                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
-                    case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
-                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
-                    case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), lo(wParam), faux);           break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), lo(wParam), true);           break;
-                    case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
-                    //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
-                    //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
-                    case WM_KEYDOWN:
-                    case WM_KEYUP:
-                    case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
-                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
-                    case WM_DPICHANGED:    w->set_dpi(lo(wParam));                     break;
-                    case WM_WINDOWPOSCHANGED:
-                    case WM_DISPLAYCHANGE:
-                    case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
-                    case WM_DESTROY:       ::PostQuitMessage(0);                       break;
-                    //dx3d specific
-                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                    default:                                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                }
-                w->update();
-                return stat;
-            };
-            static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
-            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, /*.cbWndExtra = 2 * sizeof(LONG_PTR),*/ .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
-            static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
-            if (!reg)
-            {
-                isfine = faux;
-                log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
-            }
-            auto& wc = host_ptr ? wc_window : wc_defwin;
-            auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
-            auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
-                                          wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
-                                          WS_POPUP /*todo | owner ? WS_SYSMENU : 0  taskbar ctx menu*/, 0, 0, 0, 0, owner, 0, 0, 0);
-            auto layer = (si32)layers.size();
-            if (!hWnd)
-            {
-                isfine = faux;
-                log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
-            }
-            else if (host_ptr)
-            {
-                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
-                //::SetWindowLongPtrW(hWnd, 0, (LONG_PTR)host_ptr);
-                //::SetWindowLongPtrW(hWnd, sizeof(LONG_PTR), (LONG_PTR)layer);
-            }
-            layers.emplace_back(hWnd);
-            return layer;
-        }
-    };
-
-    struct window : manager
-    {
-        using gray = netxs::raster<std::vector<byte>, rect>;
-        using shad = netxs::misc::shadow<gray>;
-        using grip = netxs::misc::szgrips;
-
-        struct task
-        {
-            static constexpr auto _counter = 1 + __COUNTER__;
-            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto header = 1 << (__COUNTER__ - _counter);
-            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
-            static constexpr auto all = -1;
-        };
-
-        ui::face main_grid;
-        ui::face head_grid;
-        ui::face foot_grid;
-
-        font fcache; // window: Font cache.
-        glyf gcache; // window: Glyph cache.
-        twod gridsz; // window: Grid size in cells.
-        fp32 height; // window: Cell height in fp32 pixels.
-        twod gripsz; // window: Resizing grips size in pixels.
-        dent border; // window: Border around window for resizing grips (dent in pixels).
-        shad shadow; // window: Shadow generator.
-        grip szgrip; // window: Resizing grips UI-control.
-        twod mcoord; // window: Mouse cursor coord.
-        si32 mbttns; // window: Mouse button state.
-        bool mhover; // window: Mouse hover.
-        bool fsmode; // window: Fullscreen mode.
-        dent fsdent; // window: Fullscreen border.
-        rect normsz; // window: Non-fullscreen window area backup.
-        si32 reload; // window: Changelog for update.
-        si32 client; // window: Surface index for Client.
-        si32 grip_l; // window: Surface index for Left resizing grip.
-        si32 grip_r; // window: Surface index for Right resizing grip.
-        si32 grip_t; // window: Surface index for Top resizing grip.
-        si32 grip_b; // window: Surface index for Bottom resizing grip.
-        si32 header; // window: Surface index for Header.
-        si32 footer; // window: Surface index for Footer.
-        twod h_size; // window: Header grid size.
-        twod f_size; // window: Footer grid size.
-        bool drop_shadow{ true }; // window: .
-        twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
-
-        //test
-        twod scroll_pos;
-        twod scroll_origin;
-        twod scroll_delta;
-        text font_list_str;
-        text testtext;
-
-        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
-
-        window(rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, si32 win_mode, bool antialiasing, text testtext = {},  twod grip_cell = dot_21)
-            : fcache{ font_names, cell_height },
-              gcache{ fcache, antialiasing },
-              gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
-              height{ (fp32)fcache.cellsize.y },
-              gripsz{ grip_cell * fcache.cellsize },
-              border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
-              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
-              mbttns{},
-              mhover{},
-              fsmode{},
-              reload{ task::all },
-              client{ add(this) },
-              grip_l{ add(this) },
-              grip_r{ add(this) },
-              grip_t{ add(this) },
-              grip_b{ add(this) },
-              header{ add() },
-              footer{ add() }
-        {
-            if (!*this) return;
-            layers[client].area = { win_coor_px_size_cell.coor, gridsz * cellsz };
-            recalc_layout();
-            //todo temp
-            this->testtext = testtext;
-            print_font_list();
-            main_grid.size(layers[client].area.size / cellsz);
-            main_grid.cup(dot_00);
-            main_grid.output<true>(canvas_page);
-            head_grid.size(layers[header].area.size / cellsz);
-            head_grid.cup(dot_00);
-            head_grid.output(header_page);
-            foot_grid.size(layers[footer].area.size / cellsz);
-            foot_grid.cup(dot_00);
-            foot_grid.output(footer_page);
-            update();
-            manager::show(win_mode);
-        }
-        void sync_pixel_size()
-        {
-            auto base_rect = layers[client].area;
-            layers[grip_l].area = base_rect + dent{ gripsz.x, -base_rect.size.x, gripsz.y, gripsz.y };
-            layers[grip_r].area = base_rect + dent{ -base_rect.size.x, gripsz.x, gripsz.y, gripsz.y };
-            layers[grip_t].area = base_rect + dent{ 0, 0, gripsz.y, -base_rect.size.y };
-            layers[grip_b].area = base_rect + dent{ 0, 0, -base_rect.size.y, gripsz.y };
-            auto header_height = cellsz.y * h_size.y;
-            auto footer_height = cellsz.y * f_size.y;
-            layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
-            layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
-            layers[header].area.coor.y -= shadow_dent.b;
-            layers[footer].area.coor.y += shadow_dent.t;
-        }
-        void change_cell_size(fp32 dy = {})
-        {
-            gcache.reset();
-            auto grip_cell = gripsz / cellsz;
-            height += dy;
-            auto prev_cellsz = cellsz;
-            fcache.set_cellsz((si32)height);
-            //cellsz = fcache.cellsize;
-            gripsz = grip_cell * cellsz;
-            border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-            shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-            if (fsmode)
-            {
-                auto area = layers[client].area;
-                auto over = area.size % cellsz;
-                fsdent.l = over.x / 2;
-                fsdent.r = over.x - fsdent.l;
-                fsdent.t = over.y / 2;
-                fsdent.b = over.y - fsdent.t;
-                gridsz = (area - fsdent).size / cellsz;
-                normsz.size = normsz.size / prev_cellsz * cellsz;
-                //todo temp
-                print_font_list(true);
-            }
-            else
-            {
-                layers[client].area = rect{ layers[client].area.coor, gridsz * cellsz };
-                print_font_list(true);
-                sync_pixel_size();
-            }
-        }
-        void set_aa_mode(bool mode)
-        {
-            log("AA ", mode ? "enabled" : "disabled");
-            gcache.aamode = mode;
-            gcache.reset();
-            reload |= task::all;
-        }
-        //todo temp
-        void print_font_list(bool refill = faux)
-        {
-            auto i = 0;
-            font_list_str = utf::concat("Test text: \033[10m", testtext, "\033[m\n\n Antialiasing ", gcache.aamode ? "On" : "Off",
-                                      "\n Cell Size ", cellsz.x, "x", cellsz.y,
-                                      "\n Font Fallback\n");
-            for (auto& f : fcache.families) font_list_str += utf::concat(ansi::bld(i++ == 0), utf::adjust(std::to_string(i), 4, ' ', true), ": ", f, '\n');
-            canvas_page = intro + font_list_str + canvas_text;
-            if (refill) refillgrid();
-        }
-        void set_font_list(auto& flist)
-        {
-            log("Font list: ", flist);
-            fcache.set_fonts(flist, faux);
-            print_font_list();
-            change_cell_size(0);
-            reload |= task::all;
-        }
-        void refillgrid(bool wipe = true)
-        {
-            auto area = layers[client].area - fsdent;
-            main_grid.size(area.size / cellsz);
-            if (wipe)
-            {
-                main_grid.wipe();
-                foot_grid.wipe();
-            }
-            main_grid.zz(scroll_pos);
-            main_grid.vsize(std::min(0, -scroll_pos.y) + area.size.y);
-            main_grid.output<true>(canvas_page);
-            if (!fsmode)
-            {
-                head_grid.size(layers[header].area.size / cellsz);
-                head_grid.cup(dot_00);
-                head_grid.output(header_page);
-                foot_grid.size(layers[footer].area.size / cellsz);
-                foot_grid.cup(dot_00);
-                foot_grid.output(footer_page);
-            }
+            else for (auto& w : layers) w.present();
         }
         auto get_fs_area(rect window_area)
         {
@@ -1548,184 +1480,1056 @@ Using large type pieces:
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
-        void set_fullscreen_mode(bool mode)
+        void dispatch()//os::fire& alarm)
         {
-            if (fsmode == mode || layers.empty()) return;
-            log("Fullscreen mode ", mode ? "enabled" : "disabled", ".");
-            fsmode = mode;
-            if (mode)
+            auto msg = MSG{};
+            while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
-                auto fs_area = get_fs_area(layers[client].area);
-                auto over_sz = fs_area.size % cellsz;
-                fsdent.l = over_sz.x / 2;
-                fsdent.r = over_sz.x - fsdent.l;
-                fsdent.t = over_sz.y / 2;
-                fsdent.b = over_sz.y - fsdent.t;
-                normsz = std::exchange(layers[client].area, fs_area);
-                show(state::fullscreen);
+                ::DispatchMessageW(&msg);
+            }
+            //auto stop = os::fd_t{ alarm };
+            //auto next = MSG{};
+            //while (next.message != WM_QUIT)
+            //{
+            //    if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT); yield == WAIT_OBJECT_0)
+            //    {
+            //        //manager::close();
+            //        ::DestroyWindow(layers[client].hWnd);
+            //        break;
+            //    }
+            //    while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+            //    {
+            //        ::DispatchMessageW(&next);
+            //    }
+            //}
+        }
+        void print_kbstate(text s)
+        {
+            s += "\n"s;
+            auto i = 0;
+            for (auto k : kbstate)
+            {
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+                if (i % 16 == 0)s += '\n';
+            }
+            os::logstd(s);
+        }
+        void activate()
+        {
+            if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
+            
+            //kbstate = {}; // !!! ::GetKeyboardState() pulls pressed VK_RETURN without successive release.
+            //::GetKeyboardState(kbstate.data()); // Get some state (modifiers and locks are outdated).
+            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,            // Get current modifiers state.
+            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            //{
+            //    auto s = ::GetAsyncKeyState(vkey);
+            //    kbstate[vkey] = (s >> 8) | (s & 0x1);
+            //}
+            for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA }) // Get current locks state. All other keys will be received through auto-repeat.
+            {
+                auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
+                kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
+            }
+            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
+            //print_kbstate("::GetKeyboardState");
+        }
+        void deactivate()
+        {
+            auto n = kbstate[VK_NUMLOCK];
+            auto c = kbstate[VK_CAPITAL];
+            auto s = kbstate[VK_SCROLL ];
+            auto k = kbstate[VK_KANA   ];
+            //auto r = kbstate[VK_OEM_FJ_ROYA];
+            //auto p = kbstate[VK_OEM_FJ_LOYA];
+            kbstate = {}; // Keep locks only.
+            kbstate[VK_NUMLOCK] = n;
+            kbstate[VK_CAPITAL] = c;
+            kbstate[VK_SCROLL ] = s;
+            kbstate[VK_KANA   ] = k;
+            //kbstate[VK_OEM_FJ_ROYA] = r;
+            //kbstate[VK_OEM_FJ_LOYA] = p;
+            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
+            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
+            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
+            //{
+            //    kbstate[vkey] = 0;
+            //}
+            //print_kbstate("deactivate");
+        }
+        //void shown_event(bool shown, arch reason)
+        //{
+        //    log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
+        //                                       : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
+        //                                       : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
+        //                                       : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
+        //                                                                    : utf::concat("Unknown reason. (", reason, ")"));
+        //    activate();
+        //}
+        void mouse_capture()
+        {
+            if (!layers.empty()) ::SetCapture(layers.front().hWnd);
+        }
+        void mouse_release()
+        {
+            ::ReleaseCapture();
+        }
+        void close()
+        {
+            if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
+        }
+        auto client_animation()
+        {
+            auto a = TRUE;
+            ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
+            return a;
+        }
+        void sync_taskbar(si32 new_state)
+        {
+            if (layers.empty()) return;
+            if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+            {
+                ::ShowWindow(layers.front().hWnd, SW_MINIMIZE);
+            }
+            else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
+            {
+                //todo It doesn't work that way. Sync with system ctx menu.
+                //auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+                //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
+                //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
+            }
+            else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
+        }
+        void run()
+        {
+            // Customize system ctx menu.
+            auto closecmd = wide(100, '\0');
+            auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
+            closecmd.resize(datalen);
+            auto temp = utf::to_utf(closecmd);
+            utf::replace_all(temp, "Alt+F4", "Esc");
+            closecmd = utf::to_utf(temp);
+            ::ModifyMenuW(ctxmenu, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED | MF_STRING, SC_CLOSE, closecmd.data());
+            //todo implement
+            ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
+            ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
+            // The first ShowWindow() call ignores SW_SHOW.
+            auto mode = SW_SHOW;
+            for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
+            ::AddClipboardFormatListener(layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
+            sync_clipboard(); // Clipboard should be in sync at (before) startup.
+        }
+
+        virtual void update_gui() = 0;
+        virtual void mouse_leave() = 0;
+        virtual void mouse_moved(twod coord) = 0;
+        virtual void focus_event(bool state) = 0;
+        virtual void timer_event(arch eventid) = 0;
+        //virtual void state_event(bool activated, bool minimized) = 0;
+        virtual void sys_command(si32 menucmd) = 0;
+        virtual void mouse_press(si32 index, bool pressed) = 0;
+        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
+        virtual void keybd_press(arch vkey, arch lParam) = 0;
+        virtual void keybd_paste(arch wide_char) = 0;
+        virtual void check_fsmode(arch hWnd) = 0;
+        virtual void sync_clipboard() = 0;
+
+        auto add(manager* host_ptr = nullptr)
+        {
+            auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+            {
+                //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                auto stat = LRESULT{};
+                static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
+                static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto hover_win = testy<HWND>{};
+                static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
+                switch (msg)
+                {
+                    case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
+                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_moved({ r.left + lo(lParam), r.top + hi(lParam) });
+                                       break;
+                    case WM_TIMER:         w->timer_event(wParam);                     break;
+                    case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
+                    case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
+                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
+                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
+                    case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
+                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
+                    case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
+                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), 0);              break;
+                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
+                    case WM_SETFOCUS:      w->focus_event(true);                       break;
+                    case WM_KILLFOCUS:     w->focus_event(faux);                       break;
+                    case WM_ACTIVATEAPP:   if (!!wParam) ::SetFocus(hWnd);             break; // explorer.exe gives us focus from the other window. Call SetFocus() to restore thread's keyboard state.
+                    // These should be processed on the system side.
+                    //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
+                    //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
+                    //case WM_NCHITTEST:
+                    //case WM_ACTIVATEAPP:
+                    //case WM_NCACTIVATE:
+                    //case WM_SETCURSOR:
+                    //case WM_GETMINMAXINFO:
+                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0)
+                                        {
+                                            case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
+                                            case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
+                                            case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
+                                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
+                                            default: stat = TRUE; // An application should return zero only if it processes this message.
+                                            //todo implement
+                                            //case SC_MOVE:         w->sys_command(syscmd::move);         break;
+                                            //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                                        }
+                                        break; // Taskbar ctx menu to change the size and position.
+                    //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    case WM_INPUTLANGCHANGE:
+                    {
+                        //todo sync kb layout
+                        //auto hkl = ::GetKeyboardLayout(0);
+                        auto kblayout = wide(KL_NAMELENGTH, '\0');
+                        ::GetKeyboardLayoutNameW(kblayout.data());
+                        log("%%Keyboard layout has changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+                        break;
+                    }
+                    case WM_KEYDOWN:
+                    case WM_KEYUP:
+                    case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
+                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
+                    //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_paste(wParam, lParam); break;
+                    //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
+                    //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
+                    case WM_IME_CHAR:      w->keybd_paste(wParam);                     break;
+                    case WM_WINDOWPOSCHANGED:
+                    case WM_DPICHANGED:
+                    case WM_DISPLAYCHANGE:
+                    case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
+                    //dx3d specific
+                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
+                    case WM_DESTROY: ::RemoveClipboardFormatListener(hWnd);
+                                     ::PostQuitMessage(0);
+                                     //if (alive.exchange(faux))
+                                     //{
+                                     //    os::signals::place(os::signals::close); // taskkill /pid nnn
+                                     //}
+                                     break;
+                    //case WM_ENDSESSION:
+                    //    if (wParam && alive.exchange(faux))
+                    //    {
+                    //             if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                    //        else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                    //        else                                   os::signals::place(os::signals::shutdown);
+                    //    }
+                    //    break;
+                    default:
+                    //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                }
+                w->sys_command(syscmd::update);
+                return stat;
+            };
+            static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
+            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, /*.cbWndExtra = 2 * sizeof(LONG_PTR),*/ .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
+            static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
+            if (!reg)
+            {
+                isfine = faux;
+                log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
+            }
+            auto& wc = host_ptr ? wc_window : wc_defwin;
+            auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
+            auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
+                                          wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
+                                          /*WS_VISIBLE: it is invisible to suppress messages until initialized | */
+                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU, 0, 0, 0, 0, owner, 0, 0, 0);
+            auto layer = (si32)layers.size();
+            if (!hWnd)
+            {
+                isfine = faux;
+                log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
+            }
+            else if (host_ptr)
+            {
+                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
+            }
+            layers.emplace_back(hWnd);
+            return layer;
+        }
+    };
+}
+
+#else
+
+namespace netxs::gui
+{
+    struct font
+    {
+        twod cellsize;
+        std::list<text> families;
+        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        { }
+        void set_fonts(std::list<text>&, bool)
+        {
+            //...
+        }
+        void set_cellsz(si32 /*height*/)
+        {
+            //...
+        }
+    };
+    struct glyf
+    {
+        si32 aamode{};
+        glyf(font& /*fcache*/ , bool /*aamode*/)
+        { }
+        void reset()
+        {
+            //...
+        }
+        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, si32& /*blink_count*/, twod /*origin*/, auto& /*grid_cells*/)
+        {
+            //...
+        }
+    };
+    struct surface : surface_base
+    {
+        arch hWnd{};
+        auto canvas(bool wipe = faux)
+        {
+            if (wipe)
+            {
+                //...
+            }
+            //...
+            return data;
+        }
+        void start_timer(span /*elapse*/, ui32 /*eventid*/)
+        {
+            //...
+        }
+        void stop_timer(ui32 /*eventid*/)
+        {
+            //...
+        }
+    };
+    struct manager : manager_base
+    {
+        using wins = std::vector<surface>;
+
+        wins layers; // manager: ARGB layers.
+
+        auto get_window_title()
+        {
+            //...
+            return ""s;
+        }
+        void set_window_title(view /*utf8*/)
+        {
+            //...
+        }
+        auto add(auto ...)
+        {
+            //...
+            return 0;
+        }
+        void run()
+        {
+            //...
+        }
+        bool client_animation()
+        {
+            //...
+            return true;
+        }
+        void sync_taskbar(si32 /*new_state*/)
+        {
+            //...
+        }
+        rect get_fs_area(rect area)
+        {
+            //...
+            return area;
+        }
+        template<bool JustMove = faux>
+        void present()
+        {
+            //...
+        }
+        void close()
+        {
+            //...
+        }
+        void mouse_capture()
+        {
+            //...
+        }
+        void mouse_release()
+        {
+            //...
+        }
+        void dispatch()//os::fire& /*alarm*/)
+        {
+            //...
+        }
+        void activate()
+        {
+            //...
+        }
+        void deactivate()
+        {
+            //...
+        }
+    };
+}
+
+#endif
+
+namespace netxs::gui
+{
+    struct window : manager, ui::base
+    {
+        using e2 = netxs::events::userland::e2;
+        using gray = netxs::raster<std::vector<byte>, rect>;
+        using shad = netxs::misc::shadow<gray>;
+        using grip = netxs::misc::szgrips;
+        using s11n = netxs::directvt::binary::s11n;
+
+        ui::pro::title titles; // window: .
+        ui::pro::focus wfocus; // window: .
+
+        struct task
+        {
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto header = 1 << (__COUNTER__ - _counter);
+            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
+            static constexpr auto all = -1;
+        };
+        struct evnt : s11n
+        {
+            window&         owner; // evnt: .
+            ui::pipe&       intio; // evnt: .
+            flag            alive; // evnt: .
+
+            //todo use gear.m_sys
+            input::sysmouse m = {}; // evnt: .
+            input::syskeybd k = {}; // evnt: .
+            input::sysfocus f = {}; // evnt: .
+            input::syspaste p = {}; // evnt: .
+            input::syswinsz w = {}; // evnt: .
+            input::sysclose c = {}; // evnt: .
+            netxs::sptr<input::hids> gears; // evnt: .
+
+            auto keybd(auto& data) { if (alive)                s11n::syskeybd.send(intio, data); }
+            auto mouse(auto& data) { if (alive)                s11n::sysmouse.send(intio, data); }
+            auto winsz(auto& data) { if (alive)                s11n::syswinsz.send(intio, data); }
+            auto paste(auto& data) { if (alive)                s11n::syspaste.send(intio, data); }
+            auto close(auto& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
+            void direct(s11n::xs::bitmap_dtvt lock, view& data)
+            {
+                auto& bitmap = lock.thing;
+                auto resize = [&](auto new_gridsz)
+                {
+                    if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
+                };
+                auto update = [&]([[maybe_unused]] auto size, [[maybe_unused]] auto head, [[maybe_unused]] auto iter, [[maybe_unused]] auto tail)
+                {
+                    //auto offset = (si32)(iter - head);
+                    //auto mx = std::max(1, size.x);
+                    //auto coor = twod{ offset % mx, offset / mx };
+
+                    //todo render in pixels
+                    //see gcache.fill_grid()
+                    //owner.print(size, coor, iter, tail);
+                    //auto dist = tail - head;
+                    //auto dest = main_grid.begin() + coor.x + coor.y * area.x;
+                    //todo render in pixels
+                    //todo now
+                    //while (head != tail)
+                    //{
+                    //    auto src = *head++;
+                    //    auto& dst = *dest++;
+                    //    dst = src;
+                    //}
+                    //auto& client_layer = layers[client];
+                    //auto& blinky_layer = layers[blinky];
+                    //client_layers.strike(dirty_area);
+                    //blinky_layers.strike({ .size = layers[blinky].area.size });
+                };
+                bitmap.get(data, update, resize);
+                s11n::request_jgc(intio, lock);
+                netxs::set_flag<task::inner>(owner.reload);
+            }
+            void handle(s11n::xs::jgc_list         lock)
+            {
+                s11n::receive_jgc(lock);
+                //todo repaint jgc cells
+                netxs::set_flag<task::inner>(owner.reload); // Trigger to redraw viewport to update jumbo clusters.
+            }
+            void handle(s11n::xs::header_request   lock)
+            {
+                auto& item = lock.thing;
+                owner.RISEUP(tier::request, e2::form::prop::ui::header, header_utf8, ());
+                s11n::header.send(intio, item.window_id, header_utf8);
+            }
+            void handle(s11n::xs::footer_request   lock)
+            {
+                auto& item = lock.thing;
+                owner.RISEUP(tier::request, e2::form::prop::ui::footer, footer_utf8, ());
+                s11n::footer.send(intio, item.window_id, footer_utf8);
+            }
+            void handle(s11n::xs::header           lock)
+            {
+                auto& item = lock.thing;
+                owner.RISEUP(tier::preview, e2::form::prop::ui::header, item.utf8);
+            }
+            void handle(s11n::xs::footer           lock)
+            {
+                auto& item = lock.thing;
+                owner.RISEUP(tier::preview, e2::form::prop::ui::footer, item.utf8);
+            }
+            void handle(s11n::xs::clipdata         lock)
+            {
+                auto& item = lock.thing;
+                if (item.form == mime::disabled) input::board::normalize(item);
+                else                             item.set();
+                os::clipboard::set(item);
+                auto crop = utf::trunc(item.utf8, owner.gridsz.y / 2); // Trim preview before sending.
+                s11n::sysboard.send(intio, id_t{}, item.size, crop.str(), item.form);
+            }
+            void handle(s11n::xs::clipdata_request lock)
+            {
+                s11n::recycle_cliprequest(intio, lock);
+            }
+            void handle(s11n::xs::tooltips         lock)
+            {
+                auto copy = lock.thing;
+                //todo implement
+                //owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                //{
+                //    for (auto& tooltip : tooltips)
+                //    {
+                //        if (auto gear_ptr = boss.bell::getref<hids>(tooltip.gear_id))
+                //        {
+                //            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
+                //        }
+                //    }
+                //});
+            }
+            void handle(s11n::xs::fullscreen     /*lock*/)
+            {
+                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
+                else                                  owner.set_state(state::maximized);
+            }
+            void handle(s11n::xs::maximize       /*lock*/)
+            {
+                //todo diff fullscreen and maximized
+                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
+                else                                  owner.set_state(state::maximized);
+            }
+            void handle(s11n::xs::minimize       /*lock*/)
+            {
+                if (owner.fsmode == state::minimized) owner.set_state(state::normal);
+                else                                  owner.set_state(state::minimized);
+            }
+            void handle(s11n::xs::expose         /*lock*/)
+            {
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                {
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                });
+            }
+            void handle(s11n::xs::focus_cut        lock)
+            {
+                auto& item = lock.thing;
+                // We are the focus tree endpoint. Signal back the focus set up.
+                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = item.gear_id }));
+
+            }
+            void handle(s11n::xs::focus_set        lock)
+            {
+                auto& item = lock.thing;
+                // We are the focus tree endpoint. Signal back the focus set up.
+                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
+            }
+            void handle(s11n::xs::keybd_event      lock)
+            {
+                auto& gear = *gears;
+                auto& keybd = lock.thing;
+                gear.alive    = true;
+                gear.ctlstate = keybd.ctlstat;
+                gear.extflag  = keybd.extflag;
+                gear.virtcod  = keybd.virtcod;
+                gear.scancod  = keybd.scancod;
+                gear.pressed  = keybd.pressed;
+                gear.cluster  = keybd.cluster;
+                gear.handled  = keybd.handled;
+                owner.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
+            };
+            void handle(s11n::xs::mouse_event      lock)
+            {
+                auto& gear = *gears;
+                auto& mouse = lock.thing;
+                auto basis = gear.owner.base::coor();
+                owner.global(basis);
+                gear.replay(mouse.cause, mouse.coord - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whldt, mouse.hzwhl);
+                gear.pass<tier::release>(owner.This(), gear.owner.base::coor(), true);
+            }
+            void handle(s11n::xs::warping          lock)
+            {
+                auto& warp = lock.thing;
+                owner.warp_window(warp.warpdata);
+            }
+            void handle(s11n::xs::fps            /*lock*/)
+            {
+                //todo revise
+                //owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                //{
+                //    owner.SIGNAL(tier::general, e2::config::fps, fps);
+                //});
+            }
+            void handle(s11n::xs::logs             lock)
+            {
+                s11n::recycle_log(lock, os::process::id.second);
+            }
+            void handle(s11n::xs::fatal          /*lock*/)
+            {
+                //todo revise
+                //owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                //{
+                //    owner.errmsg = owner.genmsg(utf8);
+                //    owner.deface();
+                //});
+            }
+            void handle(s11n::xs::sysclose       /*lock*/)
+            {
+                //todo revise
+                owner.manager::close();
+                //owner.active.exchange(faux);
+                //owner.stop(true);
+            }
+            void handle(s11n::xs::sysstart       /*lock*/)
+            {
+                //todo revise
+                //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                //{
+                //    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
+                //});
+            }
+            void handle(s11n::xs::cwd            /*lock*/)
+            {
+                //todo revise
+                //owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                //{
+                //    owner.RISEUP(tier::preview, e2::form::prop::cwd, path);
+                //});
+            }
+            struct
+            {
+                span tooltip_timeout;
+                si32 clip_preview_glow;
+                cell clip_preview_clrs;
+                byte clip_preview_alfa;
+                span dblclick_timeout;
+            }
+            props{};
+
+            evnt(window& owner, ui::pipe& intio)
+                : s11n{ *this },
+                 owner{ owner },
+                 intio{ intio },
+                 alive{ true },
+                 gears{ owner.bell::create<hids>(props, owner, s11n::bitmap_dtvt.freeze().thing.image) }
+            {
+                auto& gear = *gears;
+                m.gear_id = gear.id;
+                k.gear_id = gear.id;
+                f.gear_id = gear.id;
+                p.gear_id = gear.id;
+                w.gear_id = gear.id;
+                m.enabled = input::hids::stat::ok;
+                m.coordxy = { si16min, si16min };
+                c.fast = true;
+                w.winsize = owner.gridsz;
+            }
+        };
+
+        std::vector<byte> blink_synch;
+        si32              blink_count{};
+        ui::face head_grid;
+        ui::face foot_grid;
+
+        font fcache; // window: Font cache.
+        glyf gcache; // window: Glyph cache.
+        fp32 height; // window: Cell height in fp32 pixels.
+        twod gripsz; // window: Resizing grips size in pixels.
+        twod gridsz; // window: Window grid size in cells.
+        dent border; // window: Border around window for resizing grips (dent in pixels).
+        shad shadow; // window: Shadow generator.
+        grip szgrip; // window: Resizing grips UI-control.
+        twod mcoord; // window: Mouse cursor coord.
+        twod waitsz; // window: Window is waiting resize acknowledge.
+        bool inside; // window: Mouse is inside the client area.
+        bool seized; // window: Mouse is locked inside the client area.
+        bool mhover; // window: Mouse hover.
+        bool active; // window: Window is focused.
+        bool moving; // window: Window is in d_n_d state.
+        si32 fsmode; // window: Window size state.
+        rect normsz; // window: Non-fullscreen window area backup.
+        si32 reload; // window: Changelog for update.
+        si32 client; // window: Surface index for Client.
+        si32 blinky; // window: Surface index for blinking characters.
+        si32 header; // window: Surface index for Header.
+        si32 footer; // window: Surface index for Footer.
+        rect grip_l; // window: .
+        rect grip_r; // window: .
+        rect grip_t; // window: .
+        rect grip_b; // window: .
+        bool drop_shadow{ true }; // window: .
+        twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
+        span blinkrate; // window: .
+        bool blinking; // window: .
+        evnt proxy; // window: .
+        text toUTF8;
+        utfx point = {}; // window: Surrogate pair buffer.
+        si32 kbmod = {};
+
+        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
+
+        window(auth& indexer, rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
+            : base{ indexer },
+              titles{ *this, "", "", faux },
+              wfocus{ *this },
+              fcache{ font_names, cell_height },
+              gcache{ fcache, antialiasing },
+              height{ (fp32)fcache.cellsize.y },
+              gripsz{ grip_cell * fcache.cellsize },
+              gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
+              border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
+              shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
+              inside{},
+              seized{},
+              mhover{},
+              active{},
+              moving{},
+              fsmode{ state::undefined },
+              reload{ task::all },
+              client{ manager::add(this) },
+              blinky{ manager::add() },
+              header{ manager::add() },
+              footer{ manager::add() },
+              blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
+              blinking{ faux },
+              proxy{ *this, *os::dtvt::client }
+        {
+            if (!*this) return;
+            normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
+            layers[client].area = normsz;
+            size_window();
+        }
+        void sync_header_pixel_layout()
+        {
+            auto base_rect = layers[blinky].area;
+            auto header_height = head_grid.size().y * cellsz.y;
+            layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
+            layers[header].area.coor.y -= shadow_dent.b;
+        }
+        void sync_footer_pixel_layout()
+        {
+            auto base_rect = layers[blinky].area;
+            auto footer_height = foot_grid.size().y * cellsz.y;
+            layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
+            layers[footer].area.coor.y += shadow_dent.t;
+        }
+        void sync_titles_pixel_layout()
+        {
+            auto base_rect = layers[client].area;
+            grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
+            grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
+            grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
+            grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
+            sync_header_pixel_layout();
+            sync_footer_pixel_layout();
+        }
+        void reset_blinky()
+        {
+            if (active && layers[blinky].live) // Hide blinking layer to avoid visual desync.
+            {
+                layers[blinky].hide();
+                manager::present<true>();
+                layers[blinky].show();
+            }
+        }
+        void change_cell_size(fp32 dy = {}, twod resize_center = {})
+        {
+            reset_blinky();
+            auto grip_cell = gripsz / cellsz;
+            height = std::clamp(height + dy, 2.f, 256.f);
+            auto prev_cellsz = cellsz;
+            fcache.set_cellsz((si32)height);
+            gcache.reset();
+            gripsz = grip_cell * cellsz;
+            shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
+            if (fsmode == state::maximized)
+            {
+                normsz.size = normsz.size / prev_cellsz * cellsz;
+                auto over_sz = layers[client].area.size % cellsz;
+                auto half_sz = over_sz / 2;
+                border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
+                size_window();
             }
             else
             {
-                layers[client].area = normsz;
-                fsdent = {};
-                sync_pixel_size();
-                show(state::normal);
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                auto new_size = gridsz * cellsz + border;
+                auto old_size = layers[client].area.size;
+                auto xy_delta = resize_center - resize_center * new_size / std::max(dot_11, old_size);
+                layers[client].area.coor += xy_delta;
+                layers[client].area.size = new_size;
+                layers[blinky].area = layers[client].area - border;
+                sync_titles_pixel_layout();
             }
-            reload |= task::all;
-            //todo temp
-            refillgrid();
+        }
+        void set_aa_mode(bool mode)
+        {
+            log("%%AA mode %state%", prompt::gui, mode ? "enabled" : "disabled");
+            gcache.aamode = mode;
+            gcache.reset();
+            netxs::set_flag<task::all>(reload);
+        }
+        void update_header()
+        {
+            size_title(head_grid, titles.head_page);
+            sync_titles_pixel_layout();
+            netxs::set_flag<task::header>(reload);
+        }
+        void update_footer()
+        {
+            size_title(foot_grid, titles.foot_page);
+            sync_titles_pixel_layout();
+            netxs::set_flag<task::footer>(reload);
+        }
+        void set_font_list(auto& flist)
+        {
+            log("%%Font list changed: ", prompt::gui, flist);
+            fcache.set_fonts(flist, faux);
+            change_cell_size();
+            netxs::set_flag<task::all>(reload);
+        }
+        auto move_window(twod delta)
+        {
+            for (auto& w : layers) w.area.coor += delta;
+            netxs::set_flag<task::moved>(reload);
+        }
+        void drop_grips()
+        {
+            if (szgrip.seized) // drag stop
+            {
+                szgrip.drop();
+                netxs::set_flag<task::grips>(reload);
+            }
+        }
+        void set_state(si32 new_state)
+        {
+            if (fsmode == new_state && fsmode != state::normal) return; // Restore to normal if it was silently hidden by the system.
+            log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
+            auto old_state = std::exchange(fsmode, state::undefined);
+            if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
+            manager::sync_taskbar(new_state);
+            fsmode = new_state;
+            if (old_state == state::normal) normsz = layers[client].area;
+            if (fsmode == state::normal)
+            {
+                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
+                layers[client].area = normsz;
+                size_window();
+                for (auto l : { client, header, footer }) layers[l].show();
+                if (blink_count) layers[blinky].show();
+            }
+            else if (fsmode == state::minimized)
+            {
+                for (auto& l : layers) l.hide();
+            }
+            else if (fsmode == state::maximized)
+            {
+                drop_grips();
+                layers[client].area = manager::get_fs_area(layers[client].area - border);
+                auto over_sz = layers[client].area.size % cellsz;
+                auto half_sz = over_sz / 2;
+                border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
+                size_window();
+                layers[header].hide();
+                layers[footer].hide();
+                layers[client].show();
+                if (blink_count) layers[blinky].show();
+            }
+            netxs::set_flag<task::all>(reload);
+            netxs::set_flag<input::hids::Fullscrn>(kbmod, fsmode == state::maximized);
         }
         void check_fsmode(arch hWnd)
         {
             if ((arch)(layers[client].hWnd) != hWnd) return;
-            if (layers.empty()) return;
-            if (fsmode)
+            if (fsmode == state::undefined || layers.empty()) return;
+            auto unsync = true;
+            if (auto lock = bell::try_sync()) // Try to sync with ui thread for fast checking.
             {
-                auto fs_area = get_fs_area(layers[client].area);
-                if (fs_area != layers[client].area)
+                if (fsmode == state::maximized)
                 {
-                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    avail_area.coor += gripsz;
-                    avail_area.size -= std::min(avail_area.size, normsz.size + gripsz * 2);
-                    normsz.coor = avail_area.clamp(normsz.coor);
-                    set_fullscreen_mode(faux);
+                    auto fs_area = manager::get_fs_area(layers[client].area);
+                    unsync = fs_area != layers[client].area;
                 }
+                else if (fsmode == state::normal)
+                {
+                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    unsync = !avail_area.trim(layers[client].area);
+                }
+                else unsync = faux;
             }
-            else
+            if (unsync) bell::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
             {
-                auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                if (!avail_area.trim(layers[client].area))
+                if (fsmode == state::maximized)
                 {
-                    auto area = layers[client].area;
-                    avail_area.coor += gripsz;
-                    avail_area.size -= std::min(avail_area.size, area.size + gripsz * 2);
-                    auto delta = avail_area.clamp(area.coor) - area.coor;
-                    manager::moveby(delta);
+                    auto fs_area = manager::get_fs_area(layers[client].area);
+                    if (fs_area != layers[client].area)
+                    {
+                        auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                        avail_area.size -= std::min(avail_area.size, normsz.size);
+                        normsz.coor = avail_area.clamp(normsz.coor);
+                        set_state(state::normal);
+                        netxs::set_flag<task::all>(reload);
+                    }
                 }
-            }
-            for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
-            reload |= task::all;
+                else if (fsmode == state::normal)
+                {
+                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    if (!avail_area.trim(layers[client].area))
+                    {
+                        auto area = layers[client].area;
+                        avail_area.size -= std::min(avail_area.size, area.size);
+                        auto delta = avail_area.clamp(area.coor) - area.coor;
+                        move_window(delta);
+                        sync_titles_pixel_layout(); // Align grips and shadow.
+                    }
+                }
+                if (fsmode != state::minimized)
+                {
+                    for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                    netxs::set_flag<task::moved>(reload);
+                }
+                update_gui();
+            });
         }
-        void recalc_layout()
+        void size_title(ui::face& title_grid, ui::page& title_page)
         {
-            auto c_size = gridsz;
-            h_size = gridsz;
-            f_size = gridsz;
-            main_grid.calc_page_height(canvas_page, c_size);
-            head_grid.calc_page_height(header_page, h_size);
-            head_grid.calc_page_height(footer_page, f_size);
-            footer_page = ansi::wrp(wrap::on).jet(bias::right).fgc(tint::purewhite).add(scroll_pos.x, ":", scroll_pos.y, "/", c_size.y, " ",gridsz.x, ":", gridsz.y);
-            sync_pixel_size();
+            auto grid_size = gridsz;
+            title_grid.calc_page_height(title_page, grid_size);
+            title_grid.size(grid_size);
+            title_grid.wipe();
+            title_grid.cup(dot_00);
+            title_grid.output(title_page, cell::shaders::contrast);
         }
-        auto move_window(twod coor_delta)
-        {
-            manager::moveby(coor_delta);
-            reload |= task::moved;
-        }
-        auto size_window(twod size_delta, bool wipe = faux)
+        void size_window(twod size_delta = {})
         {
             layers[client].area.size += size_delta;
-            recalc_layout();
-            reload |= task::sized;
-            //todo temp
-            refillgrid(wipe);
+            layers[blinky].area = layers[client].area - border;
+            gridsz = layers[blinky].area.size / cellsz;
+            blink_synch.assign(gridsz.x * gridsz.y, 0);
+            if (fsmode != state::maximized)
+            {
+                size_title(head_grid, titles.head_page);
+                size_title(foot_grid, titles.foot_page);
+                sync_titles_pixel_layout();
+            }
+            netxs::set_flag<task::sized>(reload);
+            if (proxy.w.winsize != gridsz)
+            {
+                waitsz = gridsz;
+                proxy.w.winsize = gridsz;
+                proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
+            }
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[client].area;
+            auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
-            size_delta = dot_00;
-            if (gridsz != new_gridsz)
+            size_delta = new_gridsz * cellsz - old_client.size;
+            if (size_delta)
             {
-                gridsz = new_gridsz;
-                size_delta = gridsz * cellsz - old_client.size;
                 size_window(size_delta);
             }
             return size_delta;
         }
-        auto warp_window(dent warp_delta)
+        dent warp_window(dent warp_delta)
         {
-            auto old_client = layers[client].area;
+            auto old_client = layers[blinky].area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
             {
-                gridsz = new_gridsz;
-                auto size_delta = gridsz * cellsz - old_client.size;
+                auto size_delta = new_gridsz * cellsz - old_client.size;
                 auto coor_delta = new_client.coor - old_client.coor;
                 size_window(size_delta);
                 move_window(coor_delta);
             }
             return layers[client].area - old_client;
         }
-        void fill_back(auto& grid_cells)
-        {
-            auto rtc = argb{ tint::pureblue  };//.alpha(0.5f);
-            auto ltc = argb{ tint::pureblack };
-            auto rbc = argb{ tint::purered };
-            auto lbc = argb{ tint::puregreen  };//.alpha(0.5f);
-            auto white = argb{ tint::whitedk };
-            auto black = argb{ tint::blackdk };
-            auto lc = ltc;
-            auto rc = rtc;
-            auto x = 0.f;
-            auto y = 0.f;
-            auto m = std::max(dot_11, grid_cells.size() - dot_11);
-            auto eol = [&]
-            {
-                x = 0.f;
-                auto dc = ++y / m.y;
-                lc = argb::transit(ltc, lbc, dc);
-                rc = argb::transit(rtc, rbc, dc);
-            };
-            auto fx = [&](cell& c)
-            {
-                auto dc = x++ / m.x;
-                if (!c.bgc()) c.bgc(argb::transit(lc, rc, dc));
-            };
-            netxs::onrect(grid_cells, grid_cells.area(), fx, eol);
-        }
         bool hit_grips()
         {
-            auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + border;
-            auto hit = !szgrip.zoomon && (szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord)));
+            if (fsmode == state::maximized || szgrip.zoomon) return faux;
+            auto inner_rect = layers[blinky].area;
+            auto outer_rect = layers[client].area;
+            auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
             return hit;
-        }
-        void fill_grips(rect area, auto fx)
-        {
-            for (auto g : { grip_l, grip_r, grip_t, grip_b })
-            {
-                auto& layer = layers[g];
-                if (auto r = layer.area.trim(area))
-                {
-                    auto canvas = layer.canvas();
-                    fx(canvas, r);
-                }
-            }
         }
         void draw_grips()
         {
+            if (fsmode == state::maximized) return;
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
-            auto inner_rect = layers[client].area;
-            auto outer_rect = layers[client].area + border;
-            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::misc::fill(canvas, r, cell::shaders::full(trans)); });
+            auto& layer = layers[client];
+            auto canvas = layer.canvas();
+            canvas.move(dot_00);
+            auto outer_rect = canvas.area();
+            auto inner_rect = outer_rect - border;
+            auto fill_grips = [&](rect area, auto fx)
+            {
+                for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+                {
+                    if (auto r = g_area.trim(area)) fx(canvas, r);
+                }
+            };
+            fill_grips(outer_rect, [](auto& canvas, auto r){ netxs::onrect(canvas, r, cell::shaders::full(trans)); });
             if (hit_grips())
             {
                 auto s = szgrip.sector;
                 auto [side_x, side_y] = szgrip.layout(outer_rect);
                 auto dent_x = dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 };
                 auto dent_y = dent{ s.x > 0, s.x < 0, 1, 1 };
-                fill_grips(side_x, [&](auto& canvas, auto r)
+                fill_grips(side_x, [&, &side_x = side_x](auto& canvas, auto r) //todo &side_x: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_x, dent_x, cell::shaders::full(black)); // 1-px dark contour around.
                 });
-                fill_grips(side_y, [&](auto& canvas, auto r)
+                fill_grips(side_y, [&, &side_y = side_y](auto& canvas, auto r) //todo &side_y: Apple clang still disallows capturing structured bindings
                 {
-                    netxs::misc::fill(canvas, r, cell::shaders::full(shade));
+                    netxs::onrect(canvas, r, cell::shaders::full(shade));
                     netxs::misc::cage(canvas, side_y, dent_y, cell::shaders::full(black)); // 1-px dark contour around.
                 });
             }
@@ -1733,18 +2537,43 @@ Using large type pieces:
             {
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
+            for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+            {
+                //todo push diffs only
+                layer.sync.push_back(g_area);
+            }
         }
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
             auto canvas = layers[index].canvas(true);
-            gcache.fill_grid(canvas, shadow_dent.corner(), facedata);
+            auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
+            auto title_blink_count = 0;
+            gcache.fill_grid(canvas, blinks, title_blink_count, shadow_dent.corner(), facedata);
             netxs::misc::contour(canvas); // 1ms
+            layers[index].sync.push_back({ .size = canvas.size() });
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
-        void update()
+        void check_blinky()
         {
-            if (!reload) return;
+            if (blinking != !!blink_count)
+            {
+                blinking = !!blink_count;
+                if (blink_count)
+                {
+                    if (blinkrate != span::zero()) layers[client].start_timer(blinkrate, timers::blink);
+                    else                           layers[blinky].show();
+                }
+                else
+                {
+                    if (active && layers[blinky].live) layers[blinky].hide();
+                    layers[client].stop_timer(timers::blink);
+                }
+            }
+        }
+        void update_gui()
+        {
+            if (!reload || waitsz) return;
             auto what = reload;
             reload = {};
                  if (what == task::moved) manager::present<true>();
@@ -1753,275 +2582,550 @@ Using large type pieces:
                 if (what & (task::sized | task::inner))
                 {
                     auto canvas = layers[client].canvas();
-                    fill_back(main_grid);
-                    gcache.fill_grid(canvas, fsdent.corner(), main_grid); // 0.500 ms);
-                    if (fsmode && (what & task::sized)) netxs::misc::cage(canvas, canvas.area(), fsdent, cell::shaders::full(argb{ tint::pureblack }));
+                    auto blinks = layers[blinky].canvas(true);
+                    canvas.move(dot_00);
+                    auto dirty_area = canvas.area() - border;
+                    blink_count = 0;
+                    {
+                        //todo update while sync
+                        auto bitmap_lock = proxy.bitmap_dtvt.freeze();
+                        auto& main_grid = bitmap_lock.thing.image;
+                        gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid);
+                    }
+                    check_blinky();
+                    if (fsmode == state::maximized && (what & task::sized))
+                    {
+                        netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
+                        dirty_area += border;
+                    }
+                    layers[client].strike(dirty_area);
+                    layers[blinky].strike({ .size = layers[blinky].area.size });
                 }
-                if (!fsmode)
+                if (fsmode == state::normal)
                 {
                     if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                //if (layers[client].area.hittest(mcoord))
-                //{
-                //    auto cursor = rect{ mcoord - (mcoord - layers[client].area.coor) % cellsz, cellsz };
-                //    netxs::onrect(layers[client].canvas(), cursor, cell::shaders::full(0x7F'00'3f'00));
-                //}
                 manager::present();
             }
         }
-        auto& kbs()
+        void mouse_wheel(si32 delta, bool hz)
         {
-            static auto state_kb = 0;
-            return state_kb;
-        }
-        auto keybd_state()
-        {
-            //todo unify
-            auto state = hids::LShift   * !!::GetAsyncKeyState(VK_LSHIFT)
-                       | hids::RShift   * !!::GetAsyncKeyState(VK_RSHIFT)
-                       | hids::LWin     * !!::GetAsyncKeyState(VK_LWIN)
-                       | hids::RWin     * !!::GetAsyncKeyState(VK_RWIN)
-                       | hids::LAlt     * !!::GetAsyncKeyState(VK_LMENU)
-                       | hids::RAlt     * !!::GetAsyncKeyState(VK_RMENU)
-                       | hids::LCtrl    * !!::GetAsyncKeyState(VK_LCONTROL)
-                       | hids::RCtrl    * !!::GetAsyncKeyState(VK_RCONTROL)
-                       | hids::ScrlLock * !!::GetKeyState(VK_SCROLL)
-                       | hids::NumLock  * !!::GetKeyState(VK_NUMLOCK)
-                       | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
-            return state;
-        }
-        void mouse_wheel(si32 delta, si32 cntrl, bool hz)
-        {
+            if (delta == 0) return;
             auto wheeldt = delta / 120.f;
-            auto kb = keybd_state();//kbs();
-            //if (kb & hids::LCtrl)
-            //log("cntrl=", utf::to_hex(cntrl));
-            if (cntrl & MK_CONTROL)
+            if (inside)
             {
-                change_cell_size(wheeldt);
-                reload |= task::all;
-                return;
-            }
-            //else if (kb & hids::LAlt)
-            else if (cntrl & MK_SHIFT)
-            {
-                netxs::_k1 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-                log("_k0=", _k0, "_k1=", _k1);
-                change_cell_size();
-                reload |= task::all;
-                return;
-            }
-            //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
-            //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-            //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
-            //else if (kb & hids::RCtrl)                netxs::_k3 += wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
-            //shadow = build_shadow_corner(cellsz.x);
-            //reload |= task::sized;
-            //netxs::_k0 += wheeldt > 0 ? 1 : -1;
-            //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
-
-            //todo Activate it in another way.
-            if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
-            {
-                if (!szgrip.zoomon)
-                {
-                    szgrip.zoomdt = {};
-                    szgrip.zoomon = true;
-                    szgrip.zoomsz = layers[client].area;
-                    szgrip.zoomat = mcoord;
-                    mouse_capture();
-                }
+                proxy.m.changed++;
+                proxy.m.timecod = datetime::now();
+                proxy.m.ctlstat = proxy.k.ctlstat;
+                proxy.m.hzwheel = hz;
+                proxy.m.wheeldt = wheeldt;
+                proxy.mouse(proxy.m);
+                proxy.m.hzwheel = {};
+                proxy.m.wheeldt = {};
             }
             else
             {
-                if (szgrip.zoomon)
+                bell::enqueue(This(), [&, wheeldt](auto& /*boss*/)
                 {
-                    szgrip.zoomon = faux;
-                    mouse_release();
-                }
-                hz ? scroll_pos.x += (si32)wheeldt
-                   : scroll_pos.y += (si32)wheeldt;
-                size_window({}, true);
-                reload |= task::all;
-                reload &= ~task::sized;
+                    //if (gear.meta(hids::anyCtrl))
+                    {
+                        change_cell_size(wheeldt, mcoord - layers[client].area.coor);
+                        netxs::set_flag<task::all>(reload);
+                        update_gui();
+                    }
+                });
             }
-            if (szgrip.zoomon)
-            {
-                auto warp = dent{ gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                auto step = szgrip.zoomdt + warp * (si32)wheeldt;
-                auto next = szgrip.zoomsz + step;
-                next.size = std::max(dot_00, next.size);
-                ///auto viewport = ...get max win size (multimon)
-                //next.trimby(viewport);
-                if (warp_window(next - layers[client].area)) szgrip.zoomdt = step;
-            }
+        }
+        void send_mouse_halt()
+        {
+            proxy.m.changed++;
+            proxy.m.timecod = datetime::now();
+            proxy.m.enabled = hids::stat::halt;
+            proxy.mouse(proxy.m);
+            proxy.m.enabled = hids::stat::ok;
         }
         void mouse_leave()
         {
             mhover = faux;
-            if (szgrip.leave()) reload |= task::grips;
+            if (szgrip.leave()) netxs::set_flag<task::grips>(reload);
+            send_mouse_halt();
         }
-        void mouse_shift(twod coord)
+        void resize_by_grips(twod coord)
         {
-            mhover = true;
-            auto kb = kbs();// keybd_state();
-            auto inner_rect = layers[client].area - fsdent;
-            if (mbttns & bttn::right)
+            auto inner_rect = layers[blinky].area;
+            auto zoom = proxy.k.ctlstat & hids::anyCtrl;
+            auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
+            auto old_client = layers[blinky].area;
+            auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
+            size_delta = new_gridsz * cellsz - old_client.size;
+            if (size_delta)
             {
-                scroll_delta += coord - mcoord;
-                if (scroll_pos(scroll_origin + scroll_delta / cellsz))
+                //todo sync ui
+                if (auto move_delta = szgrip.move(size_delta, zoom))
                 {
-                    size_window({}, true);
-                    reload |= task::all;
-                    reload &= ~task::sized;
+                    move_window(move_delta);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
                 }
+                resize_window(size_delta);
             }
-            else if (hit_grips() || szgrip.seized)
+        }
+        void mouse_moved(twod coord)
+        {
+            auto& mbttns = proxy.m.buttons;
+            mhover = true;
+            auto inner_rect = layers[blinky].area;
+            auto ingrip = hit_grips();
+            //if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
+            //{
+            //    moving = faux;
+            //}
+            if ((!seized && ingrip) || szgrip.seized)
             {
-                if (mbttns & bttn::left)
+                if (mbttns == bttn::right && fsmode == state::normal) // Move window.
+                {
+                    moving = true;
+                }
+                else if (mbttns == bttn::left)
                 {
                     if (!szgrip.seized) // drag start
                     {
                         szgrip.grab(inner_rect, mcoord, border, cellsz);
                     }
-                    auto zoom = kb & hids::anyCtrl;
-                    auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
-                    if (auto dxdy = resize_window(size_delta))
+                    bell::enqueue(This(), [&, coord](auto& /*boss*/)
                     {
-                        if (auto move_delta = szgrip.move(dxdy, zoom))
-                        {
-                            move_window(move_delta);
-                        }
-                    }
+                        resize_by_grips(coord);
+                    });
                 }
-                else if (szgrip.seized) // drag stop
-                {
-                    szgrip.drop();
-                    reload |= task::grips;
-                }
+                else drop_grips();
             }
-            if (szgrip.zoomon && !(kb & hids::anyCtrl))
+            if (!moving && !seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
-                szgrip.zoomon = faux;
-                mouse_release();
+                netxs::set_flag<task::grips>(reload);
             }
-            if (szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
-            {
-                reload |= task::grips;
-            }
-            if (!szgrip.seized && (mbttns & bttn::left))
+            if (moving && fsmode == state::normal)
             {
                 if (auto dxdy = coord - mcoord)
                 {
-                    if (fsmode) set_fullscreen_mode(faux);
-                    manager::moveby(dxdy);
-                    reload |= task::moved;
+                    mcoord = coord;
+                    bell::enqueue(This(), [&, dxdy](auto& /*boss*/)
+                    {
+                        //todo revise
+                        //if (fsmode == state::maximized) set_state(state::normal);
+                        move_window(dxdy);
+                        sync_titles_pixel_layout(); // Align grips and shadow.
+                        update_gui();
+                    });
                 }
+                return;
             }
             mcoord = coord;
-            if (!mbttns)
+            auto new_state = !szgrip.seized && (seized || (border.t ? inner_rect : inner_rect - dent{ 0,0,1,0 }).hittest(mcoord)); // Allow 1px border at the top of the maximized window.
+            auto leave = std::exchange(inside, new_state) != inside;
+            auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+            auto changed = proxy.m.coordxy(coordxy);
+            if (inside)
             {
-                static auto s = testy{ faux };
-                reload |= s(hit_grips()) ? task::grips | task::inner
-                                     : s ? task::grips : task::inner;
+                if (changed)
+                {
+                    auto timecode = datetime::now();
+                    proxy.m.changed++;
+                    proxy.m.timecod = timecode;
+                    proxy.mouse(proxy.m);
+                }
+            }
+            else if (leave) // Mouse leaves viewport.
+            {
+                send_mouse_halt();
+            }
+            if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
+            {
+                netxs::set_flag<task::grips>(reload);
             }
         }
         void mouse_press(si32 button, bool pressed)
         {
-            static auto dblclick = datetime::now() - 1s;
-            if (pressed && !mbttns) mouse_capture();
-            pressed ? mbttns |= button
-                    : mbttns &= ~button;
-            if (!mbttns) mouse_release();
-            //if (!pressed & (button == bttn::right)) manager::close();
-            if (!pressed & (button == bttn::left))
+            auto& mbttns = proxy.m.buttons;
+            auto prev_state = mbttns;
+            auto changed = std::exchange(mbttns, pressed ? mbttns | button : mbttns & ~button) != mbttns;
+            if (pressed)
             {
-                if (datetime::now() - dblclick < 500ms)
+                if (!prev_state)
                 {
-                    set_fullscreen_mode(!fsmode);
-                    dblclick -= 1s;
+                    mouse_capture();
+                    if (inside) seized = true;
                 }
-                else dblclick = datetime::now();
             }
-            if (pressed & (button == bttn::right))
+            else if (!mbttns)
             {
-                scroll_origin = scroll_pos;
-                scroll_delta = {};
+                mouse_release();
+                seized = faux;
+            }
+            if (pressed)
+            {
+                //if (moving && prev_state) // Stop GUI window dragging if any addition mouse button pressed.
+                //{
+                //    moving = faux;
+                //}
+            }
+            else
+            {
+                if (button == bttn::left) drop_grips();
+                //moving = faux; // Stop GUI window dragging if any button released.
+            }
+            if (moving) // Don't report mouse clicks while dragging window.
+            {
+                if (!mbttns) moving = faux;
+                return;
+            }
+            static auto dblclick = datetime::now() - 1s;
+            if (changed && (seized || inside))
+            {
+                auto timecode = datetime::now();
+                proxy.m.changed++;
+                proxy.m.timecod = timecode;
+                proxy.mouse(proxy.m);
+            }
+            else
+            {
+                if (!pressed && button == bttn::left) // Maximize window by dbl click on resizing grips.
+                {
+                    if (datetime::now() - dblclick < 500ms)
+                    {
+                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                        dblclick -= 1s;
+                    }
+                    else
+                    {
+                        dblclick = datetime::now();
+                    }
+                }
+            }
+        }
+        void sync_kbstat(view cluster = {}, bool pressed = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
+        {
+            #if defined(_WIN32)
+            auto cs = 0;
+            if (extflag) cs |= ENHANCED_KEY;
+            if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
+            if (kbstate[VK_LMENU   ] & 0x80) cs |= LEFT_ALT_PRESSED;
+            if (kbstate[VK_RCONTROL] & 0x80) cs |= RIGHT_CTRL_PRESSED;
+            if (kbstate[VK_LCONTROL] & 0x80) cs |= LEFT_CTRL_PRESSED;
+            if (kbstate[VK_SHIFT   ] & 0x80) cs |= SHIFT_PRESSED;
+            if (kbstate[VK_NUMLOCK ] & 0x01) cs |= NUMLOCK_ON;
+            if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
+            if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
+            auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
+            if (modstat.repeats) return; // We don't repeat modifiers.
+            else
+            {
+                if (modstat.changed || proxy.k.ctlstat != kbmod)
+                {
+                    proxy.k.ctlstat = kbmod;
+                    proxy.m.ctlstat = kbmod;
+                    proxy.m.timecod = datetime::now();
+                    proxy.m.changed++;
+                    proxy.mouse(proxy.m); // Fire mouse event to update kb modifiers.
+                }
+                proxy.k.extflag = extflag;
+                proxy.k.virtcod = virtcod;
+                proxy.k.scancod = scancod;
+                proxy.k.pressed = pressed;
+                proxy.k.keycode = input::key::xlat(virtcod, scancod, cs);
+                proxy.k.cluster = cluster;
+                proxy.keybd(proxy.k);
+            }
+            #else
+            if (cluster.empty() || pressed || virtcod || scancod || extflag)
+            {
+                //...
+            }
+            #endif
+        }
+        void keybd_paste(arch wide_char)
+        {
+            if (utf::to_code((wchr)wide_char, point))
+            {
+                auto pressed = true;
+                toUTF8.clear();
+                utf::to_utf_from_code(point, toUTF8);
+                sync_kbstat(toUTF8, pressed);
+                point = {};
             }
         }
         void keybd_press(arch vkey, arch lParam)
         {
-            union key_state
+            auto virtcod = std::clamp((si32)vkey, 0, 255);
+            if (virtcod || lParam)
+            {
+                //...
+            }
+            #if defined(_WIN32)
+
+            union key_state_t
             {
                 ui32 token;
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
-                    ui32 scancode : 9; // 16-24 (24 - extended)
-                    ui32 reserved : 5; // 25-29 (29 - context)
+                    si32 scancode : 9; // 16-24 (24 - extended)
+                    ui32 reserved : 4; // 25-28 (reserved)
+                    ui32 context  : 1; // 29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
-            auto param = key_state{ .token = (ui32)lParam };
-            //log("vkey: ", utf::to_hex(vkey),
-            //    " scode: ", utf::to_hex(param.v.scancode),
-            //    " state: ", param.v.state == 0 ? "pressed"
-            //              : param.v.state == 1 ? "rep"
-            //              : param.v.state == 3 ? "released" : "unknown");
-            kbs() = keybd_state();
-            if (vkey == 0x1b) manager::close();
-            else if (vkey == 'A' && param.v.state == 3) // Toggle aa mode.
+            auto param = key_state_t{ .token = (ui32)lParam };
+            if (param.v.state == 2/*unknown*/) return;
+            auto pressed = param.v.state == 0;
+            auto repeat = param.v.state == 1;
+            auto extflag = !!(param.v.scancode >> 9);
+            auto scancod = param.v.scancode;
+            auto to_WIDE = std::array<wchr, 32>{};
+            auto sc = !(pressed || repeat) ? scancod | 0x8000 : scancod; // 15-bit indicate pressed state for ToUnicodeEx.
+            auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
+                                     sc,                   // UINT wScanCode,
+                                     kbstate.data(),       // const BYTE *lpKeyState,
+                                     to_WIDE.data(),       // [out] LPWSTR pwszBuff,
+                                     (si32)to_WIDE.size(), // [in]  int    cchBuff,
+                                     0,                    // [in]  UINT   wFlags, - 0: Process Alt+Numpad, 1: Do not process Alt+Numpad
+                                     0);                   // [in, optional] HKL dwhkl
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            if (len >= 0)
             {
-                gcache.aamode = !gcache.aamode;
-                print_font_list(true);
-                set_aa_mode(gcache.aamode);
+                toUTF8.clear();
+                if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
+                sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
-            else if (vkey == VK_F11 && param.v.state == 3) // Toggle fullscreen mode.
+            //print_kbstate("key press:");
+            //if (virtcod == 'A' && param.v.state == 3) // Toggle AA mode.
+            //{
+            //    set_aa_mode(!gcache.aamode);
+            //}
+            if (pressed)
             {
-                set_fullscreen_mode(!fsmode);
-            }
-            else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
-            {
-                auto flen = fcache.families.size();
-                auto index = vkey == 0x30 ? fcache.families.size() - 1 : vkey - 0x30;
-                if (index > 0 && index < flen)
+                if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
                 {
-                    auto& flist = fcache.families;
-                    auto iter = flist.begin();
-                    std::advance(iter, index);
-                    flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
-                    set_font_list(flist);
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                    });
+                }
+                else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        manager::close();
+                    });
                 }
             }
-            //auto s = keybd_state();
-            //log("keybd ", utf::to_bin(s));
-            //static auto keybd_state = std::array<byte, 256>{};
-            //::GetKeyboardState(keybd_state.data());
-            //auto l_shift = keybd_state[VK_LSHIFT];
-            //auto r_shift = keybd_state[VK_RSHIFT];
-            //auto l_win   = keybd_state[VK_LWIN];
-            //auto r_win   = keybd_state[VK_RWIN];
-            //bool alt     = keybd_state[VK_MENU];
-            //bool l_alt   = keybd_state[VK_LMENU];
-            //bool r_alt   = keybd_state[VK_RMENU];
-            //bool l_ctrl  = keybd_state[VK_LCONTROL];
-            //bool r_ctrl  = keybd_state[VK_RCONTROL];
-            //log("keybd",
-            //    "\n\t l_shift ", utf::to_hex(l_shift ),
-            //    "\n\t r_shift ", utf::to_hex(r_shift ),
-            //    "\n\t l_win   ", utf::to_hex(l_win   ),
-            //    "\n\t r_win   ", utf::to_hex(r_win   ),
-            //    "\n\t alt     ", utf::to_hex(alt     ),
-            //    "\n\t l_alt   ", utf::to_hex(l_alt   ),
-            //    "\n\t r_alt   ", utf::to_hex(r_alt   ),
-            //    "\n\t l_ctrl  ", utf::to_hex(l_ctrl  ),
-            //    "\n\t r_ctrl  ", utf::to_hex(r_ctrl  ));
+            //else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
+            //{
+            //    auto flen = fcache.families.size();
+            //    auto index = virtcod == 0x30 ? fcache.families.size() - 1 : virtcod - 0x30;
+            //    if (index > 0 && index < flen)
+            //    {
+            //        auto& flist = fcache.families;
+            //        auto iter = flist.begin();
+            //        std::advance(iter, index);
+            //        flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
+            //        set_font_list(flist);
+            //        print_font_list(true);
+            //    }
+            //}
+            #endif
         }
         void focus_event(bool focused)
         {
-            log(focused ? "focused" : "unfocused");
+            if (active == focused) return;
+            active = focused;
+            if (active) activate(); // It must be called in current thread.
+            else        deactivate();
+            //os::logstd("", active ? "focused" : "unfocused");
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                if (active)
+                {
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = proxy.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
+                    sync_kbstat();
+                }
+                else
+                {
+                    sync_kbstat();
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = proxy.gears->id }));
+                }
+            });
+        }
+        //void state_event(bool activated, bool minimized)
+        //{
+        //    //todo revise
+        //    log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+        //    //if (!activated) set_state(state::minimized);
+        //    if (!activated && minimized) set_state(state::minimized);
+        //    else                         set_state(state::normal);
+        //}
+        void timer_event(arch eventid)
+        {
+            bell::enqueue(This(), [&, eventid](auto& /*boss*/)
+            {
+                if (fsmode == state::minimized || eventid != timers::blink) return;
+                auto visible = layers[blinky].live;
+                if (active && visible)
+                {
+                    layers[blinky].hide();
+                    netxs::set_flag<task::blink>(reload);
+                }
+                else if (!visible) // Do not blink without focus.
+                {
+                    layers[blinky].show();
+                    netxs::set_flag<task::blink>(reload);
+                }
+                update_gui();
+            });
+        }
+        void sys_command(si32 menucmd)
+        {
+            if (menucmd == syscmd::update && !reload) return;
+            bell::enqueue(This(), [&, menucmd](auto& /*boss*/)
+            {
+                //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
+                switch (menucmd)
+                {
+                    case syscmd::maximize: set_state(fsmode == state::maximized ? state::normal : state::maximized); break;
+                    case syscmd::minimize: set_state(state::minimized); break;
+                    case syscmd::restore:  set_state(state::normal);    break;
+                    //todo implement
+                    //case syscmd::move:          break;
+                    //case syscmd::monitorpower:  break;
+                    case syscmd::close:  manager::close(); break;
+                    case syscmd::update: update_gui(); break;
+                }
+            });
+        }
+        void sync_clipboard()
+        {
+            os::clipboard::sync((arch)layers[client].hWnd, proxy, proxy.intio, gridsz);
+        }
+        void connect(si32 win_state)
+        {
+            {
+                auto lock = bell::sync();
+                set_state(win_state);
+                update_gui();
+                manager::run();
+
+                LISTEN(tier::preview, e2::form::layout::expose, area)
+                {
+                    //todo
+                };
+                //auto accum_ptr = ptr::shared(dot_00);
+                LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
+                {
+                    if (fsmode != state::normal) return;
+                    //*accum_ptr = {};
+                    moving = true;
+                    send_mouse_halt();
+                    auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
+                    move_window(dxdy);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
+                };
+                //LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear, -, (accum_ptr)) // Move window only when mouse events get back.
+                //{
+                //    return;
+                //    if (moving)
+                //    if (fsmode == state::normal)
+                //    //if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
+                //    if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
+                //    {
+                //        //todo revise
+                //        //auto& accum = *accum_ptr;
+                //        //accum += dxdy;
+                //        //log("accum=", accum);
+                //        //auto threshold = 2 * cellsz.y;
+                //        //if (std::abs(accum.x) > threshold || std::abs(accum.y) > threshold)
+                //        //{
+                //        //    log("\tgo");
+                //        //    dxdy = accum;
+                //        //    accum = {};
+                //        //}
+                //        //else return;
+                //        /// send_mouse_halt();
+                //        //todo revise
+                //        //if (fsmode == state::maximized)
+                //        //{
+                //        //    auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
+                //        //    auto cur_blinky_size = normsz.size - gripsz * 2;
+                //        //    auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
+                //        //    normsz.coor = new_blinky_coor - gripsz;
+                //        //    set_state(state::normal);
+                //        //}
+                //        //else
+                //        {
+                //            move_window(dxdy);
+                //        }
+                //        sync_titles_pixel_layout(); // Align grips and shadow.
+                //        /// moving = true;
+                //    }
+                //};
+                LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                {
+                         if (fsmode == state::maximized) set_state(state::normal);
+                    else if (fsmode == state::normal)    set_state(state::maximized);
+                };
+                LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+                {
+                    //todo uncomment
+                    //if (gear.meta(hids::anyCtrl))
+                    {
+                        change_cell_size(gear.whldt, mcoord - layers[client].area.coor);
+                        netxs::set_flag<task::all>(reload);
+                    }
+                };
+                LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
+                {
+                    auto deed = this->bell::template protos<tier::release>();
+                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    {
+                        seed.guid = os::process::id.second;
+                    }
+                    proxy.focusbus.send(proxy.intio, seed.id, seed.guid, netxs::events::subindex(deed));
+                };
+                LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
+                {
+                    update_header(); // Update focus indicator.
+                };
+                LISTEN(tier::release, e2::form::prop::ui::header, utf8)
+                {
+                    if (utf8.length()) // Update os window title.
+                    {
+                        auto filtered = ui::para{ utf8 }.lyric->utf8();
+                        manager::set_window_title(filtered);
+                    }
+                };
+                LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
+                {
+                    update_footer();
+                };
+            }
+            auto winio = std::thread{[&]
+            {
+                auto sync = [&](view data)
+                {
+                    auto lock = bell::sync();
+                    proxy.sync(data);
+                    update_gui();
+                };
+                directvt::binary::stream::reading_loop(proxy.intio, sync);
+                proxy.stop(); // Wake up waiting objects, if any.
+                manager::close(); // Interrupt dispatching.
+            }};
+            dispatch();
+            {
+                auto lock = bell::sync();
+                proxy.gears.reset();
+            }
+            proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
+            winio.join();
         }
     };
 }

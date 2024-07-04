@@ -948,12 +948,12 @@ struct impl : consrv
                 }
             }
             mstate = bttns;
-            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheeldt);
+            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheeldt * 120);
             if (wheeldt)
             {
-                     if (gear.m_sys.wheeled) flags |= MOUSE_WHEELED;
-                else if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
                 bttns |= wheeldt << 16;
+                flags |= MOUSE_WHEELED;
+                if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
             }
             auto lock = std::lock_guard{ locker };
             stream.emplace_back(INPUT_RECORD
@@ -1211,6 +1211,11 @@ struct impl : consrv
                                 if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
                                 {
                                     while (n--) nums = nums * 10 + v - VK_NUMPAD0;
+                                    break;
+                                }
+                            case VK_RETURN:
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Ignore Alt+Enter.
+                                {
                                     break;
                                 }
                             default:
@@ -2300,8 +2305,9 @@ struct impl : consrv
     }
     void check_buffer_size(auto& console, auto& size)
     {
-        if (size.x > 165)
+        if (size.x > 1280)
         {
+            // Far Manager explicitly sets the buffer size as wide as viewport.
             // Just disable wrapping if user application requests too much (Explicit requirement for horizontal scrolling).
             // E.g. wmic requests { x=1500, y=300 }.
             //      Indep stat for dwSize.X = N: max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
@@ -2310,7 +2316,7 @@ struct impl : consrv
             console.style.wrp(faux);
             size.x = console.panel.x;
         }
-        if (size.y > 99)
+        if (size.y > 299)
         {
              // Applications usually request real viewport heights: 20, 24, 25, 50
              //         or extra large values for the scrollbuffer: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (stat for dwSize.Y = N)
@@ -4150,7 +4156,7 @@ struct impl : consrv
           "\n\twindow size: ", windowsz,
           "\n\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y },
           "\n\tpopup color: ", packet.input.popupcolor,
-          "\n\tfull screen: ", packet.input.fullscreen,
+          "\n\tfull screen: ", (si32)packet.input.fullscreen,
           "\n\trgb palette: ");
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
@@ -4166,7 +4172,7 @@ struct impl : consrv
             while (i < 16)
             {
                 auto m = netxs::swap_bits<0, 2>(i++); // ANSI<->DOS color scheme reindex.
-                *head++ = argb::swap_rb(rgbpalette[m]);
+                *head++ = argb::swap_rb(rgbpalette[m]) | 0xFF'00'00'00;
             }
         }
         unsync = true;

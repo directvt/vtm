@@ -55,7 +55,8 @@ namespace netxs::events::userland
 
                 SUBSET_XS( key )
                 {
-                    EVENT_XS( post, input::hids ),
+                    EVENT_XS( post   , input::hids ),
+                    EVENT_XS( imeview, input::hids ), // IME preview notification (only cluster has meaning).
                 };
                 SUBSET_XS( control )
                 {
@@ -616,8 +617,7 @@ namespace netxs::input
         tail delta{}; // mouse: History of mouse movements for a specified period of time.
         bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
         bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
-        bool scrll{}; // mouse: Vertical scrolling.
-        bool hzwhl{}; // mouse: Horizontal scrolling.
+        bool hzwhl{}; // mouse: If true: Horizontal scrolling. If faux: Vertical scrolling.
         fp32 whldt{}; // mouse: Scroll delta (1.f/120).
         si32 locks{}; // mouse: State of the captured buttons (bit field).
         si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
@@ -843,14 +843,12 @@ namespace netxs::input
             }
 
             coord = m_sys.coordxy;
-            if (m_sys.wheeled || m_sys.hzwheel)
+            if (m_sys.wheeldt)
             {
-                scrll = m_sys.wheeled;
                 hzwhl = m_sys.hzwheel;
                 whldt = m_sys.wheeldt;
                 fire(m_sys.wheeldt > 0 ? scrollup : scrolldn);
-                m_sys.wheeled = {}; // Clear one-shot events.
-                m_sys.hzwheel = {};
+                m_sys.hzwheel = {}; // Clear one-shot events.
                 m_sys.wheeldt = {};
             }
         }
@@ -926,6 +924,7 @@ namespace netxs::input
         si32 nullkey = key::Key2;
 
         text cluster{};
+        bool imeview{}; // keybd: IME preview (only cluster has meaning).
         bool extflag{};
         bool pressed{};
         bool handled{};
@@ -944,6 +943,7 @@ namespace netxs::input
         void update(syskeybd& k)
         {
             extflag = k.extflag;
+            imeview = k.imeview;
             pressed = k.pressed;
             virtcod = k.virtcod;
             scancod = k.scancod;
@@ -1147,6 +1147,7 @@ namespace netxs::input
             NumLock  = 1 << 12, // ⇭ Num Lock
             CapsLock = 1 << 13, // ⇪ Caps Lock
             ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
+            Fullscrn = 1 << 15, // Fullscreen mode
             AltGr    = LAlt   | LCtrl,
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,
@@ -1275,8 +1276,9 @@ namespace netxs::input
         kmap other_key; // hids: Dynamic key-vt mapping.
 
         template<class T>
-        hids(T& props, base& owner, core const& idmap)
-            : relay{ 0 },
+        hids(auth& indexer, T& props, base& owner, core const& idmap)
+            : bell{ indexer },
+              relay{ 0 },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
@@ -1403,13 +1405,15 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate)
+        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whldt, bool new_hzwhl)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
             ctlstate = new_ctlstate;
             mouse::coord = new_coord;
+            mouse::whldt = new_whldt;
+            mouse::hzwhl = new_hzwhl;
             mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(new_delta);
             mouse::load_button_state(new_button_state);
@@ -1441,7 +1445,7 @@ namespace netxs::input
         void take(sysmouse& m)
         {
             #if defined(DEBUG)
-            if (m.wheeled)
+            if (m.wheeldt)
             {
                 auto s = m.ctlstat;
                 auto alt     = s & hids::anyAlt ? 1 : 0;
@@ -1625,7 +1629,6 @@ namespace netxs::input
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
-                        m_sys.wheeled = {};
                         m_sys.wheeldt = {};
                         m_sys.hzwheel = {};
                     }
@@ -1638,7 +1641,8 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
+            if (keybd::imeview) owner.SIGNAL(tier::preview, hids::events::keybd::key::imeview, *this);
+            else                owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_paste()
         {

@@ -24,7 +24,6 @@
     #include <Psapi.h>               // ::GetModuleFileNameEx
     #include <winternl.h>            // ::NtOpenFile
     #include <Sddl.h>                // ::ConvertSidToStringSidA()
-    #include "gui.hpp"
     #pragma comment(lib, "User32")
     #pragma comment(lib, "UserEnv")
     #pragma comment(lib, "AdvAPI32") // ::StartService() for arm arch
@@ -751,18 +750,18 @@ namespace netxs::os
                             stack.pop_back();
                         }
                     }
-                    void decset(fifo& queue)
+                    void decset(fifo& q)
                     {
                         parser::flush();
-                        while (auto n = queue(0))
+                        while (auto n = q(0))
                         {
                             if (n == 25) cursor(true); // Show cursor and sync viewport.
                         }
                     }
-                    void decrst(fifo& queue)
+                    void decrst(fifo& q)
                     {
                         parser::flush();
-                        while (auto n = queue(0))
+                        while (auto n = q(0))
                         {
                             if (n == 25) cursor(faux); // Hide cursor.
                         }
@@ -852,7 +851,7 @@ namespace netxs::os
                     void data(si32 count, grid const& proto)
                     {
                         auto start = coord;
-                        auto panel = console::buffer;
+                        auto panel = std::max(dot_11, console::buffer);
                         coord.x += count;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
@@ -901,6 +900,7 @@ namespace netxs::os
                 {
                     modstate |= input::hids::LShift;
                 }
+                auto fsmode = modstate & input::hids::Fullscrn;
                 auto lshift = modstate & input::hids::LShift;
                 auto rshift = modstate & input::hids::RShift;
                 auto lwin   = modstate & input::hids::LWin;
@@ -913,6 +913,7 @@ namespace netxs::os
                 bool caps   = ms_ctrls & CAPSLOCK_ON;
                 bool scrl   = ms_ctrls & SCROLLLOCK_ON;
                 auto state  = si32{};
+                if (fsmode) state |= input::hids::Fullscrn;
                 if (lshift) state |= input::hids::LShift;
                 if (rshift) state |= input::hids::RShift;
                 if (lalt  ) state |= input::hids::LAlt;
@@ -1148,13 +1149,6 @@ namespace netxs::os
             arch += sizeof(size_t) == 4 ? "32-bit" : "64-bit";
             return std::pair{ "Windows"s, arch };
         }();
-        template<class ...Args>
-        void logstd(Args&&... args)
-        {
-            auto count = DWORD{};
-            auto yield = utf::concat(std::forward<Args>(args)..., "\n");
-            ::WriteFile(::GetStdHandle(STD_OUTPUT_HANDLE), yield.data(), (DWORD)yield.size(), &count, 0);
-        }
 
     #else
 
@@ -1256,6 +1250,17 @@ namespace netxs::os
 
     #endif
 
+    template<class ...Args>
+    void logstd(Args&&... args)
+    {
+        auto yield = utf::concat(std::forward<Args>(args)..., "\n");
+        #if defined(_WIN32)
+            auto count = DWORD{};
+            ::WriteFile(::GetStdHandle(STD_OUTPUT_HANDLE), yield.data(), (DWORD)yield.size(), &count, 0);
+        #else
+            ::write(stdout_fd, yield.data(), yield.size());
+        #endif
+    }
     template<class T, class E = std::invoke_result_t<decltype(os::error)>>
     struct syscall
     {
@@ -1940,6 +1945,93 @@ namespace netxs::os
             static auto cf_sec1 = ::RegisterClipboardFormatA("ExcludeClipboardContentFromMonitorProcessing");
             static auto cf_sec2 = ::RegisterClipboardFormatA("CanIncludeInClipboardHistory");
             static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
+
+            void sync(arch hWnd, auto& proxy, auto& client, twod& window_size)
+            {
+                if (!client) return;
+                auto sync = [&](qiew utf8, auto form)
+                {
+                    auto meta = qiew{};
+                    if (form == mime::disabled)
+                    {
+                        auto step = utf8.find(';');
+                        if (step != view::npos)
+                        {
+                            meta = utf8.substr(0, step++);
+                            utf8.remove_prefix(step);
+                        }
+                    }
+                    auto clipdata = proxy.clipdata.freeze();
+                    input::board::normalize(clipdata.thing, id_t{}, datetime::now(), window_size / 2, utf8, form, meta);
+                    auto crop = utf::trunc(clipdata.thing.utf8, window_size.y / 2); // Trim preview before sending.
+                    proxy.sysboard.send(client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
+                };
+                auto lock = std::lock_guard{ os::clipboard::mutex };
+                while (!::OpenClipboard((HWND)hWnd)) // Waiting clipboard access.
+                {
+                    if (os::error() != ERROR_ACCESS_DENIED)
+                    {
+                        auto error = utf::concat("::OpenClipboard()", os::unexpected, " code ", os::error());
+                        sync(error, mime::textonly);
+                        return;
+                    }
+                    std::this_thread::yield();
+                }
+                if (auto seqno = ::GetClipboardSequenceNumber(); seqno != os::clipboard::sequence)
+                {
+                    os::clipboard::sequence = seqno;
+                    if (auto format = ::EnumClipboardFormats(0))
+                    {
+                        auto hidden = ::GetClipboardData(os::clipboard::cf_sec1);
+                        if (auto hglb = ::GetClipboardData(os::clipboard::cf_ansi)) // Our clipboard format.
+                        {
+                            if (auto lptr = ::GlobalLock(hglb))
+                            {
+                                auto size = ::GlobalSize(hglb);
+                                auto data = view((char*)lptr, size - 1/*trailing null*/);
+                                sync(data, mime::disabled);
+                                ::GlobalUnlock(hglb);
+                            }
+                            else
+                            {
+                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
+                                sync(error, mime::textonly);
+                            }
+                        }
+                        else do
+                        {
+                            if (format == os::clipboard::cf_text)
+                            {
+                                hglb = ::GetClipboardData(format);
+                                if (hglb)
+                                if (auto lptr = ::GlobalLock(hglb))
+                                {
+                                    auto type = hidden ? mime::safetext : mime::textonly;
+                                    auto size = ::GlobalSize(hglb);
+                                    sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
+                                    ::GlobalUnlock(hglb);
+                                    break;
+                                }
+                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
+                                sync(error, mime::textonly);
+                            }
+                            else
+                            {
+                                //todo proceed other formats (rich/html/...)
+                            }
+                            format = ::EnumClipboardFormats(format);
+                        }
+                        while (format);
+                    }
+                    else sync(view{}, mime::textonly);
+                }
+                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
+            }
+        #else
+            void sync(auto&&...)
+            {
+                //...
+            }
         #endif
 
         auto set(input::clipdata& clipdata)
@@ -3363,10 +3455,11 @@ namespace netxs::os
         static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto window = rect{}; // dtvt: Initial window area.
+        static auto wingui = rect{}; // dtvt: Initial GUI window area.
         static auto client = xipc{}; // dtvt: Internal IO link.
         //static auto iconic = si32{}; // dtvt: Initial window state: normal = 0, minimized = 1, fullscreen = 2.
         //static auto uifont = std::list<text>{}; // dtvt: Font list for gui console.
-        //static auto cellsz = si32{}; // dtvt: Font size for gui console.
+        static auto cellsz = si32{}; // dtvt: Font size for gui console.
 
         auto consize()
         {
@@ -3395,9 +3488,9 @@ namespace netxs::os
                 log("%%Fallback tty window size %defsize% (consider using 'ssh -tt ...')", prompt::tty, winsz_fallback);
                 winsz = winsz_fallback;
             }
-            return winsz;
+            return std::max(dot_11, winsz);
         }
-        auto initialize(bool trygui = faux)
+        auto initialize(bool trygui = faux, [[maybe_unused]] bool forced = faux)
         {
             #if defined(_WIN32)
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
@@ -3515,7 +3608,7 @@ namespace netxs::os
 
                         auto processpid = DWORD{};
                         auto proc_count = ::GetConsoleProcessList(&processpid, 1);
-                        if (1 == proc_count) // Run gui console.
+                        if (forced || 1 == proc_count) // Run gui console.
                         {
                             auto r = RECT{};
                             auto h = ::GetConsoleWindow();
@@ -3527,16 +3620,20 @@ namespace netxs::os
                             //                         : ::IsIconic(h) ? gui::window::state::minimized
                             //                                         : gui::window::state::normal;
                             auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                            auto cell_height = 0;
-                            if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)))
+                            auto cell_height = 20;
+                            if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)) && font_info.dwFontSize.Y)
                             {
                                 //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
                                 cell_height = font_info.dwFontSize.Y;
                             }
-                            if (cell_height == 0) cell_height = 20;
+                            //if (cell_height == 0) cell_height = 20;
                             //if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
-                            dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
-                                                  r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
+                            //dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::window.size.x) / 2, // Centrify window.
+                            //                      r.top  + (r.bottom - r.top - cell_height * dtvt::window.size.y) / 2 };
+                            dtvt::window.coor = { r.left, r.top };
+                            //dtvt::wingui = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }}; // It doesn't work with WT.
+                            dtvt::wingui = dtvt::window;
+                            dtvt::wingui.size *= twod{ std::max(1, cell_height / 2), cell_height};
                             dtvt::vtmode |= ui::console::gui;
 
                             os::stdin_fd  = os::invalid_fd;
@@ -4076,7 +4173,7 @@ namespace netxs::os
                     {
                         if (state & mode::move
                         || (state & mode::drag && (gear.m_sys.buttons && moved))
-                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeled)))
+                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeldt)))
                         {
                             auto guard = std::lock_guard{ writemtx };
                                  if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
@@ -4464,37 +4561,25 @@ namespace netxs::os
                 void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
                     auto& bitmap = lock.thing;
-                    if (os::dtvt::vtmode & ui::console::gui)
-                    {
-                        //todo gui-bridge
-                        //auto update = [](auto size, auto head, auto iter, auto tail)
-                        //{
-                        //    #if defined(_WIN32)
-                        //        auto offset = (si32)(iter - head);
-                        //        auto coor = twod{ offset % size.x, offset / size.x };
-                        //        //todo update client area
-                        //    #else
-                        //        auto offset = (si32)(iter - head);
-                        //        auto coor = twod{ offset % size.x, offset / size.x };
-                        //        //todo update client area
-                        //    #endif
-                        //};
-                        //bitmap.get(data, update);
-                    }
-                    else
-                    {
-                        #if defined(_WIN32)
-                            auto update = [](auto size, auto head, auto iter, auto tail)
-                            {
-                                auto offset = (si32)(iter - head);
-                                auto coor = twod{ offset % size.x, offset / size.x };
-                                nt::console::print<svga::vt16>(size, coor, iter, tail);
-                            };
-                        #else
-                            auto update = noop{};
-                        #endif
-                        bitmap.get(data, update);
-                    }
+                    #if defined(_WIN32)
+                        auto update = [](auto size, auto head, auto iter, auto tail)
+                        {
+                            auto offset = (si32)(iter - head);
+                            auto mx = std::max(1, size.x);
+                            auto coor = twod{ offset % mx, offset / mx };
+                            nt::console::print<svga::vt16>(size, coor, iter, tail);
+                        };
+                    #else
+                        auto update = noop{};
+                    #endif
+                    bitmap.get(data, update);
+                    s11n::request_jgc(dtvt::client, lock);
+                    //bitmap.newgc.clear(); // Ignore jumbo clusters.
+                }
+                void handle(s11n::xs::jgc_list         lock)
+                {
+                    s11n::receive_jgc(lock);
+                    //todo trigger to redraw viewport to update jumbo clusters
                 }
                 void handle(s11n::xs::header_request /*lock*/)
                 {
@@ -4536,20 +4621,7 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::clipdata_request lock)
                 {
-                    auto& item = lock.thing;
-                    auto data = s11n::clipdata.freeze();
-                    if (data.thing.hash != item.hash)
-                    {
-                        data.thing.sendby<faux, faux>(dtvt::client);
-                    }
-                    else // Send without payload if hash the same.
-                    {
-                        auto temp = std::move(data.thing.utf8);
-                        data.thing.set();
-                        data.thing.sendby<faux, faux>(dtvt::client);
-                        data.thing.utf8 = std::move(temp);
-                        data.thing.set();
-                    }
+                    s11n::recycle_cliprequest(dtvt::client, lock);
                 }
 
                 adapter()
@@ -4570,6 +4642,12 @@ namespace netxs::os
                       proc{  proc }
                 { }
             };
+
+            auto& proxy()
+            {
+                static auto proxy = os::tty::binary::adapter{}; // Serialization proxy.
+                return proxy;
+            }
         }
         auto logger()
         {
@@ -4613,20 +4691,17 @@ namespace netxs::os
                 }
             });
         }
-        void direct()
+        void direct(auto& extio)
         {
-            auto  stdio = os::ipc::stdio();
-            auto& extio = *stdio;
             auto& intio = *dtvt::client;
             auto  input = std::thread{ [&]
             {
                 while (extio && extio.send(intio.recv())) { }
                 extio.shut();
             }};
-            //todo // Forward signals to intio.
             while (intio && intio.send(extio.recv())) { }
 
-            //todo wait extio reconnection
+            //todo wait extio reconnection ?
             //extio.shut();
             //while (true)
             //{
@@ -4759,7 +4834,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
                                 m.timecod = timecode;
@@ -4840,14 +4914,13 @@ namespace netxs::os
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
                             check(changed, m.buttons, static_cast<si32>(r.Event.MouseEvent.dwButtonState & 0b00011111));
-                            check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
+                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16) / 120.f); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (!((dtvt::vtmode & ui::console::nt16) && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                             }
-                            if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
+                            if (changed || m.wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
                                 m.timecod = timecode;
@@ -5317,7 +5390,6 @@ namespace netxs::os
                                 auto ctl = ctrl.value();
 
                                 m.enabled = {};
-                                m.wheeled = {};
                                 m.hzwheel = {};
                                 m.wheeldt = {};
                                 m.ctlstat = {};
@@ -5345,11 +5417,9 @@ namespace netxs::os
                                     case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
                                     case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                     case 64:
-                                        m.wheeled = true;
                                         m.wheeldt = 1;
                                         break;
                                     case 65:
-                                        m.wheeled = true;
                                         m.wheeldt = -1;
                                         break;
                                 }
@@ -5415,7 +5485,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
                                 m.timecod = datetime::now();
@@ -5447,7 +5516,6 @@ namespace netxs::os
                             mcoord = std::clamp(mcoord, dot_00, limit - dot_11);
                             k.ctlstat = get_kb_state();
                             m.wheeldt = size == 4 ? -data[3] : 0;
-                            m.wheeled = m.wheeldt;
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;
@@ -5497,7 +5565,7 @@ namespace netxs::os
         }
         auto legacy()
         {
-            static auto proxy = tty::binary::adapter{}; // Serialization proxy.
+            auto& proxy = binary::proxy();
             auto clipbd = []([[maybe_unused]] auto& alarm)
             {
                 if constexpr (debugmode) log(prompt::tty, "Clipboard sync started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
@@ -5505,98 +5573,19 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     auto wndname = utf::to_utf("vtmWindowClass");
-                    auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+                    auto wndproc = [](auto hWnd, auto uMsg, auto wParam, auto lParam)
                     {
                         static auto alive = flag{ true };
-                        auto sync = [](qiew utf8, auto form)
-                        {
-                            auto meta = qiew{};
-                            if (form == mime::disabled)
-                            {
-                                auto step = utf8.find(';');
-                                if (step != view::npos)
-                                {
-                                    meta = utf8.substr(0, step++);
-                                    utf8.remove_prefix(step);
-                                }
-                            }
-                            auto clipdata = proxy.clipdata.freeze();
-                            input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::window.size / 2, utf8, form, meta);
-                            auto crop = utf::trunc(clipdata.thing.utf8, dtvt::window.size.y / 2); // Trim preview before sending.
-                            proxy.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
-                        };
                         switch (uMsg)
                         {
                             case WM_CREATE:
-                                ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected);
+                                ok(::AddClipboardFormatListener(hWnd), "::AddClipboardFormatListener()", os::unexpected);
                                 // Continue processing the switch to initialize the clipboard state after startup.
                             case WM_CLIPBOARDUPDATE:
-                            {
-                                auto lock = std::lock_guard{ os::clipboard::mutex };
-                                while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
-                                {
-                                    if (os::error() != ERROR_ACCESS_DENIED)
-                                    {
-                                        auto error = utf::concat("::OpenClipboard()", os::unexpected, " code ", os::error());
-                                        sync(error, mime::textonly);
-                                        return (LRESULT) NULL;
-                                    }
-                                    std::this_thread::yield();
-                                }
-                                if (auto seqno = ::GetClipboardSequenceNumber();
-                                         seqno != os::clipboard::sequence)
-                                {
-                                    os::clipboard::sequence = seqno;
-                                    if (auto format = ::EnumClipboardFormats(0))
-                                    {
-                                        auto hidden = ::GetClipboardData(os::clipboard::cf_sec1);
-                                        if (auto hglb = ::GetClipboardData(os::clipboard::cf_ansi)) // Our clipboard format.
-                                        {
-                                            if (auto lptr = ::GlobalLock(hglb))
-                                            {
-                                                auto size = ::GlobalSize(hglb);
-                                                auto data = view((char*)lptr, size - 1/*trailing null*/);
-                                                sync(data, mime::disabled);
-                                                ::GlobalUnlock(hglb);
-                                            }
-                                            else
-                                            {
-                                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
-                                                sync(error, mime::textonly);
-                                            }
-                                        }
-                                        else do
-                                        {
-                                            if (format == os::clipboard::cf_text)
-                                            {
-                                                hglb = ::GetClipboardData(format);
-                                                if (hglb)
-                                                if (auto lptr = ::GlobalLock(hglb))
-                                                {
-                                                    auto type = hidden ? mime::safetext : mime::textonly;
-                                                    auto size = ::GlobalSize(hglb);
-                                                    sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
-                                                    ::GlobalUnlock(hglb);
-                                                    break;
-                                                }
-                                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
-                                                sync(error, mime::textonly);
-                                            }
-                                            else
-                                            {
-                                                //todo proceed other formats (rich/html/...)
-                                            }
-                                            format = ::EnumClipboardFormats(format);
-                                        }
-                                        while (format);
-                                    }
-                                    else sync(view{}, mime::textonly);
-                                }
-                                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
+                                os::clipboard::sync((arch)hWnd, binary::proxy(), dtvt::client, dtvt::window.size);
                                 break;
-                            }
                             case WM_DESTROY:
-                                ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
+                                ok(::RemoveClipboardFormatListener(hWnd), "::RemoveClipboardFormatListener()", os::unexpected);
                                 ::PostQuitMessage(0);
                                 if (alive.exchange(faux))
                                 {
@@ -5611,9 +5600,9 @@ namespace netxs::os
                                     else                                   os::signals::place(os::signals::shutdown);
                                 }
                                 break;
-                            default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                            default: return DefWindowProc(hWnd, uMsg, wParam, lParam);
                         }
-                        return (LRESULT) NULL;
+                        return (LRESULT)NULL;
                     };
                     auto wnddata = WNDCLASSEXW
                     {
@@ -5623,15 +5612,14 @@ namespace netxs::os
                     };
                     if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
                     {
-                        auto hndl = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        auto hWnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                         auto stop = fd_t{ alarm };
                         auto next = MSG{};
                         while (next.message != WM_QUIT)
                         {
-                            if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT);
-                                     yield == WAIT_OBJECT_0)
+                            if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT); yield == WAIT_OBJECT_0)
                             {
-                                ::DestroyWindow(hndl);
+                                ::DestroyWindow(hWnd);
                                 break;
                             }
                             while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
@@ -5752,27 +5740,16 @@ namespace netxs::os
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
-        auto native(xipc client, rect win_area, std::list<text> fontlist, si32 cellsize, si32 winstate, bool aliasing, text testtext)
-        {
-            os::dtvt::client = client;
-            #if defined(WIN32)
-                if (win_area.size != dot_00) dtvt::window.size = win_area.size;
-                if (win_area.coor != dot_00) dtvt::window.coor = win_area.coor;
-                if (auto w = gui::window{ dtvt::window, fontlist, cellsize, winstate, aliasing, testtext })
-                {
-                    if constexpr (debugmode) logstd("dtvt::window=", dtvt::window, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate);
-                    w.dispatch();
-                }
-            #else
-                //using window = gui::window<gui::x11renderer>;
-                log("dtvt::window=", dtvt::window, "win_area=", win_area, " fonts=", fontlist, " cell_height=", cellsize, " winstate=", winstate, "aliasing=", aliasing, " testtext=", testtext);
-            #endif
-        }
         auto splice(xipc client)
         {
             os::dtvt::client = client;
-            os::dtvt::active ? tty::direct()
-                             : tty::legacy();
+            if (os::dtvt::active)
+            {
+                auto  stdio = os::ipc::stdio();
+                auto& extio = *stdio;
+                tty::direct(extio);
+            }
+            else tty::legacy();
         }
 
         struct readline

@@ -137,7 +137,7 @@ namespace netxs::ui
             template<tier Tier = tier::release, class E, class T>
             void notify(E, T&& data)
             {
-                netxs::events::enqueue(owner.This(), [d = data](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [d = data](auto& boss) mutable
                 {
                     //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
                     boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
@@ -148,7 +148,7 @@ namespace netxs::ui
                 auto& focus = lock.thing;
                 auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
                 if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
-                netxs::events::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
                     boss.bell::template signal<tier::release>(deed, seed);
@@ -219,7 +219,11 @@ namespace netxs::ui
                     auto jumbos = cell::glyf::jumbos();
                     for (auto& gc : items)
                     {
-                        list.thing.push(gc.token, jumbos.get(gc.token));
+                        auto& cluster = jumbos.get(gc.token);
+                        if (cluster.length())
+                        {
+                            list.thing.push(gc.token, cluster);
+                        }
                     }
                 }
                 list.thing.sendby(canal);
@@ -478,7 +482,7 @@ namespace netxs::ui
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(boss.props, boss, xmap)).first;
+                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -511,12 +515,12 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.mark(new_filler);
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.face::area(new_area);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
@@ -558,9 +562,12 @@ namespace netxs::ui
             {
                 for (auto& [gear_id, gear_ptr] : gears)
                 {
-                    auto& gear = *gear_ptr;
-                    gear.fire_fast();
-                    gear.fire(event_id);
+                    if (gear_id)
+                    {
+                        auto& gear = *gear_ptr;
+                        gear.fire_fast();
+                        gear.fire(event_id);
+                    }
                 }
             }
             auto get_foreign_gear_id(id_t gear_id)
@@ -759,7 +766,7 @@ namespace netxs::ui
                     }
                     status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
                     status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel].set(stress) = (m.wheeldt && !m.hzwheel) ? "active" : "idle  ";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
@@ -1047,7 +1054,6 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::upon::stopped, true);
         }
 
-    protected:
         //todo revise
         gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
@@ -1060,7 +1066,8 @@ namespace netxs::ui
               local{ true },
               yield{ faux }
         {
-            auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
+            //todo revise
+            //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
 
             base::root(true);
@@ -1357,7 +1364,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct && !simple) // Forward unhandled events outside.
+            if (direct /*&& !simple  todo: revise*/) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {
@@ -1367,7 +1374,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -1399,7 +1406,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
                         gear.dismiss();
                     }
                 };
@@ -1458,7 +1465,7 @@ namespace netxs::ui
         : public form<host>
     {
     public:
-        using tick = datetime::quartz<events::reactor<>, hint>;
+        using tick = datetime::quartz<bell, tier::general, e2::timer::tick.id>;
         using list = std::vector<rect>;
 
         pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
@@ -1472,10 +1479,9 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
-    protected:
         host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
-              quartz{ bell::router<tier::general>(), e2::timer::tick.id },
+              quartz{ *this },
               config{ config },
               active{ true }
         {
@@ -1589,7 +1595,6 @@ namespace netxs::ui
             log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
         }
 
-    public:
         // host: Mark dirty region.
         void denote(rect updateregion)
         {
@@ -1606,7 +1611,7 @@ namespace netxs::ui
         // host: Create a new root of the specified subtype and attach it.
         auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)
         {
-            auto lock = events::unique_lock();
+            auto lock = bell::unique_lock();
             auto portal = ui::gate::ctor(uplink, vtmode, host::config);
             portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             portal->attach(applet);
@@ -1624,13 +1629,13 @@ namespace netxs::ui
             };
             lock.unlock();
             portal->launch();
-            netxs::events::dequeue();
+            bell::dequeue();
             quartz.stop();
         }
         // host: Shutdown.
         void stop()
         {
-            auto lock = events::sync{};
+            auto lock = bell::sync();
             mouse.reset();
             tokens.reset();
         }

@@ -6,7 +6,7 @@
 
 ```
 vtm [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]
-vtm [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]
+vtm [ -c <file> ][ -q ][ -t | -g ][ -r [ <type> ]][ <args...> ]
 vtm [ -c <file> ]  -l
 vtm -i | -u | -v | -?
 
@@ -20,6 +20,8 @@ Option                  | Description
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
+`-t`, `--tui`           | Force TUI mode.
+`-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-q`, `--quiet`         | Disable logging.

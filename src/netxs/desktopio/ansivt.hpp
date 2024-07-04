@@ -677,7 +677,7 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
-            else if (gear.m_sys.wheeled)
+            else if (gear.m_sys.wheeldt)
             {
                 ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
                                                : wheel_dn;
@@ -729,8 +729,8 @@ namespace netxs::ansi
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m_sys.wheeled  ) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
-                                                                          : wheel_dn;
+            else if (gear.m_sys.wheeldt) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
+                                                                        : wheel_dn;
             else if (gear.m_sys.buttons)
             {
                      if (m_left) ctrl |= left;
@@ -833,7 +833,7 @@ namespace netxs::ansi
     auto dch(si32 n)           { return escx{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
-    auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
+    auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
     auto unc(argb c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
@@ -1219,30 +1219,30 @@ namespace netxs::ansi
 
                 auto& ccc = table[csi_ccc].resize(0x100);
                     ccc.template enable_multi_arg<NoMultiArg>();
-                    ccc[ccc_cup] = V{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
-                    ccc[ccc_cpp] = V{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
-                    ccc[ccc_chx] = V{ F(ax, q(0)); }; // fx_ccc_chx
-                    ccc[ccc_chy] = V{ F(ay, q(0)); }; // fx_ccc_chy
-                    ccc[ccc_cpx] = V{ F(px, q(0)); }; // fx_ccc_cpx
-                    ccc[ccc_cpy] = V{ F(py, q(0)); }; // fx_ccc_cpy
-                    ccc[ccc_rst] = V{ F(zz,   0 ); }; // fx_ccc_rst
+                    ccc[ccc_cup] = V{ F(ay, q.subarg(0)); F(ax, q.subarg(0)); }; // fx_ccc_cup
+                    ccc[ccc_cpp] = V{ F(py, q.subarg(0)); F(px, q.subarg(0)); }; // fx_ccc_cpp
+                    ccc[ccc_chx] = V{ F(ax, q.subarg(0)); }; // fx_ccc_chx
+                    ccc[ccc_chy] = V{ F(ay, q.subarg(0)); }; // fx_ccc_chy
+                    ccc[ccc_cpx] = V{ F(px, q.subarg(0)); }; // fx_ccc_cpx
+                    ccc[ccc_cpy] = V{ F(py, q.subarg(0)); }; // fx_ccc_cpy
+                    ccc[ccc_rst] = V{ F(zz, 0); }; // fx_ccc_rst
 
                     ccc[ccc_mgn   ] = V{ p->style.mgn   (q   ); }; // fx_ccc_mgn
-                    ccc[ccc_mgl   ] = V{ p->style.mgl   (q(0)); }; // fx_ccc_mgl
-                    ccc[ccc_mgr   ] = V{ p->style.mgr   (q(0)); }; // fx_ccc_mgr
-                    ccc[ccc_mgt   ] = V{ p->style.mgt   (q(0)); }; // fx_ccc_mgt
-                    ccc[ccc_mgb   ] = V{ p->style.mgb   (q(0)); }; // fx_ccc_mgb
-                    ccc[ccc_tbs   ] = V{ p->style.tbs   (q(0)); }; // fx_ccc_tbs
-                    ccc[ccc_jet   ] = V{ p->style.jet   (static_cast<bias>(q(0))); }; // fx_ccc_jet
-                    ccc[ccc_wrp   ] = V{ p->style.wrp   (static_cast<wrap>(q(0))); }; // fx_ccc_wrp
-                    ccc[ccc_rtl   ] = V{ p->style.rtl   (static_cast<rtol>(q(0))); }; // fx_ccc_rtl
-                    ccc[ccc_rlf   ] = V{ p->style.rlf   (static_cast<feed>(q(0))); }; // fx_ccc_rlf
-                    ccc[ccc_jet_or] = V{ p->style.jet_or(static_cast<bias>(q(0))); }; // fx_ccc_or_jet
-                    ccc[ccc_wrp_or] = V{ p->style.wrp_or(static_cast<wrap>(q(0))); }; // fx_ccc_or_wrp
-                    ccc[ccc_rtl_or] = V{ p->style.rtl_or(static_cast<rtol>(q(0))); }; // fx_ccc_or_rtl
-                    ccc[ccc_rlf_or] = V{ p->style.rlf_or(static_cast<feed>(q(0))); }; // fx_ccc_or_rlf
+                    ccc[ccc_mgl   ] = V{ p->style.mgl   (q.subarg(0)); }; // fx_ccc_mgl
+                    ccc[ccc_mgr   ] = V{ p->style.mgr   (q.subarg(0)); }; // fx_ccc_mgr
+                    ccc[ccc_mgt   ] = V{ p->style.mgt   (q.subarg(0)); }; // fx_ccc_mgt
+                    ccc[ccc_mgb   ] = V{ p->style.mgb   (q.subarg(0)); }; // fx_ccc_mgb
+                    ccc[ccc_tbs   ] = V{ p->style.tbs   (q.subarg(0)); }; // fx_ccc_tbs
+                    ccc[ccc_jet   ] = V{ p->style.jet   (static_cast<bias>(q.subarg(0))); }; // fx_ccc_jet
+                    ccc[ccc_wrp   ] = V{ p->style.wrp   (static_cast<wrap>(q.subarg(0))); }; // fx_ccc_wrp
+                    ccc[ccc_rtl   ] = V{ p->style.rtl   (static_cast<rtol>(q.subarg(0))); }; // fx_ccc_rtl
+                    ccc[ccc_rlf   ] = V{ p->style.rlf   (static_cast<feed>(q.subarg(0))); }; // fx_ccc_rlf
+                    ccc[ccc_jet_or] = V{ p->style.jet_or(static_cast<bias>(q.subarg(0))); }; // fx_ccc_or_jet
+                    ccc[ccc_wrp_or] = V{ p->style.wrp_or(static_cast<wrap>(q.subarg(0))); }; // fx_ccc_or_wrp
+                    ccc[ccc_rtl_or] = V{ p->style.rtl_or(static_cast<rtol>(q.subarg(0))); }; // fx_ccc_or_rtl
+                    ccc[ccc_rlf_or] = V{ p->style.rlf_or(static_cast<feed>(q.subarg(0))); }; // fx_ccc_or_rlf
 
-                    ccc[ccc_lnk   ] = V{ p->brush.link  (static_cast<id_t>(q(0))); }; // fx_ccc_lnk
+                    ccc[ccc_lnk   ] = V{ p->brush.link  (static_cast<id_t>(q.subarg(0))); }; // fx_ccc_lnk
 
                     ccc[ccc_nop] = nullptr;
                     ccc[ccc_idx] = nullptr;
@@ -1265,11 +1265,11 @@ namespace netxs::ansi
                     sgr[sgr_nonitalic] = V{ p->brush.itc(faux); };
                     sgr[sgr_inv      ] = V{ p->brush.inv(true); };
                     sgr[sgr_noinv    ] = V{ p->brush.inv(faux); };
-                    sgr[sgr_und      ] = V{ p->brush.und(q(unln::line));  };
-                    sgr[sgr_doubleund] = V{ p->brush.und(  unln::biline); };
-                    sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
-                    sgr[sgr_uline_clr] = V{ p->brush.unc(argb{ q }); };
-                    sgr[sgr_uline_rst] = V{ p->brush.unc(0        ); };
+                    sgr[sgr_und      ] = V{ p->brush.und(q.subarg(unln::line)); };
+                    sgr[sgr_doubleund] = V{ p->brush.und(unln::biline        ); };
+                    sgr[sgr_nound    ] = V{ p->brush.und(unln::none          ); };
+                    sgr[sgr_uline_clr] = V{ p->brush.unc(argb{ q });            };
+                    sgr[sgr_uline_rst] = V{ p->brush.unc(0        );            };
                     sgr[sgr_slowblink] = V{ p->brush.blk(true); };
                     sgr[sgr_fastblink] = V{ p->brush.blk(true); };
                     sgr[sgr_no_blink ] = V{ p->brush.blk(faux); };

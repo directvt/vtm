@@ -22,6 +22,8 @@ int main(int argc, char* argv[])
     auto errmsg = text{};
     auto vtpipe = text{};
     auto script = text{};
+    auto trygui = true;
+    auto forced = faux;
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))//app::ssh::id))
     {
@@ -34,6 +36,15 @@ int main(int argc, char* argv[])
         {
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
+        }
+        else if (getopt.match("-t", "--tui"))
+        {
+            trygui = faux;
+        }
+        else if (getopt.match("-g", "--gui"))
+        {
+            trygui = true;
+            forced = true;
         }
         else if (getopt.match("-r", "--", "--run", /*UD*/"--runapp"))
         {
@@ -121,10 +132,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    auto trygui = whoami == type::runapp
-               || whoami == type::client
-               || whoami == type::hlpmsg;
-    os::dtvt::initialize(trygui);
+    trygui = trygui && (whoami == type::runapp
+                     || whoami == type::client
+                     || whoami == type::hlpmsg);
+    os::dtvt::initialize(trygui, forced);
     os::dtvt::checkpoint();
 
     if (whoami == type::hlpmsg)
@@ -138,7 +149,7 @@ int main(int argc, char* argv[])
             "\n  Syntax:"
             "\n"
             "\n    " + vtm + " [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
-            "\n    " + vtm + " [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]"
+            "\n    " + vtm + " [ -c <file> ][ -q ][ -t | -g ][ -r [ <type> ]][ <args...> ]"
             "\n    " + vtm + " [ -c <file> ]  -l"
             "\n    " + vtm + " -i | -u | -v | -?"
             "\n"
@@ -152,6 +163,8 @@ int main(int argc, char* argv[])
             "\n    -h, -?, --help       Print command-line options."
             "\n    -v, --version        Print version."
             "\n    -l, --listconfig     Print configuration."
+            "\n    -t, --tui            Force TUI mode."
+            "\n    -g, --gui            Force GUI mode."
             "\n    -i, --install        Perform system-wide installation."
             "\n    -u, --uninstall      Perform system-wide deinstallation."
             "\n    -q, --quiet          Disable logging."
@@ -334,7 +347,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id;     apname = app::dtty::name;       }
         else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name;   }
         else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name;   }
-        #if defined(DEBUG)
+        //#if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
         else if (shadow.starts_with(app::test::id))      { aptype = app::test::id;      apname = app::test::name;      }
@@ -343,7 +356,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::textancy::id))  { aptype = app::textancy::id;  apname = app::textancy::name;  }
         else if (shadow.starts_with(app::settings::id))  { aptype = app::settings::id;  apname = app::settings::name;  }
         else if (shadow.starts_with(app::truecolor::id)) { aptype = app::truecolor::id; apname = app::truecolor::name; }
-        #endif
+        //#endif
         else if (shadow.starts_with("ssh"))//app::ssh::id))
         {
             params = " "s + params;
@@ -358,7 +371,7 @@ int main(int argc, char* argv[])
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
-        app::shared::start(params, aptype, os::dtvt::vtmode, os::dtvt::window.size, config);
+        app::shared::start(params, aptype, config);
     }
     else
     {
@@ -389,6 +402,7 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
+                app::shared::update_winsz(config);
                 auto userinit = directvt::binary::init{};
                 auto env = os::env::add();
                 auto cwd = os::env::cwd();
@@ -437,9 +451,9 @@ int main(int argc, char* argv[])
         signal->bell(); // Signal we are started and ready for connections.
         signal.reset();
 
-        using e2 = netxs::ui::e2;
+        using e2 = ui::e2;
         config.cd("/config/appearance/defaults/");
-        auto domain = ui::base::create<app::vtm::hall>(server, config);
+        auto domain = ui::host::ctor<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();
 

@@ -195,7 +195,7 @@ Attribute  | Description                                       | Value type | De
 `title`    |  App window title                                 | `string`   | empty
 `footer`   |  App window footer                                | `string`   | empty
 `winsize`  |  App window size                                  | `x;y`      |
-`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
+`winform`  |  App window state                                 | `undefined` \| `normal` \| `maximized` \| `minimized` |
 `type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
@@ -264,7 +264,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>

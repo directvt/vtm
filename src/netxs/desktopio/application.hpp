@@ -11,6 +11,7 @@
 #include "console.hpp"
 #include "system.hpp"
 #include "scripting.hpp"
+#include "gui.hpp"
 
 #include <fstream>
 
@@ -23,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.83";
+    static const auto version = "v0.9.84";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -111,26 +112,23 @@ namespace netxs::app::shared
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
-    namespace winform
+    namespace win
     {
+        using state = gui::window::state;
+
         namespace type
         {
             static const auto undefined = "undefined"s;
+            static const auto normal    = "normal"s;
             static const auto minimized = "minimized"s;
             static const auto maximized = "maximized"s;
         }
 
-        enum form
-        {
-            undefined,
-            minimized,
-            maximized,
-        };
-
-        static auto options = std::unordered_map<text, form>
-           {{ type::undefined, form::undefined },
-            { type::minimized, form::minimized },
-            { type::maximized, form::maximized }};
+        static auto options = std::unordered_map<text, si32>
+           {{ type::undefined, state::normal    },
+            { type::normal,    state::normal    },
+            { type::minimized, state::minimized },
+            { type::maximized, state::maximized }};
     }
 
     namespace menu
@@ -535,26 +533,42 @@ namespace netxs::app::shared
         }
     };
 
+    void update_winsz(xmls& config)
+    {
+        if (os::dtvt::vtmode & ui::console::gui)
+        {
+            config.cd("/config/gui/");
+            auto wincoord = config.take("wincoor", twod{ 100, 100 });
+            auto gridsize = config.take("gridsize", twod{ 80, 25 });
+            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
+            os::dtvt::cellsz = cellsize ? std::abs(cellsize) : 20;
+            os::dtvt::window.size = std::max(dot_11, gridsize ? gridsize
+                                                              : os::dtvt::wingui.size / twod{ std::max(1, os::dtvt::cellsz / 2), os::dtvt::cellsz });
+            if (wincoord != dot_00) os::dtvt::window.coor = wincoord;
+        }
+    }
     void splice(xipc client, xmls& config)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
         else
         {
+            os::dtvt::client = client;
             config.cd("/config/gui/");
-            auto wincoord = config.take("wincoor", twod{ 100, 100 });
-            auto gridsize = config.take("gridsize", twod{ 80, 25 });
-            auto winstate = config.take("winstate", winform::undefined, app::shared::winform::options);
+            auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
-            auto testtext = config.take("testtext", ""s);
-            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
+            auto blinking = config.take("blinkrate", span{ 400ms });
             auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
-            auto win_area = rect{ wincoord, gridsize };
-            os::tty::native(client, win_area, fontlist, cellsize, winstate, aliasing, testtext);
+            auto event_domain = netxs::events::auth{};
+            if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, os::dtvt::cellsz, aliasing, blinking))
+            {
+                window->connect(winstate);
+            }
         }
     }
-    void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)
+    void start(text cmd, text aclass, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
+        update_winsz(config);
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, config);
@@ -563,11 +577,10 @@ namespace netxs::app::shared
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
-        auto direct = os::dtvt::active;
         auto appcfg = eccc{ .cmd = cmd,
-                            .cfg = direct ? ""s : "<config simple=1/>"s };
+                            .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
-        domain->invite(server, applet, vtmode, winsz);
+        domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::window.size);
         domain->stop();
         server->shut();
         thread.join();

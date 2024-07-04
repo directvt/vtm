@@ -209,7 +209,7 @@ namespace netxs::app::vtm
                         auto& window = *window_ptr;
                         auto window_size = window.base::size();
                         auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                        anchor = anchor * prev.size / window_size;
+                        anchor = anchor * prev.size / std::max(dot_11, window_size);
                         prev.coor = boss.base::coor();
                         prev.coor += window.base::anchor - anchor; // Follow the mouse cursor. See pro::frame pull.
                         window.base::extend(prev);
@@ -301,14 +301,7 @@ namespace netxs::app::vtm
                             case e2::form::drag::pull::left.id:
                             case e2::form::drag::pull::leftright.id:
                             {
-                                //todo fp2d
-                                //auto delta = gear.delta.get();
-                                //boss.base::anchor = gear.coord - delta; // See pro::align unbind.
-                                //auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
-                                //boss.SIGNAL(tier::preview, e2::area, preview_area);
-                                //boss.base::moveby(delta);
-                                //boss.SIGNAL(tier::preview, e2::form::upon::changed, delta);
-                                if (auto delta = twod{ gear.coord - drag_origin })
+                                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                                 {
                                     boss.base::anchor = drag_origin; // See pro::align unbind.
                                     auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
@@ -492,16 +485,9 @@ namespace netxs::app::vtm
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
-
                     step += gear.delta.get();
-
-                    //todo fp2d
-                    //slot.coor = std::min(init, step);
-                    //slot.size = std::max(std::abs(step - init), dot_00);
-                    //boss.deface(slot);
-
                     auto moved = slot.coor(std::min(init, step));
-                    auto dsize = twod{ step - init };
+                    auto dsize = twod{ step } - twod{ init };
                     auto sized = slot.size(std::max(std::abs(dsize), dot_00));
                     if (moved || sized) boss.deface(slot);
                     gear.dismiss();
@@ -723,11 +709,11 @@ namespace netxs::app::vtm
                         if (under != new_under)
                         {
                             auto object = vtm::events::d_n_d::ask.param();
-                            if (auto old_object = bell::getref<base>(under))
+                            if (auto old_object = boss.bell::getref<base>(under))
                             {
                                 old_object->RISEUP(tier::release, vtm::events::d_n_d::abort, object);
                             }
-                            if (auto new_object = bell::getref<base>(new_under))
+                            if (auto new_object = boss.bell::getref<base>(new_under))
                             {
                                 new_object->RISEUP(tier::release, vtm::events::d_n_d::ask, object);
                             }
@@ -861,12 +847,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
             {
                 if (gear.owner.id != this->id) return;
-
-                //todo fp2d
-                //base::moveby(-gear.delta.get());
-                //base::deface();
-
-                if (auto delta = twod{ gear.coord - drag_origin })
+                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                 {
                     drag_origin = gear.coord;
                     base::moveby(-delta);
@@ -1513,7 +1494,7 @@ namespace netxs::app::vtm
                                     if (new_area.size == boss.base::size()) // Restore saved size.
                                     {
                                         auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
-                                        anchor = anchor * saved_area.size / new_area.size;
+                                        anchor = anchor * saved_area.size / std::max(dot_11, new_area.size);
                                         saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensating header height.
                                         saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
                                     }
@@ -1523,7 +1504,7 @@ namespace netxs::app::vtm
                             };
                             boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
                             {
-                                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                                if (auto gear_ptr = boss.bell::template getref<hids>(seed.id)) //todo Apple clang requires template.
                                 {
                                     auto& gear = *gear_ptr;
                                     auto forbidden = gear.owner.id != owner_id;
@@ -1574,7 +1555,7 @@ namespace netxs::app::vtm
             conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
             conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
-            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
+            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
             conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
@@ -1648,9 +1629,9 @@ namespace netxs::app::vtm
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
             auto itemptr = appconf.homelist.front();
-            auto appspec = desk::spec{ .fixed    = true,
-                                       .winform  = shared::winform::undefined,
-                                       .type     = app::vtty::id };
+            auto appspec = desk::spec{ .fixed   = true,
+                                       .winform = shared::win::state::normal,
+                                       .type    = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
             {
@@ -1712,10 +1693,10 @@ namespace netxs::app::vtm
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
             auto itemptr = appconf.homelist.front();
-            auto appspec = desk::spec{ .hidden   = true,
-                                       .winform  = shared::winform::undefined,
-                                       .type     = app::vtty::id,
-                                       .gearid   = script.hid };
+            auto appspec = desk::spec{ .hidden  = true,
+                                       .winform = shared::win::state::normal,
+                                       .type    = app::vtty::id,
+                                       .gearid  = script.hid };
             auto menuid = itemptr->take(attr::id, ""s);
             if (dbase.menu.contains(menuid))
             {
@@ -1759,7 +1740,7 @@ namespace netxs::app::vtm
             return "ok"s;
         }
 
-    protected:
+    public:
         hall(xipc server, xmls& config)
             : host{ server, config, pro::focus::mode::focusable },
               focus{ id_t{} }
@@ -1770,7 +1751,7 @@ namespace netxs::app::vtm
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
-                                          .winform  = shared::winform::undefined,
+                                          .winform  = shared::win::state::normal,
                                           .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
@@ -1975,7 +1956,7 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                     if (wincoor == dot_00)
                     {
-                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
                         wincoor = viewport.coor + offset + viewport.size * 1 / 32;
                     }
                     what.square.coor = wincoor;
@@ -1984,8 +1965,8 @@ namespace netxs::app::vtm
                     {
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                             if (appbase.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                             if (appbase.winform == shared::win::state::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (appbase.winform == shared::win::state::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -2025,8 +2006,8 @@ namespace netxs::app::vtm
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                         auto& cfg = dbase.menu[what.menuid];
-                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                             if (cfg.winform == shared::win::state::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (cfg.winform == shared::win::state::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
                     }
                 }
             };
@@ -2161,7 +2142,6 @@ namespace netxs::app::vtm
             };
         }
 
-    public:
         // hall: Autorun apps from config.
         void autorun()
         {
@@ -2178,13 +2158,13 @@ namespace netxs::app::vtm
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
                                     app.take(attr::winsize, twod{ 80,27 }) };
-                    auto winform =  app.take(attr::winform, shared::winform::undefined, shared::winform::options);
+                    auto winform =  app.take(attr::winform, shared::win::state::normal, shared::win::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (winform == shared::winform::minimized) window_ptr->base::hidden = true;
+                        if (winform == shared::win::state::minimized) window_ptr->base::hidden = true;
                         else if (focused) foci.push_back(window_ptr);
                     }
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
@@ -2232,8 +2212,8 @@ namespace netxs::app::vtm
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
             if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
-            auto lock = netxs::events::unique_lock();
-            auto user = base::create<gate>(client, userid, vtmode, app_config, session_id);
+            auto lock = bell::unique_lock();
+            auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
             dbase.append(user);
             os::ipc::users = users.size();
@@ -2294,9 +2274,9 @@ namespace netxs::app::vtm
             SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
-            netxs::events::dequeue(); // Wait until all cleanups are completed.
+            bell::dequeue(); // Wait until all cleanups are completed.
             host::quartz.stop();
-            auto lock = netxs::events::sync{};
+            auto lock = bell::sync();
             host::mouse.reset(); // Release the captured mouse.
             host::tokens.reset();
             dbase.reset();

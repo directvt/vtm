@@ -22,6 +22,9 @@ namespace netxs
 
         T x, y;
 
+        template<class D> constexpr static auto cast(D x) requires(std::is_floating_point_v<T> || (std::is_integral_v<T> == std::is_integral_v<D>)) { return netxs::saturate_cast<T>(x); }
+        template<class D> constexpr static auto cast(D x) requires(std::is_integral_v<T> && std::is_floating_point_v<D>)                            { return netxs::saturate_cast<T>(std::floor(x)); }
+
         constexpr xy2d(xy2d const&) = default;
         constexpr xy2d()
             : x{ },
@@ -32,20 +35,24 @@ namespace netxs
               y{ y }
         { }
         template<class D>
-        constexpr xy2d(xy2d<D> d)
-            : x{ netxs::saturate_cast<T>(d.x) },
-              y{ netxs::saturate_cast<T>(d.y) }
+        constexpr xy2d(D x, D y)
+            : x{ cast(x) },
+              y{ cast(y) }
         { }
-        constexpr xy2d(fifo& queue)
-            : x{ queue(0) },
-              y{ queue(0) }
+        template<class D>
+        constexpr xy2d(xy2d<D> d)
+            : xy2d{ d.x, d.y }
+        { }
+        constexpr xy2d(fifo& q)
+            : x{ q(0) },
+              y{ q(0) }
         { }
 
         template<class D>
         constexpr bool operator == (xy2d<D> p) const //todo Apple clang don't get auto result.
         {
-            return x == netxs::saturate_cast<T>(p.x)
-                && y == netxs::saturate_cast<T>(p.y);
+            return x == cast(p.x)
+                && y == cast(p.y);
         }
         template<class D>
         bool operator () (xy2d<D> p)
@@ -89,10 +96,18 @@ namespace netxs
         //xy2d operator << (T i) const { return { x << i, y << i }; }
         //xy2d operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator / (D i) const { return xy2d<D>{ x / i, y / i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator + (D i) const { return xy2d<D>{ x + i, y + i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator - (D i) const { return xy2d<D>{ x - i, y - i }; }
-        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator * (D i) const { return xy2d<D>{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (D i) const { return xy2d<D>{ x + i, y + i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (D i) const { return xy2d<D>{ x - i, y - i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (D i) const { return xy2d<D>{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (D i) const { return xy2d<D>{ x / i, y / i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator +  (xy2d<D> f) const { return xy2d{ x + f.x, y + f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -  (xy2d<D> f) const { return xy2d{ x - f.x, y - f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *  (xy2d<D> f) const { return xy2d{ x * f.x, y * f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /  (xy2d<D> f) const { return xy2d{ x / f.x, y / f.y }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator += (xy2d<D> f)       { x = cast(x + f.x); y = cast(y + f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator -= (xy2d<D> f)       { x = cast(x - f.x); y = cast(y - f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator *= (xy2d<D> f)       { x = cast(x * f.x); y = cast(y * f.y); return *this; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator /= (xy2d<D> f)       { x = cast(x / f.x); y = cast(y / f.y); return *this; }
 
         xy2d   less(xy2d what, xy2d if_yes, xy2d if_no) const
         {
@@ -145,20 +160,26 @@ namespace netxs
         {
             return xy2d{ netxs::letoh(p.x), netxs::letoh(p.y) };
         }
-        friend auto   min(xy2d a, xy2d b) { return xy2d{ std::min(a.x, b.x), std::min(a.y, b.y) }; }
-        friend auto   max(xy2d a, xy2d b) { return xy2d{ std::max(a.x, b.x), std::max(a.y, b.y) }; }
-        friend auto   abs(xy2d p)         { return xy2d{ std::abs(p.x), std::abs(p.y) }; }
-        friend auto round(xy2d p)         { return xy2d{ std::round(p.x), std::round(p.y) }; }
-        friend auto clamp(xy2d p, xy2d a, xy2d b)
-        {
-            return xy2d{ std::clamp(p.x, a.x, b.x),
-                         std::clamp(p.y, a.y, b.y) };
-        }
         static constexpr auto sort(xy2d a, xy2d b)
         {
             if (a.x > b.x) std::swap(a.x, b.x);
             if (a.y > b.y) std::swap(a.y, b.y);
             return std::pair{ a, b };
+        }
+        friend auto   min(xy2d a, xy2d b) { return xy2d{ std::min(a.x, b.x), std::min(a.y, b.y) }; }
+        friend auto   max(xy2d a, xy2d b) { return xy2d{ std::max(a.x, b.x), std::max(a.y, b.y) }; }
+        friend auto   abs(xy2d p)         { return xy2d{ std::abs(p.x), std::abs(p.y) }; }
+        friend auto round(xy2d p)         { return xy2d{ std::round(p.x), std::round(p.y) }; }
+        friend auto clamp(xy2d p, xy2d p1, xy2d p2)
+        {
+            auto [a, b] = sort(p1, p2);
+            return xy2d{ std::clamp(p.x, a.x, b.x),
+                         std::clamp(p.y, a.y, b.y) };
+        }
+        constexpr auto clampby(xy2d p) const
+        {
+            auto [a, b] = sort(xy2d{}, p);
+            return xy2d{ std::clamp(x, a.x, b.x), std::clamp(y, a.y, b.y) };
         }
     };
 
@@ -186,6 +207,8 @@ namespace std
     template<class T> constexpr netxs::xy2d<T>   max(netxs::xy2d<T> p1, netxs::xy2d<T> p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
     template<class T> constexpr netxs::xy2d<T> round(netxs::xy2d<T> p)                     { return { std::round(p.x), std::round(p.y) }; }
     template<class T> constexpr netxs::xy2d<T>   abs(netxs::xy2d<T> p)                     { return { std::abs(p.x), std::abs(p.y) }; }
+    template<class T> constexpr netxs::xy2d<T> floor(netxs::xy2d<T> p)                     { return { std::floor(p.x), std::floor(p.y) }; }
+    template<class T> constexpr netxs::xy2d<T>  ceil(netxs::xy2d<T> p)                     { return { std::ceil(p.x), std::ceil(p.y) }; }
     template<class T> constexpr netxs::xy2d<T> clamp(netxs::xy2d<T> p, netxs::xy2d<T> p1, netxs::xy2d<T> p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
 }
 
@@ -315,6 +338,13 @@ namespace netxs
                 && coor.x + size.x > r.coor.x
                 && coor.y + size.y > r.coor.y;
         }
+        constexpr bool nearby(rect r) const
+        {
+            return coor.x          <= r.coor.x + r.size.x
+                && coor.y          <= r.coor.y + r.size.y
+                && coor.x + size.x >= r.coor.x
+                && coor.y + size.y >= r.coor.y;
+        }
         // rect: To string.
         auto str() const
         {
@@ -357,12 +387,12 @@ namespace netxs
             : l{ a.coor.x }, r{ a.coor.x + a.size.x },
               t{ a.coor.y }, b{ a.coor.y + a.size.y }
         { }
-        side(fifo& queue)
+        side(fifo& q)
         {
-            l = queue(0);
-            r = queue(0);
-            t = queue(0);
-            b = queue(0);
+            l = q.subarg(0);
+            r = q.subarg(0);
+            t = q.subarg(0);
+            b = q.subarg(0);
         }
         constexpr side& operator = (side const&) = default;
         bool operator == (side const&) const = default;
@@ -526,10 +556,10 @@ namespace netxs
         }
         void set(fifo& q)
         {
-            l = q(0);
-            r = q(0);
-            t = q(0);
-            b = q(0);
+            l = q.subarg(0);
+            r = q.subarg(0);
+            t = q.subarg(0);
+            b = q.subarg(0);
         }
         // dent: Unary minus operator.
         constexpr auto operator - () const
