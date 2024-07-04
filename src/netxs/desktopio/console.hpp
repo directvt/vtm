@@ -1066,7 +1066,8 @@ namespace netxs::ui
               local{ true },
               yield{ faux }
         {
-            auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
+            //todo revise
+            //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
 
             base::root(true);
@@ -1363,7 +1364,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct) // Forward unhandled events outside.
+            if (direct /*&& !simple  todo: revise*/) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {

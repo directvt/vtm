@@ -1948,11 +1948,12 @@ namespace netxs::gui
                 {
                     if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
                 };
-                auto update = [&](auto size, auto head, auto iter, [[maybe_unused]] auto tail)
+                auto update = [&]([[maybe_unused]] auto size, [[maybe_unused]] auto head, [[maybe_unused]] auto iter, [[maybe_unused]] auto tail)
                 {
-                    auto offset = (si32)(iter - head);
-                    auto mx = std::max(1, size.x);
-                    auto coor = twod{ offset % mx, offset / mx };
+                    //auto offset = (si32)(iter - head);
+                    //auto mx = std::max(1, size.x);
+                    //auto coor = twod{ offset % mx, offset / mx };
+
                     //todo render in pixels
                     //see gcache.fill_grid()
                     //owner.print(size, coor, iter, tail);
@@ -2031,18 +2032,18 @@ namespace netxs::gui
                 //    }
                 //});
             }
-            void handle(s11n::xs::fullscreen       lock)
+            void handle(s11n::xs::fullscreen     /*lock*/)
             {
                 if (owner.fsmode == state::maximized) owner.set_state(state::normal);
                 else                                  owner.set_state(state::maximized);
             }
-            void handle(s11n::xs::maximize         lock)
+            void handle(s11n::xs::maximize       /*lock*/)
             {
                 //todo diff fullscreen and maximized
                 if (owner.fsmode == state::maximized) owner.set_state(state::normal);
                 else                                  owner.set_state(state::maximized);
             }
-            void handle(s11n::xs::minimize         lock)
+            void handle(s11n::xs::minimize       /*lock*/)
             {
                 if (owner.fsmode == state::minimized) owner.set_state(state::normal);
                 else                                  owner.set_state(state::minimized);
@@ -2095,7 +2096,7 @@ namespace netxs::gui
                 auto& warp = lock.thing;
                 owner.warp_window(warp.warpdata);
             }
-            void handle(s11n::xs::fps              lock)
+            void handle(s11n::xs::fps            /*lock*/)
             {
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
@@ -2107,7 +2108,7 @@ namespace netxs::gui
             {
                 s11n::recycle_log(lock, os::process::id.second);
             }
-            void handle(s11n::xs::fatal            lock)
+            void handle(s11n::xs::fatal          /*lock*/)
             {
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
@@ -2131,7 +2132,7 @@ namespace netxs::gui
                 //    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 //});
             }
-            void handle(s11n::xs::cwd              lock)
+            void handle(s11n::xs::cwd            /*lock*/)
             {
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
@@ -2213,6 +2214,8 @@ namespace netxs::gui
 
         window(auth& indexer, rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
             : base{ indexer },
+              titles{ *this, "", "", faux },
+              wfocus{ *this },
               fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               height{ (fp32)fcache.cellsize.y },
@@ -2233,9 +2236,7 @@ namespace netxs::gui
               footer{ manager::add() },
               blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
               blinking{ faux },
-              proxy{ *this, *os::dtvt::client },
-              titles{ *this, "", "", faux },
-              wfocus{ *this }
+              proxy{ *this, *os::dtvt::client }
         {
             if (!*this) return;
             normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
@@ -2804,6 +2805,7 @@ namespace netxs::gui
         }
         void sync_kbstat(view cluster = {}, bool pressed = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
+            #if defined(_WIN32)
             auto cs = 0;
             if (extflag) cs |= ENHANCED_KEY;
             if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
@@ -2834,6 +2836,12 @@ namespace netxs::gui
                 proxy.k.cluster = cluster;
                 proxy.keybd(proxy.k);
             }
+            #else
+            if (cluster.empty() || pressed || virtcod || scancod || extflag)
+            {
+                //...
+            }
+            #endif
         }
         void keybd_paste(arch wide_char)
         {
