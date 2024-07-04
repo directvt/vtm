@@ -1363,7 +1363,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct && !simple) // Forward unhandled events outside.
+            if (direct) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {

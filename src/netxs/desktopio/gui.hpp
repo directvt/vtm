@@ -2676,10 +2676,10 @@ namespace netxs::gui
             mhover = true;
             auto inner_rect = layers[blinky].area;
             auto ingrip = hit_grips();
-            if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
-            {
-                moving = faux;
-            }
+            //if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
+            //{
+            //    moving = faux;
+            //}
             if ((!seized && ingrip) || szgrip.seized)
             {
                 if (mbttns == bttn::right && fsmode == state::normal) // Move window.
@@ -2763,15 +2763,20 @@ namespace netxs::gui
             }
             if (pressed)
             {
-                if (moving && prev_state) // Stop GUI window dragging if any addition mouse button pressed.
-                {
-                    moving = faux;
-                }
+                //if (moving && prev_state) // Stop GUI window dragging if any addition mouse button pressed.
+                //{
+                //    moving = faux;
+                //}
             }
             else
             {
                 if (button == bttn::left) drop_grips();
-                moving = faux; // Stop GUI window dragging if any button released.
+                //moving = faux; // Stop GUI window dragging if any button released.
+            }
+            if (moving) // Don't report mouse clicks while dragging window.
+            {
+                if (!mbttns) moving = faux;
+                return;
             }
             static auto dblclick = datetime::now() - 1s;
             if (changed && (seized || inside))
@@ -3005,47 +3010,55 @@ namespace netxs::gui
                 {
                     //todo
                 };
-                auto accum_ptr = ptr::shared(dot_00);
-                LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (accum_ptr))
+                //auto accum_ptr = ptr::shared(dot_00);
+                LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
-                    *accum_ptr = {};
+                    if (fsmode != state::normal) return;
+                    //*accum_ptr = {};
+                    moving = true;
+                    send_mouse_halt();
+                    auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
+                    move_window(dxdy);
+                    sync_titles_pixel_layout(); // Align grips and shadow.
                 };
-                LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear, -, (accum_ptr)) // Move window only when mouse events get back.
-                {
-                    if (fsmode == state::normal) //todo revise this restriction
-                    if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
-                    if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
-                    {
-                        //todo revise
-                        //auto& accum = *accum_ptr;
-                        //accum += dxdy;
-                        //log("accum=", accum);
-                        //auto threshold = 2 * cellsz.y;
-                        //if (std::abs(accum.x) > threshold || std::abs(accum.y) > threshold)
-                        //{
-                        //    log("\tgo");
-                        //    dxdy = accum;
-                        //    accum = {};
-                        //}
-                        //else return;
-                        send_mouse_halt();
-                        //todo revise
-                        //if (fsmode == state::maximized)
-                        //{
-                        //    auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
-                        //    auto cur_blinky_size = normsz.size - gripsz * 2;
-                        //    auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
-                        //    normsz.coor = new_blinky_coor - gripsz;
-                        //    set_state(state::normal);
-                        //}
-                        //else
-                        {
-                            move_window(dxdy);
-                        }
-                        sync_titles_pixel_layout(); // Align grips and shadow.
-                        moving = true;
-                    }
-                };
+                //LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear, -, (accum_ptr)) // Move window only when mouse events get back.
+                //{
+                //    return;
+                //    if (moving)
+                //    if (fsmode == state::normal)
+                //    //if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
+                //    if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
+                //    {
+                //        //todo revise
+                //        //auto& accum = *accum_ptr;
+                //        //accum += dxdy;
+                //        //log("accum=", accum);
+                //        //auto threshold = 2 * cellsz.y;
+                //        //if (std::abs(accum.x) > threshold || std::abs(accum.y) > threshold)
+                //        //{
+                //        //    log("\tgo");
+                //        //    dxdy = accum;
+                //        //    accum = {};
+                //        //}
+                //        //else return;
+                //        /// send_mouse_halt();
+                //        //todo revise
+                //        //if (fsmode == state::maximized)
+                //        //{
+                //        //    auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
+                //        //    auto cur_blinky_size = normsz.size - gripsz * 2;
+                //        //    auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
+                //        //    normsz.coor = new_blinky_coor - gripsz;
+                //        //    set_state(state::normal);
+                //        //}
+                //        //else
+                //        {
+                //            move_window(dxdy);
+                //        }
+                //        sync_titles_pixel_layout(); // Align grips and shadow.
+                //        /// moving = true;
+                //    }
+                //};
                 LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
                          if (fsmode == state::maximized) set_state(state::normal);

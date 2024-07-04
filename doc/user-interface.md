@@ -163,7 +163,7 @@
     <th></th>
     <th>GUI window</th>
     <th>Resizing grips</th>
-    <th>Window 1px-height row (in maximized state)</th>
+    <th>Window 1px-height row (in fullscreen mode)¹</th>
   </tr>
 </thead>
 <tbody>
@@ -173,7 +173,7 @@
   </tr>
   <tr>
     <th>DblLeftClick</th>
-    <td colspan="3">Toggle fullscreen mode (if the click is not handled)</td>
+    <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
   </tr>
   <tr>
     <th>Home+End</th>
@@ -181,11 +181,17 @@
   </tr>
   <tr>
     <th>Wheel</th>
-    <td colspan="3">Change text cell size (if the wheel is not handled)</td>
+    <td colspan="3">Change text cell size (if unhandled)</td>
+  </tr>
+  <tr>
+    <th>AnyDrag<br>Left+RightDrag</th>
+    <td colspan="1">Move GUI window (if unhandled)</td>
+    <td colspan="1"></td>
+    <td colspan="1"></td>
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="1">Move GUI window (if the drag is not handled)</td>
+    <td colspan="1"></td>
     <td colspan="1">Resize GUI window</td>
     <td colspan="1"></td>
   </tr>
@@ -196,3 +202,5 @@
   </tr>
 </tbody>
 </table>
+
+¹ — In fullscreen mode, the GUI window reserves a 1px high area at the top for forwarding mouse events.
