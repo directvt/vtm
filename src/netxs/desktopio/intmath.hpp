@@ -115,6 +115,12 @@ namespace netxs
     {
         n = (n & ~(1 << P)) | (v << P);
     }
+    // intmath: Set a single bit specified by F.
+    template<auto F, class T>
+    void set_flag(T&& n, bool v = true)
+    {
+        v ? n |= F : n &= ~F;
+    }
     // intmath: Swap two bits.
     template<sz_t P1, sz_t P2, class T>
     constexpr auto swap_bits(T n)

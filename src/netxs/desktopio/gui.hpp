@@ -450,7 +450,7 @@ namespace netxs::gui
                     auto& s = *src++;
                     auto& d = tempstat[s.i];
                     d = s;
-                    d.s &= ~fontcat::loaded;
+                    netxs::set_flag<fontcat::loaded>(d.s, faux);
                 }
                 std::swap(fontstat, tempstat);
             }
@@ -465,7 +465,7 @@ namespace netxs::gui
                     if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
                     auto barefont = (IDWriteFontFamily*)nullptr;
                     fontlist->GetFontFamily(index, &barefont);
-                    fontstat[index].s |= fontcat::loaded;
+                    netxs::set_flag<fontcat::loaded>(fontstat[index].s);
                     auto& f = fallback.emplace_back(barefont, index);
                     log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                     barefont->Release();
@@ -513,11 +513,11 @@ namespace netxs::gui
                     {
                         if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
                         {
-                            fontstat[i].s |= fontcat::valid;
-                            if (fontfile->IsMonospacedFont()) fontstat[i].s |= fontcat::monospaced;
+                            netxs::set_flag<fontcat::valid>(fontstat[i].s);
+                            if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
                             if (auto face_inst = (IDWriteFontFace2*)nullptr; fontfile->CreateFontFace((IDWriteFontFace**)&face_inst), face_inst)
                             {
-                                if (typeface::iscolor(face_inst)) fontstat[i].s |= fontcat::color;
+                                if (typeface::iscolor(face_inst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
                                 auto numberOfFiles = ui32{};
                                 face_inst->GetFiles(&numberOfFiles, nullptr);
                                 auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
@@ -611,7 +611,7 @@ namespace netxs::gui
                             if (hittest(fontface) || !test)
                             {
                                 hit = true;
-                                fontstat[i].s |= fontcat::loaded;
+                                netxs::set_flag<fontcat::loaded>(fontstat[i].s);
                                 auto& f = fallback.emplace_back(barefont, i, cellsize, faux);
                                 log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                             }
@@ -1973,13 +1973,13 @@ namespace netxs::gui
                 };
                 bitmap.get(data, update, resize);
                 s11n::request_jgc(intio, lock);
-                owner.reload |= task::inner;
+                netxs::set_flag<task::inner>(owner.reload);
             }
             void handle(s11n::xs::jgc_list         lock)
             {
                 s11n::receive_jgc(lock);
                 //todo repaint jgc cells
-                owner.reload |= task::inner; // Trigger to redraw viewport to update jumbo clusters.
+                netxs::set_flag<task::inner>(owner.reload); // Trigger to redraw viewport to update jumbo clusters.
             }
             void handle(s11n::xs::header_request   lock)
             {
@@ -2310,38 +2310,38 @@ namespace netxs::gui
             log("%%AA mode %state%", prompt::gui, mode ? "enabled" : "disabled");
             gcache.aamode = mode;
             gcache.reset();
-            reload |= task::all;
+            netxs::set_flag<task::all>(reload);
         }
         void update_header()
         {
             size_title(head_grid, titles.head_page);
             sync_titles_pixel_layout();
-            reload |= task::header;
+            netxs::set_flag<task::header>(reload);
         }
         void update_footer()
         {
             size_title(foot_grid, titles.foot_page);
             sync_titles_pixel_layout();
-            reload |= task::footer;
+            netxs::set_flag<task::footer>(reload);
         }
         void set_font_list(auto& flist)
         {
             log("%%Font list changed: ", prompt::gui, flist);
             fcache.set_fonts(flist, faux);
             change_cell_size();
-            reload |= task::all;
+            netxs::set_flag<task::all>(reload);
         }
         auto move_window(twod delta)
         {
             for (auto& w : layers) w.area.coor += delta;
-            reload |= task::moved;
+            netxs::set_flag<task::moved>(reload);
         }
         void drop_grips()
         {
             if (szgrip.seized) // drag stop
             {
                 szgrip.drop();
-                reload |= task::grips;
+                netxs::set_flag<task::grips>(reload);
             }
         }
         void set_state(si32 new_state)
@@ -2378,7 +2378,8 @@ namespace netxs::gui
                 layers[client].show();
                 if (blink_count) layers[blinky].show();
             }
-            reload |= task::all;
+            netxs::set_flag<task::all>(reload);
+            netxs::set_flag<input::hids::Fullscrn>(kbmod, fsmode == state::maximized);
         }
         void check_fsmode(arch hWnd)
         {
@@ -2410,7 +2411,7 @@ namespace netxs::gui
                         avail_area.size -= std::min(avail_area.size, normsz.size);
                         normsz.coor = avail_area.clamp(normsz.coor);
                         set_state(state::normal);
-                        reload |= task::all;
+                        netxs::set_flag<task::all>(reload);
                     }
                 }
                 else if (fsmode == state::normal)
@@ -2428,7 +2429,7 @@ namespace netxs::gui
                 if (fsmode != state::minimized)
                 {
                     for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
-                    reload |= task::moved;
+                    netxs::set_flag<task::moved>(reload);
                 }
                 update();
             });
@@ -2454,7 +2455,7 @@ namespace netxs::gui
                 size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
-            reload |= task::sized;
+            netxs::set_flag<task::sized>(reload);
             if (proxy.w.winsize != gridsz)
             {
                 waitsz = gridsz;
@@ -2630,7 +2631,7 @@ namespace netxs::gui
                     //if (gear.meta(hids::anyCtrl))
                     {
                         change_cell_size(wheeldt, mcoord - layers[client].area.coor);
-                        reload |= task::all;
+                        netxs::set_flag<task::all>(reload);
                         update();
                     }
                 });
@@ -2647,7 +2648,7 @@ namespace netxs::gui
         void mouse_leave()
         {
             mhover = faux;
-            if (szgrip.leave()) reload |= task::grips;
+            if (szgrip.leave()) netxs::set_flag<task::grips>(reload);
             send_mouse_halt();
         }
         void resize_by_grips(twod coord)
@@ -2700,7 +2701,7 @@ namespace netxs::gui
             }
             if (!moving && !seized && szgrip.calc(inner_rect, coord, border, dent{}, cellsz))
             {
-                reload |= task::grips;
+                netxs::set_flag<task::grips>(reload);
             }
             if (moving && fsmode == state::normal)
             {
@@ -2739,7 +2740,7 @@ namespace netxs::gui
             }
             if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
             {
-                reload |= task::grips;
+                netxs::set_flag<task::grips>(reload);
             }
         }
         void mouse_press(si32 button, bool pressed)
@@ -2959,12 +2960,12 @@ namespace netxs::gui
                 if (active && visible)
                 {
                     layers[blinky].hide();
-                    reload |= task::blink;
+                    netxs::set_flag<task::blink>(reload);
                 }
                 else if (!visible) // Do not blink without focus.
                 {
                     layers[blinky].show();
-                    reload |= task::blink;
+                    netxs::set_flag<task::blink>(reload);
                 }
                 update();
             });
@@ -3056,7 +3057,7 @@ namespace netxs::gui
                     //if (gear.meta(hids::anyCtrl))
                     {
                         change_cell_size(gear.whldt, mcoord - layers[client].area.coor);
-                        reload |= task::all;
+                        netxs::set_flag<task::all>(reload);
                     }
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)

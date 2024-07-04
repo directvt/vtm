@@ -900,6 +900,7 @@ namespace netxs::os
                 {
                     modstate |= input::hids::LShift;
                 }
+                auto fsmode = modstate & input::hids::Fullscrn;
                 auto lshift = modstate & input::hids::LShift;
                 auto rshift = modstate & input::hids::RShift;
                 auto lwin   = modstate & input::hids::LWin;
@@ -912,6 +913,7 @@ namespace netxs::os
                 bool caps   = ms_ctrls & CAPSLOCK_ON;
                 bool scrl   = ms_ctrls & SCROLLLOCK_ON;
                 auto state  = si32{};
+                if (fsmode) state |= input::hids::Fullscrn;
                 if (lshift) state |= input::hids::LShift;
                 if (rshift) state |= input::hids::RShift;
                 if (lalt  ) state |= input::hids::LAlt;
