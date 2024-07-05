@@ -172,6 +172,10 @@
     <td colspan="3">Toggle fullscreen mode</td>
   </tr>
   <tr>
+    <th>Ctrl+CapsLock</th>
+    <td colspan="3">Toggle text antialiasing mode</td>
+  </tr>
+  <tr>
     <th>DblLeftClick</th>
     <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
   </tr>

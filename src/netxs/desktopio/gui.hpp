@@ -2911,6 +2911,13 @@ namespace netxs::gui
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
+                else if (kbstate[VK_CONTROL] & 0x80 && kbstate[VK_CAPITAL] & 0x80) // Toggle antialiasing mode by Ctrl+CapsLock.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        set_aa_mode(!gcache.aamode);
+                    });
+                }
                 else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
