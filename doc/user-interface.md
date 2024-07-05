@@ -176,6 +176,10 @@
     <td colspan="3">Toggle text antialiasing mode</td>
   </tr>
   <tr>
+    <th>CapsLock+Up/DownArrow</th>
+    <td colspan="3">Change cell height</td>
+  </tr>
+  <tr>
     <th>DblLeftClick</th>
     <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
   </tr>

@@ -2898,10 +2898,6 @@ namespace netxs::gui
                 sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
             //print_kbstate("key press:");
-            //if (virtcod == 'A' && param.v.state == 3) // Toggle AA mode.
-            //{
-            //    set_aa_mode(!gcache.aamode);
-            //}
             if (pressed)
             {
                 if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
@@ -2911,11 +2907,21 @@ namespace netxs::gui
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
-                else if (kbstate[VK_CONTROL] & 0x80 && kbstate[VK_CAPITAL] & 0x80) // Toggle antialiasing mode by Ctrl+CapsLock.
+                else if (kbstate[VK_CAPITAL] & 0x80 && kbstate[VK_CONTROL] & 0x80) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         set_aa_mode(!gcache.aamode);
+                    });
+                }
+                else if (kbstate[VK_CAPITAL] & 0x80 && (kbstate[VK_UP] & 0x80 || kbstate[VK_DOWN] & 0x80)) // Change cell height by CapsLock+Up/DownArrow.
+                {
+                    auto dir = kbstate[VK_UP] & 0x80 ? 1 : -1;
+                    bell::enqueue(This(), [&, dir](auto& /*boss*/)
+                    {
+                        change_cell_size(dir);
+                        netxs::set_flag<task::all>(reload);
+                        update_gui();
                     });
                 }
                 else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
