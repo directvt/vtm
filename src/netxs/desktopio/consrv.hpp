@@ -512,6 +512,7 @@ struct impl : consrv
         sync  signal; // evnt: Input event append signal.
         lock  locker; // evnt: Input event buffer mutex.
         cook  cooked; // evnt: Cooked input string.
+        flag  incook; // evnt: Console waits cooked input.
         jobs  worker; // evnt: Background task executer.
         flag  closed; // evnt: Console server was shutdown.
         fire  ondata; // evnt: Signal on input buffer data.
@@ -529,6 +530,7 @@ struct impl : consrv
 
         evnt(impl& serv)
             :  server{ serv },
+               incook{ faux },
                closed{ faux },
                leader{      },
                ctrl_c{ faux },
@@ -1013,6 +1015,22 @@ struct impl : consrv
         {
             auto lock = std::lock_guard{ locker };
             toWIDE.clear();
+            if constexpr (isreal()) // Copy/Paste by Ctrl/Shift+Insert in cooked read mode.
+            {
+                if (incook && gear.pressed && gear.keycode == input::key::Insert)
+                {
+                    if (gear.meta(input::hids::anyShift))
+                    {
+                        server.uiterm.paste(gear);
+                        return;
+                    }
+                    else if (gear.meta(input::hids::anyCtrl))
+                    {
+                        server.uiterm._copy(gear, cooked.ustr);
+                        return;
+                    }
+                }
+            }
             utf::to_utf(gear.cluster, toWIDE);
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
@@ -1149,7 +1167,10 @@ struct impl : consrv
                         if (c == 0x7f && v == 0) v = VK_BACK;
                         switch (v)
                         {
-                            case VK_CONTROL: break;
+                            case VK_CONTROL:
+                                cooked.ustr.clear();
+                                line.lyric->utf8(cooked.ustr); // Prepare data to copy to clipboard by Ctrl+Instert.
+                                break;
                             case VK_SHIFT:   break;
                             case VK_MENU:    break; /*Alt*/
                             case VK_PAUSE:   break;
@@ -1179,7 +1200,19 @@ struct impl : consrv
                                     if (server.io_log) log("%%Removed DOSKEY aliases for process '%procname%'", prompt::cin, nameview);
                                 }
                                 break;
-                            case VK_INSERT: burn(); mode(!mode);                                                                   break;
+                            case VK_INSERT:
+                                if (cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) // Copy to clipboard.
+                                 || cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)
+                                 || cooked.ctrl & (SHIFT_PRESSED)) // Paste from clipboard.
+                                {
+                                    // do nothing.
+                                }
+                                else
+                                {
+                                    burn();
+                                    mode(!mode);
+                                }
+                                break;
                             case VK_F6:     burn(); hist.save(line);               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
                             case VK_ESCAPE: burn(); hist.save(line);               line.wipe();                                    break;
                             case VK_HOME:   burn(); hist.save(line);               line.move_to_home(contrl);                      break;
@@ -1487,7 +1520,9 @@ struct impl : consrv
                     {
                         if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                         else                    cooked.ustr = initdata;
+                        incook.exchange(true);
                         readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, nameview);
+                        incook.exchange(faux);
                     }
                     else
                     {
