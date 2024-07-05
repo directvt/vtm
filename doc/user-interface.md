@@ -155,7 +155,7 @@
 </tbody>
 </table>
 
-## GUI mode only
+## GUI mode
 
 <table>
 <thead>
@@ -177,7 +177,11 @@
   </tr>
   <tr>
     <th>CapsLock+Up/DownArrow</th>
-    <td colspan="3">Change cell height</td>
+    <td colspan="3">Change text cell size</td>
+  </tr>
+  <tr>
+    <th>Wheel</th>
+    <td colspan="3">Change text cell size (if unhandled)</td>
   </tr>
   <tr>
     <th>DblLeftClick</th>
@@ -186,10 +190,6 @@
   <tr>
     <th>Home+End</th>
     <td colspan="3">Close GUI window</td>
-  </tr>
-  <tr>
-    <th>Wheel</th>
-    <td colspan="3">Change text cell size (if unhandled)</td>
   </tr>
   <tr>
     <th>AnyDrag<br>Left+RightDrag</th>
