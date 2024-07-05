@@ -2209,6 +2209,7 @@ namespace netxs::gui
         text toUTF8;
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
+        flag isbusy = {}; // window: The window is awaiting update.
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -2609,6 +2610,7 @@ namespace netxs::gui
                 }
                 manager::present();
             }
+            isbusy.exchange(faux);
         }
         void mouse_wheel(si32 delta, bool hz)
         {
@@ -2627,6 +2629,7 @@ namespace netxs::gui
             }
             else
             {
+                if (!isbusy.exchange(true))
                 bell::enqueue(This(), [&, wheeldt](auto& /*boss*/)
                 {
                     //if (gear.meta(hids::anyCtrl))
@@ -2898,10 +2901,20 @@ namespace netxs::gui
                 sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
             //print_kbstate("key press:");
-            //if (virtcod == 'A' && param.v.state == 3) // Toggle AA mode.
-            //{
-            //    set_aa_mode(!gcache.aamode);
-            //}
+            if (pressed || repeat)
+            {
+                if (kbstate[VK_CAPITAL] & 0x80 && (kbstate[VK_UP] & 0x80 || kbstate[VK_DOWN] & 0x80)) // Change cell height by CapsLock+Up/DownArrow.
+                {
+                    auto dir = kbstate[VK_UP] & 0x80 ? 1.f : -1.f;
+                    if (!isbusy.exchange(true))
+                    bell::enqueue(This(), [&, dir](auto& /*boss*/)
+                    {
+                        change_cell_size(dir);
+                        netxs::set_flag<task::all>(reload);
+                        update_gui();
+                    });
+                }
+            }
             if (pressed)
             {
                 if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
@@ -2909,6 +2922,13 @@ namespace netxs::gui
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                    });
+                }
+                else if (kbstate[VK_CAPITAL] & 0x80 && kbstate[VK_CONTROL] & 0x80) // Toggle antialiasing mode by Ctrl+CapsLock.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        set_aa_mode(!gcache.aamode);
                     });
                 }
                 else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
@@ -3074,6 +3094,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
+                    if (!isbusy.exchange(true))
                     //todo uncomment
                     //if (gear.meta(hids::anyCtrl))
                     {
