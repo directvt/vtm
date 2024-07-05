@@ -206,7 +206,8 @@
   <tr>
     <th>RightDrag</th>
     <td colspan="1"></td>
-    <td colspan="2">Move GUI window</td>
+    <td colspan="1">Move GUI window</td>
+    <td colspan="1"></td>
   </tr>
 </tbody>
 </table>
