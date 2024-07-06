@@ -2510,10 +2510,15 @@ namespace netxs::gui
             {
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
-            for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+            if (reload != task::all)
             {
-                //todo push diffs only
-                layer.sync.push_back(g_area);
+                auto coor = layers[client].area.coor;
+                for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+                {
+                    //todo push diffs only
+                    g_area.coor += coor;
+                    layer.sync.push_back(g_area);
+                }
             }
         }
         template<class T = noop>
