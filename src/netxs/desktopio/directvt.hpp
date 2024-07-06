@@ -1066,12 +1066,12 @@ namespace netxs::directvt
                             log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
-                        iter = dest;
                         if constexpr (!std::is_same_v<P, noop>)
                         {
-                            update(area.size, head, step, iter);
-                            step = iter;
+                            if (step != iter) update(head, step, iter);
+                            step = dest;
                         }
+                        iter = dest;
                     }
                     else // Unknown subtype.
                     {
@@ -1082,7 +1082,7 @@ namespace netxs::directvt
                 image.mark(mark);
                 if constexpr (!std::is_same_v<P, noop>)
                 {
-                    update(area.size, head, step, iter);
+                    update(head, step, iter);
                 }
                 //log(prompt::dtvt, "frame len: ", frame_len);
                 //log(prompt::dtvt, "nop count: ", nop_count);

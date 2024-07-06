@@ -4562,7 +4562,8 @@ namespace netxs::os
                 {
                     auto& bitmap = lock.thing;
                     #if defined(_WIN32)
-                        auto update = [](auto size, auto head, auto iter, auto tail)
+                        auto& size = bitmap.image.size();
+                        auto update = [&](auto head, auto iter, auto tail)
                         {
                             auto offset = (si32)(iter - head);
                             auto mx = std::max(1, size.x);

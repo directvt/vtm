@@ -1290,6 +1290,21 @@ namespace netxs::gui
                                                           .biCompression = BI_RGB }};
                     if (auto hbm = ::CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
+                        //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
+                        //if (!wipe) // Crop.
+                        //{
+                        //    auto d = new_data.data();
+                        //    auto s = data.data();
+                        //    auto w = std::min(prev.size.x, area.size.x) * sizeof(argb);
+                        //    auto h = std::min(prev.size.y, area.size.y);
+                        //    while (h--)
+                        //    {
+                        //        std::memcpy(d, s, w);
+                        //        d += area.size.x;
+                        //        s += prev.size.x;
+                        //    }
+                        //}
+                        //data = new_data;
                         ::DeleteObject(::SelectObject(hdc, hbm));
                         wipe = faux;
                         prev.size = area.size;
@@ -1905,42 +1920,30 @@ namespace netxs::gui
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
-                //if (owner.reload == task::all) // We need full repaint.
-                //{
-                    auto resize = [&](auto new_gridsz)
-                    {
-                        if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
-                    };
+                auto resize = [&](auto new_gridsz)
+                {
+                    if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
+                };
+                if (owner.reload == task::all) // We need full repaint.
+                {
+                    //os::logstd("full");
                     bitmap.get(data, {}, resize);
+                }
+                else
+                {
+                    //os::logstd("parts");
+                    auto update = [&](auto ...args)
+                    {
+                        if (owner.waitsz) return;
+                        owner.fill_stripe(args...);
+                        //todo strike
+                    };
+                    bitmap.get(data, update, resize);
                     netxs::set_flag<task::inner>(owner.reload);
-                //}
-                //else
-                //{
-                //    auto& client_layer = owner.layers[owner.client];
-                //    auto& blinky_layer = owner.layers[owner.blinky];
-                //    auto canvas = client_layer.canvas();
-                //    auto blinks = blinky_layer.canvas();
-                //    auto origin_coor = canvas.coor() + owner.border.corner();
-                //    auto base = canvas.coor();
-                //    auto base_blinks = blinks.coor();
-                //    blinks.move(origin_coor);
-                //    canvas.step(-base);
-                //    auto update = [&](auto size, auto head, auto iter, auto tail)
-                //    {
-                //        owner.fill_stripe(canvas, blinks, size, head, iter, tail);
-                //    };
-                //    auto resize = [&](auto new_gridsz)
-                //    {
-                //        if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
-                //    };
-                //    bitmap.get(data, update, resize);
-                //    client_layer.strike({ .size = client_layer.area.size });
-                //    blinky_layer.strike({ .size = blinky_layer.area.size });
-                //    netxs::set_flag<task::inner>(owner.reload);
-                //    //canvas.step(base);
-                //    //blinks.move(base_blinks);
-                //    owner.check_blinky();
-                //}
+
+                    owner.layers[owner.client].strike<true>(owner.layers[owner.client].area);
+                    if (owner.check_blinky() || owner.blink_count) owner.layers[owner.blinky].strike<true>(owner.layers[owner.blinky].area);
+                }
                 s11n::request_jgc(intio, lock);
             }
             void handle(s11n::xs::jgc_list         lock)
@@ -1948,6 +1951,7 @@ namespace netxs::gui
                 s11n::receive_jgc(lock);
                 //todo repaint jgc cells
                 //todo Trigger to redraw viewport to update jumbo clusters.
+                //todo strike
                 netxs::set_flag<task::all>(owner.reload);
             }
             void handle(s11n::xs::header_request   lock)
@@ -2424,13 +2428,14 @@ namespace netxs::gui
                 size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
-            netxs::set_flag<task::sized>(reload);
             if (proxy.w.winsize != gridsz)
             {
+                netxs::set_flag<task::all>(reload);
                 waitsz = gridsz;
                 proxy.w.winsize = gridsz;
                 proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
+            else netxs::set_flag<task::sized>(reload);
         }
         auto resize_window(twod size_delta)
         {
@@ -2572,9 +2577,10 @@ namespace netxs::gui
             auto blinks = blink_mask.begin() + offset;
             auto p = rect{origin + twod{ offset % gridsz.x, offset / gridsz.x } * cellsz, cellsz };
             auto m = origin + blink_canvas.size();
-            while (head != tail)
+            //os::logstd("coor: ", twod{ offset % gridsz.x, offset / gridsz.x }, " len: ", (si32)(tail - iter));
+            while (iter != tail)
             {
-                auto& c = *head++;
+                auto& c = *iter++;
                 auto& b = *blinks++;
                 if (std::exchange(b, c.blk()) != b)
                 {
@@ -2605,7 +2611,7 @@ namespace netxs::gui
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
-        auto check_blinky()
+        bool check_blinky()
         {
             auto changed = std::exchange(blinking, !!blink_count) != blinking;
             if (changed)
@@ -2631,7 +2637,7 @@ namespace netxs::gui
                  if (what == task::moved) manager::present<true>();
             else if (what)
             {
-                if (what & task::all)
+                if (what == task::all)
                 {
                     auto bitmap_lock = proxy.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
