@@ -848,23 +848,20 @@ namespace netxs
             inbody<faux>(canvas, bitmap, joint, basis, handle, online);
         }
     }
-    // intmath: Intersect two sprite's clips and invoke handle(sprite1_element, sprite2_element) for each elem in the intersection.
+    // intmath: Intersect two sprites and invoke handle(sprite1_element, sprite2_element) for each element in the intersection.
     template<class NewlineFx = noop>
     void onclip(auto&& canvas, auto&& bitmap, auto handle, NewlineFx online = {})
     {
         auto canvas_clip = canvas.clip();
         auto bitmap_area = bitmap.area();
-        //canvas_clip.coor -= bitmap_area.coor;
         if (canvas_clip.trimby(bitmap_area))
         {
             auto basis = canvas_clip.coor - bitmap_area.coor;
+            canvas_clip.coor -= canvas.coor();
             netxs::inbody<faux>(canvas, bitmap, canvas_clip, basis, handle, online);
         }
     }
-
-    // intmath: Draw the rectangle region inside the canvas by
-    //          invoking handle(canvas_element)
-    //          (without boundary checking).
+    // intmath: Draw a rectangular area inside the canvas by calling handle(canvas_element) without checking the bounds.
     template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
     void onrect(T&& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
