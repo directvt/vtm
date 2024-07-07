@@ -7509,6 +7509,10 @@ namespace netxs::ui
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
                 }
+                if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
+                {
+                    selection_cancel();
+                }
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, kbmode);
@@ -7580,10 +7584,8 @@ namespace netxs::ui
         {
             dtvt& master; // evnt: Terminal object reference.
 
-            void handle(s11n::xs::bitmap_dtvt         lock)
+            void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                s11n::request_jgc(master, lock);
-                lock.unlock();
                 master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
@@ -7907,8 +7909,15 @@ namespace netxs::ui
             nodata = {};
             stream.syswinsz.freeze().thing.winsize = {};
             active.exchange(true);
-            ipccon.runapp(config, base::size(), connect, [&](view utf8){ if (active) stream.sync(utf8); },
-                                                         [&]{ onexit(); });
+            auto receiver = [&](view utf8)
+            {
+                if (active)
+                {
+                    stream.sync(utf8);
+                    stream.request_jgc(*this);
+                }
+            };
+            ipccon.runapp(config, base::size(), connect, receiver, [&]{ onexit(); });
         }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)

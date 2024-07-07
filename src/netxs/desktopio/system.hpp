@@ -77,7 +77,7 @@
 #define EEET(...) { auto et_start = datetime::now(); \
                     __VA_ARGS__; \
                     auto et_stop = datetime::round<si32, std::chrono::microseconds>(datetime::now() - et_start); \
-                    log("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
+                    os::logstd("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
 namespace netxs
 {
     struct eccc
@@ -4562,7 +4562,8 @@ namespace netxs::os
                 {
                     auto& bitmap = lock.thing;
                     #if defined(_WIN32)
-                        auto update = [](auto size, auto head, auto iter, auto tail)
+                        auto& size = bitmap.image.size();
+                        auto update = [&](auto head, auto iter, auto tail)
                         {
                             auto offset = (si32)(iter - head);
                             auto mx = std::max(1, size.x);
@@ -4573,8 +4574,6 @@ namespace netxs::os
                         auto update = noop{};
                     #endif
                     bitmap.get(data, update);
-                    s11n::request_jgc(dtvt::client, lock);
-                    //bitmap.newgc.clear(); // Ignore jumbo clusters.
                 }
                 void handle(s11n::xs::jgc_list         lock)
                 {
@@ -5703,7 +5702,11 @@ namespace netxs::os
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
             auto clips = std::thread{ [&]{ clipbd(alarm); } };
-            directvt::binary::stream::reading_loop(intio, [&](view data){ proxy.sync(data); });
+            directvt::binary::stream::reading_loop(intio, [&](view data)
+            {
+                proxy.sync(data);
+                proxy.request_jgc(intio);
+            });
             proxy.stop(); // Wake up waiting objects, if any.
             alarm.bell(); // Forced to call close().
             clips.join();

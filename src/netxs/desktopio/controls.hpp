@@ -824,7 +824,7 @@ namespace netxs::ui
                         auto visible = (unfocused == blinking) || (blinking && live);
                         auto clip = canvas.core::clip();
                         auto area = clip.trim(body);
-                        if (area)
+                        if (area && form != text_cursor::I_bar)
                         {
                             auto& test = canvas.peek(body.coor);
                             //todo >2x1 matrix support

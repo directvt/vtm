@@ -66,14 +66,30 @@ namespace netxs::gui
         { }
         void hide() { live = faux; }
         void show() { live = true; }
+        template<bool Forced = faux>
         void strike(rect r)
         {
-            if (sync.empty()) sync.push_back(r);
+            if constexpr (Forced)
+            {
+                sync.clear();
+                sync.push_back(r);
+            }
             else
             {
-                auto& back = sync.back();
-                if (back.nearby(r)) back.unitewith(r);
-                else                sync.push_back(r);
+                // Unoptimal rendering.
+                //sync.push_back(r);
+                //return;
+                if (sync.empty()) sync.push_back(r);
+                else
+                {
+                    auto& back = sync.back();
+                    if (back.nearby(r) // Connected
+                     || back.trim({{ -dot_mx.x / 2, r.coor.y }, { dot_mx.x, r.size.y }})) // or on the same line.
+                    {
+                        back.unitewith(r);
+                    }
+                    else sync.push_back(r);
+                }
             }
         }
     };
@@ -1127,7 +1143,8 @@ namespace netxs::gui
                 netxs::onclip(canvas, raster, fx);
             }
         }
-        void draw_cell(auto& canvas, auto& blinks, rect placeholder, cell const& c)
+        template<class T = noop>
+        void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blinks = {})
         {
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
@@ -1135,17 +1152,25 @@ namespace netxs::gui
             auto bgc = c.bgc();
             if (c.inv()) std::swap(fgc, bgc);
             canvas.clip(placeholder);
-            if (c.blk())
+            auto target_ptr = &canvas;
+            if constexpr (std::is_same_v<std::decay_t<T>, noop>)
             {
-                placeholder.coor -= blinks.coor();
-                blinks.clip(placeholder);
-                if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
-                {
-                    netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
-                }
+                if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
-            else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
-            auto& target = c.blk() ? blinks : canvas;
+            else
+            {
+                if (c.blk())
+                {
+                    target_ptr = &blinks;
+                    blinks.clip(placeholder);
+                    if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
+                    {
+                        netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
+                    }
+                }
+                else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+            }
+            auto& target = *target_ptr;
             if (auto u = c.und())
             {
                 auto index = c.unc();
@@ -1153,13 +1178,13 @@ namespace netxs::gui
                 if (u == unln::line)
                 {
                     auto block = fcache.underline;
-                    block.coor += placeholder.coor + target.coor();
+                    block.coor += placeholder.coor;
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
                 else if (u == unln::dotted)
                 {
                     auto block = fcache.underline;
-                    block.coor += placeholder.coor + target.coor();
+                    block.coor += placeholder.coor;
                     auto limit = block.coor.x + block.size.x;
                     block.size.x = std::max(2, block.size.y);
                     auto stepx = 3 * block.size.x;
@@ -1173,14 +1198,14 @@ namespace netxs::gui
                 else if (u == unln::dashed)
                 {
                     auto block = fcache.dashline;
-                    block.coor += placeholder.coor + target.coor();
+                    block.coor += placeholder.coor;
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
                 else if (u == unln::biline)
                 {
                     auto b1 = fcache.doubline1;
                     auto b2 = fcache.doubline2;
-                    auto offset = placeholder.coor + target.coor();
+                    auto offset = placeholder.coor;
                     b1.coor += offset;
                     b2.coor += offset;
                     netxs::onrect(target, b1, cell::shaders::full(color));
@@ -1197,7 +1222,7 @@ namespace netxs::gui
                 else
                 {
                     auto block = fcache.underline;
-                    block.coor += placeholder.coor + target.coor();
+                    block.coor += placeholder.coor;
                     netxs::onrect(target, block, cell::shaders::full(color));
                 }
             }
@@ -1205,14 +1230,14 @@ namespace netxs::gui
             {
                 auto color = c.fgc();
                 auto block = fcache.strikeout;
-                block.coor += placeholder.coor + target.coor();
+                block.coor += placeholder.coor;
                 netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.ovr())
             {
                 auto color = c.fgc();
                 auto block = fcache.overline;
-                block.coor += placeholder.coor + target.coor();
+                block.coor += placeholder.coor;
                 netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.xy() == 0) return;
@@ -1236,64 +1261,6 @@ namespace netxs::gui
             if (x == 0 || y == 0) return;
             auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
             draw_glyf(target, glyph_mask, offset, fgc);
-        }
-        void draw_cell_with_cursor(auto& canvas, auto& blinks, rect placeholder, cell c)
-        {
-            //todo hilight grapheme cluster.
-            //todo hint for ime
-            auto style = c.cur();
-            auto [bgcolor, fgcolor] = c.cursor_color();
-            auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
-            if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
-            if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
-            if (style == text_cursor::block)
-            {
-                c.fgc(fgcolor).bgc(bgcolor);
-                draw_cell(canvas, blinks, placeholder, c);
-            }
-            else if (style == text_cursor::I_bar)
-            {
-                draw_cell(canvas, blinks, placeholder, c);
-                placeholder.size.x = width;
-                //todo draw glyph inside the cursor (respect blinking glyphs)
-                //c.fgc(fgcolor).bgc(bgcolor);
-                //draw_cell(canvas, blinks, placeholder, c);
-                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
-            }
-            else if (style == text_cursor::underline)
-            {
-                draw_cell(canvas, blinks, placeholder, c);
-                placeholder.coor.y += cellsz.y - width;
-                placeholder.size.y = width;
-                c.fgc(fgcolor).bgc(bgcolor);
-                //todo draw glyph inside the cursor (respect blinking glyphs)
-                //draw_cell(canvas, blinks, placeholder, c);
-                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
-            }
-        }
-        void fill_grid(auto& canvas, auto& blinks, si32& blink_count, twod origin, auto& grid_cells)
-        {
-            auto area = rect{ origin, cellsz };
-            auto maxc = area.coor + grid_cells.size() * cellsz;
-            auto base = canvas.coor();
-            auto base_blinks = blinks.coor();
-            blinks.move(origin);
-            canvas.step(-base);
-            for (cell& c : grid_cells)
-            {
-                if (c.blk()) blink_count++;//todo sync with blink_synch
-                if (c.cur()) draw_cell_with_cursor(canvas, blinks, area, c);
-                else         draw_cell(canvas, blinks, area, c);
-                area.coor.x += cellsz.x;
-                if (area.coor.x >= maxc.x)
-                {
-                    area.coor.x = origin.x;
-                    area.coor.y += cellsz.y;
-                    if (area.coor.y >= maxc.y) break;
-                }
-            }
-            canvas.step(base);
-            blinks.move(base_blinks);
         }
     };
 
@@ -1330,6 +1297,21 @@ namespace netxs::gui
                                                           .biCompression = BI_RGB }};
                     if (auto hbm = ::CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
+                        //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
+                        //if (!wipe) // Crop.
+                        //{
+                        //    auto d = new_data.data();
+                        //    auto s = data.data();
+                        //    auto w = std::min(prev.size.x, area.size.x) * sizeof(argb);
+                        //    auto h = std::min(prev.size.y, area.size.y);
+                        //    while (h--)
+                        //    {
+                        //        std::memcpy(d, s, w);
+                        //        d += area.size.x;
+                        //        s += prev.size.x;
+                        //    }
+                        //}
+                        //data = new_data;
                         ::DeleteObject(::SelectObject(hdc, hbm));
                         wipe = faux;
                         prev.size = area.size;
@@ -1346,15 +1328,17 @@ namespace netxs::gui
         {
             if (!hdc) return;
             auto windowmoved = prev.coor(live ? area.coor : hidden);
-            if (!windowmoved && (sync.empty() || !live)) return;
-            if (!live) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+            if (sync.empty())
             {
-                ::SetWindowPos(hWnd, 0, hidden.x, hidden.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+                {
+                    ::SetWindowPos(hWnd, 0, prev.coor.x, prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                }
                 return;
             }
             auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto bitmap_coor = POINT{};
-            auto window_coor = POINT{ area.coor.x, area.coor.y };
+            auto window_coor = POINT{ prev.coor.x, prev.coor.y };
             auto bitmap_size = SIZE{ area.size.x, area.size.y };
             auto update_area = RECT{};
             auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
@@ -1372,25 +1356,21 @@ namespace netxs::gui
                 auto ok = ::UpdateLayeredWindowIndirect(hWnd, &update_info);
                 if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
             };
-            //todo revise/optimize
-            //if (sync.size() > 100) // Full redraw if too much changes.
-            //{
-            //    update_area = RECT{ .right = size.x, .bottom = size.y };
-            //    update_proc();
-            //}
-            //else
+            //static auto clr = 0; clr++;
+            for (auto r : sync)
             {
-                for (auto r : sync)
-                {
-                    update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    update_proc();
-                    update_info.pptDst = {};
-                }
-                if (update_info.pptDst) // Just move window.
-                {
-                    update_area = {};
-                    update_proc();
-                }
+                // Hilight changes
+                //auto c = canvas();
+                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
+                r.coor -= area.coor;
+                update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                update_proc();
+                update_info.pptDst = {};
+            }
+            if (update_info.pptDst) // Just move window.
+            {
+                update_area = {};
+                update_proc();
             }
             sync.clear();
         }
@@ -1797,7 +1777,12 @@ namespace netxs::gui
         {
             //...
         }
-        void fill_grid(auto& /*canvas*/, auto& /*blinks*/, si32& /*blink_count*/, twod /*origin*/, auto& /*grid_cells*/)
+        void fill_grid(auto& /*canvas*/, auto& /*cellgrid*/, twod /*origin*/ = {})
+        {
+            //...
+        }
+        template<class T = noop>
+        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
         {
             //...
         }
@@ -1946,41 +1931,58 @@ namespace netxs::gui
                 auto& bitmap = lock.thing;
                 auto resize = [&](auto new_gridsz)
                 {
+                    //todo use digest instead of winsize
                     if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
                 };
-                auto update = [&]([[maybe_unused]] auto size, [[maybe_unused]] auto head, [[maybe_unused]] auto iter, [[maybe_unused]] auto tail)
+                if (owner.reload == task::all || owner.fsmode == state::minimized) // We need full repaint.
                 {
-                    //auto offset = (si32)(iter - head);
-                    //auto mx = std::max(1, size.x);
-                    //auto coor = twod{ offset % mx, offset / mx };
-
-                    //todo render in pixels
-                    //see gcache.fill_grid()
-                    //owner.print(size, coor, iter, tail);
-                    //auto dist = tail - head;
-                    //auto dest = main_grid.begin() + coor.x + coor.y * area.x;
-                    //todo render in pixels
-                    //todo now
-                    //while (head != tail)
-                    //{
-                    //    auto src = *head++;
-                    //    auto& dst = *dest++;
-                    //    dst = src;
-                    //}
-                    //auto& client_layer = layers[client];
-                    //auto& blinky_layer = layers[blinky];
-                    //client_layers.strike(dirty_area);
-                    //blinky_layers.strike({ .size = layers[blinky].area.size });
-                };
-                bitmap.get(data, update, resize);
-                s11n::request_jgc(intio, lock);
-                netxs::set_flag<task::inner>(owner.reload);
+                    bitmap.get(data, {}, resize);
+                }
+                else
+                {
+                    auto& client_layer = owner.layers[owner.client];
+                    auto& blinky_layer = owner.layers[owner.blinky];
+                    auto update = [&](auto head, auto iter, auto tail)
+                    {
+                        if (owner.waitsz) return;
+                        auto offset = (si32)(iter - head);
+                        auto length = (si32)(tail - iter);
+                        auto origin = twod{ offset % owner.gridsz.x, offset / owner.gridsz.x } * owner.cellsz;
+                        owner.fill_stripe(iter, tail, origin, offset);
+                        // Calc dirty regions.
+                        auto len_x = length * owner.cellsz.x;
+                        auto width = owner.gridsz.x * owner.cellsz.x;
+                        auto max_x = origin.x + len_x - 1;
+                        auto end_x = max_x % width + 1;
+                        auto end_y = origin.y + (max_x / width + 1) * owner.cellsz.y;
+                        if (len_x > width)
+                        {
+                            auto dirty = rect{{ 0, origin.y }, { width, end_y - origin.y }};
+                            dirty.coor += blinky_layer.area.coor;
+                            client_layer.strike(dirty);
+                        }
+                        else
+                        {
+                            auto dirty = rect{ origin, { origin.x < end_x ? len_x : width - origin.x, owner.cellsz.y }};
+                            dirty.coor += blinky_layer.area.coor;
+                            client_layer.strike(dirty);
+                            if (origin.x >= end_x)
+                            {
+                                auto remain = rect{{ 0, end_y - owner.cellsz.y }, { end_x, owner.cellsz.y }};
+                                remain.coor += blinky_layer.area.coor;
+                                client_layer.strike(remain);
+                            }
+                        }
+                    };
+                    bitmap.get(data, update, resize);
+                    netxs::set_flag<task::inner>(owner.reload);
+                    owner.check_blinky();
+                }
             }
             void handle(s11n::xs::jgc_list         lock)
             {
                 s11n::receive_jgc(lock);
-                //todo repaint jgc cells
-                netxs::set_flag<task::inner>(owner.reload); // Trigger to redraw viewport to update jumbo clusters.
+                netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update jumbo clusters.
             }
             void handle(s11n::xs::header_request   lock)
             {
@@ -2170,7 +2172,7 @@ namespace netxs::gui
             }
         };
 
-        std::vector<byte> blink_synch;
+        std::vector<byte> blink_mask;
         si32              blink_count{};
         ui::face head_grid;
         ui::face foot_grid;
@@ -2277,11 +2279,11 @@ namespace netxs::gui
                 layers[blinky].show();
             }
         }
-        void change_cell_size(fp32 dy = {}, twod resize_center = {})
+        void change_cell_size(bool forced = true, fp32 dy = {}, twod resize_center = {})
         {
+            if (std::exchange(height, std::clamp(height + dy, 2.f, 256.f)) == height && !forced) return;
             reset_blinky();
             auto grip_cell = gripsz / cellsz;
-            height = std::clamp(height + dy, 2.f, 256.f);
             auto prev_cellsz = cellsz;
             fcache.set_cellsz((si32)height);
             gcache.reset();
@@ -2306,6 +2308,7 @@ namespace netxs::gui
                 layers[blinky].area = layers[client].area - border;
                 sync_titles_pixel_layout();
             }
+            netxs::set_flag<task::all>(reload);
         }
         void set_aa_mode(bool mode)
         {
@@ -2330,8 +2333,7 @@ namespace netxs::gui
         {
             log("%%Font list changed: ", prompt::gui, flist);
             fcache.set_fonts(flist, faux);
-            change_cell_size();
-            netxs::set_flag<task::all>(reload);
+            change_cell_size(true);
         }
         auto move_window(twod delta)
         {
@@ -2359,9 +2361,9 @@ namespace netxs::gui
             {
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 layers[client].area = normsz;
-                size_window();
                 for (auto l : { client, header, footer }) layers[l].show();
                 if (blink_count) layers[blinky].show();
+                size_window();
             }
             else if (fsmode == state::minimized)
             {
@@ -2374,13 +2376,12 @@ namespace netxs::gui
                 auto over_sz = layers[client].area.size % cellsz;
                 auto half_sz = over_sz / 2;
                 border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
-                size_window();
                 layers[header].hide();
                 layers[footer].hide();
                 layers[client].show();
                 if (blink_count) layers[blinky].show();
+                size_window();
             }
-            netxs::set_flag<task::all>(reload);
             netxs::set_flag<input::hids::Fullscrn>(kbmod, fsmode == state::maximized);
         }
         void check_fsmode(arch hWnd)
@@ -2413,7 +2414,6 @@ namespace netxs::gui
                         avail_area.size -= std::min(avail_area.size, normsz.size);
                         normsz.coor = avail_area.clamp(normsz.coor);
                         set_state(state::normal);
-                        netxs::set_flag<task::all>(reload);
                     }
                 }
                 else if (fsmode == state::normal)
@@ -2450,20 +2450,22 @@ namespace netxs::gui
             layers[client].area.size += size_delta;
             layers[blinky].area = layers[client].area - border;
             gridsz = layers[blinky].area.size / cellsz;
-            blink_synch.assign(gridsz.x * gridsz.y, 0);
+            blink_count = 0;
+            blink_mask.assign(gridsz.x * gridsz.y, 0);
             if (fsmode != state::maximized)
             {
                 size_title(head_grid, titles.head_page);
                 size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
-            netxs::set_flag<task::sized>(reload);
             if (proxy.w.winsize != gridsz)
             {
+                netxs::set_flag<task::all>(reload);
                 waitsz = gridsz;
                 proxy.w.winsize = gridsz;
                 proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
+            else netxs::set_flag<task::sized>(reload);
         }
         auto resize_window(twod size_delta)
         {
@@ -2538,28 +2540,119 @@ namespace netxs::gui
             {
                 shadow.render(canvas, r, inner_rect, cell::shaders::alpha);
             });
-            for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+            if (reload != task::all)
             {
-                //todo push diffs only
-                layer.sync.push_back(g_area);
+                auto coor = layers[client].area.coor;
+                for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
+                {
+                    //todo push diffs only
+                    g_area.coor += coor;
+                    layer.sync.push_back(g_area);
+                }
+            }
+        }
+        template<class T = noop>
+        void draw_cell_with_cursor(auto& canvas, rect placeholder, cell c, T&& blinks = {})
+        {
+            //todo hilight grapheme cluster.
+            auto style = c.cur();
+            auto [bgcolor, fgcolor] = c.cursor_color();
+            auto width = std::max(1, (si32)std::round(cellsz.x / 8.f));
+            if (!bgcolor || bgcolor == argb::default_color) bgcolor = { c.bgc().luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (!fgcolor || fgcolor == argb::default_color) fgcolor = { bgcolor.luma() < 192 ? tint::purewhite : tint::pureblack };
+            if (style == text_cursor::block)
+            {
+                c.fgc(fgcolor).bgc(bgcolor);
+                gcache.draw_cell(canvas, placeholder, c, blinks);
+            }
+            else if (style == text_cursor::I_bar)
+            {
+                gcache.draw_cell(canvas, placeholder, c, blinks);
+                placeholder.size.x = width;
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //c.fgc(fgcolor).bgc(bgcolor);
+                //gcache.draw_cell(canvas, placeholder, c, blinks);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
+            }
+            else if (style == text_cursor::underline)
+            {
+                gcache.draw_cell(canvas, placeholder, c, blinks);
+                placeholder.coor.y += cellsz.y - width;
+                placeholder.size.y = width;
+                c.fgc(fgcolor).bgc(bgcolor);
+                //todo draw glyph inside the cursor (respect blinking glyphs)
+                //gcache.draw_cell(canvas, placeholder, c, blinks);
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
+            }
+        }
+        void fill_grid(auto& canvas, auto& cellgrid, twod origin = {})
+        {
+            origin += canvas.coor();
+            auto p = rect{ origin, cellsz };
+            auto m = origin + cellgrid.size() * cellsz;
+            for (auto& c : cellgrid)
+            {
+                if (c.cur()) draw_cell_with_cursor(canvas, p, c);
+                else         gcache.draw_cell(canvas, p, c);
+                p.coor.x += cellsz.x;
+                if (p.coor.x >= m.x)
+                {
+                    p.coor.x = origin.x;
+                    p.coor.y += cellsz.y;
+                    if (p.coor.y >= m.y) break;
+                }
+            }
+        }
+        void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
+        {
+            auto& prime_layer = layers[client];
+            auto& blink_layer = layers[blinky];
+            auto prime_canvas = prime_layer.canvas();
+            auto blink_canvas = blink_layer.canvas();
+            auto origin = blink_canvas.coor();
+            auto blinks = blink_mask.begin() + offset;
+            auto p = rect{origin + start, cellsz };
+            auto m = origin + blink_canvas.size();
+            while (head != tail)
+            {
+                auto& c = *head++;
+                auto& b = *blinks++;
+                if (std::exchange(b, c.blk()) != b)
+                {
+                    if (b) blink_count++;
+                    else
+                    {
+                        blink_count--;
+                        netxs::onrect(blink_canvas, p, cell::shaders::wipe);
+                        blink_layer.strike(p);
+                    }
+                }
+                if (b) blink_layer.strike(p);
+                if (c.cur()) draw_cell_with_cursor(prime_canvas, p, c, blink_canvas);
+                else         gcache.draw_cell(prime_canvas, p, c, blink_canvas);
+                p.coor.x += cellsz.x;
+                if (p.coor.x >= m.x)
+                {
+                    p.coor.x = origin.x;
+                    p.coor.y += cellsz.y;
+                    if (p.coor.y >= m.y) break;
+                }
             }
         }
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
             auto canvas = layers[index].canvas(true);
-            auto blinks = layers[blinky].canvas(); //todo unify blinks in titles
-            auto title_blink_count = 0;
-            gcache.fill_grid(canvas, blinks, title_blink_count, shadow_dent.corner(), facedata);
+            fill_grid(canvas, facedata, shadow_dent.corner());
             netxs::misc::contour(canvas); // 1ms
-            layers[index].sync.push_back({ .size = canvas.size() });
+            layers[index].strike<true>(canvas.area());
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
-        void check_blinky()
+        bool check_blinky()
         {
-            if (blinking != !!blink_count)
+            auto changed = std::exchange(blinking, !!blink_count) != blinking;
+            if (changed)
             {
-                blinking = !!blink_count;
                 if (blink_count)
                 {
                     if (blinkrate != span::zero()) layers[client].start_timer(blinkrate, timers::blink);
@@ -2571,6 +2664,7 @@ namespace netxs::gui
                     layers[client].stop_timer(timers::blink);
                 }
             }
+            return changed;
         }
         void update_gui()
         {
@@ -2580,27 +2674,18 @@ namespace netxs::gui
                  if (what == task::moved) manager::present<true>();
             else if (what)
             {
-                if (what & (task::sized | task::inner))
+                if (what == task::all)
                 {
-                    auto canvas = layers[client].canvas();
-                    auto blinks = layers[blinky].canvas(true);
-                    canvas.move(dot_00);
-                    auto dirty_area = canvas.area() - border;
-                    blink_count = 0;
+                    auto bitmap_lock = proxy.bitmap_dtvt.freeze();
+                    auto& grid = bitmap_lock.thing.image;
+                    fill_stripe(grid.begin(), grid.end());
+                    if (fsmode == state::maximized)
                     {
-                        //todo update while sync
-                        auto bitmap_lock = proxy.bitmap_dtvt.freeze();
-                        auto& main_grid = bitmap_lock.thing.image;
-                        gcache.fill_grid(canvas, blinks, blink_count, dirty_area.coor, main_grid);
-                    }
-                    check_blinky();
-                    if (fsmode == state::maximized && (what & task::sized))
-                    {
+                        auto canvas = layers[client].canvas();
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
-                        dirty_area += border;
                     }
-                    layers[client].strike(dirty_area);
-                    layers[blinky].strike({ .size = layers[blinky].area.size });
+                    layers[client].strike<true>(layers[client].area);
+                    check_blinky();
                 }
                 if (fsmode == state::normal)
                 {
@@ -2634,8 +2719,7 @@ namespace netxs::gui
                 {
                     //if (gear.meta(hids::anyCtrl))
                     {
-                        change_cell_size(wheeldt, mcoord - layers[client].area.coor);
-                        netxs::set_flag<task::all>(reload);
+                        change_cell_size(faux, wheeldt, mcoord - layers[client].area.coor);
                         update_gui();
                     }
                 });
@@ -2909,8 +2993,7 @@ namespace netxs::gui
                     if (!isbusy.exchange(true))
                     bell::enqueue(This(), [&, dir](auto& /*boss*/)
                     {
-                        change_cell_size(dir);
-                        netxs::set_flag<task::all>(reload);
+                        change_cell_size(faux, dir);
                         update_gui();
                     });
                 }
@@ -3098,8 +3181,7 @@ namespace netxs::gui
                     //todo uncomment
                     //if (gear.meta(hids::anyCtrl))
                     {
-                        change_cell_size(gear.whldt, mcoord - layers[client].area.coor);
-                        netxs::set_flag<task::all>(reload);
+                        change_cell_size(faux, gear.whldt, mcoord - layers[client].area.coor);
                     }
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
@@ -3135,17 +3217,15 @@ namespace netxs::gui
                     auto lock = bell::sync();
                     proxy.sync(data);
                     update_gui();
+                    proxy.request_jgc(proxy.intio);
                 };
                 directvt::binary::stream::reading_loop(proxy.intio, sync);
                 proxy.stop(); // Wake up waiting objects, if any.
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();
-            {
-                auto lock = bell::sync();
-                proxy.gears.reset();
-            }
             proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
+            bell::dequeue(); // Clear task queue.
             winio.join();
         }
     };
