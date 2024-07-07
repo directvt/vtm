@@ -7509,6 +7509,10 @@ namespace netxs::ui
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
                 }
+                if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
+                {
+                    selection_cancel();
+                }
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, kbmode);
