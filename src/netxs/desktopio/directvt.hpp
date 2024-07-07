@@ -860,7 +860,6 @@ namespace netxs::directvt
 
             cell                           state; // bitmap: .
             core                           image; // bitmap: .
-            std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
 
             enum : byte
             {
@@ -1019,7 +1018,7 @@ namespace netxs::directvt
                     {
                         auto [size] = stream::take<byte>(data);
                         stream::take(c.egc().glyph, size, data);
-                        if (c.jgc() == faux) newgc[c.jgc_token()];
+                        c.jgc(); // Check unknown jumbo clusters.
                     }
                     return c;
                 };
@@ -1407,17 +1406,17 @@ namespace netxs::directvt
                 }
             }
             // s11n: Request jumbo clusters (after received bitmap synchronization).
-            void request_jgc(auto& master, s11n::xs::bitmap_dtvt& lock)
+            void request_jgc(auto& master)
             {
-                auto& bitmap = lock.thing;
-                if (bitmap.newgc.size())
+                auto jumbos = cell::glyf::jumbos();
+                if (jumbos.unk.size())
                 {
                     auto list = s11n::request_gc.freeze();
-                    for (auto& gc_map : bitmap.newgc)
+                    for (auto& token : jumbos.unk)
                     {
-                        list.thing.push(gc_map.first);
+                        list.thing.push(token);
                     }
-                    bitmap.newgc.clear();
+                    jumbos.unk.clear();
                     list.thing.sendby(master);
                 }
             }

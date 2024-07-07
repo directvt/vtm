@@ -1973,7 +1973,6 @@ namespace netxs::gui
                     netxs::set_flag<task::inner>(owner.reload);
                     owner.check_blinky();
                 }
-                s11n::request_jgc(intio, lock);
             }
             void handle(s11n::xs::jgc_list         lock)
             {
@@ -3216,6 +3215,7 @@ namespace netxs::gui
                     auto lock = bell::sync();
                     proxy.sync(data);
                     update_gui();
+                    proxy.request_jgc(proxy.intio);
                 };
                 directvt::binary::stream::reading_loop(proxy.intio, sync);
                 proxy.stop(); // Wake up waiting objects, if any.

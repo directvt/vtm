@@ -7,6 +7,7 @@
 #include "ptr.hpp"
 
 #include <span>
+#include <unordered_set>
 
 namespace netxs
 {
@@ -959,24 +960,36 @@ namespace netxs
                 using lock = std::mutex;
                 using sync = std::lock_guard<lock>;
                 using depo = std::unordered_map<ui64, text>;
+                using uset = std::unordered_set<ui64>;
 
                 struct vars
                 {
                     lock mutex{}; // There is no need to reset/clear/flush the map because
                     depo jumbo{}; //todo the number of different clusters is unlimited.
+                    uset undef{}; // jumbos: List of unknown tokens.
                 };
                 struct guard : sync
                 {
                     depo& map;
+                    uset& unk;
                     guard(vars& inst)
                         : sync{ inst.mutex },
-                           map{ inst.jumbo }
+                           map{ inst.jumbo },
+                           unk{ inst.undef }
                     { }
                     // jumbos: Get cluster.
                     auto& get(ui64 token)
                     {
-                        static auto empty = text{};
-                        return netxs::get_or(map, token, empty);
+                        if (auto iter = map.find(token); iter != map.end())
+                        {
+                            return iter->second;
+                        }
+                        else
+                        {
+                            static auto empty = text{};
+                            unk.insert(token);
+                            return empty;
+                        }
                     }
                     // jumbos: Set cluster.
                     void set(ui64 token, view data)
@@ -991,7 +1004,10 @@ namespace netxs
                     // jumbos: Check the cluster existence by token.
                     auto exists(ui64 token)
                     {
-                        return map.find(token) != map.end();
+                        auto iter = map.find(token);
+                        auto okay = iter != map.end();
+                        if (!okay) unk.insert(token);
+                        return okay;
                     }
                 };
 
