@@ -1977,10 +1977,7 @@ namespace netxs::gui
             void handle(s11n::xs::jgc_list         lock)
             {
                 s11n::receive_jgc(lock);
-                //todo repaint jgc cells
-                //todo Trigger to redraw viewport to update jumbo clusters.
-                //todo strike
-                netxs::set_flag<task::all>(owner.reload);
+                netxs::set_flag<task::all>(owner.reload); // Trigger to redraw all to update jumbo clusters.
             }
             void handle(s11n::xs::header_request   lock)
             {
