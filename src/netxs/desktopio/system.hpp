@@ -77,7 +77,7 @@
 #define EEET(...) { auto et_start = datetime::now(); \
                     __VA_ARGS__; \
                     auto et_stop = datetime::round<si32, std::chrono::microseconds>(datetime::now() - et_start); \
-                    log("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
+                    os::logstd("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
 namespace netxs
 {
     struct eccc

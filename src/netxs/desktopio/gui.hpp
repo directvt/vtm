@@ -76,12 +76,19 @@ namespace netxs::gui
             }
             else
             {
+                // Unoptimal rendering.
+                //sync.push_back(r);
+                //return;
                 if (sync.empty()) sync.push_back(r);
                 else
                 {
                     auto& back = sync.back();
-                    if (back.nearby(r)) back.unitewith(r);
-                    else                sync.push_back(r);
+                    if (back.nearby(r) // Connected
+                     || back.trim({{ -dot_mx.x / 2, r.coor.y }, { dot_mx.x, r.size.y }})) // or on the same line.
+                    {
+                        back.unitewith(r);
+                    }
+                    else sync.push_back(r);
                 }
             }
         }
@@ -1321,15 +1328,17 @@ namespace netxs::gui
         {
             if (!hdc) return;
             auto windowmoved = prev.coor(live ? area.coor : hidden);
-            if (!windowmoved && (sync.empty() || !live)) return;
-            if (!live) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+            if (sync.empty())
             {
-                ::SetWindowPos(hWnd, 0, hidden.x, hidden.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+                {
+                    ::SetWindowPos(hWnd, 0, prev.coor.x, prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                }
                 return;
             }
             auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto bitmap_coor = POINT{};
-            auto window_coor = POINT{ area.coor.x, area.coor.y };
+            auto window_coor = POINT{ prev.coor.x, prev.coor.y };
             auto bitmap_size = SIZE{ area.size.x, area.size.y };
             auto update_area = RECT{};
             auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
@@ -1347,26 +1356,21 @@ namespace netxs::gui
                 auto ok = ::UpdateLayeredWindowIndirect(hWnd, &update_info);
                 if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
             };
-            //todo revise/optimize
-            //if (sync.size() > 100) // Full redraw if too much changes.
-            //{
-            //    update_area = RECT{ .right = size.x, .bottom = size.y };
-            //    update_proc();
-            //}
-            //else
+            //static auto clr = 0; clr++;
+            for (auto r : sync)
             {
-                for (auto r : sync)
-                {
-                    r.coor -= area.coor;
-                    update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    update_proc();
-                    update_info.pptDst = {};
-                }
-                if (update_info.pptDst) // Just move window.
-                {
-                    update_area = {};
-                    update_proc();
-                }
+                // Hilight changes
+                //auto c = canvas();
+                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
+                r.coor -= area.coor;
+                update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                update_proc();
+                update_info.pptDst = {};
+            }
+            if (update_info.pptDst) // Just move window.
+            {
+                update_area = {};
+                update_proc();
             }
             sync.clear();
         }
@@ -1922,27 +1926,52 @@ namespace netxs::gui
                 auto& bitmap = lock.thing;
                 auto resize = [&](auto new_gridsz)
                 {
+                    //todo use digest instead of winsize
                     if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
                 };
-                if (owner.reload == task::all) // We need full repaint.
+                if (owner.reload == task::all || owner.fsmode == state::minimized) // We need full repaint.
                 {
-                    //os::logstd("full");
                     bitmap.get(data, {}, resize);
                 }
                 else
                 {
-                    //os::logstd("parts");
-                    auto update = [&](auto ...args)
+                    auto& client_layer = owner.layers[owner.client];
+                    auto& blinky_layer = owner.layers[owner.blinky];
+                    auto update = [&](auto head, auto iter, auto tail)
                     {
                         if (owner.waitsz) return;
-                        owner.fill_stripe(args...);
-                        //todo strike
+                        auto offset = (si32)(iter - head);
+                        auto length = (si32)(tail - iter);
+                        auto origin = twod{ offset % owner.gridsz.x, offset / owner.gridsz.x } * owner.cellsz;
+                        owner.fill_stripe(iter, tail, origin, offset);
+                        // Calc dirty regions.
+                        auto len_x = length * owner.cellsz.x;
+                        auto width = owner.gridsz.x * owner.cellsz.x;
+                        auto max_x = origin.x + len_x - 1;
+                        auto end_x = max_x % width + 1;
+                        auto end_y = origin.y + (max_x / width + 1) * owner.cellsz.y;
+                        if (len_x > width)
+                        {
+                            auto dirty = rect{{ 0, origin.y }, { width, end_y - origin.y }};
+                            dirty.coor += blinky_layer.area.coor;
+                            client_layer.strike(dirty);
+                        }
+                        else
+                        {
+                            auto dirty = rect{ origin, { origin.x < end_x ? len_x : width - origin.x, owner.cellsz.y }};
+                            dirty.coor += blinky_layer.area.coor;
+                            client_layer.strike(dirty);
+                            if (origin.x >= end_x)
+                            {
+                                auto remain = rect{{ 0, end_y - owner.cellsz.y }, { end_x, owner.cellsz.y }};
+                                remain.coor += blinky_layer.area.coor;
+                                client_layer.strike(remain);
+                            }
+                        }
                     };
                     bitmap.get(data, update, resize);
                     netxs::set_flag<task::inner>(owner.reload);
-
-                    owner.layers[owner.client].strike<true>(owner.layers[owner.client].area);
-                    if (owner.check_blinky() || owner.blink_count) owner.layers[owner.blinky].strike<true>(owner.layers[owner.blinky].area);
+                    owner.check_blinky();
                 }
                 s11n::request_jgc(intio, lock);
             }
@@ -2573,19 +2602,19 @@ namespace netxs::gui
                 }
             }
         }
-        void fill_stripe(auto head, auto iter, auto tail)
+        void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
         {
-            auto prime_canvas = layers[client].canvas();
-            auto blink_canvas = layers[blinky].canvas();
+            auto& prime_layer = layers[client];
+            auto& blink_layer = layers[blinky];
+            auto prime_canvas = prime_layer.canvas();
+            auto blink_canvas = blink_layer.canvas();
             auto origin = blink_canvas.coor();
-            auto offset = (si32)(iter - head);
             auto blinks = blink_mask.begin() + offset;
-            auto p = rect{origin + twod{ offset % gridsz.x, offset / gridsz.x } * cellsz, cellsz };
+            auto p = rect{origin + start, cellsz };
             auto m = origin + blink_canvas.size();
-            //os::logstd("coor: ", twod{ offset % gridsz.x, offset / gridsz.x }, " len: ", (si32)(tail - iter));
-            while (iter != tail)
+            while (head != tail)
             {
-                auto& c = *iter++;
+                auto& c = *head++;
                 auto& b = *blinks++;
                 if (std::exchange(b, c.blk()) != b)
                 {
@@ -2594,8 +2623,10 @@ namespace netxs::gui
                     {
                         blink_count--;
                         netxs::onrect(blink_canvas, p, cell::shaders::wipe);
+                        blink_layer.strike(p);
                     }
                 }
+                if (b) blink_layer.strike(p);
                 if (c.cur()) draw_cell_with_cursor(prime_canvas, p, c, blink_canvas);
                 else         gcache.draw_cell(prime_canvas, p, c, blink_canvas);
                 p.coor.x += cellsz.x;
@@ -2646,17 +2677,14 @@ namespace netxs::gui
                 {
                     auto bitmap_lock = proxy.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
-                    auto head = grid.begin();
-                    auto tail = grid.end();
-                    auto iter = head;
-                    fill_stripe(head, iter, tail);
+                    fill_stripe(grid.begin(), grid.end());
                     if (fsmode == state::maximized)
                     {
                         auto canvas = layers[client].canvas();
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                     }
                     layers[client].strike<true>(layers[client].area);
-                    if (check_blinky() || blink_count) layers[blinky].strike<true>(layers[blinky].area);
+                    check_blinky();
                 }
                 if (fsmode == state::normal)
                 {
