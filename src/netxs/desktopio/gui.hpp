@@ -1781,6 +1781,11 @@ namespace netxs::gui
         {
             //...
         }
+        template<class T = noop>
+        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
+        {
+            //...
+        }
     };
     struct surface : surface_base
     {
@@ -2566,7 +2571,7 @@ namespace netxs::gui
                 placeholder.size.x = width;
                 //todo draw glyph inside the cursor (respect blinking glyphs)
                 //c.fgc(fgcolor).bgc(bgcolor);
-                //draw_cell(canvas, placeholder, c, blinks);
+                //gcache.draw_cell(canvas, placeholder, c, blinks);
                 netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
             }
             else if (style == text_cursor::underline)
@@ -2576,7 +2581,7 @@ namespace netxs::gui
                 placeholder.size.y = width;
                 c.fgc(fgcolor).bgc(bgcolor);
                 //todo draw glyph inside the cursor (respect blinking glyphs)
-                //draw_cell(canvas, placeholder, c, blinks);
+                //gcache.draw_cell(canvas, placeholder, c, blinks);
                 netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
             }
         }

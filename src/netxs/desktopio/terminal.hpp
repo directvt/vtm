@@ -7584,7 +7584,7 @@ namespace netxs::ui
         {
             dtvt& master; // evnt: Terminal object reference.
 
-            void handle(s11n::xs::bitmap_dtvt         lock)
+            void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
                 master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
