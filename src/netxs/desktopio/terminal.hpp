@@ -1590,7 +1590,7 @@ namespace netxs::ui
                     else
                     {
                         coord.x += notab ? owner.config.def_tablen
-                                         : owner.config.def_tablen - coord.x % owner.config.def_tablen;
+                                         : owner.config.def_tablen - netxs::grid_mod(coord.x, owner.config.def_tablen);
                     }
                 }
                 else

@@ -3043,7 +3043,8 @@ namespace netxs
         auto tile(core& image, auto fx) // core: Tile with a specified bitmap.
         {
             auto step = image.size();
-            auto init = region.coor - region.coor % step - region.coor.less(dot_00, step, dot_00);
+            auto grid = netxs::grid_mod(region.coor, step);
+            auto init = region.coor - grid - region.coor.less(dot_00, step, dot_00);
             auto coor = init;
             auto stop = region.coor + region.size;
             while (coor.y < stop.y)

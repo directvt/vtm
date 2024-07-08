@@ -356,7 +356,7 @@ namespace netxs::ui
         {
             if (n)
             {
-                dx(tabwidth - caretpos.x % tabwidth);
+                dx(tabwidth - netxs::grid_mod(caretpos.x, tabwidth));
                 if (n > 0 ? --n : ++n) dx(tabwidth * n);
             }
         }

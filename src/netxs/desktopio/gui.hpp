@@ -1215,7 +1215,7 @@ namespace netxs::gui
                     auto limit = block.coor.x + block.size.x;
                     block.size.x = std::max(2, block.size.y);
                     auto stepx = 3 * block.size.x;
-                    block.coor.x -= placeholder.coor.x % stepx;
+                    block.coor.x -= netxs::grid_mod(placeholder.coor.x, stepx);
                     while (block.coor.x < limit)
                     {
                         netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
@@ -1243,7 +1243,7 @@ namespace netxs::gui
                     auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
                     auto offset = placeholder.coor;
                     auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
-                    offset.x -= offset.x % fract4;
+                    offset.x -= netxs::grid_mod(offset.x, fract4);
                     draw_glyf(target, wavy_raster, offset, color);
                 }
                 else
