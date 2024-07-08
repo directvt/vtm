@@ -2956,7 +2956,8 @@ namespace netxs::gui
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
-                    si32 scancode : 9; // 16-24 (24 - extended)
+                    si32 scancode : 8; // 16-23
+                    si32 extended : 1; // 24
                     ui32 reserved : 4; // 25-28 (reserved)
                     ui32 context  : 1; // 29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
@@ -2965,8 +2966,8 @@ namespace netxs::gui
             auto param = key_state_t{ .token = (ui32)lParam };
             if (param.v.state == 2/*unknown*/) return;
             auto pressed = param.v.state == 0;
-            auto repeat = param.v.state == 1;
-            auto extflag = !!(param.v.scancode >> 9);
+            auto repeat  = param.v.state == 1;
+            auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto to_WIDE = std::array<wchr, 32>{};
             auto sc = !(pressed || repeat) ? scancod | 0x8000 : scancod; // 15-bit indicate pressed state for ToUnicodeEx.
