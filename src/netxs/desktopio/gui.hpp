@@ -386,10 +386,10 @@ namespace netxs::gui
             }
             typeface(IDWriteFontFamily* barefont, ui32 index, twod cellsz, bool isbase)
                 : index{ index },
-                  fixed{ faux }
+                  fixed{ isbase }
             {
                 load(barefont);
-                recalc_metrics(cellsz, isbase);
+                if (!isbase) recalc_metrics(cellsz, isbase);
             }
             ~typeface()
             {
@@ -450,10 +450,21 @@ namespace netxs::gui
         void sort()
         {
             std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+            //if constexpr (debugmode)
+            //{
+            //    log("System fonts:");
+            //    for (auto& f : fontstat)
+            //    {
+            //        log("\t color=", (f.s & fontcat::color) ? "1" : "0",
+            //            "\t mono=", (f.s & fontcat::monospaced) ? "1" : "0",
+            //            "\t valid=", (f.s & fontcat::valid) ? "1" : "0",
+            //            "\t loaded=", (f.s & fontcat::loaded) ? "1" : "0",
+            //            "\t name='", f.n, "'");
+            //    }
+            //}
         }
         void set_fonts(auto family_names, bool fresh = true)
         {
-            if (family_names.empty()) family_names.push_back("Courier New"); //todo unify
             families = family_names;
             fallback.clear();
             if (!fresh) // Restore the original font index order and clear the "loaded" flag.
@@ -496,8 +507,80 @@ namespace netxs::gui
                 }
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
-            sort();
+            if (!fresh) sort();
         }
+        void set_cellsz(si32 cell_height)
+        {
+            cellsize = { 1, std::clamp(cell_height, 2, 256) };
+            auto base_font = true;
+            for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
+            if (fallback.size()) // Keep the same *line positions for all fonts.
+            {
+                auto& f = fallback.front().fontface.front();
+                underline = f.underline;
+                strikeout = f.strikeout;
+                doubline1 = f.doubline1;
+                doubline2 = f.doubline2;
+                overline  = f.overline;
+                dashline  = f.dashline;
+                wavyline  = f.wavyline;
+            }
+            log("%%Set cell size: ", prompt::gui, cellsize);
+        }
+        auto& take_font(utfx codepoint, bool force_mono = faux)
+        {
+            auto hittest = [&](auto& fontface)
+            {
+                if (!fontface) return faux;
+                auto glyphindex = ui16{};
+                fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
+                return !!glyphindex;
+            };
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            complete.wait(faux);
+            auto try_font = [&](auto i, bool test)
+            {
+                auto hit = faux;
+                if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
+                {
+                    if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
+                    {
+                        if (auto fontface = (IDWriteFontFace*)nullptr; fontfile->CreateFontFace(&fontface), fontface)
+                        {
+                            if (hittest(fontface) || !test)
+                            {
+                                hit = true;
+                                netxs::set_flag<fontcat::loaded>(fontstat[i].s);
+                                auto is_primary = fallback.empty();
+                                auto& f = fallback.emplace_back(barefont, i, cellsize, is_primary);
+                                log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                            }
+                            fontface->Release();
+                        }
+                        fontfile->Release();
+                    }
+                    barefont->Release();
+                }
+                return hit;
+            };
+            if (force_mono) for (auto i = 0u; i < fontstat.size(); i++)
+            {
+                if (((fontstat[i].s & fontcat::monospaced) && (fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+            }
+            else for (auto i = 0u; i < fontstat.size(); i++)
+            {
+                if (((fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
+            }
+            if (fallback.size()) return fallback.front();
+            for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
+            {
+                if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
+            }
+            log("%%No fonts found in the system.", prompt::gui);
+            return fallback.emplace_back(); // Should never happen.
+        }
+
         font(std::list<text>& family_names, si32 cell_height)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
@@ -512,7 +595,6 @@ namespace netxs::gui
                 return;
             }
             set_fonts(family_names);
-            set_cellsz(cell_height);
             if (auto len = ::GetUserDefaultLocaleName(oslocale.data(), (si32)oslocale.size())) oslocale.resize(len);
             else
             {
@@ -576,6 +658,18 @@ namespace netxs::gui
                 complete.notify_all();
                 log("%%Font fallback index initialized.", prompt::gui);
             }};
+            if (fallback.empty())
+            {
+                auto default_font = std::list{ "Courier New"s };
+                log(prompt::gui, ansi::err("No fonts provided. Fallback to '", default_font.front(), "'."));
+                set_fonts(default_font);
+            }
+            if (fallback.empty())
+            {
+                log(prompt::gui, ansi::err("No fonts provided. Fallback to first available font."));
+                take_font('A', true); // Take the first available font.
+            }
+            set_cellsz(cell_height);
         }
         ~font()
         {
@@ -583,73 +677,6 @@ namespace netxs::gui
             if (analyzer) analyzer->Release();
             if (fontlist) fontlist->Release();
             if (factory2) factory2->Release();
-        }
-        void set_cellsz(si32 cell_height)
-        {
-            cellsize = { 1, std::clamp(cell_height, 2, 256) };
-            auto base_font = true;
-            for (auto& f : fallback) f.recalc_metrics(cellsize, std::exchange(base_font, faux));
-            if (fallback.size()) // Keep the same *line positions for all fonts.
-            {
-                auto& f = fallback.front().fontface.front();
-                underline = f.underline;
-                strikeout = f.strikeout;
-                doubline1 = f.doubline1;
-                doubline2 = f.doubline2;
-                overline  = f.overline;
-                dashline  = f.dashline;
-                wavyline  = f.wavyline;
-            }
-            log("%%Set cell size: ", prompt::gui, cellsize);
-        }
-        auto& take_font(utfx codepoint)
-        {
-            //return fallback.front();
-            auto hittest = [&](auto& fontface)
-            {
-                if (!fontface) return faux;
-                auto glyphindex = ui16{};
-                fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
-                return !!glyphindex;
-            };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
-            complete.wait(faux);
-            auto try_font = [&](auto i, bool test)
-            {
-                auto hit = faux;
-                if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
-                {
-                    if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
-                    {
-                        if (auto fontface = (IDWriteFontFace*)nullptr; fontfile->CreateFontFace(&fontface), fontface)
-                        {
-                            if (hittest(fontface) || !test)
-                            {
-                                hit = true;
-                                netxs::set_flag<fontcat::loaded>(fontstat[i].s);
-                                auto& f = fallback.emplace_back(barefont, i, cellsize, faux);
-                                log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
-                            }
-                            fontface->Release();
-                        }
-                        fontfile->Release();
-                    }
-                    barefont->Release();
-                }
-                return hit;
-            };
-            for (auto i = 0u; i < fontstat.size(); i++)
-            {
-                if (((fontstat[i].s & fontcat::valid) && !(fontstat[i].s & fontcat::loaded)) && try_font(fontstat[i].i, true)) return fallback.back();
-            }
-            if (fallback.size()) return fallback.front();
-            for (auto i = 0u; i < fontstat.size(); i++) // Take the first font found in the system.
-            {
-                if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
-            }
-            log("%%No fonts found in the system.", prompt::gui);
-            return fallback.emplace_back(); // Should never happen.
         }
     };
 
@@ -1188,7 +1215,7 @@ namespace netxs::gui
                     auto limit = block.coor.x + block.size.x;
                     block.size.x = std::max(2, block.size.y);
                     auto stepx = 3 * block.size.x;
-                    block.coor.x -= placeholder.coor.x % stepx;
+                    block.coor.x -= netxs::grid_mod(placeholder.coor.x, stepx);
                     while (block.coor.x < limit)
                     {
                         netxs::onrect(target, block.trim(placeholder), cell::shaders::full(color));
@@ -1216,7 +1243,7 @@ namespace netxs::gui
                     auto& wavy_raster = cgi_glyphs[synthetic::wavyunderline];
                     auto offset = placeholder.coor;
                     auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
-                    offset.x -= offset.x % fract4;
+                    offset.x -= netxs::grid_mod(offset.x, fract4);
                     draw_glyf(target, wavy_raster, offset, color);
                 }
                 else
@@ -2956,7 +2983,8 @@ namespace netxs::gui
                 struct
                 {
                     ui32 repeat   : 16;// 0-15
-                    si32 scancode : 9; // 16-24 (24 - extended)
+                    si32 scancode : 8; // 16-23
+                    si32 extended : 1; // 24
                     ui32 reserved : 4; // 25-28 (reserved)
                     ui32 context  : 1; // 29 (29 - context)
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
@@ -2965,8 +2993,8 @@ namespace netxs::gui
             auto param = key_state_t{ .token = (ui32)lParam };
             if (param.v.state == 2/*unknown*/) return;
             auto pressed = param.v.state == 0;
-            auto repeat = param.v.state == 1;
-            auto extflag = !!(param.v.scancode >> 9);
+            auto repeat  = param.v.state == 1;
+            auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto to_WIDE = std::array<wchr, 32>{};
             auto sc = !(pressed || repeat) ? scancod | 0x8000 : scancod; // 15-bit indicate pressed state for ToUnicodeEx.

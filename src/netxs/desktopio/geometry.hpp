@@ -83,7 +83,7 @@ namespace netxs
         constexpr auto  operator -  (xy2d p) const { return xy2d{ x - p.x, y - p.y };  }
         constexpr auto  operator *  (xy2d p) const { return xy2d{ x * p.x, y * p.y };  }
         constexpr auto  operator /  (xy2d p) const { return xy2d{ x / p.x, y / p.y };  }
-        constexpr auto  operator %  (xy2d p) const { return xy2d{ x % p.x, y % p.y };  }
+        constexpr auto  operator %  (xy2d p) const { return xy2d{ x % p.x, y % p.y };  } // Consider to use grid_mod().
         constexpr auto  operator -  ()       const { return xy2d{      -x,-y       };  }
         constexpr auto  operator &  (T i)    const { return xy2d{   x & i, y & i   };  }
         constexpr auto  operator ~  ()       const { return xy2d{       y, x       };  }
@@ -199,6 +199,7 @@ namespace netxs
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
+    twod grid_mod(twod n, twod p) { return { grid_mod(n.x, p.x), grid_mod(n.y, p.y) }; }
 }
 
 namespace std

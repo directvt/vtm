@@ -348,6 +348,13 @@ namespace netxs
         return n < 0 ? 1 + (n - 1) / d
                      : n / d;
     }
+    template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
+    constexpr T3 grid_mod(T1 n, T2 d)
+    {
+        auto mod = n % d;
+        if (mod < 0) mod += d;
+        return mod;
+    }
 
     template<bool B, class T>
     struct _disintegrate { using type = T; };

@@ -10,32 +10,30 @@ R"==(<config>
         </javascript>
     </scripting>
     <gui> <!-- GUI related settings. (win32 platform only for now) -->
-        <antialiasing = off />   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
-        <cellheight = 20 />      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
-        <gridsize = 0,0 />       <!-- Window initial grid size in text cells. -->
-        <wincoor = 0,0 />        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
-        <winstate = normal />    <!-- Window initial state: normal | maximized | minimized -->
-        <blinkrate = 400ms />    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
-        <fontlist> <!-- Font fallback list (LF-delimited (\n), ordered). The rest of the fonts available in the system will be loaded dynamically. -->
-            "Courier New\n" <!-- Primary font. Its metrics define the cell geometry. -->
-            "Cascadia Mono\n"
-            "Fira Code\n"
-            "NSimSun\n"
-            "Noto Sans Devanagari\n"
-        </fontlist>
+        <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
+        <gridsize=0,0/>       <!-- Window initial grid size in text cells. -->
+        <wincoor=0,0/>        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
+        <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized -->
+        <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
+        <fonts> <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
+            <font*/> <!-- Clear previously defined fonts. Start a new list. -->
+            <font="Courier New"/> <!-- The first font in the list: Primary font. Its metrics define the cell geometry. -->
+            <font="Cascadia Mono"/>
+            <font="NSimSun"/>
+            <font="Noto Sans Devanagari"/>
+        </fonts>
     </gui>
     <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
-        <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested elements
-                       indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
+        <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
         <item splitter label="apps">
             <notes>
                 " Default applications group                         \n"
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values) -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"

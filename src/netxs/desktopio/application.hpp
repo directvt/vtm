@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.86";
+    static const auto version = "v0.9.87";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -557,7 +557,17 @@ namespace netxs::app::shared
             auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("antialiasing", faux);
             auto blinking = config.take("blinkrate", span{ 400ms });
-            auto fontlist = utf::split<true, std::list<text>>(config.take("fontlist", ""s), '\n');
+            auto fontlist = utf::split<true, std::list<text>>(config.take<true>("fontlist", ""s), '\n');
+            if (fontlist.size()) log(prompt::xml, ansi::err("Tag '/config/gui/fontlist' is deprecated. Use '/config/gui/fonts/*' instead."));
+            else
+            {
+                auto recs = config.list("fonts/font");
+                for (auto& f : recs)
+                {
+                    //todo implement 'fonts/font/file' - font file path/url
+                    fontlist.push_back(f->value());
+                }
+            }
             auto event_domain = netxs::events::auth{};
             if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, os::dtvt::cellsz, aliasing, blinking))
             {

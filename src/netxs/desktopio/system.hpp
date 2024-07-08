@@ -785,7 +785,7 @@ namespace netxs::os
                         parser::flush();
                         if (cmd.cmd == ansi::fn::tb)
                         {
-                            coord.x += parser::style.tablen * cmd.arg - coord.x % parser::style.tablen;
+                            coord.x += parser::style.tablen * cmd.arg - netxs::grid_mod(coord.x, parser::style.tablen);
                         }
                         else if (cmd.cmd == ansi::fn::nl)
                         {
