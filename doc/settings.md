@@ -254,6 +254,21 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
 
 ```xml
 <config>
+    <gui> <!-- GUI related settings. (win32 platform only for now) -->
+        <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
+        <gridsize=0,0/>       <!-- Window initial grid size in text cells. -->
+        <wincoor=0,0/>        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
+        <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized -->
+        <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
+        <fonts> <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
+            <font*/> <!-- Clear previously defined fonts. Start a new list. -->
+            <font="Courier New"/> <!-- The first font in the list: Primary font. Its metrics define the cell geometry. -->
+            <font="Cascadia Mono"/>
+            <font="NSimSun"/>
+            <font="Noto Sans Devanagari"/>
+        </fonts>
+    </gui>
     <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes
