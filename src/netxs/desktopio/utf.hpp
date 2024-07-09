@@ -104,6 +104,10 @@ namespace netxs::utf
         template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
         static constexpr auto vss = utf8view<code>;
 
+        auto vs_runtime(si32 w, si32 h, si32 x, si32 y)
+        {
+            return vs_block + p(w) + x + (p(h) + y) * mx;
+        }
         auto whxy(si32 vs)
         {
             static auto lut = []

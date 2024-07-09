@@ -371,6 +371,7 @@ namespace netxs::ansi
         auto& nil()          { return add("\033[m"                           ); } // basevt: Reset SGR attributes to zero.
         auto& fgc()          { return add("\033[39m"                         ); } // basevt: Set default foreground color.
         auto& bgc()          { return add("\033[49m"                         ); } // basevt: Set default background color.
+        auto& rep()          { return add("\033[K"                           ); } // basevt: Erase line to right.
         auto& scroll_wipe()  { return add("\033[2J"                          ); } // basevt: Erase scrollback.
         auto& locate(twod p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // basevt: 0-Based cursor position.
         auto& cuu(si32 n)    { return add("\033[", n, 'A'                    ); } // basevt: Cursor up.
@@ -801,6 +802,30 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // escx: Set object id link.
         auto& styled(si32 b)     { return add("\033[32:", b  , csi_ccc); } // escx: Enable line style reporting (0/1).
         auto& style(si32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
+        auto& cap(qiew utf8, si32 w = 2, si32 h = 2, bool underline = true)
+        {
+            auto l = 0;
+            for (auto y = 1; y <= h; y++)
+            {
+                auto s = utf8;
+                while (s)
+                {
+                    auto cluster = utf::cluster<true>(s);
+                    add(cluster.text);
+                    add(utf::to_utf_from_code(utf::matrix::vs_runtime(w, h, 0, y)));
+                    s.remove_prefix(cluster.attr.utf8len);
+                    l++;
+                }
+                add("\n");
+            }
+            if (underline)
+            {
+                l = l * w / h;
+                ovr(true).add(text(l, ' ')).ovr(faux);
+                add("\n");
+            }
+            return *this;
+        }
     };
 
     template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
@@ -878,6 +903,7 @@ namespace netxs::ansi
     auto show_mouse(bool b)    { return escx{}.show_mouse(b); } // ansi: Should the mouse poiner to be drawn.
     auto shellmouse(bool b)    { return escx{}.shellmouse(b); } // ansi: Mouse shell integration on/off.
     auto vmouse(bool b)        { return escx{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
+    auto    rep()              { return escx{}.rep();         } // ansi: Erase line to right.
     auto locate(twod p)        { return escx{}.locate(p);     } // ansi: 1-Based cursor position.
     auto locate_wipe()         { return escx{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
     auto locate_call()         { return escx{}.locate_call(); } // ansi: Report cursor position.
