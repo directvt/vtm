@@ -602,6 +602,7 @@ namespace netxs::app::shared
                         os::process::binary(),
                         os::process::id.first,
                         os::process::elevated ? "Yes" : "No"),
+                    app::test::test_page(),
                 };
             };
             auto update = [](auto& boss)
@@ -618,15 +619,16 @@ namespace netxs::app::shared
             auto items = scroll->attach(ui::list::ctor());
             for (auto& item : body)
             {
-                items->attach(ui::post::ctor())
+                auto block = items->attach(ui::post::ctor())
                     ->setpad({ 2, 2, 0, 2})
                     ->upload(item, -1)
                     ->active()
                     ->template plugin<pro::focus>()
-                    ->template plugin<pro::grade>()
-                    ->shader(cell::shaders::xlight, e2::form::state::hover);
+                    ->template plugin<pro::grade>();
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
+                if (items->subset.size() < 3) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
+            items->subset[2]->color(purecyan, pureblue);
             items->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
