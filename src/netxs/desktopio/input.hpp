@@ -614,6 +614,7 @@ namespace netxs::input
 
         fp2d prime{}; // mouse: System mouse cursor coordinates.
         fp2d coord{}; // mouse: Relative mouse cursor coordinates.
+        fp32 accum{}; // mouse: Mouse motion accumulator to delay mouse drag.
         tail delta{}; // mouse: History of mouse movements for a specified period of time.
         bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
         bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
@@ -630,6 +631,8 @@ namespace netxs::input
         knob bttns{}; // mouse: Extended state of mouse buttons.
         sysmouse m_sys{}; // mouse: Device state.
         sysmouse m_sav{}; // mouse: Previous device state.
+
+        static constexpr auto drag_threshold = 0.5f; // mouse: Threshold for mouse drag.
 
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
@@ -737,7 +740,11 @@ namespace netxs::input
 
             if (m_sys.coordxy != prime || modschanged)
             {
-                delta.set(m_sys.coordxy - prime);
+                auto step = m_sys.coordxy - prime;
+                if (m.buttons) accum += std::abs(step.x) + std::abs(step.y);
+                else           accum = {};
+                auto allow_drag = accum > drag_threshold;
+                delta.set(step);
                 auto active = si32{};
                 auto genptr = std::begin(bttns);
                 for (auto i = 0; i < numofbuttons; i++)
@@ -745,7 +752,7 @@ namespace netxs::input
                     auto& genbtn = *genptr++;
                     if (genbtn.pressed && !genbtn.blocked)
                     {
-                        if (!genbtn.dragged)
+                        if (allow_drag && !genbtn.dragged)
                         {
                             fire(dragstrt, i);
                             genbtn.dragged = true;
@@ -755,7 +762,7 @@ namespace netxs::input
                 }
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
-                for (auto i = 0; active; ++i)
+                if (allow_drag) for (auto i = 0; active; ++i)
                 {
                     if (active & 0x1)
                     {
