@@ -131,7 +131,8 @@ namespace netxs::ui
                     while (n)
                     {
                         auto& c = block.at(p);
-                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>) break;
+                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>
+                         || c.txt().ends_with(utf::utf8view<0x200B>)) break;
                         n--;
                         p--;
                     }
@@ -302,6 +303,27 @@ namespace netxs::ui
             }
             return flow::up();
         }
+        // flow: Execute specified locus instruction list (with EL: CSI 0 K).
+        template<class P = noop>
+        auto forward2(auto& block, core& canvas, P printfx)
+        {
+            auto& cmds = static_cast<writ const&>(block);
+            for (auto [cmd, arg] : cmds)
+            {
+                if (cmd == ansi::fn::el && arg == 0)
+                {
+                    auto coor = flow::cp();
+                    auto mark = block.brush();
+                    auto line = rect{ coor, { caret_mx - coor.x, 1 }};
+                    line.coor.x += pagerect.coor.x;
+                    if constexpr (std::is_same_v<P, noop>) netxs::onrect2(canvas, line, cell::shaders::fusefull(mark));
+                    else                                   netxs::onrect2(canvas, line, printfx(mark));
+                    flow::ax(caret_mx);
+                }
+                else flow::exec[cmd](*this, arg);
+            }
+            flow::up();
+        }
         template<bool Split = true, class T>
         void go(T const& block)
         {
@@ -326,6 +348,13 @@ namespace netxs::ui
 
             go<Split>(block, canvas, printfx);
             return coor;
+        }
+        template<bool Split = faux, class T, class P = noop>
+        auto print2(T const& block, core& canvas, P printfx = {})
+        {
+            sync(block);
+            forward2(block, canvas, printfx);
+            go<Split>(block, canvas, printfx);
         }
         template<bool UseLocus = true, bool Split = faux, class T>
         auto print(T const& block)
@@ -1149,8 +1178,8 @@ namespace netxs::ui
         para(para const&)              = default;
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
-        para(ui32 newid, deco const& style = {})
-            : parser{ style },
+        para(ui32 newid, deco const& style = {}, ansi::mark const& brush = {})
+            : parser{ style, brush },
               index { newid }
         { }
         virtual ~para() = default;
@@ -1609,6 +1638,7 @@ namespace netxs::ui
         auto length() const { return volume.x;              } // rope: Return the length of the source content.
         auto     id() const { return (**source).id();       } // rope: Return paragraph id.
         auto& front() const { return (**source).at(prefix); } // rope: Return first cell.
+        auto& brush() const { return (**source).brush;      } // rope: Return source brush.
 
         //todo unify
         auto& at(si32 p) const // rope: .
@@ -1781,7 +1811,7 @@ namespace netxs::ui
         void fork()
         {
             if constexpr (Flush) parser::flush();
-            layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
+            layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style, parser::brush));
             (**layer).id(++index);
         }
         // page: Split the text run and associate the next paragraph with id.
@@ -1868,11 +1898,13 @@ namespace netxs::ui
             auto tail = batch.end();
             while (last != tail)
             {
+                auto wrap = (**last).style.adjust;
                 auto size = (**last).size();
                 auto head = last;
                 while (++last != tail
                    && (**last).bare()
-                   && size.y == (next = (**last).size()).y)
+                   && size.y == (next = (**last).size()).y
+                   && wrap == (**last).style.adjust)
                 {
                     size.x += next.x;
                 }

@@ -71,7 +71,15 @@ namespace netxs
     static auto _k2 = 0; // LCtrl+Alt+Wheel.
     static auto _k3 = 0; // RCtrl+Wheel.
 
-    struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
+    struct noop
+    {
+        constexpr auto operator()(auto&&...)
+        {
+            return faux;
+            //return *this;
+        }
+        //constexpr operator bool() const { return faux; }
+    };
 
     enum class feed : byte { none, rev, fwd };
 
@@ -879,6 +887,41 @@ namespace netxs
             auto frame = place.size.x * basis.y + basis.x + canvas.begin();
             auto notch = place.size.x - joint.size.x;
             auto limit = place.size.x * (joint.size.y - 1) + frame + joint.size.x;
+            while (true)
+            {
+                auto bound = frame + joint.size.x;
+                while (bound != frame)
+                {
+                    if constexpr (RtoL)
+                    {
+                        if constexpr (Plain) handle(*--bound);
+                        else             if (handle(*--bound)) return;
+                    }
+                    else
+                    {
+                        if constexpr (Plain) handle(*frame++);
+                        else             if (handle(*frame++)) return;
+                    }
+                }
+                if constexpr (RtoL) frame += joint.size.x;
+                online();
+                if (frame == limit) break;
+                frame += notch;
+            }
+        }
+    }
+    // intmath: Draw a rectangular area inside the canvas by calling handle(canvas_element).
+    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
+    void onrect2(T&& canvas, Rect const& region, P handle, NewlineFx online = {})
+    {
+        auto rastr = canvas.area();
+        auto place = canvas.clip();
+        if (auto joint = region.trim(place).trim(rastr))
+        {
+            auto basis = joint.coor - rastr.coor;
+            auto frame = rastr.size.x * basis.y + basis.x + canvas.begin();
+            auto notch = rastr.size.x - joint.size.x;
+            auto limit = rastr.size.x * (joint.size.y - 1) + frame + joint.size.x;
             while (true)
             {
                 auto bound = frame + joint.size.x;

@@ -1502,6 +1502,7 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
+            else st.meta(c.st);
         }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
