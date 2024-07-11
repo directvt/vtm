@@ -3038,7 +3038,7 @@ namespace netxs::ui
             flow::reset(canvas, base::intpad.corner());
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, canvas, fx);
+                flow::print2(combo, canvas, fx);
             };
             topic.stream(publish);
         }

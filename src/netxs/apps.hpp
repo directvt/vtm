@@ -602,15 +602,17 @@ namespace netxs::app::shared
                         os::process::binary(),
                         os::process::id.first,
                         os::process::elevated ? "Yes" : "No"),
-                    app::test::test_page(),
+                    app::test::test_page(purewhite, whitelt),
                 };
             };
             auto update = [](auto& boss)
             {
                 auto body = data();
                 auto iter = body.begin();
+                auto i = 0;
                 for (auto& rec : boss.base::subset)
                 {
+                    if (++i == 2) break;
                     auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
                     rec_ptr->upload(*iter++, -1);
                 }
@@ -619,16 +621,16 @@ namespace netxs::app::shared
             auto items = scroll->attach(ui::list::ctor());
             for (auto& item : body)
             {
+                auto stats = items->subset.size() < 2;
                 auto block = items->attach(ui::post::ctor())
                     ->setpad({ 2, 2, 0, 2})
-                    ->upload(item, -1)
+                    ->upload(item, stats ? -1 : 0)
                     ->active()
                     ->template plugin<pro::focus>()
                     ->template plugin<pro::grade>();
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
-                if (items->subset.size() < 3) block->shader(cell::shaders::xlight, e2::form::state::hover);
+                if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
-            items->subset[2]->color(purecyan, pureblue);
             items->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.

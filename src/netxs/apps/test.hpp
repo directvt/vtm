@@ -52,49 +52,76 @@ namespace netxs::app::test
         template<auto ...Args>
         constexpr auto vss = utf::matrix::vss<Args...>;
 
-        auto test_page = []
+        auto test_page = [](auto hdrclr, auto txtclr)
         {
-            auto hdrclr = purewhite;
-            auto txtclr = purecyan;
-            return ansi::add("")
-                .wrp(wrap::on).jet(bias::center)
+            auto header = [&](auto caption)
+            {
+                return ansi::mgl(1).wrp(wrap::off).fgc(hdrclr).unc(whitedk).cap(caption).erl().und(unln::none).eol().fgc(txtclr).mgl(3).unc(0).wrp(wrap::on);
+            };
+            return ansi::mgl(1).mgr(2).jet(bias::center)
                 .add("\n")
-                .fgc(hdrclr).cap("Supported Features", 3, 3, faux)
+                .wrp(wrap::off).fgc(hdrclr).cap("Supported Features", 3, 3, faux).eol()
                 .jet(bias::left)
                 .add("\n")
-                .fgc(hdrclr).cap("Subcell Size").fgc(txtclr)
+                .add(header("Subcell Size"))
                 .add("\n")
                 .add("\2 Hello ", utf::vs10, vss<11>, "\2World!", utf::vs10, vss<11>, " "
                      "\2 Hello ", utf::vs07, vss<21>, " \2World!", utf::vs07, vss<21>, "\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Powerline").fgc(txtclr)
+                .add(header("Powerline"))
                 .add("\n")
-                .fgc(whitelt).bgc(bluelt).add("  INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
-                .fgc(whitelt).add("Powerline test   ").fgc(blacklt).add("\uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
+                .jet(bias::left).wrp(wrap::off).fgc(whitelt).bgc(bluelt).add("  INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
+                .fgc(whitelt).add("Powerline test   ").chx(0).jet(bias::right).fgc(blacklt).add("\uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
+                .add("\n").nop().nil().jet(bias::left).wrp(wrap::on)
+                .add(header("Latin"))
                 .add("\n")
-                .fgc(hdrclr).cap("CJK").fgc(txtclr)
+                .add("ANSI sequences were introduced in the 1970s to replace vendor-specific sequences and became "
+                    "widespread in the computer equipment market by the early 1980s. They were used in development, "
+                    "scientific and commercial applications and later by the nascent bulletin board systems "
+                    "to offer improved displays compared to earlier systems lacking cursor movement, "
+                    "a primary reason they became a standard adopted by all manufacturers.\n")
                 .add("\n")
-                .add("CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，\n"
-                     "某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，\n"
-                     "組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，\n"
-                     "CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、\n"
+                .add(header("CJK"))
+                .add("\n")
+                .add("CJK文字是對中文、日文文字和韓文的統稱，這些語言全部含有汉字及其變體，"
+                     "某些會與其他文字混合使用。因為越南文曾經使用漢字，所以它有時候與CJK文字結合，"
+                     "組成CJKV文字（英語：Chinese-Japanese-Korean-Vietnamese）。概括來說，"
+                     "CJKV文字通常包括中文的漢字、日文文字的日本汉字及日語假名、"
                      "韓文的朝鮮漢字及諺文和越南文的儒字和喃字。\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Thai").fgc(txtclr)
+                .add(header("Thai"))
                 .add("\n")
-                .add("มวยไทยเป็นกีฬาประจำชาติไทย นักมวยไทยมักจะเป็นแชมเปียนระดับไลท์เวทของสมาคมมวยโลกเสมอ \n"
-                     "ปลายคริสต์ศตวรรษที่ 19 ประเทศไทยรับเอากีฬาจากชาติตะวันตกเข้ามาหลายชนิด\n"
-                     "โดยเริ่มมีการแข่งขันในโรงเรียนในต้นคริสต์ศตวรรษที่ 20 ตามมาด้วยในระบบการศึกษาสมัยใหม่\n")
+                .add("มวยไทย​เป็น​กีฬา​ประจำ​ชาติ​ไทย​ นัก​มวยไทย​มัก​จะ​เป็น​แช​ม​เปีย​นระ​ดับ​ไลท์เวท​ของ​สมาคม​มวย​โลก​เสมอ ​"
+                     "ปลาย​คริสต์​ศตวรรษ​ที่​ 19​ ประเทศไทย​รับ​เอา​กีฬา​จาก​ชาติ​ตะวัน​ตก​เข้า​มา​หลาย​ชนิด​ "
+                     "โดย​เริ่ม​มี​การ​แข่งขัน​ใน​โรงเรียน​ใน​ต้น​คริสต์​ศตวรรษ​ที่​ 20​ ตาม​มา​ด้วย​ใน​ระบบ​การ​ศึกษา​สมัย​ใหม่\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Devanagari").fgc(txtclr)
+                .add(header("Devanagari"))
                 .add("\n")
                 .add("\2अनुच्छेद", vss<51>, " १.\n"     // अनुच्छेद १.
                     "\2सभी", vss<31>, " \2मनुष्यों", vss<41>, " को", vss<21>, " \2गौरव", vss<31>, " \2और", vss<31>, " \2अधिकारों", vss<61>, " के", vss<21>, " \2मामले", vss<41>, " में "  // सभी मनुष्यों को गौरव और अधिकारों के मामले में
                     "\2जन्मजात", vss<51>, " \2स्वतन्त्रता", vss<51>, " \2और", vss<31>, " \2समानता", vss<51>, " \2प्राप्त", vss<31>, " \2है।", vss<21>, "\n" // जन्मजात स्वतन्त्रता और समानता प्राप्त है।
                     "\2उन्हें", vss<31>, " \2बुद्धि", vss<31>, " \2और", vss<31>, " \2अन्तरात्मा", vss<61>, " की", vss<21>, " \2देन", vss<21>, " \2प्राप्त", vss<31>, " है \2और", vss<31>, " " // उन्हें बुद्धि और अन्तरात्मा की देन प्राप्त है और
                     "\2परस्पर", vss<41>, " \2उन्हें", vss<31>, " \2भाईचारे", vss<51>, " के", vss<21>, " \2भाव", vss<31>, " से \2बर्ताव ", vss<41>, " \2करना", vss<31>, " \2चाहिए।", vss<41>, "\n") // परस्पर उन्हें भाईचारे के भाव से बर्ताव करना चाहिए।
+                .add("\n").jet(bias::right)
+                .add(header("Arabic"))
+                .add("\n").rtl(rtol::rtl)
                 .add("\n")
-                .fgc(hdrclr).cap("Emoji").fgc(txtclr)
+                .add("ٱللُّغَةُ ٱلْعَرَبِيَّة هي أكثر اللغات السامية تحدثًا، وإحدى أكثر اللغات انتشاراً في العالم، يتحدثها أكثر من 764 مليون نسمة. ويتوزع متحدثوها في الوطن العربي، بالإضافة إلى العديد من المناطق الأخرى المجاورة كالأحواز وتركيا وتشاد ومالي والسنغال وإرتيريا وإثيوبيا وجنوب السودان وإيران.\n")
+                .add("\n").rtl(rtol::ltr)
+                .add(header("Hebrew"))
+                .add("\n").rtl(rtol::rtl)
+                .add("\n")
+                .add("עִבְרִית היא שפה שמית, ממשפחת השפות האפרו-אסייתיות, הידועה כשפתם של היהודים ושל השומרונים. היא שייכת למשפחת השפות הכנעניות והשפה הכנענית היחידה המדוברת כיום.\n")
+                .add("\n").rtl(rtol::ltr).jet(bias::left)
+                .add(header("Emoji"))
+                .add("\n")
+                .add("😀😃😄😁😆😅😂🤣😊😇🙂🙃😉😌😍😺"
+                     "😏😒😞😔😟😕😣😖😫😩🥺😢😭😤😸😹"
+                     "🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳"
+                     "😡🤬🤯😳🥵🥶😱😨😰😥😓🤗🤔🤭🤫🤥"
+                     "😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐"
+                     "🥴🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻"
+                     "💀👽👾🤖🎃😺😸😹😻😼😽🙀😿😾😠😍\n")
                 .add("\n")
                 .add("😀😃😄😁😆😅😂🤣😊😇🙂🙃😉😌😍😺\n"
                      "😏😒😞😔😟😕😣😖😫😩🥺😢😭😤😸😹\n"
@@ -104,23 +131,23 @@ namespace netxs::app::test
                      "🥴🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻\n"
                      "💀👽👾🤖🎃😺😸😹😻😼😽🙀😿😾😠😍\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Box Drawing").fgc(txtclr)
-                .add("                                                                    █         \n"
-                     "╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    ▉ ╱╲╱╲╳╳╳ \n"
-                     "║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▊ ╲╱╲╱╳╳╳ \n"
-                     "║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▋ ╱╲╱╲╳╳╳ \n"
-                     "╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▌ ╲╱╲╱╳╳╳ \n"
-                     "║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▍         \n"
-                     "║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▎         \n"
-                     "╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋ ▏▁▂▃▄▅▆▇█ \n")
-                .add("\n")
-                .fgc(hdrclr).cap("Large Type Pieces").fgc(txtclr)
+                .add(header("Box Drawing"))
+                .add("                                                                             \n"
+                     "╔══╦══╗  ┌──┬──┐  ╭──┬──╮  ╭──┬──╮  ┏━━┳━━┓  ┎┒┏┑   ╷  ╻ ┏┯┓ ┌┰┐    █ ╱╲╱╲╳╳╳ \n"
+                     "║┌─╨─┐║  │╔═╧═╗│  │╒═╪═╕│  │╓─╁─╖│  ┃┌─╂─┐┃  ┗╃╄┙  ╶┼╴╺╋╸┠┼┨ ┝╋┥    ▉ ╲╱╲╱╳╳╳ \n"
+                     "║│╲ ╱│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╿ │┃  ┍╅╆┓   ╵  ╹ ┗┷┛ └┸┘    ▊ ╱╲╱╲╳╳╳ \n"
+                     "╠╡ ╳ ╞╣  ├╢   ╟┤  ├┼─┼─┼┤  ├╫─╂─╫┤  ┣┿╾┼╼┿┫  ┕┛┖┚     ┌┄┄┐ ╎ ┏┅┅┓ ┋ ▋ ╲╱╲╱╳╳╳ \n"
+                     "║│╱ ╲│║  │║   ║│  ││ │ ││  │║ ┃ ║│  ┃│ ╽ │┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▌         \n"
+                     "║└─╥─┘║  │╚═╤═╝│  │╘═╪═╛│  │╙─╀─╜│  ┃└─╂─┘┃  ░░▒▒▓▓██ ┊  ┆ ╎ ╏  ┇ ┋ ▍         \n"
+                     "╚══╩══╝  └──┴──┘  ╰──┴──╯  ╰──┴──╯  ┗━━┻━━┛           └╌╌┘ ╎ ┗╍╍┛ ┋ ▎▁▂▃▄▅▆▇█ \n"
+                     "                                                                    ▏          \n")
+                .add(header("Large Type Pieces"))
                 .add("\n")
                 .add("𜸜 𜸜𜸚𜸟𜸤𜸜𜸝𜸢𜸜𜸚𜸟𜸤  𜸜  𜸚𜸟𜸤𜸛𜸟𜸤𜸚𜸟𜸤𜸛𜸟𜸥  𜸞𜸠𜸥𜸜 𜸜𜸛𜸟𜸤𜸛𜸟𜸥  𜸛𜸟𜸤𜸜𜸛𜸟𜸥𜸚𜸟𜸤𜸛𜸟𜸥𜸚𜸟𜸤\n"
                      "𜸩 𜸩𜸾𜸟𜸤𜸩𜸩𜸫𜸹𜸩 𜸧  𜸩  𜸨𜸟𜸶𜸨𜸟𜸷𜸩 𜸧𜸨𜸟    𜸩 𜸫𜸳𜸻𜸨𜸟𜹃𜸨𜸟   𜸨𜸟𜹃𜸩𜸨𜸟 𜸩  𜸨𜸟 𜸾𜸟𜸤\n"
                      "𜸾𜸟𜹃𜸾𜸟𜹃𜸼𜸼 𜸼𜸾𜸟𜹃  𜸽𜸟𜸥𜸼 𜸼𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜸥   𜸼  𜸼 𜸼  𜸽𜸟𜸥  𜸼  𜸼𜸽𜸟𜸥𜸾𜸟𜹃𜸽𜸟𜸥𜸾𜸟𜹃\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Styled Underlines").fgc(txtclr)
+                .add(header("Styled Underlines"))
                 .add("\n")
                 .add(" ").ovr(true).add("Single Overline").ovr(faux).eol()
                 .add(" ").und(unln::biline).add("Double Underline").und(unln::none).eol()
@@ -132,13 +159,13 @@ namespace netxs::app::test
                 //.add(" ").und(unln::line  ).unc(argb{ puregreen }).add("Green Single Underline").und(unln::none).eol()
                 .add(" ").und(unln::line  ).unc(argb{ purewhite }).add("White Single Underline").und(unln::none).eol()
                 .add(" ").und(unln::wavy  ).unc(argb{ purewhite }).add("White Wavy Underline").und(unln::none).eol()
-                .add(" ").und(unln::line  ).unc(argb{ pureblack }).add("Black Single Underline").und(unln::none).eol()
-                .add(" ").und(unln::wavy  ).unc(argb{ pureblack }).add("Black Wavy Underline").und(unln::none).eol()
-                //.add(" ").und(unln::wavy  ).unc(argb{ purered }).blk(true).add("Blinking Wavy Underline").und(unln::none).eol()
-                //.add(" ").und(unln::line  ).unc(argb{ purewhite }).blk(true).add("Blinking Single Underline").und(unln::none).eol()
+                .add(" ").und(unln::line  ).unc(argb{ purered   }).add("Red Single Underline").und(unln::none).eol()
+                .add(" ").und(unln::wavy  ).unc(argb{ purered   }).add("Red Wavy Underline").und(unln::none).eol()
+                //.add(" ").und(unln::line  ).unc(argb{ pureblack }).add("Black Single Underline").und(unln::none).eol()
+                //.add(" ").und(unln::wavy  ).unc(argb{ pureblack }).add("Black Wavy Underline").und(unln::none).eol()
                 .nil()
                 .add("\n")
-                .fgc(hdrclr).cap("Font Styles").fgc(txtclr)
+                .add(header("Font Styles"))
                 .add("\n")
                 .bld(faux).itc(faux).add("Normal        WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪\n")
                 .blk(true)          .add("Blinking      WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪\n")
@@ -147,25 +174,25 @@ namespace netxs::app::test
                 .bld(faux).itc(true).add("       Italic WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪\n")
                 .nil()
                 .add("\n")
-                .fgc(hdrclr).cap("Character Width").fgc(txtclr)
+                .add(header("Character Width"))
                 .add("\n")
-                .add(">👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-                .add("❤", vss<11>, "<VS11_00 ", "👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00\n")
-                .add("👩🏾‍👨🏾‍👧🏾‍👧🏾", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 😎", vss<21>, "<VS21_00 ❤", vss<11>, "<VS11_00 ❤", vss<21>, "<VS21_00\n")
+                .add(">👩‍👩‍👧‍👧", vss<11>, "<VS11_00  >👩‍👩‍👧‍👧", vss<21>, "<VS21_00  >👩‍👩‍👧‍👧", vss<31>, "<VS31_00  >👩‍👩‍👧‍👧", vss<41>, "<VS41_00", "  >\2अनुच्छेद", vss<51>, "<VS51_00\n")
+                .add(">❤"  , vss<11>, "<VS11_00  >❤" , vss<21>, "<VS21_00\n")
+                .add(">😎" , vss<11>, "<VS11_00  >😎" , vss<21>, "<VS21_00\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Emoji Representation VS15/16").fgc(txtclr)
+                .add(header("Variation Selectors VS15/16"))
                 .add("\n")
-                .add("❤❤❤👩‍👩‍👧‍👧🥵🦚🧞‍♀️🧞‍♂️>🏴‍☠< Raw>❤< VS15>❤︎< VS16>❤️< >👩🏾‍👨🏾‍👧🏾‍👧🏾< >👩‍👩‍👧‍👧<\n")
+                .add("Plain>❤<   VS15>❤︎<   VS16>❤️<\n")
+                .add("Plain>🏴‍☠<  VS15>🏴‍☠︎<  VS16>🏴‍☠️<\n")
+                .add("Plain>👩‍👩‍👧‍👧<  VS15>👩‍👩‍👧‍👧︎<  VS16>👩‍👩‍👧‍👧️<\n")
                 .add("\n")
                 //todo multiline graphemes
                 //.add("\2line1\nline2", vss<52,01>, "\n")
                 //.add("\2line1\nline2", vss<52,02>, "\n")
-                //.fgc(purecyan)
-                //.add("❤", vss<21>, "<VS21_00 😎", vss<11>, "<VS11_00 👩‍👩‍👧‍👧", vss<31>, "<VS31_00\n")
+                //.add("\n")
+                .add(header("Rotation, Flip, and Mirror"))
                 .add("\n")
-                .fgc(hdrclr).cap("Rotation, Flip, and Mirror").fgc(txtclr)
-                .add("\n")
-                .add("G", vss<21>,              "<Normal          ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
+                .add("G", vss<21>,              "<Plain           ").add("\2G", utf::vs13, vss<21>,            "<VS13:      HzFlip           ").add("\2G", utf::vs14, vss<21>,            "<VS14:      VtFlip\n")
                 .add("\2G", utf::vs10, vss<21>, "<VS10:  90°CCW   ").add("\2G", utf::vs13, utf::vs10, vss<21>, "<VS13+VS10: HzFlip+90°CCW    ").add("\2G", utf::vs14, utf::vs10, vss<21>, "<VS14+VS10: VtFlip+90°CCW\n")
                 .add("\2G", utf::vs11, vss<21>, "<VS11: 180°CCW   ").add("\2G", utf::vs13, utf::vs11, vss<21>, "<VS13+VS11: HzFlip+180°CCW   ").add("\2G", utf::vs14, utf::vs11, vss<21>, "<VS14+VS11: VtFlip+180°CCW\n")
                 .add("😎",  utf::vs12, vss<21>, "<VS12: 270°CCW   ").add("\2G", utf::vs13, utf::vs12, vss<21>, "<VS13+VS12: HzFlip+270°CCW   ").add("\2G", utf::vs14, utf::vs12, vss<21>, "<VS14+VS12: VtFlip+270°CCW\n")
@@ -176,34 +203,37 @@ namespace netxs::app::test
                 .add("  \2Mirror", utf::vs13, vss<81>, "<VS13\n")
                 .add("  \2Mirror", utf::vs14, vss<81>, "<VS14\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Character Matrix").fgc(txtclr)
+                .add(header("Character Matrix"))
                 .add("\n")
-                .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(purecyan).add(" <VS84_00\n")
-                .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
-                .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
-                .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(purecyan).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
+                .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,11>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,21>).bgc(argb{}).add("😎", vss<84,01>).fgc(txtclr).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,01>).fgc(txtclr).add(" <VS84_00\n")
+                .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,12>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,22>).bgc(argb{}).add("😎", vss<84,02>).fgc(txtclr).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,02>).add("\n")
+                .fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,13>).fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,23>).bgc(argb{}).add("😎", vss<84,03>).fgc(txtclr).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,03>).add("\n")
+                .fgc(whitelt).bgc(blackdk).add("\2Height", utf::vs05, utf::vs10, vss<24,14>).fgc(blacklt).bgc(whitedk).add("\2Height", utf::vs05, utf::vs10, vss<24,24>).bgc(argb{}).add("😎", vss<84,04>).fgc(txtclr).bgc(argb{}).add("\2Height", utf::vs05, utf::vs12, vss<24,04>).add("\n")
                 .add("  ").fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,11>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,21>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,31>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,41>)
-                        .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
-                        .fgc(purecyan).bgc(argb{}).add("<VS11\n")
+                          .fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,51>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,61>).fgc(blacklt).bgc(whitedk).add("\2Width", utf::vs05, utf::vs11, vss<81,71>).fgc(whitelt).bgc(blackdk).add("\2Width", utf::vs05, utf::vs11, vss<81,81>)
+                          .fgc(txtclr).bgc(argb{}).add("<VS11\n")
                 .add("\n")
                 .add("Advanced ").add("T", vss<22,01>, "e", vss<22,01>, "r", vss<22,01>, "m", vss<22,01>, "i", vss<22,01>, "n", vss<22,01>, "a", vss<22,01>, "l", vss<22,01>, "\n")
                 .add("Terminal ").add("T", vss<22,02>, "e", vss<22,02>, "r", vss<22,02>, "m", vss<22,02>, "i", vss<22,02>, "n", vss<22,02>, "a", vss<22,02>, "l", vss<22,02>, "\n")
-                .add("Emulator ").fgc(pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(purecyan).add("☆", vss<21>, "\n")
+                .add("Emulator ").fgc(pureyellow).add("★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>, "★", vss<21>).fgc(txtclr).add("☆", vss<21>, "\n")
                 .add("\n")
                 .add("😎", vss<42,01>, " <VS42_00\n")
                 .add("😎", vss<42,02>, "\n")
                 .add("\n")
-                .fgc(hdrclr).cap("Character Halves").fgc(txtclr)
+                .add(header("Character Halves"))
                 .add("\n")
                 .add("😎", vss<21,11>, " 😃", vss<21,21>, "<VS21_11/VS21_21\n")
                 .add("\n")
-                .fgc(hdrclr).cap("sRGB Gamma-correct Blending").fgc(txtclr)
+                .add(header("sRGB Gamma-correct Blending"))
                 .add("\n")
                 .add("Press Ctrl+CapsLock to toggle antialiasing mode on to check results.\n")
-                .fgc(purered).bgc(pureblue).add(" test \n")
-                .fgc(puregreen).bgc(pureblue).add(" test \n")
+                .bgc(pureblue)
+                .fgc(purered).add(" test \n")
+                .fgc(puregreen).add(" test \n")
                 .fgc(purecyan).bgc(purered).add(" test \n")
-                //.fgc(purewhite).bgc(pureblack).add(" test \n")
+                .bgc(purewhite)
+                .fgc(purered).add(" test \n")
+                .fgc(purecyan).add(" test ")
                 .bgc(argb{})
                 .fgc(purered).add(" test \n")
                 .fgc(purecyan).add(" test ");
@@ -255,13 +285,12 @@ namespace netxs::app::test
                     "The following text doesn't make much sense, "
                     "it's just a bunch of text samples.\n"
                     "\n")
-
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
-                    .add("Test Samples\n\n")
-                    .add(test_page())
-                    .jet(bias::left).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
-                    .add("User Interface Commands (outdated)\n")
-                    .jet(bias::left).mgl(1).mgr(0).wrp(wrap::off).eol()
+                    .add(test_page(purewhite, purecyan))
+                    .add("\n\n")
+                    .mgl(1).fgc(purewhite).cap("User Interface Commands (outdated)").erl().und(unln::none).eol()
+                    .wrp(wrap::off).fgc(whitelt).mgr(0)
+                    .add("\n")
                     .fgc(whitelt).bld(true)
                     .add("Mouse:").nil().eol()
                     .add(l1).wrp(wrap::off)
@@ -481,7 +510,7 @@ namespace netxs::app::test
                         "the resemblance to the English words emotion and emoticon is "
                         "purely coincidental. The ISO 15924 script code for emoji is Zsye."
                         "\n")
-                    .fgc(clr).wrp(wrap::off).add("\nSmileys (wrap OFF)\n").nil()
+                    .fgc(clr).wrp(wrap::off).add("\nEmoji (wrap off)\n").nil()
                         .add("😀😃😄😁😆😅😂🤣😊😇🙂🙃😉😌😍😺\n"
                              "😏😒😞😔😟😕😣😖😫😩🥺😢😭😤😸😹\n"
                              "🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳\n"
@@ -489,7 +518,7 @@ namespace netxs::app::test
                              "😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐\n"
                              "🥴🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻\n"
                              "💀👽👾🤖🎃😺😸😹😻😼😽🙀😿😾😠😍\n")
-                    .fgc(clr).wrp(wrap::on).add("\nSmileys (wrap ON)\n").nil()
+                    .fgc(clr).wrp(wrap::on).add("\nEmoji (wrap on)\n").nil()
                         .add("😀😃😄😁😆😅😂🤣😊😇🙂🙃😉😌😍😺"
                              "😏😒😞😔😟😕😣😖😫😩🥺😢😭😤😸😹"
                              "🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳"
