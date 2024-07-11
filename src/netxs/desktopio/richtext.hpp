@@ -312,9 +312,10 @@ namespace netxs::ui
             {
                 if (cmd == ansi::fn::el && arg == 0)
                 {
+                    // todo bias::right support
                     auto coor = flow::cp();
                     auto mark = block.brush();
-                    auto line = rect{ coor, { caret_mx - coor.x, 1 }};
+                    auto line = rect{ coor, { caret_mx - coor.x + 1, 1 }};
                     line.coor.x += pagerect.coor.x;
                     if constexpr (std::is_same_v<P, noop>) netxs::onrect2(canvas, line, cell::shaders::fusefull(mark));
                     else                                   netxs::onrect2(canvas, line, printfx(mark));

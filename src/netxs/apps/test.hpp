@@ -71,7 +71,7 @@ namespace netxs::app::test
                 .add(header("Powerline"))
                 .add("\n")
                 .jet(bias::left).wrp(wrap::off).fgc(whitelt).bgc(bluelt).add("  INSERT  ").fgc(bluelt).bgc(blacklt).add("\uE0B0").fgc(whitelt).add(" \uE0A0 master ").fgc(blacklt).bgc(argb{}).add("\uE0B0   ")
-                .fgc(whitelt).add("Powerline test   ").chx(1).jet(bias::right).fgc(blacklt).add("\uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
+                .fgc(whitelt).add("Powerline test   ").chx(0).jet(bias::right).fgc(blacklt).add("\uE0B2").fgc(whitelt).bgc(blacklt).add(" [dos] ").fgc(bluelt).add("\uE0B2").fgc(whitelt).bgc(bluelt).add(" 100% \uE0A1    2:  1 \n").bgc(argb{})
                 .add("\n").nop().nil().jet(bias::left).wrp(wrap::on)
                 .add(header("Latin"))
                 .add("\n")
