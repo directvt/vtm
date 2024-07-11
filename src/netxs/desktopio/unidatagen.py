@@ -120,8 +120,7 @@ WCWIDTHS = { 'zerowidth' : ['zero', 'non-printable' ],
              'fullwidth' : ['wide', '2x1 fullwidth' ] }
 
 CUSTOMIZE = [('0200B',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWSP, ZERO WIDTH SPACE is always part of grapheme cluster and can't be the first
-             ('0200C',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWNJ, ZERO WIDTH NON-JOINER is always part of grapheme cluster
-             ('0200D',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWJ,  ZERO WIDTH JOINER is always part of grapheme cluster and can't be the first
+             ('0200C',        'zero', 'Nonspacing_Mark', 'Extend'), # ZWNJ, ZERO WIDTH NON-JOINER is always part of grapheme cluster and can't be the first
              ('D0000..D0FFF', 'zero', 'Nonspacing_Mark', 'Extend')]
 #def gc(x):
 #    return x * (x + 1) / 2 + 1
@@ -144,9 +143,7 @@ CONTROLCP = [CATEGORY['Control'            ], #'Cc'
 #             '0x0200D'         ,  # ZWJ, ZERO WIDTH JOINER is always part of grapheme cluster and can't be the first
 #             '0xE0000..0xE007F' ] # TAGs can't be the first grapheme cluster's codepoint: https://www.unicode.org/reports/tr51/#def_emoji_tag_sequence
 
-NONCTRLCP = [#'0200B',        # ZWSP, ZERO WIDTH SPACE is always part of grapheme cluster and can't be the first
-             #'0200C',        # ZWNJ, ZERO WIDTH NON-JOINER is always part of grapheme cluster
-             #'0200D',        # ZWJ,  ZERO WIDTH JOINER is always part of grapheme cluster and can't be the first
+NONCTRLCP = ['0200D',        # ZWJ,  ZERO WIDTH JOINER is always part of grapheme cluster and can't be the first
              'E0000..E007F'] # TAGs can't be the first grapheme cluster's codepoint: https://www.unicode.org/reports/tr51/#def_emoji_tag_sequence
 
 #todo unify
