@@ -696,7 +696,7 @@ namespace netxs::input
             return delta.fader<Law>(spell);
         }
         // mouse: Generate mouse event.
-        void update(sysmouse& m)
+        void update(sysmouse& m, core const& idmap)
         {
             auto m_buttons = std::bitset<8>(m.buttons);
             // Interpret button combinations.
@@ -743,7 +743,8 @@ namespace netxs::input
                 auto step = m_sys.coordxy - prime;
                 if (m.buttons) accum += std::abs(step.x) + std::abs(step.y);
                 else           accum = {};
-                auto allow_drag = accum > drag_threshold;
+                auto new_target = idmap.link(m_sys.coordxy) != idmap.link(prime);
+                auto allow_drag = accum > drag_threshold || new_target;
                 delta.set(step);
                 auto active = si32{};
                 auto genptr = std::begin(bttns);
@@ -1466,7 +1467,7 @@ namespace netxs::input
             #endif
             disabled = faux;
             ctlstate = m.ctlstat;
-            mouse::update(m);
+            mouse::update(m, idmap);
         }
         void take(syskeybd& k)
         {
