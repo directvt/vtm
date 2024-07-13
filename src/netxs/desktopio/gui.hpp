@@ -1426,6 +1426,7 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
         std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
+        MSG msg{};
 
         manager()
         {
@@ -1489,9 +1490,9 @@ namespace netxs::gui
         }
         void dispatch()//os::fire& alarm)
         {
-            auto msg = MSG{};
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
+                //::TranslateMessage(&msg);
                 ::DispatchMessageW(&msg);
             }
             //auto stop = os::fd_t{ alarm };
@@ -1637,7 +1638,7 @@ namespace netxs::gui
 
         virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
-        virtual void mouse_moved(twod coord) = 0;
+        virtual void mouse_moved() = 0;
         virtual void focus_event(bool state) = 0;
         virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
@@ -1653,7 +1654,7 @@ namespace netxs::gui
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
-                //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                //os::logstd("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
@@ -1664,7 +1665,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_moved({ r.left + lo(lParam), r.top + hi(lParam) });
+                                       w->mouse_moved();
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -2785,8 +2786,9 @@ namespace netxs::gui
                 resize_window(size_delta);
             }
         }
-        void mouse_moved(twod coord)
+        void mouse_moved()
         {
+            auto coord = twod{ msg.pt.x, msg.pt.y };
             auto& mbttns = proxy.m.buttons;
             mhover = true;
             auto inner_rect = layers[blinky].area;
