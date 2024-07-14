@@ -1637,7 +1637,7 @@ namespace netxs::gui
 
         virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
-        virtual void mouse_moved() = 0;
+        virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
@@ -1664,7 +1664,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       w->mouse_moved();
+                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y });
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -2786,9 +2786,8 @@ namespace netxs::gui
                 resize_window(size_delta);
             }
         }
-        void mouse_moved()
+        void mouse_moved(twod coord)
         {
-            auto coord = twod{ msg.pt.x, msg.pt.y };
             auto& mbttns = proxy.m.buttons;
             mhover = true;
             auto inner_rect = layers[blinky].area;
