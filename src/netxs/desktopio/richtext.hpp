@@ -1899,13 +1899,15 @@ namespace netxs::ui
             auto tail = batch.end();
             while (last != tail)
             {
-                auto wrap = (**last).style.adjust;
+                auto r_to_l = (**last).style.r_to_l;
+                auto adjust = (**last).style.adjust;
                 auto size = (**last).size();
                 auto head = last;
                 while (++last != tail
                    && (**last).bare()
                    && size.y == (next = (**last).size()).y
-                   && wrap == (**last).style.adjust)
+                   && r_to_l == (**last).style.r_to_l
+                   && adjust == (**last).style.adjust)
                 {
                     size.x += next.x;
                 }

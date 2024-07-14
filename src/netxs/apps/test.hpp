@@ -247,7 +247,7 @@ namespace netxs::app::test
             {
                 auto clr = 0xFFFFFFFF;
                 auto msg = text{ "The quick brown fox jumps over the lazy dog." };
-                auto msg_rtl = ansi::rtl(rtol::rtl).add("RTL: ", msg).rtl(rtol::ltr);
+                auto msg_rtl = ansi::rtl(rtol::rtl).add("RTL: ", msg).nop().rtl(rtol::ltr);
                 auto msg_ltr = text{ "LTR: " } + msg;
                 auto testline = ansi::jet(bias::center).rtl(rtol::rtl)
                     .add("RTL: centered text.\n\n")
@@ -259,7 +259,7 @@ namespace netxs::app::test
                     .nil()
                     .add(msg_ltr, "\n\n",
                          msg_rtl, "\n\n")
-                    .jet(bias::right).rtl(rtol::ltr)
+                    .nop().jet(bias::right).rtl(rtol::ltr)
                     .add(msg_ltr, "\n\n", msg_rtl);
 
                 auto margin = si32{ 4 };

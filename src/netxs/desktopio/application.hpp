@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.90";
+    static const auto version = "v0.9.91";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -537,10 +537,9 @@ namespace netxs::app::shared
     {
         if (os::dtvt::vtmode & ui::console::gui)
         {
-            config.cd("/config/gui/");
-            auto wincoord = config.take("wincoor", twod{ 100, 100 });
-            auto gridsize = config.take("gridsize", twod{ 80, 25 });
-            auto cellsize = std::clamp(config.take("cellheight", si32{ 16 }), 1, 256);
+            auto wincoord = config.take("/config/gui/wincoor", twod{ 100, 100 });
+            auto gridsize = config.take("/config/gui/gridsize", twod{ 80, 25 });
+            auto cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 16 }), 1, 256);
             os::dtvt::cellsz = cellsize ? std::abs(cellsize) : 20;
             os::dtvt::window.size = std::max(dot_11, gridsize ? gridsize
                                                               : os::dtvt::wingui.size / twod{ std::max(1, os::dtvt::cellsz / 2), os::dtvt::cellsz });
@@ -553,15 +552,14 @@ namespace netxs::app::shared
         else
         {
             os::dtvt::client = client;
-            config.cd("/config/gui/");
-            auto winstate = config.take("winstate", win::state::normal, app::shared::win::options);
-            auto aliasing = config.take("antialiasing", faux);
-            auto blinking = config.take("blinkrate", span{ 400ms });
-            auto fontlist = utf::split<true, std::list<text>>(config.take<true>("fontlist", ""s), '\n');
+            auto winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options);
+            auto aliasing = config.take("/config/gui/antialiasing", faux);
+            auto blinking = config.take("/config/gui/blinkrate", span{ 400ms });
+            auto fontlist = utf::split<true, std::list<text>>(config.take<true>("/config/gui/fontlist", ""s), '\n');
             if (fontlist.size()) log(prompt::xml, ansi::err("Tag '/config/gui/fontlist' is deprecated. Use '/config/gui/fonts/*' instead."));
             else
             {
-                auto recs = config.list("fonts/font");
+                auto recs = config.list("/config/gui/fonts/font");
                 for (auto& f : recs)
                 {
                     //todo implement 'fonts/font/file' - font file path/url

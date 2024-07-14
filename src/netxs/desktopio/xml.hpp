@@ -1167,6 +1167,7 @@ namespace netxs::xml
         using vect = xml::document::vect;
         using sptr = netxs::sptr<xml::document>;
         using hist = std::list<std::pair<text, text>>;
+        //using sync = std::recursive_mutex;
 
         sptr document; // settings: XML document.
         vect tempbuff; // settings: Temp buffer.
@@ -1174,6 +1175,7 @@ namespace netxs::xml
         text homepath; // settings: Current working directory.
         text backpath; // settings: Fallback path.
         hist cwdstack; // settings: Stack for saving current cwd.
+        //sync xs_mutex; // settings: Access mutex.
 
         settings() = default;
         settings(settings const&) = default;
@@ -1184,6 +1186,11 @@ namespace netxs::xml
             homelist = document->take(homepath);
         }
 
+        //todo make it thread-safe
+        //auto lock()
+        //{
+        //    return std::unique_lock{ xs_mutex };
+        //}
         auto cd(text gotopath, view fallback = {})
         {
             backpath = utf::trim(fallback, '/');

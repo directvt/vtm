@@ -242,29 +242,35 @@ namespace netxs::os
                     using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
                     using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
                     using RtlGetVersion_ptr       = NTSTATUS(_stdcall *)(RTL_OSVERSIONINFOW*);
+                    //using TranslateMessageEx_ptr  = std::decay<decltype(::CallMsgFilterW)>::type;
+                    //using TranslateMessageEx_ptr  = BOOL(_stdcall *)(MSG const* pmsg, UINT flags);
                     //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
-                    //HMODULE                 user32_dll{};
-                    //ConsoleControl_ptr      ConsoleControl{};
 
                     HMODULE                 ntdll_dll{};
                     NtOpenFile_ptr          NtOpenFile{};
                     RtlGetVersion_ptr       RtlGetVersion{};
                     CsrClientCallServer_ptr CsrClientCallServer{};
 
+                    //HMODULE                 user32_dll{};
+                    //TranslateMessageEx_ptr  TranslateMessageEx{};
+                    //ConsoleControl_ptr      ConsoleControl{};
+
                     refs()
                     {
                         //user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
                         ntdll_dll = ::LoadLibraryExA("ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                        //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
                         if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
                         else
                         {
-                            NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll,  "NtOpenFile"));
-                            RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll,  "RtlGetVersion"));
-                            CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll,  "CsrClientCallServer"));
+                            NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll, "NtOpenFile"));
+                            RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll, "RtlGetVersion"));
+                            CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll, "CsrClientCallServer"));
                             if (!NtOpenFile)          os::fail("::GetProcAddress(NtOpenFile)");
                             if (!RtlGetVersion)       os::fail("::GetProcAddress(RtlGetVersion)");
                             if (!CsrClientCallServer) os::fail("::GetProcAddress(CsrClientCallServer)");
+                            //TranslateMessageEx  = reinterpret_cast<TranslateMessageEx_ptr>(::GetProcAddress(user32_dll, "TranslateMessageEx"));
+                            //if (!TranslateMessageEx) os::fail("::GetProcAddress(TranslateMessageEx)");
                             //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             //if (!ConsoleControl) os::fail("::GetProcAddress(ConsoleControl)");
                         }
@@ -277,13 +283,15 @@ namespace netxs::os
                                    NtOpenFile{ other.NtOpenFile          },
                                 RtlGetVersion{ other.RtlGetVersion       },
                           CsrClientCallServer{ other.CsrClientCallServer }
-                               //    user32_dll{ other.user32_dll          },
+                                   //user32_dll{ other.user32_dll          },
+                           //TranslateMessageEx{ other.TranslateMessageEx  }
                                //ConsoleControl{ other.ConsoleControl      }
                     {
                         other.ntdll_dll           = {};
                         other.NtOpenFile          = {};
                         other.RtlGetVersion       = {};
                         other.CsrClientCallServer = {};
+                        //other.TranslateMessageEx  = {};
                         //other.user32_dll          = {};
                         //other.ConsoleControl      = {};
                     }
@@ -335,6 +343,13 @@ namespace netxs::os
                 if (stat != nt::status::success) os::fail("::RtlGetVersion()");
                 return info;
             }
+            //template<class ...Args>
+            //auto TranslateMessageEx(Args... args)
+            //{
+            //    auto& inst = get_ntdll();
+            //    return inst ? inst.TranslateMessageEx(std::forward<Args>(args)...)
+            //                : FALSE;
+            //}
             //todo: nt native api monobitness:
             //  We have to make a direct call to ntdll.dll!CsrClientCallServer
             //  due to a user32.dll!ConsoleControl does not work properly under WoW64.

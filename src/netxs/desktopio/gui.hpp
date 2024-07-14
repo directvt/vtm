@@ -1426,6 +1426,7 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
         std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
+        MSG msg{};
 
         manager()
         {
@@ -1489,7 +1490,6 @@ namespace netxs::gui
         }
         void dispatch()//os::fire& alarm)
         {
-            auto msg = MSG{};
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
                 ::DispatchMessageW(&msg);
@@ -1644,7 +1644,7 @@ namespace netxs::gui
         virtual void sys_command(si32 menucmd) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
-        virtual void keybd_press(arch vkey, arch lParam) = 0;
+        virtual void keybd_press(arch vkey, arch lParam, bool altkey) = 0;
         virtual void keybd_paste(arch wide_char) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
@@ -1653,7 +1653,7 @@ namespace netxs::gui
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
-                //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                //os::logstd("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
@@ -1664,7 +1664,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       if (auto r = RECT{}; ::GetWindowRect(hWnd, &r)) w->mouse_moved({ r.left + lo(lParam), r.top + hi(lParam) });
+                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y });
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -1709,10 +1709,10 @@ namespace netxs::gui
                         log("%%Keyboard layout has changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
                         break;
                     }
-                    case WM_KEYDOWN:
-                    case WM_KEYUP:
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
-                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam);             break;
+                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam, true);       break;
+                    case WM_KEYDOWN:
+                    case WM_KEYUP:         w->keybd_press(wParam, lParam, faux);       break;
                     //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_paste(wParam, lParam); break;
                     //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
                     //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
@@ -1724,7 +1724,8 @@ namespace netxs::gui
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
-                    case WM_DESTROY: ::RemoveClipboardFormatListener(hWnd);
+                    case WM_DESTROY: //todo deactivate manager
+                                     ::RemoveClipboardFormatListener(hWnd);
                                      ::PostQuitMessage(0);
                                      //if (alive.exchange(faux))
                                      //{
@@ -2930,6 +2931,11 @@ namespace netxs::gui
             if (kbstate[VK_NUMLOCK ] & 0x01) cs |= NUMLOCK_ON;
             if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
             if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
+            //todo revise
+            //todo implement all possible modifiers state (eg kana)
+            //if (kbstate[VK_OEM_COPY] & 0x01) cs |= ...;
+            //if (kbstate[VK_OEM_AUTO] & 0x01) cs |= NLS_ALPHANUMERIC;
+            //if (kbstate[VK_OEM_ENLW] & 0x01) cs |= NLS_HIRAGANA;
             auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
             if (modstat.repeats) return; // We don't repeat modifiers.
             else
@@ -2957,21 +2963,33 @@ namespace netxs::gui
             }
             #endif
         }
+        void keybd_paste(view utf8, si32 ctlstat = {})
+        {
+                //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
+                proxy.k.ctlstat = ctlstat;
+                proxy.k.extflag = 0;
+                proxy.k.virtcod = 0;
+                proxy.k.scancod = 0;
+                proxy.k.pressed = 1;
+                proxy.k.keycode = input::key::undef;
+                proxy.k.cluster = utf8;
+                proxy.keybd(proxy.k);
+        }
         void keybd_paste(arch wide_char)
         {
+            //os::logstd("WM_IMECHAR wide_char ", (si32)wide_char);
             if (utf::to_code((wchr)wide_char, point))
             {
-                auto pressed = true;
                 toUTF8.clear();
                 utf::to_utf_from_code(point, toUTF8);
-                sync_kbstat(toUTF8, pressed);
+                keybd_paste(toUTF8);
                 point = {};
             }
         }
-        void keybd_press(arch vkey, arch lParam)
+        void keybd_press(arch vkey, arch lParam, bool altkey)
         {
             auto virtcod = std::clamp((si32)vkey, 0, 255);
-            if (virtcod || lParam)
+            if (virtcod || lParam || altkey)
             {
                 //...
             }
@@ -2994,22 +3012,44 @@ namespace netxs::gui
             if (param.v.state == 2/*unknown*/) return;
             auto pressed = param.v.state == 0;
             auto repeat  = param.v.state == 1;
+            auto released= param.v.state == 3;
             auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
-            auto to_WIDE = std::array<wchr, 32>{};
-            auto sc = !(pressed || repeat) ? scancod | 0x8000 : scancod; // 15-bit indicate pressed state for ToUnicodeEx.
-            auto len = ::ToUnicodeEx(virtcod,              // UINT wVirtKey,
-                                     sc,                   // UINT wScanCode,
-                                     kbstate.data(),       // const BYTE *lpKeyState,
-                                     to_WIDE.data(),       // [out] LPWSTR pwszBuff,
-                                     (si32)to_WIDE.size(), // [in]  int    cchBuff,
-                                     0,                    // [in]  UINT   wFlags, - 0: Process Alt+Numpad, 1: Do not process Alt+Numpad
-                                     0);                   // [in, optional] HKL dwhkl
+            auto keytype = 0;
+            auto to_WIDE = wide{};
+            //os::logstd("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0");
+            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
+            //todo process Alt+Numpads on our side.
+            if (auto rc = ::TranslateMessage(&msg)) // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts.
+            {                                       // ::ToUnicodeEx() doesn't update IME.
+                auto m = MSG{};
+                if (::PeekMessageW(&m, {}, WM_QUIT, WM_QUIT, PM_NOREMOVE)) return;
+                auto msgtype = altkey ? WM_SYSCHAR : WM_CHAR;
+                while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
+                if (to_WIDE.size()) keytype = 1;
+                else
+                {
+                    while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
+                    if (to_WIDE.size()) keytype = 2;
+                }
+                //os::logstd("\t::TranslateMessage()=", rc, " to_WIDE.size=", to_WIDE.size(), " to_WIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(to_WIDE))), " key_type=", keytype);
+            }
+            //else os::logstd("\t::TranslateMessage()=", rc);
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
-            if (len >= 0)
+            if (keytype != 2) // Do not notify dead keys.
             {
                 toUTF8.clear();
-                if (len > 0) utf::to_utf(to_WIDE.data(), len, toUTF8);
+                if (keytype == 1)
+                {
+                    utf::to_utf(to_WIDE, toUTF8);
+                    if (released) // Alt+Numpad released.
+                    {
+                        sync_kbstat({}, pressed, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_paste(toUTF8, ALTNUMPAD_BIT); // Send Alt+Numpads result.
+                        //print_kbstate("key press:");
+                        return;
+                    }
+                }
                 sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
             }
             //print_kbstate("key press:");

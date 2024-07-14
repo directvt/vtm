@@ -7513,7 +7513,7 @@ namespace netxs::ui
                 {
                     selection_cancel();
                 }
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
+                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
 
                 ipccon.keybd(gear, decckm, kbmode);
             };

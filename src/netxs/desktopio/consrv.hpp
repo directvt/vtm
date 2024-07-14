@@ -1066,7 +1066,8 @@ struct impl : consrv
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
-                    stream.pop_back();
+                    // Do not pop_back to provide the same behavior as Ctrl+C does in cmd.exe and in pwsh. (despite it emits one more ^C in wsl, but it's okay)
+                    //stream.pop_back();
                     if (gear.pressed) alert(os::signals::ctrl_break);
                 }
                 else
@@ -1124,7 +1125,7 @@ struct impl : consrv
             auto& hist = ref_history(nameview);
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
-            auto nums = utfx{};
+            //auto nums = utfx{};
             auto line = para{ 'C', cooked.ustr }; // Set semantic marker OSC 133;C.
             auto done = faux;
             auto crlf = 0;
@@ -1241,11 +1242,12 @@ struct impl : consrv
                             case VK_NUMPAD7:
                             case VK_NUMPAD8:
                             case VK_NUMPAD9:
-                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Ignore Alt+Numpad input.
                                 {
-                                    while (n--) nums = nums * 10 + v - VK_NUMPAD0;
+                                    //while (n--) nums = nums * 10 + v - VK_NUMPAD0;
                                     break;
                                 }
+                            //case VK_CANCEL:
                             case VK_RETURN:
                                 if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Ignore Alt+Enter.
                                 {
@@ -1254,7 +1256,10 @@ struct impl : consrv
                             default:
                             {
                                 n--;
-                                if (c == '\0' && v >= VK_OEM_1 && v <= VK_OEM_8) // Dead key detection.
+                                //if (c == '\0' && !(cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED |
+                                //                                  LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED |
+                                //                                  SHIFT_PRESSED)))
+                                if (c == '\0' && v != VK_SPACE && v != '2')
                                 {
                                     break;
                                 }
@@ -1326,11 +1331,11 @@ struct impl : consrv
                             }
                         }
                     }
-                    else if (nums && v == VK_MENU) // Alt is released after num digits input.
-                    {
-                        server.inpenc->decode(nums, buff);
-                        nums = 0;
-                    }
+                    //else if (nums && v == VK_MENU) // Alt is released after num digits input.
+                    //{
+                    //    server.inpenc->decode(nums, buff);
+                    //    nums = 0;
+                    //}
                     if (done) break;
                     else      pops++;
                 }
