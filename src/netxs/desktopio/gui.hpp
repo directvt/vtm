@@ -2922,7 +2922,6 @@ namespace netxs::gui
         void sync_kbstat(view cluster = {}, bool pressed = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
             #if defined(_WIN32)
-            //todo implement all possible modifiers state (eg kana)
             auto cs = 0;
             if (extflag) cs |= ENHANCED_KEY;
             if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
@@ -2933,6 +2932,11 @@ namespace netxs::gui
             if (kbstate[VK_NUMLOCK ] & 0x01) cs |= NUMLOCK_ON;
             if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
             if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
+            //todo revise
+            //todo implement all possible modifiers state (eg kana)
+            //if (kbstate[VK_OEM_COPY] & 0x01) cs |= ...;
+            //if (kbstate[VK_OEM_AUTO] & 0x01) cs |= NLS_ALPHANUMERIC;
+            //if (kbstate[VK_OEM_ENLW] & 0x01) cs |= NLS_HIRAGANA;
             auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
             if (modstat.repeats) return; // We don't repeat modifiers.
             else
@@ -2960,10 +2964,10 @@ namespace netxs::gui
             }
             #endif
         }
-        void keybd_paste(view utf8)
+        void keybd_paste(view utf8, si32 ctlstat = {})
         {
                 //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
-                proxy.k.ctlstat = 0;
+                proxy.k.ctlstat = ctlstat;
                 proxy.k.extflag = 0;
                 proxy.k.virtcod = 0;
                 proxy.k.scancod = 0;
@@ -3042,7 +3046,8 @@ namespace netxs::gui
                     if (released) // Alt+Numpad released.
                     {
                         sync_kbstat({}, pressed, virtcod, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_paste(toUTF8); // Send Alt+Numpads result.
+                        keybd_paste(toUTF8, ALTNUMPAD_BIT); // Send Alt+Numpads result.
+                        //print_kbstate("key press:");
                         return;
                     }
                 }
