@@ -2989,7 +2989,7 @@ namespace netxs::gui
         void keybd_press(arch vkey, arch lParam, bool altkey)
         {
             auto virtcod = std::clamp((si32)vkey, 0, 255);
-            if (virtcod || lParam)
+            if (virtcod || lParam || altkey)
             {
                 //...
             }
