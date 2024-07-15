@@ -865,13 +865,14 @@ namespace netxs::gui
             //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
             //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
             //auto feat_table = features.data();
-
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(unidata::script(codepoints.front().cdpoint)) };
+            auto script = unidata::script(codepoints.front().cdpoint);
+            auto is_rtl = script >= 100 && script <= 199;
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(script) };
             auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
                                                  text_count,              //UINT32 textLength,
                                                  face_inst,               //_In_ IDWriteFontFace* fontFace,
                                                  faux,                    //BOOL isSideways,
-                                                 faux,                    //BOOL isRightToLeft,
+                                                 is_rtl,                  //BOOL isRightToLeft,
                                                  &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                                                  fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                                                  nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
@@ -911,7 +912,7 @@ namespace netxs::gui
                                                      face_inst,               // _In_ IDWriteFontFace* fontFace,
                                                      em_height,               // FLOAT fontEmSize,
                                                      faux,                    // BOOL isSideways,
-                                                     faux,                    // BOOL isRightToLeft,
+                                                     is_rtl,                  // BOOL isRightToLeft,
                                                      &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                                                      fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
                                                      nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
@@ -976,7 +977,8 @@ namespace netxs::gui
                                                .glyphCount    = glyf_count,
                                                .glyphIndices  = glyf_index.data(),
                                                .glyphAdvances = glyf_steps.data(),
-                                               .glyphOffsets  = glyf_align.data() };
+                                               .glyphOffsets  = glyf_align.data(),
+                                               .bidiLevel     = is_rtl };
             auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
             auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
             hr = monochromatic ? DWRITE_E_NOCOLOR
@@ -1065,6 +1067,7 @@ namespace netxs::gui
                 colored_glyphs->Release();
             }
             else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
+            if (is_rtl) glyph_mask.area.coor.x += (si32)matrix.x;
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
             //netxs::onrect(src_bitmap, bline, [](auto& c){ c = std::min(255, c + 64); });
@@ -1268,7 +1271,7 @@ namespace netxs::gui
                 netxs::onrect(target, block, cell::shaders::full(color));
             }
             if (c.xy() == 0) return;
-            auto token = c.tkn() & ~3;
+            auto token = c.tkn() & ~3; // Clear first two bits for font style.
             if (c.itc()) token |= font::style::italic;
             if (c.bld()) token |= font::style::bold;
             auto iter = glyphs.find(token);

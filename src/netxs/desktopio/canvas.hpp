@@ -1016,15 +1016,18 @@ namespace netxs
             }
 
             static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto token_mask = ~(ui64)0b1111'1000; // Exclude matrix metadata.
+            static constexpr auto token_mask = ~(ui64)0b1111'1100; // Exclude rtl and matrix metadata.
+            static constexpr auto rtl_mask = (ui64)0b0000'0100; // rtl metadata.
             struct prop
             {
                 // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
-                byte count : 3; // prop: Cluster length in bytes (if it is not jumbo).
+                // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
+                //    Drop "count" and use null (0x0) terminator, if you need an extra three bits for something.
+                byte isnul : 1; // prop: Null char inside.
+                byte empty : 1; // prop: Reserved.
+                byte isrtl : 1; // prop: Cluster contains RTL text.
                 byte sizex : 3; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 8)
-                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h; 1 - 4)
-                //todo  In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
-                //      Drop "count" and use null (0x0) terminator, if you need an extra three bits for something.
+                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)
             };
 
             ui64 token;
@@ -1040,7 +1043,7 @@ namespace netxs
             constexpr glyf(char c)
                 : token{ 0 }
             {
-                props.count = 1;
+                props.isnul = !c;
                 glyph[1] = c;
             }
 
@@ -1065,13 +1068,20 @@ namespace netxs
             constexpr void set(char c)
             {
                 token = 0;
-                props.count = 1;
+                props.isnul = !c;
                 glyph[1] = c;
+            }
+            constexpr void rtl(bool b)
+            {
+                props.isrtl = b;
+            }
+            constexpr auto rtl() const
+            {
+                return !!props.isrtl;
             }
             constexpr void set_c0(char c)
             {
                 token = 0;
-                props.count = 2;
                 props.sizex = 2 - 1;
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
@@ -1089,20 +1099,34 @@ namespace netxs
             {
                 static constexpr auto hasher = std::hash<view>{};
                 auto count = utf8.size();
+                token &= rtl_mask; // Keep rtl bit.
                 if (count < limit)
                 {
-                    token = 0;
-                    props.count = (byte)count;
-                    mtx(w, h);
-                    std::memcpy(glyph + 1, utf8.data(), count);
+                    if (count == 1 && utf8.front() == 0) props.isnul = 1;
+                    else
+                    {
+                        mtx(w, h);
+                        std::memcpy(glyph + 1, utf8.data(), count);
+                    }
                 }
                 else
                 {
-                    token = hasher(utf8);
+                    token |= hasher(utf8) & ~rtl_mask; // Keep rtl bit.
                     set_jumbo();
                     mtx(w, h);
                     jumbos().add(token & token_mask, utf8);
                 }
+            }
+            // glyf: Cluster length in bytes (if it is not jumbo).
+            auto str_len() const
+            {
+                return !glyph[1] ? (si32)props.isnul :
+                       !glyph[2] ? 1 :
+                       !glyph[3] ? 2 :
+                       !glyph[4] ? 3 :
+                       !glyph[5] ? 4 :
+                       !glyph[6] ? 5 :
+                       !glyph[7] ? 6 : 7;
             }
             template<svga Mode = svga::vtrgb>
             view get() const
@@ -1111,7 +1135,7 @@ namespace netxs
                 else
                 {
                     if (is_jumbo()) return jumbos().get(token & token_mask);
-                    else            return view(glyph + 1, props.count);
+                    else            return view(glyph + 1, str_len());
                 }
             }
             bool is_space() const //todo VS2019 complains on auto
@@ -1129,7 +1153,7 @@ namespace netxs
             // Return cluster storage length.
             auto len() const
             {
-                return is_jumbo() ? limit : 1/* first byte*/ + props.count;
+                return is_jumbo() ? limit : 1/*first byte*/ + str_len();
             }
             void rst()
             {
@@ -1796,6 +1820,7 @@ namespace netxs
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
+        auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
@@ -1851,6 +1876,7 @@ namespace netxs
         }
 
         auto jgc_token() const { return gc.token & cell::glyf::token_mask; } // cell: Return grapheme cluster registration token.
+        auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.

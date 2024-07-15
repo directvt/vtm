@@ -819,6 +819,19 @@ namespace netxs::ansi
             }
             return *this;
         }
+        auto& arabic(qiew utf8)
+        {
+            auto words = utf::split<true>(utf8, ' ');
+            auto head = words.begin();
+            auto tail = words.end();
+            while (head != tail)
+            {
+                auto& word = *head++;
+                add("\2", word, utf::to_utf_from_code(utf::matrix::vs_runtime(std::min(8, (si32)word.size() * 2 / 4), 1, 0, 1)));
+                if (head != tail) add(" ");
+            }
+            return *this;
+        }
     };
 
     template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
@@ -1254,11 +1267,13 @@ namespace netxs::ansi
                     ccc[ccc_tbs   ] = V{ p->style.tbs   (q.subarg(0)); }; // fx_ccc_tbs
                     ccc[ccc_jet   ] = V{ p->style.jet   (static_cast<bias>(q.subarg(0))); }; // fx_ccc_jet
                     ccc[ccc_wrp   ] = V{ p->style.wrp   (static_cast<wrap>(q.subarg(0))); }; // fx_ccc_wrp
-                    ccc[ccc_rtl   ] = V{ p->style.rtl   (static_cast<rtol>(q.subarg(0))); }; // fx_ccc_rtl
+                    ccc[ccc_rtl   ] = V{ p->style.rtl(static_cast<rtol>(q.subarg(0)));
+                                         p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_rtl
                     ccc[ccc_rlf   ] = V{ p->style.rlf   (static_cast<feed>(q.subarg(0))); }; // fx_ccc_rlf
                     ccc[ccc_jet_or] = V{ p->style.jet_or(static_cast<bias>(q.subarg(0))); }; // fx_ccc_or_jet
                     ccc[ccc_wrp_or] = V{ p->style.wrp_or(static_cast<wrap>(q.subarg(0))); }; // fx_ccc_or_wrp
-                    ccc[ccc_rtl_or] = V{ p->style.rtl_or(static_cast<rtol>(q.subarg(0))); }; // fx_ccc_or_rtl
+                    ccc[ccc_rtl_or] = V{ p->style.rtl_or(static_cast<rtol>(q.subarg(0))); 
+                                         p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_or_rtl
                     ccc[ccc_rlf_or] = V{ p->style.rlf_or(static_cast<feed>(q.subarg(0))); }; // fx_ccc_or_rlf
 
                     ccc[ccc_lnk   ] = V{ p->brush.link  (static_cast<id_t>(q.subarg(0))); }; // fx_ccc_lnk
