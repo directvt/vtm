@@ -1016,8 +1016,10 @@ namespace netxs::directvt
                     if (what & rastr) stream::take(c.img(), data);
                     if (what & glyph)
                     {
+                        auto& gc = c.egc();
+                        gc.token = 0;
                         auto [size] = stream::take<byte>(data);
-                        stream::take(c.egc().glyph, size, data);
+                        stream::take(gc.glyph, size, data);
                         c.jgc(); // Check unknown jumbo clusters.
                     }
                     return c;

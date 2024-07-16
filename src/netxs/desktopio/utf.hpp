@@ -33,7 +33,7 @@ namespace netxs
     static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';
-    static constexpr auto emptyspace  = "\0"sv;
+    static constexpr auto emptyspace  = "\0"sv; //"\xC0\x80"sv; // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
 }
 
 namespace netxs::utf
@@ -104,7 +104,7 @@ namespace netxs::utf
         template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
         static constexpr auto vss = utf8view<code>;
 
-        auto vs_runtime(si32 w, si32 h, si32 x, si32 y)
+        auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
         {
             return vs_block + p(w) + x + (p(h) + y) * mx;
         }

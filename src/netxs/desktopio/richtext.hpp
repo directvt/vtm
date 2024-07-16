@@ -629,8 +629,16 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<21,00>)
                     {
-                        fuse(*dest++, c.wdt(utf::matrix::vs<21,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<21,21>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<21,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<21,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<21,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<21,21>));
+                        }
                     }
                     else if (v == 0)
                     {
@@ -640,54 +648,123 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<31,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<31,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,31>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<31,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<31,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<31,31>));
+                        }
                     }
                     else if (v == utf::matrix::vs<41,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<41,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,41>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<41,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<41,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<41,41>));
+                        }
                     }
                     else if (v == utf::matrix::vs<51,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<51,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,41>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,51>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<51,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<51,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<51,51>));
+                        }
                     }
                     else if (v == utf::matrix::vs<61,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<61,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,41>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,51>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,61>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<61,61>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<61,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<61,61>));
+                        }
                     }
                     else if (v == utf::matrix::vs<71,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<71,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,41>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,51>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,61>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,71>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<71,71>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,61>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<71,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,61>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<71,71>));
+                        }
                     }
                     else if (v == utf::matrix::vs<81,00>)
                     {
-                                         fuse(*dest++, c.wdt(utf::matrix::vs<81,11>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,21>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,31>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,41>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,51>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,61>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,71>));
-                        if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,81>));
+                        if (c.rtl())
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<81,81>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,71>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,61>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,11>));
+                        }
+                        else
+                        {
+                                             fuse(*dest++, c.wdt(utf::matrix::vs<81,11>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,21>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,31>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,41>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,51>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,61>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,71>));
+                            if (dest < tail) fuse(*dest++, c.wdt(utf::matrix::vs<81,81>));
+                        }
                     }
                     else
                     {
@@ -695,7 +772,8 @@ namespace netxs::ui
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
-                            while (v != stop) fuse(*dest++, c.wdt(++v));
+                            if (c.rtl()) while (v != stop) fuse(*dest++, c.wdt(stop--));
+                            else         while (v != stop) fuse(*dest++, c.wdt(++v));
                         }
                         else fuse(*dest++, c);
                     }
@@ -727,8 +805,16 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<21,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<21,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<21,21>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<21,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<21,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<21,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<21,21>));
+                        }
                     }
                     else if (v == 0)
                     {
@@ -736,54 +822,123 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<31,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<31,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<31,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<31,31>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<31,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<31,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<31,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<31,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<31,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<31,31>));
+                        }
                     }
                     else if (v == utf::matrix::vs<41,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<41,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<41,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<41,31>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<41,41>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<41,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<41,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<41,41>));
+                        }
                     }
                     else if (v == utf::matrix::vs<51,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<51,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<51,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<51,31>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<51,41>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<51,51>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<51,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<51,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<51,51>));
+                        }
                     }
                     else if (v == utf::matrix::vs<61,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<61,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<61,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<61,31>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<61,41>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<61,51>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<61,61>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<61,61>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<61,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<61,61>));
+                        }
                     }
                     else if (v == utf::matrix::vs<71,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<71,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,31>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,41>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,51>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,61>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<71,71>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<71,71>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,61>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<71,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,61>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<71,71>));
+                        }
                     }
                     else if (v == utf::matrix::vs<81,00>)
                     {
-                                      set(c.wdt(utf::matrix::vs<81,11>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,21>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,31>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,41>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,51>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,61>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,71>));
-                        if (size > 0) set(c.wdt(utf::matrix::vs<81,81>));
+                        if (c.rtl())
+                        {
+                                          set(c.wdt(utf::matrix::vs<81,81>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,71>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,61>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,11>));
+                        }
+                        else
+                        {
+                                          set(c.wdt(utf::matrix::vs<81,11>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,21>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,31>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,41>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,51>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,61>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,71>));
+                            if (size > 0) set(c.wdt(utf::matrix::vs<81,81>));
+                        }
                     }
                     else
                     {
@@ -791,7 +946,8 @@ namespace netxs::ui
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
-                            while (v != stop) set(c.wdt(++v));
+                            if (c.rtl()) while (v != stop) set(c.wdt(stop--));
+                            else         while (v != stop) set(c.wdt(++v));
                         }
                         else set(c);
                     }
@@ -817,8 +973,16 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<21,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<21,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<21,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<21,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<21,21>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<21,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<21,11>));
+                        }
                     }
                     else if (v == 0)
                     {
@@ -826,54 +990,123 @@ namespace netxs::ui
                     }
                     else if (v == utf::matrix::vs<31,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<31,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<31,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,31>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<31,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<31,11>));
+                        }
                     }
                     else if (v == utf::matrix::vs<41,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<41,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<41,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,41>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<41,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<41,11>));
+                        }
                     }
                     else if (v == utf::matrix::vs<51,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<51,51>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<51,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,51>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<51,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<51,11>));
+                        }
                     }
                     else if (v == utf::matrix::vs<61,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<61,61>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,51>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<61,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,61>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<61,61>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<61,11>));
+                        }
                     }
                     else if (v == utf::matrix::vs<71,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<71,71>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,61>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,51>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<71,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,61>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,71>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<71,71>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,61>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<71,11>));
+                        }
                     }
                     else if (v == utf::matrix::vs<81,00>)
                     {
-                                         fuse(*--dest, c.wdt(utf::matrix::vs<81,81>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,71>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,61>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,51>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,41>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,31>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,21>));
-                        if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,11>));
+                        if (c.rtl())
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<81,11>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,61>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,71>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,81>));
+                        }
+                        else
+                        {
+                                             fuse(*--dest, c.wdt(utf::matrix::vs<81,81>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,71>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,61>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,51>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,41>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,31>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,21>));
+                            if (dest > tail) fuse(*--dest, c.wdt(utf::matrix::vs<81,11>));
+                        }
                     }
                     else
                     {
@@ -881,7 +1114,8 @@ namespace netxs::ui
                         if (x == 0) // x==0; Expand hz cell stripe.
                         {
                             auto stop = v + w;
-                            while (v != stop) fuse(*--dest, c.wdt(stop--));
+                            if (c.rtl()) while (v != stop) fuse(*--dest, c.wdt(++v));
+                            else         while (v != stop) fuse(*--dest, c.wdt(stop--));
                         }
                         else fuse(*--dest, c);
                     }
