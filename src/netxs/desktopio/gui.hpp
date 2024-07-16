@@ -2413,7 +2413,6 @@ namespace netxs::gui
                 if (blink_count) layers[blinky].show();
                 size_window();
             }
-            netxs::set_flag<input::hids::Fullscrn>(kbmod, fsmode == state::maximized);
         }
         void check_fsmode(arch hWnd)
         {
@@ -2483,17 +2482,24 @@ namespace netxs::gui
             gridsz = layers[blinky].area.size / cellsz;
             blink_count = 0;
             blink_mask.assign(gridsz.x * gridsz.y, 0);
-            if (fsmode != state::maximized)
+            auto fullscreen = fsmode == state::maximized;
+            auto sizechanged = proxy.w.winsize != gridsz;
+            if (!fullscreen)
             {
                 size_title(head_grid, titles.head_page);
                 size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
-            if (proxy.w.winsize != gridsz)
+            if (sizechanged || proxy.w.fullscreen != fullscreen)
             {
-                netxs::set_flag<task::all>(reload);
-                waitsz = gridsz;
-                proxy.w.winsize = gridsz;
+                if (sizechanged)
+                {
+                    netxs::set_flag<task::all>(reload);
+                    waitsz = gridsz;
+                    proxy.w.winsize = gridsz;
+                }
+                else netxs::set_flag<task::sized>(reload);
+                proxy.w.fullscreen = fullscreen;
                 proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
             else netxs::set_flag<task::sized>(reload);

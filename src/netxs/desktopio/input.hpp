@@ -1155,7 +1155,6 @@ namespace netxs::input
             NumLock  = 1 << 12, // ⇭ Num Lock
             CapsLock = 1 << 13, // ⇪ Caps Lock
             ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
-            Fullscrn = 1 << 15, // Fullscreen mode
             AltGr    = LAlt   | LCtrl,
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,

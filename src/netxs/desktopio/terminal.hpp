@@ -8063,7 +8063,7 @@ namespace netxs::ui
                 auto winsize = stream.syswinsz.freeze().thing.winsize;
                 if (ipccon && winsize != new_area.size)
                 {
-                    stream.syswinsz.send(*this, 0, new_area.size);
+                    stream.syswinsz.send(*this, 0, new_area.size, faux);
                 }
             };
             SIGNAL(tier::general, e2::config::fps, fps, (-1));

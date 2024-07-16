@@ -106,7 +106,7 @@ namespace netxs::ui
             : public s11n
         {
             pipe& canal; // link: Data highway.
-            base& owner; // link: Link owner.
+            gate& owner; // link: Link owner.
             flag  alive; // link: sysclose isn't sent.
 
             // link: Send data outside.
@@ -126,7 +126,7 @@ namespace netxs::ui
                 }
             }
 
-            link(pipe& canal, base& owner)
+            link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
                  owner{ owner },
@@ -162,6 +162,7 @@ namespace netxs::ui
             void handle(s11n::xs::syswinsz    lock)
             {
                 auto& item = lock.thing;
+                owner.fullscreen = item.fullscreen;
                 notify(e2::conio::winsz, item.winsize);
             }
             void handle(s11n::xs::sysboard    lock)
@@ -810,6 +811,7 @@ namespace netxs::ui
         bool       direct; // gate: .
         bool       local; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        bool       fullscreen; // gate: .
         para       uname; // gate: Client name.
         text       uname_txt; // gate: Client name (original).
         sptr       applet; // gate: Standalone application.
@@ -1064,7 +1066,8 @@ namespace netxs::ui
               conio{ canal, *this  },
               direct{ props.vtmode == svga::dtvt },
               local{ true },
-              yield{ faux }
+              yield{ faux },
+              fullscreen{ faux }
         {
             //todo revise
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
@@ -1382,9 +1385,16 @@ namespace netxs::ui
                     using button = hids::events::mouse::button;
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
-                    if (isvtm && (gear.index == hids::leftright // Reserved for dragging nested vtm.
-                              ||  gear.index == hids::right)    // Reserved for creation inside nested vtm.
-                     && events::subevent(cause, button::drag::any.id)) return;
+                    if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
+                                  gear.index == hids::right)       // Reserved for creation inside nested vtm.
+                              && events::subevent(cause, button::drag::any.id))
+                    {
+                        return; // Pass event to the hall.
+                    }
+                    if (fullscreen && events::subevent(cause, button::drag::any.id)) // Enable left drag in fullscreen mode.
+                    {
+                        return; // Pass event to the hall.
+                    }
                     if (events::subevent(cause, button::click     ::any.id)
                      || events::subevent(cause, button::dblclick  ::any.id)
                      || events::subevent(cause, button::tplclick  ::any.id)
