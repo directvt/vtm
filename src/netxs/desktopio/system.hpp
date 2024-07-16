@@ -1478,7 +1478,7 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
-            static auto listener = []
+            static auto listener = [] // This initialization must be performed in the main (first ever) thread at startup in order to properly set the thread's inherited sigmask.
             {
                 auto action = [](auto){ };
                 auto forced_EINTR = (struct sigaction){};

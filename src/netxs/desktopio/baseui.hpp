@@ -22,8 +22,6 @@ namespace netxs::input
     using sysboard = directvt::binary::sysboard_t;
     using clipdata = directvt::binary::clipdata_t;
     using auth = netxs::events::auth;
-
-    static auto indexer = auth{};
 }
 namespace netxs::ui
 {

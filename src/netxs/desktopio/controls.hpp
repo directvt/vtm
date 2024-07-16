@@ -2177,6 +2177,12 @@ namespace netxs::ui
         };
     }
 
+    auto& tui_domain()
+    {
+        static auto indexer = netxs::events::auth{};
+        return indexer;
+    }
+
     // controls: base UI element.
     template<class T>
     class form
@@ -2190,14 +2196,14 @@ namespace netxs::ui
         //pro::keybd keybd{ *this }; // form: Keybd controller.
 
         form(size_t nested_count = 0)
-            : base{ ui::indexer, nested_count }
+            : base{ ui::tui_domain(), nested_count }
         { }
 
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
         {
-            auto item = ui::indexer.create<TT>(std::forward<Args>(args)...);
+            auto item = ui::tui_domain().template create<TT>(std::forward<Args>(args)...);
             return item;
         }
         // form: Attach feature and return itself.
