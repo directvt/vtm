@@ -3054,7 +3054,6 @@ namespace netxs::gui
             if (auto rc = ::TranslateMessage(&msg)) // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
             {                                       // ::ToUnicodeEx() doesn't update IME.
                 auto m = MSG{};
-                if (::PeekMessageW(&m, {}, WM_QUIT, WM_QUIT, PM_NOREMOVE)) return;
                 auto msgtype = altkey ? WM_SYSCHAR : WM_CHAR;
                 while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
                 if (to_WIDE.size()) keytype = 1;
