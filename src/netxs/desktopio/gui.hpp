@@ -2243,6 +2243,8 @@ namespace netxs::gui
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
         flag isbusy = {}; // window: The window is awaiting update.
+        twod full_cellsz; // window: Cell size for fullscreen mode.
+        twod norm_cellsz; // window: Cell size for normal mode.
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
@@ -2270,7 +2272,9 @@ namespace netxs::gui
               footer{ manager::add() },
               blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
               blinking{ faux },
-              proxy{ *this, *os::dtvt::client }
+              proxy{ *this, *os::dtvt::client },
+              full_cellsz{ cellsz },
+              norm_cellsz{ cellsz }
         {
             if (!*this) return;
             normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
@@ -2310,19 +2314,22 @@ namespace netxs::gui
                 layers[blinky].show();
             }
         }
+        void sync_cellsz()
+        {
+            full_cellsz = cellsz;
+            if (fsmode != state::maximized) norm_cellsz = cellsz;
+        }
         void change_cell_size(bool forced = true, fp32 dy = {}, twod resize_center = {})
         {
             if (std::exchange(height, std::clamp(height + dy, 2.f, 256.f)) == height && !forced) return;
             reset_blinky();
             auto grip_cell = gripsz / cellsz;
-            auto prev_cellsz = cellsz;
             fcache.set_cellsz((si32)height);
             gcache.reset();
-            gripsz = grip_cell * cellsz;
+            gripsz = grip_cell * cellsz; // cellsz was updated in fcache.
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == state::maximized)
             {
-                normsz.size = normsz.size / prev_cellsz * cellsz;
                 auto over_sz = layers[client].area.size % cellsz;
                 auto half_sz = over_sz / 2;
                 border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
@@ -2390,10 +2397,17 @@ namespace netxs::gui
             if (old_state == state::normal) normsz = layers[client].area;
             if (fsmode == state::normal)
             {
-                border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
-                layers[client].area = normsz;
                 for (auto l : { client, header, footer }) layers[l].show();
                 if (blink_count) layers[blinky].show();
+                layers[client].area = normsz;
+                if (auto celldt = (fp32)(norm_cellsz.y - cellsz.y))
+                {
+                    auto grip_cell = gripsz / cellsz;
+                    auto prev_gripsz = grip_cell * norm_cellsz;
+                    gridsz = (normsz.size - dent{ prev_gripsz.x, prev_gripsz.x, prev_gripsz.y, prev_gripsz.y }) / norm_cellsz; // Restore normal mode gridsz.
+                    change_cell_size(faux, celldt);
+                }
+                else border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 size_window();
             }
             else if (fsmode == state::minimized)
@@ -2404,14 +2418,21 @@ namespace netxs::gui
             {
                 drop_grips();
                 layers[client].area = manager::get_fs_area(layers[client].area - border);
-                auto over_sz = layers[client].area.size % cellsz;
-                auto half_sz = over_sz / 2;
-                border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                 layers[header].hide();
                 layers[footer].hide();
                 layers[client].show();
                 if (blink_count) layers[blinky].show();
-                size_window();
+                if (auto celldt = (fp32)(full_cellsz.y - cellsz.y))
+                {
+                    change_cell_size(faux, celldt);
+                }
+                else
+                {
+                    auto over_sz = layers[client].area.size % cellsz;
+                    auto half_sz = over_sz / 2;
+                    border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
+                    size_window();
+                }
             }
         }
         void check_fsmode(arch hWnd)
@@ -2757,6 +2778,7 @@ namespace netxs::gui
                     //if (gear.meta(hids::anyCtrl))
                     {
                         change_cell_size(faux, wheeldt, mcoord - layers[client].area.coor);
+                        sync_cellsz();
                         update_gui();
                     }
                 });
@@ -3071,6 +3093,7 @@ namespace netxs::gui
                     bell::enqueue(This(), [&, dir](auto& /*boss*/)
                     {
                         change_cell_size(faux, dir);
+                        sync_cellsz();
                         update_gui();
                     });
                 }
@@ -3259,6 +3282,7 @@ namespace netxs::gui
                     //if (gear.meta(hids::anyCtrl))
                     {
                         change_cell_size(faux, gear.whldt, mcoord - layers[client].area.coor);
+                        sync_cellsz();
                     }
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
