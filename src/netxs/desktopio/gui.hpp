@@ -1652,7 +1652,7 @@ namespace netxs::gui
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
 
-        auto add(manager* host_ptr = nullptr)
+        auto add(manager* host_ptr = nullptr, twod wincoord = {}, twod gridsize = {}, dent border = {}, twod cellsz = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -1760,10 +1760,32 @@ namespace netxs::gui
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
             auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
+            if (cellsz)
+            {
+                auto use_default_size = gridsize == dot_mx;
+                auto use_default_coor = wincoord == dot_mx;
+                if (use_default_size || use_default_coor) // Request size and position by creating a fake window.
+                {
+                    if (use_default_coor) wincoord = { CW_USEDEFAULT, CW_USEDEFAULT };
+                    if (use_default_size) gridsize = { CW_USEDEFAULT, CW_USEDEFAULT };
+                    else                  gridsize *= cellsz;
+                    auto r = RECT{};
+                    auto h = ::CreateWindowExW(0, wc_defwin.lpszClassName, 0, WS_OVERLAPPEDWINDOW, wincoord.x, wincoord.y, gridsize.x, gridsize.y, 0, 0, 0, 0);
+                    ::GetWindowRect(h, &r);
+                    ::DestroyWindow(h);
+                    wincoord = twod{ r.left, r.top };
+                    gridsize = twod{ r.right - r.left, r.bottom - r.top };
+                    if (!gridsize) gridsize = cellsz * twod{ 80, 25 };
+                }
+                else gridsize *= cellsz;
+            }
             auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
                                           wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
                                           /*WS_VISIBLE: it is invisible to suppress messages until initialized | */
-                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU, 0, 0, 0, 0, owner, 0, 0, 0);
+                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU,
+                                          wincoord.x, wincoord.y,
+                                          gridsize.x, gridsize.y,
+                                          owner, 0, 0, 0);
             auto layer = (si32)layers.size();
             if (!hWnd)
             {
@@ -1774,7 +1796,12 @@ namespace netxs::gui
             {
                 ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
             }
-            layers.emplace_back(hWnd);
+            auto& l = layers.emplace_back(hWnd);
+            if (cellsz)
+            {
+                gridsize /= cellsz;
+                l.area = rect{ wincoord, gridsize * cellsz } + border;
+            }
             return layer;
         }
     };
@@ -2199,7 +2226,6 @@ namespace netxs::gui
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
                 c.fast = true;
-                w.winsize = owner.gridsz;
             }
         };
 
@@ -2210,6 +2236,7 @@ namespace netxs::gui
 
         font fcache; // window: Font cache.
         glyf gcache; // window: Glyph cache.
+        twod& cellsz; // window: Cell size in pixels.
         fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         twod gridsz; // window: Window grid size in cells.
@@ -2235,7 +2262,6 @@ namespace netxs::gui
         rect grip_t; // window: .
         rect grip_b; // window: .
         bool drop_shadow{ true }; // window: .
-        twod& cellsz{ fcache.cellsize }; // window: Cell size in pixels.
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt proxy; // window: .
@@ -2248,15 +2274,15 @@ namespace netxs::gui
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
 
-        window(auth& indexer, rect win_coor_px_size_cell, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
+        window(auth& indexer, twod wincoord, twod gridsize, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
               fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
-              height{ (fp32)fcache.cellsize.y },
-              gripsz{ grip_cell * fcache.cellsize },
-              gridsz{ std::max(dot_11, win_coor_px_size_cell.size) },
+              cellsz{ fcache.cellsize },
+              height{ (fp32)cellsz.y },
+              gripsz{ grip_cell * cellsz },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
               inside{},
@@ -2266,7 +2292,7 @@ namespace netxs::gui
               moving{},
               fsmode{ state::undefined },
               reload{ task::all },
-              client{ manager::add(this) },
+              client{ manager::add(this, wincoord, gridsize, border, cellsz) }, // Update wincoord and gridsize if needed.
               blinky{ manager::add() },
               header{ manager::add() },
               footer{ manager::add() },
@@ -2277,8 +2303,7 @@ namespace netxs::gui
               norm_cellsz{ cellsz }
         {
             if (!*this) return;
-            normsz = rect{ win_coor_px_size_cell.coor, gridsz * cellsz } + border;
-            layers[client].area = normsz;
+            normsz = layers[client].area;
             size_window();
         }
         void sync_header_pixel_layout()

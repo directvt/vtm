@@ -210,7 +210,7 @@ All value literals containing spaces must be enclosed in double or single quotes
 Value type | Format
 -----------|-----------------
 `RGBA`     | `#rrggbbaa` \| `0xaarrggbb` \| `rrr,ggg,bbb,aaa` \| 256-color index
-`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
+`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
 
@@ -257,8 +257,8 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
     <gui> <!-- GUI related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
-        <gridsize=0,0/>       <!-- Window initial grid size in text cells. -->
-        <wincoor=0,0/>        <!-- Window initial coordinates (top-left corner on the desktop in physical pixels). -->
+        <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
+        <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
         <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized -->
         <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fonts> <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->

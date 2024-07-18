@@ -402,13 +402,12 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
-                app::shared::update_winsz(config);
                 auto userinit = directvt::binary::init{};
                 auto env = os::env::add();
                 auto cwd = os::env::cwd();
                 auto cmd = script;
                 auto cfg = config.utf8();
-                auto win = os::dtvt::window.size;
+                auto win = os::dtvt::gridsz;
                 userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
                 app::shared::splice(client, config);
                 return 0;

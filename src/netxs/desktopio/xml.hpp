@@ -67,12 +67,14 @@ namespace netxs::xml
             utf8.remove_prefix(2);
             return utf::to_int<T, 16>(utf8);
         }
-        else return utf::to_int<T, 10>(utf8);
+        else return utf8 ? utf::to_int<T, 10>(utf8)
+                         : std::nullopt;
     }
     template<>
     auto take<fp32>(qiew utf8) -> std::optional<fp32>
     {
-        return utf::to_int<fp32>(utf8);
+        return utf8 ? utf::to_int<fp32>(utf8)
+                    : std::nullopt;
     }
     template<>
     auto take<text>(qiew utf8) -> std::optional<text>
@@ -83,6 +85,7 @@ namespace netxs::xml
     auto take<bool>(qiew utf8) -> std::optional<bool>
     {
         auto value = utf::to_low(utf8.str());
+        if (value.starts_with("undef")) return std::nullopt; // Use default.
         return value.empty() || value.starts_with("1")  // 1 - true
                              || value.starts_with("on") // on
                              || value.starts_with("y")  // yes
@@ -92,6 +95,7 @@ namespace netxs::xml
     auto take<twod>(qiew utf8) -> std::optional<twod>
     {
         utf::trim_front(utf8, " ({[\"\'");
+        if (utf8)
         if (auto x = utf::to_int(utf8))
         {
             utf::trim_front(utf8, " ,.x/:;");
@@ -107,6 +111,7 @@ namespace netxs::xml
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
+        if (utf8)
         if (auto x = utf::to_int(utf8))
         {
             auto v = x.value();
@@ -126,13 +131,13 @@ namespace netxs::xml
     template<>
     auto take<argb>(qiew utf8) -> std::optional<argb>
     {
+        if (!utf8) return std::nullopt;
         auto tobyte = [](auto c)
         {
                  if (c >= '0' && c <= '9') return (byte)(c - '0');
             else if (c >= 'a' && c <= 'f') return (byte)(c - 'a' + 10);
             else                           return (byte)(0);
         };
-
         auto value = utf::to_low(utf8.str());
         auto result = argb{};
         auto shadow = view{ value };
