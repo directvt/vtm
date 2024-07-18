@@ -380,6 +380,7 @@ R"==(
             </item>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <item label="Paste" notes=" Paste from clipboard "    type=Repeat action=TerminalClipboardPaste/>
             <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
