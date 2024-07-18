@@ -167,12 +167,10 @@ namespace netxs::ui
             //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
             void handle(s11n::xs::fullscrn    lock)
             {
-                auto& item = lock.thing;
                 owner.fullscreen = true;
             }
             void handle(s11n::xs::restored    lock)
             {
-                auto& item = lock.thing;
                 owner.fullscreen = faux;
             }
             void handle(s11n::xs::sysboard    lock)
