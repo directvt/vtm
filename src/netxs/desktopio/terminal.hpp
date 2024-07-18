@@ -7613,7 +7613,7 @@ namespace netxs::ui
                     }
                 });
             }
-            void handle(s11n::xs::fullscreen          lock)
+            void handle(s11n::xs::fullscrn            lock)
             {
                 auto& m = lock.thing;
                 master.trysync(master.active, [&]
@@ -8063,7 +8063,7 @@ namespace netxs::ui
                 auto winsize = stream.syswinsz.freeze().thing.winsize;
                 if (ipccon && winsize != new_area.size)
                 {
-                    stream.syswinsz.send(*this, 0, new_area.size);
+                    stream.syswinsz.send(*this, 0, new_area.size, faux);
                 }
             };
             SIGNAL(tier::general, e2::config::fps, fps, (-1));

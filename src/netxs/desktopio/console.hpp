@@ -106,7 +106,7 @@ namespace netxs::ui
             : public s11n
         {
             pipe& canal; // link: Data highway.
-            base& owner; // link: Link owner.
+            gate& owner; // link: Link owner.
             flag  alive; // link: sysclose isn't sent.
 
             // link: Send data outside.
@@ -126,7 +126,7 @@ namespace netxs::ui
                 }
             }
 
-            link(pipe& canal, base& owner)
+            link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
                  owner{ owner },
@@ -163,6 +163,15 @@ namespace netxs::ui
             {
                 auto& item = lock.thing;
                 notify(e2::conio::winsz, item.winsize);
+            }
+            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
+            void handle(s11n::xs::fullscrn  /*lock*/)
+            {
+                owner.fullscreen = true;
+            }
+            void handle(s11n::xs::restored  /*lock*/)
+            {
+                owner.fullscreen = faux;
             }
             void handle(s11n::xs::sysboard    lock)
             {
@@ -810,6 +819,7 @@ namespace netxs::ui
         bool       direct; // gate: .
         bool       local; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        bool       fullscreen; // gate: .
         para       uname; // gate: Client name.
         text       uname_txt; // gate: Client name (original).
         sptr       applet; // gate: Standalone application.
@@ -1064,7 +1074,8 @@ namespace netxs::ui
               conio{ canal, *this  },
               direct{ props.vtmode == svga::dtvt },
               local{ true },
-              yield{ faux }
+              yield{ faux },
+              fullscreen{ faux }
         {
             //todo revise
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
@@ -1382,9 +1393,16 @@ namespace netxs::ui
                     using button = hids::events::mouse::button;
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
-                    if (isvtm && (gear.index == hids::leftright // Reserved for dragging nested vtm.
-                              ||  gear.index == hids::right)    // Reserved for creation inside nested vtm.
-                     && events::subevent(cause, button::drag::any.id)) return;
+                    if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
+                                  gear.index == hids::right)       // Reserved for creation inside nested vtm.
+                              && events::subevent(cause, button::drag::any.id))
+                    {
+                        return; // Pass event to the hall.
+                    }
+                    if (fullscreen && events::subevent(cause, button::drag::any.id)) // Enable left drag in fullscreen mode.
+                    {
+                        return; // Pass event to the hall.
+                    }
                     if (events::subevent(cause, button::click     ::any.id)
                      || events::subevent(cause, button::dblclick  ::any.id)
                      || events::subevent(cause, button::tplclick  ::any.id)
@@ -1437,7 +1455,7 @@ namespace netxs::ui
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.fullscreen.send(canal, ext_gear_id);
+                    if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {

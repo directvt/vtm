@@ -797,7 +797,7 @@ namespace netxs::directvt
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
-        STRUCT_macro(fullscreen,        (id_t, gear_id))
+        STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
         STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
@@ -843,6 +843,7 @@ namespace netxs::directvt
         STRUCT_macro(fps,               (si32, frame_rate))
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
         STRUCT_macro(cwd,               (text, path))
+        STRUCT_macro(restored,          (id_t, gear_id))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1343,7 +1344,7 @@ namespace netxs::directvt
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
-            X(fullscreen       ) /* Request to fullscreen.                        */\
+            X(fullscrn         ) /* Notify/Request to fullscreen.                 */\
             X(maximize         ) /* Request to maximize window.                   */\
             X(header           ) /* Set window title.                             */\
             X(footer           ) /* Set window footer.                            */\
@@ -1374,7 +1375,8 @@ namespace netxs::directvt
             X(unknown_gc       ) /* Unknown gc token.                             */\
             X(fps              ) /* Set frame rate.                               */\
             X(init             ) /* Startup data.                                 */\
-            X(cwd              ) /* CWD Notification.                             */
+            X(cwd              ) /* CWD Notification.                             */\
+            X(restored         ) /* Notify normal window state.                   */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 

@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.92";
+    static const auto version = "v0.9.93";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -533,19 +533,6 @@ namespace netxs::app::shared
         }
     };
 
-    void update_winsz(xmls& config)
-    {
-        if (os::dtvt::vtmode & ui::console::gui)
-        {
-            auto wincoord = config.take("/config/gui/wincoor", twod{ 100, 100 });
-            auto gridsize = config.take("/config/gui/gridsize", twod{ 80, 25 });
-            auto cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 16 }), 1, 256);
-            os::dtvt::cellsz = cellsize ? std::abs(cellsize) : 20;
-            os::dtvt::window.size = std::max(dot_11, gridsize ? gridsize
-                                                              : os::dtvt::wingui.size / twod{ std::max(1, os::dtvt::cellsz / 2), os::dtvt::cellsz });
-            if (wincoord != dot_00) os::dtvt::window.coor = wincoord;
-        }
-    }
     void splice(xipc client, xmls& config)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
@@ -555,7 +542,12 @@ namespace netxs::app::shared
             auto winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("/config/gui/antialiasing", faux);
             auto blinking = config.take("/config/gui/blinkrate", span{ 400ms });
+            auto wincoord = config.take("/config/gui/wincoor", dot_mx);
+            auto gridsize = config.take("/config/gui/gridsize", dot_mx);
+            auto cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256);
             auto fontlist = utf::split<true, std::list<text>>(config.take<true>("/config/gui/fontlist", ""s), '\n');
+            if (cellsize == 0) cellsize = 20;
+            if (gridsize == dot_00) gridsize = dot_mx;
             if (fontlist.size()) log(prompt::xml, ansi::err("Tag '/config/gui/fontlist' is deprecated. Use '/config/gui/fonts/*' instead."));
             else
             {
@@ -567,7 +559,7 @@ namespace netxs::app::shared
                 }
             }
             auto event_domain = netxs::events::auth{};
-            if (auto window = event_domain.create<gui::window>(event_domain, os::dtvt::window, fontlist, os::dtvt::cellsz, aliasing, blinking))
+            if (auto window = event_domain.create<gui::window>(event_domain, wincoord, gridsize, fontlist, cellsize, aliasing, blinking))
             {
                 window->connect(winstate);
             }
@@ -576,7 +568,6 @@ namespace netxs::app::shared
     void start(text cmd, text aclass, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
-        update_winsz(config);
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, config);
@@ -588,7 +579,7 @@ namespace netxs::app::shared
         auto appcfg = eccc{ .cmd = cmd,
                             .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
-        domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::window.size);
+        domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
         domain->stop();
         server->shut();
         thread.join();
