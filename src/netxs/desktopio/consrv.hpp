@@ -836,7 +836,14 @@ struct impl : consrv
                 else if (c == '\n')
                 {
                     if (head != tail && *head == '\r') head++; // Eat LF+CR.
-                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate Shift+Enter.
+                    // pwsh: Ctrl+Enter  adds new line below the cursor, so it changes pasted lines order.
+                    // pwsh: Shift+Enter adds new line, so it's okay for paste.
+                    //  far: Ctrl+Enter  adds new line, so it's okay for paste.
+                    //  far: Shift+Enter paste some macro-string. Far Manager treats Shift+Enter as its own macro not a soft break.
+                    //auto is_far_manager = ...;
+                    //auto soft_break_modifier = is_far_manager ? LEFT_CTRL_PRESSED : SHIFT_PRESSED;
+                    auto soft_break_modifier = LEFT_ALT_PRESSED | SHIFT_PRESSED; // Adding LEFT_ALT_PRESSED changes Far Manager's behavior to what is needed and keeps pwsh intact.
+                    generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c); // Emulate Ctrl+Enter.
                 }
                 else
                 {
