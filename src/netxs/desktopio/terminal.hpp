@@ -7613,7 +7613,7 @@ namespace netxs::ui
                     }
                 });
             }
-            void handle(s11n::xs::fullscreen          lock)
+            void handle(s11n::xs::fullscrn            lock)
             {
                 auto& m = lock.thing;
                 master.trysync(master.active, [&]

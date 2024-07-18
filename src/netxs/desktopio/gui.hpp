@@ -1979,11 +1979,13 @@ namespace netxs::gui
             input::sysclose c = {}; // evnt: .
             netxs::sptr<input::hids> gears; // evnt: .
 
-            auto keybd(auto& data) { if (alive)                s11n::syskeybd.send(intio, data); }
-            auto mouse(auto& data) { if (alive)                s11n::sysmouse.send(intio, data); }
-            auto winsz(auto& data) { if (alive)                s11n::syswinsz.send(intio, data); }
-            auto paste(auto& data) { if (alive)                s11n::syspaste.send(intio, data); }
-            auto close(auto& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
+            auto keybd(auto&& data) { if (alive)                s11n::syskeybd.send(intio, data); }
+            auto mouse(auto&& data) { if (alive)                s11n::sysmouse.send(intio, data); }
+            auto winsz(auto&& data) { if (alive)                s11n::syswinsz.send(intio, data); }
+            auto paste(auto&& data) { if (alive)                s11n::syspaste.send(intio, data); }
+            auto close(auto&& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
+            auto fsmod(auto&& data) { if (alive)         data ? s11n::fullscrn.send(intio, gears->id)
+                                                              : s11n::restored.send(intio, gears->id); }
             void direct(s11n::xs::bitmap_dtvt lock, view& data)
             {
                 auto& bitmap = lock.thing;
@@ -2092,7 +2094,8 @@ namespace netxs::gui
                 //    }
                 //});
             }
-            void handle(s11n::xs::fullscreen     /*lock*/)
+            //todo use xs::screenmode
+            void handle(s11n::xs::fullscrn       /*lock*/)
             {
                 if (owner.fsmode == state::maximized) owner.set_state(state::normal);
                 else                                  owner.set_state(state::maximized);
@@ -2459,6 +2462,10 @@ namespace netxs::gui
                     size_window();
                 }
             }
+            if (old_state != fsmode)
+            {
+                proxy.fsmod(fsmode == state::maximized);
+            }
         }
         void check_fsmode(arch hWnd)
         {
@@ -2528,24 +2535,18 @@ namespace netxs::gui
             gridsz = layers[blinky].area.size / cellsz;
             blink_count = 0;
             blink_mask.assign(gridsz.x * gridsz.y, 0);
-            auto fullscreen = fsmode == state::maximized;
             auto sizechanged = proxy.w.winsize != gridsz;
-            if (!fullscreen)
+            if (fsmode != state::maximized)
             {
                 size_title(head_grid, titles.head_page);
                 size_title(foot_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
-            if (sizechanged || proxy.w.fullscreen != fullscreen)
+            if (sizechanged)
             {
-                if (sizechanged)
-                {
-                    netxs::set_flag<task::all>(reload);
-                    waitsz = gridsz;
-                    proxy.w.winsize = gridsz;
-                }
-                else netxs::set_flag<task::sized>(reload);
-                proxy.w.fullscreen = fullscreen;
+                netxs::set_flag<task::all>(reload);
+                waitsz = gridsz;
+                proxy.w.winsize = gridsz;
                 proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
             }
             else netxs::set_flag<task::sized>(reload);

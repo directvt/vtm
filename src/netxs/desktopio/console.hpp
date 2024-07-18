@@ -162,8 +162,18 @@ namespace netxs::ui
             void handle(s11n::xs::syswinsz    lock)
             {
                 auto& item = lock.thing;
-                owner.fullscreen = item.fullscreen;
                 notify(e2::conio::winsz, item.winsize);
+            }
+            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
+            void handle(s11n::xs::fullscrn    lock)
+            {
+                auto& item = lock.thing;
+                owner.fullscreen = true;
+            }
+            void handle(s11n::xs::restored    lock)
+            {
+                auto& item = lock.thing;
+                owner.fullscreen = faux;
             }
             void handle(s11n::xs::sysboard    lock)
             {
@@ -1447,7 +1457,7 @@ namespace netxs::ui
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.fullscreen.send(canal, ext_gear_id);
+                    if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {

@@ -62,7 +62,7 @@ namespace netxs::scripting
                 token.clear();
             }
 
-            void handle(s11n::xs::fullscreen        /*lock*/)
+            void handle(s11n::xs::fullscrn          /*lock*/)
             {
                 //...
             }
