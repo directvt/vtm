@@ -165,11 +165,11 @@ namespace netxs::ui
                 notify(e2::conio::winsz, item.winsize);
             }
             //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
-            void handle(s11n::xs::fullscrn    lock)
+            void handle(s11n::xs::fullscrn  /*lock*/)
             {
                 owner.fullscreen = true;
             }
-            void handle(s11n::xs::restored    lock)
+            void handle(s11n::xs::restored  /*lock*/)
             {
                 owner.fullscreen = faux;
             }
