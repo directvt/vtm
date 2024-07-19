@@ -825,25 +825,26 @@ struct impl : consrv
             while (head != tail)
             {
                 auto c = *head++;
-                if (c == '\r')
+                if (c == '\r' || c == '\n')
                 {
-                    if (head != tail && *head == '\n') head++; // Eat CR+LF.
-                    generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate Enter.
-                    // Far Manager treats Shift+Enter as its own macro not a soft break.
+                    auto mouse_reporting = server.inpmod & nt::console::inmode::mouse;
+                    if (c == '\r')
+                    {
+                        if (head != tail && *head == '\n') head++; // Eat CR+LF.
+                    }
+                    else if (c == '\n')
+                    {
+                        if (head != tail && *head == '\r') head++; // Eat LF+CR.
+                    }
+                    // pwsh: Ctrl+Enter    adds new line below the cursor, so it changes pasted lines order.
+                    // pwsh: Shift+Enter   adds new line, so it's okay for paste.
+                    //  far: (Ctrl)+Enter  adds new line, so it's okay for paste.
+                    //  far: Shift+Enter   paste some macro-string. Far Manager treats Shift+Enter as its own macro not a soft break.
+                    //generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate Enter.
                     //if (noni) generate('\n', s);
                     //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
-                }
-                else if (c == '\n')
-                {
-                    if (head != tail && *head == '\r') head++; // Eat LF+CR.
-                    // pwsh: Ctrl+Enter  adds new line below the cursor, so it changes pasted lines order.
-                    // pwsh: Shift+Enter adds new line, so it's okay for paste.
-                    //  far: Ctrl+Enter  adds new line, so it's okay for paste.
-                    //  far: Shift+Enter paste some macro-string. Far Manager treats Shift+Enter as its own macro not a soft break.
-                    //auto is_far_manager = ...;
-                    //auto soft_break_modifier = is_far_manager ? LEFT_CTRL_PRESSED : SHIFT_PRESSED;
-                    auto soft_break_modifier = LEFT_ALT_PRESSED | SHIFT_PRESSED; // Adding LEFT_ALT_PRESSED changes Far Manager's behavior to what is needed and keeps pwsh intact.
-                    generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c); // Emulate Ctrl+Enter.
+                    auto soft_break_modifier = mouse_reporting ? 0 : SHIFT_PRESSED; // Emulate Shift+Enter if no mouse reporting enabled.
+                    generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c);    // Send a lone Enter keystroke otherwise.
                 }
                 else
                 {
