@@ -472,7 +472,14 @@ namespace netxs::app::shared
             auto load = [&](qiew shadow)
             {
                 if (shadow.empty()) return faux;
-                if (shadow.starts_with(":"))
+                if (utf::dequote(shadow).starts_with("<config")) // The configuration text data is specified directly instead of the path to the configuration file.
+                {
+                    auto utf8 = utf::dequote(shadow);
+                    log("%%Use directly specified settings:\n%body%", prompt::apps, ansi::hi(utf8));
+                    conf.fuse<Print>(utf8);
+                    return true;
+                }
+                else if (shadow.starts_with(":")) // Receive configuration via memory mapping.
                 {
                     shadow.remove_prefix(1);
                     auto utf8 = os::process::memory::get(shadow);
