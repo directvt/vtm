@@ -48,6 +48,10 @@ The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
+Instead of the path to the configuration file, the configuration body itself can be specified:
+
+  - `vtm -c \"<config><term><scrollback size=1000000/></term></config>\" -r term`.
+
 ### Settings loading order
 
 ```mermaid
