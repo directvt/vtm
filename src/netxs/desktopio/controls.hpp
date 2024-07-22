@@ -1159,19 +1159,16 @@ namespace netxs::ui
             }
         };
 
-        // pro: Keyboard focus support.
+        // pro: Text input focus tree.
         class focus
             : public skill
         {
-            using skill::boss,
-                  skill::memo;
-
-            struct config
+            struct chain
             {
                 bool            active{};  // focus: The chain is under the focus.
-                bool            focused{}; // focus: Focused endpoint.
+                bool            focused{}; // focus: The endpoint is focused .
                 hook            token;     // focus: Cleanup token.
-                std::list<wptr> next;      // focus: Focus event next hop.
+                std::list<wptr> next;      // focus: Focus branch next hop list.
 
                 template<class P>
                 auto foreach(P proc)
@@ -1187,11 +1184,14 @@ namespace netxs::ui
                 }
             };
 
+            using umap = std::unordered_map<id_t, chain>; // Each gear has its own focus tree.
+            using skill::boss,
+                  skill::memo;
+
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
             bool focusable; // focus: Boss could be a focus endpoint.
-            bool scope; // focus: Cutoff threshold for the focus branch.
-            //todo std::list<config>??? std::unordered_map is too expensive
-            std::unordered_map<id_t, config> gears;
+            bool scope; // focus: Cutoff threshold for focus branch.
+            umap gears; // focus: Registered gears.
 
             void signal_state()
             {
@@ -1202,7 +1202,7 @@ namespace netxs::ui
                 }
                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::count, count);
             }
-            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
+            auto add_route(id_t gear_id, chain cfg = { .active = faux, .focused = faux })
             {
                 auto iter = gears.emplace(gear_id, std::move(cfg)).first;
                 if (gear_id != id_t{})
@@ -1216,7 +1216,7 @@ namespace netxs::ui
                             //if constexpr (debugmode) log(prompt::foci, "Gears cleanup boss:", boss.id, " hid:", gear.id);
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
-                            if (route.active) // Keep only the active branch.
+                            if (route.active) // Make the active branch the default.
                             {
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
@@ -1326,7 +1326,6 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            //todo drop visible
             focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
                 : skill{ boss },
                   focusable{ m != mode::hub && m != mode::active },
@@ -1410,7 +1409,7 @@ namespace netxs::ui
                     {
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
                         if (def_route != gears.end()) add_route(seed.id, def_route->second);
-                        else                          add_route(seed.id, config{});
+                        else                          add_route(seed.id);
                     }
                 };
                 // Replace next hop object "seed.what" with "seed.item".
@@ -1510,6 +1509,7 @@ namespace netxs::ui
                         }
                     }
 
+                    if (seed.id || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window). See pro::focus ctor.
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
@@ -1589,7 +1589,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Mouse support.
+        // pro: Mouse events.
         class mouse
             : public skill
         {
