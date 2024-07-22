@@ -173,6 +173,18 @@ namespace netxs::ui
             si32 def_altscr;
             bool def_alt_on;
 
+            static void recalc_buffer_metrics(si32& def_length, si32& def_growdt, si32& def_growmx)
+            {
+                if (def_growdt == 0)
+                {
+                    if (def_length == 0) def_length = def_growmx;
+                    else                 def_growmx = def_length;
+                }
+                if (def_growmx == 0 && def_growdt != 0)
+                {
+                    def_growmx = std::exchange(def_length, def_growdt);
+                }
+            }
             termconfig(xmls& config)
             {
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
@@ -192,6 +204,7 @@ namespace netxs::ui
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
                 def_growdt = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
                 def_growmx = std::max(0, config.take("scrollback/growlimit", si32{ 0 }    ));
+                recalc_buffer_metrics(def_length, def_growdt, def_growmx);
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
@@ -266,8 +279,8 @@ namespace netxs::ui
                 {
                     data.clear();
                     if (hash) data.scp();
-                    data.jet(bias::right).add(size, "/", peak);
-                    if (step && size != mxsz) data.add("+", step);
+                    data.jet(bias::right).add(size, "/", std::max(mxsz, peak));
+                    //if (mxsz && step && size != mxsz) data.add("+", step);
                     data.add(" ", area.x, ":", area.y);
                     if (hash)
                     {
@@ -4507,7 +4520,9 @@ namespace netxs::ui
             void resize_history(si32 new_size, si32 grow_by = 0, si32 grow_mx = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
-                batch.resize<BOTTOM_ANCHORED>(std::max(new_size, panel.y), grow_by, grow_mx);
+                new_size = std::max(new_size, panel.y);
+                termconfig::recalc_buffer_metrics(new_size, grow_by, grow_mx);
+                batch.resize<BOTTOM_ANCHORED>(new_size, grow_by, grow_mx);
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.

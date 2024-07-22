@@ -275,7 +275,7 @@ R"==(
     <term>       <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
-            <size=40000    />   <!-- Initial scrollback buffer length. -->
+            <size=40000    />   <!-- Initial scrollback buffer size. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
