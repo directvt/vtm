@@ -33,7 +33,7 @@ R"==(<config>
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal /> <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values) -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/> <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values) -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"
@@ -87,8 +87,8 @@ R"==(
 )=="
 R"==(
                     <menu item*>
-                        <autohide = off/>
-                        <slim = true/>
+                        <autohide=off/>
+                        <slim=true/>
                         <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                             <label="\e[38:2:0:255:0m<\e[m"/>
                             <notes>
@@ -138,7 +138,7 @@ R"==(
 )=="
 R"==(
                     <selection>
-                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
+                        <mode=text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                 </term>
             </config>
@@ -157,10 +157,10 @@ R"==(
         <color fgc=whitedk bgc=0xC0202020 /> <!-- Set the bgc alpha to FF to disable acrylics in taskbar. -->
     </menu>
     <panel> <!-- Desktop info panel. -->
-        <env = ""/> <!-- Environment block. -->
-        <cmd = ""/> <!-- Command-line to activate. -->
-        <cwd = ""/> <!-- Working directory. -->
-        <height = 1 /> <!-- Desktop space reserved on top. -->
+        <env=""/> <!-- Environment block. -->
+        <cmd=""/> <!-- Command-line to activate. -->
+        <cwd=""/> <!-- Working directory. -->
+        <height=1/> <!-- Desktop space reserved on top. -->
     </panel>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow/>
@@ -168,23 +168,23 @@ R"==(
     </hotkeys>
     <appearance>
         <defaults>
-            <fps      = 60   />
-            <wheel_dt = 3    /> <!-- Mouse scrolling wheel step (non-smooth scrolling).   -->
-            <bordersz = 1,1  />
-            <lucidity = 0xff /> <!-- not implemented -->
-            <tracking = off  /> <!-- Mouse cursor highlighting. -->
-            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
-            <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
-            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
-            <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
+            <fps=60/>
+            <wheel_dt=3   /> <!-- Mouse scrolling wheel step (non-smooth scrolling).   -->
+            <bordersz=1,1 />
+            <lucidity=0xff/> <!-- not implemented -->
+            <tracking=off /> <!-- Mouse cursor highlighting. -->
+            <macstyle=no  /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
+            <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Highlighter. -->
+            <kb_focus fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
+            <shadower bgc=0xB4202020/>                        <!-- Darklighter. -->
             <shadow> <!-- Window shadow configuration. -->
-                <enabled = true />
-                <blur = 3 />         <!-- Blur radius (in cells). Default is 3. -->
-                <bias = 0.37 />      <!-- Shadow contour bias [0.0 - 1.0]. Default is 0.37 -->
-                <opacity = 105.5 />  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is 105.5 -->
-                <offset = 2,1 />     <!-- 2D offset relative to the window (in cells). Default is 2,1. -->
+                <enabled=true/>
+                <blur=3/>         <!-- Blur radius (in cells). Default is 3. -->
+                <bias=0.37/>      <!-- Shadow contour bias [0.0 - 1.0]. Default is 0.37 -->
+                <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is 105.5 -->
+                <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is 2,1. -->
             </shadow>
-            <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
+            <selector   bgc=0x30ffffff txt=" "/>               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
             <focused    fgc=puregreen                 />
             <active     fgc=whitelt                   />
@@ -214,11 +214,11 @@ R"==(
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
             <limits>
-                <window size=2000x1000 />  <!-- Max window size -->
+                <window size=2000x1000/>  <!-- Max window size -->
             </limits>
         </defaults>
         <runapp>    <!-- Override defaults. -->
-            <brighter fgc=purewhite bgc=purewhite alpha=0 /> <!-- Highlighter. -->
+            <brighter fgc=purewhite bgc=purewhite alpha=0/> <!-- Highlighter. -->
         </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
@@ -260,7 +260,7 @@ R"==(
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=3  />  <!-- Preview shadow strength (0-5). -->
             </preview>
-            <format=html />  <!-- text | ansi | rich | html | protected -->
+            <format=html/>  <!-- text | ansi | rich | html | protected -->
         </clipboard>
         <mouse dblclick=500ms/>
         <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
@@ -280,8 +280,8 @@ R"==(
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
-            <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
+            <reset onkey="on" onoutput="off"/>  <!-- Scrollback viewport reset triggers. -->
+            <altscroll enabled="yes" step=1/>   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
             <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
@@ -300,8 +300,8 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
-            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
+            <default bgc=pureblack fgc=whitedk/>  <!-- Default/current colors (SGR49/39). -->
+            <bground = default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -322,7 +322,7 @@ R"==(
             <style="bar"/> <!-- Cursor style: bar "|" | block "█" | underline "_" -->
             <blink=400ms/> <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
-            <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+            <color bgc=default fgc=default/> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
         </cursor>
         <menu item*>
             <autohide=off/>
