@@ -386,7 +386,7 @@ Notes
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
             <limits>
-                <window size=2000x1000/> <!-- Max window size -->
+                <window size=3000x2000/> <!-- Max window size -->
             </limits>
         </defaults>
         <runapp>    <!-- Override defaults. -->
