@@ -1036,7 +1036,7 @@ namespace netxs::input
                         meta.remove_prefix(1);
                         if (auto v = utf::to_int(meta))
                         {
-                            static constexpr auto max_value = twod{ 3000, 2000 }; //todo unify
+                            static constexpr auto max_value = twod{ 1000, 500 }; //todo unify
                             size.x = v.value();
                             if (meta)
                             {
