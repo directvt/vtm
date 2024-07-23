@@ -66,7 +66,7 @@ namespace netxs::gui
         { }
         void hide() { live = faux; }
         void show() { live = true; }
-        void wipe() { std::memset(data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb)); }
+        void wipe() { std::memset(data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb{})); }
         auto resized() { return area.size != prev.size; }
         template<bool Forced = faux>
         void strike(rect r)
