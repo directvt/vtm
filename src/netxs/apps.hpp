@@ -387,7 +387,7 @@ namespace netxs::app::shared
             auto cB = menu_white;
 
             auto window = ui::veer::ctor()
-                ->limits(dot_11, { 400,200 })
+                ->limits(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active); // Required for standalone mode.
             auto term = ui::cake::ctor()
                 ->active(cB);

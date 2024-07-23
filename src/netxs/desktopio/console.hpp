@@ -1543,7 +1543,7 @@ namespace netxs::ui
             g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
             g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
-            g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
+            g.max_value      = config.take("limits/window/size"    , twod{ 3000, 2000  });
             g.menuwide       = config.take("/config/menu/wide"     , faux);
 
             g.shadow_enabled = config.take("shadow/enabled", true);

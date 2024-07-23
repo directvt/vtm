@@ -515,7 +515,7 @@ namespace netxs::ui
         twod shadow_offset = dot_21;
 
         twod min_value = dot_00;
-        twod max_value = twod{ 2000, 1000 }; //todo unify
+        twod max_value = twod{ 3000, 2000 }; //todo unify
 
         static auto& globals()
         {

@@ -173,6 +173,8 @@ namespace netxs::ui
             si32 def_altscr;
             bool def_alt_on;
 
+            text send_input;
+
             static void recalc_buffer_metrics(si32& def_length, si32& def_growdt, si32& def_growmx)
             {
                 if (def_growdt == 0)
@@ -200,6 +202,7 @@ namespace netxs::ui
                      { "reverse", commands::fx::reverse }};
 
                 config.cd("/config/term/");
+                send_input =             config.take("sendinput", text{});
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
                 def_growdt = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
@@ -7360,6 +7363,7 @@ namespace netxs::ui
                 {
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
+                    if (config.send_input.size()) ipccon.write<faux>(config.send_input);
                 });
                 appcfg.win = target->panel;
                 ipccon.runapp(*this, appcfg, fdlink);

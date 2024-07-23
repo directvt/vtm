@@ -1036,7 +1036,7 @@ namespace netxs::input
                         meta.remove_prefix(1);
                         if (auto v = utf::to_int(meta))
                         {
-                            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
+                            static constexpr auto max_value = twod{ 1000, 500 }; //todo unify
                             size.x = v.value();
                             if (meta)
                             {
@@ -1161,6 +1161,7 @@ namespace netxs::input
             anyShift = LShift | RShift,
             anyAltGr = anyAlt | anyCtrl,
             anyWin   = LWin   | RWin,
+            anyMod   = anyAlt | anyCtrl | anyShift | anyWin,
         };
 
         static auto build_alone_key()
@@ -1431,11 +1432,7 @@ namespace netxs::input
         auto chord(si32 k, Args&&... mods)
         {
             if constexpr (sizeof...(mods)) return k == keybd::keycode && (meta(mods) && ...);
-            else                           return k == keybd::keycode;
-        }
-        auto kbmod()
-        {
-            return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin);
+            else                           return k == keybd::keycode && !meta(hids::anyMod);
         }
 
         // hids: Stop handeling this event.

@@ -66,6 +66,8 @@ namespace netxs::gui
         { }
         void hide() { live = faux; }
         void show() { live = true; }
+        void wipe() { std::memset((void*)data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb)); }
+        auto resized() { return area.size != prev.size; }
         template<bool Forced = faux>
         void strike(rect r)
         {
@@ -1312,11 +1314,11 @@ namespace netxs::gui
             if (hdc) ::DeleteDC(hdc);
             for (auto eventid : klok) ::KillTimer(hWnd, eventid);
         }
-        auto canvas(bool wipe = faux)
+        auto canvas(bool zeroize = faux)
         {
             if (hdc && area)
             {
-                if (area.size != prev.size)
+                if (resized())
                 {
                     auto ptr = (void*)nullptr;
                     auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
@@ -1328,7 +1330,7 @@ namespace netxs::gui
                     if (auto hbm = ::CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
                         //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
-                        //if (!wipe) // Crop.
+                        //if (!zeroize) // Crop.
                         //{
                         //    auto d = new_data.data();
                         //    auto s = data.data();
@@ -1343,13 +1345,13 @@ namespace netxs::gui
                         //}
                         //data = new_data;
                         ::DeleteObject(::SelectObject(hdc, hbm));
-                        wipe = faux;
+                        zeroize = faux;
                         prev.size = area.size;
                         data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
                     }
                     else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
                 }
-                if (wipe) std::memset(data.data(), 0, (sz_t)area.size.x * area.size.y * sizeof(argb));
+                if (zeroize) wipe();
             }
             data.move(area.coor);
             return data;
@@ -2533,8 +2535,6 @@ namespace netxs::gui
             layers[client].area.size += size_delta;
             layers[blinky].area = layers[client].area - border;
             gridsz = layers[blinky].area.size / cellsz;
-            blink_count = 0;
-            blink_mask.assign(gridsz.x * gridsz.y, 0);
             auto sizechanged = proxy.w.winsize != gridsz;
             if (fsmode != state::maximized)
             {
@@ -2695,7 +2695,7 @@ namespace netxs::gui
             auto blink_canvas = blink_layer.canvas();
             auto origin = blink_canvas.coor();
             auto blinks = blink_mask.begin() + offset;
-            auto p = rect{origin + start, cellsz };
+            auto p = rect{ origin + start, cellsz };
             auto m = origin + blink_canvas.size();
             while (head != tail)
             {
@@ -2732,7 +2732,7 @@ namespace netxs::gui
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
-        bool check_blinky()
+        void check_blinky()
         {
             auto changed = std::exchange(blinking, !!blink_count) != blinking;
             if (changed)
@@ -2748,7 +2748,6 @@ namespace netxs::gui
                     layers[client].stop_timer(timers::blink);
                 }
             }
-            return changed;
         }
         void update_gui()
         {
@@ -2760,6 +2759,20 @@ namespace netxs::gui
             {
                 if (what == task::all)
                 {
+                    if (blink_count)
+                    {
+                        blink_count = 0;
+                        blink_mask.assign(gridsz.x * gridsz.y, 0);
+                        if(!layers[blinky].resized()) // Manually zeroize blinking canvas if its size has not changed.
+                        {
+                            layers[blinky].wipe();
+                        }
+                        layers[blinky].strike<true>(layers[blinky].area);
+                    }
+                    else // Keep blink mask size in sync.
+                    {
+                        blink_mask.resize(gridsz.x * gridsz.y);
+                    }
                     auto bitmap_lock = proxy.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
                     fill_stripe(grid.begin(), grid.end());

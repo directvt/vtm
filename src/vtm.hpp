@@ -669,7 +669,7 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
                 {
-                    if (boss.size().inside(gear.coord) && !gear.kbmod())
+                    if (boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
                     if (drags || !gear.capture(boss.id)) return;
                     {
                         drags = true;
@@ -680,21 +680,21 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              coord = gear.coord - gear.delta.get();
+                    if (gear.meta(hids::anyMod)) proceed(faux);
+                    else                         coord = gear.coord - gear.delta.get();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux);
+                    else                         proceed(true);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.kbmod()) proceed(faux);
-                    else              proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux);
+                    else                         proceed(true);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
@@ -1266,7 +1266,7 @@ namespace netxs::app::vtm
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::focus>()
-                ->limits(dot_11, { 400,200 }) //todo unify, set via config
+                ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
                     boss.base::kind(base::reflow_root);
