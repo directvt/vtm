@@ -778,7 +778,7 @@ namespace netxs::app::terminal
         auto def_bcolor = config.take("bgc", argb{ blackdk });
         auto layers = window->attach(ui::cake::ctor())
                             ->colors(cB)
-                            ->limits(dot_11, { 400,200 });
+                            ->limits(dot_11, { 1000, 500 });
         auto scroll = layers->attach(ui::rail::ctor())
                             ->limits({ 10,1 }); // mc crashes when window is too small
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
@@ -867,7 +867,7 @@ namespace netxs::app::terminal
                 };
             });
         auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                    ->limits(dot_11, { 400,200 });
+                                    ->limits(dot_11, { 1000, 500 });
         auto scroll = layers->attach(ui::rail::ctor()->smooth(faux));
         auto min_size = twod{ 12,1 }; // mc crashes when window is too small
         auto max_size = -dot_11;

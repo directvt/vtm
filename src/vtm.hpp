@@ -1266,7 +1266,7 @@ namespace netxs::app::vtm
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::focus>()
-                ->limits(dot_11, { 400,200 }) //todo unify, set via config
+                ->limits(dot_11, { 1000, 500 }) //todo unify, set via config
                 ->invoke([&](auto& boss)
                 {
                     boss.base::kind(base::reflow_root);
