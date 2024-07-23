@@ -827,7 +827,7 @@ struct impl : consrv
                 auto c = *head++;
                 if (c == '\r' || c == '\n')
                 {
-                    auto mouse_reporting = server.inpmod & nt::console::inmode::mouse;
+                    //auto mouse_reporting = server.inpmod & nt::console::inmode::mouse;
                     if (c == '\r')
                     {
                         if (head != tail && *head == '\n') head++; // Eat CR+LF.
@@ -840,11 +840,13 @@ struct impl : consrv
                     // pwsh: Shift+Enter   adds new line, so it's okay for paste.
                     //  far: (Ctrl)+Enter  adds new line, so it's okay for paste.
                     //  far: Shift+Enter   paste some macro-string. Far Manager treats Shift+Enter as its own macro not a soft break.
-                    //generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate Enter.
-                    //if (noni) generate('\n', s);
-                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
-                    auto soft_break_modifier = mouse_reporting ? 0 : SHIFT_PRESSED; // Emulate Shift+Enter if no mouse reporting enabled.
-                    generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c);    // Send a lone Enter keystroke otherwise.
+                    ////generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate Enter.
+                    ////if (noni) generate('\n', s);
+                    ////else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                    //auto soft_break_modifier = mouse_reporting ? 0 : SHIFT_PRESSED; // Emulate Shift+Enter if no mouse reporting enabled.
+                    //generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c);    // Send a lone Enter keystroke otherwise.
+                    // Send Enter keystroke without any modifiers because it could be a sort of sendinput data.
+                    generate('\n', s, VK_RETURN, 1, 0x1c);
                 }
                 else
                 {

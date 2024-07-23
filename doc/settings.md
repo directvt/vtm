@@ -440,6 +440,7 @@ Notes
         <regions enabled=0/>  <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
+        <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo test\n" -->
         <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
             <size=40000    />   <!-- Initial scrollback buffer length. -->
