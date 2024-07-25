@@ -152,7 +152,7 @@ namespace netxs::app::test
                      "𜸩 𜸩𜸾𜸟𜸤𜸩𜸩𜸫𜸹𜸩 𜸧  𜸩  𜸨𜸟𜸶𜸨𜸟𜸷𜸩 𜸧𜸨𜸟    𜸩 𜸫𜸳𜸻𜸨𜸟𜹃𜸨𜸟   𜸨𜸟𜹃𜸩𜸨𜸟 𜸩  𜸨𜸟 𜸾𜸟𜸤\n"
                      "𜸾𜸟𜹃𜸾𜸟𜹃𜸼𜸼 𜸼𜸾𜸟𜹃  𜸽𜸟𜸥𜸼 𜸼𜸼 𜸼𜸾𜸟𜹃𜸽𜸟𜸥   𜸼  𜸼 𜸼  𜸽𜸟𜸥  𜸼  𜸼𜸽𜸟𜸥𜸾𜸟𜹃𜸽𜸟𜸥𜸾𜸟𜹃\n")
                 .add("\n")
-                .add(header("Styled Underlines"))
+                .add(header("Styled Underline"))
                 .add("\n")
                 .add(" ").ovr(true).add("Single Overline").ovr(faux).eol()
                 .add(" ").und(unln::biline).add("Double Underline").und(unln::none).eol()
@@ -170,7 +170,7 @@ namespace netxs::app::test
                 //.add(" ").und(unln::wavy  ).unc(argb{ pureblack }).add("Black Wavy Underline").und(unln::none).eol()
                 .nil()
                 .add("\n")
-                .add(header("Font Styles"))
+                .add(header("Font Style"))
                 .add("\n")
                 .bld(faux).itc(faux).add("Normal        WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪\n")
                 .blk(true)          .add("Blinking      WVMQWERTYUIOPASDFGHJKLZXCVBNM韓M😎M 🥵🥵", vss<11>, "🦚😀⛷🏂😁😂😃😄😅😆👌🐞😎👪\n")

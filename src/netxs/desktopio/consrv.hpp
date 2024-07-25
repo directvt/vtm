@@ -2381,32 +2381,6 @@ struct impl : consrv
         codepage == CP_UTF8 ? "UTF-8"s  :
                               "OEM-"s + std::to_string(codepage);
     }
-    template<class S, class P>
-    auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
-    {
-        auto size = block.size();
-        auto clip = block.clip();
-        auto dest = rect{ coor, clip.size };
-        trim.trimby(dest);
-        clip -= dest - trim;
-        coor = trim.coor;
-        auto head = block.begin() + clip.coor.y * size.x;
-        auto tail = head + clip.size.y * size.x;
-        auto rest = size.x - (clip.coor.x + clip.size.x);
-        auto save = scrollback.coord;
-        assert(rest >= 0);
-        while (head != tail)
-        {
-            head += clip.coor.x;
-            auto next = head + clip.size.x;
-            auto line = std::span(head, next);
-            scrollback.cup0(coor);
-            scrollback._data<true>(clip.size.x, line, fuse);
-            head = next + rest;
-            coor.y++;
-        }
-        scrollback.cup0(save);
-    }
     auto newbuf(auto& client) // MSVC bug; It doesn't see constexpr inside lambdas (even constexpr functions).
     {
         if constexpr (isreal())
@@ -3456,7 +3430,7 @@ struct impl : consrv
                 netxs::onbody(dest, copy, allfx, eolfx);
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
-                    write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
+                    uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
                 });
                 if (!success) crop = {};
             }
@@ -4394,8 +4368,8 @@ struct impl : consrv
             filler.size(scrl.size);
             direct(packet.target, [&](auto& scrollback)
             {
-                write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
-                write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
+                uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
+                uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
             });
         }
         else

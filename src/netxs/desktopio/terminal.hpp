@@ -757,6 +757,7 @@ namespace netxs::ui
                 vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR).
 
                 vt.csier.table_dollarsn[csi_dlr_fra] = V{ p->fra(q); }; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).
+                vt.csier.table_dollarsn[csi_dlr_cra] = V{ p->owner.deccra(q); }; // CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based.
 
                 vt.csier.table[csi_sgr][sgr_fg_blk   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
                 vt.csier.table[csi_sgr][sgr_fg_red   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
@@ -6382,6 +6383,7 @@ namespace netxs::ui
         using buffer_ptr = bufferbase*;
         using vtty = os::vt::vtty;
 
+        std::array<face, 5> pocket; // term: Buffers for DECCRA.
         termconfig config; // term: Terminal settings.
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
@@ -6416,6 +6418,80 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
+        // term: Place rectangle block to the scrollback buffer.
+        template<class S, class P>
+        auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
+        {
+            auto size = block.size();
+            auto clip = block.clip();
+            auto dest = rect{ coor, clip.size };
+            trim.trimby(dest);
+            clip -= dest - trim;
+            coor = trim.coor;
+            auto head = block.begin() + clip.coor.y * size.x;
+            auto tail = head + clip.size.y * size.x;
+            auto rest = size.x - (clip.coor.x + clip.size.x);
+            auto save = scrollback.coord;
+            assert(rest >= 0);
+            while (head != tail)
+            {
+                head += clip.coor.x;
+                auto next = head + clip.size.x;
+                auto line = std::span(head, next);
+                scrollback.cup0(coor);
+                scrollback.template _data<true>(clip.size.x, line, fuse);
+                head = next + rest;
+                coor.y++;
+            }
+            scrollback.cup0(save);
+        }
+        // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
+        void deccra(fifo& q)
+        {
+            auto srcTop       = q(0);
+            auto srcLeft      = q(0);
+            auto srcBottom    = q(0);
+            auto srcRight     = q(0);
+            auto srcBuffIndex = std::clamp(q(0), 1, 6) - 2; // Pocket buffers are 2..6 (0..4). -1 it is a real buffer.
+            auto dstTop       = q(0);
+            auto dstLeft      = q(0);
+            auto dstBuffIndex = std::clamp(q(0), 1, 6) - 2; // Pocket buffers are 2..6 (0..4). -1 it is a real buffer.
+            auto fragment = face{};
+            auto& console = *target;
+            auto size = srcBuffIndex == -1 ? console.panel : pocket[srcBuffIndex].size();
+            srcRight  += srcRight  ? 0 : size.x;
+            srcBottom += srcBottom ? 0 : size.y;
+            srcLeft   -= srcLeft   ? 1 : 0;
+            srcTop    -= srcTop    ? 1 : 0;
+            dstLeft   -= dstLeft   ? 1 : 0;
+            dstTop    -= dstTop    ? 1 : 0;
+            auto area = rect{{ srcLeft, srcTop }, { srcRight - srcLeft, srcBottom - srcTop }};
+            auto src_area = rect{ dot_00, size };
+            area.trimby(src_area);
+            fragment.full(src_area);
+            fragment.core::crop(area.size, defclr);
+            fragment.core::area(area);
+            // Take fragment.
+            if (srcBuffIndex == -1) console.do_viewport_copy(fragment);
+            else                    netxs::onbody(fragment, pocket[srcBuffIndex], cell::shaders::full);
+            // Put fragment.
+            auto coor = twod{ dstLeft, dstTop };
+            if (dstBuffIndex == -1) // Dst is real buffer.
+            {
+                area.coor = {};
+                fragment.area(area);
+                     if (target == &normal) write_block(normal, fragment, coor, src_area, cell::shaders::full);
+                else if (target == &altbuf) write_block(altbuf, fragment, coor, src_area, cell::shaders::full);
+            }
+            else
+            {
+                area.coor = coor;
+                fragment.area(area);
+                auto& dst = pocket[dstBuffIndex];
+                dst.crop(console.panel, defclr);
+                dst.plot(fragment, cell::shaders::full);
+            }
+        }
         // term: Set semantic marker (OSC 133).
         void osc_marker(view data)
         {

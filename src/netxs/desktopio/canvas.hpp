@@ -1187,8 +1187,8 @@ namespace netxs
                 ui32 hyperlink : 1; // cell::px strores string hash.
                 ui32 blinks : 1;
                 ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
-                ui32 fusion : 2; // Background interpolation current c0 with neighbor c1 and c2 cells:
-                                 //
+                ui32 fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
+                                 // Background interpolation current c0 with neighbor c1 and c2 cells:
                                  //    c0 c1
                                  //    c2
                                  // BG interpolation type (two 1-bit values):
