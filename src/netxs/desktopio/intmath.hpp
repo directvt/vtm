@@ -753,12 +753,10 @@ namespace netxs
     {
         auto& size1 = bitmap1.size();
         auto& size2 = bitmap2.size();
-
         if (size1 == size2)
         {
             auto data1 = bitmap1.begin();
             auto data2 = bitmap2.begin();
-
             auto limit = data1 + size1.y * size2.x;
             while (limit != data1)
             {
@@ -774,16 +772,13 @@ namespace netxs
     void inbody(auto&& canvas, auto&& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         if (region.size.y == 0) return;
-        auto& base1 = region.coor;
-
-        auto& size1 = canvas.size();
-        auto& size2 = bitmap.size();
-
-        auto  data1 = canvas.begin() + base1.x + base1.y * size1.x;
-        auto  data2 = bitmap.begin() + base2.x + base2.y * size2.x;
-
-        auto  skip1 = size1.x - region.size.x;
-        auto  skip2 = size2.x;
+        auto base1 = region.coor;
+        auto size1 = canvas.size();
+        auto size2 = bitmap.size();
+        auto data1 = canvas.begin() + base1.x + base1.y * size1.x;
+        auto data2 = bitmap.begin() + base2.x + base2.y * size2.x;
+        auto skip1 = size1.x - region.size.x;
+        auto skip2 = size2.x;
         if constexpr (RtoL)
         {
             data2 += region.size.x;
@@ -793,7 +788,6 @@ namespace netxs
         {
             skip2 -= region.size.x;
         }
-
         auto bound = data1 + region.size.x;
         auto limit = bound + (region.size.y - 1) * size1.x;
         while (true)
