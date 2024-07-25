@@ -6439,7 +6439,7 @@ namespace netxs::ui
                 auto next = head + clip.size.x;
                 auto line = std::span(head, next);
                 scrollback.cup0(coor);
-                scrollback._data<true>(clip.size.x, line, fuse);
+                scrollback.template _data<true>(clip.size.x, line, fuse);
                 head = next + rest;
                 coor.y++;
             }
