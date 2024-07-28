@@ -846,7 +846,8 @@ struct impl : consrv
                     //auto soft_break_modifier = mouse_reporting ? 0 : SHIFT_PRESSED; // Emulate Shift+Enter if no mouse reporting enabled.
                     //generate('\n', s | soft_break_modifier, VK_RETURN, 1, 0x1c);    // Send a lone Enter keystroke otherwise.
                     // Send Enter keystroke without any modifiers because it could be a sort of sendinput data.
-                    generate('\n', s, VK_RETURN, 1, 0x1c);
+                    //generate('\n', s, VK_RETURN, 1, 0x1c);
+                    generate(c, s, VK_RETURN, 1, 0x1c); // WSL requires '\r' as a key char.
                 }
                 else
                 {
@@ -1062,12 +1063,7 @@ struct impl : consrv
                 if (server.inpmod & nt::console::inmode::vt)
                 {
                     auto yield = gear.interpret(decckm);
-                    if (yield.size())
-                    {
-                        toWIDE.clear();
-                        utf::to_utf(yield, toWIDE);
-                        generate(toWIDE);
-                    }
+                    if (yield.size()) generate(yield);
                 }
                 else generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
             }
