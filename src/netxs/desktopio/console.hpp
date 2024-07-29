@@ -154,6 +154,15 @@ namespace netxs::ui
                     boss.bell::template signal<tier::release>(deed, seed);
                 });
             }
+            void handle(s11n::xs::req_input_fields lock)
+            {
+                auto& item = lock.thing;
+                auto ext_gear_id = item.gear_id;
+                auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
+                owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, request2, ({ .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+                auto field_list = request2.wait(400ms);
+                s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
+            }
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& focus = lock.thing;
@@ -930,6 +939,14 @@ namespace netxs::ui
             if (result) base::strike();
         }
 
+        // gate: .
+        id_t get_int_gear_id(id_t ext_gear_id)
+        {
+            auto int_gear_id = id_t{};
+            auto gear_it = input.gears.find(ext_gear_id);
+            if (gear_it != input.gears.end()) int_gear_id = gear_it->second->id;
+            return int_gear_id;
+        }
         // gate: Attach a new item.
         auto attach(sptr& item)
         {

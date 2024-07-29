@@ -184,6 +184,14 @@ namespace netxs::directvt
                 {
                     // Noop.
                 }
+                else if constexpr (requires{ std::begin(std::declval<D>()); })
+                {
+                    using data_type = decltype(*std::begin(std::declval<D>()));
+                    auto length = (sz_t)data.size();
+                    auto le_len = netxs::letoh(length);
+                    block += view{ (char*)&le_len, sizeof(le_len) };
+                    for (auto& item : data) fuse(item);
+                }
                 else log(prompt::dtvt, "Unsupported data type");
             }
             // stream: Replace bytes at specified position.
@@ -251,6 +259,28 @@ namespace netxs::directvt
                     {
                         data.remove_prefix(sizeof(data_type));
                     }
+                    return crop;
+                }
+                else if constexpr (requires{ std::begin(std::declval<D>()); })
+                {
+                    using data_type = decltype(*std::begin(std::declval<D>()));
+                    auto crop = D{};
+                    if (data.size() < sizeof(sz_t))
+                    {
+                        log(prompt::dtvt, "Corrupted frame header");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return crop;
+                    }
+                    auto count = netxs::aligned<sz_t>(data.data());
+                    if (data.size() < sizeof(count) + count) // At least 1 byte per element required.
+                    {
+                        log(prompt::dtvt, "Corrupted frame data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return crop;
+                    }
+                    auto bits = data.substr(sizeof(sz_t));
+                    while (count--) crop.push_back(_take_item<data_type>(bits));
+                    if constexpr (!PeekOnly) data = bits;
                     return crop;
                 }
                 else
@@ -786,8 +816,10 @@ namespace netxs::directvt
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
 
         //todo unify
+        using rects = std::vector<rect>;
         auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
+        auto& operator << (std::ostream& s, rects const& rs) { s << '{'; for (auto r : rs) s << r; return s << '}'; }
 
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
@@ -844,6 +876,8 @@ namespace netxs::directvt
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
         STRUCT_macro(cwd,               (text, path))
         STRUCT_macro(restored,          (id_t, gear_id))
+        STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
+        STRUCT_macro(ack_input_fields,  (id_t, gear_id) (rects, field_list))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1376,7 +1410,9 @@ namespace netxs::directvt
             X(fps              ) /* Set frame rate.                               */\
             X(init             ) /* Startup data.                                 */\
             X(cwd              ) /* CWD Notification.                             */\
-            X(restored         ) /* Notify normal window state.                   */
+            X(restored         ) /* Notify normal window state.                   */\
+            X(req_input_fields ) /* Request input field list.                     */\
+            X(ack_input_fields ) /* Reply input field list.                       */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 
@@ -1485,8 +1521,7 @@ namespace netxs::directvt
             }
 
             s11n() = default;
-            template<class T>
-            s11n(T& boss, id_t boss_id = {})
+            s11n(auto& boss, id_t boss_id = {})
             {
                 #define X(_object) \
                     if constexpr (requires(view data){ boss.direct(_object.freeze(), data); }) \

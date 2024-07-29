@@ -1586,6 +1586,17 @@ namespace netxs::ui
                         }
                     }
                 };
+                boss.LISTEN(tier::general, ui::e2::command::request::inputfields, input_fields, memo)
+                {
+                    if (auto iter = gears.find(input_fields.gear_id); iter != gears.end())
+                    {
+                        auto& route = iter->second;
+                        if (route.active)
+                        {
+                            boss.SIGNAL(tier::release, ui::e2::command::request::inputfields, input_fields);
+                        }
+                    }
+                };
             }
         };
 

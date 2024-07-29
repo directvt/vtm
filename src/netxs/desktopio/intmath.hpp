@@ -639,11 +639,11 @@ namespace netxs
             auto x = 0;
             while (x != msize0.x)
             {
-                auto xpos = x++ * msize2.x / msize1.x;
+                auto xpos = std::min(msize2.x, x++ * msize2.x / msize1.x);
                 auto from = data3 + xpos;
                 handle(*data1++, *from);
             }
-            auto ypos = ++y * msize2.y / msize1.y;
+            auto ypos = std::min(msize2.y, ++y * msize2.y / msize1.y);
             auto from = data3 + msize2.x;
             handle(*data1++, *from);
             data3 = data2 + ypos * size2.x;
@@ -1199,12 +1199,12 @@ namespace netxs
         auto s_hop = s_dtx * (w - 1);
         auto d_hop = d_dtx * (w - 1);
         auto width = r1 + r;
-        auto debug = [&]([[maybe_unused]] auto& accum)
+        auto debug = [&]([[maybe_unused]] auto& accum) //todo Accum / count can be greater than 255 sometimes (size < blur radius).
         {
             if constexpr (!std::is_same_v<std::decay_t<decltype(accum)>, fp32> && debugmode)
             {
                 auto n = accum / count;
-                if (n > 255) throw;
+                //if (n > 255) throw;
             }
         };
         if (w <= r1) // All pixels on a line have the same average value.

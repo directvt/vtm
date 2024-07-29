@@ -101,6 +101,7 @@ namespace netxs::gui
 
 #undef GetGlyphIndices
 #include <DWrite_2.h>
+#include <msctf.h>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "dwrite")
 
@@ -1429,11 +1430,218 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
+        struct tsf_link : ITfContextOwnerCompositionSink,
+                          ITfContextOwner,
+                          ITfTextEditSink
+                          //,ITextStoreACP
+        {
+            manager& owner;
+            //ITextStoreACP*  acp = {};
+            ITfThreadMgrEx*   tsf_thread_manager = {};
+            ITfDocumentMgr*   tsf_document_manager = {};
+            ITfContext*       tsf_context = {};
+            ITfSource*        tsf_context_source = {};
+            TfEditCookie      tsf_edit_cookie = {};
+            TfClientId        tsf_registration_id = {};
+            ITfCategoryMgr*   tsf_categoryManager = {};
+            ITfDisplayAttributeMgr* tsf_displayAttributeManager = {};
+
+            DWORD             dwCookieContextOwner = TF_INVALID_COOKIE;
+            DWORD             dwCookieTextEditSink = TF_INVALID_COOKIE;
+
+            tsf_link(manager& owner)
+                : owner{ owner }
+            { }
+
+            // IUnknown
+            ULONG refs = 1;
+            si32 compositions = 0;
+            STDMETHODIMP QueryInterface(REFIID riid, void** ppvObj)
+            {
+                if (!ppvObj) return E_POINTER;
+                *ppvObj = nullptr;
+                os::logstd("call: QueryInterface ", os::guid(riid));
+                     if (::IsEqualGUID(riid, IID_ITfContextOwner))                { *ppvObj = (ITfContextOwner*)this;                           os::logstd("    ask: IID_ITfContextOwner"); }
+                else if (::IsEqualGUID(riid, IID_ITfTextEditSink))                { *ppvObj = (ITfTextEditSink*)this;                           os::logstd("    ask: IID_ITfTextEditSink"); }
+                else if (::IsEqualGUID(riid, IID_ITfContextOwnerCompositionSink)) { *ppvObj = (ITfContextOwnerCompositionSink*)this;            os::logstd("    ask: IID_ITfContextOwnerCompositionSink"); }
+                else if (::IsEqualGUID(riid, IID_IUnknown))                       { *ppvObj = (IUnknown*)(ITfContextOwnerCompositionSink*)this; os::logstd("    ask: IID_IUnknown"); }
+                if (*ppvObj)
+                {
+                    AddRef();
+                    return S_OK;
+                }
+                else return E_NOINTERFACE;
+            }
+            ULONG STDMETHODCALLTYPE AddRef()  { os::logstd("call: AddRef ", refs, " +1"); return InterlockedIncrement(&refs); }
+            ULONG STDMETHODCALLTYPE Release() { os::logstd("call: DecRef ", refs, " -1"); auto r = InterlockedDecrement(&refs); if (r == 0) delete this; return r; }
+
+            // ITfContextOwnerCompositionSink
+            STDMETHODIMP OnStartComposition(ITfCompositionView* pComposition,BOOL* pfOk)
+            {
+                os::logstd("call: OnStartComposition");
+                compositions++;
+                *pfOk = TRUE;
+                return S_OK;
+            }
+            STDMETHODIMP OnUpdateComposition(ITfCompositionView* pComposition, ITfRange* pRangeNew)
+            {
+                os::logstd("call: OnUpdateComposition");
+                return S_OK;
+            }
+            STDMETHODIMP OnEndComposition(ITfCompositionView* pComposition)
+            {
+                os::logstd("call: OnEndComposition");
+                if (compositions <= 0) return E_FAIL;
+                compositions--;
+                return S_OK;
+            }
+
+            // ITfTextEditSink
+            STDMETHODIMP OnEndEdit(ITfContext* pic, TfEditCookie ecReadOnly, ITfEditRecord* pEditRecord)
+            {
+                if (pEditRecord)
+                {
+                    auto pEnumTextChanges = (IEnumTfRanges*)nullptr;
+                    auto pRange = (ITfRange*)nullptr;
+                    auto toWIDE = wide(512, '\0');
+                    auto toUTF8 = text{};
+                    auto count = ULONG{};
+                    if (SUCCEEDED(pEditRecord->GetTextAndPropertyUpdates(TF_GTP_INCL_TEXT, NULL, 0, &pEnumTextChanges)))
+                    {
+                        auto cFetched = ULONG{};
+                        if (SUCCEEDED(pEnumTextChanges->Next(1, &pRange, &cFetched)) && cFetched)
+                        {
+                            auto rc = pRange->GetText(ecReadOnly, TF_TF_MOVESTART | TF_TF_IGNOREEND, toWIDE.data(), (ULONG)toWIDE.size(), &count);
+                            if (rc == TF_E_NOLOCK) os::logstd(" no read only lock");
+                            toWIDE.resize(count);
+                            utf::to_utf(toWIDE, toUTF8);
+                            os::logstd("  pEnumTextChanges -> rc=", rc, " cFetched=", cFetched, " text=", ansi::hi(toUTF8), " count=", count);
+                            pRange->Release();
+                        }
+                        pEnumTextChanges->Release();
+                    }
+                    os::logstd("call: OnEndEdit -> ", ansi::hi(toUTF8));
+                }
+                return S_OK;
+            }
+
+            // ITfContextOwner
+            STDMETHODIMP GetWnd(HWND* phwnd)
+            {
+                os::logstd("call: GetWnd");
+                *phwnd = owner.layers.front().hWnd;
+                return S_OK;
+            }
+            STDMETHODIMP GetStatus(TF_STATUS* pdcs)
+            {
+                os::logstd("call: GetStatus");
+                if (!pdcs) return E_POINTER;
+                pdcs->dwDynamicFlags = {};
+                pdcs->dwStaticFlags = TS_SS_TRANSITORY;
+                return S_OK;
+            }
+            STDMETHODIMP GetAttribute(REFGUID rguidAttribute, VARIANT* pvarValue)
+            {
+                os::logstd("call: GetAttribute");
+                return E_NOTIMPL;
+            }
+            STDMETHODIMP GetACPFromPoint(POINT const* ptScreen, DWORD dwFlags, LONG* pacp)
+            {
+                os::logstd("call: GetACPFromPoint");
+                return E_NOTIMPL;
+            }
+            STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
+            {
+                if (prc)
+                {
+                    auto& client = owner.layers.front();
+                    auto r = client.live ? client.area : rect{}; // Reply an empty rect if window is hidden.
+                    static auto random = true;
+                    if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
+                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                    os::logstd("call: GetScreenExt -> ", r);
+                }
+                return S_OK;
+            }
+            STDMETHODIMP GetTextExt(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) // Returns the bounding box, in screen coordinates, of the text at the specified character positions.
+            {
+                os::logstd("call: GetTextExt");
+                if (pfClipped) *pfClipped = FALSE;
+                if (prc)
+                {
+                    auto r = rect{};
+                    auto& client = owner.layers.front();
+                    if (client.live) // Reply an empty rect if window is hidden.
+                    {
+                        auto field_list = owner.request_input_field_list(acpStart, acpEnd);
+                        if (field_list.empty()) return GetScreenExt(prc);
+                        else
+                        {
+                            r = field_list.front();
+                            for (auto f : field_list)
+                            {
+                                os::logstd(" field: ", f);
+                                r.unitewith(f);
+                            }
+                        }
+                    }
+                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                    os::logstd(" ", r);
+                }
+                return S_OK;
+            }
+            void set_focus()
+            {
+                os::logstd("call: set_focus");
+                if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager);
+            }
+            void start()
+            {
+                os::logstd("call: start");
+                auto ok = SUCCEEDED(::CoInitialize(NULL)) // TSF supports STA only.
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)&tsf_categoryManager))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)&tsf_displayAttributeManager))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)&tsf_thread_manager))
+                       && SUCCEEDED(tsf_thread_manager->Activate(&tsf_registration_id))
+                       && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(&tsf_document_manager))
+                        //hr = tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITextStoreACP*)&acp, &tsf_context, &tsf_edit_cookie);
+                       && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, &tsf_context, &tsf_edit_cookie))
+                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)&tsf_context_source))
+                       && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
+                       && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
+                       && SUCCEEDED(tsf_document_manager->Push(tsf_context));
+                if (ok)
+                {
+                    os::logstd("TSF activated.",
+                               "\n    tsf_document_manager=", tsf_document_manager,
+                               "\n    tsf_context=", tsf_context,
+                               "\n    tsf_edit_cookie=", tsf_edit_cookie,
+                               "\n    tsf_context_source=", tsf_context_source,
+                               "\n    tsf_categoryManager=", tsf_categoryManager,
+                               "\n    tsf_displayAttributeManager=", tsf_displayAttributeManager,
+                               "\n    dwCookieContextOwner=", dwCookieContextOwner,
+                               "\n    dwCookieTextEditSink=", dwCookieTextEditSink);
+                }
+                else os::logstd("TSF activation failed.");
+            }
+            void stop()
+            {
+                os::logstd("call: stop");
+                if (dwCookieTextEditSink != TF_INVALID_COOKIE) std::ignore = tsf_context_source->UnadviseSink(dwCookieTextEditSink);
+                if (dwCookieContextOwner != TF_INVALID_COOKIE) std::ignore = tsf_context_source->UnadviseSink(dwCookieContextOwner);
+                if (tsf_document_manager)                      std::ignore = tsf_document_manager->Pop(TF_POPF_ALL);
+                if (tsf_thread_manager)                        std::ignore = tsf_thread_manager->Deactivate();
+                ::CoUninitialize();
+            }
+        };
+
         wins layers; // manager: ARGB layers.
         std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
         MSG msg{};
+        tsf_link tsf;
 
         manager()
+            : tsf{ *this }
         {
             set_dpi_awareness();
         }
@@ -1552,6 +1760,7 @@ namespace netxs::gui
             }
             ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
             //print_kbstate("::GetKeyboardState");
+            tsf.set_focus();
         }
         void deactivate()
         {
@@ -1640,6 +1849,7 @@ namespace netxs::gui
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
+        virtual std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd) = 0;
         virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
@@ -1669,7 +1879,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y });
+                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y }); //todo mouse events are broken when IME is active (only work on lower monitor half). TSF message pump?
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -1966,8 +2176,10 @@ namespace netxs::gui
             static constexpr auto footer = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
-        struct evnt : s11n
+        struct evnt : s11n, ui::input_fields_handler
         {
+            using input_fields_handler::handle;
+
             window&         owner; // evnt: .
             ui::pipe&       intio; // evnt: .
             flag            alive; // evnt: .
@@ -2217,6 +2429,7 @@ namespace netxs::gui
 
             evnt(window& owner, ui::pipe& intio)
                 : s11n{ *this },
+                 input_fields_handler{ owner },
                  owner{ owner },
                  intio{ intio },
                  alive{ true },
@@ -2269,7 +2482,7 @@ namespace netxs::gui
         bool drop_shadow{ true }; // window: .
         span blinkrate; // window: .
         bool blinking; // window: .
-        evnt proxy; // window: .
+        evnt stream; // window: .
         text toUTF8;
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
@@ -2303,13 +2516,18 @@ namespace netxs::gui
               footer{ manager::add() },
               blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
               blinking{ faux },
-              proxy{ *this, *os::dtvt::client },
+              stream{ *this, *os::dtvt::client },
               full_cellsz{ cellsz },
               norm_cellsz{ cellsz }
         {
             if (!*this) return;
             normsz = layers[client].area;
             size_window();
+        }
+        // window: Send client data.
+        void output(view data)
+        {
+            stream.intio.send(data);
         }
         void sync_header_pixel_layout()
         {
@@ -2466,7 +2684,7 @@ namespace netxs::gui
             }
             if (old_state != fsmode)
             {
-                proxy.fsmod(fsmode == state::maximized);
+                stream.fsmod(fsmode == state::maximized);
             }
         }
         void check_fsmode(arch hWnd)
@@ -2535,7 +2753,7 @@ namespace netxs::gui
             layers[client].area.size += size_delta;
             layers[blinky].area = layers[client].area - border;
             gridsz = layers[blinky].area.size / cellsz;
-            auto sizechanged = proxy.w.winsize != gridsz;
+            auto sizechanged = stream.w.winsize != gridsz;
             if (fsmode != state::maximized)
             {
                 size_title(head_grid, titles.head_page);
@@ -2546,8 +2764,8 @@ namespace netxs::gui
             {
                 netxs::set_flag<task::all>(reload);
                 waitsz = gridsz;
-                proxy.w.winsize = gridsz;
-                proxy.winsz(proxy.w); // And wait for reply to resize and redraw.
+                stream.w.winsize = gridsz;
+                stream.winsz(stream.w); // And wait for reply to resize and redraw.
             }
             else netxs::set_flag<task::sized>(reload);
         }
@@ -2773,7 +2991,7 @@ namespace netxs::gui
                     {
                         blink_mask.resize(gridsz.x * gridsz.y);
                     }
-                    auto bitmap_lock = proxy.bitmap_dtvt.freeze();
+                    auto bitmap_lock = stream.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
                     fill_stripe(grid.begin(), grid.end());
                     if (fsmode == state::maximized)
@@ -2800,14 +3018,14 @@ namespace netxs::gui
             auto wheeldt = delta / 120.f;
             if (inside)
             {
-                proxy.m.changed++;
-                proxy.m.timecod = datetime::now();
-                proxy.m.ctlstat = proxy.k.ctlstat;
-                proxy.m.hzwheel = hz;
-                proxy.m.wheeldt = wheeldt;
-                proxy.mouse(proxy.m);
-                proxy.m.hzwheel = {};
-                proxy.m.wheeldt = {};
+                stream.m.changed++;
+                stream.m.timecod = datetime::now();
+                stream.m.ctlstat = stream.k.ctlstat;
+                stream.m.hzwheel = hz;
+                stream.m.wheeldt = wheeldt;
+                stream.mouse(stream.m);
+                stream.m.hzwheel = {};
+                stream.m.wheeldt = {};
             }
             else
             {
@@ -2825,11 +3043,11 @@ namespace netxs::gui
         }
         void send_mouse_halt()
         {
-            proxy.m.changed++;
-            proxy.m.timecod = datetime::now();
-            proxy.m.enabled = hids::stat::halt;
-            proxy.mouse(proxy.m);
-            proxy.m.enabled = hids::stat::ok;
+            stream.m.changed++;
+            stream.m.timecod = datetime::now();
+            stream.m.enabled = hids::stat::halt;
+            stream.mouse(stream.m);
+            stream.m.enabled = hids::stat::ok;
         }
         void mouse_leave()
         {
@@ -2840,7 +3058,7 @@ namespace netxs::gui
         void resize_by_grips(twod coord)
         {
             auto inner_rect = layers[blinky].area;
-            auto zoom = proxy.k.ctlstat & hids::anyCtrl;
+            auto zoom = stream.k.ctlstat & hids::anyCtrl;
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
@@ -2858,7 +3076,7 @@ namespace netxs::gui
         }
         void mouse_moved(twod coord)
         {
-            auto& mbttns = proxy.m.buttons;
+            auto& mbttns = stream.m.buttons;
             mhover = true;
             auto inner_rect = layers[blinky].area;
             auto ingrip = hit_grips();
@@ -2909,15 +3127,15 @@ namespace netxs::gui
             auto new_state = !szgrip.seized && (seized || (border.t ? inner_rect : inner_rect - dent{ 0,0,1,0 }).hittest(mcoord)); // Allow 1px border at the top of the maximized window.
             auto leave = std::exchange(inside, new_state) != inside;
             auto coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
-            auto changed = proxy.m.coordxy(coordxy);
+            auto changed = stream.m.coordxy(coordxy);
             if (inside)
             {
                 if (changed)
                 {
                     auto timecode = datetime::now();
-                    proxy.m.changed++;
-                    proxy.m.timecod = timecode;
-                    proxy.mouse(proxy.m);
+                    stream.m.changed++;
+                    stream.m.timecod = timecode;
+                    stream.mouse(stream.m);
                 }
             }
             else if (leave) // Mouse leaves viewport.
@@ -2931,7 +3149,7 @@ namespace netxs::gui
         }
         void mouse_press(si32 button, bool pressed)
         {
-            auto& mbttns = proxy.m.buttons;
+            auto& mbttns = stream.m.buttons;
             auto prev_state = mbttns;
             auto changed = std::exchange(mbttns, pressed ? mbttns | button : mbttns & ~button) != mbttns;
             if (pressed)
@@ -2968,9 +3186,9 @@ namespace netxs::gui
             if (changed && (seized || inside))
             {
                 auto timecode = datetime::now();
-                proxy.m.changed++;
-                proxy.m.timecod = timecode;
-                proxy.mouse(proxy.m);
+                stream.m.changed++;
+                stream.m.timecod = timecode;
+                stream.mouse(stream.m);
             }
             else
             {
@@ -3010,21 +3228,21 @@ namespace netxs::gui
             if (modstat.repeats) return; // We don't repeat modifiers.
             else
             {
-                if (modstat.changed || proxy.k.ctlstat != kbmod)
+                if (modstat.changed || stream.k.ctlstat != kbmod)
                 {
-                    proxy.k.ctlstat = kbmod;
-                    proxy.m.ctlstat = kbmod;
-                    proxy.m.timecod = datetime::now();
-                    proxy.m.changed++;
-                    proxy.mouse(proxy.m); // Fire mouse event to update kb modifiers.
+                    stream.k.ctlstat = kbmod;
+                    stream.m.ctlstat = kbmod;
+                    stream.m.timecod = datetime::now();
+                    stream.m.changed++;
+                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
                 }
-                proxy.k.extflag = extflag;
-                proxy.k.virtcod = virtcod;
-                proxy.k.scancod = scancod;
-                proxy.k.pressed = pressed;
-                proxy.k.keycode = input::key::xlat(virtcod, scancod, cs);
-                proxy.k.cluster = cluster;
-                proxy.keybd(proxy.k);
+                stream.k.extflag = extflag;
+                stream.k.virtcod = virtcod;
+                stream.k.scancod = scancod;
+                stream.k.pressed = pressed;
+                stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
+                stream.k.cluster = cluster;
+                stream.keybd(stream.k);
             }
             #else
             if (cluster.empty() || pressed || virtcod || scancod || extflag)
@@ -3036,14 +3254,14 @@ namespace netxs::gui
         void keybd_paste(view utf8, si32 ctlstat = {})
         {
                 //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
-                proxy.k.ctlstat = ctlstat;
-                proxy.k.extflag = 0;
-                proxy.k.virtcod = 0;
-                proxy.k.scancod = 0;
-                proxy.k.pressed = 1;
-                proxy.k.keycode = input::key::undef;
-                proxy.k.cluster = utf8;
-                proxy.keybd(proxy.k);
+                stream.k.ctlstat = ctlstat;
+                stream.k.extflag = 0;
+                stream.k.virtcod = 0;
+                stream.k.scancod = 0;
+                stream.k.pressed = 1;
+                stream.k.keycode = input::key::undef;
+                stream.k.cluster = utf8;
+                stream.keybd(stream.k);
         }
         void keybd_paste(arch wide_char)
         {
@@ -3187,13 +3405,13 @@ namespace netxs::gui
             {
                 if (active)
                 {
-                    SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = proxy.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
                     sync_kbstat();
                 }
                 else
                 {
                     sync_kbstat();
-                    SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = proxy.gears->id }));
+                    SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
                 }
             });
         }
@@ -3245,12 +3463,26 @@ namespace netxs::gui
         }
         void sync_clipboard()
         {
-            os::clipboard::sync((arch)layers[client].hWnd, proxy, proxy.intio, gridsz);
+            os::clipboard::sync((arch)layers[client].hWnd, stream, stream.intio, gridsz);
+        }
+        std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd)
+        {
+            auto field_list = stream.request_input_field_list(stream.gears->id, acpStart, acpEnd);
+            auto win_area = layers[blinky].area;
+            if (field_list.empty()) field_list.push_back(win_area);
+            else for (auto& f : field_list)
+            {
+                f.size *= cellsz;
+                f.coor *= cellsz;
+                f.coor += win_area.coor;
+            }
+            return field_list;
         }
         void connect(si32 win_state)
         {
             {
                 auto lock = bell::sync();
+                tsf.start();
                 set_state(win_state);
                 update_gui();
                 manager::run();
@@ -3275,7 +3507,7 @@ namespace netxs::gui
                 //    return;
                 //    if (moving)
                 //    if (fsmode == state::normal)
-                //    //if (proxy.m.buttons == bttn::left || proxy.m.buttons == bttn::right) // Allow to move with one button pressed.
+                //    //if (stream.m.buttons == bttn::left || stream.m.buttons == bttn::right) // Allow to move with one button pressed.
                 //    if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
                 //    {
                 //        //todo revise
@@ -3330,7 +3562,7 @@ namespace netxs::gui
                     {
                         seed.guid = os::process::id.second;
                     }
-                    proxy.focusbus.send(proxy.intio, seed.id, seed.guid, netxs::events::subindex(deed));
+                    stream.focusbus.send(stream.intio, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
                 {
@@ -3354,16 +3586,17 @@ namespace netxs::gui
                 auto sync = [&](view data)
                 {
                     auto lock = bell::sync();
-                    proxy.sync(data);
+                    stream.sync(data);
                     update_gui();
-                    proxy.request_jgc(proxy.intio);
+                    stream.request_jgc(stream.intio);
                 };
-                directvt::binary::stream::reading_loop(proxy.intio, sync);
-                proxy.stop(); // Wake up waiting objects, if any.
+                directvt::binary::stream::reading_loop(stream.intio, sync);
+                stream.stop(); // Wake up waiting objects, if any.
+                tsf.stop();
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();
-            proxy.intio.shut(); // Close link to server. Interrupt binary reading loop.
+            stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             bell::dequeue(); // Clear task queue.
             winio.join();
         }

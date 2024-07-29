@@ -8,6 +8,7 @@
 #include "xml.hpp"
 
 #include <typeindex>
+#include <future>
 
 namespace netxs::input
 {
@@ -26,6 +27,7 @@ namespace netxs::input
 namespace netxs::ui
 {
     struct base;
+    struct input_fields_t;
 
     using namespace netxs::input;
     using sptr = netxs::sptr<base>;
@@ -148,6 +150,12 @@ namespace netxs::events::userland
                 EVENT_XS( cout       , const text  ), // Append extra data to output.
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
+                GROUP_XS( request    , input::hids ), // general: Request input field list.
+
+                SUBSET_XS( request )
+                {
+                    EVENT_XS( inputfields, ui::input_fields_t ), // general: Request input field list.
+                };
             };
             SUBSET_XS( form )
             {
@@ -987,6 +995,76 @@ namespace netxs::ui
                      if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
                 else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(bell::id));
             };
+        }
+    };
+
+    struct input_fields_t
+    {
+        std::list<std::future<std::vector<rect>>> futures;
+        std::vector<rect> fields;
+        id_t gear_id = {};
+        si32 acpStart = {};
+        si32 acpEnd = {};
+
+        void promise(auto& tasks)
+        {
+            auto& new_promise = tasks.emplace_back();
+            futures.emplace_back(new_promise.get_future());
+        }
+        void set_value(rect r)
+        {
+            fields.push_back(r);
+        }
+        void set_value(auto&& rects)
+        {
+            fields.insert(fields.end(), rects.begin(), rects.end());
+        }
+        auto wait(span t)
+        {
+            auto timeout = datetime::now() + t;
+            for (auto& f : futures)
+            {
+                if (std::future_status::ready == f.wait_until(timeout))
+                {
+                    set_value(f.get());
+                }
+            }
+            return std::move(fields);
+        }
+    };
+    struct input_fields_handler
+    {
+        base&                                      owner; // input_fields_handler: .
+        std::list<std::promise<std::vector<rect>>> tasks; // input_fields_handler: .
+
+        input_fields_handler(auto& boss, bool active = true)
+            : owner{ boss }
+        {
+            if (active)
+            {
+                boss.LISTEN(tier::release, ui::e2::command::request::inputfields, input_fields)
+                {
+                    input_fields.promise(tasks);
+                    boss.stream.s11n::req_input_fields.send(boss, input_fields);
+                };
+            }
+        }
+        void handle(s11n::xs::ack_input_fields lock)
+        {
+            if (tasks.size())
+            {
+                auto& list = lock.thing.field_list;
+                auto offset = dot_00;
+                owner.global(offset);
+                for (auto& r : list) r.coor -= offset;
+                tasks.front().set_value(std::move(list));
+                tasks.pop_front();
+            }
+        }
+        auto request_input_field_list(id_t int_gear_id, si32 acpStart, si32 acpEnd)
+        {
+            owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, request, ({ .gear_id = int_gear_id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+            return request.wait(400ms);
         }
     };
 }

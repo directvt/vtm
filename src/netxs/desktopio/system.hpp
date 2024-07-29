@@ -1149,7 +1149,15 @@ namespace netxs::os
                 return link != os::invalid_fd;
             }
         }
-
+        auto guid(auto&& riid)
+        {
+            auto const& g = (GUID)riid;
+            return utf::to_hex(g.Data1) +
+             "-" + utf::to_hex(g.Data2) +
+             "-" + utf::to_hex(g.Data3) +
+             "-" + utf::buffer_to_hex(view((char*)&g.Data4[0], 2)) +
+             "-" + utf::buffer_to_hex(view((char*)&g.Data4[2], 6));
+        }
         auto operator ""_acl(char const* sddl, size_t size) { return nt::acl{ view{ sddl, size } }; }
         static const auto platform = []
         {
