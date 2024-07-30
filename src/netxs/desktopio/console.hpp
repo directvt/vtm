@@ -161,6 +161,7 @@ namespace netxs::ui
                 auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
                 owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
                 auto field_list = inputfield_request.wait_for();
+                for (auto& f : field_list) f.coor -= owner.coor();
                 s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
             }
             void handle(s11n::xs::sysfocus    lock)

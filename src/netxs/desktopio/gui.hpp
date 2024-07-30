@@ -42,8 +42,10 @@ namespace netxs::gui
             static constexpr auto update       = __COUNTER__ - _counter;
             static constexpr auto close        = __COUNTER__ - _counter;
         };
-        
+
         bool isfine = true; // manager_base: All is ok.
+        std::vector<rect> inputfield_list; // manager_base: Text input field list.
+
         explicit operator bool () const { return isfine; }
     };
     struct surface_base
@@ -1476,7 +1478,7 @@ namespace netxs::gui
             ULONG STDMETHODCALLTYPE Release() { os::logstd("call: DecRef ", refs, " -1"); auto r = InterlockedDecrement(&refs); if (r == 0) delete this; return r; }
 
             // ITfContextOwnerCompositionSink
-            STDMETHODIMP OnStartComposition(ITfCompositionView* pComposition,BOOL* pfOk)
+            STDMETHODIMP OnStartComposition(ITfCompositionView* pComposition, BOOL* pfOk)
             {
                 os::logstd("call: OnStartComposition");
                 compositions++;
@@ -1485,7 +1487,7 @@ namespace netxs::gui
             }
             STDMETHODIMP OnUpdateComposition(ITfCompositionView* pComposition, ITfRange* pRangeNew)
             {
-                os::logstd("call: OnUpdateComposition");
+                os::logstd("call: OnUpdateComposition -> pRangeNew=", pRangeNew, " pComposition=", pComposition);
                 return S_OK;
             }
             STDMETHODIMP OnEndComposition(ITfCompositionView* pComposition)
@@ -1528,26 +1530,25 @@ namespace netxs::gui
             // ITfContextOwner
             STDMETHODIMP GetWnd(HWND* phwnd)
             {
-                os::logstd("call: GetWnd");
                 *phwnd = owner.layers.front().hWnd;
                 return S_OK;
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
             {
-                os::logstd("call: GetStatus");
                 if (!pdcs) return E_POINTER;
-                pdcs->dwDynamicFlags = {};
-                pdcs->dwStaticFlags = TS_SS_TRANSITORY;
+                pdcs->dwDynamicFlags = {};//TS_SD_UIINTEGRATIONENABLE; // To indicate owr support of IME UI integration.
+                pdcs->dwStaticFlags = TS_SS_TRANSITORY; // It is expected to have a short usage cycle.
                 return S_OK;
             }
             STDMETHODIMP GetAttribute(REFGUID rguidAttribute, VARIANT* pvarValue)
             {
-                os::logstd("call: GetAttribute");
+                //os::logstd("call: GetAttribute");
                 return E_NOTIMPL;
             }
             STDMETHODIMP GetACPFromPoint(POINT const* ptScreen, DWORD dwFlags, LONG* pacp)
             {
-                os::logstd("call: GetACPFromPoint");
+                auto p = ptScreen ? twod{ ptScreen->x, ptScreen->y } : dot_00;
+                os::logstd("call: GetACPFromPoint -> ptScreen=", p, " dwFlags=", dwFlags);
                 return E_NOTIMPL;
             }
             STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
@@ -1559,13 +1560,13 @@ namespace netxs::gui
                     static auto random = true;
                     if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    os::logstd("call: GetScreenExt -> ", r);
+                    //os::logstd("call: GetScreenExt -> ", r);
                 }
                 return S_OK;
             }
             STDMETHODIMP GetTextExt(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) // Returns the bounding box, in screen coordinates, of the text at the specified character positions.
             {
-                os::logstd("call: GetTextExt");
+                os::logstd("call: GetTextExt acpStart=", acpStart, " acpEnd=", acpEnd);
                 if (pfClipped) *pfClipped = FALSE;
                 if (prc)
                 {
@@ -1573,7 +1574,9 @@ namespace netxs::gui
                     auto& client = owner.layers.front();
                     if (client.live) // Reply an empty rect if window is hidden.
                     {
-                        auto field_list = owner.request_input_field_list(acpStart, acpEnd);
+                        //todo throttle by 400ms
+                        owner.update_input_field_list(acpStart, acpEnd);
+                        auto& field_list = owner.inputfield_list;
                         if (field_list.empty()) return GetScreenExt(prc);
                         else
                         {
@@ -1586,13 +1589,13 @@ namespace netxs::gui
                         }
                     }
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    os::logstd(" ", r);
+                    //os::logstd(" ", r);
                 }
                 return S_OK;
             }
             void set_focus()
             {
-                os::logstd("call: set_focus");
+                //os::logstd("call: set_focus");
                 if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager);
             }
             void start()
@@ -1849,7 +1852,7 @@ namespace netxs::gui
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
-        virtual std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd) = 0;
+        virtual void update_input_field_list(si32 acpStart, si32 acpEnd) = 0;
         virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
@@ -3478,20 +3481,20 @@ namespace netxs::gui
         {
             os::clipboard::sync((arch)layers[client].hWnd, stream, stream.intio, gridsz);
         }
-        std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd)
+        void update_input_field_list(si32 acpStart, si32 acpEnd)
         {
+            inputfield_list.clear();
             SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request,
                 ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
-            auto field_list = inputfield_request.wait_for();
+            inputfield_list = inputfield_request.wait_for();
             auto win_area = layers[blinky].area;
-            if (field_list.empty()) field_list.push_back(win_area);
-            else for (auto& f : field_list)
+            if (inputfield_list.empty()) inputfield_list.push_back(win_area);
+            else for (auto& f : inputfield_list)
             {
                 f.size *= cellsz;
                 f.coor *= cellsz;
                 f.coor += win_area.coor;
             }
-            return field_list;
         }
         void connect(si32 win_state)
         {
