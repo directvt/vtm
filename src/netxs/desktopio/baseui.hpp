@@ -1019,7 +1019,7 @@ namespace netxs::ui
         {
             fields.insert(fields.end(), rects.begin(), rects.end());
         }
-        auto wait(span t)
+        auto wait_for(span t = 400ms)
         {
             auto timeout = datetime::now() + t;
             for (auto& f : futures)
@@ -1037,17 +1037,14 @@ namespace netxs::ui
         base&                                      owner; // input_fields_handler: .
         std::list<std::promise<std::vector<rect>>> tasks; // input_fields_handler: .
 
-        input_fields_handler(auto& boss, bool active = true)
+        input_fields_handler(auto& boss)
             : owner{ boss }
         {
-            if (active)
+            boss.LISTEN(tier::release, ui::e2::command::request::inputfields, input_fields)
             {
-                boss.LISTEN(tier::release, ui::e2::command::request::inputfields, input_fields)
-                {
-                    input_fields.promise(tasks);
-                    boss.stream.s11n::req_input_fields.send(boss, input_fields);
-                };
-            }
+                input_fields.promise(tasks);
+                boss.stream.s11n::req_input_fields.send(boss, input_fields);
+            };
         }
         void handle(s11n::xs::ack_input_fields lock)
         {
@@ -1060,11 +1057,6 @@ namespace netxs::ui
                 tasks.front().set_value(std::move(list));
                 tasks.pop_front();
             }
-        }
-        auto request_input_field_list(id_t int_gear_id, si32 acpStart, si32 acpEnd)
-        {
-            owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, request, ({ .gear_id = int_gear_id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
-            return request.wait(400ms);
         }
     };
 }

@@ -2337,7 +2337,6 @@ namespace netxs::gui
                 auto& item = lock.thing;
                 // We are the focus tree endpoint. Signal back the focus set up.
                 owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = item.gear_id }));
-
             }
             void handle(s11n::xs::focus_set        lock)
             {
@@ -3467,7 +3466,9 @@ namespace netxs::gui
         }
         std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd)
         {
-            auto field_list = stream.request_input_field_list(stream.gears->id, acpStart, acpEnd);
+            SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfields_request,
+                ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+            auto field_list = inputfields_request.wait_for();
             auto win_area = layers[blinky].area;
             if (field_list.empty()) field_list.push_back(win_area);
             else for (auto& f : field_list)
