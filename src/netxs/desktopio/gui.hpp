@@ -1637,8 +1637,8 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
         std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
-        MSG msg{};
-        tsf_link tsf;
+        MSG msg{}; // manager: OS window message.
+        tsf_link tsf; // manager: TSF link.
 
         manager()
             : tsf{ *this }
@@ -2082,7 +2082,21 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
+        struct tsf_link
+        {
+            //...
+            void start()
+            {
+                //...
+            }
+            void stop()
+            {
+                //...
+            }
+        };
+
         wins layers; // manager: ARGB layers.
+        tsf_link tsf; // manager: TSF link.
 
         auto get_window_title()
         {
@@ -3466,9 +3480,9 @@ namespace netxs::gui
         }
         std::vector<rect> request_input_field_list(si32 acpStart, si32 acpEnd)
         {
-            SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfields_request,
+            SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request,
                 ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
-            auto field_list = inputfields_request.wait_for();
+            auto field_list = inputfield_request.wait_for();
             auto win_area = layers[blinky].area;
             if (field_list.empty()) field_list.push_back(win_area);
             else for (auto& f : field_list)

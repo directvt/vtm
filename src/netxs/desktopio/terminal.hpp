@@ -7577,7 +7577,7 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            LISTEN(tier::release, ui::e2::command::request::inputfields, input_fields)
+            LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
             {
                 auto& console = *target;
                 auto field_coor = console.get_coord(origin) + origin;
@@ -7590,7 +7590,7 @@ namespace netxs::ui
                         auto offset = dot_00;
                         parent->global(offset);
                         r.coor -= offset;
-                        input_fields.set_value(r);
+                        inputfield_request.set_value(r);
                     }
                 }
             };

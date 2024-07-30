@@ -1586,14 +1586,14 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.LISTEN(tier::general, ui::e2::command::request::inputfields, input_fields, memo)
+                boss.LISTEN(tier::general, ui::e2::command::request::inputfields, inputfield_request, memo)
                 {
-                    if (auto iter = gears.find(input_fields.gear_id); iter != gears.end())
+                    if (auto iter = gears.find(inputfield_request.gear_id); iter != gears.end())
                     {
                         auto& route = iter->second;
                         if (route.active)
                         {
-                            boss.SIGNAL(tier::release, ui::e2::command::request::inputfields, input_fields);
+                            boss.SIGNAL(tier::release, ui::e2::command::request::inputfields, inputfield_request);
                         }
                     }
                 };

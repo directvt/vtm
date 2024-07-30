@@ -1040,10 +1040,10 @@ namespace netxs::ui
         input_fields_handler(auto& boss)
             : owner{ boss }
         {
-            boss.LISTEN(tier::release, ui::e2::command::request::inputfields, input_fields)
+            boss.LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
             {
-                input_fields.promise(tasks);
-                boss.stream.s11n::req_input_fields.send(boss, input_fields);
+                inputfield_request.promise(tasks);
+                boss.stream.s11n::req_input_fields.send(boss, inputfield_request);
             };
         }
         void handle(s11n::xs::ack_input_fields lock)
