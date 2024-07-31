@@ -104,8 +104,10 @@ namespace netxs::gui
 #undef GetGlyphIndices
 #include <DWrite_2.h>
 #include <msctf.h>
+#include <wrl\client.h>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "dwrite")
+using Microsoft::WRL::ComPtr;
 
 #define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
 
@@ -1432,29 +1434,22 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
-        struct tsf_link : ITfContextOwnerCompositionSink,
+        struct tsf_link : ITfContextOwnerCompositionSink, // To declare we are composition owner.
                           ITfContextOwner,
+                          ITfTextEditSink, // To catch composition updates.
                           ITfEditSession
         {
-            enum class ctx
-            {
-                unknown,
-                OnStartComposition,
-                OnUpdateComposition,
-                OnEndComposition,
-            };
-            manager&          owner;
-            ITfThreadMgrEx*   tsf_thread_manager = {};
-            ITfDocumentMgr*   tsf_document_manager = {};
-            ITfContext*       tsf_context = {};
-            ITfSource*        tsf_context_source = {};
-            TfEditCookie      tsf_edit_cookie = {};
-            TfClientId        tsf_registration_id = {};
-            ITfCategoryMgr*   tsf_categoryManager = {};
-            ITfDisplayAttributeMgr* tsf_displayAttributeManager = {};
-            ITfCompositionView* composition_view = {};
-            ctx               composition_ctx = {};
-            DWORD             dwCookieContextOwner = TF_INVALID_COOKIE;
+            manager&                       owner;
+            ComPtr<ITfThreadMgrEx>         tsf_thread_manager;
+            ComPtr<ITfDocumentMgr>         tsf_document_manager;
+            ComPtr<ITfContext>             tsf_context;
+            ComPtr<ITfSource>              tsf_context_source;
+            ComPtr<ITfCategoryMgr>         tsf_categoryManager;
+            ComPtr<ITfDisplayAttributeMgr> tsf_displayAttributeManager;
+            TfClientId                     tsf_registration_id = {};
+            DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
+            DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
+            wide                           utf16 = wide(64, '\0');
 
             tsf_link(manager& owner)
                 : owner{ owner }
@@ -1462,13 +1457,13 @@ namespace netxs::gui
 
             // IUnknown
             ULONG refs = 1;
-            si32 compositions = 0;
             STDMETHODIMP QueryInterface(REFIID riid, void** ppvObj)
             {
                 if (!ppvObj) return E_POINTER;
                 *ppvObj = nullptr;
                 log("call: QueryInterface ", os::guid(riid));
                      if (::IsEqualGUID(riid, IID_ITfContextOwner))                { *ppvObj = (ITfContextOwner*)this;                           log("    ask: IID_ITfContextOwner"); }
+                else if (::IsEqualGUID(riid, IID_ITfTextEditSink))                { *ppvObj = (ITfTextEditSink*)this;                           log("    ask: IID_ITfTextEditSink"); }
                 else if (::IsEqualGUID(riid, IID_ITfContextOwnerCompositionSink)) { *ppvObj = (ITfContextOwnerCompositionSink*)this;            log("    ask: IID_ITfContextOwnerCompositionSink"); }
                 else if (::IsEqualGUID(riid, IID_IUnknown))                       { *ppvObj = (IUnknown*)(ITfContextOwnerCompositionSink*)this; log("    ask: IID_IUnknown"); }
                 if (*ppvObj)
@@ -1481,57 +1476,132 @@ namespace netxs::gui
             ULONG STDMETHODCALLTYPE AddRef()  { log("call: AddRef ", refs, " +1"); return InterlockedIncrement(&refs); }
             ULONG STDMETHODCALLTYPE Release() { log("call: DecRef ", refs, " -1"); auto r = InterlockedDecrement(&refs); if (r == 0) delete this; return r; }
 
+            void fill_attr(cell& mark, TfGuidAtom atom)
+            {
+                if (atom == TF_INVALID_GUIDATOM) mark.und(unln::dashed);
+                else
+                {
+                    auto guid = GUID{};
+                    auto attr = TF_DISPLAYATTRIBUTE{};
+                    auto info = ComPtr<ITfDisplayAttributeInfo>{};
+                    if (SUCCEEDED(tsf_categoryManager->GetGUID(atom, &guid))
+                     && SUCCEEDED(tsf_displayAttributeManager->GetDisplayAttributeInfo(guid, info.GetAddressOf(), nullptr))
+                     && SUCCEEDED(info->GetAttributeInfo(&attr)))
+                    {
+                        auto color = [](auto c){ return argb{ (ui32)(c.type == TF_CT_COLORREF ? c.cr : ::GetSysColor(c.nIndex)) }; };
+                        if (attr.crText.type != TF_CT_NONE    ) mark.fgc(color(attr.crText));
+                        if (attr.crBk.type   != TF_CT_NONE    ) mark.bgc(color(attr.crBk));
+                        if (attr.crLine.type != TF_CT_NONE    ) mark.unc(color(attr.crLine));
+                        if (attr.lsStyle     == TF_LS_SOLID   ) mark.und(unln::line);
+                        if (attr.fBoldLine   == TRUE          ) mark.und(unln::biline);
+                        if (attr.lsStyle     == TF_LS_DOT     ) mark.und(unln::dotted);
+                        if (attr.lsStyle     == TF_LS_DASH    ) mark.und(unln::dashed);
+                        if (attr.lsStyle     == TF_LS_SQUIGGLE) mark.und(unln::wavy);
+                    }
+                }
+            }
+
             // ITfEditSession
             STDMETHODIMP DoEditSession(TfEditCookie ec)
             {
                 log(" call: DoEditSession ec=", utf::to_hex(ec));
-                     if (composition_ctx == ctx::OnStartComposition ) log("  ctx::OnStartComposition");
-                else if (composition_ctx == ctx::OnUpdateComposition) log("  ctx::OnUpdateComposition");
-                else if (composition_ctx == ctx::OnEndComposition   ) log("  ctx::OnEndComposition");
-                else                                                  log("  unknown context");
-                composition_ctx = {};
-                if (!composition_view) return S_OK;
-                auto toWIDE = wide(64, '\0');
-                auto toUTF8 = text{};
+                auto composition = ComPtr<ITfRange>{};
+                auto alive = false;
+                auto rigid = wide{};
+                auto fluid = wide{};
+                auto caret = LONG{ LONG_MAX };
+                auto attrs = std::vector<std::pair<si32, cell>>{};
+                auto width = LONG{};
                 auto count = ULONG{};
-                auto pRange = (ITfRange*)nullptr;
-                composition_view->GetRange(&pRange);
-                while (SUCCEEDED(pRange->GetText(ec, TF_TF_MOVESTART | TF_TF_IGNOREEND, toWIDE.data(), (ULONG)toWIDE.size(), &count)))
+                auto guids = std::to_array({ &GUID_PROP_COMPOSING, &GUID_PROP_ATTRIBUTE });
+                auto props = ComPtr<ITfReadOnlyProperty>{};
+                auto parts = ComPtr<IEnumTfRanges>{};
+                if (SUCCEEDED(tsf_context->GetStart(ec, composition.GetAddressOf()))
+                 && SUCCEEDED(composition->ShiftEnd(ec, LONG_MAX, &width, nullptr))
+                 && SUCCEEDED(tsf_context->TrackProperties(guids.data(), (ULONG)guids.size(), nullptr, 0, props.GetAddressOf()))
+                 && SUCCEEDED(props->EnumRanges(ec, parts.GetAddressOf(), composition.Get())))
                 {
-                    utf::to_utf(wiew{ toWIDE.data(), count }, toUTF8);
-                    if (count != toWIDE.size()) break;
+                    auto ranges = std::array<ITfRange*, 15>{};
+                    while (parts->Next((ULONG)ranges.size(), ranges.data(), &count), count)
+                    {
+                        for (auto range : std::span{ ranges.data(), count })
+                        {
+                            auto marker = cell{};
+                            auto buffer = VARIANT{};
+                            auto values = std::array<TF_PROPERTYVAL, 2>{};
+                            auto v_iter = ComPtr<IEnumTfPropertyValue>{};
+                            ::VariantInit(&buffer);
+                            if (SUCCEEDED(props->GetValue(ec, range, &buffer))
+                             && SUCCEEDED(buffer.punkVal->QueryInterface(IID_IEnumTfPropertyValue, (void**)v_iter.GetAddressOf()))
+                             && SUCCEEDED(v_iter->Next(2, values.data(), nullptr)))
+                            {
+                                for (auto& v : values)
+                                {
+                                    auto is_si32 = V_VT(&v.varValue) == VT_I4;
+                                    auto int_val = is_si32 ? V_I4(&v.varValue) : 0;
+                                         if (::IsEqualGUID(v.guidId, GUID_PROP_ATTRIBUTE)) fill_attr(marker, int_val);
+                                    else if (::IsEqualGUID(v.guidId, GUID_PROP_COMPOSING)) alive |= !!int_val;
+                                    ::VariantClear(&v.varValue);
+                                }
+                            }
+                            ::VariantClear(&buffer);
+                            auto& dest = alive ? fluid : rigid;
+                            auto start = dest.size();
+                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART | TF_TF_IGNOREEND, utf16.data(), (ULONG)utf16.size(), &count)) && count)
+                            {
+                                dest.append(utf16.data(), count);
+                                if (count != utf16.size()) break;
+                            }
+                            auto length = dest.size() - start;
+                            if (length) attrs.emplace_back((si32)length, marker);
+                            range->Release();
+                        }
+                        count = 0;
+                    }
+                    auto selection = TF_SELECTION{};
+                    if (SUCCEEDED(tsf_context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &count)) && count)
+                    {
+                        auto hcond = TF_HALTCOND{ .pHaltRange = selection.range, .aHaltPos = selection.style.ase == TF_AE_START ? TF_ANCHOR_START : TF_ANCHOR_END };
+                        auto start = ComPtr<ITfRange>{};
+                        if (SUCCEEDED(tsf_context->GetStart(ec, start.GetAddressOf()))) start->ShiftEnd(ec, LONG_MAX, &caret, &hcond);
+                        if (selection.range) selection.range->Release();
+                    }
+                    if (rigid.size()) // Drop fixed text from composition.
+                    {
+                        auto range = ComPtr<ITfRange>{};
+                        auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
+                               && SUCCEEDED(range->ShiftEnd(ec, (LONG)rigid.size(), &width, nullptr))
+                               && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
+                        if (!ok) log(ansi::err("range->SetText failed"));
+                    }
                 }
-                pRange->Release();
-                log(" text=", ansi::hi(toUTF8), " ");
+                auto tsf_preview_caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());;
+                auto tsf_preview_chars = std::move(fluid);
+                auto tsf_preview_attrs = std::move(attrs);
+                auto crop = utf::to_utf(rigid);
+                log(" rigid=", ansi::hi(crop), " fluid=", ansi::hi(utf::to_utf(tsf_preview_chars)), " attr=", tsf_preview_attrs.size(), " cursor=", tsf_preview_caret);
+                if (crop.size()) owner.keybd_paste(crop);
                 return S_OK;
-            }
-            void update_composition_view(ITfCompositionView* pComposition, ctx context)
-            {
-                if (!pComposition || compositions != 1) return; // Our composition is only the first.
-                auto hrSession = HRESULT{};
-                composition_view = pComposition;
-                composition_ctx = context;
-                tsf_context->RequestEditSession(tsf_registration_id, this, TF_ES_READ, &hrSession); // Implicit call to DoEditSession(ec).
             }
 
             // ITfContextOwnerCompositionSink
-            STDMETHODIMP OnStartComposition(ITfCompositionView* pComposition, BOOL* pfOk)
+            STDMETHODIMP OnStartComposition(ITfCompositionView*, BOOL* pfOk) { if (pfOk) *pfOk = TRUE; return S_OK; }
+            STDMETHODIMP OnUpdateComposition(ITfCompositionView*, ITfRange*) { return S_OK; }
+            STDMETHODIMP OnEndComposition(ITfCompositionView*)               { return S_OK; }
+
+            // ITfTextEditSink
+            STDMETHODIMP OnEndEdit(ITfContext* /*pic*/, TfEditCookie /*ecReadOnly*/, ITfEditRecord* /*pEditRecord*/)
             {
-                compositions++;
-                update_composition_view(pComposition, ctx::OnStartComposition);
-                *pfOk = TRUE;
-                return S_OK;
-            }
-            STDMETHODIMP OnUpdateComposition(ITfCompositionView* pComposition, ITfRange* pRangeNew)
-            {
-                update_composition_view(pComposition, ctx::OnUpdateComposition);
-                return S_OK;
-            }
-            STDMETHODIMP OnEndComposition(ITfCompositionView* pComposition)
-            {
-                if (compositions <= 0) return E_FAIL;
-                update_composition_view(pComposition, ctx::OnEndComposition);
-                compositions--;
+                //log("call: OnEndEdit");
+                auto hrSession = HRESULT{};
+                if (!SUCCEEDED(tsf_context->RequestEditSession(tsf_registration_id, this, TF_ES_READWRITE | TF_ES_ASYNC, &hrSession))) // Enqueue an implicit call to DoEditSession(ec).
+                {
+                    log(ansi::err("RequestEditSession failed"));
+                }
+                else if (!SUCCEEDED(hrSession))
+                {
+                    log(ansi::err("hrSession failed"));
+                }
                 return S_OK;
             }
 
@@ -1543,7 +1613,7 @@ namespace netxs::gui
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
             {
-                log("call: GetStatus -> ", pdcs);
+                //log("call: GetStatus -> ", pdcs);
                 if (!pdcs) return E_POINTER;
                 pdcs->dwDynamicFlags = TS_SD_UIINTEGRATIONENABLE; // To indicate owr support of IME UI integration.
                 pdcs->dwStaticFlags = TS_SS_TRANSITORY; // It is expected to have a short usage cycle.
@@ -1551,13 +1621,13 @@ namespace netxs::gui
             }
             STDMETHODIMP GetAttribute(REFGUID rguidAttribute, VARIANT* pvarValue)
             {
-                log("call: GetAttribute");
+                //log("call: GetAttribute");
                 return E_NOTIMPL;
             }
             STDMETHODIMP GetACPFromPoint(POINT const* ptScreen, DWORD dwFlags, LONG* pacp)
             {
                 auto p = ptScreen ? twod{ ptScreen->x, ptScreen->y } : dot_00;
-                log("call: GetACPFromPoint -> ptScreen=", p, " dwFlags=", dwFlags);
+                //log("call: GetACPFromPoint -> ptScreen=", p, " dwFlags=", dwFlags);
                 return E_NOTIMPL;
             }
             STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
@@ -1606,31 +1676,32 @@ namespace netxs::gui
             void set_focus()
             {
                 //log("call: set_focus");
-                if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager);
+                if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager.Get());
             }
             void start()
             {
                 log("call: start");
+                auto ec = TfEditCookie{};
                 auto ok = SUCCEEDED(::CoInitialize(NULL)) // TSF supports STA only.
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)&tsf_categoryManager))
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)&tsf_displayAttributeManager))
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)&tsf_thread_manager))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)tsf_categoryManager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)tsf_displayAttributeManager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)tsf_thread_manager.GetAddressOf()))
                        && SUCCEEDED(tsf_thread_manager->Activate(&tsf_registration_id))
-                       && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(&tsf_document_manager))
-                        //hr = tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITextStoreACP*)&acp, &tsf_context, &tsf_edit_cookie);
-                       && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, &tsf_context, &tsf_edit_cookie))
-                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)&tsf_context_source))
+                       && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(tsf_document_manager.GetAddressOf()))
+                       && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, tsf_context.GetAddressOf(), &ec))
+                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)tsf_context_source.GetAddressOf()))
                        && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
-                       && SUCCEEDED(tsf_document_manager->Push(tsf_context));
+                       && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
+                       && SUCCEEDED(tsf_document_manager->Push(tsf_context.Get()));
                 if (ok)
                 {
                     log("TSF activated.",
-                               "\n    tsf_document_manager=", tsf_document_manager,
-                               "\n    tsf_context=", tsf_context,
-                               "\n    tsf_edit_cookie=", tsf_edit_cookie,
-                               "\n    tsf_context_source=", tsf_context_source,
-                               "\n    tsf_categoryManager=", tsf_categoryManager,
-                               "\n    tsf_displayAttributeManager=", tsf_displayAttributeManager,
+                               "\n    tsf_document_manager=", tsf_document_manager.Get(),
+                               "\n    tsf_context=", tsf_context.Get(),
+                               "\n    tsf_context_source=", tsf_context_source.Get(),
+                               "\n    tsf_categoryManager=", tsf_categoryManager.Get(),
+                               "\n    tsf_displayAttributeManager=", tsf_displayAttributeManager.Get(),
+                               "\n    dwCookieTextEditSink=", dwCookieTextEditSink,
                                "\n    dwCookieContextOwner=", dwCookieContextOwner);
                 }
                 else log("TSF activation failed.");
@@ -1638,14 +1709,10 @@ namespace netxs::gui
             void stop()
             {
                 log("call: stop");
-                if (dwCookieContextOwner != TF_INVALID_COOKIE) std::ignore = tsf_context_source->UnadviseSink(dwCookieContextOwner);
-                if (tsf_document_manager)                      std::ignore = tsf_document_manager->Pop(TF_POPF_ALL);
-                if (tsf_thread_manager)                        std::ignore = tsf_thread_manager->Deactivate();
-                if (tsf_displayAttributeManager) tsf_displayAttributeManager->Release();
-                if (tsf_document_manager)        tsf_document_manager->Release();
-                if (tsf_categoryManager)         tsf_categoryManager->Release();
-                if (tsf_context_source)          tsf_context_source->Release();
-                if (tsf_context)                 tsf_context->Release();
+                if (dwCookieTextEditSink != TF_INVALID_COOKIE) tsf_context_source->UnadviseSink(dwCookieTextEditSink);
+                if (dwCookieContextOwner != TF_INVALID_COOKIE) tsf_context_source->UnadviseSink(dwCookieContextOwner);
+                if (tsf_document_manager)                      tsf_document_manager->Pop(TF_POPF_ALL);
+                if (tsf_thread_manager)                        tsf_thread_manager->Deactivate();
                 ::CoUninitialize();
             }
         };
@@ -1876,6 +1943,7 @@ namespace netxs::gui
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam, bool altkey) = 0;
         virtual void keybd_paste(arch wide_char) = 0;
+        virtual void keybd_paste(view utf8) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
 
@@ -3287,7 +3355,7 @@ namespace netxs::gui
             }
             #endif
         }
-        void keybd_paste(view utf8, si32 ctlstat = {})
+        void keybd_paste(view utf8, si32 ctlstat)
         {
                 //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
                 stream.k.ctlstat = ctlstat;
@@ -3298,6 +3366,10 @@ namespace netxs::gui
                 stream.k.keycode = input::key::undef;
                 stream.k.cluster = utf8;
                 stream.keybd(stream.k);
+        }
+        void keybd_paste(view utf8)
+        {
+            keybd_paste(utf8, 0);
         }
         void keybd_paste(arch wide_char)
         {
