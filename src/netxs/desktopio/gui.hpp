@@ -1636,8 +1636,8 @@ namespace netxs::gui
                 {
                     auto& client = owner.layers.front();
                     auto r = client.live ? client.area : rect{}; // Reply an empty rect if window is hidden.
-                    static auto random = true;
-                    if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
+                    //static auto random = true;
+                    //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
                     //log("call: GetScreenExt -> ", r);
                 }
