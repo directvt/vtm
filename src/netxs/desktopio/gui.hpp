@@ -2239,6 +2239,7 @@ namespace netxs::gui
                 };
                 if (owner.reload == task::all || owner.fsmode == state::minimized) // We need full repaint.
                 {
+                    if (owner.fsmode == state::minimized) owner.redraw = true;
                     bitmap.get(data, {}, resize);
                 }
                 else
@@ -2496,6 +2497,7 @@ namespace netxs::gui
         bool mhover; // window: Mouse hover.
         bool active; // window: Window is focused.
         bool moving; // window: Window is in d_n_d state.
+        bool redraw; // window: Canvas is out of sync during minimization.
         si32 fsmode; // window: Window size state.
         rect normsz; // window: Non-fullscreen window area backup.
         si32 reload; // window: Changelog for update.
@@ -2536,6 +2538,7 @@ namespace netxs::gui
               mhover{},
               active{},
               moving{},
+              redraw{},
               fsmode{ state::undefined },
               reload{ task::all },
               client{ manager::add(this, wincoord, gridsize, border, cellsz) }, // Update wincoord and gridsize if needed.
@@ -2713,6 +2716,11 @@ namespace netxs::gui
             if (old_state != fsmode)
             {
                 stream.fsmod(fsmode == state::maximized);
+                if (redraw && old_state == state::minimized) // Redraw all to restore after minimization.
+                {
+                    redraw = faux;
+                    netxs::set_flag<task::all>(reload);
+                }
             }
         }
         void check_fsmode(arch hWnd)
