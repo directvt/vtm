@@ -2552,6 +2552,7 @@ namespace netxs::gui
         font fcache; // window: Font cache.
         glyf gcache; // window: Glyph cache.
         twod& cellsz; // window: Cell size in pixels.
+        si32 origsz; // window: Original cell size in pixels.
         fp32 height; // window: Cell height in fp32 pixels.
         twod gripsz; // window: Resizing grips size in pixels.
         twod gridsz; // window: Window grid size in cells.
@@ -2597,6 +2598,7 @@ namespace netxs::gui
               fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
               cellsz{ fcache.cellsize },
+              origsz{ fcache.cellsize.y },
               height{ (fp32)cellsz.y },
               gripsz{ grip_cell * cellsz },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
@@ -3133,15 +3135,12 @@ namespace netxs::gui
             }
             else
             {
-                if (!isbusy.exchange(true))
+                if (stream.gears->meta(hids::anyCtrl) && !isbusy.exchange(true))
                 bell::enqueue(This(), [&, wheeldt](auto& /*boss*/)
                 {
-                    //if (gear.meta(hids::anyCtrl))
-                    {
-                        change_cell_size(faux, wheeldt, mcoord - layers[client].area.coor);
-                        sync_cellsz();
-                        update_gui();
-                    }
+                    change_cell_size(faux, wheeldt, mcoord - layers[client].area.coor);
+                    sync_cellsz();
+                    update_gui();
                 });
             }
         }
@@ -3162,7 +3161,7 @@ namespace netxs::gui
         void resize_by_grips(twod coord)
         {
             auto inner_rect = layers[blinky].area;
-            auto zoom = stream.k.ctlstat & hids::anyCtrl;
+            auto zoom = stream.gears->meta(hids::anyCtrl);
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
@@ -3334,6 +3333,7 @@ namespace netxs::gui
             {
                 if (modstat.changed || stream.k.ctlstat != kbmod)
                 {
+                    stream.gears->ctlstate = kbmod;
                     stream.k.ctlstat = kbmod;
                     stream.m.ctlstat = kbmod;
                     stream.m.timecod = datetime::now();
@@ -3358,7 +3358,7 @@ namespace netxs::gui
         void keybd_paste(view utf8, si32 ctlstat)
         {
                 //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
-                stream.k.ctlstat = ctlstat;
+                auto temp = std::exchange(stream.k.ctlstat, ctlstat);
                 stream.k.extflag = 0;
                 stream.k.virtcod = 0;
                 stream.k.scancod = 0;
@@ -3366,6 +3366,7 @@ namespace netxs::gui
                 stream.k.keycode = input::key::undef;
                 stream.k.cluster = utf8;
                 stream.keybd(stream.k);
+                stream.k.ctlstat = temp;
         }
         void keybd_paste(view utf8)
         {
@@ -3476,6 +3477,16 @@ namespace netxs::gui
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         set_aa_mode(!gcache.aamode);
+                    });
+                }
+                else if (kbstate[VK_CAPITAL] & 0x80 && kbstate['0'] & 0x80) // Reset cell scaling.
+                {
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        auto dy = origsz - cellsz.y;
+                        change_cell_size(faux, (fp32)dy, layers[client].area.size / 2);
+                        sync_cellsz();
+                        update_gui();
                     });
                 }
                 else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
@@ -3657,9 +3668,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
-                    if (!isbusy.exchange(true))
-                    //todo uncomment
-                    //if (gear.meta(hids::anyCtrl))
+                    if (stream.gears->meta(hids::anyCtrl) && !isbusy.exchange(true))
                     {
                         change_cell_size(faux, gear.whldt, mcoord - layers[client].area.coor);
                         sync_cellsz();
