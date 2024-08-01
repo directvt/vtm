@@ -1449,7 +1449,6 @@ namespace netxs::gui
             TfClientId                     tsf_registration_id = {};
             DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
             DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
-            wide                           utf16 = wide(64, '\0');
 
             tsf_link(manager& owner)
                 : owner{ owner }
@@ -1506,14 +1505,14 @@ namespace netxs::gui
             {
                 log(" call: DoEditSession ec=", utf::to_hex(ec));
                 auto composition = ComPtr<ITfRange>{};
-                auto alive = false;
-                auto rigid = wide{};
-                auto fluid = wide{};
-                auto caret = LONG{ LONG_MAX };
-                auto attrs = std::vector<std::pair<si32, cell>>{};
+                auto utf16 = wide{};
                 auto width = LONG{};
+                auto fixed = LONG{ LONG_MAX };
+                auto caret = LONG{ LONG_MAX };
                 auto count = ULONG{};
-                auto guids = std::to_array({ &GUID_PROP_COMPOSING, &GUID_PROP_ATTRIBUTE });
+                auto attrs = std::vector<std::pair<si32, cell>>{};
+                auto guids = std::to_array({ &GUID_PROP_ATTRIBUTE, &GUID_PROP_COMPOSING });
+                auto piece = std::array<wchr, 64>{};
                 auto props = ComPtr<ITfReadOnlyProperty>{};
                 auto parts = ComPtr<IEnumTfRanges>{};
                 if (SUCCEEDED(tsf_context->GetStart(ec, composition.GetAddressOf()))
@@ -1528,32 +1527,31 @@ namespace netxs::gui
                         {
                             auto marker = cell{};
                             auto buffer = VARIANT{};
-                            auto values = std::array<TF_PROPERTYVAL, 2>{};
+                            auto length = utf16.size();
+                            auto values = std::array<TF_PROPERTYVAL, guids.size()>{};
                             auto v_iter = ComPtr<IEnumTfPropertyValue>{};
                             ::VariantInit(&buffer);
                             if (SUCCEEDED(props->GetValue(ec, range, &buffer))
                              && SUCCEEDED(buffer.punkVal->QueryInterface(IID_IEnumTfPropertyValue, (void**)v_iter.GetAddressOf()))
-                             && SUCCEEDED(v_iter->Next(2, values.data(), nullptr)))
+                             && SUCCEEDED(v_iter->Next((ULONG)guids.size(), values.data(), nullptr)))
                             {
                                 for (auto& v : values)
                                 {
                                     auto is_si32 = V_VT(&v.varValue) == VT_I4;
                                     auto int_val = is_si32 ? V_I4(&v.varValue) : 0;
                                          if (::IsEqualGUID(v.guidId, GUID_PROP_ATTRIBUTE)) fill_attr(marker, int_val);
-                                    else if (::IsEqualGUID(v.guidId, GUID_PROP_COMPOSING)) alive |= !!int_val;
+                                    else if (fixed == LONG_MAX && int_val && ::IsEqualGUID(v.guidId, GUID_PROP_COMPOSING)) fixed = (LONG)length;
                                     ::VariantClear(&v.varValue);
                                 }
                             }
                             ::VariantClear(&buffer);
-                            auto& dest = alive ? fluid : rigid;
-                            auto start = dest.size();
-                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART | TF_TF_IGNOREEND, utf16.data(), (ULONG)utf16.size(), &count)) && count)
+                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART | TF_TF_IGNOREEND, piece.data(), (ULONG)piece.size(), &count)) && count)
                             {
-                                dest.append(utf16.data(), count);
-                                if (count != utf16.size()) break;
+                                utf16.append(piece.data(), count);
+                                if (count != piece.size()) break;
                             }
-                            auto length = dest.size() - start;
-                            if (length) attrs.emplace_back((si32)length, marker);
+                            auto delta = utf16.size() - length;
+                            if (delta) attrs.emplace_back((si32)delta, marker);
                             range->Release();
                         }
                         count = 0;
@@ -1566,20 +1564,23 @@ namespace netxs::gui
                         if (SUCCEEDED(tsf_context->GetStart(ec, start.GetAddressOf()))) start->ShiftEnd(ec, LONG_MAX, &caret, &hcond);
                         if (selection.range) selection.range->Release();
                     }
-                    if (rigid.size()) // Drop fixed text from composition.
+                    if (fixed && utf16.size()) // Drop fixed text from composition.
                     {
                         auto range = ComPtr<ITfRange>{};
                         auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
-                               && SUCCEEDED(range->ShiftEnd(ec, (LONG)rigid.size(), &width, nullptr))
+                               && SUCCEEDED(range->ShiftEnd(ec, fixed, &width, nullptr))
                                && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
                         if (!ok) log(ansi::err("range->SetText failed"));
                     }
                 }
-                auto tsf_preview_caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());;
-                auto tsf_preview_chars = std::move(fluid);
+                auto whole = wiew{ utf16 };
+                auto rigid = whole.substr(0, fixed);
+                auto fluid = whole.substr(rigid.size());
+                auto tsf_preview_caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
+                auto tsf_preview_chars = fluid;
                 auto tsf_preview_attrs = std::move(attrs);
                 auto crop = utf::to_utf(rigid);
-                log(" rigid=", ansi::hi(crop), " fluid=", ansi::hi(utf::to_utf(tsf_preview_chars)), " attr=", tsf_preview_attrs.size(), " cursor=", tsf_preview_caret);
+                log(" fixed=", ansi::hi(crop), " fluid=", ansi::hi(utf::to_utf(tsf_preview_chars)), " attr=", tsf_preview_attrs.size(), " cursor=", tsf_preview_caret);
                 if (crop.size()) owner.keybd_paste(crop);
                 return S_OK;
             }
