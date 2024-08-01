@@ -1211,7 +1211,7 @@ namespace netxs::gui
             if (auto u = c.und())
             {
                 auto index = c.unc();
-                auto color = index ? argb{ argb::vt256[index] }.alpha(c.fga()) : c.fgc();
+                auto color = index ? argb{ argb::vt256[index] }.alpha(fgc.alpha()) : fgc;
                 if (u == unln::line)
                 {
                     auto block = fcache.underline;
@@ -1265,17 +1265,15 @@ namespace netxs::gui
             }
             if (c.stk())
             {
-                auto color = c.fgc();
                 auto block = fcache.strikeout;
                 block.coor += placeholder.coor;
-                netxs::onrect(target, block, cell::shaders::full(color));
+                netxs::onrect(target, block, cell::shaders::full(fgc));
             }
             if (c.ovr())
             {
-                auto color = c.fgc();
                 auto block = fcache.overline;
                 block.coor += placeholder.coor;
-                netxs::onrect(target, block, cell::shaders::full(color));
+                netxs::onrect(target, block, cell::shaders::full(fgc));
             }
             if (c.xy() == 0) return;
             auto token = c.tkn() & ~3; // Clear first two bits for font style.
@@ -1545,13 +1543,16 @@ namespace netxs::gui
                                 }
                             }
                             ::VariantClear(&buffer);
-                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART | TF_TF_IGNOREEND, piece.data(), (ULONG)piece.size(), &count)) && count)
+                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART, piece.data(), (ULONG)piece.size(), &count)) && count)
                             {
                                 utf16.append(piece.data(), count);
                                 if (count != piece.size()) break;
                             }
-                            auto delta = utf16.size() - length;
-                            if (delta) attrs.emplace_back((si32)delta, marker);
+                            if (fixed != LONG_MAX) // Store attributes only for unstable segments. Comment it to allow colored input.
+                            {
+                                auto delta = utf16.size() - length;
+                                if (delta) attrs.emplace_back((si32)delta, marker);
+                            }
                             range->Release();
                         }
                         count = 0;
@@ -1564,7 +1565,7 @@ namespace netxs::gui
                         if (SUCCEEDED(tsf_context->GetStart(ec, start.GetAddressOf()))) start->ShiftEnd(ec, LONG_MAX, &caret, &hcond);
                         if (selection.range) selection.range->Release();
                     }
-                    if (fixed && utf16.size()) // Drop fixed text from composition.
+                    if (fixed && utf16.size()) // Drop fixed segment from composition.
                     {
                         auto range = ComPtr<ITfRange>{};
                         auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
@@ -1576,12 +1577,35 @@ namespace netxs::gui
                 auto whole = wiew{ utf16 };
                 auto rigid = whole.substr(0, fixed);
                 auto fluid = whole.substr(rigid.size());
+                auto tsf_preview_chars = ansi::escx{};
                 auto tsf_preview_caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
-                auto tsf_preview_chars = fluid;
-                auto tsf_preview_attrs = std::move(attrs);
+                if (fluid.size())
+                {
+                    auto cache = fluid;
+                    auto brush = cell{};
+                    auto index = 0;
+                    for (auto& [l, c] : attrs)
+                    {
+                        c.scan_attr(brush, tsf_preview_chars);
+                        if (tsf_preview_caret >= index && tsf_preview_caret < index + l)
+                        {
+                            auto s = tsf_preview_caret - index;
+                            utf::to_utf(cache.substr(0, s), tsf_preview_chars);
+                            tsf_preview_chars.add("|");//tsf_preview_chars.scp(); // Inline caret.
+                            utf::to_utf(cache.substr(s, l - s), tsf_preview_chars);
+                        }
+                        else utf::to_utf(cache.substr(0, l), tsf_preview_chars);
+                        cache.remove_prefix(l);
+                        index += l;
+                    }
+                    if (tsf_preview_caret == index) tsf_preview_chars.add("|");//tsf_preview_chars.scp(); // Inline caret.
+                    tsf_preview_chars.nil();
+                }
                 auto crop = utf::to_utf(rigid);
-                log(" fixed=", ansi::hi(crop), " fluid=", ansi::hi(utf::to_utf(tsf_preview_chars)), " attr=", tsf_preview_attrs.size(), " cursor=", tsf_preview_caret);
+                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(crop),
+                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " yield=", ansi::hi(tsf_preview_chars), " attrs=", attrs.size(), " cursor=", tsf_preview_caret);
                 if (crop.size()) owner.keybd_paste(crop);
+                //todo send preview
                 return S_OK;
             }
 
