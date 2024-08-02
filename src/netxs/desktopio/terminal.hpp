@@ -7490,6 +7490,10 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
+        void imepreview(view utf8)
+        {
+            log("term: IME preview: ", ansi::hi(utf8));
+        }
 
     protected:
         // term: Recalc metrics for the new viewport size.
@@ -7605,29 +7609,38 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, hids::events::paste, gear)
-            {
-                _paste(gear.paste::txtdata);
-                gear.dismiss();
-            };
             LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
-                //todo configurable Ctrl+Ins, Shift+Ins etc.
-                if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                if (config.resetonkey && gear.doinput())
+                switch (gear.payload)
                 {
-                    this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
-                    unsync = true;
-                    follow[axis::X] = true;
-                    follow[axis::Y] = true;
+                    case keybd::type::keypress:
+                        //todo configurable Ctrl+Ins, Shift+Ins etc.
+                        if (gear.handled) return; // Don't pass registered keyboard shortcuts.
+                        if (config.resetonkey && gear.doinput())
+                        {
+                            this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                            unsync = true;
+                            follow[axis::X] = true;
+                            follow[axis::Y] = true;
+                        }
+                        if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
+                        {
+                            selection_cancel();
+                        }
+                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
+                        ipccon.keybd(gear, decckm, kbmode);
+                        break;
+                    case keybd::type::imeinput:
+                    case keybd::type::keypaste:
+                        _paste(gear.cluster);
+                        gear.dismiss();
+                        break;
+                    case keybd::type::imeanons:
+                        imepreview(gear.cluster);
+                        break;
+                    case keybd::type::kblayout:
+                        break;
                 }
-                if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
-                {
-                    selection_cancel();
-                }
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-
-                ipccon.keybd(gear, decckm, kbmode);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -7791,7 +7804,7 @@ namespace netxs::ui
                         gear.alive    = true;
                         gear.ctlstate = k.ctlstat;
                         gear.extflag  = k.extflag;
-                        gear.imeview  = faux;
+                        gear.payload  = k.payload;
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
@@ -8145,18 +8158,13 @@ namespace netxs::ui
                 stream.syskeybd.send(*this, gear.id,
                                             gear.ctlstate, // It is expanded because of ctlstate is not ctlstat.
                                             gear.extflag,
-                                            gear.imeview,
+                                            gear.payload,
                                             gear.virtcod,
                                             gear.scancod,
                                             gear.pressed,
                                             gear.cluster,
                                             gear.handled,
                                             gear.keycode);
-                gear.dismiss();
-            };
-            LISTEN(tier::release, hids::events::paste, gear)
-            {
-                stream.syspaste.send(*this, gear.id, gear.txtdata);
                 gear.dismiss();
             };
             LISTEN(tier::general, e2::config::fps, frame_rate)

@@ -1577,8 +1577,8 @@ namespace netxs::gui
                 auto whole = wiew{ utf16 };
                 auto rigid = whole.substr(0, fixed);
                 auto fluid = whole.substr(rigid.size());
-                auto tsf_preview_chars = ansi::escx{};
-                auto tsf_preview_caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
+                auto anons = ansi::escx{};
+                caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
                 if (fluid.size())
                 {
                     auto cache = fluid;
@@ -1586,26 +1586,26 @@ namespace netxs::gui
                     auto index = 0;
                     for (auto& [l, c] : attrs)
                     {
-                        c.scan_attr(brush, tsf_preview_chars);
-                        if (tsf_preview_caret >= index && tsf_preview_caret < index + l)
+                        c.scan_attr(brush, anons);
+                        if (caret >= index && caret < index + l)
                         {
-                            auto s = tsf_preview_caret - index;
-                            utf::to_utf(cache.substr(0, s), tsf_preview_chars);
-                            tsf_preview_chars.add("|");//tsf_preview_chars.scp(); // Inline caret.
-                            utf::to_utf(cache.substr(s, l - s), tsf_preview_chars);
+                            auto s = caret - index;
+                            utf::to_utf(cache.substr(0, s), anons);
+                            anons.add("|");//anons.scp(); // Inline caret.
+                            utf::to_utf(cache.substr(s, l - s), anons);
                         }
-                        else utf::to_utf(cache.substr(0, l), tsf_preview_chars);
+                        else utf::to_utf(cache.substr(0, l), anons);
                         cache.remove_prefix(l);
                         index += l;
                     }
-                    if (tsf_preview_caret == index) tsf_preview_chars.add("|");//tsf_preview_chars.scp(); // Inline caret.
-                    tsf_preview_chars.nil();
+                    if (caret == index) anons.add("|");//anons.scp(); // Inline caret.
+                    anons.nil();
                 }
-                auto crop = utf::to_utf(rigid);
-                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(crop),
-                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " yield=", ansi::hi(tsf_preview_chars), " attrs=", attrs.size(), " cursor=", tsf_preview_caret);
-                if (crop.size()) owner.keybd_paste(crop);
-                //todo send preview
+                auto yield = utf::to_utf(rigid);
+                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
+                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::hi(anons), " attrs=", attrs.size(), " cursor=", caret);
+                if (yield.size()) owner.keybd_input(yield, input::keybd::type::imeinput);
+                if (anons.size()) owner.keybd_input(anons, input::keybd::type::imeanons);
                 return S_OK;
             }
 
@@ -1967,8 +1967,8 @@ namespace netxs::gui
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press(arch vkey, arch lParam, bool altkey) = 0;
-        virtual void keybd_paste(arch wide_char) = 0;
-        virtual void keybd_paste(view utf8) = 0;
+        //virtual void keybd_input(arch wide_char) = 0;
+        virtual void keybd_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
 
@@ -2036,10 +2036,10 @@ namespace netxs::gui
                     case WM_SYSKEYUP:      w->keybd_press(wParam, lParam, true);       break;
                     case WM_KEYDOWN:
                     case WM_KEYUP:         w->keybd_press(wParam, lParam, faux);       break;
-                    //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_paste(wParam, lParam); break;
-                    //case WM_CHAR: log("WM_CHAR"); w->keybd_paste(wParam, lParam); break;
-                    //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_paste(wParam, lParam);             break;
-                    case WM_IME_CHAR:      w->keybd_paste(wParam);                     break;
+                    //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_input(wParam, lParam); break;
+                    //case WM_CHAR: log("WM_CHAR"); w->keybd_input(wParam, lParam); break;
+                    //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_input(wParam, lParam);             break;
+                    //case WM_IME_CHAR:      w->keybd_input(wParam);                     break;
                     case WM_WINDOWPOSCHANGED:
                     case WM_DPICHANGED:
                     case WM_DISPLAYCHANGE:
@@ -2310,7 +2310,6 @@ namespace netxs::gui
             input::sysmouse m = {}; // evnt: .
             input::syskeybd k = {}; // evnt: .
             input::sysfocus f = {}; // evnt: .
-            input::syspaste p = {}; // evnt: .
             input::syswinsz w = {}; // evnt: .
             input::sysclose c = {}; // evnt: .
             netxs::sptr<input::hids> gears; // evnt: .
@@ -2318,7 +2317,6 @@ namespace netxs::gui
             auto keybd(auto&& data) { if (alive)                s11n::syskeybd.send(intio, data); }
             auto mouse(auto&& data) { if (alive)                s11n::sysmouse.send(intio, data); }
             auto winsz(auto&& data) { if (alive)                s11n::syswinsz.send(intio, data); }
-            auto paste(auto&& data) { if (alive)                s11n::syspaste.send(intio, data); }
             auto close(auto&& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
             auto fsmod(auto&& data) { if (alive)         data ? s11n::fullscrn.send(intio, gears->id)
                                                               : s11n::restored.send(intio, gears->id); }
@@ -2561,7 +2559,6 @@ namespace netxs::gui
                 m.gear_id = gear.id;
                 k.gear_id = gear.id;
                 f.gear_id = gear.id;
-                p.gear_id = gear.id;
                 w.gear_id = gear.id;
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
@@ -3380,34 +3377,29 @@ namespace netxs::gui
             }
             #endif
         }
-        void keybd_paste(view utf8, si32 ctlstat)
+        void keybd_input(view utf8, byte payload_type)
         {
-                //os::logstd("keybd_paste wide_char=", ansi::hi(utf8));
-                auto temp = std::exchange(stream.k.ctlstat, ctlstat);
-                stream.k.extflag = 0;
-                stream.k.virtcod = 0;
-                stream.k.scancod = 0;
-                stream.k.pressed = 1;
-                stream.k.keycode = input::key::undef;
+                //os::logstd("keybd_input wide_char=", ansi::hi(utf8));
+                stream.k.payload = payload_type;
                 stream.k.cluster = utf8;
                 stream.keybd(stream.k);
-                stream.k.ctlstat = temp;
+                stream.k.payload = input::keybd::type::keypress;
         }
-        void keybd_paste(view utf8)
-        {
-            keybd_paste(utf8, 0);
-        }
-        void keybd_paste(arch wide_char)
-        {
-            //os::logstd("WM_IMECHAR wide_char ", (si32)wide_char);
-            if (utf::to_code((wchr)wide_char, point))
-            {
-                toUTF8.clear();
-                utf::to_utf_from_code(point, toUTF8);
-                keybd_paste(toUTF8);
-                point = {};
-            }
-        }
+        //void keybd_input(view utf8)
+        //{
+        //    keybd_input(utf8, 0);
+        //}
+        //void keybd_input(arch wide_char)
+        //{
+        //    //os::logstd("WM_IMECHAR wide_char ", (si32)wide_char);
+        //    if (utf::to_code((wchr)wide_char, point))
+        //    {
+        //        toUTF8.clear();
+        //        utf::to_utf_from_code(point, toUTF8);
+        //        keybd_input(toUTF8);
+        //        point = {};
+        //    }
+        //}
         void keybd_press(arch vkey, arch lParam, bool altkey)
         {
             auto virtcod = std::clamp((si32)vkey, 0, 255);
@@ -3466,7 +3458,7 @@ namespace netxs::gui
                     if (released) // Alt+Numpad released.
                     {
                         sync_kbstat({}, pressed, virtcod, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_paste(toUTF8, ALTNUMPAD_BIT); // Send Alt+Numpads result.
+                        keybd_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         //print_kbstate("key press:");
                         return;
                     }

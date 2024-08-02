@@ -1301,29 +1301,6 @@ namespace netxs::ui
                 item.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                 return gear_test.second;
             }
-            template<auto KeyEvent>
-            void forward()
-            {
-                boss.LISTEN(tier::preview, KeyEvent, gear, memo) // preview: Run after any.
-                {
-                    //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
-                    if (!gear) return;
-                    auto& route = get_route(gear.id);
-                    if (route.active)
-                    {
-                        auto alive = gear.alive;
-                        auto accum = alive;
-                        route.foreach([&](auto& nexthop)
-                        {
-                            nexthop->SIGNAL(tier::preview, KeyEvent, gear);
-                            accum &= gear.alive;
-                            gear.alive = alive;
-                        });
-                        gear.alive = accum;
-                        if (accum) boss.SIGNAL(tier::release, KeyEvent, gear);
-                    }
-                };
-            }
 
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
@@ -1354,8 +1331,26 @@ namespace netxs::ui
                     else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
                     gear.dismiss();
                 };
-                forward<hids::events::keybd::key::post>(); // Subscribe on keybd events.
-                forward<hids::events::paste>(); // Subscribe on paste events.
+                // Subscribe on keybd events.
+                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
+                {
+                    //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    if (!gear) return;
+                    auto& route = get_route(gear.id);
+                    if (route.active)
+                    {
+                        auto alive = gear.alive;
+                        auto accum = alive;
+                        route.foreach([&](auto& nexthop)
+                        {
+                            nexthop->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
+                            accum &= gear.alive;
+                            gear.alive = alive;
+                        });
+                        gear.alive = accum;
+                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
+                    }
+                };
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
                 {

@@ -19,7 +19,6 @@ namespace netxs::input
     using sysfocus = directvt::binary::sysfocus_t;
     using syswinsz = directvt::binary::syswinsz_t;
     using sysclose = directvt::binary::sysclose_t;
-    using syspaste = directvt::binary::syspaste_t;
     using sysboard = directvt::binary::sysboard_t;
     using clipdata = directvt::binary::clipdata_t;
     using auth = netxs::events::auth;
@@ -127,7 +126,6 @@ namespace netxs::events::userland
                 EVENT_XS( keybd   , input::syskeybd ), // release: keybd activity.
                 EVENT_XS( focus   , input::sysfocus ), // release: focus activity.
                 EVENT_XS( board   , input::sysboard ), // release: Clipboard preview.
-                EVENT_XS( paste   , input::syspaste ), // release: clipboard activity.
                 EVENT_XS( error   , const si32      ), // release: return error code.
                 EVENT_XS( winsz   , const twod      ), // release: order to update terminal primary overlay.
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.

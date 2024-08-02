@@ -825,8 +825,7 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons) (fp32, whldt) (bool, hzwhl))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
-        //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (byte, payload) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
@@ -848,13 +847,12 @@ namespace netxs::directvt
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
-        STRUCT_macro(syspaste,          (id_t, gear_id) (text, txtdata))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag) //todo deprecated
-                                        (bool, imeview)  // syskeybd: IME string preview (only cluster has meaning).
+                                        (byte, payload)  // syskeybd: Payload type.
                                         (si32, virtcod) //todo deprecated
                                         (si32, scancod)  // syskeybd: Scancode.
                                         (bool, pressed)  // syskeybd: Key is pressed.
@@ -1399,7 +1397,6 @@ namespace netxs::directvt
             X(sysstart         ) /* System start event.                           */\
             X(sysclose         ) /* System close event.                           */\
             X(syswinsz         ) /* Console window resize.                        */\
-            X(syspaste         ) /* Clipboard paste.                              */\
             X(sysboard         ) /* Clipboard preview.                            */\
             X(clipdata         ) /* Clipboard raw data.                           */\
             X(clipdata_request ) /* Request clipboard data.                       */\

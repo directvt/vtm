@@ -17,7 +17,6 @@ namespace netxs::events::userland
             EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
             EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
-            EVENT_XS( paste  , input::hids ),
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
@@ -55,8 +54,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( key )
                 {
-                    EVENT_XS( post   , input::hids ),
-                    EVENT_XS( imeview, input::hids ), // IME preview notification (only cluster has meaning).
+                    EVENT_XS( post, input::hids ),
                 };
                 SUBSET_XS( control )
                 {
@@ -928,11 +926,19 @@ namespace netxs::input
             vt,
             w32,
         };
+        struct type
+        {
+            static constexpr byte keypress = 0;
+            static constexpr byte keypaste = 1;
+            static constexpr byte imeinput = 2;
+            static constexpr byte imeanons = 3;
+            static constexpr byte kblayout = 4;
+        };
 
         si32 nullkey = key::Key2;
 
         text cluster{};
-        bool imeview{}; // keybd: IME preview (only cluster has meaning).
+        byte payload{}; // keybd: Payload type.
         bool extflag{};
         bool pressed{};
         bool handled{};
@@ -951,7 +957,7 @@ namespace netxs::input
         void update(syskeybd& k)
         {
             extflag = k.extflag;
-            imeview = k.imeview;
+            payload = k.payload;
             pressed = k.pressed;
             virtcod = k.virtcod;
             scancod = k.scancod;
@@ -962,20 +968,6 @@ namespace netxs::input
         }
 
         virtual void fire_keybd() = 0;
-    };
-
-    // input: Clipboard paste.
-    struct paste
-    {
-        text txtdata;
-
-        void update(syspaste& p)
-        {
-            std::swap(txtdata, p.txtdata);
-            fire_paste();
-        }
-
-        virtual void fire_paste() = 0;
     };
 
     // input: Focus tracker.
@@ -1133,7 +1125,6 @@ namespace netxs::input
     struct hids
         : public mouse,
           public keybd,
-          public paste,
           public focus,
           public board,
           public bell
@@ -1487,10 +1478,6 @@ namespace netxs::input
             tooltip_stop = true;
             focus::update(f);
         }
-        auto take(syspaste& p)
-        {
-            paste::update(p);
-        }
         auto take(sysboard& b)
         {
             board::update(b);
@@ -1645,13 +1632,7 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            if (keybd::imeview) owner.SIGNAL(tier::preview, hids::events::keybd::key::imeview, *this);
-            else                owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
-        }
-        void fire_paste()
-        {
-            alive = true;
-            owner.SIGNAL(tier::preview, hids::events::paste, *this);
+            owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_focus()
         {

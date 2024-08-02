@@ -4726,15 +4726,15 @@ namespace netxs::os
             intio.shut();
             input.join();
         }
-        void reader(auto& alarm, auto keybd, auto mouse, auto winsz, auto focus, auto paste, auto close, auto style)
+        void reader(auto& alarm, auto keybd, auto mouse, auto winsz, auto focus, auto close, auto style)
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
+            auto p_txtdata = text{};
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
             auto f = input::sysfocus{};
             auto c = input::sysclose{};
-            auto p = input::syspaste{};
             auto w = input::syswinsz{};
             m.enabled = input::hids::stat::ok;
             m.coordxy = { si16min, si16min };
@@ -4917,10 +4917,13 @@ namespace netxs::os
                                     break;
                                 case nt::console::event::paste_end:
                                     ctrlv = faux;
-                                    utf::to_utf(wcopy, p.txtdata);
-                                    paste(p);
+                                    utf::to_utf(wcopy, p_txtdata);
+                                    k.payload = input::keybd::type::keypaste;
+                                    k.cluster = p_txtdata;
+                                    keybd(k);
+                                    k.payload = input::keybd::type::keypress;
                                     wcopy.clear();
-                                    p.txtdata.clear();
+                                    p_txtdata.clear();
                                     break;
                             }
                         }
@@ -5248,7 +5251,14 @@ namespace netxs::os
                     return m;
                 }();
 
-                auto detect_key = [&](auto& k, qiew cluster)
+                auto paste_data = [&](qiew cluster)
+                {
+                    k.payload = input::keybd::type::keypaste;
+                    k.cluster = cluster;
+                    keybd(k);
+                    k.payload = input::keybd::type::keypress;
+                };
+                auto detect_key = [&](qiew cluster)
                 {
                     using namespace input;
                     auto iter = vt2key.find(cluster);
@@ -5352,11 +5362,11 @@ namespace netxs::os
                             auto pos = cache.find(ansi::paste_end);
                             if (pos != text::npos)
                             {
-                                p.txtdata += cache.substr(0, pos);
+                                p_txtdata += cache.substr(0, pos);
                                 cache.remove_prefix(pos + ansi::paste_end.size());
-                                paste(p);
+                                paste_data(p_txtdata);
                                 pflag = faux;
-                                p.txtdata.clear();
+                                p_txtdata.clear();
                                 continue;
                             }
                             else
@@ -5365,12 +5375,12 @@ namespace netxs::os
                                 if (pos != text::npos)
                                 {
                                     pos += cache.size() - accum.size();
-                                    p.txtdata += cache.substr(0, pos);
+                                    p_txtdata += cache.substr(0, pos);
                                     cache.remove_prefix(pos);
                                 }
                                 else
                                 {
-                                    p.txtdata += cache;
+                                    p_txtdata += cache;
                                     cache.clear();
                                 }
                                 break;
@@ -5378,7 +5388,7 @@ namespace netxs::os
                         }
                         else if (cache.size() == 1)
                         {
-                            detect_key(k, cache);
+                            detect_key(cache);
                             cache.clear();
                         }
                         else if (cache.front() == '\033')
@@ -5460,15 +5470,15 @@ namespace netxs::os
                                 auto pos = cache.find(ansi::paste_end);
                                 if (pos != text::npos)
                                 {
-                                    p.txtdata = cache.substr(0, pos);
+                                    p_txtdata = cache.substr(0, pos);
                                     cache.remove_prefix(pos + ansi::paste_end.size());
-                                    paste(p);
-                                    p.txtdata.clear();
+                                    paste_data(p_txtdata);
+                                    p_txtdata.clear();
                                 }
                                 else
                                 {
                                     auto pos = cache.rfind('\033'); // Find the probable beginning of the closing sequence.
-                                    p.txtdata = cache.substr(0, pos);
+                                    p_txtdata = cache.substr(0, pos);
                                     if (pos != text::npos) cache.remove_prefix(pos);
                                     else                   cache.clear();
                                     pflag = true;
@@ -5477,13 +5487,13 @@ namespace netxs::os
                             }
                             else // t == type::undef
                             {
-                                detect_key(k, s);
+                                detect_key(s);
                             }
                         }
                         else
                         {
                             auto cluster = utf::cluster<true>(cache);
-                            detect_key(k, cluster.text);
+                            detect_key(cluster.text);
                             cache.remove_prefix(cluster.attr.utf8len);
                         }
                     }
@@ -5714,9 +5724,8 @@ namespace netxs::os
             auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto focus = [&](auto& data){ if (alive)                proxy.sysfocus.send(intio, data); };
-            auto paste = [&](auto& data){ if (alive)                proxy.syspaste.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
-            auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
+            auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, close, noop{}); }};
             auto clips = std::thread{ [&]{ clipbd(alarm); } };
             directvt::binary::stream::reading_loop(intio, [&](view data)
             {
@@ -5884,36 +5893,50 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!alive || !data.pressed || data.cluster.empty()) return;
-                        switch (data.cluster.front()) 
+                        switch (data.payload)
                         {
-                            case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
-                            case 0x04: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
-                            case 0x1A: enter(ansi::err("Ctrl+Z\r\n")); alarm.bell(); break;
-                            case 0x08: // Backspace
-                            case 0x7F: //
-                                if (block.size())
+                            case input::keybd::type::keypaste:
+                                if (!alive || data.cluster.empty()) return;
+                                block += data.cluster;
+                                print(true);
+                                break;
+                            case input::keybd::type::keypress:
+                                if (!data.pressed) return;
+                            case input::keybd::type::imeinput:
+                                if (!alive || data.cluster.empty()) return;
+                                switch (data.cluster.front()) 
                                 {
-                                    block.pop_back();
-                                    print(true);
+                                    case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
+                                    case 0x04: enter(ansi::err("Ctrl+D\r\n")); alarm.bell(); break;
+                                    case 0x1A: enter(ansi::err("Ctrl+Z\r\n")); alarm.bell(); break;
+                                    case 0x08: // Backspace
+                                    case 0x7F: //
+                                        if (block.size())
+                                        {
+                                            block.pop_back();
+                                            print(true);
+                                        }
+                                        break;
+                                    case '\n':
+                                    case '\r': // Enter
+                                        {
+                                            auto line = block + '\n';
+                                            block.clear();
+                                            clear();
+                                            print(faux);
+                                            guard.unlock(); // Allow to use log() inside send().
+                                            send(line);
+                                        }
+                                        break;
+                                    default:
+                                        block += data.cluster;
+                                        print(true);
+                                        break;
                                 }
                                 break;
-                            case '\n':
-                            case '\r': // Enter
-                                {
-                                    auto line = block + '\n';
-                                    block.clear();
-                                    clear();
-                                    print(faux);
-                                    guard.unlock(); // Allow to use log() inside send().
-                                    send(line);
-                                }
+                            case input::keybd::type::imeanons:
                                 break;
-                            default:
-                                {
-                                    block += data.cluster;
-                                    print(true);
-                                }
+                            case input::keybd::type::kblayout:
                                 break;
                         }
                     };
@@ -5925,13 +5948,6 @@ namespace netxs::os
                         panel = data.winsize;
                     };
                     auto focus = [&](auto& /*data*/){ if (!alive) return;/*if (data.state) log<faux>('-');*/ };
-                    auto paste = [&](auto& data)
-                    {
-                        auto guard = std::lock_guard{ mutex };
-                        if (!alive || data.txtdata.empty()) return;
-                        block += data.txtdata;
-                        print(true);
-                    };
                     auto close = [&](auto& /*data*/)
                     {
                         if (alive.exchange(faux))
@@ -5959,7 +5975,7 @@ namespace netxs::os
                         os::autosync = faux; // Synchronize viewport only when the vt-sequence "show caret" is received.
                         std::swap(tty::cout, write); // Activate log proxy.
                     }
-                    tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, style);
+                    tty::reader(alarm, keybd, mouse, winsz, focus, close, style);
                 }};
             }
            ~readline()

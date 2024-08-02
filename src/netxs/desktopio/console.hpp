@@ -216,12 +216,6 @@ namespace netxs::ui
                 auto& keybd = lock.thing;
                 notify(e2::conio::keybd, keybd);
             }
-            void handle(s11n::xs::syspaste    lock)
-            {
-                auto& paste = lock.thing;
-                //log("syspaste: ", ansi::hi(paste.txtdata));
-                notify(e2::conio::paste, paste);
-            }
             void handle(s11n::xs::sysmouse    lock)
             {
                 auto& item = lock.thing;
@@ -566,10 +560,6 @@ namespace netxs::ui
                 {
                     forward(k);
                 };
-                boss.LISTEN(tier::release, e2::conio::paste, p, memo)
-                {
-                    forward(p);
-                };
                 boss.LISTEN(tier::release, e2::conio::focus, f, memo)
                 {
                     forward(f);
@@ -614,8 +604,9 @@ namespace netxs::ui
             X(win_size     , "win size"         ) \
             X(key_code     , "key virt"         ) \
             X(key_scancode , "key scan"         ) \
-            X(key_character, "key char"         ) \
+            X(key_character, "key data"         ) \
             X(key_pressed  , "key push"         ) \
+            X(key_payload  , "key type"         ) \
             X(ctrl_state   , "controls"         ) \
             X(k            , "k"                ) \
             X(mouse_pos    , "mouse coord"      ) \
@@ -798,7 +789,11 @@ namespace netxs::ui
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
                     status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-
+                    status[prop::key_payload  ].set(stress) = k.payload == keybd::type::keypress ? "keypress"
+                                                            : k.payload == keybd::type::keypaste ? "keypaste"
+                                                            : k.payload == keybd::type::imeanons ? "IME composition"
+                                                            : k.payload == keybd::type::imeinput ? "IME input"
+                                                            : k.payload == keybd::type::kblayout ? "keyboard layout" : "unknown payload";
                     if (k.cluster.length())
                     {
                         auto t = text{};
@@ -1122,15 +1117,6 @@ namespace netxs::ui
                     target->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::paste, gear, tokens) // Start of paste event propagation.
-            {
-                if (gear)
-                //if (auto target = local ? applet : base::parent())
-                if (auto target = nexthop.lock())
-                {
-                    target->SIGNAL(tier::preview, hids::events::paste, gear);
-                }
-            };
             if (!direct)
             {
                 LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
@@ -1221,6 +1207,7 @@ namespace netxs::ui
                             conio.keybd_event.send(canal, ext_gear_id,
                                                           gear.ctlstate,
                                                           gear.extflag,
+                                                          gear.payload,
                                                           gear.virtcod,
                                                           gear.scancod,
                                                           gear.pressed,
