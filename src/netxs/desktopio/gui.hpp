@@ -1584,7 +1584,6 @@ namespace netxs::gui
                     auto cache = fluid;
                     auto brush = cell{};
                     auto index = 0;
-                    anons.pushsgr();
                     for (auto& [l, c] : attrs)
                     {
                         c.scan_attr(brush, anons);
@@ -1592,19 +1591,18 @@ namespace netxs::gui
                         {
                             auto s = caret - index;
                             utf::to_utf(cache.substr(0, s), anons);
-                            anons.add("|");//anons.scp(); // Inline caret.
+                            anons.scp(); // Inline caret.
                             utf::to_utf(cache.substr(s, l - s), anons);
                         }
                         else utf::to_utf(cache.substr(0, l), anons);
                         cache.remove_prefix(l);
                         index += l;
                     }
-                    if (caret == index) anons.add("|");//anons.scp(); // Inline caret.
-                    anons.popsgr();
+                    if (caret == index) anons.scp(); // Inline caret.
                 }
                 auto yield = utf::to_utf(rigid);
-                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
-                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::hi(anons), " attrs=", attrs.size(), " cursor=", caret);
+                //log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
+                //  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
                 if (yield.size()) owner.keybd_input(yield, input::keybd::type::imeinput);
                 owner.keybd_input(anons, input::keybd::type::imeanons);
                 return S_OK;

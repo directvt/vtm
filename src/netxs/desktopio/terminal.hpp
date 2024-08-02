@@ -7712,7 +7712,18 @@ namespace netxs::ui
                             imetxt = gear.cluster;
                             imebox.wipe();
                             ansi::parse(gear.cluster, &imebox);
-                            if (imebox.length()) target->show_ime_composition();
+                            if (imebox.length())
+                            {
+                                //if (imebox.locus.size())
+                                auto iter = std::find_if(imebox.locus.begin(), imebox.locus.end(), [](auto cmd){ return cmd.cmd == ansi::fn::sc; });
+                                if (iter != imebox.locus.end())
+                                {
+                                    //auto [cmd, arg] = imebox.locus.back();
+                                    auto [cmd, arg] = *iter;
+                                    if (cmd == ansi::fn::sc) imebox.caret = arg;
+                                }
+                                target->show_ime_composition();
+                            }
                             if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(imetxt));
                             unsync = true;
                         }

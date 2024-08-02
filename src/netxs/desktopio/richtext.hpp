@@ -1469,7 +1469,16 @@ namespace netxs::ui
             locus.kill();
             lyric->kill();
         }
-        void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        void task(ansi::rule const& cmd)
+        {
+            if (cmd.cmd == ansi::fn::sc) // Save caret position as command.
+            {
+                parser::flush();
+                locus.push({ ansi::fn::sc, caret });
+            }
+            else if (!busy()) locus.push(cmd);
+        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(si32 count, grid const& proto) override
         {
