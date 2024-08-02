@@ -4984,34 +4984,48 @@ namespace netxs::ui
                 std::swap(owner.imebox.caret, batch.caret);
                 batch.caret += owner.imebox.caret;
                 batch.recalc(curln);
-                if (curln.wrapped() && coord.x >= panel.x) wrapdn();
-
-                index_rebuild();
-                //auto length = curln.length();
-                //if (curln.wrapped() && length > panel.x) index_rebuild();
-                //else
-                //{
-                //    //todo mapln
-                //}
+                if (curln.wrapped() && coord.x >= panel.x)
+                {
+                    wrapdn();
+                    if (coord.y > y_end)
+                    {
+                        batch.basis += coord.y - y_end;
+                        coord.y = y_end;
+                    }
+                }
+                auto length = curln.length();
+                if (curln.wrapped() && length > panel.x) index_rebuild();
+                else
+                {
+                    auto& mapln = index[coord.y];
+                    mapln.width = length;
+                }
             }
             // scroll_buf: Hide IME composition preview.
             void hide_ime_composition()
             {
                 auto& curln = batch.current();
-                //auto length = curln.length();
+                auto length = curln.length();
                 spare.swap(curln);
                 batch.caret -= owner.imebox.caret;
                 std::swap(owner.imebox.caret, batch.caret);
                 coord.x -= owner.imebox.caret;
                 batch.recalc(curln);
-                if (curln.wrapped() && coord.x < 0) wrapup();
-
-                index_rebuild();
-                //if (curln.wrapped() && length > panel.x) index_rebuild();
-                //else
-                //{
-                //    //todo mapln
-                //}
+                if (curln.wrapped() && coord.x < 0)
+                {
+                    wrapup();
+                    if (coord.y < y_top)
+                    {
+                        batch.basis -= y_top - coord.y;
+                        coord.y = y_top;
+                    }
+                }
+                if (curln.wrapped() && length > panel.x) index_rebuild();
+                else
+                {
+                    auto& mapln = index[coord.y];
+                    mapln.width = curln.length();
+                }
             }
 
             // scroll_buf: Calc grip position by coor.
