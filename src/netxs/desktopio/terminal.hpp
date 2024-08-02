@@ -1132,6 +1132,8 @@ namespace netxs::ui
                 return boxed;
             }
 
+            virtual void show_ime_composition()                                         = 0;
+            virtual void hide_ime_composition()                                         = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -2157,6 +2159,7 @@ namespace netxs::ui
             : public bufferbase
         {
             rich canvas; // alt_screen: Terminal screen.
+            rich backup; // alt_screen: Terminal screen backup.
             twod seltop; // alt_screen: Selected area head.
             twod selend; // alt_screen: Selected area tail.
 
@@ -2410,6 +2413,17 @@ namespace netxs::ui
                 dest.clip(clip);
                 dest.plot(canvas, cell::shaders::full);
             }
+            // alt_screen: Show IME composition preview.
+            void show_ime_composition()
+            {
+                //todo
+            }
+            // alt_screen: Hide IME composition preview.
+            void hide_ime_composition()
+            {
+                //todo
+            }
+
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
@@ -2863,6 +2877,7 @@ namespace netxs::ui
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
             part place; // scroll_buf: Selection last active region.
             si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
+            line spare; // scroll_buf: Current line backup.
 
             static constexpr auto approx_threshold = si32{ 10000 }; //todo make it configurable
 
@@ -4959,6 +4974,45 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
+            // scroll_buf: Show IME composition preview.
+            void show_ime_composition()
+            {
+                auto& curln = batch.current();
+                spare = curln;
+                curln.insert(batch.caret, owner.imebox.content());
+                coord.x += owner.imebox.caret;
+                std::swap(owner.imebox.caret, batch.caret);
+                batch.caret += owner.imebox.caret;
+                batch.recalc(curln);
+                if (curln.wrapped() && coord.x >= panel.x) wrapdn();
+
+                index_rebuild();
+                //auto length = curln.length();
+                //if (curln.wrapped() && length > panel.x) index_rebuild();
+                //else
+                //{
+                //    //todo mapln
+                //}
+            }
+            // scroll_buf: Hide IME composition preview.
+            void hide_ime_composition()
+            {
+                auto& curln = batch.current();
+                //auto length = curln.length();
+                spare.swap(curln);
+                batch.caret -= owner.imebox.caret;
+                std::swap(owner.imebox.caret, batch.caret);
+                coord.x -= owner.imebox.caret;
+                batch.recalc(curln);
+                if (curln.wrapped() && coord.x < 0) wrapup();
+
+                index_rebuild();
+                //if (curln.wrapped() && length > panel.x) index_rebuild();
+                //else
+                //{
+                //    //todo mapln
+                //}
+            }
 
             // scroll_buf: Calc grip position by coor.
             auto selection_coor_to_grip(twod coor, grip::type role = grip::base)
@@ -6413,6 +6467,8 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
+        para       imebox; // term: IME composition preview render.
+        text       imetxt; // term: IME composition preview source.
         eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
@@ -6815,19 +6871,23 @@ namespace netxs::ui
         {
             bell::trysync(true, [&]
             {
+                auto active_ime = !!imebox.length();
+                if (active_ime) target->hide_ime_composition();
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
                 {
-                    unsync |= proc();
+                    unsync |= proc() || active_ime;
+                    if (active_ime) target->show_ime_composition();
                 }
                 else
                 {
                     auto last_basis = target->get_basis();
                     auto last_slide = target->get_slide();
                     auto is_changed = proc();
-                    unsync |= is_changed;
-                    if (is_changed)
+                    unsync |= is_changed || active_ime;
+                    if (unsync)
                     {
+                        if (active_ime) target->show_ime_composition();
                         auto next_basis = target->get_basis();
                         follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
                                        || (next_basis <= last_slide && last_slide <= last_basis);
@@ -7490,10 +7550,6 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
-        void imepreview(view utf8)
-        {
-            log("term: IME preview: ", ansi::hi(utf8));
-        }
 
     protected:
         // term: Recalc metrics for the new viewport size.
@@ -7636,7 +7692,16 @@ namespace netxs::ui
                         gear.dismiss();
                         break;
                     case keybd::type::imeanons:
-                        imepreview(gear.cluster);
+                        if (imetxt != gear.cluster)
+                        {
+                            if (imebox.length()) target->hide_ime_composition();
+                            imetxt = gear.cluster;
+                            imebox.wipe();
+                            ansi::parse(gear.cluster, &imebox);
+                            if (imebox.length()) target->show_ime_composition();
+                            if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(imetxt));
+                            unsync = true;
+                        }
                         break;
                     case keybd::type::kblayout:
                         break;

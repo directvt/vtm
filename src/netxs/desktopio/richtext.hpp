@@ -1352,6 +1352,23 @@ namespace netxs::ui
             while (src != end) *--dst = *--src;
             while (dst != end) *--dst = blank;
         }
+        // rich: Insert fragment with shifting chars to the right.
+        void insert(si32 at, rich const& fragment)
+        {
+            auto add = fragment.length();
+            if (add == 0) return;
+            if (at < 0) at = 0;
+            auto len = length();
+            auto max = len + add;
+            if (at > len) max += at - len;
+            rich::resize(max);
+            auto pos = max - add;
+            auto dst = begin() + pos;
+            auto src = fragment.begin();
+            auto end = fragment.end();
+            while (src != end) *dst++ = *src++;
+            if (at < len) scroll(at, len - at, add);
+        }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
         void cutoff(twod at, si32 count, cell const& blank)
         {

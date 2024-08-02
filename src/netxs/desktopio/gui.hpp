@@ -1571,7 +1571,7 @@ namespace netxs::gui
                         auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
                                && SUCCEEDED(range->ShiftEnd(ec, fixed, &width, nullptr))
                                && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
-                        if (!ok) log(ansi::err("range->SetText failed"));
+                        if constexpr (debugmode) if (!ok) log(ansi::err("range->SetText failed"));
                     }
                 }
                 auto whole = wiew{ utf16 };
@@ -1584,6 +1584,7 @@ namespace netxs::gui
                     auto cache = fluid;
                     auto brush = cell{};
                     auto index = 0;
+                    anons.pushsgr();
                     for (auto& [l, c] : attrs)
                     {
                         c.scan_attr(brush, anons);
@@ -1599,13 +1600,13 @@ namespace netxs::gui
                         index += l;
                     }
                     if (caret == index) anons.add("|");//anons.scp(); // Inline caret.
-                    anons.nil();
+                    anons.popsgr();
                 }
                 auto yield = utf::to_utf(rigid);
                 log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
                   "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::hi(anons), " attrs=", attrs.size(), " cursor=", caret);
                 if (yield.size()) owner.keybd_input(yield, input::keybd::type::imeinput);
-                if (anons.size()) owner.keybd_input(anons, input::keybd::type::imeanons);
+                owner.keybd_input(anons, input::keybd::type::imeanons);
                 return S_OK;
             }
 
