@@ -2604,6 +2604,7 @@ namespace netxs::gui
         bool blinking; // window: .
         evnt stream; // window: .
         text toUTF8;
+        fp32 wheel_accum = {}; // window: Mouse wheel accumulator.
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
         flag isbusy = {}; // window: The window is awaiting update.
@@ -3139,6 +3140,26 @@ namespace netxs::gui
             }
             isbusy.exchange(faux);
         }
+        void zoom_by_wheel(fp32 wheeldt, bool enqueue)
+        {
+            if (stream.gears->meta(hids::anyCtrl))
+            {
+                if (wheel_accum * wheeldt < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
+                wheel_accum += wheeldt;
+                if (!isbusy.exchange(true))
+                {
+                    wheeldt = std::exchange(wheel_accum, 0.f);
+                    auto zoom = [&, wheeldt, center = mcoord - layers[client].area.coor]
+                    {
+                        change_cell_size(faux, wheeldt, center);
+                        sync_cellsz();
+                        update_gui();
+                    };
+                    if (enqueue) bell::enqueue(This(), [zoom](auto& /*boss*/){ zoom(); });
+                    else         zoom();
+                }
+            }
+        }
         void mouse_wheel(si32 delta, bool hz)
         {
             if (delta == 0) return;
@@ -3154,16 +3175,7 @@ namespace netxs::gui
                 stream.m.hzwheel = {};
                 stream.m.wheeldt = {};
             }
-            else
-            {
-                if (stream.gears->meta(hids::anyCtrl) && !isbusy.exchange(true))
-                bell::enqueue(This(), [&, wheeldt](auto& /*boss*/)
-                {
-                    change_cell_size(faux, wheeldt, mcoord - layers[client].area.coor);
-                    sync_cellsz();
-                    update_gui();
-                });
-            }
+            else zoom_by_wheel(wheeldt, true);
         }
         void send_mouse_halt()
         {
@@ -3479,6 +3491,13 @@ namespace netxs::gui
                     });
                 }
             }
+            else // if released
+            {
+                if (virtcod == VK_CONTROL)
+                {
+                    wheel_accum = {};
+                }
+            }
             if (pressed)
             {
                 if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
@@ -3684,11 +3703,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
-                    if (stream.gears->meta(hids::anyCtrl) && !isbusy.exchange(true))
-                    {
-                        change_cell_size(faux, gear.whldt, mcoord - layers[client].area.coor);
-                        sync_cellsz();
-                    }
+                    zoom_by_wheel(gear.whldt, faux);
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
                 {
