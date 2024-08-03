@@ -1442,9 +1442,9 @@ namespace netxs::gui
             ComPtr<ITfThreadMgrEx>         tsf_thread_manager;
             ComPtr<ITfDocumentMgr>         tsf_document_manager;
             ComPtr<ITfContext>             tsf_context;
-            ComPtr<ITfSource>              tsf_context_source;
-            ComPtr<ITfCategoryMgr>         tsf_categoryManager;
-            ComPtr<ITfDisplayAttributeMgr> tsf_displayAttributeManager;
+            ComPtr<ITfSource>              tsf_source;
+            ComPtr<ITfCategoryMgr>         tsf_category_manager;
+            ComPtr<ITfDisplayAttributeMgr> tsf_attribute_manager;
             TfClientId                     tsf_registration_id = {};
             DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
             DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
@@ -1482,8 +1482,8 @@ namespace netxs::gui
                     auto guid = GUID{};
                     auto attr = TF_DISPLAYATTRIBUTE{};
                     auto info = ComPtr<ITfDisplayAttributeInfo>{};
-                    if (SUCCEEDED(tsf_categoryManager->GetGUID(atom, &guid))
-                     && SUCCEEDED(tsf_displayAttributeManager->GetDisplayAttributeInfo(guid, info.GetAddressOf(), nullptr))
+                    if (SUCCEEDED(tsf_category_manager->GetGUID(atom, &guid))
+                     && SUCCEEDED(tsf_attribute_manager->GetDisplayAttributeInfo(guid, info.GetAddressOf(), nullptr))
                      && SUCCEEDED(info->GetAttributeInfo(&attr)))
                     {
                         auto color = [](auto c){ return argb{ (ui32)(c.type == TF_CT_COLORREF ? c.cr : ::GetSysColor(c.nIndex)) }; };
@@ -1708,24 +1708,24 @@ namespace netxs::gui
                 log("call: start");
                 auto ec = TfEditCookie{};
                 auto ok = SUCCEEDED(::CoInitialize(NULL)) // TSF supports STA only.
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)tsf_categoryManager.GetAddressOf()))
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)tsf_displayAttributeManager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)tsf_category_manager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)tsf_attribute_manager.GetAddressOf()))
                        && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)tsf_thread_manager.GetAddressOf()))
                        && SUCCEEDED(tsf_thread_manager->Activate(&tsf_registration_id))
                        && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(tsf_document_manager.GetAddressOf()))
                        && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, tsf_context.GetAddressOf(), &ec))
-                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)tsf_context_source.GetAddressOf()))
-                       && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
-                       && SUCCEEDED(tsf_context_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
+                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)tsf_source.GetAddressOf()))
+                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
+                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
                        && SUCCEEDED(tsf_document_manager->Push(tsf_context.Get()));
                 if (ok)
                 {
                     log("TSF activated.",
                                "\n    tsf_document_manager=", tsf_document_manager.Get(),
                                "\n    tsf_context=", tsf_context.Get(),
-                               "\n    tsf_context_source=", tsf_context_source.Get(),
-                               "\n    tsf_categoryManager=", tsf_categoryManager.Get(),
-                               "\n    tsf_displayAttributeManager=", tsf_displayAttributeManager.Get(),
+                               "\n    tsf_source=", tsf_source.Get(),
+                               "\n    tsf_category_manager=", tsf_category_manager.Get(),
+                               "\n    tsf_attribute_manager=", tsf_attribute_manager.Get(),
                                "\n    dwCookieTextEditSink=", dwCookieTextEditSink,
                                "\n    dwCookieContextOwner=", dwCookieContextOwner);
                 }
@@ -1734,8 +1734,8 @@ namespace netxs::gui
             void stop()
             {
                 log("call: stop");
-                if (dwCookieTextEditSink != TF_INVALID_COOKIE) tsf_context_source->UnadviseSink(dwCookieTextEditSink);
-                if (dwCookieContextOwner != TF_INVALID_COOKIE) tsf_context_source->UnadviseSink(dwCookieContextOwner);
+                if (dwCookieTextEditSink != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieTextEditSink);
+                if (dwCookieContextOwner != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieContextOwner);
                 if (tsf_document_manager)                      tsf_document_manager->Pop(TF_POPF_ALL);
                 if (tsf_thread_manager)                        tsf_thread_manager->Deactivate();
                 ::CoUninitialize();
@@ -1813,6 +1813,9 @@ namespace netxs::gui
         {
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
+                //os::logstd("\tmsW=", utf::to_hex(msg.message), " wP=", utf::to_hex(msg.wParam), " lP=", utf::to_hex(msg.lParam), " hwnd=", utf::to_hex(msg.hwnd));
+                //if (msg.message == 0xC060) sync_kb_thread(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) sync_kb_thread(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                 ::DispatchMessageW(&msg);
             }
             //auto stop = os::fd_t{ alarm };
@@ -1847,6 +1850,12 @@ namespace netxs::gui
                 if (i % 16 == 0)s += '\n';
             }
             os::logstd(s);
+        }
+        void sync_kb_thread()
+        {
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            sync_kbstat();
+            //print_kbstate("sync_kb_thread");
         }
         void activate()
         {
@@ -1978,6 +1987,7 @@ namespace netxs::gui
         virtual void keybd_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode(arch hWnd) = 0;
         virtual void sync_clipboard() = 0;
+        virtual void sync_kbstat() = 0;
 
         auto add(manager* host_ptr = nullptr, twod wincoord = {}, twod gridsize = {}, dent border = {}, twod cellsz = {})
         {
@@ -2032,6 +2042,7 @@ namespace netxs::gui
                     //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
                     case WM_INPUTLANGCHANGE:
                     {
+                        w->sync_kb_thread();
                         //todo sync kb layout
                         //auto hkl = ::GetKeyboardLayout(0);
                         auto kblayout = wide(KL_NAMELENGTH, '\0');
@@ -3360,29 +3371,36 @@ namespace netxs::gui
                 }
             }
         }
-        void sync_kbstat(view cluster = {}, bool pressed = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
+        void sync_kbstat(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
             #if defined(_WIN32)
-            auto cs = 0;
-            if (extflag) cs |= ENHANCED_KEY;
-            if (kbstate[VK_RMENU   ] & 0x80) cs |= RIGHT_ALT_PRESSED;
-            if (kbstate[VK_LMENU   ] & 0x80) cs |= LEFT_ALT_PRESSED;
-            if (kbstate[VK_RCONTROL] & 0x80) cs |= RIGHT_CTRL_PRESSED;
-            if (kbstate[VK_LCONTROL] & 0x80) cs |= LEFT_CTRL_PRESSED;
-            if (kbstate[VK_SHIFT   ] & 0x80) cs |= SHIFT_PRESSED;
-            if (kbstate[VK_NUMLOCK ] & 0x01) cs |= NUMLOCK_ON;
-            if (kbstate[VK_CAPITAL ] & 0x01) cs |= CAPSLOCK_ON;
-            if (kbstate[VK_SCROLL  ] & 0x01) cs |= SCROLLLOCK_ON;
             //todo revise
             //todo implement all possible modifiers state (eg kana)
             //if (kbstate[VK_OEM_COPY] & 0x01) cs |= ...;
-            //if (kbstate[VK_OEM_AUTO] & 0x01) cs |= NLS_ALPHANUMERIC;
+            //if (kbstate[VK_OEM_AUTO] & 0x01) cs |= ...;
             //if (kbstate[VK_OEM_ENLW] & 0x01) cs |= NLS_HIRAGANA;
-            auto modstat = os::nt::modstat(kbmod, cs, scancod, pressed);
-            if (modstat.repeats) return; // We don't repeat modifiers.
+            auto state  = si32{};
+            auto cs = 0;
+            if (extflag) cs |= input::key::ExtendedKey;
+            if (kbstate[VK_LSHIFT  ] & 0x80) state |= input::hids::LShift;
+            if (kbstate[VK_RSHIFT  ] & 0x80) state |= input::hids::RShift;
+            if (kbstate[VK_LCONTROL] & 0x80) state |= input::hids::LCtrl;
+            if (kbstate[VK_RCONTROL] & 0x80) state |= input::hids::RCtrl;
+            if (kbstate[VK_LMENU   ] & 0x80) state |= input::hids::LAlt;
+            if (kbstate[VK_RMENU   ] & 0x80) state |= input::hids::RAlt;
+            if (kbstate[VK_LWIN    ] & 0x80) state |= input::hids::LWin;
+            if (kbstate[VK_RWIN    ] & 0x80) state |= input::hids::RWin;
+            if (kbstate[VK_CAPITAL ] & 0x01) state |= input::hids::CapsLock;
+            if (kbstate[VK_SCROLL  ] & 0x01) state |= input::hids::ScrlLock;
+            if (kbstate[VK_NUMLOCK ] & 0x01) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
+            auto changed = std::exchange(kbmod, state) != kbmod;
+            auto repeat_ctrl = repeat && (virtcod == VK_SHIFT   || virtcod == VK_CONTROL || virtcod == VK_MENU
+                                       || virtcod == VK_CAPITAL || virtcod == VK_NUMLOCK || virtcod == VK_SCROLL
+                                       || virtcod == VK_LWIN    || virtcod == VK_RWIN);
+            if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
             else
             {
-                if (modstat.changed || stream.k.ctlstat != kbmod)
+                if (changed || stream.k.ctlstat != kbmod)
                 {
                     stream.gears->ctlstate = kbmod;
                     stream.k.ctlstat = kbmod;
@@ -3394,17 +3412,21 @@ namespace netxs::gui
                 stream.k.extflag = extflag;
                 stream.k.virtcod = virtcod;
                 stream.k.scancod = scancod;
-                stream.k.pressed = pressed;
+                stream.k.pressed = pressed || repeat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
                 stream.keybd(stream.k);
             }
             #else
-            if (cluster.empty() || pressed || virtcod || scancod || extflag)
+            if (cluster.empty() || pressed || repeat || virtcod || scancod || extflag)
             {
                 //...
             }
             #endif
+        }
+        void sync_kbstat()
+        {
+            sync_kbstat({});
         }
         void keybd_input(view utf8, byte payload_type)
         {
@@ -3474,7 +3496,7 @@ namespace netxs::gui
                     while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
                     if (to_WIDE.size()) keytype = 2;
                 }
-                //os::logstd("\t::TranslateMessage()=", rc, " to_WIDE.size=", to_WIDE.size(), " to_WIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(to_WIDE))), " key_type=", keytype);
+                //log("\t::TranslateMessage()=", rc, " to_WIDE.size=", to_WIDE.size(), " to_WIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(to_WIDE))), " key_type=", keytype);
             }
             //else os::logstd("\t::TranslateMessage()=", rc);
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
@@ -3486,13 +3508,13 @@ namespace netxs::gui
                     utf::to_utf(to_WIDE, toUTF8);
                     if (released) // Alt+Numpad released.
                     {
-                        sync_kbstat({}, pressed, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        sync_kbstat({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
                         keybd_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         //print_kbstate("key press:");
                         return;
                     }
                 }
-                sync_kbstat(toUTF8, pressed || repeat, virtcod, scancod, extflag);
+                sync_kbstat(toUTF8, pressed, repeat, virtcod, scancod, extflag);
             }
             //print_kbstate("key press:");
             if (pressed || repeat)
