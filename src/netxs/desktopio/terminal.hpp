@@ -170,7 +170,6 @@ namespace netxs::ui
             si32 def_none_f;
             si32 def_find_f;
 
-            si32 def_altscr;
             bool def_alt_on;
 
             text send_input;
@@ -211,7 +210,6 @@ namespace netxs::ui
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
-                def_altscr = std::max(1, config.take("scrollback/altscroll/step", si32{ 1 }));
                 def_alt_on =             config.take("scrollback/altscroll/enabled", true);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("layout/oversize/opacity", si32{ 0xC0 } ));
@@ -6623,7 +6621,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
-            altscr = config.def_alt_on ? config.def_altscr : 0;
+            altscr = config.def_alt_on;
             normal.brush.reset();
             ipccon.reset();
         }
@@ -6680,7 +6678,7 @@ namespace netxs::ui
                     mtrack.setmode(input::mouse::prot::sgr);
                     break;
                 case 1007: // Enable alternate scroll mode.
-                    altscr = config.def_altscr;
+                    altscr = config.def_alt_on;
                     break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(input::mouse::mode::negative_args);
@@ -7261,7 +7259,7 @@ namespace netxs::ui
         void selection_submit()
         {
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
@@ -7279,16 +7277,15 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
             LISTEN(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (altscr && target == &altbuf)
                 {
-                    auto deed = this->bell::template protos<tier::release>();
-                    switch (deed)
+                    if (gear.whlsi)
                     {
-                        case hids::events::mouse::scroll::up.id:   data_out(utf::repeat("\033[A"sv, altscr)); break;
-                        case hids::events::mouse::scroll::down.id: data_out(utf::repeat("\033[B"sv, altscr)); break;
+                        auto count = std::abs(gear.whlsi);
+                        data_out(utf::repeat(gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv, count));
                     }
                     gear.dismiss();
                 }
@@ -7607,7 +7604,7 @@ namespace netxs::ui
               forced{  faux },
               selmod{ config.def_selmod },
               onesht{ mime::disabled },
-              altscr{ config.def_altscr },
+              altscr{ config.def_alt_on },
               kbmode{ prot::vt }
         {
             set_fg_color(config.def_fcolor);
@@ -7921,7 +7918,7 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whldt, m.hzwhl);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                         gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
                 });

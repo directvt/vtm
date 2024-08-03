@@ -961,7 +961,7 @@ struct impl : consrv
                 }
             }
             mstate = bttns;
-            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheeldt * 120);
+            auto wheeldt = netxs::saturate_cast<si32>(gear.m_sys.wheelfp * WHEEL_DELTA);
             if (wheeldt)
             {
                 bttns |= wheeldt << 16;

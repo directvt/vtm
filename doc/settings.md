@@ -449,7 +449,7 @@ Notes
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
             <reset onkey="on" onoutput="off"/>  <!-- Scrollback viewport reset triggers. -->
-            <altscroll enabled="yes" step=1/>   <!-- Alternate scroll mode settings. -->
+            <altscroll="on"/>   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
             <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->

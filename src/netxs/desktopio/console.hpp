@@ -610,6 +610,7 @@ namespace netxs::ui
             X(ctrl_state   , "controls"         ) \
             X(k            , "k"                ) \
             X(mouse_pos    , "mouse coord"      ) \
+            X(mouse_wheelsi, "wheel steps"      ) \
             X(mouse_wheeldt, "wheel delta"      ) \
             X(mouse_hzwheel, "H wheel"          ) \
             X(mouse_vtwheel, "V wheel"          ) \
@@ -776,9 +777,10 @@ namespace netxs::ui
                                                     + std::to_string(netxs::_k2) + " "
                                                     + std::to_string(netxs::_k3);
                     }
-                    status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
+                    status[prop::mouse_wheeldt].set(stress) = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
+                    status[prop::mouse_wheelsi].set(stress) = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
                     status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = (m.wheeldt && !m.hzwheel) ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
@@ -1392,7 +1394,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -1431,7 +1433,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl);
                         gear.dismiss();
                     }
                 };
@@ -1514,7 +1516,6 @@ namespace netxs::ui
             auto& canal = *server;
 
             auto& g = skin::globals();
-            g.wheel_dt       = config.take("wheel_dt"              , 3     );
             g.brighter       = config.take("brighter"              , cell{ whitespace });//120);
             g.kb_focus       = config.take("kb_focus"              , cell{ whitespace });//60
             g.shadower       = config.take("shadower"              , cell{ whitespace });//180);//60);//40);// 20);

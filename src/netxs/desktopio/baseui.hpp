@@ -504,7 +504,6 @@ namespace netxs::ui
         si32 spd_max;
         si32 ccl_max;
         si32 switching;
-        si32 wheel_dt;
         span deceleration;
         span blink_period;
         span menu_timeout;

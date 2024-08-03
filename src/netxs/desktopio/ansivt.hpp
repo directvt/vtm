@@ -679,10 +679,9 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
-            else if (gear.m_sys.wheeldt)
+            else if (gear.m_sys.wheelsi)
             {
-                ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
-                                               : wheel_dn;
+                ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
                 pressed = true;
             }
             else if (gear.m_sys.buttons)
@@ -698,9 +697,13 @@ namespace netxs::ansi
                 ctrl |= idle + btup;
                 pressed = faux;
             }
-            return add("\033[<", ctrl, ';',
-                           coor.x + 1, ';',
-                           coor.y + 1, pressed ? 'M' : 'm');
+            coor += dot_11;
+            auto count = std::max(1, std::abs(gear.m_sys.wheelsi));
+            while (count--)
+            {
+                add("\033[<", ctrl, ';', coor.x, ';', coor.y, pressed ? 'M' : 'm');
+            }
+            return *this;
         }
         template<class T>
         auto& mouse_x11(T const& gear, twod coor, bool utf8) // escx: Mouse tracking report (X11).
@@ -731,8 +734,7 @@ namespace netxs::ansi
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m_sys.wheeldt) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
-                                                                        : wheel_dn;
+            else if (gear.m_sys.wheelsi) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
             else if (gear.m_sys.buttons)
             {
                      if (m_left) ctrl |= left;
@@ -742,20 +744,24 @@ namespace netxs::ansi
             }
             else ctrl |= idle + btup;
 
-            if (utf8)
+            coor += dot_11;
+            auto count = std::max(1, std::abs(gear.m_sys.wheelsi));
+            while (count--)
             {
-                add("\033[M");
-                utf::to_utf_from_code(std::clamp(ctrl,       0, si16max - 32) + 32, *this);
-                utf::to_utf_from_code(std::clamp(coor.x + 1, 1, si16max - 32) + 32, *this);
-                utf::to_utf_from_code(std::clamp(coor.y + 1, 1, si16max - 32) + 32, *this);
+                if (utf8)
+                {
+                    add("\033[M");
+                    utf::to_utf_from_code(std::clamp(ctrl,   0, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp(coor.x, 1, si16max - 32) + 32, *this);
+                    utf::to_utf_from_code(std::clamp(coor.y, 1, si16max - 32) + 32, *this);
+                }
+                else
+                {
+                    add("\033[M", (char)(std::clamp(ctrl,   0, 127-32) + 32),
+                                  (char)(std::clamp(coor.x, 1, 127-32) + 32),
+                                  (char)(std::clamp(coor.y, 1, 127-32) + 32));
+                }
             }
-            else
-            {
-                add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 127-32) + 32),
-                              static_cast<char>(std::clamp(coor.x + 1, 1, 127-32) + 32),
-                              static_cast<char>(std::clamp(coor.y + 1, 1, 127-32) + 32));
-            }
-
             return *this;
         }
         auto& w32keybd(si32 Vk, si32 Sc, si32 Uc, si32 Kd, si32 Cs, si32 Rc) // escx: win32-input-mode sequence (keyboard).

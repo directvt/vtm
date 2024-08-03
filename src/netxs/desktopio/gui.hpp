@@ -45,6 +45,7 @@ namespace netxs::gui
 
         bool isfine = true; // manager_base: All is ok.
         std::vector<rect> inputfield_list; // manager_base: Text input field list.
+        fp32 os_wheel_delta = 24.f; // manager_base: OS-wise mouse wheel setting.
 
         explicit operator bool () const { return isfine; }
     };
@@ -1750,6 +1751,7 @@ namespace netxs::gui
             : tsf{ *this }
         {
             set_dpi_awareness();
+            update_os_settings();
         }
         ~manager()
         {
@@ -1934,6 +1936,12 @@ namespace netxs::gui
             }
             else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
         }
+        void update_os_settings()
+        {
+            auto dt = ULONG{};
+            ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
+            os_wheel_delta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
+        }
         void run()
         {
             // Customize system ctx menu.
@@ -2046,6 +2054,7 @@ namespace netxs::gui
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
+                    case WM_SETTINGCHANGE: w->update_os_settings(); break;
                     case WM_DESTROY: //todo deactivate manager
                                      ::RemoveClipboardFormatListener(hWnd);
                                      ::PostQuitMessage(0);
@@ -2484,7 +2493,7 @@ namespace netxs::gui
                 auto& mouse = lock.thing;
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
-                gear.replay(mouse.cause, mouse.coord - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whldt, mouse.hzwhl);
+                gear.replay(mouse.cause, mouse.coord - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
                 gear.pass<tier::release>(owner.This(), gear.owner.base::coor(), true);
             }
             void handle(s11n::xs::warping          lock)
@@ -2604,7 +2613,8 @@ namespace netxs::gui
         bool blinking; // window: .
         evnt stream; // window: .
         text toUTF8;
-        fp32 wheel_accum = {}; // window: Mouse wheel accumulator.
+        fp32 wheel_accum = {}; // window: Local mouse wheel accumulator.
+        fp32 accumfp = {}; // window: Mouse wheel accumulator.
         utfx point = {}; // window: Surrogate pair buffer.
         si32 kbmod = {};
         flag isbusy = {}; // window: The window is awaiting update.
@@ -3140,18 +3150,18 @@ namespace netxs::gui
             }
             isbusy.exchange(faux);
         }
-        void zoom_by_wheel(fp32 wheeldt, bool enqueue)
+        void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
             if (stream.gears->meta(hids::anyCtrl))
             {
-                if (wheel_accum * wheeldt < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
-                wheel_accum += wheeldt;
+                if (wheel_accum * wheelfp < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
+                wheel_accum += wheelfp;
                 if (!isbusy.exchange(true))
                 {
-                    wheeldt = std::exchange(wheel_accum, 0.f);
-                    auto zoom = [&, wheeldt, center = mcoord - layers[client].area.coor]
+                    wheelfp = std::exchange(wheel_accum, 0.f);
+                    auto zoom = [&, wheelfp, center = mcoord - layers[client].area.coor]
                     {
-                        change_cell_size(faux, wheeldt, center);
+                        change_cell_size(faux, wheelfp, center);
                         sync_cellsz();
                         update_gui();
                     };
@@ -3163,19 +3173,27 @@ namespace netxs::gui
         void mouse_wheel(si32 delta, bool hz)
         {
             if (delta == 0) return;
-            auto wheeldt = delta / 120.f;
+            if (hz) delta = -delta;
+            auto wheelfp = delta / manager::os_wheel_delta; // Same code in system.hpp.
+            if (accumfp * wheelfp < 0) accumfp = {}; // Reset accum if direction has changed.
+            accumfp += wheelfp;
+            auto wheelsi = (si32)accumfp;
+            if (wheelsi) accumfp -= (fp32)wheelsi;
+
             if (inside)
             {
                 stream.m.changed++;
                 stream.m.timecod = datetime::now();
                 stream.m.ctlstat = stream.k.ctlstat;
                 stream.m.hzwheel = hz;
-                stream.m.wheeldt = wheeldt;
+                stream.m.wheelfp = wheelfp;
+                stream.m.wheelsi = wheelsi;
                 stream.mouse(stream.m);
                 stream.m.hzwheel = {};
-                stream.m.wheeldt = {};
+                stream.m.wheelfp = {};
+                stream.m.wheelsi = {};
             }
-            else zoom_by_wheel(wheeldt, true);
+            else zoom_by_wheel(wheelfp, true);
         }
         void send_mouse_halt()
         {
@@ -3647,55 +3665,15 @@ namespace netxs::gui
                 {
                     //todo
                 };
-                //auto accum_ptr = ptr::shared(dot_00);
                 LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
                     if (fsmode != state::normal) return;
-                    //*accum_ptr = {};
                     moving = true;
                     send_mouse_halt();
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
                     move_window(dxdy);
                     sync_titles_pixel_layout(); // Align grips and shadow.
                 };
-                //LISTEN(tier::release, hids::events::mouse::button::drag::pull::left, gear, -, (accum_ptr)) // Move window only when mouse events get back.
-                //{
-                //    return;
-                //    if (moving)
-                //    if (fsmode == state::normal)
-                //    //if (stream.m.buttons == bttn::left || stream.m.buttons == bttn::right) // Allow to move with one button pressed.
-                //    if (auto dxdy = twod{ std::round(gear.delta.get() * cellsz) }) // Return back to the pixels.
-                //    {
-                //        //todo revise
-                //        //auto& accum = *accum_ptr;
-                //        //accum += dxdy;
-                //        //log("accum=", accum);
-                //        //auto threshold = 2 * cellsz.y;
-                //        //if (std::abs(accum.x) > threshold || std::abs(accum.y) > threshold)
-                //        //{
-                //        //    log("\tgo");
-                //        //    dxdy = accum;
-                //        //    accum = {};
-                //        //}
-                //        //else return;
-                //        /// send_mouse_halt();
-                //        //todo revise
-                //        //if (fsmode == state::maximized)
-                //        //{
-                //        //    auto cur_cursor_coor = mcoord - layers[blinky].area.coor;
-                //        //    auto cur_blinky_size = normsz.size - gripsz * 2;
-                //        //    auto new_blinky_coor = mcoord - cur_cursor_coor.clampby(cur_blinky_size) + dxdy;
-                //        //    normsz.coor = new_blinky_coor - gripsz;
-                //        //    set_state(state::normal);
-                //        //}
-                //        //else
-                //        {
-                //            move_window(dxdy);
-                //        }
-                //        sync_titles_pixel_layout(); // Align grips and shadow.
-                //        /// moving = true;
-                //    }
-                //};
                 LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
                          if (fsmode == state::maximized) set_state(state::normal);
@@ -3703,7 +3681,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
-                    zoom_by_wheel(gear.whldt, faux);
+                    zoom_by_wheel(gear.whlfp, faux);
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
                 {

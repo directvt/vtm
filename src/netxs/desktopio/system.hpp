@@ -4189,7 +4189,7 @@ namespace netxs::os
                     {
                         if (state & mode::move
                         || (state & mode::drag && (gear.m_sys.buttons && moved))
-                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeldt)))
+                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheelsi)))
                         {
                             auto guard = std::lock_guard{ writemtx };
                                  if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
@@ -4745,6 +4745,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
+                auto accumfp = fp32{};
                 auto items = std::vector<INPUT_RECORD>{};
                 auto count = DWORD{};
                 auto point = utfx{};
@@ -4850,7 +4851,8 @@ namespace netxs::os
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
                                 m.hzwheel = faux;
-                                m.wheeldt = 0;
+                                m.wheelfp = 0;
+                                m.wheelsi = 0;
                                 m.timecod = timecode;
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
@@ -4931,14 +4933,29 @@ namespace netxs::os
                         {
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
-                            check(changed, m.buttons, static_cast<si32>(r.Event.MouseEvent.dwButtonState & 0b00011111));
+                            check(changed, m.buttons, (si32)(r.Event.MouseEvent.dwButtonState & 0b00011111));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16) / 120.f); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
-                            if (!((dtvt::vtmode & ui::console::nt16) && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
+                            auto wheeldt = (si16)((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
+                            if (wheeldt) // Same code in gui.hpp.
+                            {
+                                changed++;
+                                m.wheelfp = wheeldt / (fp32)WHEEL_DELTA; // Sync with consrv.hpp.
+                                if (accumfp * m.wheelfp < 0) accumfp = {}; // Reset accum if direction has changed.
+                                accumfp += m.wheelfp;
+                                m.wheelsi = (si32)accumfp;
+                                if (m.wheelsi) accumfp -= (fp32)m.wheelsi;
+                            }
+                            else
+                            {
+                                m.wheelfp = {};
+                                m.wheelsi = {};
+                                m.hzwheel = {};
+                            }
+                            if (!((dtvt::vtmode & ui::console::nt16) && wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                             }
-                            if (changed || m.wheeldt) // Don't fire the same state (conhost fires the same events every second).
+                            if (changed || wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
                                 m.timecod = timecode;
@@ -5416,7 +5433,8 @@ namespace netxs::os
 
                                 m.enabled = {};
                                 m.hzwheel = {};
-                                m.wheeldt = {};
+                                m.wheelfp = {};
+                                m.wheelsi = {};
                                 m.ctlstat = {};
                                 // 000 000 00
                                 //   | ||| ||
@@ -5442,10 +5460,12 @@ namespace netxs::os
                                     case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
                                     case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
                                     case 64:
-                                        m.wheeldt = 1;
+                                        m.wheelfp = 1;
+                                        m.wheelsi = 1;
                                         break;
                                     case 65:
-                                        m.wheeldt = -1;
+                                        m.wheelfp = -1;
+                                        m.wheelsi = -1;
                                         break;
                                 }
                                 m.changed++;
@@ -5511,7 +5531,8 @@ namespace netxs::os
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
                                 m.hzwheel = faux;
-                                m.wheeldt = 0;
+                                m.wheelfp = 0;
+                                m.wheelsi = 0;
                                 m.timecod = datetime::now();
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
@@ -5540,7 +5561,8 @@ namespace netxs::os
                             mcoord.y  -= data[2];
                             mcoord = std::clamp(mcoord, dot_00, limit - dot_11);
                             k.ctlstat = get_kb_state();
-                            m.wheeldt = size == 4 ? -data[3] : 0;
+                            m.wheelfp = size == 4 ? -data[3] : 0;
+                            m.wheelsi = m.wheelfp;
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;

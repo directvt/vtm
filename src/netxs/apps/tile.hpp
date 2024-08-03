@@ -340,15 +340,11 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, app::tile::events::ui::swap     , gear) { boss.swap();       };
                     boss.LISTEN(tier::release, app::tile::events::ui::rotate   , gear) { boss.rotate();     };
                     boss.LISTEN(tier::release, app::tile::events::ui::equalize , gear) { boss.config(1, 1); };
-                    boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+                    boss.LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
                     {
                         if (gear.meta(hids::anyCtrl))
                         {
-                            switch (boss.bell::template protos<tier::release>()) // Clang 13.0.0 complains.
-                            {
-                                case hids::events::mouse::scroll::up.id:   boss.move_slider(-4); break;
-                                case hids::events::mouse::scroll::down.id: boss.move_slider( 4); break;
-                            }
+                            boss.move_slider(gear.whlsi);
                             gear.dismiss();
                         }
                     };

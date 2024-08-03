@@ -824,7 +824,7 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons) (fp32, whldt) (bool, hzwhl))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons) (fp32, whlfp) (si32, whlsi) (bool, hzwhl))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (byte, payload) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
@@ -864,7 +864,8 @@ namespace netxs::directvt
                                         (si32, enabled)  // sysmouse: Mouse device health status.
                                         (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
-                                        (fp32, wheeldt)  // sysmouse: Scroll delta.
+                                        (fp32, wheelfp)  // sysmouse: Scroll delta in floating units.
+                                        (si32, wheelsi)  // sysmouse: Scroll delta in integer units.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.

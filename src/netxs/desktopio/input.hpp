@@ -129,8 +129,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( scroll )
                 {
-                    EVENT_XS( up  , input::hids ),
-                    EVENT_XS( down, input::hids ),
+                    EVENT_XS( act, input::hids ),
                 };
                 SUBSET_XS( button )
                 {
@@ -605,8 +604,7 @@ namespace netxs::input
         static constexpr auto sglclick = mouse_event::button::click::       any.group<numofbuttons>();
         static constexpr auto dblclick = mouse_event::button::dblclick::    any.group<numofbuttons>();
         static constexpr auto tplclick = mouse_event::button::tplclick::    any.group<numofbuttons>();
-        static constexpr auto scrollup = mouse_event::scroll::up.id;
-        static constexpr auto scrolldn = mouse_event::scroll::down.id;
+        static constexpr auto wheeling = mouse_event::scroll::act.id;
         static constexpr auto movement = mouse_event::move.id;
         static constexpr auto noactive = si32{ -1 };
 
@@ -617,7 +615,8 @@ namespace netxs::input
         bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
         bool nodbl{}; // mouse: Whether single click event processed (to prevent double clicks).
         bool hzwhl{}; // mouse: If true: Horizontal scrolling. If faux: Vertical scrolling.
-        fp32 whldt{}; // mouse: Scroll delta (1.f/120).
+        fp32 whlfp{}; // mouse: Scroll delta in float units (lines).
+        si32 whlsi{}; // mouse: Scroll delta in integer units (lines).
         si32 locks{}; // mouse: State of the captured buttons (bit field).
         si32 index{}; // mouse: Index of the active button. -1 if the buttons are not involed.
         id_t swift{}; // mouse: Delegate's ID of the current mouse owner.
@@ -702,7 +701,7 @@ namespace netxs::input
             //                                        in case when two buttons are pressed.
             m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
                                                              || (m_buttons[left] && m_buttons[right]);
-            m.buttons = static_cast<si32>(m_buttons.to_ulong());
+            m.buttons = (si32)m_buttons.to_ulong();
             auto modschanged = m_sys.ctlstat != m.ctlstat;
             m_sys.set(m);
             auto busy = captured();
@@ -849,13 +848,15 @@ namespace netxs::input
             }
 
             coord = m_sys.coordxy;
-            if (m_sys.wheeldt)
+            if (m_sys.wheelfp)
             {
                 hzwhl = m_sys.hzwheel;
-                whldt = m_sys.wheeldt;
-                fire(m_sys.wheeldt > 0 ? scrollup : scrolldn);
+                whlfp = m_sys.wheelfp;
+                whlsi = m_sys.wheelsi;
+                fire(wheeling);
                 m_sys.hzwheel = {}; // Clear one-shot events.
-                m_sys.wheeldt = {};
+                m_sys.wheelfp = {};
+                m_sys.wheelsi = {};
             }
         }
         // mouse: Return the number of clicks for the specified button.
@@ -1363,8 +1364,7 @@ namespace netxs::input
                     }
                 }
             }
-            else if (deed == hids::events::mouse::scroll::up.id
-                  || deed == hids::events::mouse::scroll::down.id) // Drop tooltip away.
+            else if (deed == hids::events::mouse::scroll::act.id) // Drop tooltip away.
             {
                 tooltip_stop = true;
             }
@@ -1404,14 +1404,15 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whldt, bool new_hzwhl)
+        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
             ctlstate = new_ctlstate;
             mouse::coord = new_coord;
-            mouse::whldt = new_whldt;
+            mouse::whlfp = new_whlfp;
+            mouse::whlsi = new_whlsi;
             mouse::hzwhl = new_hzwhl;
             mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(new_delta);
@@ -1440,16 +1441,16 @@ namespace netxs::input
         void take(sysmouse& m)
         {
             #if defined(DEBUG)
-            if (m.wheeldt)
+            if (m.wheelsi)
             {
                 auto s = m.ctlstat;
                 auto alt     = s & hids::anyAlt ? 1 : 0;
                 auto l_ctrl  = s & hids::LCtrl  ? 1 : 0;
                 auto r_ctrl  = s & hids::RCtrl  ? 1 : 0;
-                     if (l_ctrl && alt) netxs::_k2 += m.wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
-                else if (l_ctrl)        netxs::_k0 += m.wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
-                else if (alt)           netxs::_k1 += m.wheeldt > 0 ? 1 : -1; // Alt+Wheel.
-                else if (r_ctrl)        netxs::_k3 += m.wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
+                     if (l_ctrl && alt) netxs::_k2 += m.wheelsi > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
+                else if (l_ctrl)        netxs::_k0 += m.wheelsi > 0 ? 1 : -1; // LCtrl+Wheel.
+                else if (alt)           netxs::_k1 += m.wheelsi > 0 ? 1 : -1; // Alt+Wheel.
+                else if (r_ctrl)        netxs::_k3 += m.wheelsi > 0 ? 1 : -1; // RCtrl+Wheel.
             }
             #endif
             disabled = faux;
@@ -1620,7 +1621,8 @@ namespace netxs::input
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
-                        m_sys.wheeldt = {};
+                        m_sys.wheelfp = {};
+                        m_sys.wheelsi = {};
                         m_sys.hzwheel = {};
                     }
                 }
