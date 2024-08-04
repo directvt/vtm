@@ -1679,11 +1679,22 @@ namespace netxs::gui
                         if (field_list.empty()) return GetScreenExt(prc);
                         else
                         {
-                            r = field_list.front();
-                            for (auto f : field_list)
+                            auto head = field_list.begin();
+                            auto tail = field_list.end();
+                            while (head != tail && !head->trim(client.area)) ++head; // Drop all fields that outside client.
+                            if (head != tail)
                             {
-                                log(" field: ", f);
-                                r.unitewith(f);
+                                r = field_list.front();
+                                log(" field: ", r);
+                                while (head != tail)
+                                {
+                                    auto f = *head++;
+                                    if (f.trim(client.area))
+                                    {
+                                        log(" field: ", f);
+                                        r.unitewith(f);
+                                    }
+                                }
                             }
                         }
                     }

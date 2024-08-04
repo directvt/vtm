@@ -396,10 +396,10 @@ namespace netxs::ui
         {
             using prot = input::focus::prot;
 
-            term&       owner; // f_tracking: Terminal object reference.
-            hook        token; // f_tracking: Subscription token.
-            prot        encod; // f_tracking: Focus encoding mode.
-            testy<bool> state; // f_tracking: Current focus state.
+            term& owner; // f_tracking: Terminal object reference.
+            hook  token; // f_tracking: Subscription token.
+            prot  encod; // f_tracking: Focus encoding mode.
+            bool  state; // f_tracking: Current focus state.
 
             f_tracking(term& owner)
                 : owner{ owner },
@@ -408,15 +408,16 @@ namespace netxs::ui
                 owner.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, token)
                 {
                     auto focused = !!count;
-                    if (state(focused))
+                    if (std::exchange(state, focused) != state)
                     {
                         owner.ipccon.focus(focused, encod);
+                        if (!focused) owner.target->drop_ime_composition();
                     }
                 };
-                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
+                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state);
             }
 
-            operator bool () { return state.last; }
+            operator bool () { return state; }
             void set(bool enable)
             {
                 encod = enable ? prot::dec : prot::w32;
@@ -1130,6 +1131,7 @@ namespace netxs::ui
                 return boxed;
             }
 
+            virtual void drop_ime_composition()                                         = 0;
             virtual void show_ime_composition()                                         = 0;
             virtual void hide_ime_composition()                                         = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
@@ -2420,6 +2422,13 @@ namespace netxs::ui
             void hide_ime_composition()
             {
                 //todo
+            }
+            // alt_screen: Drop IME composition preview.
+            void drop_ime_composition()
+            {
+                if (owner.imebox.length()) hide_ime_composition();
+                owner.imetxt = {};
+                owner.imebox.wipe();
             }
 
             // alt_screen: Start text selection.
@@ -5024,6 +5033,13 @@ namespace netxs::ui
                     auto& mapln = index[coord.y];
                     mapln.width = curln.length();
                 }
+            }
+            // scroll_buf: Drop IME composition preview.
+            void drop_ime_composition()
+            {
+                if (owner.imebox.length()) hide_ime_composition();
+                owner.imetxt = {};
+                owner.imebox.wipe();
             }
 
             // scroll_buf: Calc grip position by coor.
