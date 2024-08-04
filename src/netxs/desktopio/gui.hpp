@@ -1452,6 +1452,7 @@ namespace netxs::gui
             tsf_link(manager& owner)
                 : owner{ owner }
             { }
+            #define log(...)
 
             // IUnknown
             ULONG refs = 1;
@@ -1572,7 +1573,10 @@ namespace netxs::gui
                         auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
                                && SUCCEEDED(range->ShiftEnd(ec, fixed, &width, nullptr))
                                && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
-                        if constexpr (debugmode) if (!ok) log(ansi::err("range->SetText failed"));
+                        if (!ok)
+                        {
+                            log(ansi::err("range->SetText failed"));
+                        }
                     }
                 }
                 auto whole = wiew{ utf16 };
@@ -1602,8 +1606,8 @@ namespace netxs::gui
                     if (caret == index) anons.scp(); // Inline caret.
                 }
                 auto yield = utf::to_utf(rigid);
-                //log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
-                //  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
+                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
+                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
                 if (yield.size()) owner.keybd_input(yield, input::keybd::type::imeinput);
                 owner.keybd_input(anons, input::keybd::type::imeanons);
                 return S_OK;
@@ -1617,7 +1621,7 @@ namespace netxs::gui
             // ITfTextEditSink
             STDMETHODIMP OnEndEdit(ITfContext* /*pic*/, TfEditCookie /*ecReadOnly*/, ITfEditRecord* /*pEditRecord*/)
             {
-                //log("call: OnEndEdit");
+                log("call: OnEndEdit");
                 auto hrSession = HRESULT{};
                 if (!SUCCEEDED(tsf_context->RequestEditSession(tsf_registration_id, this, TF_ES_READWRITE | TF_ES_ASYNC, &hrSession))) // Enqueue an implicit call to DoEditSession(ec).
                 {
@@ -1631,6 +1635,8 @@ namespace netxs::gui
             }
 
             // ITfContextOwner
+            STDMETHODIMP GetAttribute(REFGUID /*rguidAttribute*/, VARIANT* /*pvarValue*/) { return E_NOTIMPL; }
+            STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
             STDMETHODIMP GetWnd(HWND* phwnd)
             {
                 *phwnd = owner.layers.front().hWnd;
@@ -1638,22 +1644,11 @@ namespace netxs::gui
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
             {
-                //log("call: GetStatus -> ", pdcs);
+                log("call: GetStatus -> ", pdcs);
                 if (!pdcs) return E_POINTER;
                 pdcs->dwDynamicFlags = TS_SD_UIINTEGRATIONENABLE; // To indicate owr support of IME UI integration.
                 pdcs->dwStaticFlags = TS_SS_TRANSITORY; // It is expected to have a short usage cycle.
                 return S_OK;
-            }
-            STDMETHODIMP GetAttribute(REFGUID rguidAttribute, VARIANT* pvarValue)
-            {
-                //log("call: GetAttribute");
-                return E_NOTIMPL;
-            }
-            STDMETHODIMP GetACPFromPoint(POINT const* ptScreen, DWORD dwFlags, LONG* pacp)
-            {
-                auto p = ptScreen ? twod{ ptScreen->x, ptScreen->y } : dot_00;
-                //log("call: GetACPFromPoint -> ptScreen=", p, " dwFlags=", dwFlags);
-                return E_NOTIMPL;
             }
             STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
             {
@@ -1664,7 +1659,7 @@ namespace netxs::gui
                     //static auto random = true;
                     //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    //log("call: GetScreenExt -> ", r);
+                    log("call: GetScreenExt -> ", r);
                 }
                 return S_OK;
             }
@@ -1693,14 +1688,12 @@ namespace netxs::gui
                         }
                     }
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    //log(" ", r);
                 }
                 return S_OK;
             }
 
             void set_focus()
             {
-                //log("call: set_focus");
                 if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager.Get());
             }
             void start()
@@ -1729,7 +1722,10 @@ namespace netxs::gui
                                "\n    dwCookieTextEditSink=", dwCookieTextEditSink,
                                "\n    dwCookieContextOwner=", dwCookieContextOwner);
                 }
-                else log("TSF activation failed.");
+                else
+                {
+                    log("TSF activation failed.");
+                }
             }
             void stop()
             {
@@ -1740,6 +1736,7 @@ namespace netxs::gui
                 if (tsf_thread_manager)                        tsf_thread_manager->Deactivate();
                 ::CoUninitialize();
             }
+            #undef log
         };
 
         wins layers; // manager: ARGB layers.
@@ -2047,7 +2044,7 @@ namespace netxs::gui
                         //auto hkl = ::GetKeyboardLayout(0);
                         auto kblayout = wide(KL_NAMELENGTH, '\0');
                         ::GetKeyboardLayoutNameW(kblayout.data());
-                        log("%%Keyboard layout has changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+                        log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
                         break;
                     }
                     case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
@@ -2624,6 +2621,7 @@ namespace netxs::gui
         bool blinking; // window: .
         evnt stream; // window: .
         text toUTF8;
+        wide toWIDE;
         fp32 wheel_accum = {}; // window: Local mouse wheel accumulator.
         fp32 accumfp = {}; // window: Mouse wheel accumulator.
         utfx point = {}; // window: Surrogate pair buffer.
@@ -3481,22 +3479,27 @@ namespace netxs::gui
             auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto keytype = 0;
-            auto to_WIDE = wide{};
             //os::logstd("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0");
+            //todo process Alt+Numpads on our side:
             //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
-            //todo process Alt+Numpads on our side.
             if (auto rc = ::TranslateMessage(&msg)) // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
             {                                       // ::ToUnicodeEx() doesn't update IME.
-                auto m = MSG{};
+                auto m = MSG{};                     // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages.
                 auto msgtype = altkey ? WM_SYSCHAR : WM_CHAR;
-                while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
-                if (to_WIDE.size()) keytype = 1;
+                while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+                if (toWIDE.size()) keytype = 1;
                 else
                 {
-                    while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) to_WIDE.push_back((wchr)m.wParam);
-                    if (to_WIDE.size()) keytype = 2;
+                    while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+                    if (toWIDE.size()) keytype = 2;
                 }
-                //log("\t::TranslateMessage()=", rc, " to_WIDE.size=", to_WIDE.size(), " to_WIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(to_WIDE))), " key_type=", keytype);
+                //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
+                //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+                if (virtcod == VK_PACKET && toWIDE.size())
+                {
+                    auto c = toWIDE.back();
+                    if (c >= 0xd800 && c <= 0xdbff) return; // Incomplete surrogate pair in VT_PACKET stream.
+                }
             }
             //else os::logstd("\t::TranslateMessage()=", rc);
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
@@ -3505,8 +3508,8 @@ namespace netxs::gui
                 toUTF8.clear();
                 if (keytype == 1)
                 {
-                    utf::to_utf(to_WIDE, toUTF8);
-                    if (released) // Alt+Numpad released.
+                    utf::to_utf(toWIDE, toUTF8);
+                    if (released) // Only Alt+Numpad fires on release.
                     {
                         sync_kbstat({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
                         keybd_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
@@ -3516,6 +3519,7 @@ namespace netxs::gui
                 }
                 sync_kbstat(toUTF8, pressed, repeat, virtcod, scancod, extflag);
             }
+            toWIDE.clear();
             //print_kbstate("key press:");
             if (pressed || repeat)
             {

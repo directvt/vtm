@@ -266,12 +266,12 @@ namespace netxs::os
                             NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll, "NtOpenFile"));
                             RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll, "RtlGetVersion"));
                             CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll, "CsrClientCallServer"));
+                            //TranslateMessageEx  = reinterpret_cast<TranslateMessageEx_ptr>(::GetProcAddress(user32_dll, "TranslateMessageEx"));
+                            //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             if (!NtOpenFile)          os::fail("::GetProcAddress(NtOpenFile)");
                             if (!RtlGetVersion)       os::fail("::GetProcAddress(RtlGetVersion)");
                             if (!CsrClientCallServer) os::fail("::GetProcAddress(CsrClientCallServer)");
-                            //TranslateMessageEx  = reinterpret_cast<TranslateMessageEx_ptr>(::GetProcAddress(user32_dll, "TranslateMessageEx"));
                             //if (!TranslateMessageEx) os::fail("::GetProcAddress(TranslateMessageEx)");
-                            //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             //if (!ConsoleControl) os::fail("::GetProcAddress(ConsoleControl)");
                         }
                     }
