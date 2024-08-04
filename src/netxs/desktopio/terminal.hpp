@@ -411,7 +411,7 @@ namespace netxs::ui
                     if (std::exchange(state, focused) != state)
                     {
                         owner.ipccon.focus(focused, encod);
-                        if (!focused && owner.ime_on) owner.target->hide_ime_composition();
+                        if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state);
@@ -1131,8 +1131,7 @@ namespace netxs::ui
                 return boxed;
             }
 
-            virtual void show_ime_composition()                                         = 0;
-            virtual void hide_ime_composition()                                         = 0;
+            virtual cell cell_under_cursor()                                            = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -2412,17 +2411,12 @@ namespace netxs::ui
                 dest.clip(clip);
                 dest.plot(canvas, cell::shaders::full);
             }
-            // alt_screen: Show IME composition preview.
-            void show_ime_composition()
+            // alt_screen: Return cell state under cursor.
+            auto cell_under_cursor()
             {
-                owner.ime_on = true;
-                //todo
-            }
-            // alt_screen: Hide IME composition preview.
-            void hide_ime_composition()
-            {
-                owner.ime_on = faux;
-                //todo
+                auto coor = std::clamp(coord, dot_00, panel - dot_11);
+                auto c = canvas[coor];
+                return c;
             }
 
             // alt_screen: Start text selection.
@@ -2878,7 +2872,6 @@ namespace netxs::ui
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
             part place; // scroll_buf: Selection last active region.
             si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
-            line spare; // scroll_buf: Current line backup.
 
             static constexpr auto approx_threshold = si32{ 10000 }; //todo make it configurable
 
@@ -4975,62 +4968,12 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
-            // scroll_buf: Show IME composition preview.
-            void show_ime_composition()
+            // scroll_buf: Return cell state under cursor.
+            auto cell_under_cursor()
             {
-                owner.ime_on = true;
                 auto& curln = batch.current();
-                spare = curln;
-                //curln.insert(batch.caret, owner.imebox.content());
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
-                curln.splice(batch.caret, owner.imebox.content(), cell::shaders::mimic(c));
-                coord.x += owner.imebox.caret;
-                std::swap(owner.imebox.caret, batch.caret);
-                batch.caret += owner.imebox.caret;
-                batch.recalc(curln);
-                if (curln.wrapped() && coord.x >= panel.x)
-                {
-                    wrapdn();
-                    if (coord.y > y_end)
-                    {
-                        batch.basis += coord.y - y_end;
-                        coord.y = y_end;
-                    }
-                }
-                auto length = curln.length();
-                if (curln.wrapped() && length > panel.x) index_rebuild();
-                else
-                {
-                    auto& mapln = index[coord.y];
-                    mapln.width = length;
-                }
-            }
-            // scroll_buf: Hide IME composition preview.
-            void hide_ime_composition()
-            {
-                owner.ime_on = faux;
-                auto& curln = batch.current();
-                auto length = curln.length();
-                spare.swap(curln);
-                batch.caret -= owner.imebox.caret;
-                std::swap(owner.imebox.caret, batch.caret);
-                coord.x -= owner.imebox.caret;
-                batch.recalc(curln);
-                if (curln.wrapped() && coord.x < 0)
-                {
-                    wrapup();
-                    if (coord.y < y_top)
-                    {
-                        batch.basis -= y_top - coord.y;
-                        coord.y = y_top;
-                    }
-                }
-                if (curln.wrapped() && length > panel.x) index_rebuild();
-                else
-                {
-                    auto& mapln = index[coord.y];
-                    mapln.width = curln.length();
-                }
+                return c;
             }
 
             // scroll_buf: Calc grip position by coor.
@@ -6891,23 +6834,19 @@ namespace netxs::ui
         {
             bell::trysync(true, [&]
             {
-                auto active_ime = ime_on;
-                if (active_ime) target->hide_ime_composition();
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
                 {
-                    unsync |= proc() || active_ime;
-                    if (active_ime) target->show_ime_composition();
+                    unsync |= proc();
                 }
                 else
                 {
                     auto last_basis = target->get_basis();
                     auto last_slide = target->get_slide();
                     auto is_changed = proc();
-                    unsync |= is_changed || active_ime;
+                    unsync |= is_changed;
                     if (unsync)
                     {
-                        if (active_ime) target->show_ime_composition();
                         auto next_basis = target->get_basis();
                         follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
                                        || (next_basis <= last_slide && last_slide <= last_basis);
@@ -7714,12 +7653,13 @@ namespace netxs::ui
                     case keybd::type::imeanons:
                         if (imetxt != gear.cluster)
                         {
-                            if (ime_on) target->hide_ime_composition();
                             imetxt = gear.cluster;
                             imebox.wipe();
                             ansi::parse(gear.cluster, &imebox);
-                            if (imebox.length())
+                            ime_on = imebox.length();
+                            if (ime_on)
                             {
+                                imebox.style.wrp(wrap::on);
                                 //if (imebox.locus.size())
                                 auto iter = std::find_if(imebox.locus.begin(), imebox.locus.end(), [](auto cmd){ return cmd.cmd == ansi::fn::sc; });
                                 if (iter != imebox.locus.end())
@@ -7728,15 +7668,11 @@ namespace netxs::ui
                                     auto [cmd, arg] = *iter;
                                     if (cmd == ansi::fn::sc) imebox.caret = arg;
                                 }
-                                target->show_ime_composition();
                             }
-                            if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(imetxt));
+                            if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(ansi::s11n(imebox.content(), rect{.size = imebox.size()})));
                             unsync = true;
                         }
-                        else if (!ime_on && imetxt.size())
-                        {
-                            target->show_ime_composition();
-                        }
+                        else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
                         break;
                     case keybd::type::kblayout:
                         break;
@@ -7753,10 +7689,30 @@ namespace netxs::ui
                 auto clip = parent_canvas.clip();
                 auto full = parent_canvas.full();
                 auto base = full.coor - clip.coor;
-                cursor.coor(console.get_coord(base));
-                if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
-
-                console.output(parent_canvas);
+                auto coor = console.get_coord(base);
+                if (ime_on) // Draw IME composition overlay.
+                {
+                    auto panel = console.panel;
+                    auto brush = base::color();
+                    auto start = coor;
+                    coor.x += imebox.caret;
+                    if (coor.x >= panel.x)
+                    {
+                        coor.y += coor.x / panel.x;
+                        coor.x = coor.x % panel.x;
+                    }
+                    cursor.coor(coor);
+                    console.output(parent_canvas);
+                    brush.fuse(console.cell_under_cursor());
+                    parent_canvas.output<faux>(imebox, start, cell::shaders::mimic(brush));
+                    if (base::color().bga() != 0xFF && imebox.caret == imebox.length()) parent_canvas.fill(rect{ coor, dot_11 }, [&](cell& c){ c.fgc(brush.fgc()); });
+                }
+                else
+                {
+                    cursor.coor(coor);
+                    if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
+                    console.output(parent_canvas);
+                }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).

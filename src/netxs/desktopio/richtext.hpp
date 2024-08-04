@@ -1472,7 +1472,7 @@ namespace netxs::ui
         // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
         void task(ansi::rule const& cmd)
         {
-            if (cmd.cmd == ansi::fn::sc) // Save caret position as command.
+            if (cmd.cmd == ansi::fn::sc) // Save caret position as a command argument.
             {
                 parser::flush();
                 locus.push({ ansi::fn::sc, caret });
@@ -2561,12 +2561,12 @@ namespace netxs::ui
             flow::compose<true>(block, proxy);
         }
         // face: Print something else at the specified coor.
-        template<class T, class P = noop>
+        template<bool Split = true, class T, class P = noop>
         void output(T const& block, twod coord, P printfx = {})
         {
             flow::sync(block);
             flow::ac(coord);
-            flow::go(block, *this, printfx);
+            flow::go<Split>(block, *this, printfx);
         }
         // face: Print something else.
         template<bool UseFWD = faux, bool Split = faux, class T, class P = noop>
