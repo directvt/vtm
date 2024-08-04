@@ -4981,7 +4981,9 @@ namespace netxs::ui
                 owner.ime_on = true;
                 auto& curln = batch.current();
                 spare = curln;
-                curln.insert(batch.caret, owner.imebox.content());
+                //curln.insert(batch.caret, owner.imebox.content());
+                auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
+                curln.splice(batch.caret, owner.imebox.content(), cell::shaders::mimic(c));
                 coord.x += owner.imebox.caret;
                 std::swap(owner.imebox.caret, batch.caret);
                 batch.caret += owner.imebox.caret;

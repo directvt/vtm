@@ -2197,6 +2197,27 @@ namespace netxs
                     operator()(dst);
                 }
             };
+            struct mimic_t
+            {
+                clrs color;
+                body style;
+                constexpr mimic_t(cell const& brush)
+                    : color{ brush.uv },
+                      style{ brush.st }
+                { }
+                template<class D>
+                inline void operator () (D& dst) const
+                {
+                    dst.uv = color;
+                    dst.st.meta(style);
+                }
+                template<class D, class S>
+                inline void operator () (D& dst, S& src) const
+                {
+                    operator()(dst);
+                    dst.fuse(src);
+                }
+            };
             struct onlyid_t
             {
                 id_t id;
@@ -2216,8 +2237,8 @@ namespace netxs
             };
 
         public:
-            template<class T>
-            static constexpr auto       color(T    brush) { return       color_t{ brush }; }
+            static constexpr auto       color(auto brush) { return       color_t{ brush }; }
+            static constexpr auto       mimic(auto brush) { return       mimic_t{ brush }; }
             static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
             static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
