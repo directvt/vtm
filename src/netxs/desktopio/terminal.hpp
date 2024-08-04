@@ -1699,7 +1699,7 @@ namespace netxs::ui
                 auto tmp = parser::brush;
                 parser::brush.txt(sym);
                 auto [w, h, x, y] = parser::brush.whxy();
-                if (w != 1)
+                if (w > 1)
                 {
                     area.size.x /= w;
                 }

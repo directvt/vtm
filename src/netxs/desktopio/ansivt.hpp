@@ -466,7 +466,7 @@ namespace netxs::ansi
                 if (cw < 2) // Narrow character
                 {
                     auto [w, h, x, y] = state.whxy();
-                    if (x == 1) badfx(); // Left part alone
+                    if (w != 1 && x == 1) badfx(); // Left part alone
                     c.scan<svga::vtrgb, UseSGR>(state, block);
                 }
                 else
@@ -474,7 +474,7 @@ namespace netxs::ansi
                     if (cw == 2 && cx == 1) // Left part
                     {
                         auto [w, h, x, y] = state.whxy();
-                        if (x == 1) badfx(); // Left part alone
+                        if (w != 1 && x == 1) badfx(); // Left part alone
                         c.scan_attr<svga::vtrgb, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
@@ -507,7 +507,7 @@ namespace netxs::ansi
             auto eolfx = [&]
             {
                 auto [w, h, x, y] = state.whxy();
-                if (x == 1) side_badfx();  // Left part alone at the right side
+                if (w != 1 && x == 1) side_badfx();  // Left part alone at the right side
                 state.set_gc();
                 basevt::eol();
             };
