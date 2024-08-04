@@ -411,7 +411,7 @@ namespace netxs::ui
                     if (std::exchange(state, focused) != state)
                     {
                         owner.ipccon.focus(focused, encod);
-                        if (!focused) owner.target->drop_ime_composition();
+                        if (!focused && owner.ime_on) owner.target->hide_ime_composition();
                     }
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state);
@@ -1131,7 +1131,6 @@ namespace netxs::ui
                 return boxed;
             }
 
-            virtual void drop_ime_composition()                                         = 0;
             virtual void show_ime_composition()                                         = 0;
             virtual void hide_ime_composition()                                         = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
@@ -2416,19 +2415,14 @@ namespace netxs::ui
             // alt_screen: Show IME composition preview.
             void show_ime_composition()
             {
+                owner.ime_on = true;
                 //todo
             }
             // alt_screen: Hide IME composition preview.
             void hide_ime_composition()
             {
+                owner.ime_on = faux;
                 //todo
-            }
-            // alt_screen: Drop IME composition preview.
-            void drop_ime_composition()
-            {
-                if (owner.imebox.length()) hide_ime_composition();
-                owner.imetxt = {};
-                owner.imebox.wipe();
             }
 
             // alt_screen: Start text selection.
@@ -4984,6 +4978,7 @@ namespace netxs::ui
             // scroll_buf: Show IME composition preview.
             void show_ime_composition()
             {
+                owner.ime_on = true;
                 auto& curln = batch.current();
                 spare = curln;
                 curln.insert(batch.caret, owner.imebox.content());
@@ -5011,6 +5006,7 @@ namespace netxs::ui
             // scroll_buf: Hide IME composition preview.
             void hide_ime_composition()
             {
+                owner.ime_on = faux;
                 auto& curln = batch.current();
                 auto length = curln.length();
                 spare.swap(curln);
@@ -5033,13 +5029,6 @@ namespace netxs::ui
                     auto& mapln = index[coord.y];
                     mapln.width = curln.length();
                 }
-            }
-            // scroll_buf: Drop IME composition preview.
-            void drop_ime_composition()
-            {
-                if (owner.imebox.length()) hide_ime_composition();
-                owner.imetxt = {};
-                owner.imebox.wipe();
             }
 
             // scroll_buf: Calc grip position by coor.
@@ -6495,6 +6484,7 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
+        bool       ime_on; // term: IME composition is active.
         para       imebox; // term: IME composition preview render.
         text       imetxt; // term: IME composition preview source.
         eccc       appcfg; // term: Application startup config.
@@ -6899,7 +6889,7 @@ namespace netxs::ui
         {
             bell::trysync(true, [&]
             {
-                auto active_ime = !!imebox.length();
+                auto active_ime = ime_on;
                 if (active_ime) target->hide_ime_composition();
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
@@ -7618,6 +7608,7 @@ namespace netxs::ui
               selalt{ config.def_selalt },
               resume{  faux },
               forced{  faux },
+              ime_on{  faux },
               selmod{ config.def_selmod },
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
@@ -7721,7 +7712,7 @@ namespace netxs::ui
                     case keybd::type::imeanons:
                         if (imetxt != gear.cluster)
                         {
-                            if (imebox.length()) target->hide_ime_composition();
+                            if (ime_on) target->hide_ime_composition();
                             imetxt = gear.cluster;
                             imebox.wipe();
                             ansi::parse(gear.cluster, &imebox);
@@ -7739,6 +7730,10 @@ namespace netxs::ui
                             }
                             if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(imetxt));
                             unsync = true;
+                        }
+                        else if (!ime_on && imetxt.size())
+                        {
+                            target->show_ime_composition();
                         }
                         break;
                     case keybd::type::kblayout:

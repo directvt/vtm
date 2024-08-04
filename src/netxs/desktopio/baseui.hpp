@@ -1034,13 +1034,18 @@ namespace netxs::ui
         base&                                      owner; // input_fields_handler: .
         std::list<std::promise<std::vector<rect>>> tasks; // input_fields_handler: .
 
+        void send_input_fields_request(auto& boss, auto& inputfield_request) // Send request without ui sync.
+        {
+            inputfield_request.promise(tasks);
+            boss.stream.s11n::req_input_fields.send(boss, inputfield_request);
+        }
+
         input_fields_handler(auto& boss)
             : owner{ boss }
         {
             boss.LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
             {
-                inputfield_request.promise(tasks);
-                boss.stream.s11n::req_input_fields.send(boss, inputfield_request);
+                send_input_fields_request(boss, inputfield_request);
             };
         }
         void handle(s11n::xs::ack_input_fields lock)

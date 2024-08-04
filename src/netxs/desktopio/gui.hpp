@@ -1449,7 +1449,7 @@ namespace netxs::gui
             DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
             DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
 
-            tsf_link(manager& owner)
+            tsf_link(manager& owner) // start() should be run under UI lock to be able to query input fields.
                 : owner{ owner }
             { }
             #define log(...)
@@ -3677,8 +3677,10 @@ namespace netxs::gui
         void update_input_field_list(si32 acpStart, si32 acpEnd)
         {
             inputfield_list.clear();
-            SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request,
-                ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+            auto inputfield_request = ui::e2::command::request::inputfields.param({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd });
+            stream.send_input_fields_request(*this, inputfield_request);
+            // We can't sync with the ui here. This causes a deadlock.
+            //SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
             inputfield_list = inputfield_request.wait_for();
             auto win_area = layers[blinky].area;
             if (inputfield_list.empty()) inputfield_list.push_back(win_area);
