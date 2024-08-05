@@ -8,6 +8,7 @@
 #include "xml.hpp"
 
 #include <typeindex>
+#include <future>
 
 namespace netxs::input
 {
@@ -18,7 +19,6 @@ namespace netxs::input
     using sysfocus = directvt::binary::sysfocus_t;
     using syswinsz = directvt::binary::syswinsz_t;
     using sysclose = directvt::binary::sysclose_t;
-    using syspaste = directvt::binary::syspaste_t;
     using sysboard = directvt::binary::sysboard_t;
     using clipdata = directvt::binary::clipdata_t;
     using auth = netxs::events::auth;
@@ -26,6 +26,7 @@ namespace netxs::input
 namespace netxs::ui
 {
     struct base;
+    struct input_fields_t;
 
     using namespace netxs::input;
     using sptr = netxs::sptr<base>;
@@ -125,7 +126,6 @@ namespace netxs::events::userland
                 EVENT_XS( keybd   , input::syskeybd ), // release: keybd activity.
                 EVENT_XS( focus   , input::sysfocus ), // release: focus activity.
                 EVENT_XS( board   , input::sysboard ), // release: Clipboard preview.
-                EVENT_XS( paste   , input::syspaste ), // release: clipboard activity.
                 EVENT_XS( error   , const si32      ), // release: return error code.
                 EVENT_XS( winsz   , const twod      ), // release: order to update terminal primary overlay.
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
@@ -148,6 +148,12 @@ namespace netxs::events::userland
                 EVENT_XS( cout       , const text  ), // Append extra data to output.
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
+                GROUP_XS( request    , input::hids ), // general: Request input field list.
+
+                SUBSET_XS( request )
+                {
+                    EVENT_XS( inputfields, ui::input_fields_t ), // general: Request input field list.
+                };
             };
             SUBSET_XS( form )
             {
@@ -498,7 +504,6 @@ namespace netxs::ui
         si32 spd_max;
         si32 ccl_max;
         si32 switching;
-        si32 wheel_dt;
         span deceleration;
         span blink_period;
         span menu_timeout;
@@ -987,6 +992,73 @@ namespace netxs::ui
                      if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
                 else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(bell::id));
             };
+        }
+    };
+
+    struct input_fields_t
+    {
+        std::list<std::future<std::vector<rect>>> futures;
+        std::vector<rect> fields;
+        id_t gear_id = {};
+        si32 acpStart = {};
+        si32 acpEnd = {};
+
+        void promise(auto& tasks)
+        {
+            auto& new_promise = tasks.emplace_back();
+            futures.emplace_back(new_promise.get_future());
+        }
+        void set_value(rect r)
+        {
+            fields.push_back(r);
+        }
+        void set_value(auto&& rects)
+        {
+            fields.insert(fields.end(), rects.begin(), rects.end());
+        }
+        auto wait_for(span t = 400ms)
+        {
+            auto timeout = datetime::now() + t;
+            for (auto& f : futures)
+            {
+                if (std::future_status::ready == f.wait_until(timeout))
+                {
+                    set_value(f.get());
+                }
+            }
+            return std::move(fields);
+        }
+    };
+    struct input_fields_handler
+    {
+        base&                                      owner; // input_fields_handler: .
+        std::list<std::promise<std::vector<rect>>> tasks; // input_fields_handler: .
+
+        void send_input_fields_request(auto& boss, auto& inputfield_request) // Send request without ui sync.
+        {
+            inputfield_request.promise(tasks);
+            boss.stream.s11n::req_input_fields.send(boss, inputfield_request);
+        }
+
+        input_fields_handler(auto& boss)
+            : owner{ boss }
+        {
+            boss.LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
+            {
+                send_input_fields_request(boss, inputfield_request);
+            };
+        }
+        void handle(s11n::xs::ack_input_fields lock)
+        {
+            if (tasks.size())
+            {
+                auto& list = lock.thing.field_list;
+                auto offset = dot_00;
+                owner.global(offset);
+                for (auto& r : list) r.coor -= offset;
+                tasks.front().set_value(std::move(list));
+                tasks.pop_front();
+            }
         }
     };
 }

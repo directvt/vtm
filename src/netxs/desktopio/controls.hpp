@@ -139,9 +139,9 @@ namespace netxs::ui
                   alive{ true          }
             {
                 // Drop it in favor of changing the cell size in GUI mode.
-                //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
+                //boss.LISTEN(tier::release, hids::events::mouse::scroll::act, gear, memo)
                 //{
-                //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock))
+                //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
                 //    {
                 //        auto& g = items.take(gear);
                 //        if (!g.zoomon)// && g.inside)
@@ -157,8 +157,7 @@ namespace netxs::ui
                 //        auto prev = g.zoomdt;
                 //        auto coor = boss.base::coor();
                 //        auto deed = boss.bell::protos<tier::release>();
-                //        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
-                //        else                                              g.zoomdt += warp;
+                //        g.zoomdt += warp * gear.whlsi;
                 //        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                 //        auto next = g.zoomsz + g.zoomdt;
                 //        next.size = std::max(dot_00, next.size);
@@ -1301,29 +1300,6 @@ namespace netxs::ui
                 item.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                 return gear_test.second;
             }
-            template<auto KeyEvent>
-            void forward()
-            {
-                boss.LISTEN(tier::preview, KeyEvent, gear, memo) // preview: Run after any.
-                {
-                    //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
-                    if (!gear) return;
-                    auto& route = get_route(gear.id);
-                    if (route.active)
-                    {
-                        auto alive = gear.alive;
-                        auto accum = alive;
-                        route.foreach([&](auto& nexthop)
-                        {
-                            nexthop->SIGNAL(tier::preview, KeyEvent, gear);
-                            accum &= gear.alive;
-                            gear.alive = alive;
-                        });
-                        gear.alive = accum;
-                        if (accum) boss.SIGNAL(tier::release, KeyEvent, gear);
-                    }
-                };
-            }
 
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
@@ -1354,8 +1330,26 @@ namespace netxs::ui
                     else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
                     gear.dismiss();
                 };
-                forward<hids::events::keybd::key::post>(); // Subscribe on keybd events.
-                forward<hids::events::paste>(); // Subscribe on paste events.
+                // Subscribe on keybd events.
+                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
+                {
+                    //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    if (!gear) return;
+                    auto& route = get_route(gear.id);
+                    if (route.active)
+                    {
+                        auto alive = gear.alive;
+                        auto accum = alive;
+                        route.foreach([&](auto& nexthop)
+                        {
+                            nexthop->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
+                            accum &= gear.alive;
+                            gear.alive = alive;
+                        });
+                        gear.alive = accum;
+                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
+                    }
+                };
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
                 {
@@ -1583,6 +1577,17 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.next.empty() && route.active) // route.focused === route.active & route.next.empty().
                         {
                             proc(boss.This());
+                        }
+                    }
+                };
+                boss.LISTEN(tier::general, ui::e2::command::request::inputfields, inputfield_request, memo)
+                {
+                    if (auto iter = gears.find(inputfield_request.gear_id); iter != gears.end())
+                    {
+                        auto& route = iter->second;
+                        if (route.active)
+                        {
+                            boss.SIGNAL(tier::release, ui::e2::command::request::inputfields, inputfield_request);
                         }
                     }
                 };
@@ -3078,7 +3083,6 @@ namespace netxs::ui
         si32 spd_max   = skin::globals().spd_max;
         si32 ccl_max   = skin::globals().ccl_max;
         si32 switching = skin::globals().switching;
-        si32 wheel_dt  = skin::globals().wheel_dt;
 
         si32 speed{ spd  }; // rail: Text auto-scroll initial speed component ΔR.
         si32 pulse{ pls  }; // rail: Text auto-scroll initial speed component ΔT.
@@ -3154,14 +3158,16 @@ namespace netxs::ui
             };
 
             using button = hids::events::mouse::button;
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                auto dt = gear.whldt > 0;
-                auto hz = permit == xy(axes::X_only)
-                      || (permit == xy(axes::all) && gear.meta(hids::anyAlt | hids::anyShift));
-                if (hz) wheels<X>(dt);
-                else    wheels<Y>(dt);
+                if (gear.whlsi)
+                {
+                    auto hz = (permit[X] && (gear.hzwhl || gear.meta(hids::anyAlt | hids::anyShift)))
+                           || (permit == xy(axes::X_only));
+                    if (hz) wheels<X>(gear.whlsi);
+                    else    wheels<Y>(gear.whlsi);
+                }
                 gear.dismiss();
             };
             LISTEN(tier::release, button::drag::start::right, gear)
@@ -3304,8 +3310,9 @@ namespace netxs::ui
         }
         // rail: .
         template<axis Axis>
-        void wheels(bool dir)
+        void wheels(si32 step)
         {
+            auto dir = step > 0;
             if (animat)
             {
                 if (robot.active(Axis) && (steer == dir))
@@ -3330,8 +3337,7 @@ namespace netxs::ui
             }
             else
             {
-                auto step = dir ? wheel_dt : -wheel_dt;
-                auto delta = Axis == X ? twod{ step * 2, 0 }
+                auto delta = Axis == X ? twod{ step, 0 }
                                        : twod{ 0, step };
                 scroll(delta);
             }
@@ -3583,7 +3589,7 @@ namespace netxs::ui
             {
                 if (coor >= scroll_pos + scroll_box)
                 {
-                    return 1; // Below the grip.
+                    return -1; // Below the grip.
                 }
                 if (coor >= scroll_pos)
                 {
@@ -3591,19 +3597,19 @@ namespace netxs::ui
                 }
                 else
                 {
-                    return-1; // Above the grip.
+                    return 1; // Above the grip.
                 }
             }
             auto follow()
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
-                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
-                                                           :-1;//    box on small scrollbar.
+                                          : cursor_pos > 0 ?-1 // Don't stop to follow over
+                                                           : 1;//    box on small scrollbar.
                 return dir;
             }
             void setdir(si32 dir)
             {
-                master_dir = -dir;
+                master_dir = dir;
             }
         };
 
@@ -3691,15 +3697,11 @@ namespace netxs::ui
             };
 
             using bttn = hids::events::mouse::button;
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                if (gear.whldt)
-                {
-                    auto dir = gear.whldt < 0 ? 1 : -1;
-                    pager(dir);
-                    gear.dismiss();
-                }
+                if (gear.whlsi) pager(gear.whlsi > 0 ? 1 : -1);
+                gear.dismiss();
             };
             LISTEN(tier::release, hids::events::mouse::move, gear)
             {
@@ -4394,16 +4396,10 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
+                grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
                 {
                     if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                    move_grip(cur_val - 1);
-                    gear.dismiss();
-                };
-                grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
-                {
-                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                    move_grip(cur_val + 1);
+                    if (gear.whlsi) move_grip(cur_val - gear.whlsi);
                     gear.dismiss();
                 };
                 recalc();
@@ -4414,16 +4410,10 @@ namespace netxs::ui
                 base::deface();
                 gear.dismiss();
             };
-            LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                move_grip(cur_val - 10);
-                gear.dismiss();
-            };
-            LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
-            {
-                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
-                move_grip(cur_val + 10);
+                if (gear.whlsi) move_grip(cur_val - 10 * gear.whlsi);
                 gear.dismiss();
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)

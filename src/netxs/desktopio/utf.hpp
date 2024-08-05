@@ -861,9 +861,7 @@ namespace netxs::utf
             {
                 if (c >= 0xdc00 && c <= 0xdfff) code |= c - 0xdc00;
                 else                            code  = c;
-
                 _to_utf(utf8, code);
-
                 code = 0;
             }
         }

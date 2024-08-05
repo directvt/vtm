@@ -53,7 +53,7 @@ namespace netxs::scripting
             : public s11n
         {
             ui::host& owner; // xlat: Boss object reference.
-            subs  token; // xlat: Subscription tokens.
+            subs      token; // xlat: Subscription tokens.
 
         public:
             void disable()

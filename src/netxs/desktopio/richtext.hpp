@@ -1352,6 +1352,23 @@ namespace netxs::ui
             while (src != end) *--dst = *--src;
             while (dst != end) *--dst = blank;
         }
+        // rich: Insert fragment with shifting chars to the right.
+        void insert(si32 at, rich const& fragment)
+        {
+            auto add = fragment.length();
+            if (add == 0) return;
+            if (at < 0) at = 0;
+            auto len = length();
+            auto max = len + add;
+            if (at > len) max += at - len;
+            rich::resize(max);
+            auto pos = max - add;
+            auto dst = begin() + pos;
+            auto src = fragment.begin();
+            auto end = fragment.end();
+            while (src != end) *dst++ = *src++;
+            if (at < len) scroll(at, len - at, add);
+        }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
         void cutoff(twod at, si32 count, cell const& blank)
         {
@@ -1452,7 +1469,16 @@ namespace netxs::ui
             locus.kill();
             lyric->kill();
         }
-        void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        void task(ansi::rule const& cmd)
+        {
+            if (cmd.cmd == ansi::fn::sc) // Save caret position as a command argument.
+            {
+                parser::flush();
+                locus.push({ ansi::fn::sc, caret });
+            }
+            else if (!busy()) locus.push(cmd);
+        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(si32 count, grid const& proto) override
         {
@@ -2535,12 +2561,12 @@ namespace netxs::ui
             flow::compose<true>(block, proxy);
         }
         // face: Print something else at the specified coor.
-        template<class T, class P = noop>
+        template<bool Split = true, class T, class P = noop>
         void output(T const& block, twod coord, P printfx = {})
         {
             flow::sync(block);
             flow::ac(coord);
-            flow::go(block, *this, printfx);
+            flow::go<Split>(block, *this, printfx);
         }
         // face: Print something else.
         template<bool UseFWD = faux, bool Split = faux, class T, class P = noop>

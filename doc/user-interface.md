@@ -48,7 +48,7 @@
   <tr>
     <th>RightClick</th>
     <td>Set default app</td>
-    <td>Toggle taskbar width</td>
+    <td></td>
     <td colspan="1"></td>
     <td colspan="2">Assign exclusive focus</td>
     <td colspan="1"></td>
@@ -74,7 +74,7 @@
     <td></td>
   </tr>
   <tr>
-    <th>DblLeftClick</th>
+    <th>DoubleLeftClick</th>
     <td colspan="1"></td>
     <td colspan="1">Go to app window</td>
     <td colspan="1"></td>
@@ -83,7 +83,7 @@
     <td colspan="3"></td>
   </tr>
   <tr>
-    <th>Alt/Option+DblLeftClick</th>
+    <th>Alt+DoubleLeftClick</th>
     <td colspan="1"></td>
     <td colspan="1">Center app window</td>
     <td colspan="1"></td>
@@ -92,8 +92,8 @@
     <td colspan="3"></td>
   </tr>
   <tr>
-    <th>triple Left+RightClick</th>
-    <td colspan="3">Show/hide sysstat overlay</td>
+    <th>Triple Left+RightClick</th>
+    <td colspan="3">Toggle sysstat overlay</td>
     <td colspan="6"></td>
   </tr>
   <tr>
@@ -129,8 +129,7 @@
     <td colspan="2"></td>
   </tr>
   <tr>
-  <tr>
-    <th>Alt/Option+LeftDrag</th>
+    <th>Alt+LeftDrag</th>
     <td colspan="9">Switch boxed/linear selection mode</td>
   </tr>
   <tr>
@@ -143,13 +142,8 @@
     <td colspan="2"></td>
   </tr>
   <tr>
-    <th>Shift+Wheel or Alt/Option+Wheel</th>
+    <th>Shift+Wheel or Alt+Wheel</th>
     <td colspan="7">Horizontal scrolling</td>
-    <td colspan="2"></td>
-  </tr>
-  <tr>
-    <th>Ctrl+Wheel</th>
-    <td colspan="7">Zoom window</td>
     <td colspan="2"></td>
   </tr>
 </tbody>
@@ -173,18 +167,22 @@
   </tr>
   <tr>
     <th>Ctrl+CapsLock</th>
-    <td colspan="3">Toggle text antialiasing mode</td>
+    <td colspan="3">Toggle antialiasing mode</td>
   </tr>
   <tr>
     <th>CapsLock+Up/DownArrow</th>
-    <td colspan="3">Change text cell size</td>
+    <td colspan="3">Scale cell size</td>
   </tr>
   <tr>
-    <th>Wheel</th>
-    <td colspan="3">Change text cell size (if unhandled)</td>
+    <th>CapsLock+0</th>
+    <td colspan="3">Reset cell size</td>
   </tr>
   <tr>
-    <th>DblLeftClick</th>
+    <th>Ctrl+Wheel</th>
+    <td colspan="3">Scale cell size (if unhandled)</td>
+  </tr>
+  <tr>
+    <th>DoubleLeftClick</th>
     <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
   </tr>
   <tr>

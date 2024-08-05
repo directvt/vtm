@@ -4,7 +4,6 @@ R"==(
     <appearance>
         <defaults>
             <fps      = 60   />
-            <wheel_dt = 3    /> <!-- Mouse scrolling wheel step (non-smooth scrolling).   -->
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->

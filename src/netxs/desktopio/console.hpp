@@ -154,6 +154,18 @@ namespace netxs::ui
                     boss.bell::template signal<tier::release>(deed, seed);
                 });
             }
+            void handle(s11n::xs::req_input_fields lock)
+            {
+                owner.bell::enqueue(owner.This(), [&, item = lock.thing](auto& /*boss*/) mutable
+                {
+                    auto ext_gear_id = item.gear_id;
+                    auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
+                    owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+                    auto field_list = inputfield_request.wait_for();
+                    for (auto& f : field_list) f.coor -= owner.coor();
+                    s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
+                });
+            }
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& focus = lock.thing;
@@ -203,12 +215,6 @@ namespace netxs::ui
             {
                 auto& keybd = lock.thing;
                 notify(e2::conio::keybd, keybd);
-            }
-            void handle(s11n::xs::syspaste    lock)
-            {
-                auto& paste = lock.thing;
-                //log("syspaste: ", ansi::hi(paste.txtdata));
-                notify(e2::conio::paste, paste);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -554,10 +560,6 @@ namespace netxs::ui
                 {
                     forward(k);
                 };
-                boss.LISTEN(tier::release, e2::conio::paste, p, memo)
-                {
-                    forward(p);
-                };
                 boss.LISTEN(tier::release, e2::conio::focus, f, memo)
                 {
                     forward(f);
@@ -602,11 +604,13 @@ namespace netxs::ui
             X(win_size     , "win size"         ) \
             X(key_code     , "key virt"         ) \
             X(key_scancode , "key scan"         ) \
-            X(key_character, "key char"         ) \
+            X(key_character, "key data"         ) \
             X(key_pressed  , "key push"         ) \
+            X(key_payload  , "key type"         ) \
             X(ctrl_state   , "controls"         ) \
             X(k            , "k"                ) \
             X(mouse_pos    , "mouse coord"      ) \
+            X(mouse_wheelsi, "wheel steps"      ) \
             X(mouse_wheeldt, "wheel delta"      ) \
             X(mouse_hzwheel, "H wheel"          ) \
             X(mouse_vtwheel, "V wheel"          ) \
@@ -773,9 +777,10 @@ namespace netxs::ui
                                                     + std::to_string(netxs::_k2) + " "
                                                     + std::to_string(netxs::_k3);
                     }
-                    status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
+                    status[prop::mouse_wheeldt].set(stress) = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
+                    status[prop::mouse_wheelsi].set(stress) = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
                     status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = (m.wheeldt && !m.hzwheel) ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
@@ -786,7 +791,11 @@ namespace netxs::ui
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
                     status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-
+                    status[prop::key_payload  ].set(stress) = k.payload == keybd::type::keypress ? "keypress"
+                                                            : k.payload == keybd::type::keypaste ? "keypaste"
+                                                            : k.payload == keybd::type::imeanons ? "IME composition"
+                                                            : k.payload == keybd::type::imeinput ? "IME input"
+                                                            : k.payload == keybd::type::kblayout ? "keyboard layout" : "unknown payload";
                     if (k.cluster.length())
                     {
                         auto t = text{};
@@ -930,6 +939,14 @@ namespace netxs::ui
             if (result) base::strike();
         }
 
+        // gate: .
+        id_t get_int_gear_id(id_t ext_gear_id)
+        {
+            auto int_gear_id = id_t{};
+            auto gear_it = input.gears.find(ext_gear_id);
+            if (gear_it != input.gears.end()) int_gear_id = gear_it->second->id;
+            return int_gear_id;
+        }
         // gate: Attach a new item.
         auto attach(sptr& item)
         {
@@ -1102,15 +1119,6 @@ namespace netxs::ui
                     target->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::paste, gear, tokens) // Start of paste event propagation.
-            {
-                if (gear)
-                //if (auto target = local ? applet : base::parent())
-                if (auto target = nexthop.lock())
-                {
-                    target->SIGNAL(tier::preview, hids::events::paste, gear);
-                }
-            };
             if (!direct)
             {
                 LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
@@ -1201,6 +1209,7 @@ namespace netxs::ui
                             conio.keybd_event.send(canal, ext_gear_id,
                                                           gear.ctlstate,
                                                           gear.extflag,
+                                                          gear.payload,
                                                           gear.virtcod,
                                                           gear.scancod,
                                                           gear.pressed,
@@ -1385,7 +1394,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -1424,7 +1433,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whldt, gear.hzwhl);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl);
                         gear.dismiss();
                     }
                 };
@@ -1507,7 +1516,6 @@ namespace netxs::ui
             auto& canal = *server;
 
             auto& g = skin::globals();
-            g.wheel_dt       = config.take("wheel_dt"              , 3     );
             g.brighter       = config.take("brighter"              , cell{ whitespace });//120);
             g.kb_focus       = config.take("kb_focus"              , cell{ whitespace });//60
             g.shadower       = config.take("shadower"              , cell{ whitespace });//180);//60);//40);// 20);

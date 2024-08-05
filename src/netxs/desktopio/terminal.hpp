@@ -170,7 +170,6 @@ namespace netxs::ui
             si32 def_none_f;
             si32 def_find_f;
 
-            si32 def_altscr;
             bool def_alt_on;
 
             text send_input;
@@ -202,33 +201,32 @@ namespace netxs::ui
                      { "reverse", commands::fx::reverse }};
 
                 config.cd("/config/term/");
-                send_input =             config.take("sendinput", text{});
-                def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
-                def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
-                def_growdt = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
-                def_growmx = std::max(0, config.take("scrollback/growlimit", si32{ 0 }    ));
+                send_input =             config.take("sendinput",                 text{});
+                def_mxline = std::max(1, config.take("scrollback/maxline",        si32{ 65535 }));
+                def_length = std::max(1, config.take("scrollback/size",           si32{ 40000 }));
+                def_growdt = std::max(0, config.take("scrollback/growstep",       si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("scrollback/growlimit",      si32{ 0 }    ));
                 recalc_buffer_metrics(def_length, def_growdt, def_growmx);
-                def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                resetonkey =             config.take("scrollback/reset/onkey",     true);
-                resetonout =             config.take("scrollback/reset/onoutput",  faux);
-                def_altscr = std::max(1, config.take("scrollback/altscroll/step", si32{ 1 }));
-                def_alt_on =             config.take("scrollback/altscroll/enabled", true);
-                def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
-                def_lucent = std::max(0, config.take("layout/oversize/opacity", si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("layout/oversize",         si32{ 0 }    ));
-                def_border = std::max(0, config.take("layout/border",           si32{ 0 }    ));
-                def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::format);
-                def_selalt =             config.take("selection/rect",       faux);
-                def_cur_on =             config.take("cursor/show",          true);
-                def_cursor =             config.take("cursor/style",         text_cursor::I_bar, xml::options::cursor);
-                def_curclr =             config.take("cursor/color",         cell{});
-                def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
-                def_io_log =             config.take("logs",                 faux);
+                def_wrpmod =             config.take("scrollback/wrap",           deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("scrollback/reset/onkey",    true);
+                resetonout =             config.take("scrollback/reset/onoutput", faux);
+                def_alt_on =             config.take("scrollback/altscroll",      true);
+                def_tablen = std::max(1, config.take("tablen",                    si32{ 8 }    ));
+                def_lucent = std::max(0, config.take("layout/oversize/opacity",   si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("layout/oversize",           si32{ 0 }    ));
+                def_border = std::max(0, config.take("layout/border",             si32{ 0 }    ));
+                def_selmod =             config.take("selection/mode",            mime::textonly, xml::options::format);
+                def_selalt =             config.take("selection/rect",            faux);
+                def_cur_on =             config.take("cursor/show",               true);
+                def_cursor =             config.take("cursor/style",              text_cursor::I_bar, xml::options::cursor);
+                def_curclr =             config.take("cursor/color",              cell{});
+                def_period =             config.take("cursor/blink",              span{ skin::globals().blink_period });
+                def_io_log =             config.take("logs",                      faux);
                 allow_logs =             true; // Disallowed for dtty.
-                def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("color/default/fgc",    argb{ whitelt });
-                def_bcolor =             config.take("color/default/bgc",    argb{ blackdk });
-                def_filler =             config.take("color/bground",        argb{ argb::default_color });
+                def_atexit =             config.take("atexit",                    commands::atexit::smart, atexit_options);
+                def_fcolor =             config.take("color/default/fgc",         argb{ whitelt });
+                def_bcolor =             config.take("color/default/bgc",         argb{ blackdk });
+                def_filler =             config.take("color/bground",             argb{ argb::default_color });
 
                 def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -398,10 +396,10 @@ namespace netxs::ui
         {
             using prot = input::focus::prot;
 
-            term&       owner; // f_tracking: Terminal object reference.
-            hook        token; // f_tracking: Subscription token.
-            prot        encod; // f_tracking: Focus encoding mode.
-            testy<bool> state; // f_tracking: Current focus state.
+            term& owner; // f_tracking: Terminal object reference.
+            hook  token; // f_tracking: Subscription token.
+            prot  encod; // f_tracking: Focus encoding mode.
+            bool  state; // f_tracking: Current focus state.
 
             f_tracking(term& owner)
                 : owner{ owner },
@@ -410,15 +408,16 @@ namespace netxs::ui
                 owner.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, token)
                 {
                     auto focused = !!count;
-                    if (state(focused))
+                    if (std::exchange(state, focused) != state)
                     {
                         owner.ipccon.focus(focused, encod);
+                        if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
                 };
-                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
+                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state);
             }
 
-            operator bool () { return state.last; }
+            operator bool () { return state; }
             void set(bool enable)
             {
                 encod = enable ? prot::dec : prot::w32;
@@ -1132,6 +1131,7 @@ namespace netxs::ui
                 return boxed;
             }
 
+            virtual cell cell_under_cursor()                                            = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -1697,7 +1697,7 @@ namespace netxs::ui
                 auto tmp = parser::brush;
                 parser::brush.txt(sym);
                 auto [w, h, x, y] = parser::brush.whxy();
-                if (w != 1)
+                if (w > 1)
                 {
                     area.size.x /= w;
                 }
@@ -2410,6 +2410,14 @@ namespace netxs::ui
                 dest.clip(clip);
                 dest.plot(canvas, cell::shaders::full);
             }
+            // alt_screen: Return cell state under cursor.
+            cell cell_under_cursor() override
+            {
+                auto coor = std::clamp(coord, dot_00, panel - dot_11);
+                auto c = canvas[coor];
+                return c;
+            }
+
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
@@ -2522,6 +2530,8 @@ namespace netxs::ui
             // alt_screen: Highlight selection.
             void selection_render(face& dest) override
             {
+                auto full = dest.full();
+                auto cntx = dest.change_basis(full);
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
                 auto curend = std::clamp(selend, dot_00, limits);
@@ -4959,6 +4969,13 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
+            // scroll_buf: Return cell state under cursor.
+            cell cell_under_cursor() override
+            {
+                auto& curln = batch.current();
+                auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
+                return c;
+            }
 
             // scroll_buf: Calc grip position by coor.
             auto selection_coor_to_grip(twod coor, grip::type role = grip::base)
@@ -5872,6 +5889,8 @@ namespace netxs::ui
             {
                 if (selection_active())
                 {
+                    auto full = dest.full();
+                    auto cntx = dest.change_basis(full);
                     auto mode = owner.selmod;
                     auto clip = dest.clip();
                     if (panel.y != arena)
@@ -6413,6 +6432,9 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
+        bool       ime_on; // term: IME composition is active.
+        para       imebox; // term: IME composition preview render.
+        text       imetxt; // term: IME composition preview source.
         eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
@@ -6553,7 +6575,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
-            altscr = config.def_alt_on ? config.def_altscr : 0;
+            altscr = config.def_alt_on;
             normal.brush.reset();
             ipccon.reset();
         }
@@ -6610,7 +6632,7 @@ namespace netxs::ui
                     mtrack.setmode(input::mouse::prot::sgr);
                     break;
                 case 1007: // Enable alternate scroll mode.
-                    altscr = config.def_altscr;
+                    altscr = config.def_alt_on;
                     break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(input::mouse::mode::negative_args);
@@ -7187,7 +7209,7 @@ namespace netxs::ui
         void selection_submit()
         {
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
@@ -7205,16 +7227,15 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
             LISTEN(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            LISTEN(tier::release, hids::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (altscr && target == &altbuf)
                 {
-                    auto deed = this->bell::template protos<tier::release>();
-                    switch (deed)
+                    if (gear.whlsi)
                     {
-                        case hids::events::mouse::scroll::up.id:   data_out(utf::repeat("\033[A"sv, altscr)); break;
-                        case hids::events::mouse::scroll::down.id: data_out(utf::repeat("\033[B"sv, altscr)); break;
+                        auto count = std::abs(gear.whlsi);
+                        data_out(utf::repeat(gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv, count));
                     }
                     gear.dismiss();
                 }
@@ -7533,8 +7554,9 @@ namespace netxs::ui
               forced{  faux },
               selmod{ config.def_selmod },
               onesht{ mime::disabled },
-              altscr{ config.def_altscr },
-              kbmode{ prot::vt }
+              altscr{ config.def_alt_on },
+              kbmode{ prot::vt },
+              ime_on{  faux }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
@@ -7577,6 +7599,33 @@ namespace netxs::ui
                     base::deface();
                 }
             };
+            LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
+            {
+                auto& console = *target;
+                auto composit_cursor = console.get_coord(origin) + origin;
+                if (auto parent = base::parent())
+                {
+                    auto parent_size = parent->size();
+                    if (parent_size.inside(composit_cursor))
+                    {
+                        if (ime_on)
+                        {
+                            composit_cursor.x += imebox.caret;
+                            if (composit_cursor.x >= parent_size.x) //todo word wrap
+                            {
+                                composit_cursor.y += composit_cursor.x / parent_size.x;
+                                composit_cursor.x  = composit_cursor.x % parent_size.x;
+                                if (composit_cursor.y >= parent_size.y) composit_cursor.y = parent_size.y - 1;
+                            }
+                        }
+                        auto r = rect{ composit_cursor, { parent_size.x - composit_cursor.x, 1 }};
+                        auto offset = dot_00;
+                        parent->global(offset);
+                        r.coor -= offset;
+                        inputfield_request.set_value(r);
+                    }
+                }
+            };
             LISTEN(tier::release, e2::area, new_area)
             {
                 if (new_area.coor != base::coor())
@@ -7588,29 +7637,59 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, hids::events::paste, gear)
-            {
-                _paste(gear.paste::txtdata);
-                gear.dismiss();
-            };
             LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
-                //todo configurable Ctrl+Ins, Shift+Ins etc.
-                if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                if (config.resetonkey && gear.doinput())
+                switch (gear.payload)
                 {
-                    this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
-                    unsync = true;
-                    follow[axis::X] = true;
-                    follow[axis::Y] = true;
+                    case keybd::type::keypress:
+                        //todo configurable Ctrl+Ins, Shift+Ins etc.
+                        if (gear.handled) return; // Don't pass registered keyboard shortcuts.
+                        if (config.resetonkey && gear.doinput())
+                        {
+                            this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                            unsync = true;
+                            follow[axis::X] = true;
+                            follow[axis::Y] = true;
+                        }
+                        if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
+                        {
+                            selection_cancel();
+                        }
+                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
+                        ipccon.keybd(gear, decckm, kbmode);
+                        break;
+                    case keybd::type::imeinput:
+                    case keybd::type::keypaste:
+                        _paste(gear.cluster);
+                        gear.dismiss();
+                        break;
+                    case keybd::type::imeanons:
+                        if (imetxt != gear.cluster)
+                        {
+                            imetxt = gear.cluster;
+                            imebox.wipe();
+                            ansi::parse(gear.cluster, &imebox);
+                            ime_on = imebox.length();
+                            if (ime_on)
+                            {
+                                imebox.style.wrp(wrap::on);
+                                //if (imebox.locus.size())
+                                auto iter = std::find_if(imebox.locus.begin(), imebox.locus.end(), [](auto cmd){ return cmd.cmd == ansi::fn::sc; });
+                                if (iter != imebox.locus.end())
+                                {
+                                    //auto [cmd, arg] = imebox.locus.back();
+                                    auto [cmd, arg] = *iter;
+                                    if (cmd == ansi::fn::sc) imebox.caret = arg;
+                                }
+                            }
+                            if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(ansi::s11n(imebox.content(), rect{.size = imebox.size()})));
+                            unsync = true;
+                        }
+                        else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
+                        break;
+                    case keybd::type::kblayout:
+                        break;
                 }
-                if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
-                {
-                    selection_cancel();
-                }
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-
-                ipccon.keybd(gear, decckm, kbmode);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -7622,11 +7701,59 @@ namespace netxs::ui
 
                 auto clip = parent_canvas.clip();
                 auto full = parent_canvas.full();
-                auto base = full.coor - clip.coor;
-                cursor.coor(console.get_coord(base));
-                if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
+                auto original_cursor = console.get_coord(origin); // base::coor() and origin are the same.
 
-                console.output(parent_canvas);
+                if (ime_on) // Draw IME composition overlay.
+                {
+                    if (auto parent = base::parent())
+                    {
+                        auto brush = base::color().fuse(console.cell_under_cursor());
+                        auto viewport_square = parent->area();
+                        auto viewport_cursor = original_cursor + origin;
+                        if (viewport_square.size.inside(viewport_cursor))
+                        {
+                            auto composit_cursor = viewport_cursor;
+                            //todo implement word wrapping
+                            composit_cursor.x += imebox.caret;
+                            if (composit_cursor.x >= viewport_square.size.x)
+                            {
+                                composit_cursor.y += composit_cursor.x / viewport_square.size.x;
+                                composit_cursor.x  = composit_cursor.x % viewport_square.size.x;
+                            }
+
+                            auto dy = std::max(0, composit_cursor.y - (viewport_square.size.y - 1));
+                            if (dy) // Shift parent_canvas down if needed.
+                            {
+                                auto scrolldown = full;
+                                composit_cursor.y -= dy;
+                                viewport_cursor.y -= dy;
+                                scrolldown.coor.y -= dy;
+                                parent_canvas.full(scrolldown);
+                            }
+                            console.output(parent_canvas);
+                            if (dy) parent_canvas.full(full); // Return parent_canvas back.
+
+                            viewport_square.coor -= origin;
+                            if (auto context = parent_canvas.change_basis(viewport_square))
+                            {
+                                parent_canvas.output<true>(imebox, viewport_cursor, cell::shaders::mimic(brush));
+                            }
+                            composit_cursor -= origin; // Convert to original basis.
+                            cursor.coor(composit_cursor);
+                        }
+                        else // Original cursor is outside the viewport.
+                        {
+                            cursor.coor(original_cursor);
+                            console.output(parent_canvas);
+                        }
+                    }
+                }
+                else
+                {
+                    cursor.coor(original_cursor);
+                    if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
+                    console.output(parent_canvas);
+                }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
@@ -7668,36 +7795,37 @@ namespace netxs::ui
         }
     };
 
-    class dtvt
+    struct dtvt
         : public ui::form<dtvt>
     {
         using s11n = directvt::binary::s11n;
 
         // dtvt: Event handler.
-        struct evnt
-            : public s11n
+        struct evnt : s11n, input_fields_handler
         {
-            dtvt& master; // evnt: Terminal object reference.
+            using input_fields_handler::handle;
+
+            dtvt& owner; // evnt: Terminal object reference.
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
                 {
-                    master.base::deface();
+                    owner.base::deface();
                 });
             }
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                master.bell::enqueue(master.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
                 {
-                    master.base::deface();
+                    owner.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
-                master.bell::enqueue(master.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -7711,13 +7839,13 @@ namespace netxs::ui
             void handle(s11n::xs::fullscrn            lock)
             {
                 auto& m = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.captured(master.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     }
                 });
@@ -7725,13 +7853,13 @@ namespace netxs::ui
             void handle(s11n::xs::maximize            lock)
             {
                 auto& m = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.captured(master.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                     }
                 });
@@ -7739,41 +7867,41 @@ namespace netxs::ui
             void handle(s11n::xs::focus_cut           lock)
             {
                 auto& k = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = master.This() }));
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
                     }
                 });
             }
             void handle(s11n::xs::focus_set           lock)
             {
                 auto& k = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = master.This() }));
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
                     }
                 });
             }
             void handle(s11n::xs::keybd_event         lock)
             {
                 auto& k = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
                         //todo use temp gear object
                         gear.alive    = true;
                         gear.ctlstate = k.ctlstat;
                         gear.extflag  = k.extflag;
-                        gear.imeview  = faux;
+                        gear.payload  = k.payload;
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
@@ -7791,16 +7919,16 @@ namespace netxs::ui
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
-                    if (auto parent_ptr = master.base::parent())
+                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.captured(master.id)) gear.setfree(true);
+                        if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
-                        master.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whldt, m.hzwhl);
+                        owner.global(basis);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                         gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
                 });
@@ -7808,28 +7936,28 @@ namespace netxs::ui
             void handle(s11n::xs::minimize            lock)
             {
                 auto& m = lock.thing;
-                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(m.gear_id))
+                    if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        master.RISEUP(tier::release, e2::form::size::minimize, gear);
+                        owner.RISEUP(tier::release, e2::form::size::minimize, gear);
                     }
                 });
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
-                    master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
             }
             void handle(s11n::xs::clipdata            lock)
             {
                 auto& c = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         gear_ptr->set_clipboard(c);
                     }
@@ -7838,73 +7966,73 @@ namespace netxs::ui
             void handle(s11n::xs::clipdata_request    lock)
             {
                 auto& c = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
-                    if (auto gear_ptr = master.bell::getref<hids>(c.gear_id))
+                    if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
                         gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {
-                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
+                            s11n::clipdata.send(owner, c.gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
                             return;
                         }
                     }
                     else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
-                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext, text{});
+                    s11n::clipdata.send(owner, c.gear_id, c.hash, dot_00, text{}, mime::ansitext, text{});
                 });
             }
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                master.bell::enqueue(master.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
                 {
-                    master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                master.bell::enqueue(master.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
                 {
-                    master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
+                    owner.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::header_request      lock)
             {
                 auto& c = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
                     //todo use window_id
-                    master.RISEUP(tier::request, e2::form::prop::ui::header, header, ());
-                    s11n::header.send(master, c.window_id, header);
+                    owner.RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    s11n::header.send(owner, c.window_id, header);
                 });
             }
             void handle(s11n::xs::footer_request      lock)
             {
                 auto& c = lock.thing;
-                master.trysync(master.active, [&]
+                owner.trysync(owner.active, [&]
                 {
                     //todo use window_id
-                    master.RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
-                    s11n::footer.send(master, c.window_id, footer);
+                    owner.RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
+                    s11n::footer.send(owner, c.window_id, footer);
                 });
             }
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                master.bell::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
-                    master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
+                    owner.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::fps                 lock)
             {
-                master.bell::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
-                    master.SIGNAL(tier::general, e2::config::fps, fps);
+                    owner.SIGNAL(tier::general, e2::config::fps, fps);
                 });
             }
             void handle(s11n::xs::logs                lock)
@@ -7913,34 +8041,35 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                master.bell::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
-                    master.errmsg = master.genmsg(utf8);
-                    master.deface();
+                    owner.errmsg = owner.genmsg(utf8);
+                    owner.deface();
                 });
             }
             void handle(s11n::xs::sysclose          /*lock*/)
             {
-                master.active.exchange(faux);
-                master.stop(true);
+                owner.active.exchange(faux);
+                owner.stop(true);
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                master.bell::enqueue(master.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
-                    master.RISEUP(tier::release, e2::form::global::sysstart, 1);
+                    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                master.bell::enqueue(master.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 {
-                    master.RISEUP(tier::preview, e2::form::prop::cwd, path);
+                    owner.RISEUP(tier::preview, e2::form::prop::cwd, path);
                 });
             }
-            evnt(dtvt& master)
-                :   s11n{ *this, master.id },
-                  master{ master           }
+            evnt(dtvt& owner)
+                : s11n{ *this, owner.id },
+                  input_fields_handler{ owner },
+                  owner{ owner }
             { }
         };
 
@@ -7961,7 +8090,6 @@ namespace netxs::ui
         span maxoff; // dtvt: Max delay before showing "No signal".
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
 
-    public:
         // dtvt: Format error message overlay.
         auto genmsg(view utf8) -> page
         {
@@ -8127,18 +8255,13 @@ namespace netxs::ui
                 stream.syskeybd.send(*this, gear.id,
                                             gear.ctlstate, // It is expanded because of ctlstate is not ctlstat.
                                             gear.extflag,
-                                            gear.imeview,
+                                            gear.payload,
                                             gear.virtcod,
                                             gear.scancod,
                                             gear.pressed,
                                             gear.cluster,
                                             gear.handled,
                                             gear.keycode);
-                gear.dismiss();
-            };
-            LISTEN(tier::release, hids::events::paste, gear)
-            {
-                stream.syspaste.send(*this, gear.id, gear.txtdata);
                 gear.dismiss();
             };
             LISTEN(tier::general, e2::config::fps, frame_rate)
