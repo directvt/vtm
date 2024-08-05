@@ -5924,7 +5924,7 @@ namespace netxs::os
                                 break;
                             case input::keybd::type::keypress:
                                 if (!data.pressed) return;
-                                [[fallthrough]]
+                                [[fallthrough]];
                             case input::keybd::type::imeinput:
                                 if (!alive || data.cluster.empty()) return;
                                 switch (data.cluster.front()) 
