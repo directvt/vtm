@@ -186,7 +186,6 @@ namespace netxs::directvt
                 }
                 else if constexpr (requires{ std::begin(std::declval<D>()); })
                 {
-                    using data_type = decltype(*std::begin(std::declval<D>()));
                     auto length = (sz_t)data.size();
                     auto le_len = netxs::letoh(length);
                     block += view{ (char*)&le_len, sizeof(le_len) };

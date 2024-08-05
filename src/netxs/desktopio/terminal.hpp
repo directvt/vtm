@@ -2157,7 +2157,6 @@ namespace netxs::ui
             : public bufferbase
         {
             rich canvas; // alt_screen: Terminal screen.
-            rich backup; // alt_screen: Terminal screen backup.
             twod seltop; // alt_screen: Selected area head.
             twod selend; // alt_screen: Selected area tail.
 
@@ -2412,7 +2411,7 @@ namespace netxs::ui
                 dest.plot(canvas, cell::shaders::full);
             }
             // alt_screen: Return cell state under cursor.
-            auto cell_under_cursor()
+            cell cell_under_cursor()
             {
                 auto coor = std::clamp(coord, dot_00, panel - dot_11);
                 auto c = canvas[coor];
@@ -4971,7 +4970,7 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: Return cell state under cursor.
-            auto cell_under_cursor()
+            cell cell_under_cursor()
             {
                 auto& curln = batch.current();
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
@@ -6849,7 +6848,7 @@ namespace netxs::ui
                     auto last_slide = target->get_slide();
                     auto is_changed = proc();
                     unsync |= is_changed;
-                    if (unsync)
+                    if (is_changed)
                     {
                         auto next_basis = target->get_basis();
                         follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
@@ -7553,11 +7552,11 @@ namespace netxs::ui
               selalt{ config.def_selalt },
               resume{  faux },
               forced{  faux },
-              ime_on{  faux },
               selmod{ config.def_selmod },
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
-              kbmode{ prot::vt }
+              kbmode{ prot::vt },
+              ime_on{  faux }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);

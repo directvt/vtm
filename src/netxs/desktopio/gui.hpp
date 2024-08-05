@@ -108,6 +108,8 @@ namespace netxs::gui
 #include <wrl\client.h>
 #pragma comment(lib, "Gdi32")
 #pragma comment(lib, "dwrite")
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
 using Microsoft::WRL::ComPtr;
 
 #define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
