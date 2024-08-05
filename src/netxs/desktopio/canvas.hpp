@@ -1508,7 +1508,7 @@ namespace netxs
             px.wipe();
         }
         // cell: Blend two cells according to visibility and other attributes.
-        inline void fuse(cell const& c)
+        auto& fuse(cell const& c)
         {
             if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
             else                      uv.fg.mix(c.uv.fg);
@@ -1527,6 +1527,7 @@ namespace netxs
                 gc = c.gc;
             }
             else st.meta(c.st);
+            return *this;
         }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)

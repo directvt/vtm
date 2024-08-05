@@ -2531,6 +2531,8 @@ namespace netxs::ui
             // alt_screen: Highlight selection.
             void selection_render(face& dest) override
             {
+                auto full = dest.full();
+                auto cntx = dest.change_basis(full);
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
                 auto curend = std::clamp(selend, dot_00, limits);
@@ -5888,6 +5890,8 @@ namespace netxs::ui
             {
                 if (selection_active())
                 {
+                    auto full = dest.full();
+                    auto cntx = dest.change_basis(full);
                     auto mode = owner.selmod;
                     auto clip = dest.clip();
                     if (panel.y != arena)
@@ -7599,13 +7603,23 @@ namespace netxs::ui
             LISTEN(tier::release, ui::e2::command::request::inputfields, inputfield_request)
             {
                 auto& console = *target;
-                auto field_coor = console.get_coord(origin) + origin;
+                auto composit_cursor = console.get_coord(origin) + origin;
                 if (auto parent = base::parent())
                 {
-                    auto parent_area = parent->area();
-                    if (parent_area.size.inside(field_coor))
+                    auto parent_size = parent->size();
+                    if (parent_size.inside(composit_cursor))
                     {
-                        auto r = rect{ field_coor, { parent_area.size.x - field_coor.x, 1 }};
+                        if (ime_on)
+                        {
+                            composit_cursor.x += imebox.caret;
+                            if (composit_cursor.x >= parent_size.x) //todo word wrap
+                            {
+                                composit_cursor.y += composit_cursor.x / parent_size.x;
+                                composit_cursor.x  = composit_cursor.x % parent_size.x;
+                                if (composit_cursor.y >= parent_size.y) composit_cursor.y = parent_size.y - 1;
+                            }
+                        }
+                        auto r = rect{ composit_cursor, { parent_size.x - composit_cursor.x, 1 }};
                         auto offset = dot_00;
                         parent->global(offset);
                         r.coor -= offset;
@@ -7688,29 +7702,57 @@ namespace netxs::ui
 
                 auto clip = parent_canvas.clip();
                 auto full = parent_canvas.full();
-                auto base = full.coor - clip.coor;
-                auto coor = console.get_coord(base);
+                auto original_cursor = console.get_coord(origin); // base::coor() and origin are the same.
+
                 if (ime_on) // Draw IME composition overlay.
                 {
-                    auto panel = console.panel;
-                    auto brush = base::color();
-                    auto start = coor;
-                    coor.x += imebox.caret;
-                    if (coor.x >= panel.x)
+                    if (auto parent = base::parent())
                     {
-                        coor.y += coor.x / panel.x;
-                        coor.x = coor.x % panel.x;
+                        auto brush = base::color().fuse(console.cell_under_cursor());
+                        auto viewport_square = parent->area();
+                        auto viewport_cursor = original_cursor + origin;
+                        if (viewport_square.size.inside(viewport_cursor))
+                        {
+                            auto composit_cursor = viewport_cursor;
+                            //todo implement word wrapping
+                            composit_cursor.x += imebox.caret;
+                            if (composit_cursor.x >= viewport_square.size.x)
+                            {
+                                composit_cursor.y += composit_cursor.x / viewport_square.size.x;
+                                composit_cursor.x  = composit_cursor.x % viewport_square.size.x;
+                            }
+
+                            auto dy = std::max(0, composit_cursor.y - (viewport_square.size.y - 1));
+                            if (dy) // Shift parent_canvas down if needed.
+                            {
+                                auto scrolldown = full;
+                                composit_cursor.y -= dy;
+                                viewport_cursor.y -= dy;
+                                scrolldown.coor.y -= dy;
+                                parent_canvas.full(scrolldown);
+                            }
+                            console.output(parent_canvas);
+                            if (dy) parent_canvas.full(full); // Return parent_canvas back.
+
+                            viewport_square.coor -= origin;
+                            if (auto context = parent_canvas.change_basis(viewport_square))
+                            {
+                                parent_canvas.output<true>(imebox, viewport_cursor, cell::shaders::mimic(brush));
+                            }
+                            composit_cursor -= origin; // Convert to original basis.
+                            cursor.coor(composit_cursor);
+                        }
+                        else // Original cursor is outside the viewport.
+                        {
+                            cursor.coor(original_cursor);
+                            console.output(parent_canvas);
+                        }
                     }
-                    cursor.coor(coor);
-                    console.output(parent_canvas);
-                    brush.fuse(console.cell_under_cursor());
-                    parent_canvas.output<faux>(imebox, start, cell::shaders::mimic(brush));
-                    if (base::color().bga() != 0xFF && imebox.caret == imebox.length()) parent_canvas.fill(rect{ coor, dot_11 }, [&](cell& c){ c.fgc(brush.fgc()); });
                 }
                 else
                 {
-                    cursor.coor(coor);
-                    if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
+                    cursor.coor(original_cursor);
+                    if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
                 }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
