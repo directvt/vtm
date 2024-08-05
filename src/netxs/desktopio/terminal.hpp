@@ -2411,7 +2411,7 @@ namespace netxs::ui
                 dest.plot(canvas, cell::shaders::full);
             }
             // alt_screen: Return cell state under cursor.
-            cell cell_under_cursor()
+            cell cell_under_cursor() override
             {
                 auto coor = std::clamp(coord, dot_00, panel - dot_11);
                 auto c = canvas[coor];
@@ -4970,7 +4970,7 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: Return cell state under cursor.
-            cell cell_under_cursor()
+            cell cell_under_cursor() override
             {
                 auto& curln = batch.current();
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
