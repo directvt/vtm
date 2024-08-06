@@ -6435,6 +6435,7 @@ namespace netxs::ui
         bool       ime_on; // term: IME composition is active.
         para       imebox; // term: IME composition preview render.
         text       imetxt; // term: IME composition preview source.
+        flow       imefmt; // term: IME composition preview layout.
         eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
@@ -7511,6 +7512,28 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
+        // term: Move composition cursor (imebox.caret) inside viewport with wordwrapping.
+        auto calc_composition_cursor(twod viewport_square_size, twod viewport_cursor)
+        {
+            auto composit_cursor = viewport_cursor;
+            auto step = 0;
+            auto next = 0;
+            auto test = [&](auto const& coord, auto const& subblock, auto /*isr_to_l*/)
+            {
+                next = step + subblock.length();
+                if (imebox.caret >= step && imebox.caret <= next) // It could be evaluated twice if the cursor is wrapped.
+                {
+                    composit_cursor = coord;
+                    composit_cursor.x += imebox.caret - step;
+                }
+                step = next;
+            };
+            imefmt.flow::reset();
+            imefmt.flow::size({ viewport_square_size.x, viewport_square_size.y * 2 });
+            imefmt.flow::ac(viewport_cursor);
+            imefmt.flow::compose<faux>(imebox, test);
+            return composit_cursor;
+        }
 
     protected:
         // term: Recalc metrics for the new viewport size.
@@ -7608,16 +7631,7 @@ namespace netxs::ui
                     auto parent_size = parent->size();
                     if (parent_size.inside(composit_cursor))
                     {
-                        if (ime_on)
-                        {
-                            composit_cursor.x += imebox.caret;
-                            if (composit_cursor.x >= parent_size.x) //todo word wrap
-                            {
-                                composit_cursor.y += composit_cursor.x / parent_size.x;
-                                composit_cursor.x  = composit_cursor.x % parent_size.x;
-                                if (composit_cursor.y >= parent_size.y) composit_cursor.y = parent_size.y - 1;
-                            }
-                        }
+                        if (ime_on) composit_cursor = calc_composition_cursor(parent_size, composit_cursor);
                         auto r = rect{ composit_cursor, { parent_size.x - composit_cursor.x, 1 }};
                         auto offset = dot_00;
                         parent->global(offset);
@@ -7712,14 +7726,7 @@ namespace netxs::ui
                         auto viewport_cursor = original_cursor + origin;
                         if (viewport_square.size.inside(viewport_cursor))
                         {
-                            auto composit_cursor = viewport_cursor;
-                            //todo implement word wrapping
-                            composit_cursor.x += imebox.caret;
-                            if (composit_cursor.x >= viewport_square.size.x)
-                            {
-                                composit_cursor.y += composit_cursor.x / viewport_square.size.x;
-                                composit_cursor.x  = composit_cursor.x % viewport_square.size.x;
-                            }
+                            auto composit_cursor = calc_composition_cursor(viewport_square.size, viewport_cursor);
 
                             auto dy = std::max(0, composit_cursor.y - (viewport_square.size.y - 1));
                             if (dy) // Shift parent_canvas down if needed.
@@ -7736,9 +7743,9 @@ namespace netxs::ui
                             viewport_square.coor -= origin;
                             if (auto context = parent_canvas.change_basis(viewport_square))
                             {
-                                parent_canvas.output<true>(imebox, viewport_cursor, cell::shaders::mimic(brush));
+                                parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(brush));
                             }
-                            composit_cursor -= origin; // Convert to original basis.
+                            composit_cursor -= origin; // Convert to original (scrollback based) basis.
                             cursor.coor(composit_cursor);
                         }
                         else // Original cursor is outside the viewport.

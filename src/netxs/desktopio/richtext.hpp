@@ -2553,12 +2553,12 @@ namespace netxs::ui
         svga cmode = svga::vtrgb; // face: Color mode.
 
         // face: Print proxy something else at the specified coor.
-        template<class T, class P>
+        template<bool Split = true, class T, class P>
         void output_proxy(T const& block, twod coord, P proxy)
         {
             flow::sync(block);
             flow::ac(coord);
-            flow::compose<true>(block, proxy);
+            flow::compose<Split>(block, proxy);
         }
         // face: Print something else at the specified coor.
         template<bool Split = true, class T, class P = noop>

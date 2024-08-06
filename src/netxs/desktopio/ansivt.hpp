@@ -1110,14 +1110,14 @@ namespace netxs::ansi
 
     struct runtime
     {
-        bool iswrapln;
-        bool isr_to_l;
-        bool isrlfeed;
-        bool straight; // runtime: Text substring retrieving direction.
-        bool centered;
-        bool arighted;
-        si32 tabwidth;
-        dent textpads;
+        bool iswrapln = true;
+        bool isr_to_l = faux;
+        bool isrlfeed = faux;
+        bool straight = true; // runtime: Text substring retrieving direction.
+        bool centered = faux;
+        bool arighted = faux;
+        si32 tabwidth = 8;
+        dent textpads = {};
 
         void combine(deco const& global, deco const& custom)
         {
