@@ -3896,12 +3896,17 @@ namespace netxs::ui
                 canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
             }
         };
-        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
+        static constexpr auto underline = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
         {
             if (object_len && handle_len != region_len) // Show only if it is oversized.
             {
-                //canvas.fill(handle, [](cell& c){ c.und(!c.und()); });
-                canvas.fill(handle, [](cell& c){ c.und(true); });
+                auto fgc = boss.color().fgc();
+                auto src = boss.base::This();
+                while (!fgc && (src = src->parent())) // Detect scrollbar/underline color.
+                {
+                    fgc = src->color().fgc();
+                }
+                canvas.fill(handle, [&](cell& c){ c.unc(fgc).und(true); });
             }
         };
     }

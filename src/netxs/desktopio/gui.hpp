@@ -1992,10 +1992,11 @@ namespace netxs::gui
         virtual void sys_command(si32 menucmd) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
-        virtual void keybd_press(arch vkey, arch lParam, bool altkey) = 0;
+        virtual void keybd_press() = 0;
         //virtual void keybd_input(arch wide_char) = 0;
         virtual void keybd_input(view utf8, byte input_type) = 0;
-        virtual void check_fsmode(arch hWnd) = 0;
+        virtual void check_fsmode() = 0;
+        virtual void check_window_position(twod coor) = 0;
         virtual void sync_clipboard() = 0;
         virtual void sync_kbstat() = 0;
 
@@ -2060,18 +2061,18 @@ namespace netxs::gui
                         log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
                         break;
                     }
-                    case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
-                    case WM_SYSKEYUP:      w->keybd_press(wParam, lParam, true);       break;
+                    case WM_SYSKEYDOWN: // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
+                    case WM_SYSKEYUP:
                     case WM_KEYDOWN:
-                    case WM_KEYUP:         w->keybd_press(wParam, lParam, faux);       break;
-                    //case WM_UNICHAR: log("WM_UNICHAR"); w->keybd_input(wParam, lParam); break;
-                    //case WM_CHAR: log("WM_CHAR"); w->keybd_input(wParam, lParam); break;
-                    //case WM_SYSCHAR: log("WM_SYSCHAR");       w->keybd_input(wParam, lParam);             break;
-                    //case WM_IME_CHAR:      w->keybd_input(wParam);                     break;
-                    case WM_WINDOWPOSCHANGED:
-                    case WM_DPICHANGED:
+                    case WM_KEYUP: w->keybd_press(); break;
+                    //case WM_UNICHAR:  log("WM_UNICHAR");  w->keybd_input(wParam, lParam); break;
+                    //case WM_CHAR:     log("WM_CHAR");     w->keybd_input(wParam, lParam); break;
+                    //case WM_SYSCHAR:  log("WM_SYSCHAR");  w->keybd_input(wParam, lParam); break;
+                    //case WM_IME_CHAR: log("WM_IME_CHAR"); w->keybd_input(wParam);         break;
+                    case WM_WINDOWPOSCHANGED: if (auto& p = *((WINDOWPOS*)lParam); !(p.flags & SWP_NOMOVE)) w->check_window_position({ p.x, p.y }); // Check moving only.
+                                              break; // Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
-                    case WM_DEVICECHANGE:  w->check_fsmode((arch)hWnd);                break;
+                    case WM_DEVICECHANGE: w->check_fsmode(); break; // Restore from maximized mode if resolution changed.
                     //dx3d specific
                     //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                     case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
@@ -2093,8 +2094,8 @@ namespace netxs::gui
                     //    }
                     //    break;
                     default:
-                    //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                    stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                        //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                        stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
                 w->sys_command(syscmd::update);
                 return stat;
@@ -2847,9 +2848,19 @@ namespace netxs::gui
                 }
             }
         }
-        void check_fsmode(arch hWnd)
+        void check_window_position(twod coor)
         {
-            if ((arch)(layers[client].hWnd) != hWnd) return;
+            if (layers.empty() || fsmode != state::normal) return;
+            if (auto delta = coor - layers[client].area.coor)
+            {
+                bell::enqueue(This(), [&, delta](auto& /*boss*/) // Perform corrections.
+                {
+                    move_window(delta);
+                });
+            }
+        }
+        void check_fsmode()
+        {
             if (fsmode == state::undefined || layers.empty()) return;
             auto unsync = true;
             if (auto lock = bell::try_sync()) // Try to sync with ui thread for fast checking.
@@ -3462,10 +3473,8 @@ namespace netxs::gui
         //        point = {};
         //    }
         //}
-        void keybd_press(arch vkey, arch lParam, bool altkey)
+        void keybd_press()
         {
-            auto virtcod = std::clamp((si32)vkey, 0, 255);
-            if (virtcod || lParam || altkey)
             {
                 //...
             }
@@ -3484,7 +3493,8 @@ namespace netxs::gui
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
-            auto param = key_state_t{ .token = (ui32)lParam };
+            auto virtcod = std::clamp((si32)msg.wParam, 0, 255);
+            auto param = key_state_t{ .token = (ui32)msg.lParam };
             if (param.v.state == 2/*unknown*/) return;
             auto pressed = param.v.state == 0;
             auto repeat  = param.v.state == 1;
@@ -3498,7 +3508,7 @@ namespace netxs::gui
             if (auto rc = ::TranslateMessage(&msg)) // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
             {                                       // ::ToUnicodeEx() doesn't update IME.
                 auto m = MSG{};                     // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages.
-                auto msgtype = altkey ? WM_SYSCHAR : WM_CHAR;
+                auto msgtype = msg.message == WM_KEYUP || msg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
                 while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
                 if (toWIDE.size()) keytype = 1;
                 else
