@@ -166,6 +166,9 @@ int main(int argc, char* argv[])
             "\n    -t, --tui            Force TUI mode."
             "\n    -g, --gui            Force GUI mode."
             "\n    -i, --install        Perform system-wide installation."
+            #if defined(WIN32)
+            " Server will run always in Session 0 Isolation."
+            #endif
             "\n    -u, --uninstall      Perform system-wide deinstallation."
             "\n    -q, --quiet          Disable logging."
             "\n    -x, --script <cmds>  Specifies script commands."
