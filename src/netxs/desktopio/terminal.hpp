@@ -2353,8 +2353,8 @@ namespace netxs::ui
                 auto find = selection_active()
                          && match.length()
                          && owner.selmod == mime::textonly;
-                canvas.move(full.coor);
-                dest.fill(canvas, cell::shaders::fuse);
+                canvas.move(full.coor - dest.coor());
+                dest.plot(canvas, cell::shaders::fuse);
                 if (find)
                 {
                     if (auto area = canvas.area())
