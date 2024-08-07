@@ -934,10 +934,11 @@ struct impl : consrv
             ondata.reset();
             signal.notify_one();
         }
-        void mouse(input::hids& gear, bool moved, twod coord)
+        void mouse(input::hids& gear, twod coord)
         {
             auto state = os::nt::ms_kbstate(gear.ctlstate);
             auto bttns = gear.m_sys.buttons & 0b00011111;
+            auto moved = gear.m_sys.buttons == gear.m_sav.buttons && gear.m_sys.wheelfp == 0.f; // No events means mouse move. MSFT: "MOUSE_EVENT_RECORD::dwEventFlags: If this value is zero, it indicates a mouse button being pressed or released". Far Manager relies on this.
             auto flags = ui32{};
             if (moved) flags |= MOUSE_MOVED;
             for (auto i = 0_sz; i < dclick.size(); i++)
@@ -5119,8 +5120,8 @@ struct impl : consrv
             }
         }
     }
-    void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot /*encod*/,
-                 input::mouse::mode /*state*/) { events.mouse(gear, moved, coord); }
+    void mouse(input::hids& gear, bool /*moved*/, twod coord, input::mouse::prot /*encod*/,
+                 input::mouse::mode /*state*/) { events.mouse(gear, coord);        }
     void keybd(input::hids& gear, bool decckm) { events.keybd(gear, decckm);       }
     void paste(view block)                     { events.paste(block);              }
     void focus(bool state)                     { events.focus(state);              }

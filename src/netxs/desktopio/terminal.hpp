@@ -310,12 +310,12 @@ namespace netxs::ui
             using mode = input::mouse::mode;
             using prot = input::mouse::prot;
 
-            term&       owner; // m_tracking: Terminal object reference.
-            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
-            subs        token; // m_tracking: Subscription token.
-            prot        encod; // m_tracking: Mouse encoding protocol.
-            mode        state; // m_tracking: Mouse reporting mode.
-            si32        smode; // m_tracking: Selection mode state backup.
+            term& owner; // m_tracking: Terminal object reference.
+            twod  coord; // m_tracking: Last coord of mouse cursor.
+            subs  token; // m_tracking: Subscription token.
+            prot  encod; // m_tracking: Mouse encoding protocol.
+            mode  state; // m_tracking: Mouse reporting mode.
+            si32  smode; // m_tracking: Selection mode state backup.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
@@ -990,6 +990,7 @@ namespace netxs::ui
 
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
+                si32 decsg{}; // Parser DEC Special Graphcs Mode.
                 twod coord{}; // Screen coord state.
                 bool decom{}; // Origin mode  state.
                 sgrs stack{}; // Stach for saved sgr attributes.
@@ -1452,6 +1453,7 @@ namespace netxs::ui
     virtual void clear_all()
             {
                 parser::state = {};
+                parser::decsg = {};
                 decom = faux;
                 rtb();
                 selection_cancel();
@@ -1737,6 +1739,7 @@ namespace netxs::ui
                 parser::flush();
                 saved = { .style = parser::style,
                           .brush = parser::brush,
+                          .decsg = parser::decsg,
                           .coord = coord,
                           .decom = decom };
                 if (decom) saved.coord.y -= y_top;
@@ -1752,6 +1755,7 @@ namespace netxs::ui
                 set_coord(coor);
                 parser::style = saved.style;
                 parser::brush = saved.brush;
+                parser::decsg = saved.decsg;
                 parser::flush(); // Proceed new style.
             }
             // bufferbase: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
