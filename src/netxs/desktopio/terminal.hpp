@@ -310,12 +310,12 @@ namespace netxs::ui
             using mode = input::mouse::mode;
             using prot = input::mouse::prot;
 
-            term&       owner; // m_tracking: Terminal object reference.
-            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
-            subs        token; // m_tracking: Subscription token.
-            prot        encod; // m_tracking: Mouse encoding protocol.
-            mode        state; // m_tracking: Mouse reporting mode.
-            si32        smode; // m_tracking: Selection mode state backup.
+            term& owner; // m_tracking: Terminal object reference.
+            twod  coord; // m_tracking: Last coord of mouse cursor.
+            subs  token; // m_tracking: Subscription token.
+            prot  encod; // m_tracking: Mouse encoding protocol.
+            mode  state; // m_tracking: Mouse reporting mode.
+            si32  smode; // m_tracking: Selection mode state backup.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
