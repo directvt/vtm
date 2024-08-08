@@ -24,6 +24,7 @@ int main(int argc, char* argv[])
     auto script = text{};
     auto trygui = true;
     auto forced = faux;
+    auto system = faux;
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))//app::ssh::id))
     {
@@ -36,6 +37,10 @@ int main(int argc, char* argv[])
         {
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
+        }
+        else if (getopt.match("-0", "--session0"))
+        {
+            system = true;
         }
         else if (getopt.match("-t", "--tui"))
         {
@@ -157,8 +162,8 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Options:"
             "\n"
-            "\n    By default, " + vtm + " runs Desktop Client, running an additional"
-            "\n    instance with Desktop Server in background if it is not found."
+            "\n    By default, " + vtm + " runs Desktop Client and Desktop Server"
+            "\n    in background if it is not running."
             "\n"
             "\n    -h, -?, --help       Print command-line options."
             "\n    -v, --version        Print version."
@@ -167,7 +172,8 @@ int main(int argc, char* argv[])
             "\n    -g, --gui            Force GUI mode."
             "\n    -i, --install        Perform system-wide installation."
             #if defined(WIN32)
-            " Server will run always in Session 0 Isolation."
+            " Allow Desktop Server to run in Session 0."
+            "\n    -0, --session0       Use Session 0 to run Desktop Server in background."
             #endif
             "\n    -u, --uninstall      Perform system-wide deinstallation."
             "\n    -q, --quiet          Disable logging."
@@ -391,7 +397,7 @@ int main(int argc, char* argv[])
         else if (whoami == type::client && !client)
         {
             log("%%New desktop session for [%userid%]", prompt::main, userid.first);
-            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            auto [success, successor] = os::process::fork(system, prefix, config.utf8());
             if (successor)
             {
                 whoami = type::server;
@@ -424,7 +430,7 @@ int main(int argc, char* argv[])
 
         if (whoami == type::daemon)
         {
-            auto [success, successor] = os::process::fork(prefix, config.utf8(), script);
+            auto [success, successor] = os::process::fork(system, prefix, config.utf8(), script);
             if (successor)
             {
                 whoami = type::server;

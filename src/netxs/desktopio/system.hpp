@@ -2563,7 +2563,7 @@ namespace netxs::os
                 environ = backup;
             #endif
         }
-        auto fork([[maybe_unused]] text prefix, [[maybe_unused]] view config, [[maybe_unused]] view script = {})
+        auto fork([[maybe_unused]] bool system, [[maybe_unused]] text prefix, [[maybe_unused]] view config, [[maybe_unused]] view script = {})
         {
             auto msg = [](auto& success)
             {
@@ -2575,7 +2575,7 @@ namespace netxs::os
 
                 auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(nullptr, &::CloseHandle);
                 auto svclink = os::invalid_fd;
-                if (nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
+                if (system && nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
                     auto envars = os::env::add(); // Take current envvars block.
                     auto size = (ui32)(prefix.size() + config.size() + envars.size() + 2);
