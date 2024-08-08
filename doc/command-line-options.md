@@ -22,7 +22,8 @@ Option                  | Description
 `-l`, `--listconfig`    | Print configuration.
 `-t`, `--tui`           | Force TUI mode.
 `-g`, `--gui`           | Force GUI mode.
-`-i`, `--install`       | Perform system-wide installation. Desktop Server will always run in Session 0 in user context on Windows.<br>Don't use system-wide installation in case you plan to run GUI apps from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.
+`-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.
+`-0`, `--session0`      | Use Session 0 to run Desktop Server in background.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
