@@ -1825,8 +1825,17 @@ namespace netxs::gui
             {
                 //os::logstd("\tmsW=", utf::to_hex(msg.message), " wP=", utf::to_hex(msg.wParam), " lP=", utf::to_hex(msg.lParam), " hwnd=", utf::to_hex(msg.hwnd));
                 //if (msg.message == 0xC060) sync_kb_thread(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) sync_kb_thread(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                ::DispatchMessageW(&msg);
+                if (msg.message == WM_KEYDOWN    || msg.message == WM_KEYUP ||
+                    msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP)
+                {
+                    keybd_press();
+                    sys_command(syscmd::update);
+                }
+                else
+                {
+                    if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) sync_kb_thread(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    ::DispatchMessageW(&msg);
+                }
             }
             //auto stop = os::fd_t{ alarm };
             //auto next = MSG{};
@@ -2061,10 +2070,6 @@ namespace netxs::gui
                         log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
                         break;
                     }
-                    case WM_SYSKEYDOWN: // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
-                    case WM_SYSKEYUP:
-                    case WM_KEYDOWN:
-                    case WM_KEYUP: w->keybd_press(); break;
                     //case WM_UNICHAR:  log("WM_UNICHAR");  w->keybd_input(wParam, lParam); break;
                     //case WM_CHAR:     log("WM_CHAR");     w->keybd_input(wParam, lParam); break;
                     //case WM_SYSCHAR:  log("WM_SYSCHAR");  w->keybd_input(wParam, lParam); break;
@@ -3503,8 +3508,8 @@ namespace netxs::gui
             auto scancod = param.v.scancode;
             auto keytype = 0;
             //os::logstd("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0");
-            //todo process Alt+Numpads on our side:
-            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
+            //todo process Alt+Numpads on our side: use TSF message pump.
+            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
             if (auto rc = ::TranslateMessage(&msg)) // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
             {                                       // ::ToUnicodeEx() doesn't update IME.
                 auto m = MSG{};                     // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages.
@@ -3536,6 +3541,7 @@ namespace netxs::gui
                     {
                         sync_kbstat({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
                         keybd_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
+                        toWIDE.clear();
                         //print_kbstate("key press:");
                         return;
                     }
