@@ -13,9 +13,11 @@ namespace netxs::gui
     {
         struct bttn
         {
-            static constexpr auto left   = 1 << 0;
-            static constexpr auto right  = 1 << 1;
-            static constexpr auto middle = 1 << 2;
+            static constexpr auto left     = 1 << 0;
+            static constexpr auto right    = 1 << 1;
+            static constexpr auto middle   = 1 << 2;
+            static constexpr auto xbutton1 = 1 << 3;
+            static constexpr auto xbutton2 = 1 << 4;
         };
         struct state
         {
@@ -2029,11 +2031,13 @@ namespace netxs::gui
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
                     case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
-                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
-                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
                     case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
-                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
+                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
                     case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
+                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
+                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
+                    case WM_XBUTTONDOWN:   w->mouse_press(hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2, true); break;
+                    case WM_XBUTTONUP:     w->mouse_press(hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2, faux); break;
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), 0);              break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
                     case WM_SETFOCUS:      w->focus_event(true);                       break;

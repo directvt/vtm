@@ -1719,8 +1719,8 @@ namespace netxs::ui
                         case e2::form::draggable::left     .id: draggable<hids::buttons::left     >(enabled); break;
                         case e2::form::draggable::right    .id: draggable<hids::buttons::right    >(enabled); break;
                         case e2::form::draggable::middle   .id: draggable<hids::buttons::middle   >(enabled); break;
-                        case e2::form::draggable::wheel    .id: draggable<hids::buttons::wheel    >(enabled); break;
-                        case e2::form::draggable::win      .id: draggable<hids::buttons::win      >(enabled); break;
+                        case e2::form::draggable::xbutton1 .id: draggable<hids::buttons::xbutton1 >(enabled); break;
+                        case e2::form::draggable::xbutton2 .id: draggable<hids::buttons::xbutton2 >(enabled); break;
                         case e2::form::draggable::leftright.id: draggable<hids::buttons::leftright>(enabled); break;
                     }
                 };

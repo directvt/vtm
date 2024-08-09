@@ -187,11 +187,11 @@ namespace netxs::events::userland
                     EVENT_XS( left     , bool ),
                     EVENT_XS( right    , bool ),
                     EVENT_XS( middle   , bool ),
-                    EVENT_XS( wheel    , bool ),
-                    EVENT_XS( win      , bool ),
+                    EVENT_XS( xbutton1 , bool ),
+                    EVENT_XS( xbutton2 , bool ),
                     EVENT_XS( leftright, bool ),
 
-                    INDEX_XS( left, right, middle, wheel, win, leftright ),
+                    INDEX_XS( left, right, middle, xbutton1, xbutton2, leftright ),
                 };
                 SUBSET_XS( layout )
                 {
@@ -338,44 +338,44 @@ namespace netxs::events::userland
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
                         EVENT_XS( middle   , input::hids ),
-                        EVENT_XS( wheel    , input::hids ),
-                        EVENT_XS( win      , input::hids ),
+                        EVENT_XS( xbutton1 , input::hids ),
+                        EVENT_XS( xbutton2 , input::hids ),
                         EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, middle, wheel, win, leftright ),
+                        INDEX_XS( left, right, middle, xbutton1, xbutton2, leftright ),
                     };
                     SUBSET_XS( pull )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
                         EVENT_XS( middle   , input::hids ),
-                        EVENT_XS( wheel    , input::hids ),
-                        EVENT_XS( win      , input::hids ),
+                        EVENT_XS( xbutton1 , input::hids ),
+                        EVENT_XS( xbutton2 , input::hids ),
                         EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, middle, wheel, win, leftright ),
+                        INDEX_XS( left, right, middle, xbutton1, xbutton2, leftright ),
                     };
                     SUBSET_XS( cancel )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
                         EVENT_XS( middle   , input::hids ),
-                        EVENT_XS( wheel    , input::hids ),
-                        EVENT_XS( win      , input::hids ),
+                        EVENT_XS( xbutton1 , input::hids ),
+                        EVENT_XS( xbutton2 , input::hids ),
                         EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, middle, wheel, win, leftright ),
+                        INDEX_XS( left, right, middle, xbutton1, xbutton2, leftright ),
                     };
                     SUBSET_XS( stop )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
                         EVENT_XS( middle   , input::hids ),
-                        EVENT_XS( wheel    , input::hids ),
-                        EVENT_XS( win      , input::hids ),
+                        EVENT_XS( xbutton1 , input::hids ),
+                        EVENT_XS( xbutton2 , input::hids ),
                         EVENT_XS( leftright, input::hids ),
 
-                        INDEX_XS( left, right, middle, wheel, win, leftright ),
+                        INDEX_XS( left, right, middle, xbutton1, xbutton2, leftright ),
                     };
                 };
                 SUBSET_XS( prop )
