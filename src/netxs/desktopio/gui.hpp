@@ -1888,6 +1888,11 @@ namespace netxs::gui
             sync_kbstat();
             //print_kbstate("sync_kb_thread");
         }
+        void enqueue_sync_kbstat()
+        {
+            static auto data = COPYDATASTRUCT{ .dwData = 99904 };
+            if (!layers.empty()) ::PostMessageW(layers.front().hWnd, WM_COPYDATA, {}, (LPARAM)&data);
+        }
         void activate()
         {
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
@@ -1963,14 +1968,14 @@ namespace netxs::gui
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
             {
                 if (!layers.empty()) ::SetCapture(layers.front().hWnd);
-                log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
+                //log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
             }
         }
         void mouse_release(si32 captured_by)
         {
             if (std::exchange(mouse_capture_state, mouse_capture_state & ~captured_by) && !mouse_capture_state)
             {
-                log("released by ", captured_by == by::mouse ? "mouse" : "keybd");
+                //log("released by ", captured_by == by::mouse ? "mouse" : "keybd");
                 ::ReleaseCapture();
             }
         }
@@ -2076,15 +2081,15 @@ namespace netxs::gui
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
                     case WM_ACTIVATEAPP:   if (wParam) ::SetFocus(hWnd);               break; // explorer.exe gives us focus from the other window. Call SetFocus() to restore thread's keyboard state.
                     case WM_SETFOCUS:
-                        log("WM_SETFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
+                        //log("WM_SETFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         w->focus_event(true);
                         break;
                     case WM_KILLFOCUS:     
-                        log("WM_KILLFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
+                        //log("WM_KILLFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         w->focus_event(faux);
                         break;
                     case WM_COPYDATA: // Receive group focus events.
-                        log("WM_COPYDATA hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
+                        //log("WM_COPYDATA hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         if (w->group_event(lParam)) stat = 999;
                         break;
                     // These should be processed on the system side.
@@ -3463,7 +3468,7 @@ namespace netxs::gui
                     if (rc == 999) // Group focus has been passed.
                     {
                         log("Group focus has been passed");
-                        for (auto h : target_list) log("\thwnd=", h);
+                        for (auto h : target_list) log("\thwnd=", utf::to_hex(h));
                         group_focus = true;
                         group_focus_list.clear();
                     }
@@ -3501,8 +3506,7 @@ namespace netxs::gui
                 auto data = COPYDATASTRUCT{ .dwData = 99902,
                                             .cbData = (DWORD)block.size(),
                                             .lpData = (void*)block.data() };
-                //todo race with ui thread?
-                for (auto& target : group_focus_list) // Send to group focus targets.
+                for (auto& target : group_focus_list) // Send to group focused targets.
                 {
                     auto rc = ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
                     if (rc != 999) group_focus_list.erase(target); // Drop failed targets.
@@ -3751,6 +3755,10 @@ namespace netxs::gui
                     });
                 }
             }
+            else if (data.dwData == 99904) // Sync keybd state.
+            {
+                sync_kbstat();
+            }
             else ok = faux;
             return ok;
         }
@@ -3759,18 +3767,21 @@ namespace netxs::gui
             if (focused == focus_state) return;
             focused = focus_state;
             if (focused) activate(); // It must be called in current thread.
-            else         deactivate();
+            else
+            {
+                deactivate();
+                sync_kbstat();
+            }
             //os::logstd("", focused ? "focused" : "unfocused");
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
                 if (focused)
                 {
                     SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
-                    sync_kbstat();
+                    enqueue_sync_kbstat();
                 }
                 else
                 {
-                    sync_kbstat();
                     if (!group_focus)
                     {
                         SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
