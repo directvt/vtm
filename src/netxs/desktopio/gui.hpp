@@ -56,7 +56,7 @@ namespace netxs::gui
         si32 mouse_capture_state = {}; // manager_base: Mouse capture owners bitfield.
         bool focused = {}; // manager_base: Window is focused.
         bool group_focus = {}; // manager_base: Window has group focus.
-        std::list<arch> group_focus_list; // manager_base: Group focus targets.
+        std::unordered_set<ui32> group_focus_list; // manager_base: Group focus targets.
         bool group_focus_pressed = {}; // manager_base: Activated with group focus requirement.
 
         explicit operator bool () const { return isfine; }
@@ -1910,13 +1910,23 @@ namespace netxs::gui
             // }
             // ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
             ::GetKeyboardState(kbstate.data()); // ?>> Get some state (modifiers and locks are outdated).
-            group_focus_pressed = kbstate[VK_CONTROL] & 0x80; // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            group_focus_pressed = !group_focus && kbstate[VK_CONTROL] & 0x80; // Check if we are focused by Ctrl+AnyClick to ignore that click.
 
             //print_kbstate("::GetKeyboardState");
             tsf.set_focus();
         }
         void deactivate()
         {
+            if (group_focus_list.size()) // Drop the group focus if we didn't pass it to somebody.
+            {
+                for (auto& target : group_focus_list) // Send to all that group focus is going to lost.
+                {
+                    auto data = COPYDATASTRUCT{ .dwData = 99903 };
+                    ::SendMessageW((HWND)(arch)target, WM_COPYDATA, {}, (LPARAM)&data);
+                }
+                group_focus = faux;
+                group_focus_list.clear();
+            }
             auto n = kbstate[VK_NUMLOCK];
             auto c = kbstate[VK_CAPITAL];
             auto s = kbstate[VK_SCROLL ];
@@ -2022,14 +2032,13 @@ namespace netxs::gui
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
-        virtual void add_group_focus_target(arch hWnd) = 0;
+        virtual bool group_event(arch data_ptr) = 0;
         virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press() = 0;
-        //virtual void keybd_input(arch wide_char) = 0;
         virtual void keybd_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode() = 0;
         virtual void check_window_position(twod coor) = 0;
@@ -2074,13 +2083,9 @@ namespace netxs::gui
                         log("WM_KILLFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         w->focus_event(faux);
                         break;
-                    case WM_COPYDATA: // Receive group focus keybd events.
-                        //todo retranslate
-                        break;
-                    case WM_USER: // Negotiate group focus.
-                        w->add_group_focus_target(wParam);
-                        log("WM_USER hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
-                        stat = 999;
+                    case WM_COPYDATA: // Receive group focus events.
+                        log("WM_COPYDATA hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
+                        if (w->group_event(lParam)) stat = 999;
                         break;
                     // These should be processed on the system side.
                     //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
@@ -2112,10 +2117,6 @@ namespace netxs::gui
                         log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
                         break;
                     }
-                    //case WM_UNICHAR:  log("WM_UNICHAR");  w->keybd_input(wParam, lParam); break;
-                    //case WM_CHAR:     log("WM_CHAR");     w->keybd_input(wParam, lParam); break;
-                    //case WM_SYSCHAR:  log("WM_SYSCHAR");  w->keybd_input(wParam, lParam); break;
-                    //case WM_IME_CHAR: log("WM_IME_CHAR"); w->keybd_input(wParam);         break;
                     case WM_WINDOWPOSCHANGED: if (auto& p = *((WINDOWPOS*)lParam); !(p.flags & SWP_NOMOVE)) w->check_window_position({ p.x, p.y }); // Check moving only.
                                               break; // Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
@@ -2391,7 +2392,19 @@ namespace netxs::gui
             input::sysclose c = {}; // evnt: .
             netxs::sptr<input::hids> gears; // evnt: .
 
-            auto keybd(auto&& data) { if (alive)                s11n::syskeybd.send(intio, data); }
+            auto keybd(auto&& data, auto proc)
+            {
+                if (alive)
+                {
+                    auto lock = s11n::syskeybd.freeze();
+                    lock.thing.set(data);
+                    lock.thing.sendfx([&](auto block)
+                    {
+                        intio.send(block);
+                        proc(block);
+                    });
+                }
+            };
             auto mouse(auto&& data) { if (alive)                s11n::sysmouse.send(intio, data); }
             auto winsz(auto&& data) { if (alive)                s11n::syswinsz.send(intio, data); }
             auto close(auto&& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
@@ -2754,9 +2767,13 @@ namespace netxs::gui
             sync_header_pixel_layout();
             sync_footer_pixel_layout();
         }
+        auto has_focus()
+        {
+            return focused || group_focus;
+        }
         void reset_blinky()
         {
-            if (focused && layers[blinky].live) // Hide blinking layer to avoid visual desync.
+            if (has_focus() && layers[blinky].live) // Hide blinking layer to avoid visual desync.
             {
                 layers[blinky].hide();
                 manager::present<true>();
@@ -3181,7 +3198,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (focused && layers[blinky].live) layers[blinky].hide();
+                    if (has_focus() && layers[blinky].live) layers[blinky].hide();
                     layers[client].stop_timer(timers::blink);
                 }
             }
@@ -3431,19 +3448,26 @@ namespace netxs::gui
             if (changed && !prev_state && kbstate[VK_CONTROL] & 0x80) // On Ctrl+AnyButton down outside the window.
             {
                 auto outer_rect = layers[client].area;
-                auto point = twod{ msg.pt.x, msg.pt.y };
-                auto outside = !outer_rect.hittest(point);
+                auto pointer = twod{ msg.pt.x, msg.pt.y };
+                auto outside = !outer_rect.hittest(pointer);
                 if (outside) // Try to pass group focus ownership.
                 {
                     auto target = ::WindowFromPoint(msg.pt);
-                    auto rc = ::SendMessageW(target, WM_USER, (WPARAM)layers[client].hWnd, 8);
-                    log("rc=", rc, " ::WindowFromPoint hWnd=", utf::to_hex(target));
-                    if (rc == 999) // Group focus approved.
+                    auto target_list = std::vector<ui32>{};
+                    for (auto hwnd : group_focus_list) target_list.push_back(hwnd);
+                    target_list.push_back((ui32)(ui64)(layers[client].hWnd));
+                    auto data = COPYDATASTRUCT{ .dwData = 99901,
+                                                .cbData = (DWORD)(target_list.size() * sizeof(target_list.front())),
+                                                .lpData = target_list.data() };
+                    auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
+                    if (rc == 999) // Group focus has been passed.
                     {
-                        //todo pass group focus ownership
                         log("Group focus has been passed");
+                        for (auto h : target_list) log("\thwnd=", h);
                         group_focus = true;
+                        group_focus_list.clear();
                     }
+                    else log(ansi::err("Failed to pass group focus"));
                 }
             }
 
@@ -3469,6 +3493,21 @@ namespace netxs::gui
                     }
                 }
             }
+        }
+        void stream_keybd(auto& k)
+        {
+            stream.keybd(k, [&](view block)
+            {
+                auto data = COPYDATASTRUCT{ .dwData = 99902,
+                                            .cbData = (DWORD)block.size(),
+                                            .lpData = (void*)block.data() };
+                //todo race with ui thread?
+                for (auto& target : group_focus_list) // Send to group focus targets.
+                {
+                    auto rc = ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
+                    if (rc != 999) group_focus_list.erase(target); // Drop failed targets.
+                }
+            });
         }
         void sync_kbstat(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
@@ -3516,14 +3555,7 @@ namespace netxs::gui
                 stream.k.pressed = pressed || repeat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
-                stream.keybd(stream.k);
-                //todo send group focus targets
-                //...
-                for (auto& target : group_focus_list)
-                {
-                    //todo send ..
-                    //todo drop failed targets
-                }
+                stream_keybd(stream.k);
             }
             #else
             if (cluster.empty() || pressed || repeat || virtcod || scancod || extflag)
@@ -3538,32 +3570,13 @@ namespace netxs::gui
         }
         void keybd_input(view utf8, byte payload_type)
         {
-                //os::logstd("keybd_input wide_char=", ansi::hi(utf8));
-                stream.k.payload = payload_type;
-                stream.k.cluster = utf8;
-                stream.keybd(stream.k);
-                stream.k.payload = input::keybd::type::keypress;
+            stream.k.payload = payload_type;
+            stream.k.cluster = utf8;
+            stream_keybd(stream.k);
+            stream.k.payload = input::keybd::type::keypress;
         }
-        //void keybd_input(view utf8)
-        //{
-        //    keybd_input(utf8, 0);
-        //}
-        //void keybd_input(arch wide_char)
-        //{
-        //    //os::logstd("WM_IMECHAR wide_char ", (si32)wide_char);
-        //    if (utf::to_code((wchr)wide_char, point))
-        //    {
-        //        toUTF8.clear();
-        //        utf::to_utf_from_code(point, toUTF8);
-        //        keybd_input(toUTF8);
-        //        point = {};
-        //    }
-        //}
         void keybd_press()
         {
-            {
-                //...
-            }
             #if defined(_WIN32)
 
             union key_state_t
@@ -3604,7 +3617,7 @@ namespace netxs::gui
             }
             //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
             //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
-            if (!focused) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
+            if (!has_focus()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
                 toWIDE.clear();
                 return;
@@ -3705,9 +3718,41 @@ namespace netxs::gui
             //}
             #endif
         }
-        void add_group_focus_target(arch hWnd)
+        bool group_event(arch data_ptr)
         {
-            group_focus_list.push_back(hWnd);
+            if (!data_ptr) return faux;
+            auto& data = *(COPYDATASTRUCT*)data_ptr;
+            auto ok = true;
+            if (data.dwData == 99901) // Target list.
+            {
+                log("Got focused window list:");
+                auto local_hwnd = layers[client].hWnd;
+                auto target_list = std::span<ui32>{ (ui32*)data.lpData, data.cbData / sizeof(ui32) };
+                group_focus_list.clear();
+                for (auto h : target_list)
+                {
+                    log("\thWnd=", utf::to_hex(h));
+                    if (h != (arch)local_hwnd) group_focus_list.insert(h);
+                }
+            }
+            else if (data.dwData == 99902) // Keybd event.
+            {
+                auto event_data = view{ (char*)data.lpData, data.cbData };
+                window::output(event_data);
+            }
+            else if (data.dwData == 99903) // Group focus is lost.
+            {
+                if (group_focus)
+                {
+                    group_focus = faux;
+                    bell::enqueue(This(), [&](auto& /*boss*/)
+                    {
+                        SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
+                    });
+                }
+            }
+            else ok = faux;
+            return ok;
         }
         void focus_event(bool focus_state)
         {
@@ -3747,7 +3792,7 @@ namespace netxs::gui
             {
                 if (fsmode == state::minimized || eventid != timers::blink) return;
                 auto visible = layers[blinky].live;
-                if (focused && visible)
+                if (has_focus() && visible)
                 {
                     layers[blinky].hide();
                     netxs::set_flag<task::blink>(reload);
