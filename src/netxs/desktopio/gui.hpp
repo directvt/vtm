@@ -55,6 +55,9 @@ namespace netxs::gui
         fp32 os_wheel_delta = 24.f; // manager_base: OS-wise mouse wheel setting.
         si32 mouse_capture_state = {}; // manager_base: Mouse capture owners bitfield.
         bool focused = {}; // manager_base: Window is focused.
+        bool group_focus = {}; // manager_base: Window has group focus.
+        std::list<arch> group_focus_list; // manager_base: Group focus targets.
+        bool group_focus_pressed = {}; // manager_base: Activated with group focus requirement.
 
         explicit operator bool () const { return isfine; }
     };
@@ -1898,12 +1901,17 @@ namespace netxs::gui
             //    auto s = ::GetAsyncKeyState(vkey);
             //    kbstate[vkey] = (s >> 8) | (s & 0x1);
             //}
-            for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA }) // Get current locks state. All other keys will be received through auto-repeat.
-            {
-                auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
-                kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
-            }
-            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
+            // //for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA }) // Get current locks state. All other keys will be received through auto-repeat.
+            // for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA, VK_CONTROL, VK_LBUTTON }) // Get current locks state. All other keys will be received through auto-repeat.
+            // {
+            //     auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
+            //     //kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
+            //     kbstate[vkey] = s; // Restore toggle state only. (s >> 8) | (s & 0x1);
+            // }
+            // ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
+            ::GetKeyboardState(kbstate.data()); // ?>> Get some state (modifiers and locks are outdated).
+            group_focus_pressed = kbstate[VK_CONTROL] & 0x80; // Check if we are focused by Ctrl+AnyClick to ignore that click.
+
             //print_kbstate("::GetKeyboardState");
             tsf.set_focus();
         }
@@ -1920,6 +1928,7 @@ namespace netxs::gui
             kbstate[VK_CAPITAL] = c;
             kbstate[VK_SCROLL ] = s;
             kbstate[VK_KANA   ] = k;
+            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
             //kbstate[VK_OEM_FJ_ROYA] = r;
             //kbstate[VK_OEM_FJ_LOYA] = p;
             //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
@@ -2013,6 +2022,7 @@ namespace netxs::gui
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
+        virtual void add_group_focus_target(arch hWnd) = 0;
         virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
@@ -2064,7 +2074,11 @@ namespace netxs::gui
                         log("WM_KILLFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         w->focus_event(faux);
                         break;
-                    case WM_USER:
+                    case WM_COPYDATA: // Receive group focus keybd events.
+                        //todo retranslate
+                        break;
+                    case WM_USER: // Negotiate group focus.
+                        w->add_group_focus_target(wParam);
                         log("WM_USER hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
                         stat = 999;
                         break;
@@ -3406,16 +3420,30 @@ namespace netxs::gui
             }
             static auto dblclick = datetime::now() - 1s;
 
-            if (changed && !prev_state && button == bttn::left && kbstate[VK_CONTROL] & 0x80) // On Ctrl+LeftButton down.
+            if (group_focus_pressed) // Ignore any first Ctrl+AnyClick inside the just focused window.
+            {
+                group_focus_pressed = faux;
+                mbttns = {};
+                log("group_focus_pressed");
+                return;
+            }
+
+            if (changed && !prev_state && kbstate[VK_CONTROL] & 0x80) // On Ctrl+AnyButton down outside the window.
             {
                 auto outer_rect = layers[client].area;
                 auto point = twod{ msg.pt.x, msg.pt.y };
                 auto outside = !outer_rect.hittest(point);
-                if (outside) // Negotiate group focus.
+                if (outside) // Try to pass group focus ownership.
                 {
                     auto target = ::WindowFromPoint(msg.pt);
-                    auto rc = ::SendMessageW(target, WM_USER, 7, 8);
+                    auto rc = ::SendMessageW(target, WM_USER, (WPARAM)layers[client].hWnd, 8);
                     log("rc=", rc, " ::WindowFromPoint hWnd=", utf::to_hex(target));
+                    if (rc == 999) // Group focus approved.
+                    {
+                        //todo pass group focus ownership
+                        log("Group focus has been passed");
+                        group_focus = true;
+                    }
                 }
             }
 
@@ -3464,7 +3492,7 @@ namespace netxs::gui
             if (kbstate[VK_CAPITAL ] & 0x01) state |= input::hids::CapsLock;
             if (kbstate[VK_SCROLL  ] & 0x01) state |= input::hids::ScrlLock;
             if (kbstate[VK_NUMLOCK ] & 0x01) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
-            if (kbstate[VK_CONTROL ] & 0x80) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed.
+            if (kbstate[VK_CONTROL ] & 0x80) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                             mouse_release(by::keybd);
             auto changed = std::exchange(kbmod, state) != kbmod;
             auto repeat_ctrl = repeat && (virtcod == VK_SHIFT   || virtcod == VK_CONTROL || virtcod == VK_MENU
@@ -3489,6 +3517,13 @@ namespace netxs::gui
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
                 stream.keybd(stream.k);
+                //todo send group focus targets
+                //...
+                for (auto& target : group_focus_list)
+                {
+                    //todo send ..
+                    //todo drop failed targets
+                }
             }
             #else
             if (cluster.empty() || pressed || repeat || virtcod || scancod || extflag)
@@ -3670,12 +3705,16 @@ namespace netxs::gui
             //}
             #endif
         }
+        void add_group_focus_target(arch hWnd)
+        {
+            group_focus_list.push_back(hWnd);
+        }
         void focus_event(bool focus_state)
         {
             if (focused == focus_state) return;
             focused = focus_state;
             if (focused) activate(); // It must be called in current thread.
-            else        deactivate();
+            else         deactivate();
             //os::logstd("", focused ? "focused" : "unfocused");
             bell::enqueue(This(), [&](auto& /*boss*/)
             {
@@ -3687,7 +3726,10 @@ namespace netxs::gui
                 else
                 {
                     sync_kbstat();
-                    SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
+                    if (!group_focus)
+                    {
+                        SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
+                    }
                 }
             });
         }
