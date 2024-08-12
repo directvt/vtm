@@ -1893,6 +1893,10 @@ namespace netxs::gui
             static auto data = COPYDATASTRUCT{ .dwData = 99904 };
             if (!layers.empty()) ::PostMessageW(layers.front().hWnd, WM_COPYDATA, {}, (LPARAM)&data);
         }
+        void enqueue_set_focus()
+        {
+            if (!layers.empty()) ::PostMessageW(layers.front().hWnd, WM_SETFOCUS, {}, {});
+        }
         void activate()
         {
             if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd);
@@ -2037,7 +2041,7 @@ namespace netxs::gui
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
-        virtual bool group_event(arch data_ptr) = 0;
+        virtual si32 group_event(arch data_ptr) = 0;
         virtual void timer_event(arch eventid) = 0;
         //virtual void state_event(bool activated, bool minimized) = 0;
         virtual void sys_command(si32 menucmd) = 0;
@@ -2065,7 +2069,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y }); //todo mouse events are broken when IME is active (only work on lower monitor half). TSF message pump?
+                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y }); //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
                                        break;
                     case WM_TIMER:         w->timer_event(wParam);                     break;
                     case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
@@ -2080,21 +2084,12 @@ namespace netxs::gui
                     case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), 0);              break;
                     case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
                     case WM_ACTIVATEAPP:   if (wParam) ::SetFocus(hWnd);               break; // explorer.exe gives us focus from the other window. Call SetFocus() to restore thread's keyboard state.
-                    case WM_SETFOCUS:
-                        //log("WM_SETFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
-                        w->focus_event(true);
-                        break;
-                    case WM_KILLFOCUS:     
-                        //log("WM_KILLFOCUS hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
-                        w->focus_event(faux);
-                        break;
-                    case WM_COPYDATA: // Receive group focus events.
-                        //log("WM_COPYDATA hwnd=", utf::to_hex(hWnd), " wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam));
-                        if (w->group_event(lParam)) stat = 999;
-                        break;
+                    case WM_SETFOCUS:      w->focus_event(true);                       break;
+                    case WM_KILLFOCUS:     w->focus_event(faux);                       break;
+                    case WM_COPYDATA:      stat = w->group_event(lParam);              break; // Receive group focus events.
+                    case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE;                       break; // Suppress window auto focus by mouse.
                     // These should be processed on the system side.
-                    //case WM_SHOWWINDOW:    w->shown_event(!!wParam, lParam);           break; //todo revise
-                    //case WM_MOUSEACTIVATE: w->activate(); stat = MA_NOACTIVATE;        break; // Suppress window activation with a mouse click.
+                    //case WM_SHOWWINDOW:
                     //case WM_NCHITTEST:
                     //case WM_NCACTIVATE:
                     //case WM_SETCURSOR:
@@ -2111,7 +2106,7 @@ namespace netxs::gui
                                             //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
                                         }
                                         break; // Taskbar ctx menu to change the size and position.
-                    //case WM_INITMENU: // The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
                     case WM_INPUTLANGCHANGE:
                     {
                         w->sync_kb_thread();
@@ -2556,9 +2551,12 @@ namespace netxs::gui
             }
             void handle(s11n::xs::focus_set        lock)
             {
-                auto& item = lock.thing;
-                // We are the focus tree endpoint. Signal back the focus set up.
-                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
+                if (owner.has_focus()) // We are the focus tree endpoint. Signal back the focus set up.
+                {
+                    auto& item = lock.thing;
+                    owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
+                }
+                else owner.enqueue_set_focus();
             }
             void handle(s11n::xs::keybd_event      lock)
             {
@@ -2772,7 +2770,7 @@ namespace netxs::gui
             sync_header_pixel_layout();
             sync_footer_pixel_layout();
         }
-        auto has_focus()
+        bool has_focus()
         {
             return focused || group_focus;
         }
@@ -3465,7 +3463,7 @@ namespace netxs::gui
                                                 .cbData = (DWORD)(target_list.size() * sizeof(target_list.front())),
                                                 .lpData = target_list.data() };
                     auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
-                    if (rc == 999) // Group focus has been passed.
+                    if (rc == 99901) // Group focus has been passed.
                     {
                         log("Group focus has been passed");
                         for (auto h : target_list) log("\thwnd=", utf::to_hex(h));
@@ -3509,7 +3507,7 @@ namespace netxs::gui
                 for (auto& target : group_focus_list) // Send to group focused targets.
                 {
                     auto rc = ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
-                    if (rc != 999) group_focus_list.erase(target); // Drop failed targets.
+                    if (rc != 99902) group_focus_list.erase(target); // Drop failed targets.
                 }
             });
         }
@@ -3722,12 +3720,12 @@ namespace netxs::gui
             //}
             #endif
         }
-        bool group_event(arch data_ptr)
+        si32 group_event(arch data_ptr)
         {
             if (!data_ptr) return faux;
-            auto& data = *(COPYDATASTRUCT*)data_ptr;
-            auto ok = true;
-            if (data.dwData == 99901) // Target list.
+            auto data = *(COPYDATASTRUCT*)data_ptr;
+            auto type = (si32)data.dwData;
+            if (type == 99901) // Target list.
             {
                 log("Got focused window list:");
                 auto local_hwnd = layers[client].hWnd;
@@ -3739,12 +3737,12 @@ namespace netxs::gui
                     if (h != (arch)local_hwnd) group_focus_list.insert(h);
                 }
             }
-            else if (data.dwData == 99902) // Keybd event.
+            else if (type == 99902) // Keybd event.
             {
                 auto event_data = view{ (char*)data.lpData, data.cbData };
                 window::output(event_data);
             }
-            else if (data.dwData == 99903) // Group focus is lost.
+            else if (type == 99903) // Group focus is lost.
             {
                 if (group_focus)
                 {
@@ -3755,12 +3753,12 @@ namespace netxs::gui
                     });
                 }
             }
-            else if (data.dwData == 99904) // Sync keybd state.
+            else if (type == 99904) // Sync keybd state.
             {
                 sync_kbstat();
             }
-            else ok = faux;
-            return ok;
+            else type = 0;
+            return type;
         }
         void focus_event(bool focus_state)
         {
