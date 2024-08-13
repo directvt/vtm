@@ -3655,7 +3655,8 @@ namespace netxs::os
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
-                            if constexpr (!debugmode) ::FreeConsole();
+                            //if constexpr (!debugmode) ::FreeConsole();
+                            ::FreeConsole();
                             auto term = "Native GUI console";
                             log("%%Terminal type: %term%", prompt::os, term);
                             return;
