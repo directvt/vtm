@@ -1455,6 +1455,7 @@ namespace netxs::gui
             static constexpr auto drop_focus = __COUNTER__ - _counter;
             static constexpr auto take_focus = __COUNTER__ - _counter;
             static constexpr auto sync_state = __COUNTER__ - _counter;
+            static constexpr auto pass_state = __COUNTER__ - _counter;
             static constexpr auto pass_input = __COUNTER__ - _counter;
             static constexpr auto expose_win = __COUNTER__ - _counter;
             static constexpr auto cmd_w_data = __COUNTER__ - _counter;
@@ -1464,6 +1465,7 @@ namespace netxs::gui
                 "drop_focus",
                 "take_focus",
                 "sync_state",
+                "pass_state",
                 "pass_input",
                 "expose_win",
                 "cmd_w_data",
@@ -2074,7 +2076,7 @@ namespace netxs::gui
         virtual void mouse_leave() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
-        virtual si32 run_command(arch command, arch data_ptr) = 0;
+        virtual arch run_command(arch command, arch data_ptr) = 0;
         virtual void timer_event(arch eventid) = 0;
         virtual void sys_command(si32 menucmd) = 0;
         virtual void mouse_press(si32 index, bool pressed) = 0;
@@ -2455,6 +2457,7 @@ namespace netxs::gui
                     });
                 }
             };
+            auto keybd(auto&& data) { if (alive)                s11n::syskeybd.send(intio, data); }
             auto mouse(auto&& data) { if (alive)                s11n::sysmouse.send(intio, data); }
             auto winsz(auto&& data) { if (alive)                s11n::syswinsz.send(intio, data); }
             auto close(auto&& data) { if (alive.exchange(faux)) s11n::sysclose.send(intio, data); }
@@ -3498,7 +3501,7 @@ namespace netxs::gui
                 return;
             }
 
-            if (changed && !prev_state && kbstate[VK_CONTROL] & 0x80) // On Ctrl+AnyClick down outside the yet focused window.
+            if (changed && !prev_state && kbstate[VK_CONTROL] & 0x80) // On Ctrl+AnyButton down outside the yet focused window.
             {
                 auto outer_rect = layers[client].area;
                 auto pointer = twod{ msg.pt.x, msg.pt.y };
@@ -3551,14 +3554,18 @@ namespace netxs::gui
         {
             stream.keybd(k, [&](view block)
             {
-                auto data = COPYDATASTRUCT{ .dwData = ipc::pass_input,
-                                            .cbData = (DWORD)block.size(),
-                                            .lpData = (void*)block.data() };
-                //todo send kbstate as well
-                for (auto& target : group_focus_list) // Send to group focused targets.
+                if (group_focus_list.size())
                 {
-                    auto rc = ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
-                    if (rc != ipc::pass_input) group_focus_list.erase(target); // Drop failed targets.
+                    auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
+                    auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
+                    for (auto& target : group_focus_list) // Send to group focused targets.
+                    {
+                        if (ipc::pass_state != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&state_data)
+                         || ipc::pass_input != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&input_data))
+                        {
+                            group_focus_list.erase(target); // Drop failed targets.
+                        }
+                    }
                 }
             });
         }
@@ -3771,7 +3778,7 @@ namespace netxs::gui
             //}
             #endif
         }
-        si32 run_command(arch command, arch data_ptr)
+        arch run_command(arch command, arch data_ptr)
         {
             log("command: ", ipc::str(command));
             if (command == ipc::cmd_w_data)
@@ -3783,24 +3790,42 @@ namespace netxs::gui
                 if (command == ipc::pass_focus) // Group focus offer.
                 {
                     log("\tGot group focus offer");
-                    if (!group_focused)
+                    auto local_hwnd = layers[client].hWnd;
+                    auto target_list = std::span<ui32>{ (ui32*)data.lpData, data.cbData / sizeof(ui32) };
+                    group_focused = true;
+                    group_focus_list.clear();
+                    for (auto h : target_list)
                     {
-                        auto local_hwnd = layers[client].hWnd;
-                        auto target_list = std::span<ui32>{ (ui32*)data.lpData, data.cbData / sizeof(ui32) };
-                        group_focused = true;
-                        group_focus_list.clear();
-                        for (auto h : target_list)
-                        {
-                            log("\thwnd=", utf::to_hex(h));
-                            if (h != (arch)local_hwnd) group_focus_list.insert(h);
-                        }
+                        log("\thwnd=", utf::to_hex(h));
+                        if (h != (arch)local_hwnd) group_focus_list.insert(h);
                     }
                 }
-                else if (command == ipc::pass_input) // Keybd event.
+                else if (command == ipc::pass_state) // Keybd state.
                 {
-                    //todo sync kb state and mouse ctl state
-                    auto event_data = view{ (char*)data.lpData, data.cbData };
-                    window::output(event_data);
+                    if (data.cbData == sizeof(kbstate))
+                    {
+                        auto state_data = std::span<byte>{ (byte*)data.lpData, data.cbData };
+                        std::copy(state_data.begin(), state_data.end(), kbstate.begin());
+                    }
+                }
+                else if (command == ipc::pass_input) // Keybd input.
+                {
+                    auto input_data = qiew{ (char*)data.lpData, data.cbData };
+                    auto keybd = input::syskeybd{};
+                    if (keybd.load(input_data))
+                    {
+                        kbmod = keybd.ctlstat;
+                        stream.m.ctlstat = kbmod;
+                        stream.k.ctlstat = kbmod;
+                        stream.k.payload = keybd.payload;
+                        stream.k.extflag = keybd.extflag;
+                        stream.k.virtcod = keybd.virtcod;
+                        stream.k.scancod = keybd.scancod;
+                        stream.k.pressed = keybd.pressed;
+                        stream.k.keycode = keybd.keycode;
+                        stream.k.cluster = std::move(keybd.cluster);
+                        stream.keybd(stream.k);
+                    }
                 }
                 else command = 0;
             }
