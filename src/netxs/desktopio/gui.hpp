@@ -9,6 +9,8 @@ namespace netxs::gui
 {
     using namespace input;
 
+    static constexpr auto debug_foci = faux;
+
     struct manager_base
     {
         struct bttn
@@ -49,7 +51,41 @@ namespace netxs::gui
             static constexpr auto update       = __COUNTER__ - _counter;
             static constexpr auto close        = __COUNTER__ - _counter;
         };
-
+        struct ipc
+        {
+            static constexpr auto _base = 99900;
+            static constexpr auto _counter = __COUNTER__ + 1 - _base;
+            static constexpr auto make_offer = __COUNTER__ - _counter; // Make group focus offer on Ctrl+Click.
+            static constexpr auto drop_focus = __COUNTER__ - _counter; // Order to drop any focus.
+            static constexpr auto take_focus = __COUNTER__ - _counter; // Order to take OS focus.
+            static constexpr auto main_focus = __COUNTER__ - _counter; // Advertise OS focus owner.
+            static constexpr auto solo_focus = __COUNTER__ - _counter; // Set solo focus.
+            static constexpr auto sync_state = __COUNTER__ - _counter; // Sync keybd modifiers state with OS.
+            static constexpr auto pass_state = __COUNTER__ - _counter; // Pass keybd modifiers state.
+            static constexpr auto pass_input = __COUNTER__ - _counter; // Pass keybd input.
+            static constexpr auto expose_win = __COUNTER__ - _counter; // Order to expose window.
+            static constexpr auto cmd_w_data = __COUNTER__ - _counter; // Command with payload.
+            static constexpr auto _str = std::to_array(
+            {
+                "make_offer",
+                "drop_focus",
+                "take_focus",
+                "main_focus",
+                "solo_focus",
+                "sync_state",
+                "pass_state",
+                "pass_input",
+                "expose_win",
+                "cmd_w_data",
+            });
+            static auto str(auto cmd) { return _str[cmd - _base]; }
+        };
+        struct cont
+        {
+            si32  cmd;
+            void* ptr;
+            ui32  len;
+        };
         bool isfine = true; // manager_base: All is ok.
         std::vector<rect> inputfield_list; // manager_base: Text input field list.
         fp32 os_wheel_delta = 24.f; // manager_base: OS-wise mouse wheel setting.
@@ -108,6 +144,7 @@ namespace netxs::gui
         bool group_focus_pressed = {}; // manager_base: Activated by group focus offer.
         bool focus_on = {}; // manager_base: Focus indication is on.
         ui32 focus_owner = {}; // manager_base: Owner of the OS focus.
+        std::array<byte, 256> kbstate = {}; // manager_base: Global keyboard state.
 
         explicit operator bool () const { return isfine; }
     };
@@ -1497,36 +1534,6 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
-        struct ipc
-        {
-            static constexpr auto _base = 99900;
-            static constexpr auto _counter = __COUNTER__ + 1 - _base;
-            static constexpr auto make_offer = __COUNTER__ - _counter; // Make group focus offer on Ctrl+Click.
-            static constexpr auto drop_focus = __COUNTER__ - _counter; // Order to drop any focus.
-            static constexpr auto take_focus = __COUNTER__ - _counter; // Order to take OS focus.
-            static constexpr auto main_focus = __COUNTER__ - _counter; // Advertise OS focus owner.
-            static constexpr auto solo_focus = __COUNTER__ - _counter; // Set solo focus.
-            static constexpr auto sync_state = __COUNTER__ - _counter; // Sync keybd modifiers state with OS.
-            static constexpr auto pass_state = __COUNTER__ - _counter; // Pass keybd modifiers state.
-            static constexpr auto pass_input = __COUNTER__ - _counter; // Pass keybd input.
-            static constexpr auto expose_win = __COUNTER__ - _counter; // Order to expose window.
-            static constexpr auto cmd_w_data = __COUNTER__ - _counter; // Command with payload.
-            static constexpr auto _str = std::to_array(
-            {
-                "make_offer",
-                "drop_focus",
-                "take_focus",
-                "main_focus",
-                "solo_focus",
-                "sync_state",
-                "pass_state",
-                "pass_input",
-                "expose_win",
-                "cmd_w_data",
-            });
-            static auto str(auto cmd) { return _str[cmd - _base]; }
-        };
-
         struct tsf_link : ITfContextOwnerCompositionSink, // To declare we are composition owner.
                           ITfContextOwner,
                           ITfTextEditSink, // To catch composition updates.
@@ -1845,7 +1852,6 @@ namespace netxs::gui
         };
 
         wins layers; // manager: ARGB layers.
-        std::array<byte, 256> kbstate = {}; // manager: Global keyboard state.
         MSG msg{}; // manager: OS window message.
         tsf_link tsf; // manager: TSF link.
 
@@ -1998,28 +2004,18 @@ namespace netxs::gui
             if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
             //log("\tdone_expose()");
         }
+        auto ctrl_pressed()
+        {
+            return !!(kbstate[VK_CONTROL] & 0x80);
+        }
+        auto lbutton_pressed()
+        {
+            return !!(::GetAsyncKeyState(VK_LBUTTON) & 0x8000);
+        }
         void activate()
         {
-            //if (!layers.empty()) ::SetActiveWindow(layers.front().hWnd); // Activate and bring into the foreground.
-            //kbstate = {}; // !!! ::GetKeyboardState() pulls pressed VK_RETURN without successive release.
-            //::GetKeyboardState(kbstate.data()); // Get some state (modifiers and locks are outdated).
-            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,            // Get current modifiers state.
-            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
-            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
-            //{
-            //    auto s = ::GetAsyncKeyState(vkey);
-            //    kbstate[vkey] = (s >> 8) | (s & 0x1);
-            //}
-            // //for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA }) // Get current locks state. All other keys will be received through auto-repeat.
-            // for (auto vkey : { VK_NUMLOCK, VK_CAPITAL, VK_SCROLL, VK_KANA, VK_CONTROL, VK_LBUTTON }) // Get current locks state. All other keys will be received through auto-repeat.
-            // {
-            //     auto s = ::GetKeyState(vkey); // We must call SetFocus() to sync thread's kb buffer because it is in unsync state if our window is activated by minimizing another window.
-            //     //kbstate[vkey] = (s & 0x1); // Restore toggle state only. (s >> 8) | (s & 0x1);
-            //     kbstate[vkey] = s; // Restore toggle state only. (s >> 8) | (s & 0x1);
-            // }
-            // ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
-            ::GetKeyboardState(kbstate.data()); // ?>> Get some state (modifiers and locks are outdated).
-            group_focus_pressed = !focus_on && kbstate[VK_CONTROL] & 0x80; // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            ::GetKeyboardState(kbstate.data());
+            group_focus_pressed = !focus_on && manager::ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //print_kbstate("::GetKeyboardState");
             tsf.set_focus();
         }
@@ -2039,13 +2035,12 @@ namespace netxs::gui
             ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
             //kbstate[VK_OEM_FJ_ROYA] = r;
             //kbstate[VK_OEM_FJ_LOYA] = p;
-            //for (auto vkey : { VK_MENU,  VK_SHIFT,  VK_CONTROL,           // Clear current mods state.
-            //                   VK_LMENU, VK_LSHIFT, VK_LCONTROL, VK_LWIN,
-            //                   VK_RMENU, VK_RSHIFT, VK_RCONTROL, VK_RWIN })
-            //{
-            //    kbstate[vkey] = 0;
-            //}
             //print_kbstate("deactivate");
+        }
+        auto get_container(auto lParam)
+        {
+            auto& data = *(COPYDATASTRUCT*)lParam;
+            return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData };
         }
         //void shown_event(bool shown, arch reason)
         //{
@@ -2061,16 +2056,58 @@ namespace netxs::gui
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
             {
                 if (!layers.empty()) ::SetCapture(layers.front().hWnd);
-                log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
+                if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
             }
         }
         void mouse_release(si32 captured_by = -1)
         {
             if (std::exchange(mouse_capture_state, mouse_capture_state & ~captured_by) && !mouse_capture_state)
             {
-                log("released by ", captured_by == by::mouse ? "mouse"
-                                  : captured_by == by::keybd ? "keybd" : "system");
+                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse"
+                                                            : captured_by == by::keybd ? "keybd" : "system");
                 ::ReleaseCapture();
+            }
+        }
+        void mouse_check()
+        {
+            auto ctrl_click = manager::ctrl_pressed()                              // Detect Ctrl+LeftClick
+                           && !layers.front().area.hittest({ msg.pt.x, msg.pt.y }) // outside our window.
+                           && ::GetAsyncKeyState(VK_LBUTTON) & 0x8000;             //
+                           //&& (::GetAsyncKeyState(VK_LBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_RBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_MBUTTON) & 0x8000);
+            if (ctrl_click) // Try to make group focus offer before we lose focus.
+            {
+                auto target = ::WindowFromPoint(msg.pt);
+                auto target_list = group_focus_list.copy();
+                auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
+                                            .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
+                                            .lpData = (void*)target_list.data() };
+                auto rc = ::SendMessageW((HWND)target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
+                if constexpr (debug_foci)
+                {
+                    if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
+                    else                       log(ansi::err("Failed to offer group focus to hwnd=", utf::to_hex(target)));
+                }
+            }
+            mouse_release();
+        }
+        auto get_pointer()
+        {
+            return twod{ msg.pt.x, msg.pt.y };
+        }
+        void forward_keybd_input(view block)
+        {
+            auto target_list = group_focus_list.copy();
+            auto local_hwnd = (ui32)(arch)layers.front().hWnd;
+            auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
+            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
+            for (auto target : target_list) // Send to group focused targets.
+            {
+                if (target != local_hwnd)
+                if (ipc::pass_state != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&state_data)
+                 || ipc::pass_input != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&input_data))
+                {
+                    group_focus_list.erase(target); // Drop failed targets.
+                }
             }
         }
         void close()
@@ -2105,6 +2142,10 @@ namespace netxs::gui
             ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
             os_wheel_delta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
         }
+        void normalize_wheeldt(fp32& wheelfp)
+        {
+            wheelfp /= WHEEL_DELTA / manager::os_wheel_delta; // Disable system-wide acceleration.
+        }
         void run()
         {
             // Customize system ctx menu.
@@ -2129,7 +2170,6 @@ namespace netxs::gui
         virtual void update_input_field_list(si32 acpStart, si32 acpEnd) = 0;
         virtual void update_gui() = 0;
         virtual void mouse_leave() = 0;
-        virtual void mouse_check() = 0;
         virtual void mouse_moved(twod coord) = 0;
         virtual void focus_event(bool state) = 0;
         virtual arch run_command(arch command, arch lParam) = 0;
@@ -2176,28 +2216,28 @@ namespace netxs::gui
                     case WM_ACTIVATEAPP:
                         if (wParam == TRUE)
                         {
-                            log(ansi::hi("WM_ACTIVATEAPP"));
+                            if constexpr (debug_foci) log(ansi::hi("WM_ACTIVATEAPP"));
                             w->do_focus(); // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not.
                         }
                         break; // explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
                     case WM_SETFOCUS:
                         if (wParam != (arch)hWnd) // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
                         {
-                            log("WM_SETFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
+                            if constexpr (debug_foci) log("WM_SETFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
                             w->focus_event(true);
                         }
                         break;
                     case WM_KILLFOCUS:
                         if (wParam != (arch)hWnd) // Don't refocus.
                         {
-                            log("WM_KILLFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
+                            if constexpr (debug_foci) log("WM_KILLFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
                             w->focus_event(faux);
                         }
                         break;
                     case WM_CAPTURECHANGED:
-                        log(ansi::clr(yellowlt, "WM_CAPTURECHANGED"));
+                        if constexpr (debug_foci) log(ansi::clr(yellowlt, "WM_CAPTURECHANGED"));
                         w->mouse_check();
-                        break;
+                        break; // Catch outside clicks.
                     case WM_COPYDATA: stat = w->run_command(ipc::cmd_w_data, lParam); break; // Receive command with data.
                     case WM_USER:     stat = w->run_command(wParam, lParam);          break; // Receive command.
                     //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE; break; // Suppress window auto focus by mouse. Note: window always loses focus on any click outside.
@@ -2220,9 +2260,6 @@ namespace netxs::gui
                                         }
                                         break; // Taskbar ctx menu to change the size and position.
                     //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
-                    //case WM_CAPTURECHANGED:
-                    //    log("WM_CAPTURECHANGED  wParam=", utf::to_hex(wParam), " lParam=", utf::to_hex(lParam), " hwnd=", utf::to_hex((arch)hWnd));
-                    //    break;
                     case WM_INPUTLANGCHANGE:
                     {
                         w->sync_kb_thread();
@@ -2441,13 +2478,21 @@ namespace netxs::gui
         {
             //...
         }
-        void mouse_capture(si32 captured_by)
+        void mouse_capture(si32 /*captured_by*/)
         {
             //...
         }
-        void mouse_release()
+        void mouse_release(si32 /*released_by*/)
         {
             //...
+        }
+        auto get_pointer()
+        {
+            return twod{};
+        }
+        auto lbutton_pressed()
+        {
+            return faux;
         }
         void dispatch()//os::fire& /*alarm*/)
         {
@@ -2458,6 +2503,48 @@ namespace netxs::gui
             //...
         }
         void deactivate()
+        {
+            //...
+        }
+        void normalize_wheeldt(fp32& /*wheelfp*/) // Disable system-wide wheel acceleration.
+        {
+            //...
+        }
+        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
+        {
+            //...
+        }
+        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
+        {
+            //...
+        }
+        void post_command(si32 /*command*/)
+        {
+            //...
+        }
+        auto get_container(arch /*lParam*/)
+        {
+            //...
+            return cont{};
+        }
+        auto ctrl_pressed()
+        {
+            //...
+            return faux;
+        }
+        auto forward_keybd_input(view /*block*/)
+        {
+            //...
+        }
+        void do_set_foreground_window()
+        {
+            //...
+        }
+        void do_focus()
+        {
+            //...
+        }
+        void do_expose()
         {
             //...
         }
@@ -2670,7 +2757,6 @@ namespace netxs::gui
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                log("s11n::xs::focus_set=", item.solo);
                 if (owner.has_focus()) // We are the focus tree endpoint. Signal back the focus set up.
                 {
                     owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
@@ -3376,10 +3462,10 @@ namespace netxs::gui
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
-            auto ctrl_pressed = !!(kbstate[VK_CONTROL] & 0x80);
+            auto ctrl_pressed = manager::ctrl_pressed();
             if (ctrl_pressed)
             {
-                wheelfp /= WHEEL_DELTA / manager::os_wheel_delta; // Disable system-wide acceleration.
+                manager::normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
                 if (wheel_accum * wheelfp < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
                 wheel_accum += wheelfp;
                 if (!isbusy.exchange(true))
@@ -3438,7 +3524,7 @@ namespace netxs::gui
         void resize_by_grips(twod coord)
         {
             auto inner_rect = layers[blinky].area;
-            auto ctrl_pressed = !!(kbstate[VK_CONTROL] & 0x80);
+            auto ctrl_pressed = manager::ctrl_pressed();
             auto zoom = ctrl_pressed;
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = layers[blinky].area;
@@ -3535,37 +3621,18 @@ namespace netxs::gui
                 netxs::set_flag<task::grips>(reload);
             }
         }
-        void mouse_check()
-        {
-            auto ctrl_click = kbstate[VK_CONTROL] & 0x80                           // Detect Ctrl+LeftClick
-                           && !layers[client].area.hittest({ msg.pt.x, msg.pt.y }) // outside our window.
-                           && ::GetAsyncKeyState(VK_LBUTTON) & 0x8000;             //
-                           //&& (::GetAsyncKeyState(VK_LBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_RBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_MBUTTON) & 0x8000);
-            if (ctrl_click) // Try to make group focus offer before we lose focus.
-            {
-                auto target = ::WindowFromPoint(msg.pt);
-                auto target_list = group_focus_list.copy();
-                auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
-                                            .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
-                                            .lpData = (void*)target_list.data() };
-                auto rc = ::SendMessageW((HWND)target, WM_COPYDATA, (WPARAM)layers[client].hWnd, (LPARAM)&data);
-                if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
-                else                       log(ansi::err("Failed to offer group focus to hwnd=", utf::to_hex(target)));
-            }
-            mouse_release();
-        }
         void mouse_press(si32 button, bool pressed)
         {
-            log("--- mouse ", pressed?"1":"0");
+            if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
             if (std::exchange(group_focus_pressed, faux)) // Ignore any first Ctrl+AnyClick inside the just focused window.
             {
-                log("group focus pressed");
+                if constexpr (debug_foci) log("group focus pressed");
                 return;
             }
             auto& mbttns = stream.m.buttons;
-            if (!mbttns && !layers[client].area.hittest({ msg.pt.x, msg.pt.y })) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            if (!mbttns && !layers[client].area.hittest(manager::get_pointer())) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
-                log(ansi::clr(yellowlt, "drop click"));
+                if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
                 return;
             }
             auto prev_state = std::exchange(mbttns, pressed ? mbttns | button : mbttns & ~button);
@@ -3629,22 +3696,9 @@ namespace netxs::gui
         {
             stream.keybd(k, [&](view block)
             {
-                if (group_focus_list.size() <= 1) return;
-                auto local_hwnd = (ui32)(arch)layers[client].hWnd;
-                auto target_list = group_focus_list.copy();
-                if (focused)
+                if (focused && group_focus_list.size() > 1)
                 {
-                    auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
-                    auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
-                    for (auto target : target_list) // Send to group focused targets.
-                    {
-                        if (target != local_hwnd)
-                        if (ipc::pass_state != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&state_data)
-                         || ipc::pass_input != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&input_data))
-                        {
-                            group_focus_list.erase(target); // Drop failed targets.
-                        }
-                    }
+                    manager::forward_keybd_input(block);
                 }
             });
         }
@@ -3816,7 +3870,7 @@ namespace netxs::gui
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
-                else if (kbstate[VK_CAPITAL] & 0x80 && kbstate[VK_CONTROL] & 0x80) // Toggle antialiasing mode by Ctrl+CapsLock.
+                else if (kbstate[VK_CAPITAL] & 0x80 && manager::ctrl_pressed()) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
@@ -3859,46 +3913,49 @@ namespace netxs::gui
         }
         arch run_command(arch command, arch lParam)
         {
-            log("command: ", ipc::str(command));
+            if constexpr (debug_foci) log("command: ", ipc::str(command));
             if (command == ipc::cmd_w_data)
             {
                 if (!lParam) return 0;
-                auto data = *(COPYDATASTRUCT*)lParam;
-                command = (si32)data.dwData;
-                log("\tsubcommand: ", ipc::str(command));
+                auto data = manager::get_container(lParam);
+                command = data.cmd;
+                if constexpr (debug_foci) log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    auto ctrl_click = kbstate[VK_CONTROL] & 0x80 && ::GetAsyncKeyState(VK_LBUTTON) & 0x8000;
+                    auto ctrl_click = manager::ctrl_pressed() && manager::lbutton_pressed();
                     auto local_target = (arch)layers[client].hWnd;
-                    auto target_list = std::span<ui32>{ (ui32*)data.lpData, data.cbData / sizeof(ui32) };
+                    auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (!group_focused && ctrl_click) // Block foreign offers.
                     {
-                        log("\tGot group focus offer");
+                        if constexpr (debug_foci) log("\tGot group focus offer");
                         group_focus_list.update(target_list, local_target);
                         group_focused = true;
                         for (auto target : target_list)
                         {
-                            log("\thwnd=", utf::to_hex(target));
+                            if constexpr (debug_foci) log("\thwnd=", utf::to_hex(target));
                             send_command(target, ipc::main_focus, local_target);
                         }
                     }
                     else
                     {
-                        log(ansi::err("Unexpected focus offer:"));
-                        for (auto target : target_list) log(ansi::err("\thwnd=", utf::to_hex(target)));
+                        if constexpr (debug_foci)
+                        {
+                            log(ansi::err("Unexpected focus offer:"));
+                            for (auto target : target_list) log(ansi::err("\thwnd=", utf::to_hex(target)));
+                        }
                     }
                 }
                 else if (command == ipc::pass_state) // Keybd state.
                 {
-                    if (data.cbData == sizeof(kbstate))
+                    if (data.len == sizeof(kbstate))
                     {
-                        auto state_data = std::span<byte>{ (byte*)data.lpData, data.cbData };
+                        auto state_data = std::span<byte>{ (byte*)data.ptr, data.len };
                         std::copy(state_data.begin(), state_data.end(), kbstate.begin());
                     }
                 }
                 else if (command == ipc::pass_input) // Keybd input.
                 {
-                    auto input_data = qiew{ (char*)data.lpData, data.cbData };
+                    auto input_data = qiew{ (char*)data.ptr, data.len };
                     auto keybd = input::syskeybd{};
                     if (keybd.load(input_data))
                     {
