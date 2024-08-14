@@ -3563,6 +3563,11 @@ namespace netxs::gui
                 return;
             }
             auto& mbttns = stream.m.buttons;
+            if (!mbttns && !layers[client].area.hittest({ msg.pt.x, msg.pt.y })) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            {
+                log(ansi::clr(yellowlt, "drop click"));
+                return;
+            }
             auto prev_state = std::exchange(mbttns, pressed ? mbttns | button : mbttns & ~button);
             auto changed = prev_state != mbttns;
             if (pressed)
@@ -3595,11 +3600,6 @@ namespace netxs::gui
                 if (!mbttns) moving = faux;
                 return;
             }
-
-            //if (changed && !prev_state && kbstate[VK_CONTROL] & 0x80) // On Ctrl+AnyButton down outside the yet focused window.
-            //{
-                //
-            //}
 
             static auto dblclick = datetime::now() - 1s;
             if (changed && (seized || inside))
