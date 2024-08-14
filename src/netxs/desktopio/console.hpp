@@ -978,6 +978,7 @@ namespace netxs::ui
                 {
                     debug.output(canvas);
                     if constexpr (debugmode) // Red channel histogram.
+                    if (input.gears.size())
                     {
                         auto& [gear_id, gear_ptr] = *input.gears.begin();
                         if (gear_ptr->meta(hids::ScrlLock)) 
