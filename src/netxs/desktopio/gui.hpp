@@ -3868,15 +3868,24 @@ namespace netxs::gui
                 log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    log("\tGot group focus offer");
+                    auto ctrl_click = kbstate[VK_CONTROL] & 0x80 && ::GetAsyncKeyState(VK_LBUTTON) & 0x8000;
                     auto local_target = (arch)layers[client].hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.lpData, data.cbData / sizeof(ui32) };
-                    group_focus_list.update(target_list, local_target);
-                    group_focused = true;
-                    for (auto target : target_list)
+                    if (!group_focused && ctrl_click) // Block foreign offers.
                     {
-                        log("\thwnd=", utf::to_hex(target));
-                        send_command(target, ipc::main_focus, local_target);
+                        log("\tGot group focus offer");
+                        group_focus_list.update(target_list, local_target);
+                        group_focused = true;
+                        for (auto target : target_list)
+                        {
+                            log("\thwnd=", utf::to_hex(target));
+                            send_command(target, ipc::main_focus, local_target);
+                        }
+                    }
+                    else
+                    {
+                        log(ansi::err("Unexpected focus offer:"));
+                        for (auto target : target_list) log(ansi::err("\thwnd=", utf::to_hex(target)));
                     }
                 }
                 else if (command == ipc::pass_state) // Keybd state.
