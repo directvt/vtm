@@ -82,6 +82,15 @@ namespace netxs::gui
                 std::copy(group.begin(), group.end(), copy.begin());
                 return copy;
             }
+            auto solo(ui32 local_target)
+            {
+                auto lock = std::lock_guard{ mutex };
+                auto copy = std::vector<ui32>(group.size());
+                std::copy_if(group.begin(), group.end(), copy.begin(), [&](auto t){ return t != local_target; });
+                group.clear();
+                group.insert(local_target);
+                return copy;
+            }
             void clear()
             {
                 auto lock = std::lock_guard{ mutex };
@@ -1496,6 +1505,7 @@ namespace netxs::gui
             static constexpr auto drop_focus = __COUNTER__ - _counter; // Order to drop any focus.
             static constexpr auto take_focus = __COUNTER__ - _counter; // Order to take OS focus.
             static constexpr auto main_focus = __COUNTER__ - _counter; // Advertise OS focus owner.
+            static constexpr auto solo_focus = __COUNTER__ - _counter; // Set solo focus.
             static constexpr auto sync_state = __COUNTER__ - _counter; // Sync keybd modifiers state with OS.
             static constexpr auto pass_state = __COUNTER__ - _counter; // Pass keybd modifiers state.
             static constexpr auto pass_input = __COUNTER__ - _counter; // Pass keybd input.
@@ -1507,6 +1517,7 @@ namespace netxs::gui
                 "drop_focus",
                 "take_focus",
                 "main_focus",
+                "solo_focus",
                 "sync_state",
                 "pass_state",
                 "pass_input",
@@ -2658,12 +2669,17 @@ namespace netxs::gui
             }
             void handle(s11n::xs::focus_set        lock)
             {
+                auto& item = lock.thing;
+                log("s11n::xs::focus_set=", item.solo);
                 if (owner.has_focus()) // We are the focus tree endpoint. Signal back the focus set up.
                 {
-                    auto& item = lock.thing;
                     owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
                 }
                 else owner.post_command(ipc::take_focus);
+                if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                {
+                    owner.post_command(ipc::solo_focus);
+                }
             }
             void handle(s11n::xs::keybd_event      lock)
             {
@@ -3905,7 +3921,7 @@ namespace netxs::gui
                     });
                 }
             }
-            else if (command == ipc::drop_focus) // Group focus is lost.
+            else if (command == ipc::drop_focus)
             {
                 focus_owner = {};
                 group_focus_list.clear();
@@ -3919,6 +3935,13 @@ namespace netxs::gui
                         SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
                     });
                 }
+            }
+            else if (command == ipc::solo_focus)
+            {
+                group_focused = faux;
+                auto local_target = (ui32)(arch)layers[client].hWnd;
+                auto target_list = group_focus_list.solo(local_target);
+                for (auto target : target_list) send_command(target, ipc::drop_focus);
             }
             else if (command == ipc::sync_state)
             {
