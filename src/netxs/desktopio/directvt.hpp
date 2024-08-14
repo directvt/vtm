@@ -774,9 +774,23 @@ namespace netxs::directvt
                       stream::take<SEQ_TYPE_macro(WRAP_macro(struct_members)) noop>(_data); \
                 }                                                                           \
                 template<class P>                                                           \
-                auto load(P recv)                                                           \
+                auto load(P _recv)                                                          \
                 {                                                                           \
-                    stream::valid = stream::read_block(*this, recv);                        \
+                    stream::valid = stream::read_block(*this, _recv);                       \
+                    return stream::valid;                                                   \
+                }                                                                           \
+                auto load(qiew _data)                                                       \
+                {                                                                           \
+                    stream::valid = stream::read_block(*this, [&](auto dst, auto len)       \
+                    {                                                                       \
+                        if (_data.size() >= len)                                            \
+                        {                                                                   \
+                            std::copy(_data.begin(), _data.begin() + len, dst);             \
+                            _data.remove_prefix(len);                                       \
+                            return qiew{ dst, len };                                        \
+                        }                                                                   \
+                        else return qiew{};                                                 \
+                    });                                                                     \
                     return stream::valid;                                                   \
                 }                                                                           \
                 void wipe()                                                                 \

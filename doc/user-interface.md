@@ -182,6 +182,10 @@
     <td colspan="3">Scale cell size (if unhandled)</td>
   </tr>
   <tr>
+    <th>Ctrl+LeftClick</th>
+    <td colspan="3">Assign/clear group keyboard focus</td>
+  </tr>
+  <tr>
     <th>DoubleLeftClick</th>
     <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
   </tr>
