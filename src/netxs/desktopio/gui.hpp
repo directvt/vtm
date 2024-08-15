@@ -80,6 +80,19 @@ namespace netxs::gui
             });
             static auto str(auto cmd) { return _str[cmd - _base]; }
         };
+        struct task
+        {
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto header = 1 << (__COUNTER__ - _counter);
+            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
+            static constexpr auto all = -1;
+        };
         struct cont
         {
             si32  cmd;
@@ -145,8 +158,30 @@ namespace netxs::gui
         bool focus_on = {}; // manager_base: Focus indication is on.
         ui32 focus_owner = {}; // manager_base: Owner of the OS focus.
         std::array<byte, 256> kbstate = {}; // manager_base: Global keyboard state.
+        si32 kbmod = {}; // manager_basse: Keyboard modifiers state.
 
         explicit operator bool () const { return isfine; }
+        bool has_focus()
+        {
+            return focused || group_focused;
+        }
+        void print_kbstate(text s)
+        {
+            s += "\n"s;
+            auto i = 0;
+            for (auto k : kbstate)
+            {
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+                if (i % 16 == 0)s += '\n';
+            }
+            log(s);
+        }
     };
     struct surface_base
     {
@@ -1534,10 +1569,10 @@ namespace netxs::gui
     {
         using wins = std::vector<surface>;
 
-        struct tsf_link : ITfContextOwnerCompositionSink, // To declare we are composition owner.
-                          ITfContextOwner,
-                          ITfTextEditSink, // To catch composition updates.
-                          ITfEditSession
+        struct tsfl : ITfContextOwnerCompositionSink, // To declare we are composition owner.
+                      ITfContextOwner,
+                      ITfTextEditSink, // To catch composition updates.
+                      ITfEditSession
         {
             manager&                       owner;
             ComPtr<ITfThreadMgrEx>         tsf_thread_manager;
@@ -1550,7 +1585,7 @@ namespace netxs::gui
             DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
             DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
 
-            tsf_link(manager& owner) // start() should be run under UI lock to be able to query input fields.
+            tsfl(manager& owner) // start() should be run under UI lock to be able to query input fields.
                 : owner{ owner }
             { }
             #define log(...)
@@ -1852,11 +1887,12 @@ namespace netxs::gui
         };
 
         wins layers; // manager: ARGB layers.
-        MSG msg{}; // manager: OS window message.
-        tsf_link tsf; // manager: TSF link.
+        tsfl tslink; // manager: TSF link.
+        MSG  msg; // manager: OS window message.
 
         manager()
-            : tsf{ *this }
+            : tslink{ *this },
+              msg{}
         {
             set_dpi_awareness();
             update_os_settings();
@@ -1951,23 +1987,6 @@ namespace netxs::gui
             //    }
             //}
         }
-        void print_kbstate(text s)
-        {
-            s += "\n"s;
-            auto i = 0;
-            for (auto k : kbstate)
-            {
-                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
-                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
-                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
-                else if (k)         s += ansi::fgc(tint::magentalt);
-                else                s += ansi::nil();
-                s += utf::to_hex(k) + ' ';
-                i++;
-                if (i % 16 == 0)s += '\n';
-            }
-            os::logstd(s);
-        }
         void sync_kb_thread()
         {
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
@@ -2006,18 +2025,38 @@ namespace netxs::gui
         }
         auto ctrl_pressed()
         {
-            return !!(kbstate[VK_CONTROL] & 0x80);
+            return has_focus() ? !!(kbstate[VK_CONTROL] & 0x80) : !!(::GetAsyncKeyState(VK_CONTROL) & 0x8000);
         }
         auto lbutton_pressed()
         {
             return !!(::GetAsyncKeyState(VK_LBUTTON) & 0x8000);
+        }
+        auto get_mods_state()
+        {
+            if (has_focus()) return kbmod;
+            else
+            {
+                auto state = 0;
+                if (::GetAsyncKeyState(VK_LSHIFT  ) & 0x8000) state |= input::hids::LShift;
+                if (::GetAsyncKeyState(VK_RSHIFT  ) & 0x8000) state |= input::hids::RShift;
+                if (::GetAsyncKeyState(VK_LCONTROL) & 0x8000) state |= input::hids::LCtrl;
+                if (::GetAsyncKeyState(VK_RCONTROL) & 0x8000) state |= input::hids::RCtrl;
+                if (::GetAsyncKeyState(VK_LMENU   ) & 0x8000) state |= input::hids::LAlt;
+                if (::GetAsyncKeyState(VK_RMENU   ) & 0x8000) state |= input::hids::RAlt;
+                if (::GetAsyncKeyState(VK_LWIN    ) & 0x8000) state |= input::hids::LWin;
+                if (::GetAsyncKeyState(VK_RWIN    ) & 0x8000) state |= input::hids::RWin;
+                if (::GetAsyncKeyState(VK_CAPITAL ) & 0x0001) state |= input::hids::CapsLock;
+                if (::GetAsyncKeyState(VK_SCROLL  ) & 0x0001) state |= input::hids::ScrlLock;
+                if (::GetAsyncKeyState(VK_NUMLOCK ) & 0x0001) state |= input::hids::NumLock;
+                return state;
+            }
         }
         void activate()
         {
             ::GetKeyboardState(kbstate.data());
             group_focus_pressed = !focus_on && manager::ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //print_kbstate("::GetKeyboardState");
-            tsf.set_focus();
+            tslink.set_focus();
         }
         void deactivate()
         {
@@ -2188,7 +2227,7 @@ namespace netxs::gui
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
-                //os::logstd("\tmsg=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                //log("\tmsg=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
                 auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
                 auto stat = LRESULT{};
@@ -2566,19 +2605,6 @@ namespace netxs::gui
         ui::pro::title titles; // window: .
         ui::pro::focus wfocus; // window: .
 
-        struct task
-        {
-            static constexpr auto _counter = 1 + __COUNTER__;
-            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto header = 1 << (__COUNTER__ - _counter);
-            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
-            static constexpr auto all = -1;
-        };
         struct evnt : s11n, ui::input_fields_handler
         {
             using input_fields_handler::handle;
@@ -2910,7 +2936,6 @@ namespace netxs::gui
         fp32 wheel_accum = {}; // window: Local mouse wheel accumulator.
         fp32 accumfp = {}; // window: Mouse wheel accumulator.
         utfx point = {}; // window: Surrogate pair buffer.
-        si32 kbmod = {};
         flag isbusy = {}; // window: The window is awaiting update.
         twod full_cellsz; // window: Cell size for fullscreen mode.
         twod norm_cellsz; // window: Cell size for normal mode.
@@ -2978,10 +3003,6 @@ namespace netxs::gui
             grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
             sync_header_pixel_layout();
             sync_footer_pixel_layout();
-        }
-        bool has_focus()
-        {
-            return focused || group_focused;
         }
         void reset_blinky()
         {
@@ -3496,7 +3517,7 @@ namespace netxs::gui
             {
                 stream.m.changed++;
                 stream.m.timecod = datetime::now();
-                stream.m.ctlstat = stream.k.ctlstat;
+                stream.m.ctlstat = manager::get_mods_state();
                 stream.m.hzwheel = hz;
                 stream.m.wheelfp = wheelfp;
                 stream.m.wheelsi = wheelsi;
@@ -3512,6 +3533,7 @@ namespace netxs::gui
             stream.m.changed++;
             stream.m.timecod = datetime::now();
             stream.m.enabled = hids::stat::halt;
+            if (!has_focus()) stream.m.ctlstat &= input::hids::NumLock | input::hids::CapsLock | input::hids::ScrlLock;
             stream.mouse(stream.m);
             stream.m.enabled = hids::stat::ok;
         }
@@ -3609,6 +3631,7 @@ namespace netxs::gui
                     auto timecode = datetime::now();
                     stream.m.changed++;
                     stream.m.timecod = timecode;
+                    stream.m.ctlstat = manager::get_mods_state();
                     stream.mouse(stream.m);
                 }
             }
@@ -3674,6 +3697,7 @@ namespace netxs::gui
                 auto timecode = datetime::now();
                 stream.m.changed++;
                 stream.m.timecod = timecode;
+                stream.m.ctlstat = manager::get_mods_state();
                 stream.mouse(stream.m);
             }
             else
@@ -4105,7 +4129,7 @@ namespace netxs::gui
         {
             {
                 auto lock = bell::sync();
-                tsf.start();
+                tslink.start();
                 set_state(win_state);
                 update_gui();
                 manager::run();
@@ -4165,7 +4189,7 @@ namespace netxs::gui
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.
-                tsf.stop();
+                tslink.stop();
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();
