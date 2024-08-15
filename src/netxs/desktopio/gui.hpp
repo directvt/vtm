@@ -13,7 +13,7 @@ namespace netxs::gui
 
     static constexpr auto debug_foci = faux;
 
-    struct manager_base
+    struct window_base
     {
         struct bttn
         {
@@ -165,13 +165,13 @@ namespace netxs::gui
             }
         };
 
-        bool isfine = true; // manager_base: All is ok.
-        regs inputfield_list; // manager_base: Text input field list.
-        foci multifocus; // manager_base: Multi-focus control.
-        fp32 os_wheel_delta = 24.f; // manager_base: OS-wise mouse wheel setting.
-        si32 mouse_capture_state = {}; // manager_base: Mouse capture owners bitfield.
-        b256 kbstate = {}; // manager_base: Keyboard virtual keys state.
-        si32 kbmod = {}; // manager_basse: Keyboard modifiers state.
+        bool isfine = true; // window_base: All is ok.
+        regs inputfield_list; // window_base: Text input field list.
+        foci multifocus; // window_base: Multi-focus control.
+        fp32 os_wheel_delta = 24.f; // window_base: OS-wise mouse wheel setting.
+        si32 mouse_capture_state = {}; // window_base: Mouse capture owners bitfield.
+        b256 kbstate = {}; // window_base: Keyboard virtual keys state.
+        si32 kbmod = {}; // window_base: Keyboard modifiers state.
 
         explicit operator bool () const { return isfine; }
         void print_kbstate(text s)
@@ -1573,7 +1573,7 @@ namespace netxs::gui
         }
     };
 
-    struct manager : manager_base
+    struct manager : window_base
     {
         using wins = std::vector<surface>;
 
@@ -1903,7 +1903,7 @@ namespace netxs::gui
               msg{}
         {
             set_dpi_awareness();
-            update_os_settings();
+            sync_os_config();
         }
         ~manager()
         {
@@ -1961,7 +1961,7 @@ namespace netxs::gui
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
-        void dispatch()//os::fire& alarm)
+        void dispatch()
         {
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
@@ -1979,21 +1979,6 @@ namespace netxs::gui
                     ::DispatchMessageW(&msg);
                 }
             }
-            //auto stop = os::fd_t{ alarm };
-            //auto next = MSG{};
-            //while (next.message != WM_QUIT)
-            //{
-            //    if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT); yield == WAIT_OBJECT_0)
-            //    {
-            //        //manager::close();
-            //        ::DestroyWindow(layers[client].hWnd);
-            //        break;
-            //    }
-            //    while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
-            //    {
-            //        ::DispatchMessageW(&next);
-            //    }
-            //}
         }
         void sync_kb_thread()
         {
@@ -2015,21 +2000,15 @@ namespace netxs::gui
         }
         void do_focus()
         {
-            //log("do_focus()");
             if (!layers.empty()) ::SetFocus(layers.front().hWnd); // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-            //log("\tdone_focus()");
         }
         void do_set_foreground_window()
         {
-            //log("do_active()");
             if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-            //log("\tdo_active()");
         }
         void do_expose()
         {
-            //log("do_expose()");
             if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
-            //log("\tdone_expose()");
         }
         auto ctrl_pressed()
         {
@@ -2089,15 +2068,6 @@ namespace netxs::gui
             auto& data = *(COPYDATASTRUCT*)lParam;
             return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData };
         }
-        //void shown_event(bool shown, arch reason)
-        //{
-        //    log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."s
-        //                                       : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."s
-        //                                       : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."s
-        //                                       : reason == SW_PARENTOPENING ? "The window's owner window is being restored."s
-        //                                                                    : utf::concat("Unknown reason. (", reason, ")"));
-        //    activate();
-        //}
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
@@ -2110,8 +2080,7 @@ namespace netxs::gui
         {
             if (std::exchange(mouse_capture_state, mouse_capture_state & ~captured_by) && !mouse_capture_state)
             {
-                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse"
-                                                            : captured_by == by::keybd ? "keybd" : "system");
+                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse" : captured_by == by::keybd ? "keybd" : "system");
                 ::ReleaseCapture();
             }
         }
@@ -2161,6 +2130,20 @@ namespace netxs::gui
         {
             if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
         }
+        void destroy()
+        {
+            if (!layers.empty()) ::RemoveClipboardFormatListener(layers.front().hWnd);
+            ::PostQuitMessage(0);
+        }
+        void sync_kb_layout()
+        {
+            sync_kb_thread();
+            //todo sync kb layout
+            //auto hkl = ::GetKeyboardLayout(0);
+            auto kblayout = wide(KL_NAMELENGTH, '\0');
+            ::GetKeyboardLayoutNameW(kblayout.data());
+            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+        }
         auto client_animation()
         {
             auto a = TRUE;
@@ -2183,7 +2166,7 @@ namespace netxs::gui
             }
             else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
         }
-        void update_os_settings()
+        void sync_os_config()
         {
             auto dt = ULONG{};
             ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
@@ -2227,7 +2210,7 @@ namespace netxs::gui
         virtual void keybd_press() = 0;
         virtual void keybd_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode() = 0;
-        virtual void check_window_position(twod coor) = 0;
+        virtual void check_window(twod coor) = 0;
         virtual void sync_clipboard() = 0;
         virtual void sync_kbstat() = 0;
 
@@ -2241,98 +2224,52 @@ namespace netxs::gui
                 auto stat = LRESULT{};
                 static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
                 static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto xbttn = [](auto wParam){ return hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2; };
+                static auto moved = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return !(p.flags & SWP_NOMOVE); };
+                static auto coord = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return twod{ p.x, p.y }; };
                 static auto hover_win = testy<HWND>{};
                 static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE: if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                       w->mouse_moved({ w->msg.pt.x, w->msg.pt.y }); //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
-                                       break;
-                    case WM_TIMER:         w->timer_event(wParam);                     break;
-                    case WM_MOUSELEAVE:    w->mouse_leave(); hover_win = {};           break;
-                    case WM_LBUTTONDOWN:   w->mouse_press(bttn::left,   true);         break;
-                    case WM_LBUTTONUP:     w->mouse_press(bttn::left,   faux);         break;
-                    case WM_RBUTTONDOWN:   w->mouse_press(bttn::right,  true);         break;
-                    case WM_RBUTTONUP:     w->mouse_press(bttn::right,  faux);         break;
-                    case WM_MBUTTONDOWN:   w->mouse_press(bttn::middle, true);         break;
-                    case WM_MBUTTONUP:     w->mouse_press(bttn::middle, faux);         break;
-                    case WM_XBUTTONDOWN:   w->mouse_press(hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2, true); break;
-                    case WM_XBUTTONUP:     w->mouse_press(hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2, faux); break;
-                    case WM_MOUSEWHEEL:    w->mouse_wheel(hi(wParam), 0);              break;
-                    case WM_MOUSEHWHEEL:   w->mouse_wheel(hi(wParam), 1);              break;
-                    case WM_ACTIVATEAPP:
-                        if (wParam == TRUE)
-                        {
-                            if constexpr (debug_foci) log(ansi::hi("WM_ACTIVATEAPP"));
-                            w->do_focus(); // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not.
-                        }
-                        break; // explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
-                    case WM_SETFOCUS:
-                        if (wParam != (arch)hWnd) // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
-                        {
-                            if constexpr (debug_foci) log("WM_SETFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
-                            w->focus_event(true);
-                        }
-                        break;
-                    case WM_KILLFOCUS:
-                        if (wParam != (arch)hWnd) // Don't refocus.
-                        {
-                            if constexpr (debug_foci) log("WM_KILLFOCUS wParam=", utf::to_hex(wParam), " hwnd=", utf::to_hex((arch)hWnd));
-                            w->focus_event(faux);
-                        }
-                        break;
-                    case WM_CAPTURECHANGED:
-                        if constexpr (debug_foci) log(ansi::clr(yellowlt, "WM_CAPTURECHANGED"));
-                        w->mouse_check();
-                        break; // Catch outside clicks.
-                    case WM_COPYDATA: stat = w->run_command(ipc::cmd_w_data, lParam); break; // Receive command with data.
-                    case WM_USER:     stat = w->run_command(wParam, lParam);          break; // Receive command.
-                    //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE; break; // Suppress window auto focus by mouse. Note: window always loses focus on any click outside.
-                    // These should be processed on the system side.
-                    //case WM_SHOWWINDOW:
-                    //case WM_NCHITTEST:
-                    //case WM_NCACTIVATE:
-                    //case WM_SETCURSOR:
-                    //case WM_GETMINMAXINFO:
-                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0)
-                                        {
-                                            case SC_MINIMIZE:     w->sys_command(syscmd::minimize);     break;
-                                            case SC_MAXIMIZE:     w->sys_command(syscmd::maximize);     break;
-                                            case SC_RESTORE:      w->sys_command(syscmd::restore);      break;
-                                            case SC_CLOSE:        w->sys_command(syscmd::close);        break;
-                                            default: stat = TRUE; // An application should return zero only if it processes this message.
-                                            //todo implement
-                                            //case SC_MOVE:         w->sys_command(syscmd::move);         break;
-                                            //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
-                                        }
-                                        break; // Taskbar ctx menu to change the size and position.
-                    //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
-                    case WM_INPUTLANGCHANGE:
-                    {
-                        w->sync_kb_thread();
-                        //todo sync kb layout
-                        //auto hkl = ::GetKeyboardLayout(0);
-                        auto kblayout = wide(KL_NAMELENGTH, '\0');
-                        ::GetKeyboardLayoutNameW(kblayout.data());
-                        log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
-                        break;
-                    }
-                    case WM_WINDOWPOSCHANGED: if (auto& p = *((WINDOWPOS*)lParam); !(p.flags & SWP_NOMOVE)) w->check_window_position({ p.x, p.y }); // Check moving only.
-                                              break; // Windows moves our layers the way they wants without our control.
+                    case WM_MOUSEMOVE:        if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
+                                              w->mouse_moved({ w->msg.pt.x, w->msg.pt.y });      break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
+                    case WM_TIMER:            w->timer_event(wParam);                            break;
+                    case WM_MOUSELEAVE:       w->mouse_leave(); hover_win = {};                  break;
+                    case WM_LBUTTONDOWN:      w->mouse_press(bttn::left,    true);               break;
+                    case WM_LBUTTONUP:        w->mouse_press(bttn::left,    faux);               break;
+                    case WM_RBUTTONDOWN:      w->mouse_press(bttn::right,   true);               break;
+                    case WM_RBUTTONUP:        w->mouse_press(bttn::right,   faux);               break;
+                    case WM_MBUTTONDOWN:      w->mouse_press(bttn::middle,  true);               break;
+                    case WM_MBUTTONUP:        w->mouse_press(bttn::middle,  faux);               break;
+                    case WM_XBUTTONDOWN:      w->mouse_press(xbttn(wParam), true);               break;
+                    case WM_XBUTTONUP:        w->mouse_press(xbttn(wParam), faux);               break;
+                    case WM_MOUSEWHEEL:       w->mouse_wheel(hi(wParam), 0);                     break;
+                    case WM_MOUSEHWHEEL:      w->mouse_wheel(hi(wParam), 1);                     break;
+                    case WM_CAPTURECHANGED:   w->mouse_check();                                  break; // Catch outside clicks.
+                    case WM_ACTIVATEAPP:      if (wParam == TRUE) w->do_focus();                 break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
+                    case WM_SETFOCUS:         if (wParam != (arch)hWnd) w->focus_event(true);    break; // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
+                    case WM_KILLFOCUS:        if (wParam != (arch)hWnd) w->focus_event(faux);    break; // Don't refocus.
+                    case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
+                    case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
+                    case WM_CLIPBOARDUPDATE:  w->sync_clipboard();                               break;
+                    case WM_INPUTLANGCHANGE:  w->sync_kb_layout();                               break;
+                    case WM_SETTINGCHANGE:    w->sync_os_config();                               break;
+                    case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
-                    case WM_DEVICECHANGE: w->check_fsmode(); break; // Restore from maximized mode if resolution changed.
-                    //dx3d specific
-                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                    case WM_CLIPBOARDUPDATE: w->sync_clipboard(); break;
-                    case WM_SETTINGCHANGE: w->update_os_settings(); break;
-                    case WM_DESTROY: //todo deactivate manager
-                                     ::RemoveClipboardFormatListener(hWnd);
-                                     ::PostQuitMessage(0);
-                                     //if (alive.exchange(faux))
-                                     //{
-                                     //    os::signals::place(os::signals::close); // taskkill /pid nnn
-                                     //}
-                                     break;
+                    case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
+                    case WM_DESTROY:          w->destroy();                                      break;
+                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); break;
+                                                                   case SC_MAXIMIZE: w->sys_command(syscmd::maximize); break;
+                                                                   case SC_RESTORE:  w->sys_command(syscmd::restore);  break;
+                                                                   case SC_CLOSE:    w->sys_command(syscmd::close);    break;
+                                                                   //todo implement
+                                                                   //case SC_MOVE:         w->sys_command(syscmd::move);         break;
+                                                                   //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                                                                   default: stat = TRUE; // An application should return zero only if it processes this message.
+                                                                 } break; // Taskbar ctx menu to change the size and position.
+                    //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break; //dx3d specific
+                    //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE; break; // Suppress window auto focus by mouse. Note: window always loses focus on any click outside.
                     //case WM_ENDSESSION:
                     //    if (wParam && alive.exchange(faux))
                     //    {
@@ -2341,9 +2278,7 @@ namespace netxs::gui
                     //        else                                   os::signals::place(os::signals::shutdown);
                     //    }
                     //    break;
-                    default:
-                        //log("\tmsg=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                        stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                    default: stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
                 }
                 w->sys_command(syscmd::update);
                 return stat;
@@ -2464,7 +2399,7 @@ namespace netxs::gui
             //...
         }
     };
-    struct manager : manager_base
+    struct manager : window_base
     {
         using wins = std::vector<surface>;
 
@@ -3162,7 +3097,7 @@ namespace netxs::gui
                 }
             }
         }
-        void check_window_position(twod coor)
+        void check_window(twod coor)
         {
             if (layers.empty() || fsmode != state::normal) return;
             if (auto delta = coor - layers[client].area.coor)
