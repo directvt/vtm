@@ -15,6 +15,14 @@ namespace netxs::gui
 
     struct window_base
     {
+        struct keystate
+        {
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto unknown  = __COUNTER__ - _counter;
+            static constexpr auto pressed  = __COUNTER__ - _counter;
+            static constexpr auto repeated = __COUNTER__ - _counter;
+            static constexpr auto released = __COUNTER__ - _counter;
+        };
         struct bttn
         {
             static constexpr auto left     = 1 << 0;
@@ -1941,6 +1949,8 @@ namespace netxs::gui
         wins layers; // manager: ARGB layers.
         tsfl tslink; // manager: TSF link.
         MSG  msg; // manager: OS window message.
+        text toUTF8; // manager: .
+        wide toWIDE; // manager: .
 
         manager()
             : tslink{ *this },
@@ -2012,6 +2022,78 @@ namespace netxs::gui
         void keybd_read_state()
         {
             ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+        }
+        auto keybd_read_key_event()
+        {
+            union key_state_t
+            {
+                ui32 token;
+                struct
+                {
+                    ui32 repeat   : 16;// 0-15
+                    si32 scancode : 8; // 16-23
+                    si32 extended : 1; // 24
+                    ui32 reserved : 4; // 25-28 (reserved)
+                    ui32 context  : 1; // 29 (29 - context)
+                    ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
+                } v;
+            };
+            auto virtcod = std::clamp((si32)msg.wParam, 0, 255);
+            auto param = key_state_t{ .token = (ui32)msg.lParam };
+            auto pressed = param.v.state == 0;
+            auto repeat  = param.v.state == 1;
+            auto released= param.v.state == 3;
+            auto extflag = param.v.extended;
+            auto scancod = param.v.scancode;
+            auto keytype = 0;
+            if (param.v.state == 2/*unknown*/) return std::tuple{ faux, pressed, repeat, released, virtcod };
+            //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
+            //todo process Alt+Numpads on our side: use TSF message pump.
+            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
+            ::TranslateMessage(&msg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
+                                      // ::ToUnicodeEx() doesn't update IME.
+            auto m = MSG{};           // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
+            auto msgtype = msg.message == WM_KEYUP || msg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
+            while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+            if (toWIDE.size()) keytype = 1;
+            else
+            {
+                while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+                if (toWIDE.size()) keytype = 2;
+            }
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
+            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+            if (!multifocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
+            {
+                toWIDE.clear();
+                return std::tuple{ faux, pressed, repeat, released, virtcod };
+            }
+            if (virtcod == vkey::packet && toWIDE.size())
+            {
+                auto c = toWIDE.back();
+                if (c >= 0xd800 && c <= 0xdbff) return std::tuple{ faux, pressed, repeat, released, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
+            }
+            keybd_read_state(); // Sync with thread kb state.
+            if (keytype != 2) // Do not notify dead keys.
+            {
+                toUTF8.clear();
+                if (keytype == 1)
+                {
+                    utf::to_utf(toWIDE, toUTF8);
+                    if (released) // Only Alt+Numpad fires on release.
+                    {
+                        keybd_send_state({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
+                        toWIDE.clear();
+                        //print_kbstate("Alt+Numpad");
+                        return std::tuple{ true, pressed, repeat, released, virtcod };
+                    }
+                }
+                keybd_send_state(toUTF8, pressed, repeat, virtcod, scancod, extflag);
+            }
+            toWIDE.clear();
+            //print_kbstate("keybd_read_key_event");
+            return std::tuple{ true, pressed, repeat, released, virtcod };
         }
         auto ctrl_pressed()
         {
@@ -2236,6 +2318,7 @@ namespace netxs::gui
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press() = 0;
+        virtual void keybd_send_state(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}) = 0;
         virtual void keybd_send_state() = 0;
         virtual void keybd_send_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode() = 0;
@@ -2906,11 +2989,8 @@ namespace netxs::gui
         span blinkrate; // window: .
         bool blinking; // window: .
         evnt stream; // window: .
-        text toUTF8;
-        wide toWIDE;
         fp32 wheel_accum = {}; // window: Local mouse wheel accumulator.
         fp32 accumfp = {}; // window: Mouse wheel accumulator.
-        utfx point = {}; // window: Surrogate pair buffer.
         flag isbusy = {}; // window: The window is awaiting update.
         twod full_cellsz; // window: Cell size for fullscreen mode.
         twod norm_cellsz; // window: Cell size for normal mode.
@@ -3781,77 +3861,8 @@ namespace netxs::gui
         }
         void keybd_press()
         {
-            #if defined(_WIN32)
-
-            union key_state_t
-            {
-                ui32 token;
-                struct
-                {
-                    ui32 repeat   : 16;// 0-15
-                    si32 scancode : 8; // 16-23
-                    si32 extended : 1; // 24
-                    ui32 reserved : 4; // 25-28 (reserved)
-                    ui32 context  : 1; // 29 (29 - context)
-                    ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
-                } v;
-            };
-            auto virtcod = std::clamp((si32)msg.wParam, 0, 255);
-            auto param = key_state_t{ .token = (ui32)msg.lParam };
-            if (param.v.state == 2/*unknown*/) return;
-            auto pressed = param.v.state == 0;
-            auto repeat  = param.v.state == 1;
-            auto released= param.v.state == 3;
-            auto extflag = param.v.extended;
-            auto scancod = param.v.scancode;
-            auto keytype = 0;
-            //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
-            //todo process Alt+Numpads on our side: use TSF message pump.
-            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
-            ::TranslateMessage(&msg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
-                                      // ::ToUnicodeEx() doesn't update IME.
-            auto m = MSG{};           // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
-            auto msgtype = msg.message == WM_KEYUP || msg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
-            while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
-            if (toWIDE.size()) keytype = 1;
-            else
-            {
-                while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
-                if (toWIDE.size()) keytype = 2;
-            }
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
-            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
-            if (!multifocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
-            {
-                toWIDE.clear();
-                return;
-            }
-            if (virtcod == vkey::packet && toWIDE.size())
-            {
-                auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff) return; // Incomplete surrogate pair in VT_PACKET stream.
-            }
-            keybd_read_state(); // Sync with thread kb state.
-            if (keytype != 2) // Do not notify dead keys.
-            {
-                toUTF8.clear();
-                if (keytype == 1)
-                {
-                    utf::to_utf(toWIDE, toUTF8);
-                    if (released) // Only Alt+Numpad fires on release.
-                    {
-                        keybd_send_state({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        toWIDE.clear();
-                        //print_kbstate("key press:");
-                        return;
-                    }
-                }
-                keybd_send_state(toUTF8, pressed, repeat, virtcod, scancod, extflag);
-            }
-            toWIDE.clear();
-            //print_kbstate("key press:");
-
+            auto [ok, pressed, repeat, released, virtcod] = keybd_read_key_event();
+            if (!ok) return;
             if (pressed || repeat)
             {
                 if (focus_key_pressed(vkey::capslock) && (focus_key_pressed(vkey::up) || focus_key_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
@@ -3907,7 +3918,7 @@ namespace netxs::gui
                     });
                 }
             }
-            //else if (param.v.state == 3 && fcache.families.size()) // Renumerate font list.
+            //else if (released && fcache.families.size()) // Renumerate font list.
             //{
             //    auto flen = fcache.families.size();
             //    auto index = virtcod == 0x30 ? fcache.families.size() - 1 : virtcod - 0x30;
@@ -3921,7 +3932,6 @@ namespace netxs::gui
             //        print_font_list(true);
             //    }
             //}
-            #endif
         }
         arch run_command(arch command, arch lParam)
         {
