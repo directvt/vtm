@@ -92,6 +92,47 @@ namespace netxs::gui
             static constexpr auto footer = 1 << (__COUNTER__ - _counter);
             static constexpr auto all = -1;
         };
+        struct vkey
+        {
+            static constexpr auto lbutton  = 0x01; // VK_LBUTTON;
+            static constexpr auto rbutton  = 0x02; // VK_RBUTTON;
+            static constexpr auto mbutton  = 0x04; // VK_MBUTTON;
+            static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1;
+            static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2;
+
+            static constexpr auto shift    = 0x10; // VK_SHIFT;
+            static constexpr auto control  = 0x11; // VK_CONTROL;
+            static constexpr auto alt      = 0x12; // VK_MENU;
+            static constexpr auto lshift   = 0xA0; // VK_LSHIFT;
+            static constexpr auto rshift   = 0xA1; // VK_RSHIFT;
+            static constexpr auto lcontrol = 0xA2; // VK_LCONTROL;
+            static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
+            static constexpr auto lalt     = 0xA4; // VK_LMENU;
+            static constexpr auto ralt     = 0xA5; // VK_RMENU;
+            static constexpr auto lwin     = 0x5B; // VK_LWIN;
+            static constexpr auto rwin     = 0x5C; // VK_RWIN;
+
+            static constexpr auto enter    = 0x0D; // VK_RETURN;
+            static constexpr auto left     = 0x25; // VK_LEFT;
+            static constexpr auto up       = 0x26; // VK_UP;
+            static constexpr auto right    = 0x27; // VK_RIGHT;
+            static constexpr auto down     = 0x28; // VK_DOWN;
+            static constexpr auto end      = 0x23; // VK_END;
+            static constexpr auto home     = 0x24; // VK_HOME;
+
+            static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
+            static constexpr auto capslock = 0x14; // VK_CAPITAL;
+            static constexpr auto scrllock = 0x91; // VK_SCROLL;
+            static constexpr auto kana     = 0x15; // VK_KANA;
+            static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA;
+            static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA;
+
+            static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY;
+            static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO;
+            static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW;
+
+            static constexpr auto packet   = 0xE7; // VK_PACKET;
+        };
         struct cont
         {
             si32  cmd;
@@ -1962,6 +2003,23 @@ namespace netxs::gui
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
+        auto focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
+        auto focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
+        auto async_key_pressed(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x8000); }
+        auto async_key_toggled(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x0001); }
+        void keybd_read_state()
+        {
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+        }
+        auto ctrl_pressed()
+        {
+            return multifocus.focused() ? focus_key_pressed(vkey::control)
+                                        : async_key_pressed(vkey::control);
+        }
+        auto lbutton_pressed()
+        {
+            return async_key_pressed(vkey::lbutton);
+        }
         void dispatch()
         {
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
@@ -1976,71 +2034,41 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    if (focus_key_pressed(vkey::rwin) || focus_key_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                     ::DispatchMessageW(&msg);
                 }
             }
             tslink.stop();
         }
-        auto async_key_pressed(si32 vkey) { return !!(::GetAsyncKeyState(vkey) & 0x8000); }
-        auto async_key_toggled(si32 vkey) { return !!(::GetAsyncKeyState(vkey) & 0x0001); }
-        auto ctrl_pressed()
-        {
-            return multifocus.focused() ? !!(kbstate[VK_CONTROL] & 0x80) : async_key_pressed(VK_CONTROL);
-        }
-        auto lbutton_pressed()
-        {
-            return async_key_pressed(VK_LBUTTON);
-        }
-        auto get_mods_state()
-        {
-            if (multifocus.focused()) return kbmod;
-            else
-            {
-                auto state = 0;
-                if (async_key_pressed(VK_LSHIFT  )) state |= input::hids::LShift;
-                if (async_key_pressed(VK_RSHIFT  )) state |= input::hids::RShift;
-                if (async_key_pressed(VK_LCONTROL)) state |= input::hids::LCtrl;
-                if (async_key_pressed(VK_RCONTROL)) state |= input::hids::RCtrl;
-                if (async_key_pressed(VK_LMENU   )) state |= input::hids::LAlt;
-                if (async_key_pressed(VK_RMENU   )) state |= input::hids::RAlt;
-                if (async_key_pressed(VK_LWIN    )) state |= input::hids::LWin;
-                if (async_key_pressed(VK_RWIN    )) state |= input::hids::RWin;
-                if (async_key_toggled(VK_CAPITAL )) state |= input::hids::CapsLock;
-                if (async_key_toggled(VK_SCROLL  )) state |= input::hids::ScrlLock;
-                if (async_key_toggled(VK_NUMLOCK )) state |= input::hids::NumLock;
-                return state;
-            }
-        }
         void keybd_sync_state()
         {
-            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            keybd_read_state();
             keybd_send_state();
-            //print_kbstate("sync_kb_thread");
+            //print_kbstate("keybd_sync_state");
         }
         void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
         {
-            ::GetKeyboardState(kbstate.data());
+            keybd_read_state();
             multifocus.offer = !multifocus.buson && manager::ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_kbstate("::GetKeyboardState");
+            //print_kbstate("keybd_load_state");
             tslink.set_focus();
         }
         void keybd_wipe_state()
         {
-            auto n = kbstate[VK_NUMLOCK];
-            auto c = kbstate[VK_CAPITAL];
-            auto s = kbstate[VK_SCROLL ];
-            auto k = kbstate[VK_KANA   ];
-            //auto r = kbstate[VK_OEM_FJ_ROYA];
-            //auto p = kbstate[VK_OEM_FJ_LOYA];
-            kbstate = {}; // Keep locks only.
-            kbstate[VK_NUMLOCK] = n;
-            kbstate[VK_CAPITAL] = c;
-            kbstate[VK_SCROLL ] = s;
-            kbstate[VK_KANA   ] = k;
+            auto n = kbstate[vkey::numlock ];
+            auto c = kbstate[vkey::capslock];
+            auto s = kbstate[vkey::scrllock];
+            auto k = kbstate[vkey::kana    ];
+            auto r = kbstate[vkey::oem_roya];
+            auto l = kbstate[vkey::oem_loya];
+            kbstate = {}; // Keep keybd locks only.
+            kbstate[vkey::numlock ] = n;
+            kbstate[vkey::capslock] = c;
+            kbstate[vkey::scrllock] = s;
+            kbstate[vkey::kana    ] = k;
+            kbstate[vkey::oem_roya] = r;
+            kbstate[vkey::oem_loya] = l;
             ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
-            //kbstate[VK_OEM_FJ_ROYA] = r;
-            //kbstate[VK_OEM_FJ_LOYA] = p;
             //print_kbstate("deactivate");
         }
         void keybd_sync_layout()
@@ -2099,8 +2127,8 @@ namespace netxs::gui
         {
             auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
                            && !layers.front().area.hittest(get_pointer_coor()) // outside our window.
-                           && async_key_pressed(VK_LBUTTON);                   //
-                           //&& (async_key_pressed(VK_LBUTTON) || async_key_pressed(VK_RBUTTON) || async_key_pressed(VK_MBUTTON));
+                           && async_key_pressed(vkey::lbutton);                //
+                           //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
             {
                 auto target = ::WindowFromPoint(msg.pt);
@@ -2417,17 +2445,6 @@ namespace netxs::gui
         wins layers; // manager: ARGB layers.
         tsf_link tslink; // manager: TSF link.
 
-        auto get_mods_state()
-        {
-            if (multifocus.focused()) return kbmod;
-            else
-            {
-                auto state = 0;
-                //if (async_key_pressed(VK_LSHIFT  ) & 0x8000) state |= input::hids::LShift;
-                //...
-                return state;
-            }
-        }
         auto get_window_title()
         {
             //...
@@ -3433,6 +3450,26 @@ namespace netxs::gui
             }
             isbusy.exchange(faux);
         }
+        auto get_mods_state()
+        {
+            if (multifocus.focused()) return kbmod;
+            else
+            {
+                auto state = 0;
+                if (async_key_pressed(vkey::lshift  )) state |= input::hids::LShift;
+                if (async_key_pressed(vkey::rshift  )) state |= input::hids::RShift;
+                if (async_key_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+                if (async_key_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+                if (async_key_pressed(vkey::lalt    )) state |= input::hids::LAlt;
+                if (async_key_pressed(vkey::ralt    )) state |= input::hids::RAlt;
+                if (async_key_pressed(vkey::lwin    )) state |= input::hids::LWin;
+                if (async_key_pressed(vkey::rwin    )) state |= input::hids::RWin;
+                if (async_key_toggled(vkey::capslock)) state |= input::hids::CapsLock;
+                if (async_key_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
+                if (async_key_toggled(vkey::numlock )) state |= input::hids::NumLock;
+                return state;
+            }
+        }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
             auto ctrl_pressed = manager::ctrl_pressed();
@@ -3469,7 +3506,7 @@ namespace netxs::gui
             {
                 stream.m.changed++;
                 stream.m.timecod = datetime::now();
-                stream.m.ctlstat = manager::get_mods_state();
+                stream.m.ctlstat = get_mods_state();
                 stream.m.hzwheel = hz;
                 stream.m.wheelfp = wheelfp;
                 stream.m.wheelsi = wheelsi;
@@ -3582,7 +3619,7 @@ namespace netxs::gui
                     auto timecode = datetime::now();
                     stream.m.changed++;
                     stream.m.timecod = timecode;
-                    stream.m.ctlstat = manager::get_mods_state();
+                    stream.m.ctlstat = get_mods_state();
                     stream.mouse(stream.m);
                 }
             }
@@ -3648,7 +3685,7 @@ namespace netxs::gui
                 auto timecode = datetime::now();
                 stream.m.changed++;
                 stream.m.timecod = timecode;
-                stream.m.ctlstat = manager::get_mods_state();
+                stream.m.ctlstat = get_mods_state();
                 stream.mouse(stream.m);
             }
             else
@@ -3679,32 +3716,31 @@ namespace netxs::gui
         }
         void keybd_send_state(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
-            #if defined(_WIN32)
             //todo revise
             //todo implement all possible modifiers state (eg kana)
-            //if (kbstate[VK_OEM_COPY] & 0x01) cs |= ...;
-            //if (kbstate[VK_OEM_AUTO] & 0x01) cs |= ...;
-            //if (kbstate[VK_OEM_ENLW] & 0x01) cs |= NLS_HIRAGANA;
+            //if (focus_key_toggled(vkey::oem_copy) cs |= ...;
+            //if (focus_key_toggled(vkey::oem_auto) cs |= ...;
+            //if (focus_key_toggled(vkey::oem_enlw) cs |= NLS_HIRAGANA;
             auto state  = si32{};
             auto cs = 0;
             if (extflag) cs |= input::key::ExtendedKey;
-            if (kbstate[VK_LSHIFT  ] & 0x80) state |= input::hids::LShift;
-            if (kbstate[VK_RSHIFT  ] & 0x80) state |= input::hids::RShift;
-            if (kbstate[VK_LCONTROL] & 0x80) state |= input::hids::LCtrl;
-            if (kbstate[VK_RCONTROL] & 0x80) state |= input::hids::RCtrl;
-            if (kbstate[VK_LMENU   ] & 0x80) state |= input::hids::LAlt;
-            if (kbstate[VK_RMENU   ] & 0x80) state |= input::hids::RAlt;
-            if (kbstate[VK_LWIN    ] & 0x80) state |= input::hids::LWin;
-            if (kbstate[VK_RWIN    ] & 0x80) state |= input::hids::RWin;
-            if (kbstate[VK_CAPITAL ] & 0x01) state |= input::hids::CapsLock;
-            if (kbstate[VK_SCROLL  ] & 0x01) state |= input::hids::ScrlLock;
-            if (kbstate[VK_NUMLOCK ] & 0x01) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
-            if (kbstate[VK_CONTROL ] & 0x80) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-            else                             mouse_release(by::keybd);
+            if (focus_key_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
+            if (focus_key_toggled(vkey::capslock)) state |= input::hids::CapsLock;
+            if (focus_key_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
+            if (focus_key_pressed(vkey::lshift  )) state |= input::hids::LShift;
+            if (focus_key_pressed(vkey::rshift  )) state |= input::hids::RShift;
+            if (focus_key_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+            if (focus_key_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+            if (focus_key_pressed(vkey::lalt    )) state |= input::hids::LAlt;
+            if (focus_key_pressed(vkey::ralt    )) state |= input::hids::RAlt;
+            if (focus_key_pressed(vkey::lwin    )) state |= input::hids::LWin;
+            if (focus_key_pressed(vkey::rwin    )) state |= input::hids::RWin;
+            if (focus_key_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            else                                   mouse_release(by::keybd);
             auto changed = std::exchange(kbmod, state) != kbmod;
-            auto repeat_ctrl = repeat && (virtcod == VK_SHIFT   || virtcod == VK_CONTROL || virtcod == VK_MENU
-                                       || virtcod == VK_CAPITAL || virtcod == VK_NUMLOCK || virtcod == VK_SCROLL
-                                       || virtcod == VK_LWIN    || virtcod == VK_RWIN);
+            auto repeat_ctrl = repeat && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
+                                       || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                       || virtcod == vkey::lwin     || virtcod == vkey::rwin);
             if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
             else
             {
@@ -3725,12 +3761,6 @@ namespace netxs::gui
                 stream.k.cluster = cluster;
                 stream_keybd(stream.k);
             }
-            #else
-            if (cluster.empty() || pressed || repeat || virtcod || scancod || extflag)
-            {
-                //...
-            }
-            #endif
         }
         void keybd_send_state()
         {
@@ -3790,12 +3820,12 @@ namespace netxs::gui
                 toWIDE.clear();
                 return;
             }
-            if (virtcod == VK_PACKET && toWIDE.size())
+            if (virtcod == vkey::packet && toWIDE.size())
             {
                 auto c = toWIDE.back();
                 if (c >= 0xd800 && c <= 0xdbff) return; // Incomplete surrogate pair in VT_PACKET stream.
             }
-            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            keybd_read_state(); // Sync with thread kb state.
             if (keytype != 2) // Do not notify dead keys.
             {
                 toUTF8.clear();
@@ -3817,9 +3847,9 @@ namespace netxs::gui
             //print_kbstate("key press:");
             if (pressed || repeat)
             {
-                if (kbstate[VK_CAPITAL] & 0x80 && (kbstate[VK_UP] & 0x80 || kbstate[VK_DOWN] & 0x80)) // Change cell height by CapsLock+Up/DownArrow.
+                if (kbstate[vkey::capslock] & 0x80 && (kbstate[vkey::up] & 0x80 || kbstate[vkey::down] & 0x80)) // Change cell height by CapsLock+Up/DownArrow.
                 {
-                    auto dir = kbstate[VK_UP] & 0x80 ? 1.f : -1.f;
+                    auto dir = kbstate[vkey::up] & 0x80 ? 1.f : -1.f;
                     if (!isbusy.exchange(true))
                     bell::enqueue(This(), [&, dir](auto& /*boss*/)
                     {
@@ -3831,28 +3861,28 @@ namespace netxs::gui
             }
             else // if released
             {
-                if (virtcod == VK_CONTROL)
+                if (virtcod == vkey::control)
                 {
                     wheel_accum = {};
                 }
             }
             if (pressed)
             {
-                if (kbstate[VK_MENU] & 0x80 && kbstate[VK_RETURN] & 0x80) // Toggle maximized mode by Alt+Enter.
+                if (kbstate[vkey::alt] & 0x80 && kbstate[vkey::enter] & 0x80) // Toggle maximized mode by Alt+Enter.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
-                else if (kbstate[VK_CAPITAL] & 0x80 && manager::ctrl_pressed()) // Toggle antialiasing mode by Ctrl+CapsLock.
+                else if (kbstate[vkey::capslock] & 0x80 && manager::ctrl_pressed()) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         set_aa_mode(!gcache.aamode);
                     });
                 }
-                else if (kbstate[VK_CAPITAL] & 0x80 && kbstate['0'] & 0x80) // Reset cell scaling.
+                else if (kbstate[vkey::capslock] & 0x80 && kbstate['0'] & 0x80) // Reset cell scaling.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
@@ -3862,7 +3892,7 @@ namespace netxs::gui
                         update_gui();
                     });
                 }
-                else if (kbstate[VK_HOME] & 0x80 && kbstate[VK_END] & 0x80) // Shutdown by LeftArrow+RightArrow.
+                else if (kbstate[vkey::home] & 0x80 && kbstate[vkey::end] & 0x80) // Shutdown by LeftArrow+RightArrow.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
