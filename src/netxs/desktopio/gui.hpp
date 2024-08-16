@@ -120,6 +120,8 @@ namespace netxs::gui
             static constexpr auto end      = 0x23; // VK_END;
             static constexpr auto home     = 0x24; // VK_HOME;
 
+            static constexpr auto key_0    = '0'; // VK_0;
+
             static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
             static constexpr auto capslock = 0x14; // VK_CAPITAL;
             static constexpr auto scrllock = 0x91; // VK_SCROLL;
@@ -3847,9 +3849,9 @@ namespace netxs::gui
             //print_kbstate("key press:");
             if (pressed || repeat)
             {
-                if (kbstate[vkey::capslock] & 0x80 && (kbstate[vkey::up] & 0x80 || kbstate[vkey::down] & 0x80)) // Change cell height by CapsLock+Up/DownArrow.
+                if (focus_key_pressed(vkey::capslock) && (focus_key_pressed(vkey::up) || focus_key_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
                 {
-                    auto dir = kbstate[vkey::up] & 0x80 ? 1.f : -1.f;
+                    auto dir = focus_key_pressed(vkey::up) ? 1.f : -1.f;
                     if (!isbusy.exchange(true))
                     bell::enqueue(This(), [&, dir](auto& /*boss*/)
                     {
@@ -3868,21 +3870,21 @@ namespace netxs::gui
             }
             if (pressed)
             {
-                if (kbstate[vkey::alt] & 0x80 && kbstate[vkey::enter] & 0x80) // Toggle maximized mode by Alt+Enter.
+                if (focus_key_pressed(vkey::alt) && focus_key_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
-                else if (kbstate[vkey::capslock] & 0x80 && manager::ctrl_pressed()) // Toggle antialiasing mode by Ctrl+CapsLock.
+                else if (focus_key_pressed(vkey::capslock) && focus_key_pressed(vkey::control)) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         set_aa_mode(!gcache.aamode);
                     });
                 }
-                else if (kbstate[vkey::capslock] & 0x80 && kbstate['0'] & 0x80) // Reset cell scaling.
+                else if (focus_key_pressed(vkey::capslock) && focus_key_pressed(vkey::key_0)) // Reset cell scaling.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
@@ -3892,7 +3894,7 @@ namespace netxs::gui
                         update_gui();
                     });
                 }
-                else if (kbstate[vkey::home] & 0x80 && kbstate[vkey::end] & 0x80) // Shutdown by LeftArrow+RightArrow.
+                else if (focus_key_pressed(vkey::home) && focus_key_pressed(vkey::end)) // Shutdown by LeftArrow+RightArrow.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
