@@ -2447,6 +2447,10 @@ namespace netxs::gui
         wins layers; // manager: ARGB layers.
         tsf_link tslink; // manager: TSF link.
 
+        auto focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
+        auto focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
+        auto async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
+        auto async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
         auto get_window_title()
         {
             //...
@@ -3847,6 +3851,7 @@ namespace netxs::gui
             }
             toWIDE.clear();
             //print_kbstate("key press:");
+
             if (pressed || repeat)
             {
                 if (focus_key_pressed(vkey::capslock) && (focus_key_pressed(vkey::up) || focus_key_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
