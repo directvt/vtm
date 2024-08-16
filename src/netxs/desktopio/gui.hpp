@@ -1948,13 +1948,13 @@ namespace netxs::gui
 
         wins layers; // manager: ARGB layers.
         tsfl tslink; // manager: TSF link.
-        MSG  msg; // manager: OS window message.
+        MSG  winmsg; // manager: OS window message.
         text toUTF8; // manager: .
         wide toWIDE; // manager: .
 
         manager()
             : tslink{ *this },
-              msg{}
+              winmsg{}
         {
             set_dpi_awareness();
             sync_os_settings();
@@ -2038,8 +2038,8 @@ namespace netxs::gui
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
-            auto virtcod = std::clamp((si32)msg.wParam, 0, 255);
-            auto param = key_state_t{ .token = (ui32)msg.lParam };
+            auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
+            auto param = key_state_t{ .token = (ui32)winmsg.lParam };
             auto keystat = param.v.state == 0 ? keystate::pressed
                          : param.v.state == 1 ? keystate::repeated
                          : param.v.state == 3 ? keystate::released : keystate::unknown;
@@ -2049,11 +2049,11 @@ namespace netxs::gui
             if (keystat == keystate::unknown) return std::pair{ keystat, virtcod };
             //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
             //todo process Alt+Numpads on our side: use TSF message pump.
-            //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
-            ::TranslateMessage(&msg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
+            //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
+            ::TranslateMessage(&winmsg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
                                       // ::ToUnicodeEx() doesn't update IME.
-            auto m = MSG{};           // ::TranslateMessage(&msg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
-            auto msgtype = msg.message == WM_KEYUP || msg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
+            auto m = MSG{};           // ::TranslateMessage(&winmsg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
+            auto msgtype = winmsg.message == WM_KEYUP || winmsg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
             while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
             if (toWIDE.size()) keytype = 1;
             else
@@ -2106,12 +2106,12 @@ namespace netxs::gui
         }
         void dispatch()
         {
-            while (::GetMessageW(&msg, 0, 0, 0) > 0)
+            while (::GetMessageW(&winmsg, 0, 0, 0) > 0)
             {
-                //log("\tmsg=", utf::to_hex(msg.message), " coor=", twod{ msg.pt.x, msg.pt.y }, " wP=", utf::to_hex(msg.wParam), " lP=", utf::to_hex(msg.lParam), " hwnd=", utf::to_hex(msg.hwnd));
-                //if (msg.message == 0xC060) keybd_sync_state(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                if (multifocus.wheel && (msg.message == WM_KEYDOWN    || msg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
-                                         msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP))
+                //log("\twinmsg=", utf::to_hex(winmsg.message), " coor=", twod{ winmsg.pt.x, winmsg.pt.y }, " wP=", utf::to_hex(winmsg.wParam), " lP=", utf::to_hex(winmsg.lParam), " hwnd=", utf::to_hex(winmsg.hwnd));
+                //if (winmsg.message == 0xC060) keybd_sync_state(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                if (multifocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
+                                         winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
                 {
                     keybd_press();
                     sys_command(syscmd::update);
@@ -2119,7 +2119,7 @@ namespace netxs::gui
                 else
                 {
                     if (focus_key_pressed(vkey::rwin) || focus_key_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                    ::DispatchMessageW(&msg);
+                    ::DispatchMessageW(&winmsg);
                 }
             }
             tslink.stop();
@@ -2189,7 +2189,7 @@ namespace netxs::gui
         }
         auto get_pointer_coor()
         {
-            return twod{ msg.pt.x, msg.pt.y };
+            return twod{ winmsg.pt.x, winmsg.pt.y };
         }
         void mouse_capture(si32 captured_by)
         {
@@ -2215,7 +2215,7 @@ namespace netxs::gui
                            //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
             {
-                auto target = ::WindowFromPoint(msg.pt);
+                auto target = ::WindowFromPoint(winmsg.pt);
                 auto target_list = multifocus.copy();
                 auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
                                             .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
@@ -2342,7 +2342,7 @@ namespace netxs::gui
                 switch (msg)
                 {
                     case WM_MOUSEMOVE:        if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                              w->mouse_moved({ w->msg.pt.x, w->msg.pt.y });      break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
+                                              w->mouse_moved({ w->winmsg.pt.x,w->winmsg.pt.y }); break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
                     case WM_TIMER:            w->timer_event(wParam);                            break;
                     case WM_MOUSELEAVE:       w->mouse_leave(); hover_win = {};                  break;
                     case WM_LBUTTONDOWN:      w->mouse_press(bttn::left,    true);               break;
