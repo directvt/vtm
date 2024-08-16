@@ -1752,8 +1752,8 @@ namespace netxs::gui
                 auto yield = utf::to_utf(rigid);
                 log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
                   "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
-                if (yield.size()) owner.keybd_input(yield, input::keybd::type::imeinput);
-                owner.keybd_input(anons, input::keybd::type::imeanons);
+                if (yield.size()) owner.keybd_send_input(yield, input::keybd::type::imeinput);
+                owner.keybd_send_input(anons, input::keybd::type::imeanons);
                 return S_OK;
             }
 
@@ -1849,6 +1849,7 @@ namespace netxs::gui
 
             void set_focus()
             {
+                if (!tsf_thread_manager) start();
                 if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager.Get());
             }
             void start()
@@ -1903,7 +1904,7 @@ namespace netxs::gui
               msg{}
         {
             set_dpi_awareness();
-            sync_os_config();
+            sync_os_settings();
         }
         ~manager()
         {
@@ -1966,7 +1967,7 @@ namespace netxs::gui
             while (::GetMessageW(&msg, 0, 0, 0) > 0)
             {
                 //log("\tmsg=", utf::to_hex(msg.message), " coor=", twod{ msg.pt.x, msg.pt.y }, " wP=", utf::to_hex(msg.wParam), " lP=", utf::to_hex(msg.lParam), " hwnd=", utf::to_hex(msg.hwnd));
-                //if (msg.message == 0xC060) sync_kb_thread(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                //if (msg.message == 0xC060) keybd_sync_state(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
                 if (multifocus.wheel && (msg.message == WM_KEYDOWN    || msg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
                                          msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP))
                 {
@@ -1975,48 +1976,21 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) sync_kb_thread(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    if (kbstate[VK_RWIN] & 0x80 || kbstate[VK_LWIN] & 0x80) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                     ::DispatchMessageW(&msg);
                 }
             }
+            tslink.stop();
         }
-        void sync_kb_thread()
-        {
-            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
-            sync_kbstat();
-            //print_kbstate("sync_kb_thread");
-        }
-        void send_command(arch target, si32 command, arch lParam = {})
-        {
-            ::SendMessageW((HWND)target, WM_USER, command, lParam);
-        }
-        void post_command(arch target, si32 command, arch lParam = {})
-        {
-            ::PostMessageW((HWND)target, WM_USER, command, lParam);
-        }
-        void post_command(si32 command)
-        {
-            if (!layers.empty()) post_command((arch)layers.front().hWnd, command);
-        }
-        void do_focus()
-        {
-            if (!layers.empty()) ::SetFocus(layers.front().hWnd); // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        }
-        void do_set_foreground_window()
-        {
-            if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        }
-        void do_expose()
-        {
-            if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
-        }
+        auto async_key_pressed(si32 vkey) { return !!(::GetAsyncKeyState(vkey) & 0x8000); }
+        auto async_key_toggled(si32 vkey) { return !!(::GetAsyncKeyState(vkey) & 0x0001); }
         auto ctrl_pressed()
         {
-            return multifocus.focused() ? !!(kbstate[VK_CONTROL] & 0x80) : !!(::GetAsyncKeyState(VK_CONTROL) & 0x8000);
+            return multifocus.focused() ? !!(kbstate[VK_CONTROL] & 0x80) : async_key_pressed(VK_CONTROL);
         }
         auto lbutton_pressed()
         {
-            return !!(::GetAsyncKeyState(VK_LBUTTON) & 0x8000);
+            return async_key_pressed(VK_LBUTTON);
         }
         auto get_mods_state()
         {
@@ -2024,28 +1998,34 @@ namespace netxs::gui
             else
             {
                 auto state = 0;
-                if (::GetAsyncKeyState(VK_LSHIFT  ) & 0x8000) state |= input::hids::LShift;
-                if (::GetAsyncKeyState(VK_RSHIFT  ) & 0x8000) state |= input::hids::RShift;
-                if (::GetAsyncKeyState(VK_LCONTROL) & 0x8000) state |= input::hids::LCtrl;
-                if (::GetAsyncKeyState(VK_RCONTROL) & 0x8000) state |= input::hids::RCtrl;
-                if (::GetAsyncKeyState(VK_LMENU   ) & 0x8000) state |= input::hids::LAlt;
-                if (::GetAsyncKeyState(VK_RMENU   ) & 0x8000) state |= input::hids::RAlt;
-                if (::GetAsyncKeyState(VK_LWIN    ) & 0x8000) state |= input::hids::LWin;
-                if (::GetAsyncKeyState(VK_RWIN    ) & 0x8000) state |= input::hids::RWin;
-                if (::GetAsyncKeyState(VK_CAPITAL ) & 0x0001) state |= input::hids::CapsLock;
-                if (::GetAsyncKeyState(VK_SCROLL  ) & 0x0001) state |= input::hids::ScrlLock;
-                if (::GetAsyncKeyState(VK_NUMLOCK ) & 0x0001) state |= input::hids::NumLock;
+                if (async_key_pressed(VK_LSHIFT  )) state |= input::hids::LShift;
+                if (async_key_pressed(VK_RSHIFT  )) state |= input::hids::RShift;
+                if (async_key_pressed(VK_LCONTROL)) state |= input::hids::LCtrl;
+                if (async_key_pressed(VK_RCONTROL)) state |= input::hids::RCtrl;
+                if (async_key_pressed(VK_LMENU   )) state |= input::hids::LAlt;
+                if (async_key_pressed(VK_RMENU   )) state |= input::hids::RAlt;
+                if (async_key_pressed(VK_LWIN    )) state |= input::hids::LWin;
+                if (async_key_pressed(VK_RWIN    )) state |= input::hids::RWin;
+                if (async_key_toggled(VK_CAPITAL )) state |= input::hids::CapsLock;
+                if (async_key_toggled(VK_SCROLL  )) state |= input::hids::ScrlLock;
+                if (async_key_toggled(VK_NUMLOCK )) state |= input::hids::NumLock;
                 return state;
             }
         }
-        void activate()
+        void keybd_sync_state()
+        {
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            keybd_send_state();
+            //print_kbstate("sync_kb_thread");
+        }
+        void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(kbstate.data());
             multifocus.offer = !multifocus.buson && manager::ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //print_kbstate("::GetKeyboardState");
             tslink.set_focus();
         }
-        void deactivate()
+        void keybd_wipe_state()
         {
             auto n = kbstate[VK_NUMLOCK];
             auto c = kbstate[VK_CAPITAL];
@@ -2063,10 +2043,41 @@ namespace netxs::gui
             //kbstate[VK_OEM_FJ_LOYA] = p;
             //print_kbstate("deactivate");
         }
+        void keybd_sync_layout()
+        {
+            keybd_sync_state();
+            //todo sync kb layout
+            //auto hkl = ::GetKeyboardLayout(0);
+            auto kblayout = wide(KL_NAMELENGTH, '\0');
+            ::GetKeyboardLayoutNameW(kblayout.data());
+            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+        }
+        void send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
+        void post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
+        void post_command(si32 command)
+        {
+            if (!layers.empty()) post_command((arch)layers.front().hWnd, command);
+        }
+        void do_focus()
+        {
+            if (!layers.empty()) ::SetFocus(layers.front().hWnd); // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        }
+        void do_set_foreground_window()
+        {
+            if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        }
+        void do_expose()
+        {
+            if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+        }
         auto get_container(auto lParam)
         {
             auto& data = *(COPYDATASTRUCT*)lParam;
             return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData };
+        }
+        auto get_pointer_coor()
+        {
+            return twod{ msg.pt.x, msg.pt.y };
         }
         void mouse_capture(si32 captured_by)
         {
@@ -2086,10 +2097,10 @@ namespace netxs::gui
         }
         void mouse_check()
         {
-            auto ctrl_click = manager::ctrl_pressed()                              // Detect Ctrl+LeftClick
-                           && !layers.front().area.hittest({ msg.pt.x, msg.pt.y }) // outside our window.
-                           && ::GetAsyncKeyState(VK_LBUTTON) & 0x8000;             //
-                           //&& (::GetAsyncKeyState(VK_LBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_RBUTTON) & 0x8000 || ::GetAsyncKeyState(VK_MBUTTON) & 0x8000);
+            auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
+                           && !layers.front().area.hittest(get_pointer_coor()) // outside our window.
+                           && async_key_pressed(VK_LBUTTON);                   //
+                           //&& (async_key_pressed(VK_LBUTTON) || async_key_pressed(VK_RBUTTON) || async_key_pressed(VK_MBUTTON));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
             {
                 auto target = ::WindowFromPoint(msg.pt);
@@ -2105,10 +2116,6 @@ namespace netxs::gui
                 }
             }
             mouse_release();
-        }
-        auto get_pointer()
-        {
-            return twod{ msg.pt.x, msg.pt.y };
         }
         void forward_keybd_input(view block)
         {
@@ -2135,15 +2142,6 @@ namespace netxs::gui
             if (!layers.empty()) ::RemoveClipboardFormatListener(layers.front().hWnd);
             ::PostQuitMessage(0);
         }
-        void sync_kb_layout()
-        {
-            sync_kb_thread();
-            //todo sync kb layout
-            //auto hkl = ::GetKeyboardLayout(0);
-            auto kblayout = wide(KL_NAMELENGTH, '\0');
-            ::GetKeyboardLayoutNameW(kblayout.data());
-            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
-        }
         auto client_animation()
         {
             auto a = TRUE;
@@ -2166,7 +2164,7 @@ namespace netxs::gui
             }
             else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
         }
-        void sync_os_config()
+        void sync_os_settings()
         {
             auto dt = ULONG{};
             ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
@@ -2208,11 +2206,11 @@ namespace netxs::gui
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press() = 0;
-        virtual void keybd_input(view utf8, byte input_type) = 0;
+        virtual void keybd_send_state() = 0;
+        virtual void keybd_send_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode() = 0;
         virtual void check_window(twod coor) = 0;
         virtual void sync_clipboard() = 0;
-        virtual void sync_kbstat() = 0;
 
         auto add(manager* host_ptr = nullptr, twod wincoord = {}, twod gridsize = {}, dent border = {}, twod cellsz = {})
         {
@@ -2252,8 +2250,8 @@ namespace netxs::gui
                     case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
                     case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
                     case WM_CLIPBOARDUPDATE:  w->sync_clipboard();                               break;
-                    case WM_INPUTLANGCHANGE:  w->sync_kb_layout();                               break;
-                    case WM_SETTINGCHANGE:    w->sync_os_config();                               break;
+                    case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
+                    case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
@@ -2425,7 +2423,7 @@ namespace netxs::gui
             else
             {
                 auto state = 0;
-                //if (::GetAsyncKeyState(VK_LSHIFT  ) & 0x8000) state |= input::hids::LShift;
+                //if (async_key_pressed(VK_LSHIFT  ) & 0x8000) state |= input::hids::LShift;
                 //...
                 return state;
             }
@@ -2479,7 +2477,7 @@ namespace netxs::gui
         {
             //...
         }
-        auto get_pointer()
+        auto get_pointer_coor()
         {
             return twod{};
         }
@@ -2491,11 +2489,11 @@ namespace netxs::gui
         {
             //...
         }
-        void activate()
+        void keybd_load_state()
         {
             //...
         }
-        void deactivate()
+        void keybd_wipe_state()
         {
             //...
         }
@@ -3606,7 +3604,7 @@ namespace netxs::gui
                 return;
             }
             auto& mbttns = stream.m.buttons;
-            if (!mbttns && !layers[client].area.hittest(manager::get_pointer())) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            if (!mbttns && !layers[client].area.hittest(manager::get_pointer_coor())) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
                 if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
                 return;
@@ -3679,7 +3677,7 @@ namespace netxs::gui
                 }
             });
         }
-        void sync_kbstat(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
+        void keybd_send_state(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
             #if defined(_WIN32)
             //todo revise
@@ -3734,11 +3732,11 @@ namespace netxs::gui
             }
             #endif
         }
-        void sync_kbstat()
+        void keybd_send_state()
         {
-            sync_kbstat({});
+            keybd_send_state({});
         }
-        void keybd_input(view utf8, byte payload_type)
+        void keybd_send_input(view utf8, byte payload_type)
         {
             stream.k.payload = payload_type;
             stream.k.cluster = utf8;
@@ -3806,14 +3804,14 @@ namespace netxs::gui
                     utf::to_utf(toWIDE, toUTF8);
                     if (released) // Only Alt+Numpad fires on release.
                     {
-                        sync_kbstat({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
+                        keybd_send_state({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         toWIDE.clear();
                         //print_kbstate("key press:");
                         return;
                     }
                 }
-                sync_kbstat(toUTF8, pressed, repeat, virtcod, scancod, extflag);
+                keybd_send_state(toUTF8, pressed, repeat, virtcod, scancod, extflag);
             }
             toWIDE.clear();
             //print_kbstate("key press:");
@@ -3964,8 +3962,8 @@ namespace netxs::gui
             else if (command == ipc::drop_focus)
             {
                 auto focus_bus_on = multifocus.clear();
-                deactivate();
-                sync_kbstat();
+                keybd_wipe_state();
+                keybd_send_state();
                 if (focus_bus_on)
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
@@ -3982,7 +3980,7 @@ namespace netxs::gui
             }
             else if (command == ipc::sync_state)
             {
-                sync_kbstat();
+                keybd_send_state();
             }
             else if (command == ipc::take_focus)
             {
@@ -4002,7 +4000,7 @@ namespace netxs::gui
             {
                 if (new_focus_state)
                 {
-                    activate(); // It must be called in current thread.
+                    keybd_load_state(); // It must be called in current thread.
                     for (auto target : target_list.value()) send_command(target, ipc::main_focus, local_target);
                 }
                 else if (target_list) // Send to all that the focus is going to lost.
@@ -4074,7 +4072,6 @@ namespace netxs::gui
         {
             {
                 auto lock = bell::sync();
-                tslink.start();
                 set_state(win_state);
                 update_gui();
                 manager::run();
@@ -4134,7 +4131,6 @@ namespace netxs::gui
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.
-                tslink.stop();
                 manager::close(); // Interrupt dispatching.
             }};
             dispatch();
