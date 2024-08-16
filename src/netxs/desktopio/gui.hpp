@@ -36,8 +36,8 @@ namespace netxs::gui
 
         using tset = std::list<ui32>;
 
-        HDC   hdc; // surface: .
-        HWND hWnd; // surface: .
+        arch  hdc; // surface: Surface bitmap handle.
+        arch hWnd; // surface: Host window handle.
         rect prev; // surface: Last presented layer area.
         rect area; // surface: Current layer area.
         bits data; // surface: Layer bitmap.
@@ -47,8 +47,8 @@ namespace netxs::gui
 
         surface(surface const&) = default;
         surface(surface&&) = default;
-        surface(HWND hWnd)
-            :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
+        surface(arch hWnd, arch hdc)
+            :  hdc{ hdc },
               hWnd{ hWnd },
               prev{ .coor = dot_mx },
               area{ dot_00, dot_00 },
@@ -1913,7 +1913,7 @@ namespace netxs::gui
         }
         void post_command(si32 command)
         {
-            if (!layers.empty()) post_command((arch)layers.front().hWnd, command);
+            if (!layers.empty()) post_command(layers.front().hWnd, command);
         }
         auto ctrl_pressed()
         {
@@ -2559,7 +2559,7 @@ namespace netxs::gui
             //}
             if (auto target_list = multifocus.is_idle()) // Seize OS focus if group focus is active but window is idle.
             {
-                auto local_target = (arch)layers[client].hWnd;
+                auto local_target = layers[client].hWnd;
                 for (auto target : target_list.value()) send_command(target, ipc::main_focus, local_target);
                 do_set_foreground_window();
             }
@@ -2633,7 +2633,7 @@ namespace netxs::gui
             auto inner_rect = layers[blinky].area;
             auto coord = get_pointer_coor();
             mcoord = coord;
-			stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+            stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
             auto& mbttns = stream.m.buttons;
             if (std::exchange(multifocus.offer, faux)) // Ignore any first Ctrl+AnyClick inside the just focused window.
             {
@@ -2856,7 +2856,7 @@ namespace netxs::gui
                 if (command == ipc::make_offer) // Group focus offer.
                 {
                     auto ctrl_click = ctrl_pressed() && lbutton_pressed();
-                    auto local_target = (arch)layers[client].hWnd;
+                    auto local_target = layers[client].hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (ctrl_click && multifocus.update(target_list, local_target)) // Block foreign offers.
                     {
@@ -2932,7 +2932,7 @@ namespace netxs::gui
             }
             else if (command == ipc::solo_focus)
             {
-                auto local_target = (ui32)(arch)layers[client].hWnd;
+                auto local_target = (ui32)layers[client].hWnd;
                 auto target_list = multifocus.solo(local_target);
                 for (auto target : target_list) send_command(target, ipc::drop_focus);
             }
@@ -2953,7 +2953,7 @@ namespace netxs::gui
         }
         void focus_event(bool new_focus_state)
         {
-            auto local_target = (ui32)(arch)layers.front().hWnd;
+            auto local_target = (ui32)layers.front().hWnd;
             if (auto [changed, target_list] = multifocus.set_focus(local_target, new_focus_state); changed)
             {
                 if (new_focus_state)
@@ -3007,7 +3007,7 @@ namespace netxs::gui
         }
         void sync_clipboard()
         {
-            os::clipboard::sync((arch)layers[client].hWnd, stream, stream.intio, gridsz);
+            os::clipboard::sync(layers[client].hWnd, stream, stream.intio, gridsz);
         }
         void update_input_field_list(si32 acpStart, si32 acpEnd)
         {
@@ -3311,7 +3311,7 @@ namespace netxs::gui
             STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
             STDMETHODIMP GetWnd(HWND* phwnd)
             {
-                *phwnd = owner.layers.front().hWnd;
+                *phwnd = (HWND)owner.layers.front().hWnd;
                 return S_OK;
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
@@ -3462,7 +3462,7 @@ namespace netxs::gui
                                                           .biPlanes      = 1,
                                                           .biBitCount    = 32,
                                                           .biCompression = BI_RGB }};
-                    if (auto hbm = ::CreateDIBSection(s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
+                    if (auto hbm = ::CreateDIBSection((HDC)s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
                     {
                         //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
                         //if (!zeroize) // Crop.
@@ -3479,7 +3479,7 @@ namespace netxs::gui
                         //    }
                         //}
                         //data = new_data;
-                        ::DeleteObject(::SelectObject(s.hdc, hbm));
+                        ::DeleteObject(::SelectObject((HDC)s.hdc, hbm));
                         zeroize = faux;
                         s.prev.size = s.area.size;
                         s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
@@ -3493,15 +3493,19 @@ namespace netxs::gui
         }
         void reset(surface& s) // We don't use custom copy/move ctors.
         {
-            if (s.hdc) ::DeleteDC(s.hdc);
-            for (auto eventid : s.klok) ::KillTimer(s.hWnd, eventid);
+            if (s.hdc)
+            {
+                ::DeleteDC((HDC)s.hdc);
+                s.hdc = {};
+            }
+            for (auto eventid : s.klok) ::KillTimer((HWND)s.hWnd, eventid);
         }
         void start_timer(surface& s, span elapse, ui32 eventid)
         {
             if (eventid)
             {
                 if (std::find(s.klok.begin(), s.klok.end(), eventid) == s.klok.end()) s.klok.push_back(eventid);
-                ::SetCoalescableTimer(s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+                ::SetCoalescableTimer((HWND)s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
             }
         }
         void stop_timer(surface& s, ui32 eventid)
@@ -3509,16 +3513,16 @@ namespace netxs::gui
             auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
             if (iter != s.klok.end())
             {
-                ::KillTimer(s.hWnd, eventid);
+                ::KillTimer((HWND)s.hWnd, eventid);
                 s.klok.erase(iter);
             }
         }
         void present_move()
         {
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
-            for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
+            for (auto& s : layers) if (s.prev.coor(s.live ? s.area.coor : s.hidden))
             {
-                lock = ::DeferWindowPos(lock, w.hWnd, 0, w.prev.coor.x, w.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                lock = ::DeferWindowPos(lock, (HWND)s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                 if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
             }
             ::EndDeferWindowPos(lock);
@@ -3532,7 +3536,7 @@ namespace netxs::gui
             {
                 if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
                 {
-                    ::SetWindowPos(s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                    ::SetWindowPos((HWND)s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
                 }
                 return;
             }
@@ -3544,7 +3548,7 @@ namespace netxs::gui
             auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
                                                         .pptDst   = windowmoved ? &window_coor : nullptr,
                                                         .psize    = &bitmap_size,
-                                                        .hdcSrc   = s.hdc,
+                                                        .hdcSrc   = (HDC)s.hdc,
                                                         .pptSrc   = &bitmap_coor,
                                                         .pblend   = &blend_props,
                                                         .dwFlags  = ULW_ALPHA,
@@ -3553,7 +3557,7 @@ namespace netxs::gui
             auto update_proc = [&]
             {
                 //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
-                auto ok = ::UpdateLayeredWindowIndirect(s.hWnd, &update_info);
+                auto ok = ::UpdateLayeredWindowIndirect((HWND)s.hWnd, &update_info);
                 if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
             };
             //static auto clr = 0; clr++;
@@ -3576,13 +3580,13 @@ namespace netxs::gui
         }
         auto get_window_title()
         {
-            auto hWnd = layers.front().hWnd;
+            auto hWnd = (HWND)layers.front().hWnd;
             auto size = ::GetWindowTextLengthW(hWnd);
             auto crop = wide(size, '\0');
             ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
             return utf::to_utf(crop);
         }
-        void set_window_title(view utf8) { ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data()); }
+        void set_window_title(view utf8) { ::SetWindowTextW((HWND)layers.front().hWnd, utf::to_utf(utf8).data()); }
         bool focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
         bool focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
         //todo static
@@ -3720,17 +3724,17 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void do_focus()                 { if (!layers.empty()) ::SetFocus(layers.front().hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        void do_set_foreground_window() { if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void do_expose()                { if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void close()                    { if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL); }
-        void destroy_window()           { if (!layers.empty()) ::RemoveClipboardFormatListener(layers.front().hWnd); ::PostQuitMessage(0); }
+        void do_focus()                 { if (!layers.empty()) ::SetFocus((HWND)layers.front().hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void do_set_foreground_window() { if (!layers.empty()) ::SetForegroundWindow((HWND)layers.front().hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void do_expose()                { if (!layers.empty()) ::SetWindowPos((HWND)layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void close()                    { if (!layers.empty()) ::SendMessageW((HWND)layers.front().hWnd, WM_CLOSE, NULL, NULL); }
+        void destroy_window()           { if (!layers.empty()) ::RemoveClipboardFormatListener((HWND)layers.front().hWnd); ::PostQuitMessage(0); }
         twod get_pointer_coor()         { return twod{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
             {
-                if (!layers.empty()) ::SetCapture(layers.front().hWnd);
+                if (!layers.empty()) ::SetCapture((HWND)layers.front().hWnd);
                 if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
             }
         }
@@ -3755,7 +3759,7 @@ namespace netxs::gui
                 auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
                                             .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
                                             .lpData = (void*)target_list.data() };
-                auto rc = ::SendMessageW((HWND)target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
+                auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
                 if constexpr (debug_foci)
                 {
                     if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
@@ -3767,7 +3771,7 @@ namespace netxs::gui
         void forward_keybd_input(view block)
         {
             auto target_list = multifocus.copy();
-            auto local_hwnd = (ui32)(arch)layers.front().hWnd;
+            auto local_hwnd = (ui32)layers.front().hWnd;
             auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
             auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
             for (auto target : target_list) // Send to group focused targets.
@@ -3785,7 +3789,7 @@ namespace netxs::gui
             if (layers.empty()) return;
             if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             {
-                ::ShowWindow(layers.front().hWnd, SW_MINIMIZE);
+                ::ShowWindow((HWND)layers.front().hWnd, SW_MINIMIZE);
             }
             else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
             {
@@ -3794,7 +3798,7 @@ namespace netxs::gui
                 //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
                 //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
             }
-            else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
+            else ::ShowWindow((HWND)layers.front().hWnd, SW_RESTORE);
         }
         void sync_os_settings()
         {
@@ -3806,7 +3810,7 @@ namespace netxs::gui
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
-            auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+            auto ctxmenu = ::GetSystemMenu((HWND)layers.front().hWnd, FALSE);
             auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
             closecmd.resize(datalen);
             auto temp = utf::to_utf(closecmd);
@@ -3818,8 +3822,8 @@ namespace netxs::gui
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
-            for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
-            ::AddClipboardFormatListener(layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
+            for (auto& s : layers) ::ShowWindow((HWND)s.hWnd, std::exchange(mode, SW_SHOWNA));
+            ::AddClipboardFormatListener((HWND)layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
@@ -3931,7 +3935,7 @@ namespace netxs::gui
                 log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
-            auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
+            auto owner = layers.empty() ? HWND{} : (HWND)layers.front().hWnd;
             if (cell_size)
             {
                 auto use_default_size = grid_size == dot_mx;
@@ -3968,7 +3972,7 @@ namespace netxs::gui
             {
                 ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
             }
-            auto& l = layers.emplace_back(hWnd);
+            auto& l = layers.emplace_back((arch)hWnd, (arch)::CreateCompatibleDC(NULL)); // Only current thread owns created CompatibleDC.
             if (cell_size)
             {
                 grid_size /= cell_size;
