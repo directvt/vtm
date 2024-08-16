@@ -1276,6 +1276,40 @@ namespace netxs::gui
 
 #else
 
+    struct font
+    {
+        twod cellsize;
+        std::list<text> families;
+        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        { }
+        void set_fonts(std::list<text>&, bool)
+        {
+            //...
+        }
+        void set_cellsz(si32 /*height*/)
+        {
+            //...
+        }
+    };
+    struct glyf
+    {
+        si32 aamode{};
+        glyf(font& /*fcache*/ , bool /*aamode*/)
+        { }
+        void reset()
+        {
+            //...
+        }
+        void fill_grid(auto& /*canvas*/, auto& /*cellgrid*/, twod /*origin*/ = {})
+        {
+            //...
+        }
+        template<class T = noop>
+        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
+        {
+            //...
+        }
+    };
 
 #endif
 
@@ -1290,6 +1324,13 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using wins = std::vector<surface>;
 
+        enum
+        {
+            client, // winbase: Surface index for Client.
+            blinky, // winbase: Surface index for blinking characters.
+            header, // winbase: Surface index for Header.
+            footer, // winbase: Surface index for Footer.
+        };
         struct keystate
         {
             static constexpr auto _counter = __COUNTER__ + 1;
@@ -1805,10 +1846,6 @@ namespace netxs::gui
         rect normsz; // winbase: Non-fullscreen window area backup.
         si32 reload; // winbase: Changelog for update.
         wins layers; // winbase: ARGB layers.
-        si32 client; // winbase: Surface index for Client.
-        si32 blinky; // winbase: Surface index for blinking characters.
-        si32 header; // winbase: Surface index for Header.
-        si32 footer; // winbase: Surface index for Footer.
         rect grip_l; // winbase: .
         rect grip_r; // winbase: .
         rect grip_t; // winbase: .
@@ -1833,6 +1870,7 @@ namespace netxs::gui
         si32 blink_count{}; // winbase: .
         twod wincoord; // winbase: .
         twod gridsize; // winbase: .
+        arch win_hwnd; // winbase: Main window descriptor.
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
@@ -1858,20 +1896,15 @@ namespace netxs::gui
               redraw{},
               fsmode{ state::undefined },
               reload{ task::all },
-              client{ 0 }, // Update wincoord and gridsize if needed.
-              blinky{ 1 },
-              header{ 2 },
-              footer{ 3 },
               blinkrate{ blinkrate },
               blinking{ faux },
               stream{ *this, *os::dtvt::client },
               full_cellsz{ cellsz },
               norm_cellsz{ cellsz },
               wincoord{ wincoord },
-              gridsize{ gridsize }
-        {
-
-        }
+              gridsize{ gridsize },
+              win_hwnd{}
+        { }
 
         virtual void add(winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         virtual std::pair<si32, si32> keybd_read_key_event() = 0;
@@ -1913,7 +1946,7 @@ namespace netxs::gui
         }
         void post_command(si32 command)
         {
-            if (!layers.empty()) post_command(layers.front().hWnd, command);
+            if (win_hwnd) post_command(win_hwnd, command);
         }
         auto ctrl_pressed()
         {
@@ -2953,7 +2986,7 @@ namespace netxs::gui
         }
         void focus_event(bool new_focus_state)
         {
-            auto local_target = (ui32)layers.front().hWnd;
+            auto local_target = (ui32)win_hwnd;
             if (auto [changed, target_list] = multifocus.set_focus(local_target, new_focus_state); changed)
             {
                 if (new_focus_state)
@@ -3311,7 +3344,7 @@ namespace netxs::gui
             STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
             STDMETHODIMP GetWnd(HWND* phwnd)
             {
-                *phwnd = (HWND)owner.layers.front().hWnd;
+                *phwnd = (HWND)owner.win_hwnd;
                 return S_OK;
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
@@ -3424,9 +3457,9 @@ namespace netxs::gui
         };
 
         tsfl tslink; // window: TSF link.
-        MSG  winmsg; // window: OS window message.
-        text toUTF8; // window: .
-        wide toWIDE; // window: .
+        MSG  winmsg; // window: Last OS window message.
+        text toUTF8; // window: UTF-8 conversion buffer.
+        wide toWIDE; // window: UTF-16 conversion buffer.
 
         window(auto&& ...Args)
             : winbase{ Args... },
@@ -3578,15 +3611,7 @@ namespace netxs::gui
             }
             s.sync.clear();
         }
-        auto get_window_title()
-        {
-            auto hWnd = (HWND)layers.front().hWnd;
-            auto size = ::GetWindowTextLengthW(hWnd);
-            auto crop = wide(size, '\0');
-            ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
-            return utf::to_utf(crop);
-        }
-        void set_window_title(view utf8) { ::SetWindowTextW((HWND)layers.front().hWnd, utf::to_utf(utf8).data()); }
+        void set_window_title(view utf8) { ::SetWindowTextW((HWND)win_hwnd, utf::to_utf(utf8).data()); }
         bool focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
         bool focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
         //todo static
@@ -3724,17 +3749,17 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void do_focus()                 { if (!layers.empty()) ::SetFocus((HWND)layers.front().hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        void do_set_foreground_window() { if (!layers.empty()) ::SetForegroundWindow((HWND)layers.front().hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void do_expose()                { if (!layers.empty()) ::SetWindowPos((HWND)layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void close()                    { if (!layers.empty()) ::SendMessageW((HWND)layers.front().hWnd, WM_CLOSE, NULL, NULL); }
-        void destroy_window()           { if (!layers.empty()) ::RemoveClipboardFormatListener((HWND)layers.front().hWnd); ::PostQuitMessage(0); }
+        void do_focus()                 { ::SetFocus((HWND)win_hwnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void do_set_foreground_window() { ::SetForegroundWindow((HWND)win_hwnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void do_expose()                { ::SetWindowPos((HWND)win_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void close()                    { ::SendMessageW((HWND)win_hwnd, WM_CLOSE, NULL, NULL); }
+        void destroy_window()           { ::RemoveClipboardFormatListener((HWND)win_hwnd); ::PostQuitMessage(0); }
         twod get_pointer_coor()         { return twod{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
             {
-                if (!layers.empty()) ::SetCapture((HWND)layers.front().hWnd);
+                ::SetCapture((HWND)win_hwnd);
                 if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
             }
         }
@@ -3759,7 +3784,7 @@ namespace netxs::gui
                 auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
                                             .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
                                             .lpData = (void*)target_list.data() };
-                auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
+                auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)win_hwnd, (LPARAM)&data);
                 if constexpr (debug_foci)
                 {
                     if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
@@ -3771,7 +3796,7 @@ namespace netxs::gui
         void forward_keybd_input(view block)
         {
             auto target_list = multifocus.copy();
-            auto local_hwnd = (ui32)layers.front().hWnd;
+            auto local_hwnd = (ui32)win_hwnd;
             auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
             auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
             for (auto target : target_list) // Send to group focused targets.
@@ -3786,19 +3811,18 @@ namespace netxs::gui
         }
         void sync_taskbar(si32 new_state)
         {
-            if (layers.empty()) return;
             if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             {
-                ::ShowWindow((HWND)layers.front().hWnd, SW_MINIMIZE);
+                ::ShowWindow((HWND)win_hwnd, SW_MINIMIZE);
             }
             else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
             {
                 //todo It doesn't work that way. Sync with system ctx menu.
-                //auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+                //auto ctxmenu = ::GetSystemMenu((HWND)win_hwnd, FALSE);
                 //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
                 //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
             }
-            else ::ShowWindow((HWND)layers.front().hWnd, SW_RESTORE);
+            else ::ShowWindow((HWND)win_hwnd, SW_RESTORE);
         }
         void sync_os_settings()
         {
@@ -3810,7 +3834,7 @@ namespace netxs::gui
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
-            auto ctxmenu = ::GetSystemMenu((HWND)layers.front().hWnd, FALSE);
+            auto ctxmenu = ::GetSystemMenu((HWND)win_hwnd, FALSE);
             auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
             closecmd.resize(datalen);
             auto temp = utf::to_utf(closecmd);
@@ -3823,7 +3847,7 @@ namespace netxs::gui
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
             for (auto& s : layers) ::ShowWindow((HWND)s.hWnd, std::exchange(mode, SW_SHOWNA));
-            ::AddClipboardFormatListener((HWND)layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
+            ::AddClipboardFormatListener((HWND)win_hwnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
@@ -3935,7 +3959,7 @@ namespace netxs::gui
                 log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
-            auto owner = layers.empty() ? HWND{} : (HWND)layers.front().hWnd;
+            auto owner = (HWND)win_hwnd;
             if (cell_size)
             {
                 auto use_default_size = grid_size == dot_mx;
@@ -3987,176 +4011,44 @@ namespace netxs::gui
 
 namespace netxs::gui
 {
-    struct font
-    {
-        twod cellsize;
-        std::list<text> families;
-        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
-        { }
-        void set_fonts(std::list<text>&, bool)
-        {
-            //...
-        }
-        void set_cellsz(si32 /*height*/)
-        {
-            //...
-        }
-    };
-    struct glyf
-    {
-        si32 aamode{};
-        glyf(font& /*fcache*/ , bool /*aamode*/)
-        { }
-        void reset()
-        {
-            //...
-        }
-        void fill_grid(auto& /*canvas*/, auto& /*cellgrid*/, twod /*origin*/ = {})
-        {
-            //...
-        }
-        template<class T = noop>
-        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
-        {
-            //...
-        }
-    };
     struct window : winbase
     {
-        using wins = std::vector<surface>;
-
-        struct tsf_link
-        {
-            //...
-            void start()
-            {
-                //...
-            }
-            void stop()
-            {
-                //...
-            }
-        };
-
-        wins layers; // window: ARGB layers.
-        tsf_link tslink; // window: TSF link.
-
-        auto focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
-        auto focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
-        auto async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
-        auto async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
-        auto keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
-        auto get_window_title()
-        {
-            //...
-            return ""s;
-        }
-        void set_window_title(view /*utf8*/)
-        {
-            //...
-        }
-        auto add(auto ...)
-        {
-            //...
-            return 0;
-        }
-        void run()
-        {
-            //...
-        }
-        bool client_animation()
-        {
-            //...
-            return true;
-        }
-        void sync_taskbar(si32 /*new_state*/)
-        {
-            //...
-        }
-        rect get_fs_area(rect area)
-        {
-            //...
-            return area;
-        }
-        template<bool JustMove = faux>
-        void present()
-        {
-            //...
-        }
-        void close()
-        {
-            //...
-        }
-        void mouse_capture(si32 /*captured_by*/)
-        {
-            //...
-        }
-        void mouse_release(si32 /*released_by*/)
-        {
-            //...
-        }
-        auto get_pointer_coor()
-        {
-            return twod{};
-        }
-        auto lbutton_pressed()
-        {
-            return faux;
-        }
-        void dispatch()//os::fire& /*alarm*/)
-        {
-            //...
-        }
-        void keybd_load_state()
-        {
-            //...
-        }
-        void keybd_wipe_state()
-        {
-            //...
-        }
-        void normalize_wheeldt(fp32& /*wheelfp*/) // Disable system-wide wheel acceleration.
-        {
-            //...
-        }
-        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
-        {
-            //...
-        }
-        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
-        {
-            //...
-        }
-        void post_command(si32 /*command*/)
-        {
-            //...
-        }
-        auto get_container(arch /*lParam*/)
-        {
-            //...
-            return cont{};
-        }
-        auto ctrl_pressed()
-        {
-            //...
-            return faux;
-        }
-        auto forward_keybd_input(view /*block*/)
-        {
-            //...
-        }
-        void do_set_foreground_window()
-        {
-            //...
-        }
-        void do_focus()
-        {
-            //...
-        }
-        void do_expose()
-        {
-            //...
-        }
+        window(auto&& ...Args)
+            : winbase{ Args... }
+        { }
+        void add(winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) {}
+        bool focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
+        bool focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
+        bool async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
+        bool async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
+        std::pair<si32, si32> keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
+        void keybd_wipe_state() {}
+        void keybd_load_state() {}
+        void keybd_sync_layout() {}
+        void present_move() {}
+        void present(surface& /*s*/) {}
+        void sync_taskbar(si32 /*new_state*/) {}
+        rect get_fs_area(rect window_area) { return window_area; }
+        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void do_set_foreground_window() {}
+        twod get_pointer_coor() { return twod{}; }
+        void mouse_capture(si32 /*captured_by*/) {}
+        void mouse_release(si32 /*released_by*/) {}
+        void mouse_check() {}
+        cont get_container(arch /*lParam*/) { return cont{}; }
+        void do_focus() {}
+        void do_expose() {}
+        void dispatch() {}
+        void run() {}
+        void close() {}
+        void destroy_window() {}
+        void sync_os_settings() {}
+        void start_timer(surface& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void stop_timer(surface& /*s*/, ui32 /*eventid*/) {}
+        bits get_canvas(surface& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void set_window_title(view /*utf8*/) {}
+        void forward_keybd_input(view /*block*/) {}
     };
 }
 
