@@ -17,7 +17,7 @@ namespace netxs::gui
     {
         struct keystate
         {
-            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto _counter = __COUNTER__ + 1;
             static constexpr auto unknown  = __COUNTER__ - _counter;
             static constexpr auto pressed  = __COUNTER__ - _counter;
             static constexpr auto repeated = __COUNTER__ - _counter;
@@ -2040,13 +2040,13 @@ namespace netxs::gui
             };
             auto virtcod = std::clamp((si32)msg.wParam, 0, 255);
             auto param = key_state_t{ .token = (ui32)msg.lParam };
-            auto pressed = param.v.state == 0;
-            auto repeat  = param.v.state == 1;
-            auto released= param.v.state == 3;
+            auto keystat = param.v.state == 0 ? keystate::pressed
+                         : param.v.state == 1 ? keystate::repeated
+                         : param.v.state == 3 ? keystate::released : keystate::unknown;
             auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto keytype = 0;
-            if (param.v.state == 2/*unknown*/) return std::tuple{ faux, pressed, repeat, released, virtcod };
+            if (keystat == keystate::unknown) return std::pair{ keystat, virtcod };
             //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
             //todo process Alt+Numpads on our side: use TSF message pump.
             //if (auto rc = os::nt::TranslateMessageEx(&msg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
@@ -2066,12 +2066,12 @@ namespace netxs::gui
             if (!multifocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
                 toWIDE.clear();
-                return std::tuple{ faux, pressed, repeat, released, virtcod };
+                return std::pair{ keystate::unknown, virtcod };
             }
             if (virtcod == vkey::packet && toWIDE.size())
             {
                 auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff) return std::tuple{ faux, pressed, repeat, released, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
+                if (c >= 0xd800 && c <= 0xdbff) return std::pair{ keystate::unknown, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
             }
             keybd_read_state(); // Sync with thread kb state.
             if (keytype != 2) // Do not notify dead keys.
@@ -2080,20 +2080,20 @@ namespace netxs::gui
                 if (keytype == 1)
                 {
                     utf::to_utf(toWIDE, toUTF8);
-                    if (released) // Only Alt+Numpad fires on release.
+                    if (keystat == keystate::released) // Only Alt+Numpad fires on release.
                     {
-                        keybd_send_state({}, pressed, repeat, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_send_state({}, keystat, virtcod, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         toWIDE.clear();
                         //print_kbstate("Alt+Numpad");
-                        return std::tuple{ true, pressed, repeat, released, virtcod };
+                        return std::pair{ keystat, virtcod };
                     }
                 }
-                keybd_send_state(toUTF8, pressed, repeat, virtcod, scancod, extflag);
+                keybd_send_state(toUTF8, keystat, virtcod, scancod, extflag);
             }
             toWIDE.clear();
             //print_kbstate("keybd_read_key_event");
-            return std::tuple{ true, pressed, repeat, released, virtcod };
+            return std::pair{ keystat, virtcod };
         }
         auto ctrl_pressed()
         {
@@ -2318,8 +2318,7 @@ namespace netxs::gui
         virtual void mouse_press(si32 index, bool pressed) = 0;
         virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
         virtual void keybd_press() = 0;
-        virtual void keybd_send_state(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}) = 0;
-        virtual void keybd_send_state() = 0;
+        virtual void keybd_send_state(view cluster = {}, si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}) = 0;
         virtual void keybd_send_input(view utf8, byte input_type) = 0;
         virtual void check_fsmode() = 0;
         virtual void check_window(twod coor) = 0;
@@ -2534,6 +2533,7 @@ namespace netxs::gui
         auto focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
         auto async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
         auto async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
+        auto keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
         auto get_window_title()
         {
             //...
@@ -3800,7 +3800,7 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(view cluster, bool pressed = {}, bool repeat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
+        void keybd_send_state(view cluster = {}, si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {})
         {
             //todo revise
             //todo implement all possible modifiers state (eg kana)
@@ -3824,9 +3824,11 @@ namespace netxs::gui
             if (focus_key_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                                   mouse_release(by::keybd);
             auto changed = std::exchange(kbmod, state) != kbmod;
-            auto repeat_ctrl = repeat && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
-                                       || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
-                                       || virtcod == vkey::lwin     || virtcod == vkey::rwin);
+            auto pressed = keystat == keystate::pressed;
+            auto repeated = keystat == keystate::repeated;
+            auto repeat_ctrl = repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
+                                         || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
+                                         || virtcod == vkey::lwin     || virtcod == vkey::rwin);
             if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
             else
             {
@@ -3842,15 +3844,11 @@ namespace netxs::gui
                 stream.k.extflag = extflag;
                 stream.k.virtcod = virtcod;
                 stream.k.scancod = scancod;
-                stream.k.pressed = pressed || repeat;
+                stream.k.pressed = pressed || repeated;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
                 stream_keybd(stream.k);
             }
-        }
-        void keybd_send_state()
-        {
-            keybd_send_state({});
         }
         void keybd_send_input(view utf8, byte payload_type)
         {
@@ -3861,9 +3859,9 @@ namespace netxs::gui
         }
         void keybd_press()
         {
-            auto [ok, pressed, repeat, released, virtcod] = keybd_read_key_event();
-            if (!ok) return;
-            if (pressed || repeat)
+            auto [keystat, virtcod] = keybd_read_key_event();
+            if (keystat == keystate::unknown) return;
+            if (keystat == keystate::pressed || keystat == keystate::repeated)
             {
                 if (focus_key_pressed(vkey::capslock) && (focus_key_pressed(vkey::up) || focus_key_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
                 {
@@ -3877,14 +3875,14 @@ namespace netxs::gui
                     });
                 }
             }
-            else // if released
+            else // if (keystat == keystate::released)
             {
                 if (virtcod == vkey::control)
                 {
                     wheel_accum = {};
                 }
             }
-            if (pressed)
+            if (keystat == keystate::pressed)
             {
                 if (focus_key_pressed(vkey::alt) && focus_key_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
                 {
@@ -3918,7 +3916,7 @@ namespace netxs::gui
                     });
                 }
             }
-            //else if (released && fcache.families.size()) // Renumerate font list.
+            //else if (keystat == keystate::released && fcache.families.size()) // Renumerate font list.
             //{
             //    auto flen = fcache.families.size();
             //    auto index = virtcod == 0x30 ? fcache.families.size() - 1 : virtcod - 0x30;
