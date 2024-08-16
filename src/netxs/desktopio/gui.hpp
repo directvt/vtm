@@ -3,251 +3,41 @@
 
 #pragma once
 
-#include <memory_resource>
+#if defined(_WIN32)
+
+    #undef GetGlyphIndices
+    #include <DWrite_2.h>
+    #include <msctf.h>
+    #include <wrl\client.h>
+    #pragma comment(lib, "Gdi32")
+    #pragma comment(lib, "dwrite")
+    #pragma comment(lib, "ole32.lib")
+    #pragma comment(lib, "oleaut32.lib")
+    using Microsoft::WRL::ComPtr;
+
+#else
+
+#endif
+
+#include <memory_resource> // Polymorphic allocator.
+
+#define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
 
 namespace netxs::gui
 {
-    using namespace input;
-    using regs = std::vector<rect>;
-    using b256 = std::array<byte, 256>;
+    using namespace ui;
+    using bits = netxs::raster<std::span<argb>, rect>;
 
     static constexpr auto debug_foci = faux;
 
-    struct window_base
+    struct surface
     {
-        struct keystate
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto unknown  = __COUNTER__ - _counter;
-            static constexpr auto pressed  = __COUNTER__ - _counter;
-            static constexpr auto repeated = __COUNTER__ - _counter;
-            static constexpr auto released = __COUNTER__ - _counter;
-        };
-        struct bttn
-        {
-            static constexpr auto left     = 1 << 0;
-            static constexpr auto right    = 1 << 1;
-            static constexpr auto middle   = 1 << 2;
-            static constexpr auto xbutton1 = 1 << 3;
-            static constexpr auto xbutton2 = 1 << 4;
-        };
-        struct by
-        {
-            static constexpr auto mouse = 1 << 0;
-            static constexpr auto keybd = 1 << 1;
-        };
-        struct state
-        {
-            static constexpr auto _counter  = __COUNTER__ + 1;
-            static constexpr auto undefined = __COUNTER__ - _counter;
-            static constexpr auto normal    = __COUNTER__ - _counter;
-            static constexpr auto minimized = __COUNTER__ - _counter;
-            static constexpr auto maximized = __COUNTER__ - _counter;
-        };
-        struct timers
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto none     = __COUNTER__ - _counter;
-            static constexpr auto blink    = __COUNTER__ - _counter;
-        };
-        struct syscmd
-        {
-            static constexpr auto _counter     = __COUNTER__ + 1;
-            static constexpr auto minimize     = __COUNTER__ - _counter;
-            static constexpr auto maximize     = __COUNTER__ - _counter;
-            static constexpr auto restore      = __COUNTER__ - _counter;
-            static constexpr auto move         = __COUNTER__ - _counter;
-            static constexpr auto monitorpower = __COUNTER__ - _counter;
-            static constexpr auto update       = __COUNTER__ - _counter;
-            static constexpr auto close        = __COUNTER__ - _counter;
-        };
-        struct ipc
-        {
-            #define ipc_t \
-            X(make_offer) /* Make group focus offer on Ctrl+Click. */ \
-            X(drop_focus) /* Order to drop any focus.              */ \
-            X(take_focus) /* Order to take OS focus.               */ \
-            X(main_focus) /* Advertise OS focus owner.             */ \
-            X(solo_focus) /* Set solo focus.                       */ \
-            X(sync_state) /* Sync keybd modifiers state with OS.   */ \
-            X(pass_state) /* Pass keybd modifiers state.           */ \
-            X(pass_input) /* Pass keybd input.                     */ \
-            X(expose_win) /* Order to expose window.               */ \
-            X(cmd_w_data) /* Command with payload.                 */
-            static constexpr auto _base = 99900;
-            static constexpr auto _counter = __COUNTER__ + 1 - _base;
-            #define X(cmd) static constexpr auto cmd = __COUNTER__ - _counter;
-            ipc_t
-            #undef X
-            static constexpr auto _str = std::to_array({
-                #define X(cmd) #cmd,
-                ipc_t
-                #undef X
-            });
-            #undef ipc_t
-            static auto str(auto cmd) { return _str[cmd - _base]; }
-        };
-        struct task
-        {
-            static constexpr auto _counter = 1 + __COUNTER__;
-            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
-            static constexpr auto header = 1 << (__COUNTER__ - _counter);
-            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
-            static constexpr auto all = -1;
-        };
-        struct vkey
-        {
-            static constexpr auto lbutton  = 0x01; // VK_LBUTTON;
-            static constexpr auto rbutton  = 0x02; // VK_RBUTTON;
-            static constexpr auto mbutton  = 0x04; // VK_MBUTTON;
-            static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1;
-            static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2;
+        static constexpr auto hidden = twod{ -32000, -32000 };
 
-            static constexpr auto shift    = 0x10; // VK_SHIFT;
-            static constexpr auto control  = 0x11; // VK_CONTROL;
-            static constexpr auto alt      = 0x12; // VK_MENU;
-            static constexpr auto lshift   = 0xA0; // VK_LSHIFT;
-            static constexpr auto rshift   = 0xA1; // VK_RSHIFT;
-            static constexpr auto lcontrol = 0xA2; // VK_LCONTROL;
-            static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
-            static constexpr auto lalt     = 0xA4; // VK_LMENU;
-            static constexpr auto ralt     = 0xA5; // VK_RMENU;
-            static constexpr auto lwin     = 0x5B; // VK_LWIN;
-            static constexpr auto rwin     = 0x5C; // VK_RWIN;
-
-            static constexpr auto enter    = 0x0D; // VK_RETURN;
-            static constexpr auto left     = 0x25; // VK_LEFT;
-            static constexpr auto up       = 0x26; // VK_UP;
-            static constexpr auto right    = 0x27; // VK_RIGHT;
-            static constexpr auto down     = 0x28; // VK_DOWN;
-            static constexpr auto end      = 0x23; // VK_END;
-            static constexpr auto home     = 0x24; // VK_HOME;
-
-            static constexpr auto key_0    = '0'; // VK_0;
-
-            static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
-            static constexpr auto capslock = 0x14; // VK_CAPITAL;
-            static constexpr auto scrllock = 0x91; // VK_SCROLL;
-            static constexpr auto kana     = 0x15; // VK_KANA;
-            static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA;
-            static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA;
-
-            static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY;
-            static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO;
-            static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW;
-
-            static constexpr auto packet   = 0xE7; // VK_PACKET;
-        };
-        struct cont
-        {
-            si32  cmd;
-            void* ptr;
-            ui32  len;
-        };
-        struct foci
-        {
-            using uset = std::unordered_set<ui32>;
-            using sync = std::mutex;
-            sync mutex{}; // foci: Mutex.
-            uset group{}; // foci: Members.
-            ui32 owner{}; // foci: Leader id.
-            bool buson{}; // foci: Focus indication (bus) is on.
-            bool angel{}; // foci: Window is a member of the multi-focus group.
-            bool wheel{}; // foci: Window is a leader of the multi-focus group.
-            bool offer{}; // foci: Window just received a multi-focus offer.
-
-            void  insert(ui32 target) { auto lock = std::lock_guard{ mutex }; group.insert(target); }
-            void   erase(ui32 target) { auto lock = std::lock_guard{ mutex }; group.erase(target); }
-            bool   clear()            { auto lock = std::lock_guard{ mutex }; group.clear(); owner = {}; angel = faux; return std::exchange(buson, faux); }
-            auto    size()            { auto lock = std::lock_guard{ mutex }; return group.size(); }
-            auto    copy()            { auto lock = std::lock_guard{ mutex }; return std::vector<ui32>(group.begin(), group.end()); }
-            auto  active()            { auto lock = std::lock_guard{ mutex }; return wheel && group.size() > 1; }
-            bool focused()            { auto lock = std::lock_guard{ mutex }; return wheel || angel; }
-            auto is_idle()
-            {
-                auto lock = std::lock_guard{ mutex };
-                auto target_list = std::optional<std::vector<ui32>>{};
-                if (!wheel && buson && owner) target_list = std::vector<ui32>(group.begin(), group.end());
-                return target_list;
-            }
-            auto solo(ui32 local_target)
-            {
-                auto lock = std::lock_guard{ mutex };
-                auto copy = std::vector<ui32>(group.size());
-                std::copy_if(group.begin(), group.end(), copy.begin(), [&](auto t){ return t != local_target; });
-                group = { local_target };
-                angel = faux;
-                return copy;
-            }
-            bool update(auto target_list, auto local_target)
-            {
-                auto lock = std::lock_guard{ mutex };
-                auto ok = !std::exchange(angel, true);
-                if (ok)
-                {
-                    group = { target_list.begin(), target_list.end() };
-                    group.insert((ui32)local_target);
-                }
-                return ok;
-            }
-            bool set_owner(auto lParam)
-            {
-                auto lock = std::lock_guard{ mutex };
-                owner = (ui32)lParam;
-                group.insert(owner);
-                return std::exchange(buson, true);
-            }
-            auto set_focus(auto local_target, auto new_focus_state)
-            {
-                auto lock = std::lock_guard{ mutex };
-                auto target_list = std::optional<std::vector<ui32>>{};
-                auto changed = std::exchange(wheel, new_focus_state) != wheel;
-                if (changed && (wheel || owner == local_target))
-                {
-                    if (wheel) group.insert(local_target);
-                    target_list = std::vector<ui32>(group.begin(), group.end());
-                }
-                return std::pair{ changed, target_list };
-            }
-        };
-
-        bool isfine = true; // window_base: All is ok.
-        regs inputfield_list; // window_base: Text input field list.
-        foci multifocus; // window_base: Multi-focus control.
-        fp32 os_wheel_delta = 24.f; // window_base: OS-wise mouse wheel setting.
-        si32 mouse_capture_state = {}; // window_base: Mouse capture owners bitfield.
-        b256 kbstate = {}; // window_base: Keyboard virtual keys state.
-        si32 kbmod = {}; // window_base: Keyboard modifiers state.
-
-        explicit operator bool () const { return isfine; }
-        void print_kbstate(text s)
-        {
-            s += "\n"s;
-            auto i = 0;
-            for (auto k : kbstate)
-            {
-                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
-                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
-                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
-                else if (k)         s += ansi::fgc(tint::magentalt);
-                else                s += ansi::nil();
-                s += utf::to_hex(k) + ' ';
-                i++;
-                if (i % 16 == 0)s += '\n';
-            }
-            log(s);
-        }
-    };
-    struct surface_base
-    {
-        using bits = netxs::raster<std::span<argb>, rect>;
         using tset = std::list<ui32>;
 
+        HDC   hdc; // surface: .
+        HWND hWnd; // surface: .
         rect prev; // surface: Last presented layer area.
         rect area; // surface: Current layer area.
         bits data; // surface: Layer bitmap.
@@ -255,10 +45,14 @@ namespace netxs::gui
         bool live; // surface: Should the layer be presented.
         tset klok; // surface: Active timer list.
 
-        surface_base()
-          : prev{ .coor = dot_mx },
-            area{ dot_00, dot_00 },
-            live{ faux }
+        surface(surface const&) = default;
+        surface(surface&&) = default;
+        surface(HWND hWnd)
+            :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
+              hWnd{ hWnd },
+              prev{ .coor = dot_mx },
+              area{ dot_00, dot_00 },
+              live{ faux }
         { }
         void hide() { live = faux; }
         void show() { live = true; }
@@ -291,24 +85,9 @@ namespace netxs::gui
             }
         }
     };
-}
 
 #if defined(_WIN32)
 
-#undef GetGlyphIndices
-#include <DWrite_2.h>
-#include <msctf.h>
-#include <wrl\client.h>
-#pragma comment(lib, "Gdi32")
-#pragma comment(lib, "dwrite")
-#pragma comment(lib, "ole32.lib")
-#pragma comment(lib, "oleaut32.lib")
-using Microsoft::WRL::ComPtr;
-
-#define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
-
-namespace netxs::gui
-{
     struct font
     {
         struct style
@@ -1495,1179 +1274,227 @@ namespace netxs::gui
         }
     };
 
-    struct surface : surface_base
-    {
-        static constexpr auto hidden = twod{ -32000, -32000 };
-
-        HDC   hdc; // surface: .
-        HWND hWnd; // surface: .
-
-        surface(surface const&) = default;
-        surface(surface&&) = default;
-        surface(HWND hWnd)
-            :  hdc{ ::CreateCompatibleDC(NULL)}, // Only current thread owns hdc.
-              hWnd{ hWnd }
-        { }
-        void reset() // We don't use custom copy/move ctors.
-        {
-            if (hdc) ::DeleteDC(hdc);
-            for (auto eventid : klok) ::KillTimer(hWnd, eventid);
-        }
-        auto canvas(bool zeroize = faux)
-        {
-            if (hdc && area)
-            {
-                if (resized())
-                {
-                    auto ptr = (void*)nullptr;
-                    auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
-                                                          .biWidth       = area.size.x,
-                                                          .biHeight      = -area.size.y,
-                                                          .biPlanes      = 1,
-                                                          .biBitCount    = 32,
-                                                          .biCompression = BI_RGB }};
-                    if (auto hbm = ::CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
-                    {
-                        //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
-                        //if (!zeroize) // Crop.
-                        //{
-                        //    auto d = new_data.data();
-                        //    auto s = data.data();
-                        //    auto w = std::min(prev.size.x, area.size.x) * sizeof(argb);
-                        //    auto h = std::min(prev.size.y, area.size.y);
-                        //    while (h--)
-                        //    {
-                        //        std::memcpy(d, s, w);
-                        //        d += area.size.x;
-                        //        s += prev.size.x;
-                        //    }
-                        //}
-                        //data = new_data;
-                        ::DeleteObject(::SelectObject(hdc, hbm));
-                        zeroize = faux;
-                        prev.size = area.size;
-                        data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)area.size.x * area.size.y }, area };
-                    }
-                    else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
-                }
-                if (zeroize) wipe();
-            }
-            data.move(area.coor);
-            return data;
-        }
-        void present()
-        {
-            if (!hdc) return;
-            auto windowmoved = prev.coor(live ? area.coor : hidden);
-            if (sync.empty())
-            {
-                if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
-                {
-                    ::SetWindowPos(hWnd, 0, prev.coor.x, prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
-                }
-                return;
-            }
-            auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
-            auto bitmap_coor = POINT{};
-            auto window_coor = POINT{ prev.coor.x, prev.coor.y };
-            auto bitmap_size = SIZE{ area.size.x, area.size.y };
-            auto update_area = RECT{};
-            auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
-                                                        .pptDst   = windowmoved ? &window_coor : nullptr,
-                                                        .psize    = &bitmap_size,
-                                                        .hdcSrc   = hdc,
-                                                        .pptSrc   = &bitmap_coor,
-                                                        .pblend   = &blend_props,
-                                                        .dwFlags  = ULW_ALPHA,
-                                                        .prcDirty = &update_area };
-            //log("hWnd=", hWnd);
-            auto update_proc = [&]
-            {
-                //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
-                auto ok = ::UpdateLayeredWindowIndirect(hWnd, &update_info);
-                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
-            };
-            //static auto clr = 0; clr++;
-            for (auto r : sync)
-            {
-                // Hilight changes
-                //auto c = canvas();
-                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
-                r.coor -= area.coor;
-                update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                update_proc();
-                update_info.pptDst = {};
-            }
-            if (update_info.pptDst) // Just move window.
-            {
-                update_area = {};
-                update_proc();
-            }
-            sync.clear();
-        }
-        void start_timer(span elapse, ui32 eventid)
-        {
-            if (eventid)
-            {
-                if (std::find(klok.begin(), klok.end(), eventid) == klok.end()) klok.push_back(eventid);
-                ::SetCoalescableTimer(hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
-            }
-        }
-        void stop_timer(ui32 eventid)
-        {
-            auto iter = std::find(klok.begin(), klok.end(), eventid);
-            if (iter != klok.end())
-            {
-                ::KillTimer(hWnd, eventid);
-                klok.erase(iter);
-            }
-        }
-    };
-
-    struct manager : window_base
-    {
-        using wins = std::vector<surface>;
-
-        struct tsfl : ITfContextOwnerCompositionSink, // To declare we are composition owner.
-                      ITfContextOwner,
-                      ITfTextEditSink, // To catch composition updates.
-                      ITfEditSession
-        {
-            manager&                       owner;
-            ComPtr<ITfThreadMgrEx>         tsf_thread_manager;
-            ComPtr<ITfDocumentMgr>         tsf_document_manager;
-            ComPtr<ITfContext>             tsf_context;
-            ComPtr<ITfSource>              tsf_source;
-            ComPtr<ITfCategoryMgr>         tsf_category_manager;
-            ComPtr<ITfDisplayAttributeMgr> tsf_attribute_manager;
-            TfClientId                     tsf_registration_id = {};
-            DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
-            DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
-
-            tsfl(manager& owner) // start() should be run under UI lock to be able to query input fields.
-                : owner{ owner }
-            { }
-            #define log(...)
-
-            // IUnknown
-            ULONG refs = 1;
-            STDMETHODIMP QueryInterface(REFIID riid, void** ppvObj)
-            {
-                if (!ppvObj) return E_POINTER;
-                *ppvObj = nullptr;
-                log("call: QueryInterface ", os::guid(riid));
-                     if (::IsEqualGUID(riid, IID_ITfContextOwner))                { *ppvObj = (ITfContextOwner*)this;                           log("    ask: IID_ITfContextOwner"); }
-                else if (::IsEqualGUID(riid, IID_ITfTextEditSink))                { *ppvObj = (ITfTextEditSink*)this;                           log("    ask: IID_ITfTextEditSink"); }
-                else if (::IsEqualGUID(riid, IID_ITfContextOwnerCompositionSink)) { *ppvObj = (ITfContextOwnerCompositionSink*)this;            log("    ask: IID_ITfContextOwnerCompositionSink"); }
-                else if (::IsEqualGUID(riid, IID_IUnknown))                       { *ppvObj = (IUnknown*)(ITfContextOwnerCompositionSink*)this; log("    ask: IID_IUnknown"); }
-                if (*ppvObj)
-                {
-                    AddRef();
-                    return S_OK;
-                }
-                else return E_NOINTERFACE;
-            }
-            ULONG STDMETHODCALLTYPE AddRef()  { log("call: AddRef ", refs, " +1"); return InterlockedIncrement(&refs); }
-            ULONG STDMETHODCALLTYPE Release() { log("call: DecRef ", refs, " -1"); auto r = InterlockedDecrement(&refs); if (r == 0) delete this; return r; }
-
-            void fill_attr(cell& mark, TfGuidAtom atom)
-            {
-                if (atom == TF_INVALID_GUIDATOM) mark.und(unln::dashed);
-                else
-                {
-                    auto guid = GUID{};
-                    auto attr = TF_DISPLAYATTRIBUTE{};
-                    auto info = ComPtr<ITfDisplayAttributeInfo>{};
-                    if (SUCCEEDED(tsf_category_manager->GetGUID(atom, &guid))
-                     && SUCCEEDED(tsf_attribute_manager->GetDisplayAttributeInfo(guid, info.GetAddressOf(), nullptr))
-                     && SUCCEEDED(info->GetAttributeInfo(&attr)))
-                    {
-                        auto color = [](auto c){ return argb{ (ui32)(c.type == TF_CT_COLORREF ? c.cr : ::GetSysColor(c.nIndex)) }; };
-                        if (attr.crText.type != TF_CT_NONE    ) mark.fgc(color(attr.crText));
-                        if (attr.crBk.type   != TF_CT_NONE    ) mark.bgc(color(attr.crBk));
-                        if (attr.crLine.type != TF_CT_NONE    ) mark.unc(color(attr.crLine));
-                        if (attr.lsStyle     == TF_LS_SOLID   ) mark.und(unln::line);
-                        if (attr.fBoldLine   == TRUE          ) mark.und(unln::biline);
-                        if (attr.lsStyle     == TF_LS_DOT     ) mark.und(unln::dotted);
-                        if (attr.lsStyle     == TF_LS_DASH    ) mark.und(unln::dashed);
-                        if (attr.lsStyle     == TF_LS_SQUIGGLE) mark.und(unln::wavy);
-                    }
-                }
-            }
-
-            // ITfEditSession
-            STDMETHODIMP DoEditSession(TfEditCookie ec)
-            {
-                log(" call: DoEditSession ec=", utf::to_hex(ec));
-                auto composition = ComPtr<ITfRange>{};
-                auto utf16 = wide{};
-                auto width = LONG{};
-                auto fixed = LONG{ LONG_MAX };
-                auto caret = LONG{ LONG_MAX };
-                auto count = ULONG{};
-                auto attrs = std::vector<std::pair<si32, cell>>{};
-                auto guids = std::to_array({ &GUID_PROP_ATTRIBUTE, &GUID_PROP_COMPOSING });
-                auto piece = std::array<wchr, 64>{};
-                auto props = ComPtr<ITfReadOnlyProperty>{};
-                auto parts = ComPtr<IEnumTfRanges>{};
-                if (SUCCEEDED(tsf_context->GetStart(ec, composition.GetAddressOf()))
-                 && SUCCEEDED(composition->ShiftEnd(ec, LONG_MAX, &width, nullptr))
-                 && SUCCEEDED(tsf_context->TrackProperties(guids.data(), (ULONG)guids.size(), nullptr, 0, props.GetAddressOf()))
-                 && SUCCEEDED(props->EnumRanges(ec, parts.GetAddressOf(), composition.Get())))
-                {
-                    auto ranges = std::array<ITfRange*, 15>{};
-                    while (parts->Next((ULONG)ranges.size(), ranges.data(), &count), count)
-                    {
-                        for (auto range : std::span{ ranges.data(), count })
-                        {
-                            auto marker = cell{};
-                            auto buffer = VARIANT{};
-                            auto length = utf16.size();
-                            auto values = std::array<TF_PROPERTYVAL, guids.size()>{};
-                            auto v_iter = ComPtr<IEnumTfPropertyValue>{};
-                            ::VariantInit(&buffer);
-                            if (SUCCEEDED(props->GetValue(ec, range, &buffer))
-                             && SUCCEEDED(buffer.punkVal->QueryInterface(IID_IEnumTfPropertyValue, (void**)v_iter.GetAddressOf()))
-                             && SUCCEEDED(v_iter->Next((ULONG)guids.size(), values.data(), nullptr)))
-                            {
-                                for (auto& v : values)
-                                {
-                                    auto is_si32 = V_VT(&v.varValue) == VT_I4;
-                                    auto int_val = is_si32 ? V_I4(&v.varValue) : 0;
-                                         if (::IsEqualGUID(v.guidId, GUID_PROP_ATTRIBUTE)) fill_attr(marker, int_val);
-                                    else if (fixed == LONG_MAX && int_val && ::IsEqualGUID(v.guidId, GUID_PROP_COMPOSING)) fixed = (LONG)length;
-                                    ::VariantClear(&v.varValue);
-                                }
-                            }
-                            ::VariantClear(&buffer);
-                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART, piece.data(), (ULONG)piece.size(), &count)) && count)
-                            {
-                                utf16.append(piece.data(), count);
-                                if (count != piece.size()) break;
-                            }
-                            if (fixed != LONG_MAX) // Store attributes only for unstable segments. Comment it to allow colored input.
-                            {
-                                auto delta = utf16.size() - length;
-                                if (delta) attrs.emplace_back((si32)delta, marker);
-                            }
-                            range->Release();
-                        }
-                        count = 0;
-                    }
-                    auto selection = TF_SELECTION{};
-                    if (SUCCEEDED(tsf_context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &count)) && count)
-                    {
-                        auto hcond = TF_HALTCOND{ .pHaltRange = selection.range, .aHaltPos = selection.style.ase == TF_AE_START ? TF_ANCHOR_START : TF_ANCHOR_END };
-                        auto start = ComPtr<ITfRange>{};
-                        if (SUCCEEDED(tsf_context->GetStart(ec, start.GetAddressOf()))) start->ShiftEnd(ec, LONG_MAX, &caret, &hcond);
-                        if (selection.range) selection.range->Release();
-                    }
-                    if (fixed && utf16.size()) // Drop fixed segment from composition.
-                    {
-                        auto range = ComPtr<ITfRange>{};
-                        auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
-                               && SUCCEEDED(range->ShiftEnd(ec, fixed, &width, nullptr))
-                               && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
-                        if (!ok)
-                        {
-                            log(ansi::err("range->SetText failed"));
-                        }
-                    }
-                }
-                auto whole = wiew{ utf16 };
-                auto rigid = whole.substr(0, fixed);
-                auto fluid = whole.substr(rigid.size());
-                auto anons = ansi::escx{};
-                caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
-                if (fluid.size())
-                {
-                    auto cache = fluid;
-                    auto brush = cell{};
-                    auto index = 0;
-                    for (auto& [l, c] : attrs)
-                    {
-                        c.scan_attr(brush, anons);
-                        if (caret >= index && caret < index + l)
-                        {
-                            auto s = caret - index;
-                            utf::to_utf(cache.substr(0, s), anons);
-                            anons.scp(); // Inline caret.
-                            utf::to_utf(cache.substr(s, l - s), anons);
-                        }
-                        else utf::to_utf(cache.substr(0, l), anons);
-                        cache.remove_prefix(l);
-                        index += l;
-                    }
-                    if (caret == index) anons.scp(); // Inline caret.
-                }
-                auto yield = utf::to_utf(rigid);
-                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
-                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
-                if (yield.size()) owner.keybd_send_input(yield, input::keybd::type::imeinput);
-                owner.keybd_send_input(anons, input::keybd::type::imeanons);
-                return S_OK;
-            }
-
-            // ITfContextOwnerCompositionSink
-            STDMETHODIMP OnStartComposition(ITfCompositionView*, BOOL* pfOk) { if (pfOk) *pfOk = TRUE; return S_OK; }
-            STDMETHODIMP OnUpdateComposition(ITfCompositionView*, ITfRange*) { return S_OK; }
-            STDMETHODIMP OnEndComposition(ITfCompositionView*)               { return S_OK; }
-
-            // ITfTextEditSink
-            STDMETHODIMP OnEndEdit(ITfContext* /*pic*/, TfEditCookie /*ecReadOnly*/, ITfEditRecord* /*pEditRecord*/)
-            {
-                log("call: OnEndEdit");
-                auto hrSession = HRESULT{};
-                if (!SUCCEEDED(tsf_context->RequestEditSession(tsf_registration_id, this, TF_ES_READWRITE | TF_ES_ASYNC, &hrSession))) // Enqueue an implicit call to DoEditSession(ec).
-                {
-                    log(ansi::err("RequestEditSession failed"));
-                }
-                else if (!SUCCEEDED(hrSession))
-                {
-                    log(ansi::err("hrSession failed"));
-                }
-                return S_OK;
-            }
-
-            // ITfContextOwner
-            STDMETHODIMP GetAttribute(REFGUID /*rguidAttribute*/, VARIANT* /*pvarValue*/) { return E_NOTIMPL; }
-            STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
-            STDMETHODIMP GetWnd(HWND* phwnd)
-            {
-                *phwnd = owner.layers.front().hWnd;
-                return S_OK;
-            }
-            STDMETHODIMP GetStatus(TF_STATUS* pdcs)
-            {
-                log("call: GetStatus -> ", pdcs);
-                if (!pdcs) return E_POINTER;
-                pdcs->dwDynamicFlags = TS_SD_UIINTEGRATIONENABLE; // To indicate owr support of IME UI integration.
-                pdcs->dwStaticFlags = TS_SS_TRANSITORY; // It is expected to have a short usage cycle.
-                return S_OK;
-            }
-            STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
-            {
-                if (prc)
-                {
-                    auto& client = owner.layers.front();
-                    auto r = client.live ? client.area : rect{}; // Reply an empty rect if window is hidden.
-                    //static auto random = true;
-                    //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
-                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                    log("call: GetScreenExt -> ", r);
-                }
-                return S_OK;
-            }
-            STDMETHODIMP GetTextExt(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) // Returns the bounding box, in screen coordinates, of the text at the specified character positions.
-            {
-                log("call: GetTextExt acpStart=", acpStart, " acpEnd=", acpEnd);
-                if (pfClipped) *pfClipped = FALSE;
-                if (prc)
-                {
-                    auto r = rect{};
-                    auto& client = owner.layers.front();
-                    if (client.live) // Reply an empty rect if window is hidden.
-                    {
-                        //todo throttle by 400ms
-                        owner.update_input_field_list(acpStart, acpEnd);
-                        auto& field_list = owner.inputfield_list;
-                        if (field_list.empty()) return GetScreenExt(prc);
-                        else
-                        {
-                            auto head = field_list.begin();
-                            auto tail = field_list.end();
-                            while (head != tail && !head->trim(client.area)) ++head; // Drop all fields that outside client.
-                            if (head != tail)
-                            {
-                                r = field_list.front();
-                                log(" field: ", r);
-                                while (head != tail)
-                                {
-                                    auto f = *head++;
-                                    if (f.trim(client.area))
-                                    {
-                                        log(" field: ", f);
-                                        r.unitewith(f);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
-                }
-                return S_OK;
-            }
-
-            void set_focus()
-            {
-                if (!tsf_thread_manager) start();
-                if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager.Get());
-            }
-            void start()
-            {
-                log("call: start");
-                auto ec = TfEditCookie{};
-                auto ok = SUCCEEDED(::CoInitialize(NULL)) // TSF supports STA only.
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)tsf_category_manager.GetAddressOf()))
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)tsf_attribute_manager.GetAddressOf()))
-                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)tsf_thread_manager.GetAddressOf()))
-                       && SUCCEEDED(tsf_thread_manager->Activate(&tsf_registration_id))
-                       && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(tsf_document_manager.GetAddressOf()))
-                       && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, tsf_context.GetAddressOf(), &ec))
-                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)tsf_source.GetAddressOf()))
-                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
-                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
-                       && SUCCEEDED(tsf_document_manager->Push(tsf_context.Get()));
-                if (ok)
-                {
-                    log("TSF activated.",
-                               "\n    tsf_document_manager=", tsf_document_manager.Get(),
-                               "\n    tsf_context=", tsf_context.Get(),
-                               "\n    tsf_source=", tsf_source.Get(),
-                               "\n    tsf_category_manager=", tsf_category_manager.Get(),
-                               "\n    tsf_attribute_manager=", tsf_attribute_manager.Get(),
-                               "\n    dwCookieTextEditSink=", dwCookieTextEditSink,
-                               "\n    dwCookieContextOwner=", dwCookieContextOwner);
-                }
-                else
-                {
-                    log("TSF activation failed.");
-                }
-            }
-            void stop()
-            {
-                log("call: stop");
-                if (dwCookieTextEditSink != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieTextEditSink);
-                if (dwCookieContextOwner != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieContextOwner);
-                if (tsf_document_manager)                      tsf_document_manager->Pop(TF_POPF_ALL);
-                if (tsf_thread_manager)                        tsf_thread_manager->Deactivate();
-                ::CoUninitialize();
-            }
-            #undef log
-        };
-
-        wins layers; // manager: ARGB layers.
-        tsfl tslink; // manager: TSF link.
-        MSG  winmsg; // manager: OS window message.
-        text toUTF8; // manager: .
-        wide toWIDE; // manager: .
-
-        manager()
-            : tslink{ *this },
-              winmsg{}
-        {
-            set_dpi_awareness();
-            sync_os_settings();
-        }
-        ~manager()
-        {
-            for (auto& w : layers) w.reset();
-        }
-
-        auto get_window_title()
-        {
-            auto hWnd = layers.front().hWnd;
-            auto size = ::GetWindowTextLengthW(hWnd);
-            auto crop = wide(size, '\0');
-            ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
-            return utf::to_utf(crop);
-        }
-        void set_window_title(view utf8)
-        {
-            ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data());
-        }
-        void set_dpi_awareness()
-        {
-            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
-            if (proc)
-            {
-                proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                //auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
-            }
-        }
-        template<bool JustMove = faux>
-        void present()
-        {
-            if constexpr (JustMove)
-            {
-                auto lock = ::BeginDeferWindowPos((si32)layers.size());
-                for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
-                {
-                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.prev.coor.x, w.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
-                    if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
-                }
-                ::EndDeferWindowPos(lock);
-            }
-            else for (auto& w : layers) w.present();
-        }
-        auto get_fs_area(rect window_area)
-        {
-            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
-            {
-                auto& r = *monitor_rect_ptr;
-                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
-                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
-                return TRUE;
-            };
-            auto area_pair = std::pair<rect, rect>{{}, window_area };
-            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
-            return area_pair.first;
-        }
-        auto focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
-        auto focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
-        auto async_key_pressed(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x8000); }
-        auto async_key_toggled(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x0001); }
-        void keybd_read_state()
-        {
-            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
-        }
-        auto keybd_read_key_event()
-        {
-            union key_state_t
-            {
-                ui32 token;
-                struct
-                {
-                    ui32 repeat   : 16;// 0-15
-                    si32 scancode : 8; // 16-23
-                    si32 extended : 1; // 24
-                    ui32 reserved : 4; // 25-28 (reserved)
-                    ui32 context  : 1; // 29 (29 - context)
-                    ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
-                } v;
-            };
-            auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
-            auto param = key_state_t{ .token = (ui32)winmsg.lParam };
-            auto keystat = param.v.state == 0 ? keystate::pressed
-                         : param.v.state == 1 ? keystate::repeated
-                         : param.v.state == 3 ? keystate::released : keystate::unknown;
-            auto extflag = param.v.extended;
-            auto scancod = param.v.scancode;
-            auto keytype = 0;
-            if (keystat == keystate::unknown) return std::pair{ keystat, virtcod };
-            //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
-            //todo process Alt+Numpads on our side: use TSF message pump.
-            //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
-            ::TranslateMessage(&winmsg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
-                                      // ::ToUnicodeEx() doesn't update IME.
-            auto m = MSG{};           // ::TranslateMessage(&winmsg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
-            auto msgtype = winmsg.message == WM_KEYUP || winmsg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
-            while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
-            if (toWIDE.size()) keytype = 1;
-            else
-            {
-                while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
-                if (toWIDE.size()) keytype = 2;
-            }
-            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
-            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
-            if (!multifocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
-            {
-                toWIDE.clear();
-                return std::pair{ keystate::unknown, virtcod };
-            }
-            if (virtcod == vkey::packet && toWIDE.size())
-            {
-                auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff) return std::pair{ keystate::unknown, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
-            }
-            keybd_read_state(); // Sync with thread kb state.
-            if (keytype != 2) // Do not notify dead keys.
-            {
-                toUTF8.clear();
-                if (keytype == 1)
-                {
-                    utf::to_utf(toWIDE, toUTF8);
-                    if (keystat == keystate::released) // Only Alt+Numpad fires on release.
-                    {
-                        keybd_send_state({}, keystat, virtcod, scancod, extflag); // Release Alt. Send empty string.
-                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
-                        toWIDE.clear();
-                        //print_kbstate("Alt+Numpad");
-                        return std::pair{ keystat, virtcod };
-                    }
-                }
-                keybd_send_state(toUTF8, keystat, virtcod, scancod, extflag);
-            }
-            toWIDE.clear();
-            //print_kbstate("keybd_read_key_event");
-            return std::pair{ keystat, virtcod };
-        }
-        auto ctrl_pressed()
-        {
-            return multifocus.focused() ? focus_key_pressed(vkey::control)
-                                        : async_key_pressed(vkey::control);
-        }
-        auto lbutton_pressed()
-        {
-            return async_key_pressed(vkey::lbutton);
-        }
-        void dispatch()
-        {
-            while (::GetMessageW(&winmsg, 0, 0, 0) > 0)
-            {
-                //log("\twinmsg=", utf::to_hex(winmsg.message), " coor=", twod{ winmsg.pt.x, winmsg.pt.y }, " wP=", utf::to_hex(winmsg.wParam), " lP=", utf::to_hex(winmsg.lParam), " hwnd=", utf::to_hex(winmsg.hwnd));
-                //if (winmsg.message == 0xC060) keybd_sync_state(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                if (multifocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
-                                         winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
-                {
-                    keybd_press();
-                    sys_command(syscmd::update);
-                }
-                else
-                {
-                    if (focus_key_pressed(vkey::rwin) || focus_key_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
-                    ::DispatchMessageW(&winmsg);
-                }
-            }
-            tslink.stop();
-        }
-        void keybd_sync_state()
-        {
-            keybd_read_state();
-            keybd_send_state();
-            //print_kbstate("keybd_sync_state");
-        }
-        void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
-        {
-            keybd_read_state();
-            multifocus.offer = !multifocus.buson && manager::ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_kbstate("keybd_load_state");
-            tslink.set_focus();
-        }
-        void keybd_wipe_state()
-        {
-            auto n = kbstate[vkey::numlock ];
-            auto c = kbstate[vkey::capslock];
-            auto s = kbstate[vkey::scrllock];
-            auto k = kbstate[vkey::kana    ];
-            auto r = kbstate[vkey::oem_roya];
-            auto l = kbstate[vkey::oem_loya];
-            kbstate = {}; // Keep keybd locks only.
-            kbstate[vkey::numlock ] = n;
-            kbstate[vkey::capslock] = c;
-            kbstate[vkey::scrllock] = s;
-            kbstate[vkey::kana    ] = k;
-            kbstate[vkey::oem_roya] = r;
-            kbstate[vkey::oem_loya] = l;
-            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
-            //print_kbstate("deactivate");
-        }
-        void keybd_sync_layout()
-        {
-            keybd_sync_state();
-            //todo sync kb layout
-            //auto hkl = ::GetKeyboardLayout(0);
-            auto kblayout = wide(KL_NAMELENGTH, '\0');
-            ::GetKeyboardLayoutNameW(kblayout.data());
-            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
-        }
-        void send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
-        void post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
-        void post_command(si32 command)
-        {
-            if (!layers.empty()) post_command((arch)layers.front().hWnd, command);
-        }
-        void do_focus()
-        {
-            if (!layers.empty()) ::SetFocus(layers.front().hWnd); // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        }
-        void do_set_foreground_window()
-        {
-            if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        }
-        void do_expose()
-        {
-            if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
-        }
-        auto get_container(auto lParam)
-        {
-            auto& data = *(COPYDATASTRUCT*)lParam;
-            return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData };
-        }
-        auto get_pointer_coor()
-        {
-            return twod{ winmsg.pt.x, winmsg.pt.y };
-        }
-        void mouse_capture(si32 captured_by)
-        {
-            if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
-            {
-                if (!layers.empty()) ::SetCapture(layers.front().hWnd);
-                if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
-            }
-        }
-        void mouse_release(si32 captured_by = -1)
-        {
-            if (std::exchange(mouse_capture_state, mouse_capture_state & ~captured_by) && !mouse_capture_state)
-            {
-                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse" : captured_by == by::keybd ? "keybd" : "system");
-                ::ReleaseCapture();
-            }
-        }
-        void mouse_check()
-        {
-            auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
-                           && !layers.front().area.hittest(get_pointer_coor()) // outside our window.
-                           && async_key_pressed(vkey::lbutton);                //
-                           //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
-            if (ctrl_click) // Try to make group focus offer before we lose focus.
-            {
-                auto target = ::WindowFromPoint(winmsg.pt);
-                auto target_list = multifocus.copy();
-                auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
-                                            .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
-                                            .lpData = (void*)target_list.data() };
-                auto rc = ::SendMessageW((HWND)target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
-                if constexpr (debug_foci)
-                {
-                    if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
-                    else                       log(ansi::err("Failed to offer group focus to hwnd=", utf::to_hex(target)));
-                }
-            }
-            mouse_release();
-        }
-        void forward_keybd_input(view block)
-        {
-            auto target_list = multifocus.copy();
-            auto local_hwnd = (ui32)(arch)layers.front().hWnd;
-            auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
-            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
-            for (auto target : target_list) // Send to group focused targets.
-            {
-                if (target != local_hwnd)
-                if (ipc::pass_state != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&state_data)
-                 || ipc::pass_input != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&input_data))
-                {
-                    multifocus.erase(target); // Drop failed targets.
-                }
-            }
-        }
-        void close()
-        {
-            if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL);
-        }
-        void destroy()
-        {
-            if (!layers.empty()) ::RemoveClipboardFormatListener(layers.front().hWnd);
-            ::PostQuitMessage(0);
-        }
-        auto client_animation()
-        {
-            auto a = TRUE;
-            ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
-            return a;
-        }
-        void sync_taskbar(si32 new_state)
-        {
-            if (layers.empty()) return;
-            if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
-            {
-                ::ShowWindow(layers.front().hWnd, SW_MINIMIZE);
-            }
-            else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
-            {
-                //todo It doesn't work that way. Sync with system ctx menu.
-                //auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
-                //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
-                //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
-            }
-            else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
-        }
-        void sync_os_settings()
-        {
-            auto dt = ULONG{};
-            ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
-            os_wheel_delta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
-        }
-        void normalize_wheeldt(fp32& wheelfp)
-        {
-            wheelfp /= WHEEL_DELTA / manager::os_wheel_delta; // Disable system-wide acceleration.
-        }
-        void run()
-        {
-            // Customize system ctx menu.
-            auto closecmd = wide(100, '\0');
-            auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
-            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
-            closecmd.resize(datalen);
-            auto temp = utf::to_utf(closecmd);
-            utf::replace_all(temp, "Alt+F4", "Esc");
-            closecmd = utf::to_utf(temp);
-            ::ModifyMenuW(ctxmenu, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED | MF_STRING, SC_CLOSE, closecmd.data());
-            //todo implement
-            ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
-            ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
-            // The first ShowWindow() call ignores SW_SHOW.
-            auto mode = SW_SHOW;
-            for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
-            ::AddClipboardFormatListener(layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
-            sync_clipboard(); // Clipboard should be in sync at (before) startup.
-        }
-
-        virtual void update_input_field_list(si32 acpStart, si32 acpEnd) = 0;
-        virtual void update_gui() = 0;
-        virtual void mouse_leave() = 0;
-        virtual void mouse_moved(twod coord) = 0;
-        virtual void focus_event(bool state) = 0;
-        virtual arch run_command(arch command, arch lParam) = 0;
-        virtual void timer_event(arch eventid) = 0;
-        virtual void sys_command(si32 menucmd) = 0;
-        virtual void mouse_press(si32 index, bool pressed) = 0;
-        virtual void mouse_wheel(si32 delta, bool hzwheel) = 0;
-        virtual void keybd_press() = 0;
-        virtual void keybd_send_state(view cluster = {}, si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}) = 0;
-        virtual void keybd_send_input(view utf8, byte input_type) = 0;
-        virtual void check_fsmode() = 0;
-        virtual void check_window(twod coor) = 0;
-        virtual void sync_clipboard() = 0;
-
-        auto add(manager* host_ptr = nullptr, twod wincoord = {}, twod gridsize = {}, dent border = {}, twod cellsz = {})
-        {
-            auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-            {
-                //log("\tmsg=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
-                auto w = (manager*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
-                if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
-                auto stat = LRESULT{};
-                static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
-                static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
-                static auto xbttn = [](auto wParam){ return hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2; };
-                static auto moved = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return !(p.flags & SWP_NOMOVE); };
-                static auto coord = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return twod{ p.x, p.y }; };
-                static auto hover_win = testy<HWND>{};
-                static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
-                switch (msg)
-                {
-                    case WM_MOUSEMOVE:        if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
-                                              w->mouse_moved({ w->winmsg.pt.x,w->winmsg.pt.y }); break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
-                    case WM_TIMER:            w->timer_event(wParam);                            break;
-                    case WM_MOUSELEAVE:       w->mouse_leave(); hover_win = {};                  break;
-                    case WM_LBUTTONDOWN:      w->mouse_press(bttn::left,    true);               break;
-                    case WM_LBUTTONUP:        w->mouse_press(bttn::left,    faux);               break;
-                    case WM_RBUTTONDOWN:      w->mouse_press(bttn::right,   true);               break;
-                    case WM_RBUTTONUP:        w->mouse_press(bttn::right,   faux);               break;
-                    case WM_MBUTTONDOWN:      w->mouse_press(bttn::middle,  true);               break;
-                    case WM_MBUTTONUP:        w->mouse_press(bttn::middle,  faux);               break;
-                    case WM_XBUTTONDOWN:      w->mouse_press(xbttn(wParam), true);               break;
-                    case WM_XBUTTONUP:        w->mouse_press(xbttn(wParam), faux);               break;
-                    case WM_MOUSEWHEEL:       w->mouse_wheel(hi(wParam), 0);                     break;
-                    case WM_MOUSEHWHEEL:      w->mouse_wheel(hi(wParam), 1);                     break;
-                    case WM_CAPTURECHANGED:   w->mouse_check();                                  break; // Catch outside clicks.
-                    case WM_ACTIVATEAPP:      if (wParam == TRUE) w->do_focus();                 break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
-                    case WM_SETFOCUS:         if (wParam != (arch)hWnd) w->focus_event(true);    break; // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
-                    case WM_KILLFOCUS:        if (wParam != (arch)hWnd) w->focus_event(faux);    break; // Don't refocus.
-                    case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
-                    case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
-                    case WM_CLIPBOARDUPDATE:  w->sync_clipboard();                               break;
-                    case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
-                    case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
-                    case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
-                    case WM_DISPLAYCHANGE:
-                    case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
-                    case WM_DESTROY:          w->destroy();                                      break;
-                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); break;
-                                                                   case SC_MAXIMIZE: w->sys_command(syscmd::maximize); break;
-                                                                   case SC_RESTORE:  w->sys_command(syscmd::restore);  break;
-                                                                   case SC_CLOSE:    w->sys_command(syscmd::close);    break;
-                                                                   //todo implement
-                                                                   //case SC_MOVE:         w->sys_command(syscmd::move);         break;
-                                                                   //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
-                                                                   default: stat = TRUE; // An application should return zero only if it processes this message.
-                                                                 } break; // Taskbar ctx menu to change the size and position.
-                    //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
-                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break; //dx3d specific
-                    //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE; break; // Suppress window auto focus by mouse. Note: window always loses focus on any click outside.
-                    //case WM_ENDSESSION:
-                    //    if (wParam && alive.exchange(faux))
-                    //    {
-                    //             if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
-                    //        else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
-                    //        else                                   os::signals::place(os::signals::shutdown);
-                    //    }
-                    //    break;
-                    default: stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
-                }
-                w->sys_command(syscmd::update);
-                return stat;
-            };
-            static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
-            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, /*.cbWndExtra = 2 * sizeof(LONG_PTR),*/ .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
-            static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
-            if (!reg)
-            {
-                isfine = faux;
-                log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
-            }
-            auto& wc = host_ptr ? wc_window : wc_defwin;
-            auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
-            if (cellsz)
-            {
-                auto use_default_size = gridsize == dot_mx;
-                auto use_default_coor = wincoord == dot_mx;
-                if (use_default_size || use_default_coor) // Request size and position by creating a fake window.
-                {
-                    if (use_default_coor) wincoord = { CW_USEDEFAULT, CW_USEDEFAULT };
-                    if (use_default_size) gridsize = { CW_USEDEFAULT, CW_USEDEFAULT };
-                    else                  gridsize *= cellsz;
-                    auto r = RECT{};
-                    auto h = ::CreateWindowExW(0, wc_defwin.lpszClassName, 0, WS_OVERLAPPEDWINDOW, wincoord.x, wincoord.y, gridsize.x, gridsize.y, 0, 0, 0, 0);
-                    ::GetWindowRect(h, &r);
-                    ::DestroyWindow(h);
-                    wincoord = twod{ r.left, r.top };
-                    gridsize = twod{ r.right - r.left, r.bottom - r.top };
-                    if (!gridsize) gridsize = cellsz * twod{ 80, 25 };
-                }
-                else gridsize *= cellsz;
-            }
-            auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
-                                          wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
-                                          /*WS_VISIBLE: it is invisible to suppress messages until initialized | */
-                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU,
-                                          wincoord.x, wincoord.y,
-                                          gridsize.x, gridsize.y,
-                                          owner, 0, 0, 0);
-            auto layer = (si32)layers.size();
-            if (!hWnd)
-            {
-                isfine = faux;
-                log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
-            }
-            else if (host_ptr)
-            {
-                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
-            }
-            auto& l = layers.emplace_back(hWnd);
-            if (cellsz)
-            {
-                gridsize /= cellsz;
-                l.area = rect{ wincoord, gridsize * cellsz } + border;
-            }
-            return layer;
-        }
-    };
-}
-
 #else
 
-namespace netxs::gui
-{
-    struct font
-    {
-        twod cellsize;
-        std::list<text> families;
-        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
-        { }
-        void set_fonts(std::list<text>&, bool)
-        {
-            //...
-        }
-        void set_cellsz(si32 /*height*/)
-        {
-            //...
-        }
-    };
-    struct glyf
-    {
-        si32 aamode{};
-        glyf(font& /*fcache*/ , bool /*aamode*/)
-        { }
-        void reset()
-        {
-            //...
-        }
-        void fill_grid(auto& /*canvas*/, auto& /*cellgrid*/, twod /*origin*/ = {})
-        {
-            //...
-        }
-        template<class T = noop>
-        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
-        {
-            //...
-        }
-    };
-    struct surface : surface_base
-    {
-        arch hWnd{};
-        auto canvas(bool wipe = faux)
-        {
-            if (wipe)
-            {
-                //...
-            }
-            //...
-            return data;
-        }
-        void start_timer(span /*elapse*/, ui32 /*eventid*/)
-        {
-            //...
-        }
-        void stop_timer(ui32 /*eventid*/)
-        {
-            //...
-        }
-    };
-    struct manager : window_base
-    {
-        using wins = std::vector<surface>;
-
-        struct tsf_link
-        {
-            //...
-            void start()
-            {
-                //...
-            }
-            void stop()
-            {
-                //...
-            }
-        };
-
-        wins layers; // manager: ARGB layers.
-        tsf_link tslink; // manager: TSF link.
-
-        auto focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
-        auto focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
-        auto async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
-        auto async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
-        auto keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
-        auto get_window_title()
-        {
-            //...
-            return ""s;
-        }
-        void set_window_title(view /*utf8*/)
-        {
-            //...
-        }
-        auto add(auto ...)
-        {
-            //...
-            return 0;
-        }
-        void run()
-        {
-            //...
-        }
-        bool client_animation()
-        {
-            //...
-            return true;
-        }
-        void sync_taskbar(si32 /*new_state*/)
-        {
-            //...
-        }
-        rect get_fs_area(rect area)
-        {
-            //...
-            return area;
-        }
-        template<bool JustMove = faux>
-        void present()
-        {
-            //...
-        }
-        void close()
-        {
-            //...
-        }
-        void mouse_capture(si32 /*captured_by*/)
-        {
-            //...
-        }
-        void mouse_release(si32 /*released_by*/)
-        {
-            //...
-        }
-        auto get_pointer_coor()
-        {
-            return twod{};
-        }
-        auto lbutton_pressed()
-        {
-            return faux;
-        }
-        void dispatch()//os::fire& /*alarm*/)
-        {
-            //...
-        }
-        void keybd_load_state()
-        {
-            //...
-        }
-        void keybd_wipe_state()
-        {
-            //...
-        }
-        void normalize_wheeldt(fp32& /*wheelfp*/) // Disable system-wide wheel acceleration.
-        {
-            //...
-        }
-        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
-        {
-            //...
-        }
-        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
-        {
-            //...
-        }
-        void post_command(si32 /*command*/)
-        {
-            //...
-        }
-        auto get_container(arch /*lParam*/)
-        {
-            //...
-            return cont{};
-        }
-        auto ctrl_pressed()
-        {
-            //...
-            return faux;
-        }
-        auto forward_keybd_input(view /*block*/)
-        {
-            //...
-        }
-        void do_set_foreground_window()
-        {
-            //...
-        }
-        void do_focus()
-        {
-            //...
-        }
-        void do_expose()
-        {
-            //...
-        }
-    };
-}
 
 #endif
 
-namespace netxs::gui
-{
-    struct window : manager, ui::base
+    struct winbase : base
     {
         using e2 = netxs::events::userland::e2;
-        using gray = netxs::raster<std::vector<byte>, rect>;
+        using byts = std::vector<byte>;
+        using gray = netxs::raster<byts, rect>;
         using shad = netxs::misc::shadow<gray>;
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
+        using b256 = std::array<byte, 256>;
+        using wins = std::vector<surface>;
 
-        ui::pro::title titles; // window: .
-        ui::pro::focus wfocus; // window: .
+        struct keystate
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto unknown  = __COUNTER__ - _counter;
+            static constexpr auto pressed  = __COUNTER__ - _counter;
+            static constexpr auto repeated = __COUNTER__ - _counter;
+            static constexpr auto released = __COUNTER__ - _counter;
+        };
+        struct bttn
+        {
+            static constexpr auto left     = 1 << 0;
+            static constexpr auto right    = 1 << 1;
+            static constexpr auto middle   = 1 << 2;
+            static constexpr auto xbutton1 = 1 << 3;
+            static constexpr auto xbutton2 = 1 << 4;
+        };
+        struct by
+        {
+            static constexpr auto mouse = 1 << 0;
+            static constexpr auto keybd = 1 << 1;
+        };
+        struct state
+        {
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto undefined = __COUNTER__ - _counter;
+            static constexpr auto normal    = __COUNTER__ - _counter;
+            static constexpr auto minimized = __COUNTER__ - _counter;
+            static constexpr auto maximized = __COUNTER__ - _counter;
+        };
+        struct timers
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto none     = __COUNTER__ - _counter;
+            static constexpr auto blink    = __COUNTER__ - _counter;
+        };
+        struct syscmd
+        {
+            static constexpr auto _counter     = __COUNTER__ + 1;
+            static constexpr auto minimize     = __COUNTER__ - _counter;
+            static constexpr auto maximize     = __COUNTER__ - _counter;
+            static constexpr auto restore      = __COUNTER__ - _counter;
+            static constexpr auto move         = __COUNTER__ - _counter;
+            static constexpr auto monitorpower = __COUNTER__ - _counter;
+            static constexpr auto update       = __COUNTER__ - _counter;
+            static constexpr auto close        = __COUNTER__ - _counter;
+        };
+        struct ipc
+        {
+            #define ipc_t \
+            X(make_offer) /* Make group focus offer on Ctrl+Click. */ \
+            X(drop_focus) /* Order to drop any focus.              */ \
+            X(take_focus) /* Order to take OS focus.               */ \
+            X(main_focus) /* Advertise OS focus owner.             */ \
+            X(solo_focus) /* Set solo focus.                       */ \
+            X(sync_state) /* Sync keybd modifiers state with OS.   */ \
+            X(pass_state) /* Pass keybd modifiers state.           */ \
+            X(pass_input) /* Pass keybd input.                     */ \
+            X(expose_win) /* Order to expose window.               */ \
+            X(cmd_w_data) /* Command with payload.                 */
+            static constexpr auto _base = 99900;
+            static constexpr auto _counter = __COUNTER__ + 1 - _base;
+            #define X(cmd) static constexpr auto cmd = __COUNTER__ - _counter;
+            ipc_t
+            #undef X
+            static constexpr auto _str = std::to_array({
+                #define X(cmd) #cmd,
+                ipc_t
+                #undef X
+            });
+            #undef ipc_t
+            static auto str(auto cmd) { return _str[cmd - _base]; }
+        };
+        struct task
+        {
+            static constexpr auto _counter = 1 + __COUNTER__;
+            static constexpr auto blink  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto moved  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto sized  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto grips  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto hover  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto inner  = 1 << (__COUNTER__ - _counter);
+            static constexpr auto header = 1 << (__COUNTER__ - _counter);
+            static constexpr auto footer = 1 << (__COUNTER__ - _counter);
+            static constexpr auto all = -1;
+        };
+        struct vkey
+        {
+            static constexpr auto lbutton  = 0x01; // VK_LBUTTON;
+            static constexpr auto rbutton  = 0x02; // VK_RBUTTON;
+            static constexpr auto mbutton  = 0x04; // VK_MBUTTON;
+            static constexpr auto xbutton1 = 0x05; // VK_XBUTTON1;
+            static constexpr auto xbutton2 = 0x06; // VK_XBUTTON2;
 
+            static constexpr auto shift    = 0x10; // VK_SHIFT;
+            static constexpr auto control  = 0x11; // VK_CONTROL;
+            static constexpr auto alt      = 0x12; // VK_MENU;
+            static constexpr auto lshift   = 0xA0; // VK_LSHIFT;
+            static constexpr auto rshift   = 0xA1; // VK_RSHIFT;
+            static constexpr auto lcontrol = 0xA2; // VK_LCONTROL;
+            static constexpr auto rcontrol = 0xA3; // VK_RCONTROL;
+            static constexpr auto lalt     = 0xA4; // VK_LMENU;
+            static constexpr auto ralt     = 0xA5; // VK_RMENU;
+            static constexpr auto lwin     = 0x5B; // VK_LWIN;
+            static constexpr auto rwin     = 0x5C; // VK_RWIN;
+
+            static constexpr auto enter    = 0x0D; // VK_RETURN;
+            static constexpr auto left     = 0x25; // VK_LEFT;
+            static constexpr auto up       = 0x26; // VK_UP;
+            static constexpr auto right    = 0x27; // VK_RIGHT;
+            static constexpr auto down     = 0x28; // VK_DOWN;
+            static constexpr auto end      = 0x23; // VK_END;
+            static constexpr auto home     = 0x24; // VK_HOME;
+
+            static constexpr auto key_0    = '0'; // VK_0;
+
+            static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
+            static constexpr auto capslock = 0x14; // VK_CAPITAL;
+            static constexpr auto scrllock = 0x91; // VK_SCROLL;
+            static constexpr auto kana     = 0x15; // VK_KANA;
+            static constexpr auto oem_loya = 0x95; // VK_OEM_FJ_LOYA;
+            static constexpr auto oem_roya = 0x96; // VK_OEM_FJ_ROYA;
+
+            static constexpr auto oem_copy = 0xF2; // VK_OEM_COPY;
+            static constexpr auto oem_auto = 0xF3; // VK_OEM_AUTO;
+            static constexpr auto oem_enlw = 0xF4; // VK_OEM_ENLW;
+
+            static constexpr auto packet   = 0xE7; // VK_PACKET;
+        };
+        struct cont
+        {
+            si32  cmd;
+            void* ptr;
+            ui32  len;
+        };
+        struct foci
+        {
+            using uset = std::unordered_set<ui32>;
+            using sync = std::mutex;
+            sync mutex{}; // foci: Mutex.
+            uset group{}; // foci: Members.
+            ui32 owner{}; // foci: Leader id.
+            bool buson{}; // foci: Focus indication (bus) is on.
+            bool angel{}; // foci: Window is a member of the multi-focus group.
+            bool wheel{}; // foci: Window is a leader of the multi-focus group.
+            bool offer{}; // foci: Window just received a multi-focus offer.
+
+            void  insert(ui32 target) { auto lock = std::lock_guard{ mutex }; group.insert(target); }
+            void   erase(ui32 target) { auto lock = std::lock_guard{ mutex }; group.erase(target); }
+            bool   clear()            { auto lock = std::lock_guard{ mutex }; group.clear(); owner = {}; angel = faux; return std::exchange(buson, faux); }
+            auto    size()            { auto lock = std::lock_guard{ mutex }; return group.size(); }
+            auto    copy()            { auto lock = std::lock_guard{ mutex }; return std::vector<ui32>(group.begin(), group.end()); }
+            auto  active()            { auto lock = std::lock_guard{ mutex }; return wheel && group.size() > 1; }
+            bool focused()            { auto lock = std::lock_guard{ mutex }; return wheel || angel; }
+            auto is_idle()
+            {
+                auto lock = std::lock_guard{ mutex };
+                auto target_list = std::optional<std::vector<ui32>>{};
+                if (!wheel && buson && owner) target_list = std::vector<ui32>(group.begin(), group.end());
+                return target_list;
+            }
+            auto solo(ui32 local_target)
+            {
+                auto lock = std::lock_guard{ mutex };
+                auto copy = std::vector<ui32>(group.size());
+                std::copy_if(group.begin(), group.end(), copy.begin(), [&](auto t){ return t != local_target; });
+                group = { local_target };
+                angel = faux;
+                return copy;
+            }
+            bool update(auto target_list, auto local_target)
+            {
+                auto lock = std::lock_guard{ mutex };
+                auto ok = !std::exchange(angel, true);
+                if (ok)
+                {
+                    group = { target_list.begin(), target_list.end() };
+                    group.insert((ui32)local_target);
+                }
+                return ok;
+            }
+            bool set_owner(auto lParam)
+            {
+                auto lock = std::lock_guard{ mutex };
+                owner = (ui32)lParam;
+                group.insert(owner);
+                return std::exchange(buson, true);
+            }
+            auto set_focus(auto local_target, auto new_focus_state)
+            {
+                auto lock = std::lock_guard{ mutex };
+                auto target_list = std::optional<std::vector<ui32>>{};
+                auto changed = std::exchange(wheel, new_focus_state) != wheel;
+                if (changed && (wheel || owner == local_target))
+                {
+                    if (wheel) group.insert(local_target);
+                    target_list = std::vector<ui32>(group.begin(), group.end());
+                }
+                return std::pair{ changed, target_list };
+            }
+        };
         struct evnt : s11n, ui::input_fields_handler
         {
             using input_fields_handler::handle;
 
-            window&         owner; // evnt: .
+            winbase&        owner; // evnt: .
             ui::pipe&       intio; // evnt: .
             flag            alive; // evnt: .
 
@@ -2903,7 +1730,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysclose       /*lock*/)
             {
                 //todo revise
-                owner.manager::close();
+                owner.close();
                 //owner.active.exchange(faux);
                 //owner.stop(true);
             }
@@ -2933,7 +1760,7 @@ namespace netxs::gui
             }
             props{};
 
-            evnt(window& owner, ui::pipe& intio)
+            evnt(winbase& owner, ui::pipe& intio)
                 : s11n{ *this },
                  input_fields_handler{ owner },
                  owner{ owner },
@@ -2952,52 +1779,67 @@ namespace netxs::gui
             }
         };
 
-        std::vector<byte> blink_mask;
-        si32              blink_count{};
         ui::face head_grid;
         ui::face foot_grid;
+        ui::pro::title titles; // winbase: .
+        ui::pro::focus wfocus; // winbase: .
 
-        font fcache; // window: Font cache.
-        glyf gcache; // window: Glyph cache.
-        twod& cellsz; // window: Cell size in pixels.
-        si32 origsz; // window: Original cell size in pixels.
-        fp32 height; // window: Cell height in fp32 pixels.
-        twod gripsz; // window: Resizing grips size in pixels.
-        twod gridsz; // window: Window grid size in cells.
-        dent border; // window: Border around window for resizing grips (dent in pixels).
-        shad shadow; // window: Shadow generator.
-        grip szgrip; // window: Resizing grips UI-control.
-        twod mcoord; // window: Mouse cursor coord.
-        twod waitsz; // window: Window is waiting resize acknowledge.
-        bool inside; // window: Mouse is inside the client area.
-        bool seized; // window: Mouse is locked inside the client area.
-        bool mhover; // window: Mouse hover.
-        bool moving; // window: Window is in d_n_d state.
-        bool redraw; // window: Canvas is out of sync during minimization.
-        si32 fsmode; // window: Window size state.
-        rect normsz; // window: Non-fullscreen window area backup.
-        si32 reload; // window: Changelog for update.
-        si32 client; // window: Surface index for Client.
-        si32 blinky; // window: Surface index for blinking characters.
-        si32 header; // window: Surface index for Header.
-        si32 footer; // window: Surface index for Footer.
-        rect grip_l; // window: .
-        rect grip_r; // window: .
-        rect grip_t; // window: .
-        rect grip_b; // window: .
-        bool drop_shadow{ true }; // window: .
-        span blinkrate; // window: .
-        bool blinking; // window: .
-        evnt stream; // window: .
-        fp32 wheel_accum = {}; // window: Local mouse wheel accumulator.
-        fp32 accumfp = {}; // window: Mouse wheel accumulator.
-        flag isbusy = {}; // window: The window is awaiting update.
-        twod full_cellsz; // window: Cell size for fullscreen mode.
-        twod norm_cellsz; // window: Cell size for normal mode.
+        font fcache; // winbase: Font cache.
+        glyf gcache; // winbase: Glyph cache.
+        twod& cellsz; // winbase: Cell size in pixels.
+        si32 origsz; // winbase: Original cell size in pixels.
+        fp32 height; // winbase: Cell height in fp32 pixels.
+        twod gripsz; // winbase: Resizing grips size in pixels.
+        twod gridsz; // winbase: Window grid size in cells.
+        dent border; // winbase: Border around window for resizing grips (dent in pixels).
+        shad shadow; // winbase: Shadow generator.
+        grip szgrip; // winbase: Resizing grips UI-control.
+        twod mcoord; // winbase: Mouse cursor coord.
+        twod waitsz; // winbase: Window is waiting resize acknowledge.
+        bool inside; // winbase: Mouse is inside the client area.
+        bool seized; // winbase: Mouse is locked inside the client area.
+        bool mhover; // winbase: Mouse hover.
+        bool moving; // winbase: Window is in d_n_d state.
+        bool redraw; // winbase: Canvas is out of sync during minimization.
+        si32 fsmode; // winbase: Window size state.
+        rect normsz; // winbase: Non-fullscreen window area backup.
+        si32 reload; // winbase: Changelog for update.
+        wins layers; // winbase: ARGB layers.
+        si32 client; // winbase: Surface index for Client.
+        si32 blinky; // winbase: Surface index for blinking characters.
+        si32 header; // winbase: Surface index for Header.
+        si32 footer; // winbase: Surface index for Footer.
+        rect grip_l; // winbase: .
+        rect grip_r; // winbase: .
+        rect grip_t; // winbase: .
+        rect grip_b; // winbase: .
+        bool drop_shadow{ true }; // winbase: .
+        span blinkrate; // winbase: .
+        bool blinking; // winbase: .
+        evnt stream; // winbase: .
+        fp32 wheel_accum = {}; // winbase: Local mouse wheel accumulator.
+        fp32 accumfp = {}; // winbase: Mouse wheel accumulator.
+        flag isbusy = {}; // winbase: The window is awaiting update.
+        twod full_cellsz; // winbase: Cell size for fullscreen mode.
+        twod norm_cellsz; // winbase: Cell size for normal mode.
+        bool isfine = true; // winbase: All is ok.
+        regs inputfield_list; // winbase: Text input field list.
+        foci multifocus; // winbase: Multi-focus control.
+        fp32 os_wheel_delta = 24.f; // winbase: OS-wise mouse wheel setting.
+        si32 mouse_capture_state = {}; // winbase: Mouse capture owners bitfield.
+        b256 kbstate = {}; // winbase: Keyboard virtual keys state.
+        si32 kbmod = {}; // winbase: Keyboard modifiers state.
+        byts blink_mask; // winbase: .
+        si32 blink_count{}; // winbase: .
+        twod wincoord; // winbase: .
+        twod gridsize; // winbase: .
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
+        static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
 
-        window(auth& indexer, twod wincoord, twod gridsize, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
+        explicit operator bool () const { return isfine; }
+
+        winbase(auth& indexer, twod wincoord, twod gridsize, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
@@ -3016,21 +1858,89 @@ namespace netxs::gui
               redraw{},
               fsmode{ state::undefined },
               reload{ task::all },
-              client{ manager::add(this, wincoord, gridsize, border, cellsz) }, // Update wincoord and gridsize if needed.
-              blinky{ manager::add() },
-              header{ manager::add() },
-              footer{ manager::add() },
-              blinkrate{ manager::client_animation() ? blinkrate : span::zero() },
+              client{ 0 }, // Update wincoord and gridsize if needed.
+              blinky{ 1 },
+              header{ 2 },
+              footer{ 3 },
+              blinkrate{ blinkrate },
               blinking{ faux },
               stream{ *this, *os::dtvt::client },
               full_cellsz{ cellsz },
-              norm_cellsz{ cellsz }
+              norm_cellsz{ cellsz },
+              wincoord{ wincoord },
+              gridsize{ gridsize }
         {
-            if (!*this) return;
-            normsz = layers[client].area;
-            size_window();
+
         }
-        // window: Send client data.
+
+        virtual void add(winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
+        virtual std::pair<si32, si32> keybd_read_key_event() = 0;
+        virtual bool async_key_toggled(si32 virtkey) = 0;
+        virtual bool focus_key_toggled(si32 virtkey) = 0;
+        virtual bool async_key_pressed(si32 virtkey) = 0;
+        virtual bool focus_key_pressed(si32 virtkey) = 0;
+        virtual void keybd_wipe_state() = 0;
+        virtual void keybd_load_state() = 0;
+        virtual void keybd_sync_layout() = 0;
+        virtual void present_move() = 0;
+        virtual void present(surface& s) = 0;
+        virtual void sync_taskbar(si32 new_state) = 0;
+        virtual rect get_fs_area(rect window_area) = 0;
+        virtual void send_command(arch target, si32 command, arch lParam = {}) = 0;
+        virtual void post_command(arch target, si32 command, arch lParam = {}) = 0;
+        virtual void do_set_foreground_window() = 0;
+        virtual twod get_pointer_coor() = 0;
+        virtual void mouse_capture(si32 captured_by) = 0;
+        virtual void mouse_release(si32 released_by) = 0;
+        virtual void mouse_check() = 0;
+        virtual cont get_container(arch lParam) = 0;
+        virtual void do_focus() = 0;
+        virtual void do_expose() = 0;
+        virtual void dispatch() = 0;
+        virtual void run() = 0;
+        virtual void close() = 0;
+        virtual void destroy_window() = 0;
+        virtual void sync_os_settings() = 0;
+        virtual void start_timer(surface& s, span elapse, ui32 eventid) = 0;
+        virtual void stop_timer(surface& s, ui32 eventid) = 0;
+        virtual bits get_canvas(surface& s, bool zeroize = faux) = 0;
+        virtual void set_window_title(view utf8) = 0;
+        virtual void forward_keybd_input(view block) = 0;
+
+        void normalize_wheeldt(fp32& wheelfp)
+        {
+            wheelfp /= wheel_delta_base / os_wheel_delta; // Disable system-wide acceleration.
+        }
+        void post_command(si32 command)
+        {
+            if (!layers.empty()) post_command((arch)layers.front().hWnd, command);
+        }
+        auto ctrl_pressed()
+        {
+            return multifocus.focused() ? focus_key_pressed(vkey::control)
+                                        : async_key_pressed(vkey::control);
+        }
+        auto lbutton_pressed()
+        {
+            return async_key_pressed(vkey::lbutton);
+        }
+        void print_kbstate(text s)
+        {
+            s += "\n"s;
+            auto i = 0;
+            for (auto k : kbstate)
+            {
+                     if (k == 0x80) s += ansi::fgc(tint::greenlt);
+                else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
+                else if (k == 0x81) s += ansi::fgc(tint::cyanlt);
+                else if (k)         s += ansi::fgc(tint::magentalt);
+                else                s += ansi::nil();
+                s += utf::to_hex(k) + ' ';
+                i++;
+                if (i % 16 == 0)s += '\n';
+            }
+            log(s);
+        }
         void output(view data)
         {
             stream.intio.send(data);
@@ -3064,7 +1974,7 @@ namespace netxs::gui
             if (multifocus.focused() && layers[blinky].live) // Hide blinking layer to avoid visual desync.
             {
                 layers[blinky].hide();
-                manager::present<true>();
+                present_move();
                 layers[blinky].show();
             }
         }
@@ -3146,7 +2056,7 @@ namespace netxs::gui
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
             auto old_state = std::exchange(fsmode, state::undefined);
             if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
-            manager::sync_taskbar(new_state);
+            sync_taskbar(new_state);
             fsmode = new_state;
             if (old_state == state::normal) normsz = layers[client].area;
             if (fsmode == state::normal)
@@ -3171,7 +2081,7 @@ namespace netxs::gui
             else if (fsmode == state::maximized)
             {
                 drop_grips();
-                layers[client].area = manager::get_fs_area(layers[client].area - border);
+                layers[client].area = get_fs_area(layers[client].area - border);
                 layers[header].hide();
                 layers[footer].hide();
                 layers[client].show();
@@ -3217,12 +2127,12 @@ namespace netxs::gui
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = manager::get_fs_area(layers[client].area);
+                    auto fs_area = get_fs_area(layers[client].area);
                     unsync = fs_area != layers[client].area;
                 }
                 else if (fsmode == state::normal)
                 {
-                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     unsync = !avail_area.trim(layers[client].area);
                 }
                 else unsync = faux;
@@ -3231,10 +2141,10 @@ namespace netxs::gui
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = manager::get_fs_area(layers[client].area);
+                    auto fs_area = get_fs_area(layers[client].area);
                     if (fs_area != layers[client].area)
                     {
-                        auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                        auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
                         avail_area.size -= std::min(avail_area.size, normsz.size);
                         normsz.coor = avail_area.clamp(normsz.coor);
                         set_state(state::normal);
@@ -3242,7 +2152,7 @@ namespace netxs::gui
                 }
                 else if (fsmode == state::normal)
                 {
-                    auto avail_area = manager::get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     if (!avail_area.trim(layers[client].area))
                     {
                         auto area = layers[client].area;
@@ -3333,7 +2243,7 @@ namespace netxs::gui
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
             auto& layer = layers[client];
-            auto canvas = layer.canvas();
+            auto canvas = get_canvas(layer);
             canvas.move(dot_00);
             auto outer_rect = canvas.area();
             auto inner_rect = outer_rect - border;
@@ -3433,8 +2343,8 @@ namespace netxs::gui
         {
             auto& prime_layer = layers[client];
             auto& blink_layer = layers[blinky];
-            auto prime_canvas = prime_layer.canvas();
-            auto blink_canvas = blink_layer.canvas();
+            auto prime_canvas = get_canvas(prime_layer);
+            auto blink_canvas = get_canvas(blink_layer);
             auto origin = blink_canvas.coor();
             auto blinks = blink_mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
@@ -3467,7 +2377,7 @@ namespace netxs::gui
         }
         void draw_title(si32 index, auto& facedata) //todo just output ui::core
         {
-            auto canvas = layers[index].canvas(true);
+            auto canvas = get_canvas(layers[index], true);
             fill_grid(canvas, facedata, shadow_dent.corner());
             netxs::misc::contour(canvas); // 1ms
             layers[index].strike<true>(canvas.area());
@@ -3481,13 +2391,13 @@ namespace netxs::gui
             {
                 if (blink_count)
                 {
-                    if (blinkrate != span::zero()) layers[client].start_timer(blinkrate, timers::blink);
+                    if (blinkrate != span::zero()) start_timer(layers[client], blinkrate, timers::blink);
                     else                           layers[blinky].show();
                 }
                 else
                 {
                     if (multifocus.focused() && layers[blinky].live) layers[blinky].hide();
-                    layers[client].stop_timer(timers::blink);
+                    stop_timer(layers[client], timers::blink);
                 }
             }
         }
@@ -3496,7 +2406,7 @@ namespace netxs::gui
             if (!reload || waitsz) return;
             auto what = reload;
             reload = {};
-                 if (what == task::moved) manager::present<true>();
+                 if (what == task::moved) present_move();
             else if (what)
             {
                 if (what == task::all)
@@ -3520,7 +2430,7 @@ namespace netxs::gui
                     fill_stripe(grid.begin(), grid.end());
                     if (fsmode == state::maximized)
                     {
-                        auto canvas = layers[client].canvas();
+                        auto canvas = get_canvas(layers[client]);
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                     }
                     layers[client].strike<true>(layers[client].area);
@@ -3532,7 +2442,7 @@ namespace netxs::gui
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                manager::present();
+                for (auto& w : layers) present(w);
             }
             isbusy.exchange(faux);
         }
@@ -3558,10 +2468,9 @@ namespace netxs::gui
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
-            auto ctrl_pressed = manager::ctrl_pressed();
-            if (ctrl_pressed)
+            if (ctrl_pressed())
             {
-                manager::normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
+                normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
                 if (wheel_accum * wheelfp < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
                 wheel_accum += wheelfp;
                 if (!isbusy.exchange(true))
@@ -3582,7 +2491,7 @@ namespace netxs::gui
         {
             if (delta == 0) return;
             if (hz) delta = -delta;
-            auto wheelfp = delta / manager::os_wheel_delta; // Same code in system.hpp.
+            auto wheelfp = delta / os_wheel_delta; // Same code in system.hpp.
             if (accumfp * wheelfp < 0) accumfp = {}; // Reset accum if direction has changed.
             accumfp += wheelfp;
             auto wheelsi = (si32)accumfp;
@@ -3621,8 +2530,7 @@ namespace netxs::gui
         void resize_by_grips(twod coord)
         {
             auto inner_rect = layers[blinky].area;
-            auto ctrl_pressed = manager::ctrl_pressed();
-            auto zoom = ctrl_pressed;
+            auto zoom = ctrl_pressed();
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = layers[blinky].area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
@@ -3638,8 +2546,9 @@ namespace netxs::gui
                 resize_window(size_delta);
             }
         }
-        void mouse_moved(twod coord)
+        void mouse_moved()
         {
+            auto coord = get_pointer_coor();
             auto& mbttns = stream.m.buttons;
             mhover = true;
             auto inner_rect = layers[blinky].area;
@@ -3721,13 +2630,17 @@ namespace netxs::gui
         void mouse_press(si32 button, bool pressed)
         {
             if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
+            auto inner_rect = layers[blinky].area;
+            auto coord = get_pointer_coor();
+            mcoord = coord;
+			stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
+            auto& mbttns = stream.m.buttons;
             if (std::exchange(multifocus.offer, faux)) // Ignore any first Ctrl+AnyClick inside the just focused window.
             {
                 if constexpr (debug_foci) log("group focus pressed");
                 return;
             }
-            auto& mbttns = stream.m.buttons;
-            if (!mbttns && !layers[client].area.hittest(manager::get_pointer_coor())) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            if (!mbttns && !layers[client].area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
                 if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
                 return;
@@ -3796,7 +2709,7 @@ namespace netxs::gui
             {
                 if (multifocus.active())
                 {
-                    manager::forward_keybd_input(block);
+                    forward_keybd_input(block);
                 }
             });
         }
@@ -3912,7 +2825,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        manager::close();
+                        close();
                     });
                 }
             }
@@ -3937,12 +2850,12 @@ namespace netxs::gui
             if (command == ipc::cmd_w_data)
             {
                 if (!lParam) return 0;
-                auto data = manager::get_container(lParam);
+                auto data = get_container(lParam);
                 command = data.cmd;
                 if constexpr (debug_foci) log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    auto ctrl_click = manager::ctrl_pressed() && manager::lbutton_pressed();
+                    auto ctrl_click = ctrl_pressed() && lbutton_pressed();
                     auto local_target = (arch)layers[client].hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (ctrl_click && multifocus.update(target_list, local_target)) // Block foreign offers.
@@ -4087,7 +3000,7 @@ namespace netxs::gui
                     //todo implement
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
-                    case syscmd::close:  manager::close(); break;
+                    case syscmd::close:  close(); break;
                     case syscmd::update: update_gui(); break;
                 }
             });
@@ -4119,7 +3032,7 @@ namespace netxs::gui
                 auto lock = bell::sync();
                 set_state(win_state);
                 update_gui();
-                manager::run();
+                run();
 
                 LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
@@ -4157,7 +3070,7 @@ namespace netxs::gui
                     if (utf8.length()) // Update os window title.
                     {
                         auto filtered = ui::para{ utf8 }.lyric->utf8();
-                        manager::set_window_title(filtered);
+                        set_window_title(filtered);
                     }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
@@ -4176,7 +3089,7 @@ namespace netxs::gui
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.
-                manager::close(); // Interrupt dispatching.
+                close(); // Interrupt dispatching.
             }};
             dispatch();
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
@@ -4185,3 +3098,1062 @@ namespace netxs::gui
         }
     };
 }
+
+#if defined(_WIN32)
+
+namespace netxs::gui
+{
+    struct window : winbase
+    {
+        struct tsfl : ITfContextOwnerCompositionSink, // To declare we are composition owner.
+                      ITfContextOwner,
+                      ITfTextEditSink, // To catch composition updates.
+                      ITfEditSession
+        {
+            window&                        owner;
+            ComPtr<ITfThreadMgrEx>         tsf_thread_manager;
+            ComPtr<ITfDocumentMgr>         tsf_document_manager;
+            ComPtr<ITfContext>             tsf_context;
+            ComPtr<ITfSource>              tsf_source;
+            ComPtr<ITfCategoryMgr>         tsf_category_manager;
+            ComPtr<ITfDisplayAttributeMgr> tsf_attribute_manager;
+            TfClientId                     tsf_registration_id = {};
+            DWORD                          dwCookieContextOwner = TF_INVALID_COOKIE;
+            DWORD                          dwCookieTextEditSink = TF_INVALID_COOKIE;
+
+            tsfl(window& owner) // start() should be run under UI lock to be able to query input fields.
+                : owner{ owner }
+            { }
+            #define log(...)
+
+            // IUnknown
+            ULONG refs = 1;
+            STDMETHODIMP QueryInterface(REFIID riid, void** ppvObj)
+            {
+                if (!ppvObj) return E_POINTER;
+                *ppvObj = nullptr;
+                log("call: QueryInterface ", os::guid(riid));
+                     if (::IsEqualGUID(riid, IID_ITfContextOwner))                { *ppvObj = (ITfContextOwner*)this;                           log("    ask: IID_ITfContextOwner"); }
+                else if (::IsEqualGUID(riid, IID_ITfTextEditSink))                { *ppvObj = (ITfTextEditSink*)this;                           log("    ask: IID_ITfTextEditSink"); }
+                else if (::IsEqualGUID(riid, IID_ITfContextOwnerCompositionSink)) { *ppvObj = (ITfContextOwnerCompositionSink*)this;            log("    ask: IID_ITfContextOwnerCompositionSink"); }
+                else if (::IsEqualGUID(riid, IID_IUnknown))                       { *ppvObj = (IUnknown*)(ITfContextOwnerCompositionSink*)this; log("    ask: IID_IUnknown"); }
+                if (*ppvObj)
+                {
+                    AddRef();
+                    return S_OK;
+                }
+                else return E_NOINTERFACE;
+            }
+            ULONG STDMETHODCALLTYPE AddRef()  { log("call: AddRef ", refs, " +1"); return InterlockedIncrement(&refs); }
+            ULONG STDMETHODCALLTYPE Release() { log("call: DecRef ", refs, " -1"); auto r = InterlockedDecrement(&refs); if (r == 0) delete this; return r; }
+
+            void fill_attr(cell& mark, TfGuidAtom atom)
+            {
+                if (atom == TF_INVALID_GUIDATOM) mark.und(unln::dashed);
+                else
+                {
+                    auto guid = GUID{};
+                    auto attr = TF_DISPLAYATTRIBUTE{};
+                    auto info = ComPtr<ITfDisplayAttributeInfo>{};
+                    if (SUCCEEDED(tsf_category_manager->GetGUID(atom, &guid))
+                     && SUCCEEDED(tsf_attribute_manager->GetDisplayAttributeInfo(guid, info.GetAddressOf(), nullptr))
+                     && SUCCEEDED(info->GetAttributeInfo(&attr)))
+                    {
+                        auto color = [](auto c){ return argb{ (ui32)(c.type == TF_CT_COLORREF ? c.cr : ::GetSysColor(c.nIndex)) }; };
+                        if (attr.crText.type != TF_CT_NONE    ) mark.fgc(color(attr.crText));
+                        if (attr.crBk.type   != TF_CT_NONE    ) mark.bgc(color(attr.crBk));
+                        if (attr.crLine.type != TF_CT_NONE    ) mark.unc(color(attr.crLine));
+                        if (attr.lsStyle     == TF_LS_SOLID   ) mark.und(unln::line);
+                        if (attr.fBoldLine   == TRUE          ) mark.und(unln::biline);
+                        if (attr.lsStyle     == TF_LS_DOT     ) mark.und(unln::dotted);
+                        if (attr.lsStyle     == TF_LS_DASH    ) mark.und(unln::dashed);
+                        if (attr.lsStyle     == TF_LS_SQUIGGLE) mark.und(unln::wavy);
+                    }
+                }
+            }
+
+            // ITfEditSession
+            STDMETHODIMP DoEditSession(TfEditCookie ec)
+            {
+                log(" call: DoEditSession ec=", utf::to_hex(ec));
+                auto composition = ComPtr<ITfRange>{};
+                auto utf16 = wide{};
+                auto width = LONG{};
+                auto fixed = LONG{ LONG_MAX };
+                auto caret = LONG{ LONG_MAX };
+                auto count = ULONG{};
+                auto attrs = std::vector<std::pair<si32, cell>>{};
+                auto guids = std::to_array({ &GUID_PROP_ATTRIBUTE, &GUID_PROP_COMPOSING });
+                auto piece = std::array<wchr, 64>{};
+                auto props = ComPtr<ITfReadOnlyProperty>{};
+                auto parts = ComPtr<IEnumTfRanges>{};
+                if (SUCCEEDED(tsf_context->GetStart(ec, composition.GetAddressOf()))
+                 && SUCCEEDED(composition->ShiftEnd(ec, LONG_MAX, &width, nullptr))
+                 && SUCCEEDED(tsf_context->TrackProperties(guids.data(), (ULONG)guids.size(), nullptr, 0, props.GetAddressOf()))
+                 && SUCCEEDED(props->EnumRanges(ec, parts.GetAddressOf(), composition.Get())))
+                {
+                    auto ranges = std::array<ITfRange*, 15>{};
+                    while (parts->Next((ULONG)ranges.size(), ranges.data(), &count), count)
+                    {
+                        for (auto range : std::span{ ranges.data(), count })
+                        {
+                            auto marker = cell{};
+                            auto buffer = VARIANT{};
+                            auto length = utf16.size();
+                            auto values = std::array<TF_PROPERTYVAL, guids.size()>{};
+                            auto v_iter = ComPtr<IEnumTfPropertyValue>{};
+                            ::VariantInit(&buffer);
+                            if (SUCCEEDED(props->GetValue(ec, range, &buffer))
+                             && SUCCEEDED(buffer.punkVal->QueryInterface(IID_IEnumTfPropertyValue, (void**)v_iter.GetAddressOf()))
+                             && SUCCEEDED(v_iter->Next((ULONG)guids.size(), values.data(), nullptr)))
+                            {
+                                for (auto& v : values)
+                                {
+                                    auto is_si32 = V_VT(&v.varValue) == VT_I4;
+                                    auto int_val = is_si32 ? V_I4(&v.varValue) : 0;
+                                         if (::IsEqualGUID(v.guidId, GUID_PROP_ATTRIBUTE)) fill_attr(marker, int_val);
+                                    else if (fixed == LONG_MAX && int_val && ::IsEqualGUID(v.guidId, GUID_PROP_COMPOSING)) fixed = (LONG)length;
+                                    ::VariantClear(&v.varValue);
+                                }
+                            }
+                            ::VariantClear(&buffer);
+                            while (SUCCEEDED(range->GetText(ec, TF_TF_MOVESTART, piece.data(), (ULONG)piece.size(), &count)) && count)
+                            {
+                                utf16.append(piece.data(), count);
+                                if (count != piece.size()) break;
+                            }
+                            if (fixed != LONG_MAX) // Store attributes only for unstable segments. Comment it to allow colored input.
+                            {
+                                auto delta = utf16.size() - length;
+                                if (delta) attrs.emplace_back((si32)delta, marker);
+                            }
+                            range->Release();
+                        }
+                        count = 0;
+                    }
+                    auto selection = TF_SELECTION{};
+                    if (SUCCEEDED(tsf_context->GetSelection(ec, TF_DEFAULT_SELECTION, 1, &selection, &count)) && count)
+                    {
+                        auto hcond = TF_HALTCOND{ .pHaltRange = selection.range, .aHaltPos = selection.style.ase == TF_AE_START ? TF_ANCHOR_START : TF_ANCHOR_END };
+                        auto start = ComPtr<ITfRange>{};
+                        if (SUCCEEDED(tsf_context->GetStart(ec, start.GetAddressOf()))) start->ShiftEnd(ec, LONG_MAX, &caret, &hcond);
+                        if (selection.range) selection.range->Release();
+                    }
+                    if (fixed && utf16.size()) // Drop fixed segment from composition.
+                    {
+                        auto range = ComPtr<ITfRange>{};
+                        auto ok = SUCCEEDED(tsf_context->GetStart(ec, range.GetAddressOf()))
+                               && SUCCEEDED(range->ShiftEnd(ec, fixed, &width, nullptr))
+                               && SUCCEEDED(range->SetText(ec, 0, nullptr, 0));
+                        if (!ok)
+                        {
+                            log(ansi::err("range->SetText failed"));
+                        }
+                    }
+                }
+                auto whole = wiew{ utf16 };
+                auto rigid = whole.substr(0, fixed);
+                auto fluid = whole.substr(rigid.size());
+                auto anons = ansi::escx{};
+                caret = std::clamp(caret - (LONG)rigid.size(), LONG{}, (LONG)fluid.size());
+                if (fluid.size())
+                {
+                    auto cache = fluid;
+                    auto brush = cell{};
+                    auto index = 0;
+                    for (auto& [l, c] : attrs)
+                    {
+                        c.scan_attr(brush, anons);
+                        if (caret >= index && caret < index + l)
+                        {
+                            auto s = caret - index;
+                            utf::to_utf(cache.substr(0, s), anons);
+                            anons.scp(); // Inline caret.
+                            utf::to_utf(cache.substr(s, l - s), anons);
+                        }
+                        else utf::to_utf(cache.substr(0, l), anons);
+                        cache.remove_prefix(l);
+                        index += l;
+                    }
+                    if (caret == index) anons.scp(); // Inline caret.
+                }
+                auto yield = utf::to_utf(rigid);
+                log(" whole=", ansi::hi(utf::to_utf(whole)), " fixed=", ansi::hi(yield),
+                  "\n fluid=", ansi::hi(utf::to_utf(fluid)), " anons=", ansi::pushsgr().hi(anons).popsgr(), " attrs=", attrs.size(), " cursor=", caret);
+                if (yield.size()) owner.keybd_send_input(yield, input::keybd::type::imeinput);
+                owner.keybd_send_input(anons, input::keybd::type::imeanons);
+                return S_OK;
+            }
+
+            // ITfContextOwnerCompositionSink
+            STDMETHODIMP OnStartComposition(ITfCompositionView*, BOOL* pfOk) { if (pfOk) *pfOk = TRUE; return S_OK; }
+            STDMETHODIMP OnUpdateComposition(ITfCompositionView*, ITfRange*) { return S_OK; }
+            STDMETHODIMP OnEndComposition(ITfCompositionView*)               { return S_OK; }
+
+            // ITfTextEditSink
+            STDMETHODIMP OnEndEdit(ITfContext* /*pic*/, TfEditCookie /*ecReadOnly*/, ITfEditRecord* /*pEditRecord*/)
+            {
+                log("call: OnEndEdit");
+                auto hrSession = HRESULT{};
+                if (!SUCCEEDED(tsf_context->RequestEditSession(tsf_registration_id, this, TF_ES_READWRITE | TF_ES_ASYNC, &hrSession))) // Enqueue an implicit call to DoEditSession(ec).
+                {
+                    log(ansi::err("RequestEditSession failed"));
+                }
+                else if (!SUCCEEDED(hrSession))
+                {
+                    log(ansi::err("hrSession failed"));
+                }
+                return S_OK;
+            }
+
+            // ITfContextOwner
+            STDMETHODIMP GetAttribute(REFGUID /*rguidAttribute*/, VARIANT* /*pvarValue*/) { return E_NOTIMPL; }
+            STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
+            STDMETHODIMP GetWnd(HWND* phwnd)
+            {
+                *phwnd = owner.layers.front().hWnd;
+                return S_OK;
+            }
+            STDMETHODIMP GetStatus(TF_STATUS* pdcs)
+            {
+                log("call: GetStatus -> ", pdcs);
+                if (!pdcs) return E_POINTER;
+                pdcs->dwDynamicFlags = TS_SD_UIINTEGRATIONENABLE; // To indicate owr support of IME UI integration.
+                pdcs->dwStaticFlags = TS_SS_TRANSITORY; // It is expected to have a short usage cycle.
+                return S_OK;
+            }
+            STDMETHODIMP GetScreenExt(RECT* prc) // Returns the bounding box, in screen coordinates, of the document display.
+            {
+                if (prc)
+                {
+                    auto& layer = owner.layers.front();
+                    auto r = layer.live ? layer.area : rect{}; // Reply an empty rect if window is hidden.
+                    //static auto random = true;
+                    //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
+                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                    log("call: GetScreenExt -> ", r);
+                }
+                return S_OK;
+            }
+            STDMETHODIMP GetTextExt(LONG acpStart, LONG acpEnd, RECT* prc, BOOL* pfClipped) // Returns the bounding box, in screen coordinates, of the text at the specified character positions.
+            {
+                log("call: GetTextExt acpStart=", acpStart, " acpEnd=", acpEnd);
+                if (pfClipped) *pfClipped = FALSE;
+                if (prc)
+                {
+                    auto r = rect{};
+                    auto& layer = owner.layers.front();
+                    if (layer.live) // Reply an empty rect if window is hidden.
+                    {
+                        //todo throttle by 400ms
+                        owner.update_input_field_list(acpStart, acpEnd);
+                        auto& field_list = owner.inputfield_list;
+                        if (field_list.empty()) return GetScreenExt(prc);
+                        else
+                        {
+                            auto head = field_list.begin();
+                            auto tail = field_list.end();
+                            while (head != tail && !head->trim(layer.area)) ++head; // Drop all fields that outside client.
+                            if (head != tail)
+                            {
+                                r = field_list.front();
+                                log(" field: ", r);
+                                while (head != tail)
+                                {
+                                    auto f = *head++;
+                                    if (f.trim(layer.area))
+                                    {
+                                        log(" field: ", f);
+                                        r.unitewith(f);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                }
+                return S_OK;
+            }
+
+            void set_focus()
+            {
+                if (!tsf_thread_manager) start();
+                if (tsf_thread_manager) tsf_thread_manager->SetFocus(tsf_document_manager.Get());
+            }
+            void start()
+            {
+                log("call: start");
+                auto ec = TfEditCookie{};
+                auto ok = SUCCEEDED(::CoInitialize(NULL)) // TSF supports STA only.
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_CategoryMgr,         NULL, CLSCTX_INPROC_SERVER, IID_ITfCategoryMgr,         (void**)tsf_category_manager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_DisplayAttributeMgr, NULL, CLSCTX_INPROC_SERVER, IID_ITfDisplayAttributeMgr, (void**)tsf_attribute_manager.GetAddressOf()))
+                       && SUCCEEDED(::CoCreateInstance(CLSID_TF_ThreadMgr,           NULL, CLSCTX_INPROC_SERVER, IID_ITfThreadMgr,           (void**)tsf_thread_manager.GetAddressOf()))
+                       && SUCCEEDED(tsf_thread_manager->Activate(&tsf_registration_id))
+                       && SUCCEEDED(tsf_thread_manager->CreateDocumentMgr(tsf_document_manager.GetAddressOf()))
+                       && SUCCEEDED(tsf_document_manager->CreateContext(tsf_registration_id, 0, (ITfContextOwnerCompositionSink*)this, tsf_context.GetAddressOf(), &ec))
+                       && SUCCEEDED(tsf_context->QueryInterface(IID_ITfSource, (void**)tsf_source.GetAddressOf()))
+                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfContextOwner, (ITfContextOwner*)this, &dwCookieContextOwner))
+                       && SUCCEEDED(tsf_source->AdviseSink(IID_ITfTextEditSink, (ITfTextEditSink*)this, &dwCookieTextEditSink))
+                       && SUCCEEDED(tsf_document_manager->Push(tsf_context.Get()));
+                if (ok)
+                {
+                    log("TSF activated.",
+                               "\n    tsf_document_manager=", tsf_document_manager.Get(),
+                               "\n    tsf_context=", tsf_context.Get(),
+                               "\n    tsf_source=", tsf_source.Get(),
+                               "\n    tsf_category_manager=", tsf_category_manager.Get(),
+                               "\n    tsf_attribute_manager=", tsf_attribute_manager.Get(),
+                               "\n    dwCookieTextEditSink=", dwCookieTextEditSink,
+                               "\n    dwCookieContextOwner=", dwCookieContextOwner);
+                }
+                else
+                {
+                    log("TSF activation failed.");
+                }
+            }
+            void stop()
+            {
+                log("call: stop");
+                if (dwCookieTextEditSink != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieTextEditSink);
+                if (dwCookieContextOwner != TF_INVALID_COOKIE) tsf_source->UnadviseSink(dwCookieContextOwner);
+                if (tsf_document_manager)                      tsf_document_manager->Pop(TF_POPF_ALL);
+                if (tsf_thread_manager)                        tsf_thread_manager->Deactivate();
+                ::CoUninitialize();
+            }
+            #undef log
+        };
+
+        tsfl tslink; // window: TSF link.
+        MSG  winmsg; // window: OS window message.
+        text toUTF8; // window: .
+        wide toWIDE; // window: .
+
+        window(auto&& ...Args)
+            : winbase{ Args... },
+              tslink{ *this },
+              winmsg{}
+        {
+            set_dpi_awareness();
+            sync_os_settings();
+            if (!client_animation()) blinkrate = span::zero();
+            add(this, wincoord, gridsize, border, cellsz);
+            add();
+            add();
+            add();
+            if (!*this) return;
+            normsz = layers[client].area;
+            size_window();
+        }
+        ~window()
+        {
+            for (auto& w : layers) reset(w);
+        }
+
+        bits get_canvas(surface& s, bool zeroize = faux)
+        {
+            if (s.hdc && s.area)
+            {
+                if (s.resized())
+                {
+                    auto ptr = (void*)nullptr;
+                    auto bmi = BITMAPINFO{ .bmiHeader = { .biSize        = sizeof(BITMAPINFOHEADER),
+                                                          .biWidth       = s.area.size.x,
+                                                          .biHeight      = -s.area.size.y,
+                                                          .biPlanes      = 1,
+                                                          .biBitCount    = 32,
+                                                          .biCompression = BI_RGB }};
+                    if (auto hbm = ::CreateDIBSection(s.hdc, &bmi, DIB_RGB_COLORS, &ptr, 0, 0)) // 0.050 ms
+                    {
+                        //auto new_data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
+                        //if (!zeroize) // Crop.
+                        //{
+                        //    auto d = new_data.data();
+                        //    auto s = s.data.data();
+                        //    auto w = std::min(s.prev.size.x, s.area.size.x) * sizeof(argb);
+                        //    auto h = std::min(s.prev.size.y, s.area.size.y);
+                        //    while (h--)
+                        //    {
+                        //        std::memcpy(d, s, w);
+                        //        d += s.area.size.x;
+                        //        s += s.prev.size.x;
+                        //    }
+                        //}
+                        //data = new_data;
+                        ::DeleteObject(::SelectObject(s.hdc, hbm));
+                        zeroize = faux;
+                        s.prev.size = s.area.size;
+                        s.data = bits{ std::span<argb>{ (argb*)ptr, (sz_t)s.area.size.x * s.area.size.y }, s.area };
+                    }
+                    else log("%%Compatible bitmap creation error: %ec%", prompt::gui, ::GetLastError());
+                }
+                if (zeroize) s.wipe();
+            }
+            s.data.move(s.area.coor);
+            return s.data;
+        }
+        void reset(surface& s) // We don't use custom copy/move ctors.
+        {
+            if (s.hdc) ::DeleteDC(s.hdc);
+            for (auto eventid : s.klok) ::KillTimer(s.hWnd, eventid);
+        }
+        void start_timer(surface& s, span elapse, ui32 eventid)
+        {
+            if (eventid)
+            {
+                if (std::find(s.klok.begin(), s.klok.end(), eventid) == s.klok.end()) s.klok.push_back(eventid);
+                ::SetCoalescableTimer(s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+            }
+        }
+        void stop_timer(surface& s, ui32 eventid)
+        {
+            auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
+            if (iter != s.klok.end())
+            {
+                ::KillTimer(s.hWnd, eventid);
+                s.klok.erase(iter);
+            }
+        }
+        void present_move()
+        {
+            auto lock = ::BeginDeferWindowPos((si32)layers.size());
+            for (auto& w : layers) if (w.prev.coor(w.live ? w.area.coor : w.hidden))
+            {
+                lock = ::DeferWindowPos(lock, w.hWnd, 0, w.prev.coor.x, w.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
+            }
+            ::EndDeferWindowPos(lock);
+        }
+        //todo static
+        void present(surface& s)
+        {
+            if (!s.hdc) return;
+            auto windowmoved = s.prev.coor(s.live ? s.area.coor : s.hidden);
+            if (s.sync.empty())
+            {
+                if (windowmoved) // Hide window. Windows Server Core doesn't hide windows by ShowWindow(). Details: https://devblogs.microsoft.com/oldnewthing/20041028-00/?p=37453.
+                {
+                    ::SetWindowPos(s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOSENDCHANGING | SWP_NOACTIVATE);
+                }
+                return;
+            }
+            auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
+            auto bitmap_coor = POINT{};
+            auto window_coor = POINT{ s.prev.coor.x, s.prev.coor.y };
+            auto bitmap_size = SIZE{ s.area.size.x, s.area.size.y };
+            auto update_area = RECT{};
+            auto update_info = UPDATELAYEREDWINDOWINFO{ .cbSize   = sizeof(UPDATELAYEREDWINDOWINFO),
+                                                        .pptDst   = windowmoved ? &window_coor : nullptr,
+                                                        .psize    = &bitmap_size,
+                                                        .hdcSrc   = s.hdc,
+                                                        .pptSrc   = &bitmap_coor,
+                                                        .pblend   = &blend_props,
+                                                        .dwFlags  = ULW_ALPHA,
+                                                        .prcDirty = &update_area };
+            //log("hWnd=", hWnd);
+            auto update_proc = [&]
+            {
+                //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
+                auto ok = ::UpdateLayeredWindowIndirect(s.hWnd, &update_info);
+                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+            };
+            //static auto clr = 0; clr++;
+            for (auto r : s.sync)
+            {
+                // Hilight changes
+                //auto c = get_canvas(s);
+                //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
+                r.coor -= s.area.coor;
+                update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
+                update_proc();
+                update_info.pptDst = {};
+            }
+            if (update_info.pptDst) // Just move window.
+            {
+                update_area = {};
+                update_proc();
+            }
+            s.sync.clear();
+        }
+        auto get_window_title()
+        {
+            auto hWnd = layers.front().hWnd;
+            auto size = ::GetWindowTextLengthW(hWnd);
+            auto crop = wide(size, '\0');
+            ::GetWindowTextW(hWnd, crop.data(), (si32)crop.size() + 1);
+            return utf::to_utf(crop);
+        }
+        void set_window_title(view utf8) { ::SetWindowTextW(layers.front().hWnd, utf::to_utf(utf8).data()); }
+        bool focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
+        bool focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
+        //todo static
+        bool async_key_pressed(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x8000); }
+        bool async_key_toggled(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x0001); }
+        std::pair<si32, si32> keybd_read_key_event()
+        {
+            union key_state_t
+            {
+                ui32 token;
+                struct
+                {
+                    ui32 repeat   : 16;// 0-15
+                    si32 scancode : 8; // 16-23
+                    si32 extended : 1; // 24
+                    ui32 reserved : 4; // 25-28 (reserved)
+                    ui32 context  : 1; // 29 (29 - context)
+                    ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
+                } v;
+            };
+            auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
+            auto param = key_state_t{ .token = (ui32)winmsg.lParam };
+            auto keystat = param.v.state == 0 ? keystate::pressed
+                         : param.v.state == 1 ? keystate::repeated
+                         : param.v.state == 3 ? keystate::released : keystate::unknown;
+            auto extflag = param.v.extended;
+            auto scancod = param.v.scancode;
+            auto keytype = 0;
+            if (keystat == keystate::unknown) return std::pair{ keystat, virtcod };
+            //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
+            //todo process Alt+Numpads on our side: use TSF message pump.
+            //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
+            ::TranslateMessage(&winmsg); // Update kb buffer + update IME. Alt_Numpads are sent via WM_IME_CHAR for IME-aware kb layouts. ! All WM_IME_CHARs are sent before any WM_KEYUP.
+                                      // ::ToUnicodeEx() doesn't update IME.
+            auto m = MSG{};           // ::TranslateMessage(&winmsg) sequentially decodes a stream of VT_PACKET messages into a sequence of WM_CHAR messages. Return always non-zero for WM_*KEY*.
+            auto msgtype = winmsg.message == WM_KEYUP || winmsg.message == WM_KEYDOWN ? WM_CHAR : WM_SYSCHAR;
+            while (::PeekMessageW(&m, {}, msgtype, msgtype, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+            if (toWIDE.size()) keytype = 1;
+            else
+            {
+                while (::PeekMessageW(&m, {}, msgtype + 1/*Peek WM_DEADCHAR*/, msgtype + 1, PM_REMOVE)) toWIDE.push_back((wchr)m.wParam);
+                if (toWIDE.size()) keytype = 2;
+            }
+            //log("\tvkey=", utf::to_hex(virtcod), " pressed=", pressed ? "1" : "0", " scancod=", scancod);
+            //log("\t::TranslateMessage()=", rc, " toWIDE.size=", toWIDE.size(), " toWIDE=", ansi::hi(utf::debase<faux, faux>(utf::to_utf(toWIDE))), " key_type=", keytype);
+            if (!multifocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
+            {
+                toWIDE.clear();
+                return std::pair{ keystate::unknown, virtcod };
+            }
+            if (virtcod == vkey::packet && toWIDE.size())
+            {
+                auto c = toWIDE.back();
+                if (c >= 0xd800 && c <= 0xdbff) return std::pair{ keystate::unknown, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
+            }
+            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            if (keytype != 2) // Do not notify dead keys.
+            {
+                toUTF8.clear();
+                if (keytype == 1)
+                {
+                    utf::to_utf(toWIDE, toUTF8);
+                    if (keystat == keystate::released) // Only Alt+Numpad fires on release.
+                    {
+                        keybd_send_state({}, keystat, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
+                        toWIDE.clear();
+                        //print_kbstate("Alt+Numpad");
+                        return std::pair{ keystat, virtcod };
+                    }
+                }
+                keybd_send_state(toUTF8, keystat, virtcod, scancod, extflag);
+            }
+            toWIDE.clear();
+            //print_kbstate("keybd_read_key_event");
+            return std::pair{ keystat, virtcod };
+        }
+        void dispatch()
+        {
+            while (::GetMessageW(&winmsg, 0, 0, 0) > 0)
+            {
+                //log("\twinmsg=", utf::to_hex(winmsg.message), " coor=", twod{ winmsg.pt.x, winmsg.pt.y }, " wP=", utf::to_hex(winmsg.wParam), " lP=", utf::to_hex(winmsg.lParam), " hwnd=", utf::to_hex(winmsg.hwnd));
+                //if (winmsg.message == 0xC060) keybd_sync_state(); // Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                if (multifocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
+                                         winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
+                {
+                    keybd_press();
+                    sys_command(syscmd::update);
+                }
+                else
+                {
+                    if (focus_key_pressed(vkey::rwin) || focus_key_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    ::DispatchMessageW(&winmsg);
+                }
+            }
+            tslink.stop();
+        }
+        void keybd_sync_state()
+        {
+            ::GetKeyboardState(kbstate.data());
+            keybd_send_state();
+            //print_kbstate("keybd_sync_state");
+        }
+        void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
+        {
+            ::GetKeyboardState(kbstate.data());
+            multifocus.offer = !multifocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            //print_kbstate("keybd_load_state");
+            tslink.set_focus();
+        }
+        void keybd_wipe_state()
+        {
+            auto n = kbstate[vkey::numlock ];
+            auto c = kbstate[vkey::capslock];
+            auto s = kbstate[vkey::scrllock];
+            auto k = kbstate[vkey::kana    ];
+            auto r = kbstate[vkey::oem_roya];
+            auto l = kbstate[vkey::oem_loya];
+            kbstate = {}; // Keep keybd locks only.
+            kbstate[vkey::numlock ] = n;
+            kbstate[vkey::capslock] = c;
+            kbstate[vkey::scrllock] = s;
+            kbstate[vkey::kana    ] = k;
+            kbstate[vkey::oem_roya] = r;
+            kbstate[vkey::oem_loya] = l;
+            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
+            //print_kbstate("deactivate");
+        }
+        void keybd_sync_layout()
+        {
+            keybd_sync_state();
+            //todo sync kb layout
+            //auto hkl = ::GetKeyboardLayout(0);
+            auto kblayout = wide(KL_NAMELENGTH, '\0');
+            ::GetKeyboardLayoutNameW(kblayout.data());
+            log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
+        }
+        void do_focus()                 { if (!layers.empty()) ::SetFocus(layers.front().hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void do_set_foreground_window() { if (!layers.empty()) ::SetForegroundWindow(layers.front().hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void do_expose()                { if (!layers.empty()) ::SetWindowPos(layers.front().hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void close()                    { if (!layers.empty()) ::SendMessageW(layers.front().hWnd, WM_CLOSE, NULL, NULL); }
+        void destroy_window()           { if (!layers.empty()) ::RemoveClipboardFormatListener(layers.front().hWnd); ::PostQuitMessage(0); }
+        twod get_pointer_coor()         { return twod{ winmsg.pt.x, winmsg.pt.y }; }
+        void mouse_capture(si32 captured_by)
+        {
+            if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
+            {
+                if (!layers.empty()) ::SetCapture(layers.front().hWnd);
+                if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
+            }
+        }
+        void mouse_release(si32 captured_by = -1)
+        {
+            if (std::exchange(mouse_capture_state, mouse_capture_state & ~captured_by) && !mouse_capture_state)
+            {
+                if constexpr (debug_foci) log("released by ", captured_by == by::mouse ? "mouse" : captured_by == by::keybd ? "keybd" : "system");
+                ::ReleaseCapture();
+            }
+        }
+        void mouse_check()
+        {
+            auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
+                           && !layers.front().area.hittest(get_pointer_coor()) // outside our window.
+                           && async_key_pressed(vkey::lbutton);                //
+                           //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
+            if (ctrl_click) // Try to make group focus offer before we lose focus.
+            {
+                auto target = ::WindowFromPoint(winmsg.pt);
+                auto target_list = multifocus.copy();
+                auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
+                                            .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
+                                            .lpData = (void*)target_list.data() };
+                auto rc = ::SendMessageW((HWND)target, WM_COPYDATA, (WPARAM)layers.front().hWnd, (LPARAM)&data);
+                if constexpr (debug_foci)
+                {
+                    if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
+                    else                       log(ansi::err("Failed to offer group focus to hwnd=", utf::to_hex(target)));
+                }
+            }
+            mouse_release();
+        }
+        void forward_keybd_input(view block)
+        {
+            auto target_list = multifocus.copy();
+            auto local_hwnd = (ui32)(arch)layers.front().hWnd;
+            auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
+            auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
+            for (auto target : target_list) // Send to group focused targets.
+            {
+                if (target != local_hwnd)
+                if (ipc::pass_state != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&state_data)
+                 || ipc::pass_input != ::SendMessageW((HWND)(arch)target, WM_COPYDATA, (WPARAM)local_hwnd, (LPARAM)&input_data))
+                {
+                    multifocus.erase(target); // Drop failed targets.
+                }
+            }
+        }
+        void sync_taskbar(si32 new_state)
+        {
+            if (layers.empty()) return;
+            if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+            {
+                ::ShowWindow(layers.front().hWnd, SW_MINIMIZE);
+            }
+            else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
+            {
+                //todo It doesn't work that way. Sync with system ctx menu.
+                //auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+                //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
+                //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
+            }
+            else ::ShowWindow(layers.front().hWnd, SW_RESTORE);
+        }
+        void sync_os_settings()
+        {
+            auto dt = ULONG{};
+            ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
+            os_wheel_delta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
+        }
+        void run()
+        {
+            // Customize system ctx menu.
+            auto closecmd = wide(100, '\0');
+            auto ctxmenu = ::GetSystemMenu(layers.front().hWnd, FALSE);
+            auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
+            closecmd.resize(datalen);
+            auto temp = utf::to_utf(closecmd);
+            utf::replace_all(temp, "Alt+F4", "Esc");
+            closecmd = utf::to_utf(temp);
+            ::ModifyMenuW(ctxmenu, SC_CLOSE, MF_BYCOMMAND | MF_ENABLED | MF_STRING, SC_CLOSE, closecmd.data());
+            //todo implement
+            ::RemoveMenu(ctxmenu, SC_MOVE, MF_BYCOMMAND);
+            ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
+            // The first ShowWindow() call ignores SW_SHOW.
+            auto mode = SW_SHOW;
+            for (auto& w : layers) ::ShowWindow(w.hWnd, std::exchange(mode, SW_SHOWNA));
+            ::AddClipboardFormatListener(layers.front().hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
+            sync_clipboard(); // Clipboard should be in sync at (before) startup.
+        }
+
+        //todo static
+        cont get_container(arch lParam) { auto& data = *(COPYDATASTRUCT*)lParam; return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData }; }
+        bool client_animation()         { auto a = TRUE; ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0); return a; }
+        void send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
+        void post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
+        rect get_fs_area(rect window_area)
+        {
+            auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
+            {
+                auto& r = *monitor_rect_ptr;
+                auto& [fs_area, wn_area] = *(std::pair<rect, rect>*)pair_ptr;
+                auto hw_rect = rect{{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                if (wn_area.trim(hw_rect)) fs_area |= hw_rect;
+                return TRUE;
+            };
+            auto area_pair = std::pair<rect, rect>{{}, window_area };
+            ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
+            return area_pair.first;
+        }
+        void set_dpi_awareness()
+        {
+            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
+            if (proc)
+            {
+                proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+                //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
+            }
+        }
+
+        void add(winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        {
+            auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+            {
+                //log("\tmsg=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                auto w = (winbase*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                auto stat = LRESULT{};
+                static auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
+                static auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto xbttn = [](auto wParam){ return hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2; };
+                static auto moved = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return !(p.flags & SWP_NOMOVE); };
+                static auto coord = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return twod{ p.x, p.y }; };
+                static auto hover_win = testy<HWND>{};
+                static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
+                switch (msg)
+                {
+                    case WM_MOUSEMOVE:        if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
+                                              w->mouse_moved();                                  break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
+                    case WM_TIMER:            w->timer_event(wParam);                            break;
+                    case WM_MOUSELEAVE:       w->mouse_leave(); hover_win = {};                  break;
+                    case WM_LBUTTONDOWN:      w->mouse_press(bttn::left,    true);               break;
+                    case WM_LBUTTONUP:        w->mouse_press(bttn::left,    faux);               break;
+                    case WM_RBUTTONDOWN:      w->mouse_press(bttn::right,   true);               break;
+                    case WM_RBUTTONUP:        w->mouse_press(bttn::right,   faux);               break;
+                    case WM_MBUTTONDOWN:      w->mouse_press(bttn::middle,  true);               break;
+                    case WM_MBUTTONUP:        w->mouse_press(bttn::middle,  faux);               break;
+                    case WM_XBUTTONDOWN:      w->mouse_press(xbttn(wParam), true);               break;
+                    case WM_XBUTTONUP:        w->mouse_press(xbttn(wParam), faux);               break;
+                    case WM_MOUSEWHEEL:       w->mouse_wheel(hi(wParam), 0);                     break;
+                    case WM_MOUSEHWHEEL:      w->mouse_wheel(hi(wParam), 1);                     break;
+                    case WM_CAPTURECHANGED:   w->mouse_check();                                  break; // Catch outside clicks.
+                    case WM_ACTIVATEAPP:      if (wParam == TRUE) w->do_focus();                 break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
+                    case WM_SETFOCUS:         if (wParam != (arch)hWnd) w->focus_event(true);    break; // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
+                    case WM_KILLFOCUS:        if (wParam != (arch)hWnd) w->focus_event(faux);    break; // Don't refocus.
+                    case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
+                    case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
+                    case WM_CLIPBOARDUPDATE:  w->sync_clipboard();                               break;
+                    case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
+                    case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
+                    case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
+                    case WM_DISPLAYCHANGE:
+                    case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
+                    case WM_DESTROY:          w->destroy_window();                               break;
+                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); break;
+                                                                   case SC_MAXIMIZE: w->sys_command(syscmd::maximize); break;
+                                                                   case SC_RESTORE:  w->sys_command(syscmd::restore);  break;
+                                                                   case SC_CLOSE:    w->sys_command(syscmd::close);    break;
+                                                                   //todo implement
+                                                                   //case SC_MOVE:         w->sys_command(syscmd::move);         break;
+                                                                   //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                                                                   default: stat = TRUE; // An application should return zero only if it processes this message.
+                                                                 } break; // Taskbar ctx menu to change the size and position.
+                    //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
+                    //case WM_PAINT:   /*w->check_dx3d_state();*/ stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break; //dx3d specific
+                    //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE; break; // Suppress window auto focus by mouse. Note: window always loses focus on any click outside.
+                    //case WM_ENDSESSION:
+                    //    if (wParam && alive.exchange(faux))
+                    //    {
+                    //             if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                    //        else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                    //        else                                   os::signals::place(os::signals::shutdown);
+                    //    }
+                    //    break;
+                    default: stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                }
+                w->sys_command(syscmd::update);
+                return stat;
+            };
+            static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm_decor" };
+            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, /*.cbWndExtra = 2 * sizeof(LONG_PTR),*/ .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm" };
+            static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
+            if (!reg)
+            {
+                isfine = faux;
+                log("%%window class registration error: %ec%", prompt::gui, ::GetLastError());
+            }
+            auto& wc = host_ptr ? wc_window : wc_defwin;
+            auto owner = layers.empty() ? HWND{} : layers.front().hWnd;
+            if (cell_size)
+            {
+                auto use_default_size = grid_size == dot_mx;
+                auto use_default_coor = win_coord == dot_mx;
+                if (use_default_size || use_default_coor) // Request size and position by creating a fake window.
+                {
+                    if (use_default_coor) win_coord = { CW_USEDEFAULT, CW_USEDEFAULT };
+                    if (use_default_size) grid_size = { CW_USEDEFAULT, CW_USEDEFAULT };
+                    else                  grid_size *= cell_size;
+                    auto r = RECT{};
+                    auto h = ::CreateWindowExW(0, wc_defwin.lpszClassName, 0, WS_OVERLAPPEDWINDOW, win_coord.x, win_coord.y, grid_size.x, grid_size.y, 0, 0, 0, 0);
+                    ::GetWindowRect(h, &r);
+                    ::DestroyWindow(h);
+                    win_coord = twod{ r.left, r.top };
+                    grid_size = twod{ r.right - r.left, r.bottom - r.top };
+                    if (!grid_size) grid_size = cell_size * twod{ 80, 25 };
+                }
+                else grid_size *= cell_size;
+            }
+            auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
+                                          wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
+                                          /*WS_VISIBLE: it is invisible to suppress messages until initialized | */
+                                          WS_POPUP | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU,
+                                          win_coord.x, win_coord.y,
+                                          grid_size.x, grid_size.y,
+                                          owner, 0, 0, 0);
+            //auto layer = (si32)layers.size();
+            if (!hWnd)
+            {
+                isfine = faux;
+                log("%%Window creation error: %ec%", prompt::gui, ::GetLastError());
+            }
+            else if (host_ptr)
+            {
+                ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
+            }
+            auto& l = layers.emplace_back(hWnd);
+            if (cell_size)
+            {
+                grid_size /= cell_size;
+                l.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+            }
+            //return layer;
+        }
+    };
+}
+
+#else
+
+namespace netxs::gui
+{
+    struct font
+    {
+        twod cellsize;
+        std::list<text> families;
+        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        { }
+        void set_fonts(std::list<text>&, bool)
+        {
+            //...
+        }
+        void set_cellsz(si32 /*height*/)
+        {
+            //...
+        }
+    };
+    struct glyf
+    {
+        si32 aamode{};
+        glyf(font& /*fcache*/ , bool /*aamode*/)
+        { }
+        void reset()
+        {
+            //...
+        }
+        void fill_grid(auto& /*canvas*/, auto& /*cellgrid*/, twod /*origin*/ = {})
+        {
+            //...
+        }
+        template<class T = noop>
+        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
+        {
+            //...
+        }
+    };
+    struct window : winbase
+    {
+        using wins = std::vector<surface>;
+
+        struct tsf_link
+        {
+            //...
+            void start()
+            {
+                //...
+            }
+            void stop()
+            {
+                //...
+            }
+        };
+
+        wins layers; // window: ARGB layers.
+        tsf_link tslink; // window: TSF link.
+
+        auto focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
+        auto focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
+        auto async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
+        auto async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
+        auto keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
+        auto get_window_title()
+        {
+            //...
+            return ""s;
+        }
+        void set_window_title(view /*utf8*/)
+        {
+            //...
+        }
+        auto add(auto ...)
+        {
+            //...
+            return 0;
+        }
+        void run()
+        {
+            //...
+        }
+        bool client_animation()
+        {
+            //...
+            return true;
+        }
+        void sync_taskbar(si32 /*new_state*/)
+        {
+            //...
+        }
+        rect get_fs_area(rect area)
+        {
+            //...
+            return area;
+        }
+        template<bool JustMove = faux>
+        void present()
+        {
+            //...
+        }
+        void close()
+        {
+            //...
+        }
+        void mouse_capture(si32 /*captured_by*/)
+        {
+            //...
+        }
+        void mouse_release(si32 /*released_by*/)
+        {
+            //...
+        }
+        auto get_pointer_coor()
+        {
+            return twod{};
+        }
+        auto lbutton_pressed()
+        {
+            return faux;
+        }
+        void dispatch()//os::fire& /*alarm*/)
+        {
+            //...
+        }
+        void keybd_load_state()
+        {
+            //...
+        }
+        void keybd_wipe_state()
+        {
+            //...
+        }
+        void normalize_wheeldt(fp32& /*wheelfp*/) // Disable system-wide wheel acceleration.
+        {
+            //...
+        }
+        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
+        {
+            //...
+        }
+        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {})
+        {
+            //...
+        }
+        void post_command(si32 /*command*/)
+        {
+            //...
+        }
+        auto get_container(arch /*lParam*/)
+        {
+            //...
+            return cont{};
+        }
+        auto ctrl_pressed()
+        {
+            //...
+            return faux;
+        }
+        auto forward_keybd_input(view /*block*/)
+        {
+            //...
+        }
+        void do_set_foreground_window()
+        {
+            //...
+        }
+        void do_focus()
+        {
+            //...
+        }
+        void do_expose()
+        {
+            //...
+        }
+    };
+}
+
+#endif

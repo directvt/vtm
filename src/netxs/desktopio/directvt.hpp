@@ -828,11 +828,9 @@ namespace netxs::directvt
             };                                                                    \
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
 
-        //todo unify
-        using rects = std::vector<rect>;
         auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
-        auto& operator << (std::ostream& s, rects const& rs) { s << '{'; for (auto r : rs) s << r; return s << '}'; }
+        auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto r : rs) s << r; return s << '}'; }
 
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
@@ -889,7 +887,7 @@ namespace netxs::directvt
         STRUCT_macro(cwd,               (text, path))
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
-        STRUCT_macro(ack_input_fields,  (id_t, gear_id) (rects, field_list))
+        STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
