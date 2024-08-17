@@ -45,13 +45,10 @@ namespace netxs::gui
         bool live; // surface: Should the layer be presented.
         tset klok; // surface: Active timer list.
 
-        surface(surface const&) = default;
-        surface(surface&&) = default;
-        surface(arch hWnd, arch hdc)
-            :  hdc{ hdc  },
-              hWnd{ hWnd },
+        surface()
+            :  hdc{},
+              hWnd{},
               prev{ .coor = dot_mx },
-              area{ dot_00, dot_00 },
               live{ faux }
         { }
         void hide() { live = faux; }
@@ -1322,15 +1319,7 @@ namespace netxs::gui
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
         using b256 = std::array<byte, 256>;
-        using wins = std::vector<surface>;
 
-        enum
-        {
-            client, // winbase: Surface index for Client.
-            blinky, // winbase: Surface index for blinking characters.
-            header, // winbase: Surface index for Header.
-            footer, // winbase: Surface index for Footer.
-        };
         struct keystate
         {
             static constexpr auto _counter = __COUNTER__ + 1;
@@ -1581,8 +1570,6 @@ namespace netxs::gui
                 }
                 else
                 {
-                    auto& client_layer = owner.layers[owner.client];
-                    auto& blinky_layer = owner.layers[owner.blinky];
                     auto update = [&](auto head, auto iter, auto tail)
                     {
                         if (owner.waitsz) return;
@@ -1599,19 +1586,19 @@ namespace netxs::gui
                         if (len_x > width)
                         {
                             auto dirty = rect{{ 0, origin.y }, { width, end_y - origin.y }};
-                            dirty.coor += blinky_layer.area.coor;
-                            client_layer.strike(dirty);
+                            dirty.coor += owner.blinky.area.coor;
+                            owner.master.strike(dirty);
                         }
                         else
                         {
                             auto dirty = rect{ origin, { origin.x < end_x ? len_x : width - origin.x, owner.cellsz.y }};
-                            dirty.coor += blinky_layer.area.coor;
-                            client_layer.strike(dirty);
+                            dirty.coor += owner.blinky.area.coor;
+                            owner.master.strike(dirty);
                             if (origin.x >= end_x)
                             {
                                 auto remain = rect{{ 0, end_y - owner.cellsz.y }, { end_x, owner.cellsz.y }};
-                                remain.coor += blinky_layer.area.coor;
-                                client_layer.strike(remain);
+                                remain.coor += owner.blinky.area.coor;
+                                owner.master.strike(remain);
                             }
                         }
                     };
@@ -1824,7 +1811,10 @@ namespace netxs::gui
         ui::face foot_grid;
         ui::pro::title titles; // winbase: .
         ui::pro::focus wfocus; // winbase: .
-
+        surface master; // winbase: Surface index for Client.
+        surface blinky; // winbase: Surface index for blinking characters.
+        surface header; // winbase: Surface index for Header.
+        surface footer; // winbase: Surface index for Footer.
         font fcache; // winbase: Font cache.
         glyf gcache; // winbase: Glyph cache.
         twod& cellsz; // winbase: Cell size in pixels.
@@ -1845,7 +1835,6 @@ namespace netxs::gui
         si32 fsmode; // winbase: Window size state.
         rect normsz; // winbase: Non-fullscreen window area backup.
         si32 reload; // winbase: Changelog for update.
-        wins layers; // winbase: ARGB layers.
         rect grip_l; // winbase: .
         rect grip_r; // winbase: .
         rect grip_t; // winbase: .
@@ -1903,7 +1892,7 @@ namespace netxs::gui
               winhnd{}
         { }
 
-        virtual bool create_surface(winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
+        virtual bool create_surface(surface& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         //virtual void delete_surface(surface& s) = 0;
         virtual std::pair<si32, si32> keybd_read_key_event() = 0;
         virtual bool async_key_toggled(si32 virtkey) = 0;
@@ -1980,21 +1969,21 @@ namespace netxs::gui
         }
         void sync_header_pixel_layout()
         {
-            auto base_rect = layers[blinky].area;
+            auto base_rect = blinky.area;
             auto header_height = head_grid.size().y * cellsz.y;
-            layers[header].area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
-            layers[header].area.coor.y -= shadow_dent.b;
+            header.area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
+            header.area.coor.y -= shadow_dent.b;
         }
         void sync_footer_pixel_layout()
         {
-            auto base_rect = layers[blinky].area;
+            auto base_rect = blinky.area;
             auto footer_height = foot_grid.size().y * cellsz.y;
-            layers[footer].area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
-            layers[footer].area.coor.y += shadow_dent.t;
+            footer.area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
+            footer.area.coor.y += shadow_dent.t;
         }
         void sync_titles_pixel_layout()
         {
-            auto base_rect = layers[client].area;
+            auto base_rect = master.area;
             grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
             grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
             grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
@@ -2004,11 +1993,11 @@ namespace netxs::gui
         }
         void reset_blinky()
         {
-            if (multifocus.focused() && layers[blinky].live) // Hide blinking layer to avoid visual desync.
+            if (multifocus.focused() && blinky.live) // Hide blinking layer to avoid visual desync.
             {
-                layers[blinky].hide();
+                blinky.hide();
                 present_move();
-                layers[blinky].show();
+                blinky.show();
             }
         }
         void sync_cellsz()
@@ -2027,7 +2016,7 @@ namespace netxs::gui
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
             if (fsmode == state::maximized)
             {
-                auto over_sz = layers[client].area.size % cellsz;
+                auto over_sz = master.area.size % cellsz;
                 auto half_sz = over_sz / 2;
                 border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                 size_window();
@@ -2036,11 +2025,11 @@ namespace netxs::gui
             {
                 border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 auto new_size = gridsz * cellsz + border;
-                auto old_size = layers[client].area.size;
+                auto old_size = master.area.size;
                 auto xy_delta = resize_center - resize_center * new_size / std::max(dot_11, old_size);
-                layers[client].area.coor += xy_delta;
-                layers[client].area.size = new_size;
-                layers[blinky].area = layers[client].area - border;
+                master.area.coor += xy_delta;
+                master.area.size = new_size;
+                blinky.area = master.area - border;
                 sync_titles_pixel_layout();
             }
             netxs::set_flag<task::all>(reload);
@@ -2072,7 +2061,7 @@ namespace netxs::gui
         }
         auto move_window(twod delta)
         {
-            for (auto& w : layers) w.area.coor += delta;
+            for (auto p : { &master, &blinky, &footer, &header }) p->area.coor += delta;
             netxs::set_flag<task::moved>(reload);
         }
         void drop_grips()
@@ -2091,12 +2080,12 @@ namespace netxs::gui
             if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
             sync_taskbar(new_state);
             fsmode = new_state;
-            if (old_state == state::normal) normsz = layers[client].area;
+            if (old_state == state::normal) normsz = master.area;
             if (fsmode == state::normal)
             {
-                for (auto l : { client, header, footer }) layers[l].show();
-                if (blink_count) layers[blinky].show();
-                layers[client].area = normsz;
+                for (auto p : { &master, &header, &footer }) p->show();
+                if (blink_count) blinky.show();
+                master.area = normsz;
                 if (auto celldt = (fp32)(norm_cellsz.y - cellsz.y))
                 {
                     auto grip_cell = gripsz / cellsz;
@@ -2109,23 +2098,23 @@ namespace netxs::gui
             }
             else if (fsmode == state::minimized)
             {
-                for (auto& l : layers) l.hide();
+                for (auto p : { &master, &blinky, &footer, &header }) p->hide();
             }
             else if (fsmode == state::maximized)
             {
                 drop_grips();
-                layers[client].area = get_fs_area(layers[client].area - border);
-                layers[header].hide();
-                layers[footer].hide();
-                layers[client].show();
-                if (blink_count) layers[blinky].show();
+                master.area = get_fs_area(master.area - border);
+                header.hide();
+                footer.hide();
+                master.show();
+                if (blink_count) blinky.show();
                 if (auto celldt = (fp32)(full_cellsz.y - cellsz.y))
                 {
                     change_cell_size(faux, celldt);
                 }
                 else
                 {
-                    auto over_sz = layers[client].area.size % cellsz;
+                    auto over_sz = master.area.size % cellsz;
                     auto half_sz = over_sz / 2;
                     border = { half_sz.x, over_sz.x - half_sz.x, half_sz.y, over_sz.y - half_sz.y };
                     size_window();
@@ -2143,8 +2132,8 @@ namespace netxs::gui
         }
         void check_window(twod coor)
         {
-            if (layers.empty() || fsmode != state::normal) return;
-            if (auto delta = coor - layers[client].area.coor)
+            if (fsmode != state::normal) return;
+            if (auto delta = coor - master.area.coor)
             {
                 bell::enqueue(This(), [&, delta](auto& /*boss*/) // Perform corrections.
                 {
@@ -2154,19 +2143,19 @@ namespace netxs::gui
         }
         void check_fsmode()
         {
-            if (fsmode == state::undefined || layers.empty()) return;
+            if (fsmode == state::undefined) return;
             auto unsync = true;
             if (auto lock = bell::try_sync()) // Try to sync with ui thread for fast checking.
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = get_fs_area(layers[client].area);
-                    unsync = fs_area != layers[client].area;
+                    auto fs_area = get_fs_area(master.area);
+                    unsync = fs_area != master.area;
                 }
                 else if (fsmode == state::normal)
                 {
                     auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    unsync = !avail_area.trim(layers[client].area);
+                    unsync = !avail_area.trim(master.area);
                 }
                 else unsync = faux;
             }
@@ -2174,8 +2163,8 @@ namespace netxs::gui
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = get_fs_area(layers[client].area);
-                    if (fs_area != layers[client].area)
+                    auto fs_area = get_fs_area(master.area);
+                    if (fs_area != master.area)
                     {
                         auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
                         avail_area.size -= std::min(avail_area.size, normsz.size);
@@ -2186,9 +2175,9 @@ namespace netxs::gui
                 else if (fsmode == state::normal)
                 {
                     auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
-                    if (!avail_area.trim(layers[client].area))
+                    if (!avail_area.trim(master.area))
                     {
-                        auto area = layers[client].area;
+                        auto area = master.area;
                         avail_area.size -= std::min(avail_area.size, area.size);
                         auto delta = avail_area.clamp(area.coor) - area.coor;
                         move_window(delta);
@@ -2197,7 +2186,7 @@ namespace netxs::gui
                 }
                 if (fsmode != state::minimized)
                 {
-                    for (auto& w : layers) w.prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
+                    for (auto p : { &master, &blinky, &footer, &header }) p->prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
                     netxs::set_flag<task::moved>(reload);
                 }
                 update_gui();
@@ -2215,12 +2204,12 @@ namespace netxs::gui
         void size_window(twod size_delta = {})
         {
             //todo revise
-            layers[client].area.size += size_delta;
-            layers[blinky].area = layers[client].area - border;
-            gridsz = std::max(dot_11, layers[blinky].area.size / cellsz);
+            master.area.size += size_delta;
+            blinky.area = master.area - border;
+            gridsz = std::max(dot_11, blinky.area.size / cellsz);
             auto sizechanged = stream.w.winsize != gridsz;
-            layers[blinky].area.size = gridsz * cellsz;
-            layers[client].area = layers[blinky].area + border;
+            blinky.area.size = gridsz * cellsz;
+            master.area = blinky.area + border;
             if (fsmode != state::maximized)
             {
                 size_title(head_grid, titles.head_page);
@@ -2238,7 +2227,7 @@ namespace netxs::gui
         }
         auto resize_window(twod size_delta)
         {
-            auto old_client = layers[blinky].area;
+            auto old_client = blinky.area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = new_gridsz * cellsz - old_client.size;
             if (size_delta)
@@ -2249,7 +2238,7 @@ namespace netxs::gui
         }
         dent warp_window(dent warp_delta)
         {
-            auto old_client = layers[blinky].area;
+            auto old_client = blinky.area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
             if (gridsz != new_gridsz)
@@ -2259,13 +2248,13 @@ namespace netxs::gui
                 size_window(size_delta);
                 move_window(coor_delta);
             }
-            return layers[client].area - old_client;
+            return master.area - old_client;
         }
         bool hit_grips()
         {
             if (fsmode == state::maximized || szgrip.zoomon) return faux;
-            auto inner_rect = layers[blinky].area;
-            auto outer_rect = layers[client].area;
+            auto inner_rect = blinky.area;
+            auto outer_rect = master.area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
             return hit;
         }
@@ -2275,8 +2264,7 @@ namespace netxs::gui
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
-            auto& layer = layers[client];
-            auto canvas = get_canvas(layer);
+            auto canvas = get_canvas(master);
             canvas.move(dot_00);
             auto outer_rect = canvas.area();
             auto inner_rect = outer_rect - border;
@@ -2311,12 +2299,12 @@ namespace netxs::gui
             });
             if (reload != task::all)
             {
-                auto coor = layers[client].area.coor;
+                auto coor = master.area.coor;
                 for (auto g_area : { grip_l, grip_r, grip_t, grip_b })
                 {
                     //todo push diffs only
                     g_area.coor += coor;
-                    layer.sync.push_back(g_area);
+                    master.sync.push_back(g_area);
                 }
             }
         }
@@ -2374,10 +2362,8 @@ namespace netxs::gui
         }
         void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
         {
-            auto& prime_layer = layers[client];
-            auto& blink_layer = layers[blinky];
-            auto prime_canvas = get_canvas(prime_layer);
-            auto blink_canvas = get_canvas(blink_layer);
+            auto prime_canvas = get_canvas(master);
+            auto blink_canvas = get_canvas(blinky);
             auto origin = blink_canvas.coor();
             auto blinks = blink_mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
@@ -2393,10 +2379,10 @@ namespace netxs::gui
                     {
                         blink_count--;
                         netxs::onrect(blink_canvas, p, cell::shaders::wipe);
-                        blink_layer.strike(p);
+                        blinky.strike(p);
                     }
                 }
-                if (b) blink_layer.strike(p);
+                if (b) blinky.strike(p);
                 if (c.cur()) draw_cell_with_cursor(prime_canvas, p, c, blink_canvas);
                 else         gcache.draw_cell(prime_canvas, p, c, blink_canvas);
                 p.coor.x += cellsz.x;
@@ -2408,12 +2394,12 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_title(si32 index, auto& facedata) //todo just output ui::core
+        void draw_title(surface& s, auto& facedata) //todo just output ui::core
         {
-            auto canvas = get_canvas(layers[index], true);
+            auto canvas = get_canvas(s, true);
             fill_grid(canvas, facedata, shadow_dent.corner());
             netxs::misc::contour(canvas); // 1ms
-            layers[index].strike<true>(canvas.area());
+            s.strike<true>(canvas.area());
         }
         void draw_header() { draw_title(header, head_grid); }
         void draw_footer() { draw_title(footer, foot_grid); }
@@ -2424,13 +2410,13 @@ namespace netxs::gui
             {
                 if (blink_count)
                 {
-                    if (blinkrate != span::zero()) start_timer(layers[client], blinkrate, timers::blink);
-                    else                           layers[blinky].show();
+                    if (blinkrate != span::zero()) start_timer(master, blinkrate, timers::blink);
+                    else                           blinky.show();
                 }
                 else
                 {
-                    if (multifocus.focused() && layers[blinky].live) layers[blinky].hide();
-                    stop_timer(layers[client], timers::blink);
+                    if (multifocus.focused() && blinky.live) blinky.hide();
+                    stop_timer(master, timers::blink);
                 }
             }
         }
@@ -2448,11 +2434,11 @@ namespace netxs::gui
                     {
                         blink_count = 0;
                         blink_mask.assign(gridsz.x * gridsz.y, 0);
-                        if(!layers[blinky].resized()) // Manually zeroize blinking canvas if its size has not changed.
+                        if(!blinky.resized()) // Manually zeroize blinking canvas if its size has not changed.
                         {
-                            layers[blinky].wipe();
+                            blinky.wipe();
                         }
-                        layers[blinky].strike<true>(layers[blinky].area);
+                        blinky.strike<true>(blinky.area);
                     }
                     else // Keep blink mask size in sync.
                     {
@@ -2463,10 +2449,10 @@ namespace netxs::gui
                     fill_stripe(grid.begin(), grid.end());
                     if (fsmode == state::maximized)
                     {
-                        auto canvas = get_canvas(layers[client]);
+                        auto canvas = get_canvas(master);
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                     }
-                    layers[client].strike<true>(layers[client].area);
+                    master.strike<true>(master.area);
                     check_blinky();
                 }
                 if (fsmode == state::normal)
@@ -2475,7 +2461,7 @@ namespace netxs::gui
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                for (auto& w : layers) present(w);
+                for (auto p : { &master, &blinky, &footer, &header }) present(*p);
             }
             isbusy.exchange(faux);
         }
@@ -2509,7 +2495,7 @@ namespace netxs::gui
                 if (!isbusy.exchange(true))
                 {
                     wheelfp = std::exchange(wheel_accum, 0.f);
-                    auto zoom = [&, wheelfp, center = mcoord - layers[client].area.coor]
+                    auto zoom = [&, wheelfp, center = mcoord - master.area.coor]
                     {
                         change_cell_size(faux, wheelfp, center);
                         sync_cellsz();
@@ -2562,10 +2548,10 @@ namespace netxs::gui
         }
         void resize_by_grips(twod coord)
         {
-            auto inner_rect = layers[blinky].area;
+            auto inner_rect = blinky.area;
             auto zoom = ctrl_pressed();
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
-            auto old_client = layers[blinky].area;
+            auto old_client = blinky.area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
             size_delta = new_gridsz * cellsz - old_client.size;
             if (size_delta)
@@ -2584,7 +2570,7 @@ namespace netxs::gui
             auto coord = get_pointer_coor();
             auto& mbttns = stream.m.buttons;
             mhover = true;
-            auto inner_rect = layers[blinky].area;
+            auto inner_rect = blinky.area;
             auto ingrip = hit_grips();
             //if (moving && mbttns != bttn::left && mbttns != bttn::right) // Do not allow to move window with multiple buttons pressed.
             //{
@@ -2592,7 +2578,7 @@ namespace netxs::gui
             //}
             if (auto target_list = multifocus.is_idle()) // Seize OS focus if group focus is active but window is idle.
             {
-                auto local_target = layers[client].hWnd;
+                auto local_target = master.hWnd;
                 for (auto target : target_list.value()) send_command(target, ipc::main_focus, local_target);
                 do_set_foreground_window();
             }
@@ -2663,7 +2649,7 @@ namespace netxs::gui
         void mouse_press(si32 button, bool pressed)
         {
             if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
-            auto inner_rect = layers[blinky].area;
+            auto inner_rect = blinky.area;
             auto coord = get_pointer_coor();
             mcoord = coord;
             stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
@@ -2673,7 +2659,7 @@ namespace netxs::gui
                 if constexpr (debug_foci) log("group focus pressed");
                 return;
             }
-            if (!mbttns && !layers[client].area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
+            if (!mbttns && !master.area.hittest(coord)) // Drop AnyClick outside the yet focused window. To avoid clicking on an invisible desktop object.
             {
                 if constexpr (debug_foci) log(ansi::clr(yellowlt, "drop click"));
                 return;
@@ -2849,7 +2835,7 @@ namespace netxs::gui
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         auto dy = origsz - cellsz.y;
-                        change_cell_size(faux, (fp32)dy, layers[client].area.size / 2);
+                        change_cell_size(faux, (fp32)dy, master.area.size / 2);
                         sync_cellsz();
                         update_gui();
                     });
@@ -2889,7 +2875,7 @@ namespace netxs::gui
                 if (command == ipc::make_offer) // Group focus offer.
                 {
                     auto ctrl_click = ctrl_pressed() && lbutton_pressed();
-                    auto local_target = layers[client].hWnd;
+                    auto local_target = master.hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (ctrl_click && multifocus.update(target_list, local_target)) // Block foreign offers.
                     {
@@ -2965,7 +2951,7 @@ namespace netxs::gui
             }
             else if (command == ipc::solo_focus)
             {
-                auto local_target = (ui32)layers[client].hWnd;
+                auto local_target = (ui32)master.hWnd;
                 auto target_list = multifocus.solo(local_target);
                 for (auto target : target_list) send_command(target, ipc::drop_focus);
             }
@@ -3005,15 +2991,15 @@ namespace netxs::gui
             bell::enqueue(This(), [&, eventid](auto& /*boss*/)
             {
                 if (fsmode == state::minimized || eventid != timers::blink) return;
-                auto visible = layers[blinky].live;
+                auto visible = blinky.live;
                 if (multifocus.focused() && visible)
                 {
-                    layers[blinky].hide();
+                    blinky.hide();
                     netxs::set_flag<task::blink>(reload);
                 }
                 else if (!visible) // Do not blink without focus.
                 {
-                    layers[blinky].show();
+                    blinky.show();
                     netxs::set_flag<task::blink>(reload);
                 }
                 update_gui();
@@ -3040,7 +3026,7 @@ namespace netxs::gui
         }
         void sync_clipboard()
         {
-            os::clipboard::sync(layers[client].hWnd, stream, stream.intio, gridsz);
+            os::clipboard::sync(master.hWnd, stream, stream.intio, gridsz);
         }
         void update_input_field_list(si32 acpStart, si32 acpEnd)
         {
@@ -3050,7 +3036,7 @@ namespace netxs::gui
             // We can't sync with the ui here. This causes a deadlock.
             //SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
             inputfield_list = inputfield_request.wait_for();
-            auto win_area = layers[blinky].area;
+            auto win_area = blinky.area;
             if (inputfield_list.empty()) inputfield_list.push_back(win_area);
             else for (auto& f : inputfield_list)
             {
@@ -3064,15 +3050,15 @@ namespace netxs::gui
             set_dpi_awareness();
             sync_os_settings();
             if (!client_animation()) blinkrate = span::zero();
-            if (!(create_surface(this, wincoord, gridsize, border, cellsz)
-               && create_surface()
-               && create_surface()
-               && create_surface())) return;
+            if (!(create_surface(master, this, wincoord, gridsize, border, cellsz)
+               && create_surface(blinky)
+               && create_surface(header)
+               && create_surface(footer))) return;
             else
             {
                 auto lock = bell::sync();
-                winhnd = layers[client].hWnd;
-                normsz = layers[client].area;
+                winhnd = master.hWnd;
+                normsz = master.area;
                 size_window();
                 set_state(win_state);
                 update_gui();
@@ -3136,7 +3122,7 @@ namespace netxs::gui
                 close(); // Interrupt dispatching.
             }};
             dispatch();
-            //for (auto& s : layers) delete_surface(s);
+            //for (auto p : { &master, &blinky, &footer, &header }) delete_surface(*p);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             bell::dequeue(); // Clear task queue.
             winio.join();
@@ -3371,8 +3357,7 @@ namespace netxs::gui
             {
                 if (prc)
                 {
-                    auto& layer = owner.layers.front();
-                    auto r = layer.live ? layer.area : rect{}; // Reply an empty rect if window is hidden.
+                    auto r = owner.master.live ? owner.master.area : rect{}; // Reply an empty rect if window is hidden.
                     //static auto random = true;
                     //if ((random = !random)) r.coor += dot_11; // Randomize coord to trigger IME to update their coords.
                     *prc = RECT{ r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
@@ -3387,8 +3372,7 @@ namespace netxs::gui
                 if (prc)
                 {
                     auto r = rect{};
-                    auto& layer = owner.layers.front();
-                    if (layer.live) // Reply an empty rect if window is hidden.
+                    if (owner.master.live) // Reply an empty rect if window is hidden.
                     {
                         //todo throttle by 400ms
                         owner.update_input_field_list(acpStart, acpEnd);
@@ -3398,7 +3382,7 @@ namespace netxs::gui
                         {
                             auto head = field_list.begin();
                             auto tail = field_list.end();
-                            while (head != tail && !head->trim(layer.area)) ++head; // Drop all fields that outside client.
+                            while (head != tail && !head->trim(owner.master.area)) ++head; // Drop all fields that outside client.
                             if (head != tail)
                             {
                                 r = field_list.front();
@@ -3406,7 +3390,7 @@ namespace netxs::gui
                                 while (head != tail)
                                 {
                                     auto f = *head++;
-                                    if (f.trim(layer.area))
+                                    if (f.trim(owner.master.area))
                                     {
                                         log(" field: ", f);
                                         r.unitewith(f);
@@ -3549,10 +3533,11 @@ namespace netxs::gui
         }
         void present_move()
         {
+            auto layers = { &master, &blinky, &footer, &header };
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
-            for (auto& s : layers) if (s.prev.coor(s.live ? s.area.coor : s.hidden))
+            for (auto p : layers) if (p->prev.coor(p->live ? p->area.coor : p->hidden))
             {
-                lock = ::DeferWindowPos(lock, (HWND)s.hWnd, 0, s.prev.coor.x, s.prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                lock = ::DeferWindowPos(lock, (HWND)p->hWnd, 0, p->prev.coor.x, p->prev.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
                 if (!lock) { log("%%DeferWindowPos returns unexpected result: %ec%", prompt::gui, ::GetLastError()); }
             }
             ::EndDeferWindowPos(lock);
@@ -3771,7 +3756,7 @@ namespace netxs::gui
         void mouse_check()
         {
             auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
-                           && !layers.front().area.hittest(get_pointer_coor()) // outside our window.
+                           && !master.area.hittest(get_pointer_coor()) // outside our window.
                            && async_key_pressed(vkey::lbutton);                //
                            //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
@@ -3843,7 +3828,7 @@ namespace netxs::gui
             ::RemoveMenu(ctxmenu, SC_SIZE, MF_BYCOMMAND);
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
-            for (auto& s : layers) ::ShowWindow((HWND)s.hWnd, std::exchange(mode, SW_SHOWNA));
+            for (auto p : { &master, &blinky, &footer, &header }) ::ShowWindow((HWND)p->hWnd, std::exchange(mode, SW_SHOWNA));
             ::AddClipboardFormatListener((HWND)winhnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
@@ -3877,7 +3862,7 @@ namespace netxs::gui
                 //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
-        bool create_surface(winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        bool create_surface(surface& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -3955,7 +3940,7 @@ namespace netxs::gui
                 return faux;
             }
             auto& wc = host_ptr ? wc_window : wc_defwin;
-            auto owner = layers.empty() ? HWND{} : (HWND)layers.front().hWnd;
+            auto owner = (HWND)master.hWnd;
             if (cell_size)
             {
                 auto use_default_size = grid_size == dot_mx;
@@ -3991,11 +3976,12 @@ namespace netxs::gui
             {
                 ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
             }
-            auto& l = layers.emplace_back((arch)hWnd, (arch)::CreateCompatibleDC(NULL)); // Only current thread owns created CompatibleDC.
+            s.hWnd = (arch)hWnd;
+            s.hdc = (arch)::CreateCompatibleDC(NULL); // Only current thread owns created CompatibleDC.
             if (cell_size)
             {
                 grid_size /= cell_size;
-                l.area = rect{ win_coord, grid_size * cell_size } + border_dent;
+                s.area = rect{ win_coord, grid_size * cell_size } + border_dent;
             }
             return true;
         }
@@ -4011,7 +3997,7 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
-        bool create_surface(winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
+        bool create_surface(surface& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         //void delete_surface(surface& /*s*/) {}
         bool focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
         bool focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
