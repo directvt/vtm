@@ -1897,11 +1897,11 @@ namespace netxs::gui
 
         virtual bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         //virtual void delete_layer(layer& s) = 0;
-        virtual std::pair<si32, si32> keybd_read_key_event() = 0;
-        virtual bool async_key_toggled(si32 virtkey) = 0;
-        virtual bool focus_key_toggled(si32 virtkey) = 0;
-        virtual bool async_key_pressed(si32 virtkey) = 0;
-        virtual bool focus_key_pressed(si32 virtkey) = 0;
+        virtual void keybd_read_input(si32& keystat, si32& virtcod) = 0;
+        virtual bool async_key_toggled(si32 virtcod) = 0;
+        virtual bool focus_key_toggled(si32 virtcod) = 0;
+        virtual bool async_key_pressed(si32 virtcod) = 0;
+        virtual bool focus_key_pressed(si32 virtcod) = 0;
         virtual void keybd_wipe_state() = 0;
         virtual void keybd_load_state() = 0;
         virtual void keybd_sync_layout() = 0;
@@ -2794,7 +2794,9 @@ namespace netxs::gui
         }
         void keybd_press()
         {
-            auto [keystat, virtcod] = keybd_read_key_event();
+            auto keystat = keystate::unknown;
+            auto virtcod = 0;
+            keybd_read_input(keystat, virtcod);
             if (keystat == keystate::unknown) return;
             if (keystat == keystate::pressed || keystat == keystate::repeated)
             {
@@ -3596,12 +3598,12 @@ namespace netxs::gui
             s.sync.clear();
         }
         void set_window_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
-        bool focus_key_pressed(si32 virtkey) { return !!(vkstat[virtkey] & 0x80); }
-        bool focus_key_toggled(si32 virtkey) { return !!(vkstat[virtkey] & 0x01); }
+        bool focus_key_pressed(si32 virtcod) { return !!(vkstat[virtcod] & 0x80); }
+        bool focus_key_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         //todo static
-        bool async_key_pressed(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x8000); }
-        bool async_key_toggled(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x0001); }
-        std::pair<si32, si32> keybd_read_key_event()
+        bool async_key_pressed(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x8000); }
+        bool async_key_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        void keybd_read_input(si32& keystat, si32& virtcod)
         {
             union key_state_t
             {
@@ -3616,15 +3618,15 @@ namespace netxs::gui
                     ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
                 } v;
             };
-            auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
             auto param = key_state_t{ .token = (ui32)winmsg.lParam };
-            auto keystat = param.v.state == 0 ? keystate::pressed
-                         : param.v.state == 1 ? keystate::repeated
-                         : param.v.state == 3 ? keystate::released : keystate::unknown;
+            virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
+            keystat = param.v.state == 0 ? keystate::pressed
+                    : param.v.state == 1 ? keystate::repeated
+                    : param.v.state == 3 ? keystate::released : keystate::unknown;
             auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto keytype = 0;
-            if (keystat == keystate::unknown) return std::pair{ keystat, virtcod };
+            if (keystat == keystate::unknown) return;
             //log("Vkey=", utf::to_hex(virtcod), " scancod=", utf::to_hex(scancod), " pressed=", pressed ? "1":"0", " repeat=", repeat ? "1":"0");
             //todo process Alt+Numpads on our side: use TSF message pump.
             //if (auto rc = os::nt::TranslateMessageEx(&winmsg, 1/*It doesn't work as expected: Do not process Alt+Numpad*/)) // ::TranslateMessageEx() do not update IME.
@@ -3644,12 +3646,17 @@ namespace netxs::gui
             if (!mfocus.focused()) // ::PeekMessageW() could call wind_proc() inside for any non queued msgs like wind_proc(WM_KILLFOCUS).
             {
                 toWIDE.clear();
-                return std::pair{ keystate::unknown, virtcod };
+                keystat = keystate::unknown;
+                return;
             }
             if (virtcod == vkey::packet && toWIDE.size())
             {
                 auto c = toWIDE.back();
-                if (c >= 0xd800 && c <= 0xdbff) return std::pair{ keystate::unknown, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
+                if (c >= 0xd800 && c <= 0xdbff)
+                {
+                    keystat = keystate::unknown;
+                    return; // Incomplete surrogate pair in VT_PACKET stream.
+                }
             }
             ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             if (keytype != 2) // Do not notify dead keys.
@@ -3664,14 +3671,14 @@ namespace netxs::gui
                         keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         toWIDE.clear();
                         //print_vkstat("Alt+Numpad");
-                        return std::pair{ keystat, virtcod };
+                        return;
                     }
                 }
                 keybd_send_state(toUTF8, keystat, virtcod, scancod, extflag);
             }
             toWIDE.clear();
-            //print_vkstat("keybd_read_key_event");
-            return std::pair{ keystat, virtcod };
+            //print_vkstat("keybd_read_input");
+            return;
         }
         void dispatch()
         {
@@ -4001,11 +4008,11 @@ namespace netxs::gui
         { }
         bool create_layer(layer& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         //void delete_layer(layer& /*s*/) {}
-        bool focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(vkstat[virtkey] & 0x80);*/ }
-        bool focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(vkstat[virtkey] & 0x01);*/ }
-        bool async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
-        bool async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
-        std::pair<si32, si32> keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
+        bool focus_key_pressed(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool focus_key_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
+        bool async_key_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool async_key_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        void keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) {}
         void keybd_wipe_state() {}
         void keybd_load_state() {}
         void keybd_sync_layout() {}
