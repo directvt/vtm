@@ -1943,7 +1943,7 @@ namespace netxs::gui
         {
             if (master.hWnd) window_post_command(master.hWnd, command);
         }
-        auto keybd_ctrl_pressed()
+        auto ctrl_pressed()
         {
             return mfocus.focused() ? keybd_test_pressed(vkey::control)
                                     : keybd_read_pressed(vkey::control);
@@ -2482,7 +2482,7 @@ namespace netxs::gui
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
-            if (keybd_ctrl_pressed())
+            if (ctrl_pressed())
             {
                 mouse_normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
                 if (whlacc * wheelfp < 0.f) whlacc = 0.f; // Reset accumulator if the wheeling direction has changed.
@@ -2499,6 +2499,25 @@ namespace netxs::gui
                     if (enqueue) bell::enqueue(This(), [zoom](auto& /*boss*/){ zoom(); });
                     else         zoom();
                 }
+            }
+        }
+        void resize_by_grips(twod coord)
+        {
+            auto inner_rect = blinky.area;
+            auto zoom = ctrl_pressed();
+            auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
+            auto old_client = blinky.area;
+            auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
+            size_delta = new_gridsz * cellsz - old_client.size;
+            if (size_delta)
+            {
+                //todo sync ui
+                if (auto move_delta = szgrip.move(size_delta, zoom))
+                {
+                    move_window(move_delta);
+                    sync_pixel_layout(); // Align grips and shadow.
+                }
+                resize_window(size_delta);
             }
         }
         void mouse_wheel(si32 delta, bool hz)
@@ -2526,7 +2545,7 @@ namespace netxs::gui
             }
             else zoom_by_wheel(wheelfp, true);
         }
-        void send_mouse_halt()
+        void mouse_send_halt()
         {
             stream.m.changed++;
             stream.m.timecod = datetime::now();
@@ -2539,26 +2558,7 @@ namespace netxs::gui
         {
             mhover = faux;
             if (szgrip.leave()) netxs::set_flag<task::grips>(reload);
-            send_mouse_halt();
-        }
-        void resize_by_grips(twod coord)
-        {
-            auto inner_rect = blinky.area;
-            auto zoom = keybd_ctrl_pressed();
-            auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
-            auto old_client = blinky.area;
-            auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
-            size_delta = new_gridsz * cellsz - old_client.size;
-            if (size_delta)
-            {
-                //todo sync ui
-                if (auto move_delta = szgrip.move(size_delta, zoom))
-                {
-                    move_window(move_delta);
-                    sync_pixel_layout(); // Align grips and shadow.
-                }
-                resize_window(size_delta);
-            }
+            mouse_send_halt();
         }
         void mouse_moved()
         {
@@ -2634,7 +2634,7 @@ namespace netxs::gui
             }
             else if (leave) // Mouse leaves viewport.
             {
-                send_mouse_halt();
+                mouse_send_halt();
             }
             if (!mbttns && (std::exchange(ingrip, hit_grips()) != ingrip || ingrip)) // Redraw grips when hover state changes.
             {
@@ -2871,7 +2871,7 @@ namespace netxs::gui
                 if constexpr (debug_foci) log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    auto ctrl_click = keybd_ctrl_pressed() && lbutton_pressed();
+                    auto ctrl_click = ctrl_pressed() && lbutton_pressed();
                     auto local_target = master.hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (ctrl_click && mfocus.update(target_list, local_target)) // Block foreign offers.
@@ -3062,7 +3062,7 @@ namespace netxs::gui
                 {
                     if (fsmode != state::normal) return;
                     moving = true;
-                    send_mouse_halt();
+                    mouse_send_halt();
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
                     move_window(dxdy);
                     sync_pixel_layout(); // Align grips and shadow.
@@ -3702,7 +3702,7 @@ namespace netxs::gui
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(vkstat.data());
-            mfocus.offer = !mfocus.buson && keybd_ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
             //print_vkstat("keybd_read_vkstat");
             tslink.set_focus();
         }
@@ -3757,7 +3757,7 @@ namespace netxs::gui
         }
         void mouse_catch_outside()
         {
-            auto ctrl_click = keybd_ctrl_pressed()                  // Detect Ctrl+LeftClick
+            auto ctrl_click = ctrl_pressed()                        // Detect Ctrl+LeftClick
                            && !master.area.hittest(mouse_get_pos()) // outside our window.
                            && keybd_read_pressed(vkey::lbutton);    //
                            //&& (keybd_read_pressed(vkey::lbutton) || keybd_read_pressed(vkey::rbutton) || keybd_read_pressed(vkey::mbutton));
