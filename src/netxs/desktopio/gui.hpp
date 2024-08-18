@@ -1327,7 +1327,8 @@ namespace netxs::gui
 
         struct blink
         {
-            span rate{}; // blink: Blinking interval.
+            span init{}; // blink: Specified blinking interval.
+            span rate{}; // blink: Current blinking interval.
             bool show{}; // blink: Blinking layer is active.
             byts mask{}; // blink: Blinking cells map.
             si32 poll{}; // blink: Blinking cells count.
@@ -1693,7 +1694,7 @@ namespace netxs::gui
             }
             void handle(s11n::xs::expose         /*lock*/)
             {
-                owner.post_command(ipc::expose_win);
+                owner.window_post_command(ipc::expose_win);
                 //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
                 //    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
@@ -1712,10 +1713,10 @@ namespace netxs::gui
                 {
                     owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
                 }
-                else owner.post_command(ipc::take_focus);
+                else owner.window_post_command(ipc::take_focus);
                 if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
                 {
-                    owner.post_command(ipc::solo_focus);
+                    owner.window_post_command(ipc::solo_focus);
                 }
             }
             void handle(s11n::xs::keybd_event      lock)
@@ -1770,7 +1771,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysclose       /*lock*/)
             {
                 //todo revise
-                owner.close();
+                owner.window_shutdown();
                 //owner.active.exchange(faux);
                 //owner.stop(true);
             }
@@ -1870,7 +1871,7 @@ namespace netxs::gui
               wfocus{ *this },
               fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
-              blinks{ .rate = blink_rate },
+              blinks{ .init = blink_rate },
               cellsz{ fcache.cellsize },
               origsz{ fcache.cellsize.y },
               height{ (fp32)cellsz.y },
@@ -1895,59 +1896,61 @@ namespace netxs::gui
               stream{ *this, *os::dtvt::client }
         { }
 
-        virtual bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
-        //virtual void delete_layer(layer& s) = 0;
-        virtual void keybd_read_input(si32& keystat, si32& virtcod) = 0;
-        virtual bool async_key_toggled(si32 virtcod) = 0;
-        virtual bool focus_key_toggled(si32 virtcod) = 0;
-        virtual bool async_key_pressed(si32 virtcod) = 0;
-        virtual bool focus_key_pressed(si32 virtcod) = 0;
-        virtual void keybd_wipe_state() = 0;
-        virtual void keybd_load_state() = 0;
+        virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
+        //virtual void layer_delete(layer& s) = 0;
+        virtual void layer_move_all() = 0;
+        virtual void layer_present(layer& s) = 0;
+        virtual bits layer_get_bits(layer& s, bool zeroize = faux) = 0;
+        virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
+        virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
+
         virtual void keybd_sync_layout() = 0;
-        virtual void present_move() = 0;
-        virtual void present(layer& s) = 0;
-        virtual void sync_taskbar(si32 new_state) = 0;
-        virtual rect get_fs_area(rect window_area) = 0;
-        virtual void send_command(arch target, si32 command, arch lParam = {}) = 0;
-        virtual void post_command(arch target, si32 command, arch lParam = {}) = 0;
-        virtual void do_set_foreground_window() = 0;
-        virtual twod get_pointer_coor() = 0;
+        virtual void keybd_read_vkstat() = 0;
+        virtual void keybd_wipe_vkstat() = 0;
+        virtual void keybd_read_input(si32& keystat, si32& virtcod) = 0;
+        virtual void keybd_send_block(view block) = 0;
+        virtual bool keybd_read_toggled(si32 virtcod) = 0;
+        virtual bool keybd_test_toggled(si32 virtcod) = 0;
+        virtual bool keybd_read_pressed(si32 virtcod) = 0;
+        virtual bool keybd_test_pressed(si32 virtcod) = 0;
+
         virtual void mouse_capture(si32 captured_by) = 0;
         virtual void mouse_release(si32 released_by) = 0;
-        virtual void mouse_check() = 0;
-        virtual cont get_container(arch lParam) = 0;
-        virtual void do_focus() = 0;
-        virtual void do_expose() = 0;
-        virtual void dispatch() = 0;
-        virtual void run() = 0;
-        virtual void close() = 0;
-        virtual void destroy_window() = 0;
-        virtual void sync_os_settings() = 0;
-        virtual void start_timer(layer& s, span elapse, ui32 eventid) = 0;
-        virtual void stop_timer(layer& s, ui32 eventid) = 0;
-        virtual bits get_canvas(layer& s, bool zeroize = faux) = 0;
-        virtual void set_window_title(view utf8) = 0;
-        virtual void forward_keybd_input(view block) = 0;
-        virtual bool client_animation() = 0;
-        virtual void set_dpi_awareness() = 0;
+        virtual void mouse_catch_outside() = 0;
+        virtual twod mouse_get_pos() = 0;
 
-        void normalize_wheeldt(fp32& wheelfp)
+        virtual void window_set_title(view utf8) = 0;
+        virtual void window_sync_taskbar(si32 new_state) = 0;
+        virtual rect window_get_fs_area(rect window_area) = 0;
+        virtual void window_send_command(arch target, si32 command, arch lParam = {}) = 0;
+        virtual void window_post_command(arch target, si32 command, arch lParam = {}) = 0;
+        virtual cont window_recv_command(arch lParam) = 0;
+        virtual void window_message_pump() = 0;
+        virtual void window_initilize() = 0;
+        virtual void window_shutdown() = 0;
+        virtual void window_cleanup() = 0;
+        virtual void window_make_foreground() = 0;
+        virtual void window_make_focused() = 0;
+        virtual void window_make_exposed() = 0;
+
+        virtual void sync_os_settings() = 0;
+
+        void mouse_normalize_wheeldt(fp32& wheelfp)
         {
             wheelfp /= wheel_delta_base / wdelta; // Disable system-wide acceleration.
         }
-        void post_command(si32 command)
+        void window_post_command(si32 command)
         {
-            if (master.hWnd) post_command(master.hWnd, command);
+            if (master.hWnd) window_post_command(master.hWnd, command);
         }
-        auto ctrl_pressed()
+        auto keybd_ctrl_pressed()
         {
-            return mfocus.focused() ? focus_key_pressed(vkey::control)
-                                    : async_key_pressed(vkey::control);
+            return mfocus.focused() ? keybd_test_pressed(vkey::control)
+                                    : keybd_read_pressed(vkey::control);
         }
         auto lbutton_pressed()
         {
-            return async_key_pressed(vkey::lbutton);
+            return keybd_read_pressed(vkey::lbutton);
         }
         void print_vkstat(text s)
         {
@@ -1970,36 +1973,25 @@ namespace netxs::gui
         {
             stream.intio.send(data);
         }
-        void sync_header_pixel_layout()
+        void sync_pixel_layout()
         {
-            auto base_rect = blinky.area;
+            grip_l = rect{{ 0                            , gripsz.y }, { gripsz.x, master.area.size.y - gripsz.y * 2}};
+            grip_r = rect{{ master.area.size.x - gripsz.x, gripsz.y }, grip_l.size };
+            grip_t = rect{{ 0, 0                                    }, { master.area.size.x, gripsz.y }};
+            grip_b = rect{{ 0, master.area.size.y - gripsz.y        }, grip_t.size };
             auto header_height = h_grid.size().y * cellsz.y;
-            header.area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
-            header.area.coor.y -= shadow_dent.b;
-        }
-        void sync_footer_pixel_layout()
-        {
-            auto base_rect = blinky.area;
             auto footer_height = f_grid.size().y * cellsz.y;
-            footer.area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
+            header.area = blinky.area + dent{ 0, 0, header_height, -blinky.area.size.y } + shadow_dent;
+            header.area.coor.y -= shadow_dent.b;
+            footer.area = blinky.area + dent{ 0, 0, -blinky.area.size.y, footer_height } + shadow_dent;
             footer.area.coor.y += shadow_dent.t;
-        }
-        void sync_titles_pixel_layout()
-        {
-            auto base_rect = master.area;
-            grip_l = rect{{ 0                          , gripsz.y }, { gripsz.x, base_rect.size.y - gripsz.y * 2}};
-            grip_r = rect{{ base_rect.size.x - gripsz.x, gripsz.y }, grip_l.size };
-            grip_t = rect{{ 0, 0                                  }, { base_rect.size.x, gripsz.y }};
-            grip_b = rect{{ 0, base_rect.size.y - gripsz.y        }, grip_t.size };
-            sync_header_pixel_layout();
-            sync_footer_pixel_layout();
         }
         void reset_blinky()
         {
             if (mfocus.focused() && blinky.live) // Hide blinking layer to avoid visual desync.
             {
                 blinky.hide();
-                present_move();
+                layer_move_all();
                 blinky.show();
             }
         }
@@ -2033,7 +2025,7 @@ namespace netxs::gui
                 master.area.coor += xy_delta;
                 master.area.size = new_size;
                 blinky.area = master.area - border;
-                sync_titles_pixel_layout();
+                sync_pixel_layout();
             }
             netxs::set_flag<task::all>(reload);
         }
@@ -2047,13 +2039,13 @@ namespace netxs::gui
         void update_header()
         {
             size_title(h_grid, titles.head_page);
-            sync_titles_pixel_layout();
+            sync_pixel_layout();
             netxs::set_flag<task::header>(reload);
         }
         void update_footer()
         {
             size_title(f_grid, titles.foot_page);
-            sync_titles_pixel_layout();
+            sync_pixel_layout();
             netxs::set_flag<task::footer>(reload);
         }
         void set_font_list(auto& flist)
@@ -2081,7 +2073,7 @@ namespace netxs::gui
             log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
             auto old_state = std::exchange(fsmode, state::undefined);
             if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
-            sync_taskbar(new_state);
+            window_sync_taskbar(new_state);
             fsmode = new_state;
             if (old_state == state::normal) normsz = master.area;
             if (fsmode == state::normal)
@@ -2106,7 +2098,7 @@ namespace netxs::gui
             else if (fsmode == state::maximized)
             {
                 drop_grips();
-                master.area = get_fs_area(master.area - border);
+                master.area = window_get_fs_area(master.area - border);
                 header.hide();
                 footer.hide();
                 master.show();
@@ -2152,12 +2144,12 @@ namespace netxs::gui
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = get_fs_area(master.area);
+                    auto fs_area = window_get_fs_area(master.area);
                     unsync = fs_area != master.area;
                 }
                 else if (fsmode == state::normal)
                 {
-                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     unsync = !avail_area.trim(master.area);
                 }
                 else unsync = faux;
@@ -2166,10 +2158,10 @@ namespace netxs::gui
             {
                 if (fsmode == state::maximized)
                 {
-                    auto fs_area = get_fs_area(master.area);
+                    auto fs_area = window_get_fs_area(master.area);
                     if (fs_area != master.area)
                     {
-                        auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                        auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                         avail_area.size -= std::min(avail_area.size, normsz.size);
                         normsz.coor = avail_area.clamp(normsz.coor);
                         set_state(state::normal);
@@ -2177,14 +2169,14 @@ namespace netxs::gui
                 }
                 else if (fsmode == state::normal)
                 {
-                    auto avail_area = get_fs_area(rect{ -dot_mx / 2, dot_mx });
+                    auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     if (!avail_area.trim(master.area))
                     {
                         auto area = master.area;
                         avail_area.size -= std::min(avail_area.size, area.size);
                         auto delta = avail_area.clamp(area.coor) - area.coor;
                         move_window(delta);
-                        sync_titles_pixel_layout(); // Align grips and shadow.
+                        sync_pixel_layout(); // Align grips and shadow.
                     }
                 }
                 if (fsmode != state::minimized)
@@ -2217,7 +2209,7 @@ namespace netxs::gui
             {
                 size_title(h_grid, titles.head_page);
                 size_title(f_grid, titles.foot_page);
-                sync_titles_pixel_layout();
+                sync_pixel_layout();
             }
             if (sizechanged)
             {
@@ -2267,7 +2259,7 @@ namespace netxs::gui
             static auto trans = 0x01'00'00'00;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
-            auto canvas = get_canvas(master);
+            auto canvas = layer_get_bits(master);
             canvas.move(dot_00);
             auto outer_rect = canvas.area();
             auto inner_rect = outer_rect - border;
@@ -2365,8 +2357,8 @@ namespace netxs::gui
         }
         void fill_stripe(auto head, auto tail, twod start = {}, si32 offset = {})
         {
-            auto prime_canvas = get_canvas(master);
-            auto blink_canvas = get_canvas(blinky);
+            auto prime_canvas = layer_get_bits(master);
+            auto blink_canvas = layer_get_bits(blinky);
             auto origin = blink_canvas.coor();
             auto iter = blinks.mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
@@ -2399,7 +2391,7 @@ namespace netxs::gui
         }
         void draw_title(layer& s, auto& facedata) //todo just output ui::core
         {
-            auto canvas = get_canvas(s, true);
+            auto canvas = layer_get_bits(s, true);
             fill_grid(canvas, facedata, shadow_dent.corner());
             netxs::misc::contour(canvas); // 1ms
             s.strike<true>(canvas.area());
@@ -2413,13 +2405,13 @@ namespace netxs::gui
             {
                 if (blinks.poll)
                 {
-                    if (blinks.rate != span::zero()) start_timer(master, blinks.rate, timers::blink);
+                    if (blinks.rate != span::zero()) layer_timer_start(master, blinks.rate, timers::blink);
                     else                             blinky.show();
                 }
                 else
                 {
                     if (mfocus.focused() && blinky.live) blinky.hide();
-                    stop_timer(master, timers::blink);
+                    layer_timer_stop(master, timers::blink);
                 }
             }
         }
@@ -2428,7 +2420,7 @@ namespace netxs::gui
             if (!reload || waitsz) return;
             auto what = reload;
             reload = {};
-                 if (what == task::moved) present_move();
+                 if (what == task::moved) layer_move_all();
             else if (what)
             {
                 if (what == task::all)
@@ -2452,7 +2444,7 @@ namespace netxs::gui
                     fill_stripe(grid.begin(), grid.end());
                     if (fsmode == state::maximized)
                     {
-                        auto canvas = get_canvas(master);
+                        auto canvas = layer_get_bits(master);
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
                     }
                     master.strike<true>(master.area);
@@ -2464,7 +2456,7 @@ namespace netxs::gui
                     if (what & (task::sized | task::header)) draw_header();
                     if (what & (task::sized | task::footer)) draw_footer();
                 }
-                for (auto p : { &master, &blinky, &footer, &header }) present(*p);
+                for (auto p : { &master, &blinky, &footer, &header }) layer_present(*p);
             }
             isbusy.exchange(faux);
         }
@@ -2474,25 +2466,25 @@ namespace netxs::gui
             else
             {
                 auto state = 0;
-                if (async_key_pressed(vkey::lshift  )) state |= input::hids::LShift;
-                if (async_key_pressed(vkey::rshift  )) state |= input::hids::RShift;
-                if (async_key_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
-                if (async_key_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
-                if (async_key_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-                if (async_key_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-                if (async_key_pressed(vkey::lwin    )) state |= input::hids::LWin;
-                if (async_key_pressed(vkey::rwin    )) state |= input::hids::RWin;
-                if (async_key_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-                if (async_key_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-                if (async_key_toggled(vkey::numlock )) state |= input::hids::NumLock;
+                if (keybd_read_pressed(vkey::lshift  )) state |= input::hids::LShift;
+                if (keybd_read_pressed(vkey::rshift  )) state |= input::hids::RShift;
+                if (keybd_read_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+                if (keybd_read_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+                if (keybd_read_pressed(vkey::lalt    )) state |= input::hids::LAlt;
+                if (keybd_read_pressed(vkey::ralt    )) state |= input::hids::RAlt;
+                if (keybd_read_pressed(vkey::lwin    )) state |= input::hids::LWin;
+                if (keybd_read_pressed(vkey::rwin    )) state |= input::hids::RWin;
+                if (keybd_read_toggled(vkey::capslock)) state |= input::hids::CapsLock;
+                if (keybd_read_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
+                if (keybd_read_toggled(vkey::numlock )) state |= input::hids::NumLock;
                 return state;
             }
         }
         void zoom_by_wheel(fp32 wheelfp, bool enqueue)
         {
-            if (ctrl_pressed())
+            if (keybd_ctrl_pressed())
             {
-                normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
+                mouse_normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
                 if (whlacc * wheelfp < 0.f) whlacc = 0.f; // Reset accumulator if the wheeling direction has changed.
                 whlacc += wheelfp;
                 if (!isbusy.exchange(true))
@@ -2552,7 +2544,7 @@ namespace netxs::gui
         void resize_by_grips(twod coord)
         {
             auto inner_rect = blinky.area;
-            auto zoom = ctrl_pressed();
+            auto zoom = keybd_ctrl_pressed();
             auto [preview_area, size_delta] = szgrip.drag(inner_rect, coord, border, zoom, cellsz);
             auto old_client = blinky.area;
             auto new_gridsz = std::max(dot_11, (old_client.size + size_delta) / cellsz);
@@ -2563,14 +2555,14 @@ namespace netxs::gui
                 if (auto move_delta = szgrip.move(size_delta, zoom))
                 {
                     move_window(move_delta);
-                    sync_titles_pixel_layout(); // Align grips and shadow.
+                    sync_pixel_layout(); // Align grips and shadow.
                 }
                 resize_window(size_delta);
             }
         }
         void mouse_moved()
         {
-            auto coord = get_pointer_coor();
+            auto coord = mouse_get_pos();
             auto& mbttns = stream.m.buttons;
             mhover = true;
             auto inner_rect = blinky.area;
@@ -2582,8 +2574,8 @@ namespace netxs::gui
             if (auto target_list = mfocus.is_idle()) // Seize OS focus if group focus is active but window is idle.
             {
                 auto local_target = master.hWnd;
-                for (auto target : target_list.value()) send_command(target, ipc::main_focus, local_target);
-                do_set_foreground_window();
+                for (auto target : target_list.value()) window_send_command(target, ipc::main_focus, local_target);
+                window_make_foreground();
             }
             if ((!seized && ingrip) || szgrip.seized)
             {
@@ -2618,7 +2610,7 @@ namespace netxs::gui
                         //todo revise
                         //if (fsmode == state::maximized) set_state(state::normal);
                         move_window(dxdy);
-                        sync_titles_pixel_layout(); // Align grips and shadow.
+                        sync_pixel_layout(); // Align grips and shadow.
                         update_gui();
                     });
                 }
@@ -2653,7 +2645,7 @@ namespace netxs::gui
         {
             if constexpr (debug_foci) log("--- mouse ", pressed?"1":"0");
             auto inner_rect = blinky.area;
-            auto coord = get_pointer_coor();
+            auto coord = mouse_get_pos();
             mcoord = coord;
             stream.m.coordxy = fp2d{ mcoord - inner_rect.coor } / cellsz;
             auto& mbttns = stream.m.buttons;
@@ -2731,7 +2723,7 @@ namespace netxs::gui
             {
                 if (mfocus.active())
                 {
-                    forward_keybd_input(block);
+                    keybd_send_block(block);
                 }
             });
         }
@@ -2739,24 +2731,24 @@ namespace netxs::gui
         {
             //todo revise
             //todo implement all possible modifiers state (eg kana)
-            //if (focus_key_toggled(vkey::oem_copy) cs |= ...;
-            //if (focus_key_toggled(vkey::oem_auto) cs |= ...;
-            //if (focus_key_toggled(vkey::oem_enlw) cs |= NLS_HIRAGANA;
+            //if (keybd_test_toggled(vkey::oem_copy) cs |= ...;
+            //if (keybd_test_toggled(vkey::oem_auto) cs |= ...;
+            //if (keybd_test_toggled(vkey::oem_enlw) cs |= NLS_HIRAGANA;
             auto state  = si32{};
             auto cs = 0;
             if (extflag) cs |= input::key::ExtendedKey;
-            if (focus_key_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
-            if (focus_key_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-            if (focus_key_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-            if (focus_key_pressed(vkey::lshift  )) state |= input::hids::LShift;
-            if (focus_key_pressed(vkey::rshift  )) state |= input::hids::RShift;
-            if (focus_key_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
-            if (focus_key_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
-            if (focus_key_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-            if (focus_key_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-            if (focus_key_pressed(vkey::lwin    )) state |= input::hids::LWin;
-            if (focus_key_pressed(vkey::rwin    )) state |= input::hids::RWin;
-            if (focus_key_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+            if (keybd_test_toggled(vkey::numlock )) { state |= input::hids::NumLock; cs |= input::key::NumLockMode; }
+            if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
+            if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
+            if (keybd_test_pressed(vkey::lshift  )) state |= input::hids::LShift;
+            if (keybd_test_pressed(vkey::rshift  )) state |= input::hids::RShift;
+            if (keybd_test_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+            if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+            if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
+            if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
+            if (keybd_test_pressed(vkey::lwin    )) state |= input::hids::LWin;
+            if (keybd_test_pressed(vkey::rwin    )) state |= input::hids::RWin;
+            if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                                   mouse_release(by::keybd);
             auto changed = std::exchange(keymod, state) != keymod;
             auto pressed = keystat == keystate::pressed;
@@ -2800,9 +2792,9 @@ namespace netxs::gui
             if (keystat == keystate::unknown) return;
             if (keystat == keystate::pressed || keystat == keystate::repeated)
             {
-                if (focus_key_pressed(vkey::capslock) && (focus_key_pressed(vkey::up) || focus_key_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
+                if (keybd_test_pressed(vkey::capslock) && (keybd_test_pressed(vkey::up) || keybd_test_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
                 {
-                    auto dir = focus_key_pressed(vkey::up) ? 1.f : -1.f;
+                    auto dir = keybd_test_pressed(vkey::up) ? 1.f : -1.f;
                     if (!isbusy.exchange(true))
                     bell::enqueue(This(), [&, dir](auto& /*boss*/)
                     {
@@ -2821,21 +2813,21 @@ namespace netxs::gui
             }
             if (keystat == keystate::pressed)
             {
-                if (focus_key_pressed(vkey::alt) && focus_key_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
+                if (keybd_test_pressed(vkey::alt) && keybd_test_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
                     });
                 }
-                else if (focus_key_pressed(vkey::capslock) && focus_key_pressed(vkey::control)) // Toggle antialiasing mode by Ctrl+CapsLock.
+                else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::control)) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         set_aa_mode(!gcache.aamode);
                     });
                 }
-                else if (focus_key_pressed(vkey::capslock) && focus_key_pressed(vkey::key_0)) // Reset cell scaling.
+                else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::key_0)) // Reset cell scaling.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
@@ -2845,11 +2837,11 @@ namespace netxs::gui
                         update_gui();
                     });
                 }
-                else if (focus_key_pressed(vkey::home) && focus_key_pressed(vkey::end)) // Shutdown by LeftArrow+RightArrow.
+                else if (keybd_test_pressed(vkey::home) && keybd_test_pressed(vkey::end)) // Shutdown by LeftArrow+RightArrow.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        close();
+                        window_shutdown();
                     });
                 }
             }
@@ -2874,12 +2866,12 @@ namespace netxs::gui
             if (command == ipc::cmd_w_data)
             {
                 if (!lParam) return 0;
-                auto data = get_container(lParam);
+                auto data = window_recv_command(lParam);
                 command = data.cmd;
                 if constexpr (debug_foci) log("\tsubcommand: ", ipc::str(command));
                 if (command == ipc::make_offer) // Group focus offer.
                 {
-                    auto ctrl_click = ctrl_pressed() && lbutton_pressed();
+                    auto ctrl_click = keybd_ctrl_pressed() && lbutton_pressed();
                     auto local_target = master.hWnd;
                     auto target_list = std::span<ui32>{ (ui32*)data.ptr, data.len / sizeof(ui32) };
                     if (ctrl_click && mfocus.update(target_list, local_target)) // Block foreign offers.
@@ -2888,7 +2880,7 @@ namespace netxs::gui
                         for (auto target : target_list)
                         {
                             if constexpr (debug_foci) log("\thwnd=", utf::to_hex(target));
-                            send_command(target, ipc::main_focus, local_target);
+                            window_send_command(target, ipc::main_focus, local_target);
                         }
                     }
                     else
@@ -2937,14 +2929,14 @@ namespace netxs::gui
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
                         SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
-                        if (mfocus.wheel) post_command(ipc::sync_state);
+                        if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
             }
             else if (command == ipc::drop_focus)
             {
                 auto focus_bus_on = mfocus.clear();
-                keybd_wipe_state();
+                keybd_wipe_vkstat();
                 keybd_send_state();
                 if (focus_bus_on)
                 {
@@ -2958,7 +2950,7 @@ namespace netxs::gui
             {
                 auto local_target = (ui32)master.hWnd;
                 auto target_list = mfocus.solo(local_target);
-                for (auto target : target_list) send_command(target, ipc::drop_focus);
+                for (auto target : target_list) window_send_command(target, ipc::drop_focus);
             }
             else if (command == ipc::sync_state)
             {
@@ -2966,11 +2958,11 @@ namespace netxs::gui
             }
             else if (command == ipc::take_focus)
             {
-                do_focus();
+                window_make_focused();
             }
             else if (command == ipc::expose_win)
             {
-                do_expose();
+                window_make_exposed();
             }
             else command = 0;
             return command;
@@ -2982,12 +2974,12 @@ namespace netxs::gui
             {
                 if (new_focus_state)
                 {
-                    keybd_load_state(); // It must be called in current thread.
-                    for (auto target : target_list.value()) send_command(target, ipc::main_focus, local_target);
+                    keybd_read_vkstat(); // It must be called in current thread.
+                    for (auto target : target_list.value()) window_send_command(target, ipc::main_focus, local_target);
                 }
                 else if (target_list) // Send to all that the focus is going to lost.
                 {
-                    for (auto target : target_list.value()) send_command(target, ipc::drop_focus);
+                    for (auto target : target_list.value()) window_send_command(target, ipc::drop_focus);
                 }
             }
         }
@@ -3024,7 +3016,7 @@ namespace netxs::gui
                     //todo implement
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
-                    case syscmd::close:  close(); break;
+                    case syscmd::close:  window_shutdown(); break;
                     case syscmd::update: update_gui(); break;
                 }
             });
@@ -3052,13 +3044,11 @@ namespace netxs::gui
         }
         void connect(si32 win_state, twod wincoord, twod gridsize)
         {
-            set_dpi_awareness();
             sync_os_settings();
-            if (!client_animation()) blinks.rate = span::zero();
-            if (!(create_layer(master, this, wincoord, gridsize, border, cellsz)
-               && create_layer(blinky)
-               && create_layer(header)
-               && create_layer(footer))) return;
+            if (!(layer_create(master, this, wincoord, gridsize, border, cellsz)
+               && layer_create(blinky)
+               && layer_create(header)
+               && layer_create(footer))) return;
             else
             {
                 auto lock = bell::sync();
@@ -3066,7 +3056,7 @@ namespace netxs::gui
                 size_window();
                 set_state(win_state);
                 update_gui();
-                run();
+                window_initilize();
 
                 LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
@@ -3075,7 +3065,7 @@ namespace netxs::gui
                     send_mouse_halt();
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
                     move_window(dxdy);
-                    sync_titles_pixel_layout(); // Align grips and shadow.
+                    sync_pixel_layout(); // Align grips and shadow.
                 };
                 LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
@@ -3104,7 +3094,7 @@ namespace netxs::gui
                     if (utf8.length()) // Update os window title.
                     {
                         auto filtered = ui::para{ utf8 }.lyric->utf8();
-                        set_window_title(filtered);
+                        window_set_title(filtered);
                     }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::footer, utf8)
@@ -3123,10 +3113,10 @@ namespace netxs::gui
                 };
                 directvt::binary::stream::reading_loop(stream.intio, sync);
                 stream.stop(); // Wake up waiting objects, if any.
-                close(); // Interrupt dispatching.
+                window_shutdown(); // Interrupt dispatching.
             }};
-            dispatch();
-            //for (auto p : { &master, &blinky, &footer, &header }) delete_layer(*p);
+            window_message_pump();
+            //for (auto p : { &master, &blinky, &footer, &header }) layer_delete(*p);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             bell::dequeue(); // Clear task queue.
             winio.join();
@@ -3465,9 +3455,12 @@ namespace netxs::gui
             : winbase{ Args... },
               tslink{ *this },
               winmsg{}
-        { }
+        {
+            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
+            if (proc) proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
+        }
 
-        bits get_canvas(layer& s, bool zeroize = faux)
+        bits layer_get_bits(layer& s, bool zeroize = faux)
         {
             if (s.hdc && s.area)
             {
@@ -3509,7 +3502,7 @@ namespace netxs::gui
             s.data.move(s.area.coor);
             return s.data;
         }
-        void delete_layer(layer& s) // We don't use custom copy/move ctors here.
+        void layer_delete(layer& s)
         {
             if (s.hdc)
             {
@@ -3518,7 +3511,7 @@ namespace netxs::gui
             }
             for (auto eventid : s.klok) ::KillTimer((HWND)s.hWnd, eventid);
         }
-        void start_timer(layer& s, span elapse, ui32 eventid)
+        void layer_timer_start(layer& s, span elapse, ui32 eventid)
         {
             if (eventid)
             {
@@ -3526,7 +3519,7 @@ namespace netxs::gui
                 ::SetCoalescableTimer((HWND)s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
             }
         }
-        void stop_timer(layer& s, ui32 eventid)
+        void layer_timer_stop(layer& s, ui32 eventid)
         {
             auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
             if (iter != s.klok.end())
@@ -3535,7 +3528,7 @@ namespace netxs::gui
                 s.klok.erase(iter);
             }
         }
-        void present_move()
+        void layer_move_all()
         {
             auto layers = { &master, &blinky, &footer, &header };
             auto lock = ::BeginDeferWindowPos((si32)layers.size());
@@ -3547,7 +3540,7 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
-        void present(layer& s)
+        void layer_present(layer& s)
         {
             if (!s.hdc) return;
             auto windowmoved = s.prev.coor(s.live ? s.area.coor : s.hidden);
@@ -3583,7 +3576,7 @@ namespace netxs::gui
             for (auto r : s.sync)
             {
                 // Hilight changes
-                //auto c = get_canvas(s);
+                //auto c = layer_get_bits(s);
                 //netxs::misc::cage(c, r, dent{ 1,1,1,1 }, cell::shaders::blend(argb{ (tint)((clr - 1) % 8 + 1) }));
                 r.coor -= s.area.coor;
                 update_area = { r.coor.x, r.coor.y, r.coor.x + r.size.x, r.coor.y + r.size.y };
@@ -3597,12 +3590,12 @@ namespace netxs::gui
             }
             s.sync.clear();
         }
-        void set_window_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
-        bool focus_key_pressed(si32 virtcod) { return !!(vkstat[virtcod] & 0x80); }
-        bool focus_key_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
+        void window_set_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
+        bool keybd_test_pressed(si32 virtcod) { return !!(vkstat[virtcod] & 0x80); }
+        bool keybd_test_toggled(si32 virtcod) { return !!(vkstat[virtcod] & 0x01); }
         //todo static
-        bool async_key_pressed(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x8000); }
-        bool async_key_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
+        bool keybd_read_pressed(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x8000); }
+        bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
         void keybd_read_input(si32& keystat, si32& virtcod)
         {
             union key_state_t
@@ -3680,7 +3673,7 @@ namespace netxs::gui
             //print_vkstat("keybd_read_input");
             return;
         }
-        void dispatch()
+        void window_message_pump()
         {
             while (::GetMessageW(&winmsg, 0, 0, 0) > 0)
             {
@@ -3694,7 +3687,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    if (focus_key_pressed(vkey::rwin) || focus_key_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
+                    if (keybd_test_pressed(vkey::rwin) || keybd_test_pressed(vkey::lwin)) keybd_sync_state(); // Hack: Unstick the Win key when switching to the same keyboard layout using Win+Space.
                     ::DispatchMessageW(&winmsg);
                 }
             }
@@ -3706,14 +3699,14 @@ namespace netxs::gui
             keybd_send_state();
             //print_vkstat("keybd_sync_state");
         }
-        void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
+        void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
         {
             ::GetKeyboardState(vkstat.data());
-            mfocus.offer = !mfocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_vkstat("keybd_load_state");
+            mfocus.offer = !mfocus.buson && keybd_ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
+            //print_vkstat("keybd_read_vkstat");
             tslink.set_focus();
         }
-        void keybd_wipe_state()
+        void keybd_wipe_vkstat()
         {
             auto n = vkstat[vkey::numlock ];
             auto c = vkstat[vkey::capslock];
@@ -3740,12 +3733,12 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void do_focus()                 { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        void do_set_foreground_window() { ::SetForegroundWindow((HWND)master.hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void do_expose()                { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void close()                    { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
-        void destroy_window()           { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
-        twod get_pointer_coor()         { return twod{ winmsg.pt.x, winmsg.pt.y }; }
+        void window_make_focused()    { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void window_make_exposed()    { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void window_make_foreground() { ::SetForegroundWindow((HWND)master.hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
+        void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
+        twod mouse_get_pos()          { return twod{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(heldby, heldby | captured_by))
@@ -3762,12 +3755,12 @@ namespace netxs::gui
                 ::ReleaseCapture();
             }
         }
-        void mouse_check()
+        void mouse_catch_outside()
         {
-            auto ctrl_click = ctrl_pressed()                                   // Detect Ctrl+LeftClick
-                           && !master.area.hittest(get_pointer_coor()) // outside our window.
-                           && async_key_pressed(vkey::lbutton);                //
-                           //&& (async_key_pressed(vkey::lbutton) || async_key_pressed(vkey::rbutton) || async_key_pressed(vkey::mbutton));
+            auto ctrl_click = keybd_ctrl_pressed()                  // Detect Ctrl+LeftClick
+                           && !master.area.hittest(mouse_get_pos()) // outside our window.
+                           && keybd_read_pressed(vkey::lbutton);    //
+                           //&& (keybd_read_pressed(vkey::lbutton) || keybd_read_pressed(vkey::rbutton) || keybd_read_pressed(vkey::mbutton));
             if (ctrl_click) // Try to make group focus offer before we lose focus.
             {
                 auto target = ::WindowFromPoint(winmsg.pt);
@@ -3784,7 +3777,7 @@ namespace netxs::gui
             }
             mouse_release();
         }
-        void forward_keybd_input(view block)
+        void keybd_send_block(view block)
         {
             auto target_list = mfocus.copy();
             auto local_hwnd = (ui32)master.hWnd;
@@ -3800,7 +3793,7 @@ namespace netxs::gui
                 }
             }
         }
-        void sync_taskbar(si32 new_state)
+        void window_sync_taskbar(si32 new_state)
         {
             if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             {
@@ -3820,8 +3813,11 @@ namespace netxs::gui
             auto dt = ULONG{};
             ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
             wdelta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
+            auto a = TRUE;
+            ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0);
+            blinks.rate = a ? blinks.init : span::zero();
         }
-        void run()
+        void window_initilize()
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
@@ -3843,11 +3839,10 @@ namespace netxs::gui
         }
 
         //todo static
-        cont get_container(arch lParam) { auto& data = *(COPYDATASTRUCT*)lParam; return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData }; }
-        bool client_animation()         { auto a = TRUE; ::SystemParametersInfoA(SPI_GETCLIENTAREAANIMATION, 0, &a, 0); return a; }
-        void send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
-        void post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
-        rect get_fs_area(rect window_area)
+        cont window_recv_command(arch lParam) { auto& data = *(COPYDATASTRUCT*)lParam; return cont{ .cmd = (si32)data.dwData, .ptr = data.lpData, .len = data.cbData }; }
+        void window_send_command(arch target, si32 command, arch lParam = {}) { ::SendMessageW((HWND)target, WM_USER, command, lParam); }
+        void window_post_command(arch target, si32 command, arch lParam = {}) { ::PostMessageW((HWND)target, WM_USER, command, lParam); }
+        rect window_get_fs_area(rect window_area)
         {
             auto enum_proc = [](HMONITOR /*unnamedParam1*/, HDC /*unnamedParam2*/, LPRECT monitor_rect_ptr, LPARAM pair_ptr)
             {
@@ -3861,17 +3856,7 @@ namespace netxs::gui
             ::EnumDisplayMonitors(NULL, nullptr, enum_proc, (LPARAM)&area_pair);
             return area_pair.first;
         }
-        void set_dpi_awareness()
-        {
-            auto proc = (LONG(_stdcall *)(si32))::GetProcAddress(::GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessInternal");
-            if (proc)
-            {
-                proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                //auto hr = proc(2/*PROCESS_PER_MONITOR_DPI_AWARE*/);
-                //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
-            }
-        }
-        bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -3902,8 +3887,8 @@ namespace netxs::gui
                     case WM_XBUTTONUP:        w->mouse_press(xbttn(wParam), faux);               break;
                     case WM_MOUSEWHEEL:       w->mouse_wheel(hi(wParam), 0);                     break;
                     case WM_MOUSEHWHEEL:      w->mouse_wheel(hi(wParam), 1);                     break;
-                    case WM_CAPTURECHANGED:   w->mouse_check();                                  break; // Catch outside clicks.
-                    case WM_ACTIVATEAPP:      if (wParam == TRUE) w->do_focus();                 break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
+                    case WM_CAPTURECHANGED:   w->mouse_catch_outside();                          break; // Catch outside clicks.
+                    case WM_ACTIVATEAPP:      if (wParam == TRUE) w->window_make_focused();      break; // Do focus explicitly: Sometimes WM_SETFOCUS follows WM_ACTIVATEAPP, sometime not. explorer.exe gives us focus (w/o WM_SETFOCUS) when other window minimizing.
                     case WM_SETFOCUS:         if (wParam != (arch)hWnd) w->focus_event(true);    break; // Don't refocus. ::SetFocus calls twice wnd_proc(WM_KILLFOCUS+WM_SETFOCUS).
                     case WM_KILLFOCUS:        if (wParam != (arch)hWnd) w->focus_event(faux);    break; // Don't refocus.
                     case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
@@ -3914,7 +3899,7 @@ namespace netxs::gui
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
-                    case WM_DESTROY:          w->destroy_window();                               break;
+                    case WM_DESTROY:          w->window_cleanup();                               break;
                     case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); break;
                                                                    case SC_MAXIMIZE: w->sys_command(syscmd::maximize); break;
                                                                    case SC_RESTORE:  w->sys_command(syscmd::restore);  break;
@@ -4006,42 +3991,40 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
-        bool create_layer(layer& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
-        //void delete_layer(layer& /*s*/) {}
-        bool focus_key_pressed(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
-        bool focus_key_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
-        bool async_key_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
-        bool async_key_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
+        bool layer_create(layer& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
+        //void layer_delete(layer& /*s*/) {}
+        bool keybd_test_pressed(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
+        bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
+        bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
+        bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
         void keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) {}
-        void keybd_wipe_state() {}
-        void keybd_load_state() {}
+        void keybd_wipe_vkstat() {}
+        void keybd_read_vkstat() {}
         void keybd_sync_layout() {}
-        void present_move() {}
-        void present(layer& /*s*/) {}
-        void sync_taskbar(si32 /*new_state*/) {}
-        rect get_fs_area(rect window_area) { return window_area; }
-        void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
-        void post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
-        void do_set_foreground_window() {}
-        twod get_pointer_coor() { return twod{}; }
+        void layer_move_all() {}
+        void layer_present(layer& /*s*/) {}
+        void window_sync_taskbar(si32 /*new_state*/) {}
+        rect window_get_fs_area(rect window_area) { return window_area; }
+        void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
+        void window_make_foreground() {}
+        twod mouse_get_pos() { return twod{}; }
         void mouse_capture(si32 /*captured_by*/) {}
         void mouse_release(si32 /*released_by*/) {}
-        void mouse_check() {}
-        cont get_container(arch /*lParam*/) { return cont{}; }
-        void do_focus() {}
-        void do_expose() {}
-        void dispatch() {}
-        void run() {}
-        void close() {}
-        void destroy_window() {}
+        void mouse_catch_outside() {}
+        cont window_recv_command(arch /*lParam*/) { return cont{}; }
+        void window_make_focused() {}
+        void window_make_exposed() {}
+        void window_message_pump() {}
+        void window_initilize() {}
+        void window_shutdown() {}
+        void window_cleanup() {}
         void sync_os_settings() {}
-        void start_timer(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
-        void stop_timer(layer& /*s*/, ui32 /*eventid*/) {}
-        bits get_canvas(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
-        void set_window_title(view /*utf8*/) {}
-        void forward_keybd_input(view /*block*/) {}
-        bool client_animation() { return true; }
-        void set_dpi_awareness() {}
+        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void window_set_title(view /*utf8*/) {}
+        void keybd_send_block(view /*block*/) {}
     };
 }
 
