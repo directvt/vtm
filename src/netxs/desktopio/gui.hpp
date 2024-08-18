@@ -30,22 +30,22 @@ namespace netxs::gui
 
     static constexpr auto debug_foci = faux;
 
-    struct surface
+    struct layer
     {
         static constexpr auto hidden = twod{ -32000, -32000 };
 
         using tset = std::list<ui32>;
 
-        arch  hdc; // surface: Surface bitmap handle.
-        arch hWnd; // surface: Host window handle.
-        rect prev; // surface: Last presented layer area.
-        rect area; // surface: Current layer area.
-        bits data; // surface: Layer bitmap.
-        regs sync; // surface: Dirty region list.
-        bool live; // surface: Should the layer be presented.
-        tset klok; // surface: Active timer list.
+        arch  hdc; // layer: Surface bitmap handle.
+        arch hWnd; // layer: Host window handle.
+        rect prev; // layer: Last presented layer area.
+        rect area; // layer: Current layer area.
+        bits data; // layer: Layer bitmap.
+        regs sync; // layer: Dirty region list.
+        bool live; // layer: Should the layer be presented.
+        tset klok; // layer: Active timer list.
 
-        surface()
+        layer()
             :  hdc{},
               hWnd{},
               prev{ .coor = dot_mx },
@@ -85,7 +85,7 @@ namespace netxs::gui
 
 #if defined(_WIN32)
 
-    struct font
+    struct fonts
     {
         struct style
         {
@@ -113,8 +113,8 @@ namespace netxs::gui
                 fp2d              actual_sz{};
                 fp2d              base_line{};
                 rect              underline{}; // face_rec: Underline rectangle block within the cell.
-                rect              doubline1{}; // font: The first line of the double underline: at the top of the rect.
-                rect              doubline2{}; // font: The second line of the double underline: at the bottom.
+                rect              doubline1{}; // face_rec: The first line of the double underline: at the top of the rect.
+                rect              doubline2{}; // face_rec: The second line of the double underline: at the bottom.
                 rect              strikeout{}; // face_rec: Strikethrough rectangle block within the cell.
                 rect              overline{};  // face_rec: Overline rectangle block within the cell.
                 rect              dashline{};  // face_rec: Dashed underline rectangle block within the cell.
@@ -382,25 +382,25 @@ namespace netxs::gui
             si32 i{};
             text n{};
         };
-        IDWriteFactory2*               factory2; // font: DWrite factory.
-        IDWriteFontCollection*         fontlist; // font: System font collection.
-        IDWriteTextAnalyzer2*          analyzer; // font: Glyph indicies reader.
-        std::vector<stat>              fontstat; // font: System font collection status list.
-        std::vector<typeface>          fallback; // font: Fallback font list.
-        wide                           oslocale; // font: User locale.
-        flag                           complete; // font: Fallback index is ready.
-        std::thread                    bgworker; // font: Background thread.
-        twod                           cellsize; // font: Terminal cell size in pixels.
-        std::list<text>                families; // font: Primary font name list.
-        rect                           underline; // font: Single underline rectangle block within the cell.
-        rect                           doubline1; // font: The first line of the double underline: at the top of the rect.
-        rect                           doubline2; // font: The second line of the double underline: at the bottom.
-        rect                           strikeout; // font: Strikethrough rectangle block within the cell.
-        rect                           overline; // font: Overline rectangle block within the cell.
-        rect                           dashline; // font: Dashed underline rectangle block within the cell.
-        rect                           wavyline; // font: Wavy underline outer rectangle block within the cell.
+        IDWriteFactory2*               factory2; // fonts: DWrite factory.
+        IDWriteFontCollection*         fontlist; // fonts: System font collection.
+        IDWriteTextAnalyzer2*          analyzer; // fonts: Glyph indicies reader.
+        std::vector<stat>              fontstat; // fonts: System font collection status list.
+        std::vector<typeface>          fallback; // fonts: Fallback font list.
+        wide                           oslocale; // fonts: User locale.
+        flag                           complete; // fonts: Fallback index is ready.
+        std::thread                    bgworker; // fonts: Background thread.
+        twod                           cellsize; // fonts: Terminal cell size in pixels.
+        std::list<text>                families; // fonts: Primary font name list.
+        rect                           underline; // fonts: Single underline rectangle block within the cell.
+        rect                           doubline1; // fonts: The first line of the double underline: at the top of the rect.
+        rect                           doubline2; // fonts: The second line of the double underline: at the bottom.
+        rect                           strikeout; // fonts: Strikethrough rectangle block within the cell.
+        rect                           overline; // fonts: Overline rectangle block within the cell.
+        rect                           dashline; // fonts: Dashed underline rectangle block within the cell.
+        rect                           wavyline; // fonts: Wavy underline outer rectangle block within the cell.
 
-        static auto msscript(ui32 code) // font: ISO<->MS script map.
+        static auto msscript(ui32 code) // fonts: ISO<->MS script map.
         {
             static auto lut = []
             {
@@ -560,7 +560,7 @@ namespace netxs::gui
             return fallback.emplace_back(); // Should never happen.
         }
 
-        font(std::list<text>& family_names, si32 cell_height)
+        fonts(std::list<text>& family_names, si32 cell_height)
             : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
               fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
               analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
@@ -650,7 +650,7 @@ namespace netxs::gui
             }
             set_cellsz(cell_height);
         }
-        ~font()
+        ~fonts()
         {
             if (bgworker.joinable()) bgworker.join();
             if (analyzer) analyzer->Release();
@@ -659,7 +659,7 @@ namespace netxs::gui
         }
     };
 
-    struct glyf
+    struct glyph
     {
         using irgb = netxs::irgb<fp32>;
         using vect = std::pmr::vector<byte>;
@@ -700,25 +700,25 @@ namespace netxs::gui
 
         using gmap = std::unordered_map<ui64, sprite>;
 
-        std::pmr::unsynchronized_pool_resource buffer_pool; // glyf: Pool for temp buffers.
-        std::pmr::monotonic_buffer_resource    mono_buffer; // glyf: Memory block for sprites.
-        font& fcache; // glyf: Font cache.
-        twod& cellsz; // glyf: Terminal cell size in pixels.
-        bool  aamode; // glyf: Enable AA.
-        gmap  glyphs; // glyf: Glyph map.
-        std::vector<sprite>                          cgi_glyphs; // glyf: Synthetic glyphs.
-        wide                                         text_utf16; // glyf: UTF-16 buffer.
-        std::vector<utf::prop>                       codepoints; // glyf: .
-        std::vector<ui16>                            clustermap; // glyf: .
-        std::vector<ui16>                            glyf_index; // glyf: .
-        std::vector<FLOAT>                           glyf_steps; // glyf: .
-        std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyf: .
-        std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyf: .
-        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyf: .
-        std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyf: .
-        std::vector<color_layer>                     glyf_masks; // glyf: .
+        std::pmr::unsynchronized_pool_resource buffer_pool; // glyph: Pool for temp buffers.
+        std::pmr::monotonic_buffer_resource    mono_buffer; // glyph: Memory block for sprites.
+        fonts& fcache; // glyph: Font cache.
+        twod&  cellsz; // glyph: Terminal cell size in pixels.
+        bool   aamode; // glyph: Enable AA.
+        gmap   glyphs; // glyph: Glyph map.
+        std::vector<sprite>                          cgi_glyphs; // glyph: Synthetic glyphs.
+        wide                                         text_utf16; // glyph: UTF-16 buffer.
+        std::vector<utf::prop>                       codepoints; // glyph: .
+        std::vector<ui16>                            clustermap; // glyph: .
+        std::vector<ui16>                            glyf_index; // glyph: .
+        std::vector<FLOAT>                           glyf_steps; // glyph: .
+        std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyph: .
+        std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyph: .
+        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyph: .
+        std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyph: .
+        std::vector<color_layer>                     glyf_masks; // glyph: .
 
-        glyf(font& fcache, bool aamode)
+        glyph(fonts& fcache, bool aamode)
             : fcache{ fcache },
               cellsz{ fcache.cellsize },
               aamode{ aamode }
@@ -781,7 +781,7 @@ namespace netxs::gui
             codepoints.clear();
             auto flipandrotate = 0;
             auto monochromatic = faux;
-            auto glyfalignment = bind{ snap::none, snap::none };
+            auto charalignment = bind{ snap::none, snap::none };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
@@ -794,20 +794,20 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
                     else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011); // Hz flip
                     else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011); // Vt flip
-                    else if (codepoint.cdpoint == utf::vs04_code) glyfalignment.x = snap::head;
-                    else if (codepoint.cdpoint == utf::vs05_code) glyfalignment.x = snap::center;
-                    else if (codepoint.cdpoint == utf::vs06_code) glyfalignment.x = snap::tail;
-                    else if (codepoint.cdpoint == utf::vs07_code) glyfalignment.y = snap::head;
-                    else if (codepoint.cdpoint == utf::vs08_code) glyfalignment.y = snap::center;
-                    else if (codepoint.cdpoint == utf::vs09_code) glyfalignment.y = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs04_code) charalignment.x = snap::head;
+                    else if (codepoint.cdpoint == utf::vs05_code) charalignment.x = snap::center;
+                    else if (codepoint.cdpoint == utf::vs06_code) charalignment.x = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs07_code) charalignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs08_code) charalignment.y = snap::center;
+                    else if (codepoint.cdpoint == utf::vs09_code) charalignment.y = snap::tail;
                 }
                 else codepoints.push_back(codepoint);
             }
             if (codepoints.empty()) return;
 
-            auto format = font::style::normal;
-            if (c.itc()) format |= font::style::italic;
-            if (c.bld()) format |= font::style::bold;
+            auto format = fonts::style::normal;
+            if (c.itc()) format |= fonts::style::italic;
+            if (c.bld()) format |= fonts::style::bold;
             auto base_char = codepoints.front().cdpoint;
             auto& f = fcache.take_font(base_char);
             auto face_inst = f.fontface[format].face_inst;
@@ -833,12 +833,12 @@ namespace netxs::gui
             //                                   .glyphIndices = gindex.data() };
             text_utf16.clear();
             utf::to_utf(codepoints, text_utf16);
-            auto text_count = (ui32)text_utf16.size();
-            auto glyf_count = 3 * text_count / 2 + 16;
+            auto wide_count = (ui32)text_utf16.size();
+            auto glyf_count = 3 * wide_count / 2 + 16;
             glyf_index.resize(glyf_count);
             glyf_props.resize(glyf_count);
-            text_props.resize(text_count);
-            clustermap.resize(text_count);
+            text_props.resize(wide_count);
+            clustermap.resize(wide_count);
 
             //todo make it configurable (and face_inst based)
             //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
@@ -846,9 +846,9 @@ namespace netxs::gui
             //auto feat_table = features.data();
             auto script = unidata::script(codepoints.front().cdpoint);
             auto is_rtl = script >= 100 && script <= 199;
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = font::msscript(script) };
+            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = fonts::msscript(script) };
             auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
-                                                 text_count,              //UINT32 textLength,
+                                                 wide_count,              //UINT32 textLength,
                                                  face_inst,               //_In_ IDWriteFontFace* fontFace,
                                                  faux,                    //BOOL isSideways,
                                                  is_rtl,                  //BOOL isRightToLeft,
@@ -856,7 +856,7 @@ namespace netxs::gui
                                                  fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                                                  nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
                                                  nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                 &text_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                 &wide_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
                                                  0,//f.features.size(),   //UINT32 featureRanges,
                                                  glyf_count,              //UINT32 maxGlyphCount,
                                                  clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
@@ -884,7 +884,7 @@ namespace netxs::gui
             hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
                                                      clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
                                                      text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                                                     text_count,              // UINT32 textLength,
+                                                     wide_count,              // UINT32 textLength,
                                                      glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
                                                      glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
                                                      glyf_count,              // UINT32 glyphCount,
@@ -895,7 +895,7 @@ namespace netxs::gui
                                                      &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                                                      fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
                                                      nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                     &text_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                     &wide_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
                                                      0,//f.features.size(),   // UINT32 featureRanges,
                                                      glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                                                      glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
@@ -938,18 +938,18 @@ namespace netxs::gui
                 for (auto& [h, v] : glyf_align) h *= k;
                 k = 1.f;
             }
-            if (glyfalignment.x != snap::none && actual_width < matrix.x)
+            if (charalignment.x != snap::none && actual_width < matrix.x)
             {
-                     if (glyfalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
-                else if (glyfalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
-                //else if (glyfalignment.x == snap::head  ) base_line.x = 0;
+                     if (charalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                else if (charalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
+                //else if (charalignment.x == snap::head  ) base_line.x = 0;
             }
-            if (glyfalignment.y != snap::none && actual_height < matrix.y)
+            if (charalignment.y != snap::none && actual_height < matrix.y)
             {
                 base_line.y *= k;
-                     if (glyfalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
-                else if (glyfalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
-                //else if (glyfalignment.y == snap::head  ) base_line.y *= k;
+                     if (charalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
+                else if (charalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
+                //else if (charalignment.y == snap::head  ) base_line.y *= k;
             }
             auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = face_inst,
                                                .fontEmSize    = em_height,
@@ -1110,7 +1110,7 @@ namespace netxs::gui
                 glyph_mask.type == sprite::color ? xform(irgb{}) : xform(byte{});
             }
         }
-        void draw_glyf(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
+        void draw_glyph(auto& canvas, sprite& glyph_mask, twod offset, argb fgc)
         {
             auto box = glyph_mask.area.shift(offset);
             auto f_fgc = irgb{ fgc }.sRGB2Linear();
@@ -1226,7 +1226,7 @@ namespace netxs::gui
                     auto offset = placeholder.coor;
                     auto fract4 = wavy_raster.area.size.x - cellsz.x; // synthetic::wavyunderline has a bump at the beginning to synchronize the texture offset.
                     offset.x -= netxs::grid_mod(offset.x, fract4);
-                    draw_glyf(target, wavy_raster, offset, color);
+                    draw_glyph(target, wavy_raster, offset, color);
                 }
                 else
                 {
@@ -1249,8 +1249,8 @@ namespace netxs::gui
             }
             if (c.xy() == 0) return;
             auto token = c.tkn() & ~3; // Clear first two bits for font style.
-            if (c.itc()) token |= font::style::italic;
-            if (c.bld()) token |= font::style::bold;
+            if (c.itc()) token |= fonts::style::italic;
+            if (c.bld()) token |= fonts::style::bold;
             auto iter = glyphs.find(token);
             if (iter == glyphs.end())
             {
@@ -1267,17 +1267,17 @@ namespace netxs::gui
             auto [w, h, x, y] = c.whxy();
             if (x == 0 || y == 0) return;
             auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
-            draw_glyf(target, glyph_mask, offset, fgc);
+            draw_glyph(target, glyph_mask, offset, fgc);
         }
     };
 
 #else
 
-    struct font
+    struct fonts
     {
         twod cellsize;
         std::list<text> families;
-        font(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/)
         { }
         void set_fonts(std::list<text>&, bool)
         {
@@ -1288,10 +1288,10 @@ namespace netxs::gui
             //...
         }
     };
-    struct glyf
+    struct glyph
     {
         si32 aamode{};
-        glyf(font& /*fcache*/ , bool /*aamode*/)
+        glyph(fonts& /*fcache*/ , bool /*aamode*/)
         { }
         void reset()
         {
@@ -1319,6 +1319,8 @@ namespace netxs::gui
         using grip = netxs::misc::szgrips;
         using s11n = netxs::directvt::binary::s11n;
         using b256 = std::array<byte, 256>;
+        using title = ui::pro::title;
+        using focus = ui::pro::focus;
 
         struct keystate
         {
@@ -1807,58 +1809,57 @@ namespace netxs::gui
             }
         };
 
-        ui::face head_grid;
-        ui::face foot_grid;
-        ui::pro::title titles; // winbase: .
-        ui::pro::focus wfocus; // winbase: .
-        surface master; // winbase: Surface index for Client.
-        surface blinky; // winbase: Surface index for blinking characters.
-        surface header; // winbase: Surface index for Header.
-        surface footer; // winbase: Surface index for Footer.
-        font fcache; // winbase: Font cache.
-        glyf gcache; // winbase: Glyph cache.
+        title titles; // winbase: UI header/footer.
+        focus wfocus; // winbase: UI focus.
+        layer master; // winbase: Surface index for Client.
+        layer blinky; // winbase: Surface index for blinking characters.
+        layer header; // winbase: Surface index for Header.
+        layer footer; // winbase: Surface index for Footer.
+        fonts fcache; // winbase: Font cache.
+        glyph gcache; // winbase: Glyph cache.
         twod& cellsz; // winbase: Cell size in pixels.
-        si32 origsz; // winbase: Original cell size in pixels.
-        fp32 height; // winbase: Cell height in fp32 pixels.
-        twod gripsz; // winbase: Resizing grips size in pixels.
-        twod gridsz; // winbase: Window grid size in cells.
-        dent border; // winbase: Border around window for resizing grips (dent in pixels).
-        shad shadow; // winbase: Shadow generator.
-        grip szgrip; // winbase: Resizing grips UI-control.
-        twod mcoord; // winbase: Mouse cursor coord.
-        twod waitsz; // winbase: Window is waiting resize acknowledge.
-        bool inside; // winbase: Mouse is inside the client area.
-        bool seized; // winbase: Mouse is locked inside the client area.
-        bool mhover; // winbase: Mouse hover.
-        bool moving; // winbase: Window is in d_n_d state.
-        bool redraw; // winbase: Canvas is out of sync during minimization.
-        si32 fsmode; // winbase: Window size state.
-        rect normsz; // winbase: Non-fullscreen window area backup.
-        si32 reload; // winbase: Changelog for update.
-        rect grip_l; // winbase: .
-        rect grip_r; // winbase: .
-        rect grip_t; // winbase: .
-        rect grip_b; // winbase: .
-        bool drop_shadow{ true }; // winbase: .
-        span blinkrate; // winbase: .
-        bool blinking; // winbase: .
-        evnt stream; // winbase: .
-        fp32 wheel_accum = {}; // winbase: Local mouse wheel accumulator.
-        fp32 accumfp = {}; // winbase: Mouse wheel accumulator.
-        flag isbusy = {}; // winbase: The window is awaiting update.
-        twod full_cellsz; // winbase: Cell size for fullscreen mode.
-        twod norm_cellsz; // winbase: Cell size for normal mode.
-        regs inputfield_list; // winbase: Text input field list.
-        foci multifocus; // winbase: Multi-focus control.
-        fp32 os_wheel_delta = 24.f; // winbase: OS-wise mouse wheel setting.
-        si32 mouse_capture_state = {}; // winbase: Mouse capture owners bitfield.
-        b256 kbstate = {}; // winbase: Keyboard virtual keys state.
-        si32 kbmod = {}; // winbase: Keyboard modifiers state.
-        byts blink_mask; // winbase: .
-        si32 blink_count{}; // winbase: .
-        twod wincoord; // winbase: .
-        twod gridsize; // winbase: .
-        arch winhnd; // winbase: Main window descriptor.
+        si32  origsz; // winbase: Original cell size in pixels.
+        fp32  height; // winbase: Cell height in fp32 pixels.
+        twod  gripsz; // winbase: Resizing grips size in pixels.
+        twod  gridsz; // winbase: Window grid size in cells.
+        dent  border; // winbase: Border around window for resizing grips (dent in pixels).
+        shad  shadow; // winbase: Shadow generator.
+        grip  szgrip; // winbase: Resizing grips UI-control.
+        twod  mcoord; // winbase: Mouse cursor coord.
+        twod  waitsz; // winbase: Window is waiting resize acknowledge.
+        bool  inside; // winbase: Mouse is inside the client area.
+        bool  seized; // winbase: Mouse is locked inside the client area.
+        bool  mhover; // winbase: Mouse hover.
+        bool  moving; // winbase: Window is in d_n_d state.
+        bool  redraw; // winbase: Canvas is out of sync during minimization.
+        si32  fsmode; // winbase: Window size state.
+        rect  normsz; // winbase: Non-fullscreen window area backup.
+        si32  reload; // winbase: Changelog for update.
+        face  h_grid; // winbase: Header layer cell representation.
+        face  f_grid; // winbase: Footer layer cell representation.
+        rect  grip_l; // winbase: Resizing grips left segment.
+        rect  grip_r; // winbase: Resizing grips right segment.
+        rect  grip_t; // winbase: Resizing grips top segment.
+        rect  grip_b; // winbase: Resizing grips bottom segment.
+        evnt  stream; // winbase: DirectVT event proxy.
+        flag  isbusy; // winbase: The window is awaiting update.
+        twod  fullcs; // winbase: Fullscreen mode cell size.
+        twod  normcs; // winbase: Normal mode cell size.
+        b256  vkstat; // winbase: Keyboard virtual keys state.
+        si32  keymod; // winbase: Keyboard modifiers state.
+        bool  drop_shadow; // winbase: GUI window shadow is allowed.
+        span  blinkrate; // winbase: .
+        bool  blinking; // winbase: .
+        fp32  wheel_accum; // winbase: Local mouse wheel accumulator.
+        fp32  accumfp; // winbase: Mouse wheel accumulator.
+        regs  inputfield_list; // winbase: Text input field list.
+        foci  multifocus; // winbase: GUI multi-focus control.
+        fp32  os_wheel_delta; // winbase: OS-wise mouse wheel setting.
+        si32  mouse_capture_state; // winbase: Mouse capture owners bitfield.
+        byts  blink_mask; // winbase: .
+        si32  blink_count; // winbase: .
+        twod  wincoord; // winbase: .
+        twod  gridsize; // winbase: .
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
@@ -1882,18 +1883,26 @@ namespace netxs::gui
               redraw{},
               fsmode{ state::undefined },
               reload{ task::all },
+              stream{ *this, *os::dtvt::client },
+              isbusy{ faux },
+              fullcs{ cellsz },
+              normcs{ cellsz },
+              vkstat{},
+              keymod{ 0x0 },
+              drop_shadow{ true },
               blinkrate{ blinkrate },
               blinking{ faux },
-              stream{ *this, *os::dtvt::client },
-              full_cellsz{ cellsz },
-              norm_cellsz{ cellsz },
+              wheel_accum{},
+              accumfp{},
+              os_wheel_delta{ 24.f },
+              mouse_capture_state{ 0x0 },
+              blink_count{ 0 },
               wincoord{ wincoord },
-              gridsize{ gridsize },
-              winhnd{}
+              gridsize{ gridsize }
         { }
 
-        virtual bool create_surface(surface& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
-        //virtual void delete_surface(surface& s) = 0;
+        virtual bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
+        //virtual void delete_layer(layer& s) = 0;
         virtual std::pair<si32, si32> keybd_read_key_event() = 0;
         virtual bool async_key_toggled(si32 virtkey) = 0;
         virtual bool focus_key_toggled(si32 virtkey) = 0;
@@ -1903,7 +1912,7 @@ namespace netxs::gui
         virtual void keybd_load_state() = 0;
         virtual void keybd_sync_layout() = 0;
         virtual void present_move() = 0;
-        virtual void present(surface& s) = 0;
+        virtual void present(layer& s) = 0;
         virtual void sync_taskbar(si32 new_state) = 0;
         virtual rect get_fs_area(rect window_area) = 0;
         virtual void send_command(arch target, si32 command, arch lParam = {}) = 0;
@@ -1921,9 +1930,9 @@ namespace netxs::gui
         virtual void close() = 0;
         virtual void destroy_window() = 0;
         virtual void sync_os_settings() = 0;
-        virtual void start_timer(surface& s, span elapse, ui32 eventid) = 0;
-        virtual void stop_timer(surface& s, ui32 eventid) = 0;
-        virtual bits get_canvas(surface& s, bool zeroize = faux) = 0;
+        virtual void start_timer(layer& s, span elapse, ui32 eventid) = 0;
+        virtual void stop_timer(layer& s, ui32 eventid) = 0;
+        virtual bits get_canvas(layer& s, bool zeroize = faux) = 0;
         virtual void set_window_title(view utf8) = 0;
         virtual void forward_keybd_input(view block) = 0;
         virtual bool client_animation() = 0;
@@ -1935,7 +1944,7 @@ namespace netxs::gui
         }
         void post_command(si32 command)
         {
-            if (winhnd) post_command(winhnd, command);
+            if (master.hWnd) post_command(master.hWnd, command);
         }
         auto ctrl_pressed()
         {
@@ -1946,11 +1955,11 @@ namespace netxs::gui
         {
             return async_key_pressed(vkey::lbutton);
         }
-        void print_kbstate(text s)
+        void print_vkstat(text s)
         {
             s += "\n"s;
             auto i = 0;
-            for (auto k : kbstate)
+            for (auto k : vkstat)
             {
                      if (k == 0x80) s += ansi::fgc(tint::greenlt);
                 else if (k == 0x01) s += ansi::fgc(tint::yellowlt);
@@ -1970,14 +1979,14 @@ namespace netxs::gui
         void sync_header_pixel_layout()
         {
             auto base_rect = blinky.area;
-            auto header_height = head_grid.size().y * cellsz.y;
+            auto header_height = h_grid.size().y * cellsz.y;
             header.area = base_rect + dent{ 0, 0, header_height, -base_rect.size.y } + shadow_dent;
             header.area.coor.y -= shadow_dent.b;
         }
         void sync_footer_pixel_layout()
         {
             auto base_rect = blinky.area;
-            auto footer_height = foot_grid.size().y * cellsz.y;
+            auto footer_height = f_grid.size().y * cellsz.y;
             footer.area = base_rect + dent{ 0, 0, -base_rect.size.y, footer_height } + shadow_dent;
             footer.area.coor.y += shadow_dent.t;
         }
@@ -2002,8 +2011,8 @@ namespace netxs::gui
         }
         void sync_cellsz()
         {
-            full_cellsz = cellsz;
-            if (fsmode != state::maximized) norm_cellsz = cellsz;
+            fullcs = cellsz;
+            if (fsmode != state::maximized) normcs = cellsz;
         }
         void change_cell_size(bool forced = true, fp32 dy = {}, twod resize_center = {})
         {
@@ -2043,13 +2052,13 @@ namespace netxs::gui
         }
         void update_header()
         {
-            size_title(head_grid, titles.head_page);
+            size_title(h_grid, titles.head_page);
             sync_titles_pixel_layout();
             netxs::set_flag<task::header>(reload);
         }
         void update_footer()
         {
-            size_title(foot_grid, titles.foot_page);
+            size_title(f_grid, titles.foot_page);
             sync_titles_pixel_layout();
             netxs::set_flag<task::footer>(reload);
         }
@@ -2086,11 +2095,11 @@ namespace netxs::gui
                 for (auto p : { &master, &header, &footer }) p->show();
                 if (blink_count) blinky.show();
                 master.area = normsz;
-                if (auto celldt = (fp32)(norm_cellsz.y - cellsz.y))
+                if (auto celldt = (fp32)(normcs.y - cellsz.y))
                 {
                     auto grip_cell = gripsz / cellsz;
-                    auto prev_gripsz = grip_cell * norm_cellsz;
-                    gridsz = (normsz.size - dent{ prev_gripsz.x, prev_gripsz.x, prev_gripsz.y, prev_gripsz.y }) / norm_cellsz; // Restore normal mode gridsz.
+                    auto prev_gripsz = grip_cell * normcs;
+                    gridsz = (normsz.size - dent{ prev_gripsz.x, prev_gripsz.x, prev_gripsz.y, prev_gripsz.y }) / normcs; // Restore normal mode gridsz.
                     change_cell_size(faux, celldt);
                 }
                 else border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
@@ -2108,7 +2117,7 @@ namespace netxs::gui
                 footer.hide();
                 master.show();
                 if (blink_count) blinky.show();
-                if (auto celldt = (fp32)(full_cellsz.y - cellsz.y))
+                if (auto celldt = (fp32)(fullcs.y - cellsz.y))
                 {
                     change_cell_size(faux, celldt);
                 }
@@ -2212,8 +2221,8 @@ namespace netxs::gui
             master.area = blinky.area + border;
             if (fsmode != state::maximized)
             {
-                size_title(head_grid, titles.head_page);
-                size_title(foot_grid, titles.foot_page);
+                size_title(h_grid, titles.head_page);
+                size_title(f_grid, titles.foot_page);
                 sync_titles_pixel_layout();
             }
             if (sizechanged)
@@ -2394,15 +2403,15 @@ namespace netxs::gui
                 }
             }
         }
-        void draw_title(surface& s, auto& facedata) //todo just output ui::core
+        void draw_title(layer& s, auto& facedata) //todo just output ui::core
         {
             auto canvas = get_canvas(s, true);
             fill_grid(canvas, facedata, shadow_dent.corner());
             netxs::misc::contour(canvas); // 1ms
             s.strike<true>(canvas.area());
         }
-        void draw_header() { draw_title(header, head_grid); }
-        void draw_footer() { draw_title(footer, foot_grid); }
+        void draw_header() { draw_title(header, h_grid); }
+        void draw_footer() { draw_title(footer, f_grid); }
         void check_blinky()
         {
             auto changed = std::exchange(blinking, !!blink_count) != blinking;
@@ -2467,7 +2476,7 @@ namespace netxs::gui
         }
         auto get_mods_state()
         {
-            if (multifocus.focused()) return kbmod;
+            if (multifocus.focused()) return keymod;
             else
             {
                 auto state = 0;
@@ -2755,7 +2764,7 @@ namespace netxs::gui
             if (focus_key_pressed(vkey::rwin    )) state |= input::hids::RWin;
             if (focus_key_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                                   mouse_release(by::keybd);
-            auto changed = std::exchange(kbmod, state) != kbmod;
+            auto changed = std::exchange(keymod, state) != keymod;
             auto pressed = keystat == keystate::pressed;
             auto repeated = keystat == keystate::repeated;
             auto repeat_ctrl = repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
@@ -2764,11 +2773,11 @@ namespace netxs::gui
             if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
             else
             {
-                if (changed || stream.k.ctlstat != kbmod)
+                if (changed || stream.k.ctlstat != keymod)
                 {
-                    stream.gears->ctlstate = kbmod;
-                    stream.k.ctlstat = kbmod;
-                    stream.m.ctlstat = kbmod;
+                    stream.gears->ctlstate = keymod;
+                    stream.k.ctlstat = keymod;
+                    stream.m.ctlstat = keymod;
                     stream.m.timecod = datetime::now();
                     stream.m.changed++;
                     stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
@@ -2897,10 +2906,10 @@ namespace netxs::gui
                 }
                 else if (command == ipc::pass_state) // Keybd state.
                 {
-                    if (data.len == sizeof(kbstate))
+                    if (data.len == sizeof(vkstat))
                     {
                         auto state_data = std::span<byte>{ (byte*)data.ptr, data.len };
-                        std::copy(state_data.begin(), state_data.end(), kbstate.begin());
+                        std::copy(state_data.begin(), state_data.end(), vkstat.begin());
                     }
                 }
                 else if (command == ipc::pass_input) // Keybd input.
@@ -2909,9 +2918,9 @@ namespace netxs::gui
                     auto keybd = input::syskeybd{};
                     if (keybd.load(input_data))
                     {
-                        kbmod = keybd.ctlstat;
-                        stream.m.ctlstat = kbmod;
-                        stream.k.ctlstat = kbmod;
+                        keymod = keybd.ctlstat;
+                        stream.m.ctlstat = keymod;
+                        stream.k.ctlstat = keymod;
                         stream.k.payload = keybd.payload;
                         stream.k.extflag = keybd.extflag;
                         stream.k.virtcod = keybd.virtcod;
@@ -2972,7 +2981,7 @@ namespace netxs::gui
         }
         void focus_event(bool new_focus_state)
         {
-            auto local_target = (ui32)winhnd;
+            auto local_target = (ui32)master.hWnd;
             if (auto [changed, target_list] = multifocus.set_focus(local_target, new_focus_state); changed)
             {
                 if (new_focus_state)
@@ -3050,14 +3059,13 @@ namespace netxs::gui
             set_dpi_awareness();
             sync_os_settings();
             if (!client_animation()) blinkrate = span::zero();
-            if (!(create_surface(master, this, wincoord, gridsize, border, cellsz)
-               && create_surface(blinky)
-               && create_surface(header)
-               && create_surface(footer))) return;
+            if (!(create_layer(master, this, wincoord, gridsize, border, cellsz)
+               && create_layer(blinky)
+               && create_layer(header)
+               && create_layer(footer))) return;
             else
             {
                 auto lock = bell::sync();
-                winhnd = master.hWnd;
                 normsz = master.area;
                 size_window();
                 set_state(win_state);
@@ -3122,7 +3130,7 @@ namespace netxs::gui
                 close(); // Interrupt dispatching.
             }};
             dispatch();
-            //for (auto p : { &master, &blinky, &footer, &header }) delete_surface(*p);
+            //for (auto p : { &master, &blinky, &footer, &header }) delete_layer(*p);
             stream.intio.shut(); // Close link to server. Interrupt binary reading loop.
             bell::dequeue(); // Clear task queue.
             winio.join();
@@ -3342,7 +3350,7 @@ namespace netxs::gui
             STDMETHODIMP GetACPFromPoint(POINT const* /*ptScreen*/, DWORD /*dwFlags*/, LONG* /*pacp*/) { return E_NOTIMPL; }
             STDMETHODIMP GetWnd(HWND* phwnd)
             {
-                *phwnd = (HWND)owner.winhnd;
+                *phwnd = (HWND)owner.master.hWnd;
                 return S_OK;
             }
             STDMETHODIMP GetStatus(TF_STATUS* pdcs)
@@ -3463,7 +3471,7 @@ namespace netxs::gui
               winmsg{}
         { }
 
-        bits get_canvas(surface& s, bool zeroize = faux)
+        bits get_canvas(layer& s, bool zeroize = faux)
         {
             if (s.hdc && s.area)
             {
@@ -3505,7 +3513,7 @@ namespace netxs::gui
             s.data.move(s.area.coor);
             return s.data;
         }
-        void delete_surface(surface& s) // We don't use custom copy/move ctors here.
+        void delete_layer(layer& s) // We don't use custom copy/move ctors here.
         {
             if (s.hdc)
             {
@@ -3514,7 +3522,7 @@ namespace netxs::gui
             }
             for (auto eventid : s.klok) ::KillTimer((HWND)s.hWnd, eventid);
         }
-        void start_timer(surface& s, span elapse, ui32 eventid)
+        void start_timer(layer& s, span elapse, ui32 eventid)
         {
             if (eventid)
             {
@@ -3522,7 +3530,7 @@ namespace netxs::gui
                 ::SetCoalescableTimer((HWND)s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
             }
         }
-        void stop_timer(surface& s, ui32 eventid)
+        void stop_timer(layer& s, ui32 eventid)
         {
             auto iter = std::find(s.klok.begin(), s.klok.end(), eventid);
             if (iter != s.klok.end())
@@ -3543,7 +3551,7 @@ namespace netxs::gui
             ::EndDeferWindowPos(lock);
         }
         //todo static
-        void present(surface& s)
+        void present(layer& s)
         {
             if (!s.hdc) return;
             auto windowmoved = s.prev.coor(s.live ? s.area.coor : s.hidden);
@@ -3593,9 +3601,9 @@ namespace netxs::gui
             }
             s.sync.clear();
         }
-        void set_window_title(view utf8) { ::SetWindowTextW((HWND)winhnd, utf::to_utf(utf8).data()); }
-        bool focus_key_pressed(si32 virtkey) { return !!(kbstate[virtkey] & 0x80); }
-        bool focus_key_toggled(si32 virtkey) { return !!(kbstate[virtkey] & 0x01); }
+        void set_window_title(view utf8) { ::SetWindowTextW((HWND)master.hWnd, utf::to_utf(utf8).data()); }
+        bool focus_key_pressed(si32 virtkey) { return !!(vkstat[virtkey] & 0x80); }
+        bool focus_key_toggled(si32 virtkey) { return !!(vkstat[virtkey] & 0x01); }
         //todo static
         bool async_key_pressed(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x8000); }
         bool async_key_toggled(si32 virtkey) { return !!(::GetAsyncKeyState(virtkey) & 0x0001); }
@@ -3649,7 +3657,7 @@ namespace netxs::gui
                 auto c = toWIDE.back();
                 if (c >= 0xd800 && c <= 0xdbff) return std::pair{ keystate::unknown, virtcod }; // Incomplete surrogate pair in VT_PACKET stream.
             }
-            ::GetKeyboardState(kbstate.data()); // Sync with thread kb state.
+            ::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
             if (keytype != 2) // Do not notify dead keys.
             {
                 toUTF8.clear();
@@ -3661,14 +3669,14 @@ namespace netxs::gui
                         keybd_send_state({}, keystat, virtcod, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         toWIDE.clear();
-                        //print_kbstate("Alt+Numpad");
+                        //print_vkstat("Alt+Numpad");
                         return std::pair{ keystat, virtcod };
                     }
                 }
                 keybd_send_state(toUTF8, keystat, virtcod, scancod, extflag);
             }
             toWIDE.clear();
-            //print_kbstate("keybd_read_key_event");
+            //print_vkstat("keybd_read_key_event");
             return std::pair{ keystat, virtcod };
         }
         void dispatch()
@@ -3693,34 +3701,34 @@ namespace netxs::gui
         }
         void keybd_sync_state()
         {
-            ::GetKeyboardState(kbstate.data());
+            ::GetKeyboardState(vkstat.data());
             keybd_send_state();
-            //print_kbstate("keybd_sync_state");
+            //print_vkstat("keybd_sync_state");
         }
         void keybd_load_state() // Loading without sending. Will be sent after the focus bus is turned on.
         {
-            ::GetKeyboardState(kbstate.data());
+            ::GetKeyboardState(vkstat.data());
             multifocus.offer = !multifocus.buson && ctrl_pressed(); // Check if we are focused by Ctrl+AnyClick to ignore that click.
-            //print_kbstate("keybd_load_state");
+            //print_vkstat("keybd_load_state");
             tslink.set_focus();
         }
         void keybd_wipe_state()
         {
-            auto n = kbstate[vkey::numlock ];
-            auto c = kbstate[vkey::capslock];
-            auto s = kbstate[vkey::scrllock];
-            auto k = kbstate[vkey::kana    ];
-            auto r = kbstate[vkey::oem_roya];
-            auto l = kbstate[vkey::oem_loya];
-            kbstate = {}; // Keep keybd locks only.
-            kbstate[vkey::numlock ] = n;
-            kbstate[vkey::capslock] = c;
-            kbstate[vkey::scrllock] = s;
-            kbstate[vkey::kana    ] = k;
-            kbstate[vkey::oem_roya] = r;
-            kbstate[vkey::oem_loya] = l;
-            ::SetKeyboardState(kbstate.data()); // Sync thread kb state.
-            //print_kbstate("deactivate");
+            auto n = vkstat[vkey::numlock ];
+            auto c = vkstat[vkey::capslock];
+            auto s = vkstat[vkey::scrllock];
+            auto k = vkstat[vkey::kana    ];
+            auto r = vkstat[vkey::oem_roya];
+            auto l = vkstat[vkey::oem_loya];
+            vkstat = {}; // Keep keybd locks only.
+            vkstat[vkey::numlock ] = n;
+            vkstat[vkey::capslock] = c;
+            vkstat[vkey::scrllock] = s;
+            vkstat[vkey::kana    ] = k;
+            vkstat[vkey::oem_roya] = r;
+            vkstat[vkey::oem_loya] = l;
+            ::SetKeyboardState(vkstat.data()); // Sync thread kb state.
+            //print_vkstat("deactivate");
         }
         void keybd_sync_layout()
         {
@@ -3731,17 +3739,17 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void do_focus()                 { ::SetFocus((HWND)winhnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        void do_set_foreground_window() { ::SetForegroundWindow((HWND)winhnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void do_expose()                { ::SetWindowPos((HWND)winhnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void close()                    { ::SendMessageW((HWND)winhnd, WM_CLOSE, NULL, NULL); }
-        void destroy_window()           { ::RemoveClipboardFormatListener((HWND)winhnd); ::PostQuitMessage(0); }
+        void do_focus()                 { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void do_set_foreground_window() { ::SetForegroundWindow((HWND)master.hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void do_expose()                { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void close()                    { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
+        void destroy_window()           { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         twod get_pointer_coor()         { return twod{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(mouse_capture_state, mouse_capture_state | captured_by))
             {
-                ::SetCapture((HWND)winhnd);
+                ::SetCapture((HWND)master.hWnd);
                 if constexpr (debug_foci) log("captured by ", captured_by == by::mouse ? "mouse" : "keybd");
             }
         }
@@ -3766,7 +3774,7 @@ namespace netxs::gui
                 auto data = COPYDATASTRUCT{ .dwData = ipc::make_offer,
                                             .cbData = (DWORD)(target_list.size() * sizeof(ui32)),
                                             .lpData = (void*)target_list.data() };
-                auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)winhnd, (LPARAM)&data);
+                auto rc = ::SendMessageW(target, WM_COPYDATA, (WPARAM)master.hWnd, (LPARAM)&data);
                 if constexpr (debug_foci)
                 {
                     if (rc == ipc::make_offer) log(ansi::clr(greenlt, "Group focus offer accepted by hwnd=", utf::to_hex(target)));
@@ -3778,8 +3786,8 @@ namespace netxs::gui
         void forward_keybd_input(view block)
         {
             auto target_list = multifocus.copy();
-            auto local_hwnd = (ui32)winhnd;
-            auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)kbstate.size(), .lpData = (void*)kbstate.data() };
+            auto local_hwnd = (ui32)master.hWnd;
+            auto state_data = COPYDATASTRUCT{ .dwData = ipc::pass_state, .cbData = (DWORD)vkstat.size(), .lpData = (void*)vkstat.data() };
             auto input_data = COPYDATASTRUCT{ .dwData = ipc::pass_input, .cbData = (DWORD)block.size(),   .lpData = (void*)block.data() };
             for (auto target : target_list) // Send to group focused targets.
             {
@@ -3795,16 +3803,16 @@ namespace netxs::gui
         {
             if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             {
-                ::ShowWindow((HWND)winhnd, SW_MINIMIZE);
+                ::ShowWindow((HWND)master.hWnd, SW_MINIMIZE);
             }
             else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
             {
                 //todo It doesn't work that way. Sync with system ctx menu.
-                //auto ctxmenu = ::GetSystemMenu((HWND)winhnd, FALSE);
+                //auto ctxmenu = ::GetSystemMenu((HWND)master.hWnd, FALSE);
                 //::EnableMenuItem(ctxmenu, SC_RESTORE, MF_CHANGE | MF_ENABLED);
                 //::EnableMenuItem(ctxmenu, SC_MAXIMIZE, MF_CHANGE | MF_GRAYED);
             }
-            else ::ShowWindow((HWND)winhnd, SW_RESTORE);
+            else ::ShowWindow((HWND)master.hWnd, SW_RESTORE);
         }
         void sync_os_settings()
         {
@@ -3816,7 +3824,7 @@ namespace netxs::gui
         {
             // Customize system ctx menu.
             auto closecmd = wide(100, '\0');
-            auto ctxmenu = ::GetSystemMenu((HWND)winhnd, FALSE);
+            auto ctxmenu = ::GetSystemMenu((HWND)master.hWnd, FALSE);
             auto datalen = ::GetMenuStringW(ctxmenu, SC_CLOSE, closecmd.data(), (si32)closecmd.size(), MF_BYCOMMAND);
             closecmd.resize(datalen);
             auto temp = utf::to_utf(closecmd);
@@ -3829,7 +3837,7 @@ namespace netxs::gui
             // The first ShowWindow() call ignores SW_SHOW.
             auto mode = SW_SHOW;
             for (auto p : { &master, &blinky, &footer, &header }) ::ShowWindow((HWND)p->hWnd, std::exchange(mode, SW_SHOWNA));
-            ::AddClipboardFormatListener((HWND)winhnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
+            ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
         }
 
@@ -3862,7 +3870,7 @@ namespace netxs::gui
                 //if (hr != S_OK || hr != E_ACCESSDENIED) log("%%Set DPI awareness failed %hr% %ec%", prompt::gui, utf::to_hex(hr), ::GetLastError());
             }
         }
-        bool create_surface(surface& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
+        bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {})
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -3997,10 +4005,10 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
-        bool create_surface(surface& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
-        //void delete_surface(surface& /*s*/) {}
-        bool focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x80);*/ }
-        bool focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(kbstate[virtkey] & 0x01);*/ }
+        bool create_layer(layer& s, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
+        //void delete_layer(layer& /*s*/) {}
+        bool focus_key_pressed(si32 /*virtkey*/) { return true; /*!!(vkstat[virtkey] & 0x80);*/ }
+        bool focus_key_toggled(si32 /*virtkey*/) { return true; /*!!(vkstat[virtkey] & 0x01);*/ }
         bool async_key_pressed(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x8000);*/ }
         bool async_key_toggled(si32 /*virtkey*/) { return true; /*!!(::GetAsyncKeyState(virtkey) & 0x0001);*/ }
         std::pair<si32, si32> keybd_read_key_event() { return std::pair{ keystate::pressed, vkey::enter }; }
@@ -4008,7 +4016,7 @@ namespace netxs::gui
         void keybd_load_state() {}
         void keybd_sync_layout() {}
         void present_move() {}
-        void present(surface& /*s*/) {}
+        void present(layer& /*s*/) {}
         void sync_taskbar(si32 /*new_state*/) {}
         rect get_fs_area(rect window_area) { return window_area; }
         void send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
@@ -4026,9 +4034,9 @@ namespace netxs::gui
         void close() {}
         void destroy_window() {}
         void sync_os_settings() {}
-        void start_timer(surface& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
-        void stop_timer(surface& /*s*/, ui32 /*eventid*/) {}
-        bits get_canvas(surface& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
+        void start_timer(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void stop_timer(layer& /*s*/, ui32 /*eventid*/) {}
+        bits get_canvas(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
         void set_window_title(view /*utf8*/) {}
         void forward_keybd_input(view /*block*/) {}
         bool client_animation() { return true; }
