@@ -1,5 +1,35 @@
 # Text-based Desktop Environment Architecture
 
+- [Process Model](#process-model)
+- [Runtime Modes](#runtimemodes)
+- [Desktop Applets](#desktopapplets)
+- [TUI Modes](#tui-modes)
+  - [DirectVT](#directvt)
+  - [ANSI/VT](#ansivt)
+    - [Input](#input)
+      - [Unix input sources](#unix-input-sources)
+      - [MS Windows input sources](#ms-windows-input-sources)
+    - [Output](#output)
+- [Desktop Structure](#desktop-structure)
+  - [Desktop Objects](#desktop-objects)
+- [Usage scenarios](#usage-scenarios)
+  - [Local usage](#local-usage)
+    - [Run vtm desktop](#run-vtm-desktop)
+    - [Run Terminal Console standalone](#run-terminal-console-standalone)
+    - [Run a CUI application standalone](#run-a-cui-application-standalone)
+    - [Run a CUI application inside the Terminal Console](#run-a-cui-application-inside-the-terminal-console)
+  - [Remote access](#remote-access)
+    - [Run a standalone CUI application remotely over SSH](#run-a-standalone-cui-application-remotely-over-ssh)
+    - [Run remote vtm desktop in DirectVT mode over SSH](#run-remote-vtm-desktop-in-directvt-mode-over-ssh)
+    - [Run remote vtm desktop in ANSI/VT mode over SSH](#run-remote-vtm-desktop-in-ansivt-mode-over-ssh)
+    - [Run remote vtm desktop in DirectVT mode using netcat](#run-remote-vtm-desktop-in-directvt-mode-using-netcat-posix-only-unencrypted-for-private-use-only)
+    - [Run remote vtm desktop in DirectVT mode using inetd + ncat](#run-remote-vtm-desktop-in-directvt-mode-using-inetd--ncat-posix-only-unencrypted-for-private-use-only)
+    - [Local standard I/O redirection using socat](#local-standard-io-redirection-using-socat-posix-only)
+  - [Standard I/O stream monitoring](#standard-io-stream-monitoring)
+- [Desktop taskbar customization](#desktop-taskbar-customization)
+- [Desktop Live Panel](panel.md)
+- [Desktop objects / Built-in applications](apps.md)
+
 ## Process Model
 
 ```mermaid
