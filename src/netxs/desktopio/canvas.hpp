@@ -2352,6 +2352,7 @@ namespace netxs
         {
             T  bitmap{};
             bool sync{};
+            bool hide{};
             twod over{};
             twod step{};
 
