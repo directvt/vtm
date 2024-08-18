@@ -566,8 +566,8 @@ namespace netxs::app::shared
                 }
             }
             auto event_domain = netxs::events::auth{};
-            auto window = event_domain.create<gui::window>(event_domain, wincoord, gridsize, fontlist, cellsize, aliasing, blinking);
-            window->connect(winstate);
+            auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
+            window->connect(winstate, wincoord, gridsize);
         }
     }
     void start(text cmd, text aclass, xmls& config)

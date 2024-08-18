@@ -36,8 +36,8 @@ namespace netxs::gui
 
         using tset = std::list<ui32>;
 
-        arch  hdc; // layer: Surface bitmap handle.
-        arch hWnd; // layer: Host window handle.
+        arch  hdc; // layer: Layer bitmap handle.
+        arch hWnd; // layer: Hosting OS window handle.
         rect prev; // layer: Last presented layer area.
         rect area; // layer: Current layer area.
         bits data; // layer: Layer bitmap.
@@ -1153,7 +1153,7 @@ namespace netxs::gui
             }
         }
         template<class T = noop>
-        void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blinks = {})
+        void draw_cell(auto& canvas, rect placeholder, cell const& c, T&& blink_canvas = {})
         {
             placeholder.trimby(canvas.area());
             if (!placeholder) return;
@@ -1170,11 +1170,11 @@ namespace netxs::gui
             {
                 if (c.blk())
                 {
-                    target_ptr = &blinks;
-                    blinks.clip(placeholder);
+                    target_ptr = &blink_canvas;
+                    blink_canvas.clip(placeholder);
                     if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
                     {
-                        netxs::onclip(canvas, blinks, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
+                        netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
                     }
                 }
                 else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
@@ -1302,7 +1302,7 @@ namespace netxs::gui
             //...
         }
         template<class T = noop>
-        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blinks*/ = {})
+        void draw_cell(auto& /*canvas*/, rect /*placeholder*/, cell const& /*c*/, T&& /*blink_canvas*/ = {})
         {
             //...
         }
@@ -1322,6 +1322,16 @@ namespace netxs::gui
         using title = ui::pro::title;
         using focus = ui::pro::focus;
 
+        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
+        static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
+
+        struct blink
+        {
+            span rate{}; // blink: Blinking interval.
+            bool show{}; // blink: Blinking layer is active.
+            byts mask{}; // blink: Blinking cells map.
+            si32 poll{}; // blink: Blinking cells count.
+        };
         struct keystate
         {
             static constexpr auto _counter = __COUNTER__ + 1;
@@ -1811,12 +1821,13 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
-        layer master; // winbase: Surface index for Client.
-        layer blinky; // winbase: Surface index for blinking characters.
-        layer header; // winbase: Surface index for Header.
-        layer footer; // winbase: Surface index for Footer.
+        layer master; // winbase: Layer index for Client.
+        layer blinky; // winbase: Layer index for blinking characters.
+        layer header; // winbase: Layer index for Header.
+        layer footer; // winbase: Layer index for Footer.
         fonts fcache; // winbase: Font cache.
         glyph gcache; // winbase: Glyph cache.
+        blink blinks; // winbase: Blinking layer state.
         twod& cellsz; // winbase: Cell size in pixels.
         si32  origsz; // winbase: Original cell size in pixels.
         fp32  height; // winbase: Cell height in fp32 pixels.
@@ -1825,78 +1836,63 @@ namespace netxs::gui
         dent  border; // winbase: Border around window for resizing grips (dent in pixels).
         shad  shadow; // winbase: Shadow generator.
         grip  szgrip; // winbase: Resizing grips UI-control.
-        twod  mcoord; // winbase: Mouse cursor coord.
         twod  waitsz; // winbase: Window is waiting resize acknowledge.
+        twod  mcoord; // winbase: Mouse cursor coord.
         bool  inside; // winbase: Mouse is inside the client area.
         bool  seized; // winbase: Mouse is locked inside the client area.
         bool  mhover; // winbase: Mouse hover.
-        bool  moving; // winbase: Window is in d_n_d state.
-        bool  redraw; // winbase: Canvas is out of sync during minimization.
-        si32  fsmode; // winbase: Window size state.
-        rect  normsz; // winbase: Non-fullscreen window area backup.
-        si32  reload; // winbase: Changelog for update.
-        face  h_grid; // winbase: Header layer cell representation.
-        face  f_grid; // winbase: Footer layer cell representation.
-        rect  grip_l; // winbase: Resizing grips left segment.
-        rect  grip_r; // winbase: Resizing grips right segment.
-        rect  grip_t; // winbase: Resizing grips top segment.
-        rect  grip_b; // winbase: Resizing grips bottom segment.
-        evnt  stream; // winbase: DirectVT event proxy.
-        flag  isbusy; // winbase: The window is awaiting update.
-        twod  fullcs; // winbase: Fullscreen mode cell size.
-        twod  normcs; // winbase: Normal mode cell size.
+        bool  moving; // winbase: Mouse is in dragging window state.
+        bool  redraw; // winbase: Window canvas is out of sync during minimization.
+        flag  isbusy; // winbase: Window is awaiting update.
+        si32  reload; // winbase: Window update bitfield.
+        si32  fsmode; // winbase: Window mode.
+        rect  normsz; // winbase: Normal mode window area backup.
+        twod  fullcs; // winbase: Cell size for fullscreen mode.
+        twod  normcs; // winbase: Cell size for normal mode.
+        face  h_grid; // winbase: Header layer cell grid.
+        face  f_grid; // winbase: Footer layer cell grid.
+        rect  grip_l; // winbase: Resizing grips left segment area.
+        rect  grip_r; // winbase: Resizing grips right segment area.
+        rect  grip_t; // winbase: Resizing grips top segment area.
+        rect  grip_b; // winbase: Resizing grips bottom segment area.
         b256  vkstat; // winbase: Keyboard virtual keys state.
         si32  keymod; // winbase: Keyboard modifiers state.
         si32  heldby; // winbase: Mouse capture owners bitfield.
+        fp32  whlacc; // winbase: Mouse wheel accumulator.
+        fp32  wdelta; // winbase: Mouse wheel OS-wise setting.
         foci  mfocus; // winbase: GUI multi-focus control.
         regs  fields; // winbase: Text input field list.
-        span  blinkrate; // winbase: .
-        bool  blinking; // winbase: .
-        byts  blink_mask; // winbase: .
-        si32  blink_count; // winbase: .
-        fp32  wheel_accum; // winbase: Local mouse wheel accumulator.
-        fp32  accumfp; // winbase: Mouse wheel accumulator.
-        fp32  os_wheel_delta; // winbase: OS-wise mouse wheel setting.
-        twod  wincoord; // winbase: .
-        twod  gridsize; // winbase: .
+        evnt  stream; // winbase: DirectVT event proxy.
 
-        static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
-        static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
-
-        winbase(auth& indexer, twod wincoord, twod gridsize, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blinkrate, twod grip_cell = dot_21)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell = dot_21)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
               fcache{ font_names, cell_height },
               gcache{ fcache, antialiasing },
+              blinks{ .rate = blink_rate },
               cellsz{ fcache.cellsize },
               origsz{ fcache.cellsize.y },
               height{ (fp32)cellsz.y },
               gripsz{ grip_cell * cellsz },
               border{ gripsz.x, gripsz.x, gripsz.y, gripsz.y },
               shadow{ 0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full },
-              inside{},
-              seized{},
-              mhover{},
-              moving{},
-              redraw{},
-              fsmode{ state::undefined },
-              reload{ task::all },
-              stream{ *this, *os::dtvt::client },
+              inside{ faux },
+              seized{ faux },
+              mhover{ faux },
+              moving{ faux },
+              redraw{ faux },
               isbusy{ faux },
+              reload{ task::all },
+              fsmode{ state::undefined },
               fullcs{ cellsz },
               normcs{ cellsz },
               vkstat{},
               keymod{ 0x0 },
               heldby{ 0x0 },
-              blinkrate{ blinkrate },
-              blinking{ faux },
-              blink_count{ 0 },
-              wheel_accum{},
-              accumfp{},
-              os_wheel_delta{ 24.f },
-              wincoord{ wincoord },
-              gridsize{ gridsize }
+              whlacc{ 0.f },
+              wdelta{ 24.f },
+              stream{ *this, *os::dtvt::client }
         { }
 
         virtual bool create_layer(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -1938,7 +1934,7 @@ namespace netxs::gui
 
         void normalize_wheeldt(fp32& wheelfp)
         {
-            wheelfp /= wheel_delta_base / os_wheel_delta; // Disable system-wide acceleration.
+            wheelfp /= wheel_delta_base / wdelta; // Disable system-wide acceleration.
         }
         void post_command(si32 command)
         {
@@ -2091,7 +2087,7 @@ namespace netxs::gui
             if (fsmode == state::normal)
             {
                 for (auto p : { &master, &header, &footer }) p->show();
-                if (blink_count) blinky.show();
+                if (blinks.poll) blinky.show();
                 master.area = normsz;
                 if (auto celldt = (fp32)(normcs.y - cellsz.y))
                 {
@@ -2114,7 +2110,7 @@ namespace netxs::gui
                 header.hide();
                 footer.hide();
                 master.show();
-                if (blink_count) blinky.show();
+                if (blinks.poll) blinky.show();
                 if (auto celldt = (fp32)(fullcs.y - cellsz.y))
                 {
                     change_cell_size(faux, celldt);
@@ -2316,7 +2312,7 @@ namespace netxs::gui
             }
         }
         template<class T = noop>
-        void draw_cell_with_cursor(auto& canvas, rect placeholder, cell c, T&& blinks = {})
+        void draw_cell_with_cursor(auto& canvas, rect placeholder, cell c, T&& blink_canvas = {})
         {
             //todo hilight grapheme cluster.
             auto style = c.cur();
@@ -2327,25 +2323,25 @@ namespace netxs::gui
             if (style == text_cursor::block)
             {
                 c.fgc(fgcolor).bgc(bgcolor);
-                gcache.draw_cell(canvas, placeholder, c, blinks);
+                gcache.draw_cell(canvas, placeholder, c, blink_canvas);
             }
             else if (style == text_cursor::I_bar)
             {
-                gcache.draw_cell(canvas, placeholder, c, blinks);
+                gcache.draw_cell(canvas, placeholder, c, blink_canvas);
                 placeholder.size.x = width;
                 //todo draw glyph inside the cursor (respect blinking glyphs)
                 //c.fgc(fgcolor).bgc(bgcolor);
-                //gcache.draw_cell(canvas, placeholder, c, blinks);
+                //gcache.draw_cell(canvas, placeholder, c, blink_canvas);
                 netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
             }
             else if (style == text_cursor::underline)
             {
-                gcache.draw_cell(canvas, placeholder, c, blinks);
+                gcache.draw_cell(canvas, placeholder, c, blink_canvas);
                 placeholder.coor.y += cellsz.y - width;
                 placeholder.size.y = width;
                 c.fgc(fgcolor).bgc(bgcolor);
                 //todo draw glyph inside the cursor (respect blinking glyphs)
-                //gcache.draw_cell(canvas, placeholder, c, blinks);
+                //gcache.draw_cell(canvas, placeholder, c, blink_canvas);
                 netxs::onrect(canvas, placeholder, cell::shaders::full(bgcolor));
             }
         }
@@ -2372,19 +2368,19 @@ namespace netxs::gui
             auto prime_canvas = get_canvas(master);
             auto blink_canvas = get_canvas(blinky);
             auto origin = blink_canvas.coor();
-            auto blinks = blink_mask.begin() + offset;
+            auto iter = blinks.mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
             auto m = origin + blink_canvas.size();
             while (head != tail)
             {
                 auto& c = *head++;
-                auto& b = *blinks++;
+                auto& b = *iter++;
                 if (std::exchange(b, c.blk()) != b)
                 {
-                    if (b) blink_count++;
+                    if (b) blinks.poll++;
                     else
                     {
-                        blink_count--;
+                        blinks.poll--;
                         netxs::onrect(blink_canvas, p, cell::shaders::wipe);
                         blinky.strike(p);
                     }
@@ -2412,13 +2408,13 @@ namespace netxs::gui
         void draw_footer() { draw_title(footer, f_grid); }
         void check_blinky()
         {
-            auto changed = std::exchange(blinking, !!blink_count) != blinking;
+            auto changed = std::exchange(blinks.show, !!blinks.poll) != blinks.show;
             if (changed)
             {
-                if (blink_count)
+                if (blinks.poll)
                 {
-                    if (blinkrate != span::zero()) start_timer(master, blinkrate, timers::blink);
-                    else                           blinky.show();
+                    if (blinks.rate != span::zero()) start_timer(master, blinks.rate, timers::blink);
+                    else                             blinky.show();
                 }
                 else
                 {
@@ -2437,10 +2433,10 @@ namespace netxs::gui
             {
                 if (what == task::all)
                 {
-                    if (blink_count)
+                    if (blinks.poll)
                     {
-                        blink_count = 0;
-                        blink_mask.assign(gridsz.x * gridsz.y, 0);
+                        blinks.poll = 0;
+                        blinks.mask.assign(gridsz.x * gridsz.y, 0);
                         if(!blinky.resized()) // Manually zeroize blinking canvas if its size has not changed.
                         {
                             blinky.wipe();
@@ -2449,7 +2445,7 @@ namespace netxs::gui
                     }
                     else // Keep blink mask size in sync.
                     {
-                        blink_mask.resize(gridsz.x * gridsz.y);
+                        blinks.mask.resize(gridsz.x * gridsz.y);
                     }
                     auto bitmap_lock = stream.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
@@ -2497,11 +2493,11 @@ namespace netxs::gui
             if (ctrl_pressed())
             {
                 normalize_wheeldt(wheelfp); // Disable system-wide acceleration.
-                if (wheel_accum * wheelfp < 0.f) wheel_accum = 0.f; // Reset accumulator if the wheeling direction has changed.
-                wheel_accum += wheelfp;
+                if (whlacc * wheelfp < 0.f) whlacc = 0.f; // Reset accumulator if the wheeling direction has changed.
+                whlacc += wheelfp;
                 if (!isbusy.exchange(true))
                 {
-                    wheelfp = std::exchange(wheel_accum, 0.f);
+                    wheelfp = std::exchange(whlacc, 0.f);
                     auto zoom = [&, wheelfp, center = mcoord - master.area.coor]
                     {
                         change_cell_size(faux, wheelfp, center);
@@ -2517,11 +2513,11 @@ namespace netxs::gui
         {
             if (delta == 0) return;
             if (hz) delta = -delta;
-            auto wheelfp = delta / os_wheel_delta; // Same code in system.hpp.
-            if (accumfp * wheelfp < 0) accumfp = {}; // Reset accum if direction has changed.
-            accumfp += wheelfp;
-            auto wheelsi = (si32)accumfp;
-            if (wheelsi) accumfp -= (fp32)wheelsi;
+            auto wheelfp = delta / wdelta; // Same code in system.hpp.
+            if (whlacc * wheelfp < 0) whlacc = {}; // Reset accum if direction has changed.
+            whlacc += wheelfp;
+            auto wheelsi = (si32)whlacc;
+            if (wheelsi) whlacc -= (fp32)wheelsi;
 
             if (inside)
             {
@@ -2818,7 +2814,7 @@ namespace netxs::gui
             {
                 if (virtcod == vkey::control)
                 {
-                    wheel_accum = {};
+                    whlacc = {};
                 }
             }
             if (keystat == keystate::pressed)
@@ -3052,11 +3048,11 @@ namespace netxs::gui
                 f.coor += win_area.coor;
             }
         }
-        void connect(si32 win_state)
+        void connect(si32 win_state, twod wincoord, twod gridsize)
         {
             set_dpi_awareness();
             sync_os_settings();
-            if (!client_animation()) blinkrate = span::zero();
+            if (!client_animation()) blinks.rate = span::zero();
             if (!(create_layer(master, this, wincoord, gridsize, border, cellsz)
                && create_layer(blinky)
                && create_layer(header)
@@ -3816,7 +3812,7 @@ namespace netxs::gui
         {
             auto dt = ULONG{};
             ::SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &dt, FALSE);
-            os_wheel_delta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
+            wdelta = std::max(WHEEL_DELTA / std::max((fp32)dt, 1.f), 1.f);
         }
         void run()
         {
