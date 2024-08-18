@@ -6,15 +6,14 @@
 
 ---
 
-vtm is a text-based desktop environment that runs console applications in floating windows and allows remote access over tunnelling protocols such as SSH.
+vtm is a text-based desktop environment.
 
 # Supported platforms
 
 - Windows
-  - Core/Desktop
+  - Windows 8.1 or later
 - Unix
   - Linux
-  - Android <sup><sup>Linux kernel</sup></sup>
   - macOS
   - FreeBSD
   - NetBSD
@@ -36,6 +35,3 @@ vtm is a text-based desktop environment that runs console applications in floati
 - [Command-line options](doc/command-line-options.md)
 - [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
-- [Desktop Live Panel](doc/panel.md)
-- [Desktop Objects / Built-in Applications](doc/apps.md)
-- Draft: [VT Input Mode](doc/vt-input-mode.md)
