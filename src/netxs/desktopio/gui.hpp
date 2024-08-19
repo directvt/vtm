@@ -93,7 +93,7 @@ namespace netxs::gui
         {
             struct face_rec
             {
-                font_face_ptr     face_inst{};
+                font_face_ptr     faceinst{};
                 fp32              transform{};
                 fp32              em_height{};
                 fp32              transform_letters{};
@@ -337,52 +337,52 @@ namespace netxs::gui
             auto normal_glyph_metrics = DWRITE_GLYPH_METRICS{};
             auto code_points = ui32{ 'M' };
             auto glyph_index = ui16{ 0 };
-            fontface[style::normal].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::normal].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
-            fontface[style::italic].face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
-            fontface[style::italic].face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
+            fontface[style::normal].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
+            fontface[style::normal].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &normal_glyph_metrics, faux);
+            fontface[style::italic].faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
+            fontface[style::italic].faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &italic_glyph_metrics, faux);
             proportional = normal_glyph_metrics.advanceWidth != (ui32)facesize.x;
             normal_width = normal_glyph_metrics.advanceWidth - normal_glyph_metrics.rightSideBearing;
             italic_width = italic_glyph_metrics.advanceWidth - italic_glyph_metrics.rightSideBearing;
         }
-        static bool iscolor(font_face_ptr& face_inst)
+        static bool iscolor(font_face_ptr& faceinst)
         {
             auto tableSize = ui32{};
             auto tableData = (void const*)nullptr;
             auto tableContext = (void*)nullptr;
             auto exists = BOOL{};
-            face_inst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
-                                        &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
-                                        &tableSize,    //_Out_ UINT32* tableSize,
-                                        &tableContext, //_Out_ void** tableContext,
-                                        &exists);      //_Out_ BOOL* exists
-            if (exists) face_inst->ReleaseFontTable(tableContext);
+            faceinst->TryGetFontTable(DWRITE_MAKE_OPENTYPE_TAG('C', 'O', 'L', 'R'), //_In_ UINT32 openTypeTableTag,
+                                      &tableData,    //_Outptr_result_bytebuffer_(*tableSize) const void** tableData,
+                                      &tableSize,    //_Out_ UINT32* tableSize,
+                                      &tableContext, //_Out_ void** tableContext,
+                                      &exists);      //_Out_ BOOL* exists
+            if (exists) faceinst->ReleaseFontTable(tableContext);
             return exists;
         }
         static void load(typeface& u, font_family_ptr barefont)
         {
-            auto get = [&](auto& face_inst, auto weight, auto stretch, auto style)
+            auto get = [&](auto& faceinst, auto weight, auto stretch, auto style)
             {
                 auto fontfile = ComPtr<IDWriteFont2>{};
                 barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)fontfile.GetAddressOf());
-                if (fontfile) fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf());
+                if (fontfile) fontfile->CreateFontFace((IDWriteFontFace**)faceinst.GetAddressOf());
             };
             auto& fontface = u.fontface;
             u.fontface.resize(4);
-            get(fontface[style::normal     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::italic     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-            get(fontface[style::bold       ].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
-            get(fontface[style::bold_italic].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+            get(fontface[style::normal     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+            get(fontface[style::italic     ].faceinst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
+            get(fontface[style::bold       ].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
+            get(fontface[style::bold_italic].faceinst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
             auto names = ComPtr<IDWriteLocalizedStrings>{};
             barefont->GetFamilyNames(names.GetAddressOf());
             auto buff = wide(100, 0);
             names->GetString(0, buff.data(), (ui32)buff.size());
             u.font_name = utf::to_utf(buff.data());
-            auto& face_inst = fontface[style::normal].face_inst;
-            if (face_inst)
+            auto& faceinst = fontface[style::normal].faceinst;
+            if (faceinst)
             {
                 auto m = DWRITE_FONT_METRICS1{};
-                face_inst->GetMetrics(&m);
+                faceinst->GetMetrics(&m);
                 u.base_underline = { (fp32)m.underlinePosition, (fp32)m.underlineThickness };
                 u.base_strikeout = { (fp32)m.strikethroughPosition, (fp32)m.strikethroughThickness };
                 u.base_overline = { std::min((fp32)m.ascent, (fp32)(m.capHeight - m.underlinePosition)), (fp32)m.underlineThickness };
@@ -395,12 +395,12 @@ namespace netxs::gui
                 //auto code_points = ui32{ 'x' };
                 auto code_points = ui32{ 'U' }; // U is approximately half an emoji square in the Segoe Emoji font.
                 auto glyph_index = ui16{ 0 };
-                face_inst->GetGlyphIndices(&code_points, 1, &glyph_index);
-                face_inst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
+                faceinst->GetGlyphIndices(&code_points, 1, &glyph_index);
+                faceinst->GetDesignGlyphMetrics(&glyph_index, 1, &glyph_metrics, faux);
                 u.facesize.y = (fp32)std::max(2, m.ascent + m.descent + m.lineGap);
                 u.facesize.x = glyph_metrics.advanceWidth ? (fp32)glyph_metrics.advanceWidth : u.facesize.y / 2;
                 u.ratio = u.facesize.x / u.facesize.y;
-                u.color = iscolor(face_inst);
+                u.color = iscolor(faceinst);
             }
         }
 
@@ -422,7 +422,7 @@ namespace netxs::gui
 
                 gr(shaper& fs, bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
                     : fs{ fs },
-                      glyph_run{ .fontFace      = fs.face_inst.Get(),
+                      glyph_run{ .fontFace      = fs.faceinst.Get(),
                                  .fontEmSize    = em_height,
                                  .glyphCount    = fs.glyf_count,
                                  .glyphIndices  = fs.glyf_index.data(),
@@ -481,7 +481,7 @@ namespace netxs::gui
             };
 
             fonts& fcache;
-            font_face_ptr                                face_inst;
+            font_face_ptr                                faceinst;
             wide                                         text_utf16; // shaper: UTF-16 buffer.
             std::vector<ui16>                            clustermap; // shaper: .
             ui32                                         glyf_count; // shaper: .
@@ -500,8 +500,8 @@ namespace netxs::gui
             {
                 //todo use otf tables directly: GSUB etc
                 //gindex.resize(codepoints.size());
-                //hr = face_inst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
-                //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = face_inst.Get(),
+                //hr = faceinst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
+                //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = faceinst.Get(),
                 //                                   .fontEmSize   = em_height,
                 //                                   .glyphCount   = (ui32)gindex.size(),
                 //                                   .glyphIndices = gindex.data() };
@@ -513,14 +513,14 @@ namespace netxs::gui
                 glyf_props.resize(glyf_count);
                 text_props.resize(wide_count);
                 clustermap.resize(wide_count);
-                //todo make it configurable (and face_inst based)
+                //todo make it configurable (and faceinst based)
                 //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
                 //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
                 //auto feat_table = features.data();
                 auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = fonts::msscript(script) };
                 auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
                                                      wide_count,              //UINT32 textLength,
-                                                     face_inst.Get(),         //_In_ IDWriteFontFace* fontFace,
+                                                     faceinst.Get(),          //_In_ IDWriteFontFace* fontFace,
                                                      faux,                    //BOOL isSideways,
                                                      is_rtl,                  //BOOL isRightToLeft,
                                                      &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
@@ -546,7 +546,7 @@ namespace netxs::gui
                                                          glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
                                                          glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
                                                          glyf_count,              // UINT32 glyphCount,
-                                                         face_inst.Get(),         // _In_ IDWriteFontFace* fontFace,
+                                                         faceinst.Get(),          // _In_ IDWriteFontFace* fontFace,
                                                          em_height,               // FLOAT fontEmSize,
                                                          faux,                    // BOOL isSideways,
                                                          is_rtl,                  // BOOL isRightToLeft,
@@ -558,7 +558,7 @@ namespace netxs::gui
                                                          glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                                                          glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
                 if (hr != S_OK) return faux;
-                hr = face_inst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+                hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
                 if (hr != S_OK) return faux;
                 return true;
             }
@@ -701,8 +701,8 @@ namespace netxs::gui
                 fontface->GetGlyphIndices(&codepoint, 1, &glyphindex);
                 return !!glyphindex;
             };
-            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
-            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
+            for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
+            for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
             if (bgworker.valid()) bgworker.get();
             auto try_font = [&](auto i, bool test)
             {
@@ -742,8 +742,8 @@ namespace netxs::gui
         auto& take_font(utfx codepoint, si32 format, bool& isok)
         {
             auto& f = take_font(codepoint);
-            fontshaper.face_inst = f.fontface[format].face_inst;
-            if (fontshaper.face_inst) isok = true;
+            fontshaper.faceinst = f.fontface[format].faceinst;
+            if (fontshaper.faceinst) isok = true;
             return f;
         }
 
@@ -774,19 +774,19 @@ namespace netxs::gui
                     fontstat[i].i = i;
                     auto barefont = ComPtr<IDWriteFontFamily>{};
                     auto fontfile = ComPtr<IDWriteFont2>{};
-                    auto face_inst = ComPtr<IDWriteFontFace2>{};
+                    auto faceinst = ComPtr<IDWriteFontFace2>{};
                     if ((fontlist->GetFontFamily(i, barefont.GetAddressOf()), barefont)
                      && (barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)fontfile.GetAddressOf()), fontfile))
                     {
                         netxs::set_flag<fontcat::valid>(fontstat[i].s);
                         if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
-                        if (fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf()), face_inst)
+                        if (fontfile->CreateFontFace((IDWriteFontFace**)faceinst.GetAddressOf()), faceinst)
                         {
-                            if (iscolor(face_inst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
+                            if (iscolor(faceinst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
                             auto numberOfFiles = ui32{};
-                            face_inst->GetFiles(&numberOfFiles, nullptr);
+                            faceinst->GetFiles(&numberOfFiles, nullptr);
                             auto fontFiles = std::vector<ComPtr<IDWriteFontFile>>(numberOfFiles);
-                            if (S_OK == face_inst->GetFiles(&numberOfFiles, (IDWriteFontFile**)fontFiles.data()))
+                            if (S_OK == faceinst->GetFiles(&numberOfFiles, (IDWriteFontFile**)fontFiles.data()))
                             if (numberOfFiles)
                             if (auto f = fontFiles.front())
                             {
