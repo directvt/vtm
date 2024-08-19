@@ -633,10 +633,6 @@ namespace netxs::gui
                 }
                 return length;
             }
-            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
-            {
-                return gr{ *this, monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing };
-            }
         };
 
         ComPtr<IDWriteFactory2>        factory2; // fonts: DWrite factory.
@@ -848,6 +844,13 @@ namespace netxs::gui
             { }
             struct gr
             {
+                gr(shaper& /*fs*/, bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
+                {
+                    if (monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing)
+                    {
+                        //...
+                    }
+                }
                 //...
                 bool is_colored;
                 bool is_monochromatic;
@@ -862,17 +865,9 @@ namespace netxs::gui
                     //...
                 }
             };
-            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/ */)
+            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/)
             {
                 return fp32{};
-            }
-            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
-            {
-                if (monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing)
-                {
-                    //...
-                }
-                return gr{};
             }
         };
 
@@ -1103,7 +1098,7 @@ namespace netxs::gui
                 //else if (img_alignment.y == snap::head  ) base_line.y *= k;
             }
 
-            auto glyph_run = fcache.fontshaper.take_glyph_run(monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing);
+            auto glyph_run = fonts::shaper::gr{ fcache.fontshaper, monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing };
                  if (glyph_run.is_monochromatic) glyph_run.rasterize_single_layer(glyph_mask);
             else if (glyph_run.is_colored)
             {
