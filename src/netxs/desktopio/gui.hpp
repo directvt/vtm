@@ -382,6 +382,194 @@ namespace netxs::gui
             si32 i{};
             text n{};
         };
+        struct shaper
+        {
+            struct gr
+            {
+                static constexpr auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
+                static constexpr auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE;
+
+                shaper&                                fs;
+                DWRITE_GLYPH_RUN                       glyph_run;
+                ComPtr<IDWriteColorGlyphRunEnumerator> colored_glyphs;
+                si32                                   hr;
+                bool                                   is_colored;
+                bool                                   is_monochromatic;
+                DWRITE_RENDERING_MODE                  rendering_mode;
+                DWRITE_GRID_FIT_MODE                   pixel_fit_mode;
+
+                gr(shaper& fs, bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
+                    : fs{ fs },
+                      glyph_run{ .fontFace      = fs.face_inst,
+                                 .fontEmSize    = em_height,
+                                 .glyphCount    = fs.glyf_count,
+                                 .glyphIndices  = fs.glyf_index.data(),
+                                 .glyphAdvances = fs.glyf_steps.data(),
+                                 .glyphOffsets  = fs.glyf_align.data(),
+                                 .bidiLevel     = is_rtl },
+                        hr{ monochromatic ? DWRITE_E_NOCOLOR : fs.fcache.factory2->TranslateColorGlyphRun((fp32)base_line.x, (fp32)base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, colored_glyphs.GetAddressOf()) },
+                        is_colored{ hr == S_OK },
+                        is_monochromatic{ hr == DWRITE_E_NOCOLOR },
+                        rendering_mode{ aamode || is_colored ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED },
+                        pixel_fit_mode{ is_box_drawing && fs.fcache.cellsize.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
+                                                                                    : DWRITE_GRID_FIT_MODE_ENABLED }
+                { }
+
+                auto create_texture(auto& run, auto& mask, fp32 base_line_x, fp32 base_line_y)
+                {
+                    auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
+                    if (S_OK == fs.fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, &rasterizer))
+                    {
+                        auto r = RECT{};
+                        if (S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
+                        {
+                            mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                            if (mask.area.size)
+                            {
+                                mask.bits.resize(mask.area.size.x * mask.area.size.y);
+                                hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
+                            }
+                        }
+                        rasterizer->Release();
+                    }
+                }
+                void rasterize_layer_pack(auto& glyf_masks, auto& buffer_pool)
+                {
+                    using irgb = netxs::irgb<fp32>;
+                    auto exist = BOOL{ true };
+                    auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
+                    while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
+                    {
+                        auto& m = glyf_masks.emplace_back(buffer_pool);
+                        create_texture(layer->glyphRun, m, layer->baselineOriginX, layer->baselineOriginY);
+                        if (m.area)
+                        {
+                            auto u = layer->runColor;
+                            m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
+                                                                       std::isnormal(u.g) ? u.g : 0.f,
+                                                                       std::isnormal(u.b) ? u.b : 0.f,
+                                                                       std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
+                            //test fgc
+                            //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
+                        }
+                        else glyf_masks.pop_back();
+                    }
+                }
+                void rasterize_single_layer(auto& glyph_mask, fp2d base_line)
+                {
+                    create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
+                }
+            };
+
+            fonts& fcache;
+            IDWriteFontFace2*                            face_inst;
+            wide                                         text_utf16; // shaper: UTF-16 buffer.
+            std::vector<ui16>                            clustermap; // shaper: .
+            ui32                                         glyf_count; // shaper: .
+            std::vector<ui16>                            glyf_index; // shaper: .
+            std::vector<FLOAT>                           glyf_steps; // shaper: .
+            std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // shaper: .
+            std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // shaper: .
+            std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // shaper: .
+            std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // shaper: .
+
+            shaper(fonts& fcache)
+                : fcache{ fcache }
+            { }
+            auto& take_font(utfx base_char, si32 format, bool& isok)
+            {
+                auto& f = fcache.take_font(base_char);
+                face_inst = f.fontface[format].face_inst;
+                if (face_inst) isok = true;
+                return f;
+            }
+            auto generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height)
+            {
+                //todo use otf tables directly: GSUB etc
+                //gindex.resize(codepoints.size());
+                //hr = face_inst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
+                //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = face_inst,
+                //                                   .fontEmSize   = em_height,
+                //                                   .glyphCount   = (ui32)gindex.size(),
+                //                                   .glyphIndices = gindex.data() };
+                text_utf16.clear();
+                utf::to_utf(codepoints, text_utf16);
+                auto wide_count = (ui32)text_utf16.size();
+                glyf_count = 3 * wide_count / 2 + 16;
+                glyf_index.resize(glyf_count);
+                glyf_props.resize(glyf_count);
+                text_props.resize(wide_count);
+                clustermap.resize(wide_count);
+                //todo make it configurable (and face_inst based)
+                //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
+                //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
+                //auto feat_table = features.data();
+                auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = fonts::msscript(script) };
+                auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
+                                                     wide_count,              //UINT32 textLength,
+                                                     face_inst,               //_In_ IDWriteFontFace* fontFace,
+                                                     faux,                    //BOOL isSideways,
+                                                     is_rtl,                  //BOOL isRightToLeft,
+                                                     &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                     fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
+                                                     nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
+                                                     nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                     &wide_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                     0,//f.features.size(),   //UINT32 featureRanges,
+                                                     glyf_count,              //UINT32 maxGlyphCount,
+                                                     clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
+                                                     text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                     glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
+                                                     glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
+                                                     &glyf_count);            //_Out_ UINT32* actualGlyphCount
+                if (hr != S_OK) return faux;
+                glyf_steps.resize(glyf_count);
+                glyf_align.resize(glyf_count);
+                glyf_sizes.resize(glyf_count);
+                hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
+                                                         clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
+                                                         text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
+                                                         wide_count,              // UINT32 textLength,
+                                                         glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
+                                                         glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
+                                                         glyf_count,              // UINT32 glyphCount,
+                                                         face_inst,               // _In_ IDWriteFontFace* fontFace,
+                                                         em_height,               // FLOAT fontEmSize,
+                                                         faux,                    // BOOL isSideways,
+                                                         is_rtl,                  // BOOL isRightToLeft,
+                                                         &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
+                                                         fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
+                                                         nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                         &wide_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
+                                                         0,//f.features.size(),   // UINT32 featureRanges,
+                                                         glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
+                                                         glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
+                if (hr != S_OK) return faux;
+                hr = face_inst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
+                if (hr != S_OK) return faux;
+                return true;
+            }
+            auto get_start(fp32 transform)
+            {
+                auto length = fp32{};
+                auto penpos = fp32{};
+                for (auto i = 0u; i < glyf_count; ++i)
+                {
+                    auto w = glyf_sizes[i].advanceWidth;
+                    auto r = glyf_sizes[i].rightSideBearing;
+                    auto bearing = ((si32)w - r) * transform;
+                    auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
+                    length = std::max(length, right_most);
+                    penpos += glyf_steps[i];
+                }
+                return std::pair{ penpos, length };
+            }
+            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
+            {
+                return gr{ *this, monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing };
+            }
+        };
+
         IDWriteFactory2*               factory2; // fonts: DWrite factory.
         IDWriteFontCollection*         fontlist; // fonts: System font collection.
         IDWriteTextAnalyzer2*          analyzer; // fonts: Glyph indicies reader.
@@ -399,8 +587,9 @@ namespace netxs::gui
         rect                           overline; // fonts: Overline rectangle block within the cell.
         rect                           dashline; // fonts: Dashed underline rectangle block within the cell.
         rect                           wavyline; // fonts: Wavy underline outer rectangle block within the cell.
+        shaper                         fontshaper{ *this }; // fonts: .
 
-        static auto msscript(ui32 code) // fonts: ISO<->MS script map.
+        static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
         {
             static auto lut = []
             {
@@ -506,7 +695,7 @@ namespace netxs::gui
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
-        auto& take_font(utfx codepoint, bool force_mono = faux)
+        typeface& take_font(utfx codepoint, bool force_mono = faux)
         {
             auto hittest = [&](auto& fontface)
             {
@@ -702,21 +891,13 @@ namespace netxs::gui
 
         std::pmr::unsynchronized_pool_resource buffer_pool; // glyph: Pool for temp buffers.
         std::pmr::monotonic_buffer_resource    mono_buffer; // glyph: Memory block for sprites.
-        fonts& fcache; // glyph: Font cache.
-        twod&  cellsz; // glyph: Terminal cell size in pixels.
-        bool   aamode; // glyph: Enable AA.
-        gmap   glyphs; // glyph: Glyph map.
-        std::vector<sprite>                          cgi_glyphs; // glyph: Synthetic glyphs.
-        wide                                         text_utf16; // glyph: UTF-16 buffer.
-        std::vector<utf::prop>                       codepoints; // glyph: .
-        std::vector<ui16>                            clustermap; // glyph: .
-        std::vector<ui16>                            glyf_index; // glyph: .
-        std::vector<FLOAT>                           glyf_steps; // glyph: .
-        std::vector<DWRITE_GLYPH_OFFSET>             glyf_align; // glyph: .
-        std::vector<DWRITE_GLYPH_METRICS>            glyf_sizes; // glyph: .
-        std::vector<DWRITE_SHAPING_GLYPH_PROPERTIES> glyf_props; // glyph: .
-        std::vector<DWRITE_SHAPING_TEXT_PROPERTIES>  text_props; // glyph: .
-        std::vector<color_layer>                     glyf_masks; // glyph: .
+        fonts&                                 fcache; // glyph: Font cache.
+        twod&                                  cellsz; // glyph: Terminal cell size in pixels.
+        bool                                   aamode; // glyph: Enable AA.
+        gmap                                   glyphs; // glyph: Glyph map.
+        std::vector<sprite>                    cgi_glyphs; // glyph: Synthetic glyphs.
+        std::vector<utf::prop>                 codepoints; // glyph: .
+        std::vector<color_layer>               glyf_masks; // glyph: .
 
         glyph(fonts& fcache, bool aamode)
             : fcache{ fcache },
@@ -725,6 +906,7 @@ namespace netxs::gui
         {
             generate_glyphs();
         }
+
         void generate_glyphs()
         {
             // Generate wavy underline.
@@ -781,7 +963,7 @@ namespace netxs::gui
             codepoints.clear();
             auto flipandrotate = 0;
             auto monochromatic = faux;
-            auto charalignment = bind{ snap::none, snap::none };
+            auto img_alignment = bind{ snap::none, snap::none };
             while (code_iter)
             {
                 auto codepoint = code_iter.next();
@@ -794,12 +976,12 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs12_code) flipandrotate = (flipandrotate & 0b100) | ((flipandrotate + 0b011) & 0b011); // +270° CCW
                     else if (codepoint.cdpoint == utf::vs13_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0b010 : 0)) & 0b011); // Hz flip
                     else if (codepoint.cdpoint == utf::vs14_code) flipandrotate = (flipandrotate ^ 0b100) | ((flipandrotate + (flipandrotate & 1 ? 0 : 0b010)) & 0b011); // Vt flip
-                    else if (codepoint.cdpoint == utf::vs04_code) charalignment.x = snap::head;
-                    else if (codepoint.cdpoint == utf::vs05_code) charalignment.x = snap::center;
-                    else if (codepoint.cdpoint == utf::vs06_code) charalignment.x = snap::tail;
-                    else if (codepoint.cdpoint == utf::vs07_code) charalignment.y = snap::head;
-                    else if (codepoint.cdpoint == utf::vs08_code) charalignment.y = snap::center;
-                    else if (codepoint.cdpoint == utf::vs09_code) charalignment.y = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs04_code) img_alignment.x = snap::head;
+                    else if (codepoint.cdpoint == utf::vs05_code) img_alignment.x = snap::center;
+                    else if (codepoint.cdpoint == utf::vs06_code) img_alignment.x = snap::tail;
+                    else if (codepoint.cdpoint == utf::vs07_code) img_alignment.y = snap::head;
+                    else if (codepoint.cdpoint == utf::vs08_code) img_alignment.y = snap::center;
+                    else if (codepoint.cdpoint == utf::vs09_code) img_alignment.y = snap::tail;
                 }
                 else codepoints.push_back(codepoint);
             }
@@ -809,9 +991,10 @@ namespace netxs::gui
             if (c.itc()) format |= fonts::style::italic;
             if (c.bld()) format |= fonts::style::bold;
             auto base_char = codepoints.front().cdpoint;
-            auto& f = fcache.take_font(base_char);
-            auto face_inst = f.fontface[format].face_inst;
-            if (!face_inst) return;
+            auto isok = faux;
+            auto& f = fcache.fontshaper.take_font(base_char, format, isok);
+            if (!isok) return;
+
             auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
                               || (base_char >= 0x2500  && (base_char <  0x259F   // Box Elements
                               //|| (base_char >= 0x25A0  && (base_char <= 0x25FF   // Geometric Shapes
@@ -823,52 +1006,6 @@ namespace netxs::gui
             auto em_height = is_box_drawing ? f.fontface[format].em_height : f.fontface[format].em_height_letters;
             auto base_line = f.fontface[format].base_line;
             auto actual_sz = f.fontface[format].actual_sz;
-
-            //todo use otf tables directly: GSUB etc
-            //gindex.resize(codepoints.size());
-            //hr = face_inst->GetGlyphIndices(codepoints.data(), (ui32)codepoints.size(), gindex.data());
-            //auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace     = face_inst,
-            //                                   .fontEmSize   = em_height,
-            //                                   .glyphCount   = (ui32)gindex.size(),
-            //                                   .glyphIndices = gindex.data() };
-            text_utf16.clear();
-            utf::to_utf(codepoints, text_utf16);
-            auto wide_count = (ui32)text_utf16.size();
-            auto glyf_count = 3 * wide_count / 2 + 16;
-            glyf_index.resize(glyf_count);
-            glyf_props.resize(glyf_count);
-            text_props.resize(wide_count);
-            clustermap.resize(wide_count);
-
-            //todo make it configurable (and face_inst based)
-            //auto fs = std::to_array<std::pair<ui32, ui32>>({ { DWRITE_MAKE_OPENTYPE_TAG('s', 'a', 'l', 't'), 1 }, });
-            //auto const features = std::to_array({ DWRITE_TYPOGRAPHIC_FEATURES{ (DWRITE_FONT_FEATURE*)fs.data(), (ui32)fs.size() }});
-            //auto feat_table = features.data();
-            auto script = unidata::script(codepoints.front().cdpoint);
-            auto is_rtl = script >= 100 && script <= 199;
-            auto script_opt = DWRITE_SCRIPT_ANALYSIS{ .script = fonts::msscript(script) };
-            auto hr = fcache.analyzer->GetGlyphs(text_utf16.data(),       //_In_reads_(textLength) WCHAR const* textString,
-                                                 wide_count,              //UINT32 textLength,
-                                                 face_inst,               //_In_ IDWriteFontFace* fontFace,
-                                                 faux,                    //BOOL isSideways,
-                                                 is_rtl,                  //BOOL isRightToLeft,
-                                                 &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                                                 fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
-                                                 nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                                                 nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                 &wide_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                 0,//f.features.size(),   //UINT32 featureRanges,
-                                                 glyf_count,              //UINT32 maxGlyphCount,
-                                                 clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
-                                                 text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                                                 glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
-                                                 glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
-                                                 &glyf_count);            //_Out_ UINT32* actualGlyphCount
-            if (hr != S_OK) return;
-
-            glyf_steps.resize(glyf_count);
-            glyf_align.resize(glyf_count);
-            glyf_sizes.resize(glyf_count);
             auto actual_height = (fp32)cellsz.y;
             auto mtx = c.mtx();
             auto matrix = fp2d{ mtx * cellsz };
@@ -881,39 +1018,13 @@ namespace netxs::gui
                 base_line *= f.ratio;
                 actual_height *= f.ratio;
             }
-            hr = fcache.analyzer->GetGlyphPlacements(text_utf16.data(),       // _In_reads_(textLength) WCHAR const* textString,
-                                                     clustermap.data(),       // _In_reads_(textLength) UINT16 const* clusterMap,
-                                                     text_props.data(),       // _Inout_updates_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
-                                                     wide_count,              // UINT32 textLength,
-                                                     glyf_index.data(),       // _In_reads_(glyphCount) UINT16 const* glyphIndices,
-                                                     glyf_props.data(),       // _In_reads_(glyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES const* glyphProps,
-                                                     glyf_count,              // UINT32 glyphCount,
-                                                     face_inst,               // _In_ IDWriteFontFace* fontFace,
-                                                     em_height,               // FLOAT fontEmSize,
-                                                     faux,                    // BOOL isSideways,
-                                                     is_rtl,                  // BOOL isRightToLeft,
-                                                     &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
-                                                     fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
-                                                     nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
-                                                     &wide_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                     0,//f.features.size(),   // UINT32 featureRanges,
-                                                     glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
-                                                     glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-            if (hr != S_OK) return;
+            auto script = unidata::script(codepoints.front().cdpoint);
+            auto is_rtl = script >= 100 && script <= 199;
 
-            hr = face_inst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
-            if (hr != S_OK) return;
-            auto length = fp32{};
-            auto penpos = fp32{};
-            for (auto i = 0u; i < glyf_count; ++i)
-            {
-                auto w = glyf_sizes[i].advanceWidth;
-                auto r = glyf_sizes[i].rightSideBearing;
-                auto bearing = ((si32)w - r) * transform;
-                auto right_most = penpos + glyf_align[i].advanceOffset + bearing;
-                length = std::max(length, right_most);
-                penpos += glyf_steps[i];
-            }
+            auto ok = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height);
+            if (!ok) return;
+
+            auto [penpos, length] = fcache.fontshaper.get_start(transform);
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
                                        : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
@@ -924,8 +1035,8 @@ namespace netxs::gui
                 actual_width = matrix.x;
                 actual_height *= k;
                 em_height *= k;
-                for (auto& w : glyf_steps) w *= k;
-                for (auto& [h, v] : glyf_align) h *= k;
+                for (auto& w : fcache.fontshaper.glyf_steps) w *= k;
+                for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
             }
             else if (actual_height < matrix.y || actual_width < matrix.x) // Check if the glyph is too small for the matrix. (scale up)
             {
@@ -934,79 +1045,32 @@ namespace netxs::gui
                 actual_height *= k;
                 base_line *= k;
                 em_height *= k;
-                for (auto& w : glyf_steps) w *= k;
-                for (auto& [h, v] : glyf_align) h *= k;
+                for (auto& w : fcache.fontshaper.glyf_steps) w *= k;
+                for (auto& [h, v] : fcache.fontshaper.glyf_align) h *= k;
                 k = 1.f;
             }
-            if (charalignment.x != snap::none && actual_width < matrix.x)
+            if (img_alignment.x != snap::none && actual_width < matrix.x)
             {
-                     if (charalignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
-                else if (charalignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
-                //else if (charalignment.x == snap::head  ) base_line.x = 0;
+                     if (img_alignment.x == snap::center) base_line.x += (matrix.x - actual_width) / 2.f;
+                else if (img_alignment.x == snap::tail  ) base_line.x += matrix.x - actual_width;
+                //else if (img_alignment.x == snap::head  ) base_line.x = 0;
             }
-            if (charalignment.y != snap::none && actual_height < matrix.y)
+            if (img_alignment.y != snap::none && actual_height < matrix.y)
             {
                 base_line.y *= k;
-                     if (charalignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
-                else if (charalignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
-                //else if (charalignment.y == snap::head  ) base_line.y *= k;
+                     if (img_alignment.y == snap::center) base_line.y += (matrix.y - actual_height) / 2.f;
+                else if (img_alignment.y == snap::tail  ) base_line.y += matrix.y - actual_height;
+                //else if (img_alignment.y == snap::head  ) base_line.y *= k;
             }
-            auto glyph_run = DWRITE_GLYPH_RUN{ .fontFace      = face_inst,
-                                               .fontEmSize    = em_height,
-                                               .glyphCount    = glyf_count,
-                                               .glyphIndices  = glyf_index.data(),
-                                               .glyphAdvances = glyf_steps.data(),
-                                               .glyphOffsets  = glyf_align.data(),
-                                               .bidiLevel     = is_rtl };
-            auto colored_glyphs = (IDWriteColorGlyphRunEnumerator*)nullptr;
-            auto measuring_mode = DWRITE_MEASURING_MODE_NATURAL;
-            hr = monochromatic ? DWRITE_E_NOCOLOR
-                               : fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, &colored_glyphs);
-            auto rendering_mode = aamode || colored_glyphs ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED;
-            auto pixel_fit_mode = is_box_drawing && cellsz.y > 20 ? DWRITE_GRID_FIT_MODE_DISABLED // Grid-fitting breaks box-drawing linkage.
-                                                                  : DWRITE_GRID_FIT_MODE_ENABLED;
-            auto aaliasing_mode = DWRITE_TEXT_ANTIALIAS_MODE_GRAYSCALE;
-            auto create_texture = [&](auto& run, auto& mask, auto base_line_x, auto base_line_y)
-            {
-                auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
-                if (S_OK == fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, &rasterizer))
-                {
-                    auto r = RECT{};
-                    if (S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
-                    {
-                        mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                        if (mask.area.size)
-                        {
-                            mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                            hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
-                        }
-                    }
-                    rasterizer->Release();
-                }
-            };
-            if (colored_glyphs)
+
+            auto glyph_run = fcache.fontshaper.take_glyph_run(monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing);
+                 if (glyph_run.is_monochromatic) glyph_run.rasterize_single_layer(glyph_mask, base_line);
+            else if (glyph_run.is_colored)
             {
                 glyph_mask.bits.clear();
                 glyph_mask.type = sprite::color;
-                auto exist = BOOL{ true };
-                auto layer = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
                 glyf_masks.clear();
-                while (colored_glyphs->MoveNext(&exist), exist && S_OK == colored_glyphs->GetCurrentRun(&layer))
-                {
-                    auto& m = glyf_masks.emplace_back(buffer_pool);
-                    create_texture(layer->glyphRun, m, layer->baselineOriginX, layer->baselineOriginY);
-                    if (m.area)
-                    {
-                        auto u = layer->runColor;
-                        m.fill = layer->paletteIndex != -1 ? irgb{ std::isnormal(u.r) ? u.r : 0.f,
-                                                                   std::isnormal(u.g) ? u.g : 0.f,
-                                                                   std::isnormal(u.b) ? u.b : 0.f,
-                                                                   std::isnormal(u.a) ? u.a : 0.f }.sRGB2Linear() : irgb{}; // runColor.bgra could be nan != 0.
-                        //test fgc
-                        //if (m.fill.r == 0 && m.fill.g == 0 && m.fill.b == 0) m.fill = {};
-                    }
-                    else glyf_masks.pop_back();
-                }
+                glyph_run.rasterize_layer_pack(glyf_masks, buffer_pool);
                 glyph_mask.area = {};
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
@@ -1043,9 +1107,7 @@ namespace netxs::gui
                         });
                     }
                 }
-                colored_glyphs->Release();
             }
-            else if (hr == DWRITE_E_NOCOLOR) create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
             if (is_rtl) glyph_mask.area.coor.x += (si32)matrix.x;
             //auto src_bitmap = glyph_mask.raster<byte>();
             //auto bline = rect{base_line, { cellsz.x, 1 } };
