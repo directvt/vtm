@@ -329,7 +329,7 @@ namespace netxs::gui
 
 #if defined(_WIN32)
 
-    struct fonts : fonts_base<ComPtr<IDWriteFontFace2>, IDWriteFontFamily*>
+    struct fonts : fonts_base<ComPtr<IDWriteFontFace2>, ComPtr<IDWriteFontFamily>>
     {
         static void get_common_widths(std::vector<typeface::face_rec>& fontface, fp2d facesize, bool& proportional, ui32& normal_width, ui32& italic_width)
         {
@@ -363,11 +363,9 @@ namespace netxs::gui
         {
             auto get = [&](auto& face_inst, auto weight, auto stretch, auto style)
             {
-                auto fontfile = (IDWriteFont2*)nullptr;
-                barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)&fontfile);
-                if (!fontfile) return;
-                fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf());
-                fontfile->Release();
+                auto fontfile = ComPtr<IDWriteFont2>{};
+                barefont->GetFirstMatchingFont(weight, stretch, style, (IDWriteFont**)fontfile.GetAddressOf());
+                if (fontfile) fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf());
             };
             auto& fontface = u.fontface;
             u.fontface.resize(4);
@@ -375,13 +373,11 @@ namespace netxs::gui
             get(fontface[style::italic     ].face_inst, DWRITE_FONT_WEIGHT_NORMAL,    DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
             get(fontface[style::bold       ].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL);
             get(fontface[style::bold_italic].face_inst, DWRITE_FONT_WEIGHT_DEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_ITALIC);
-            auto names = (IDWriteLocalizedStrings*)nullptr;
-            barefont->GetFamilyNames(&names);
+            auto names = ComPtr<IDWriteLocalizedStrings>{};
+            barefont->GetFamilyNames(names.GetAddressOf());
             auto buff = wide(100, 0);
             names->GetString(0, buff.data(), (ui32)buff.size());
             u.font_name = utf::to_utf(buff.data());
-            names->Release();
-
             auto& face_inst = fontface[style::normal].face_inst;
             if (face_inst)
             {
@@ -443,20 +439,17 @@ namespace netxs::gui
 
                 auto create_texture(auto& run, auto& mask, fp32 base_line_x, fp32 base_line_y)
                 {
-                    auto rasterizer = (IDWriteGlyphRunAnalysis*)nullptr;
-                    if (S_OK == fs.fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, &rasterizer))
+                    auto r = RECT{};
+                    auto rasterizer = ComPtr<IDWriteGlyphRunAnalysis>{};
+                    if (S_OK == fs.fcache.factory2->CreateGlyphRunAnalysis(&run, nullptr, rendering_mode, measuring_mode, pixel_fit_mode, aaliasing_mode, base_line_x, base_line_y, rasterizer.GetAddressOf())
+                     && S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
                     {
-                        auto r = RECT{};
-                        if (S_OK == rasterizer->GetAlphaTextureBounds(DWRITE_TEXTURE_ALIASED_1x1, &r))
+                        mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
+                        if (mask.area.size)
                         {
-                            mask.area = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }};
-                            if (mask.area.size)
-                            {
-                                mask.bits.resize(mask.area.size.x * mask.area.size.y);
-                                hr = rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
-                            }
+                            mask.bits.resize(mask.area.size.x * mask.area.size.y);
+                            rasterizer->CreateAlphaTexture(DWRITE_TEXTURE_ALIASED_1x1, &r, mask.bits.data(), (ui32)mask.bits.size());
                         }
-                        rasterizer->Release();
                     }
                 }
                 void rasterize_layer_pack(auto& glyf_masks, auto& buffer_pool)
@@ -602,21 +595,19 @@ namespace netxs::gui
             static auto lut = []
             {
                 auto map = std::vector<ui16>(1000, 999);
-                if (auto f = (IDWriteFactory2*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&f), f)
+                auto f = ComPtr<IDWriteFactory2>{};
+                auto a = ComPtr<IDWriteTextAnalyzer1>{};
+                if ((::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)f.GetAddressOf()), f)
+                 && (f->CreateTextAnalyzer((IDWriteTextAnalyzer**)a.GetAddressOf()), a))
                 {
-                    if (auto a = (IDWriteTextAnalyzer1*)nullptr; f->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a), a)
+                    for (auto i = ui16{}; i < map.size(); i++)
                     {
-                        for (auto i = ui16{}; i < map.size(); i++)
-                        {
-                            auto prop = DWRITE_SCRIPT_PROPERTIES{};
-                            a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
-                            if (i && prop.isoScriptNumber == 999) break;
-                            map[prop.isoScriptNumber] = i;
-                            auto code = view{ (char*)&prop.isoScriptCode, 4 };
-                        }
-                        a->Release();
+                        auto prop = DWRITE_SCRIPT_PROPERTIES{};
+                        a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
+                        if (i && prop.isoScriptNumber == 999) break;
+                        map[prop.isoScriptNumber] = i;
+                        auto code = view{ (char*)&prop.isoScriptCode, 4 };
                     }
-                    f->Release();
                 }
                 return map;
             }();
@@ -666,13 +657,11 @@ namespace netxs::gui
                 if (found)
                 {
                     if (fontstat[index].s & fontcat::loaded) continue; // Skip duplicates.
-                    auto barefont = (IDWriteFontFamily*)nullptr;
-                    fontlist->GetFontFamily(index, &barefont);
+                    auto barefont = ComPtr<IDWriteFontFamily>{};
+                    fontlist->GetFontFamily(index, barefont.GetAddressOf());
                     netxs::set_flag<fontcat::loaded>(fontstat[index].s);
                     auto& f = fallback.emplace_back(*this, barefont, index);
                     log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
-                    barefont->Release();
-
                     //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
                     //auto maxTagCount = ui32{100};
                     //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
@@ -718,25 +707,19 @@ namespace netxs::gui
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
-                if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
+                auto barefont = ComPtr<IDWriteFontFamily>{};
+                auto fontfile = ComPtr<IDWriteFont2>{};
+                auto fontface = ComPtr<IDWriteFontFace>{};
+                if ((fontlist->GetFontFamily(i, barefont.GetAddressOf()), barefont)
+                 && (barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)fontfile.GetAddressOf()), fontfile)
+                 && (fontfile->CreateFontFace(fontface.GetAddressOf()), fontface)
+                 && (hittest(fontface) || !test))
                 {
-                    if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
-                    {
-                        if (auto fontface = (IDWriteFontFace*)nullptr; fontfile->CreateFontFace(&fontface), fontface)
-                        {
-                            if (hittest(fontface) || !test)
-                            {
-                                hit = true;
-                                netxs::set_flag<fontcat::loaded>(fontstat[i].s);
-                                auto is_primary = fallback.empty();
-                                auto& f = fallback.emplace_back(*this, barefont, i, cellsize, is_primary);
-                                log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
-                            }
-                            fontface->Release();
-                        }
-                        fontfile->Release();
-                    }
-                    barefont->Release();
+                    hit = true;
+                    netxs::set_flag<fontcat::loaded>(fontstat[i].s);
+                    auto is_primary = fallback.empty();
+                    auto& f = fallback.emplace_back(*this, barefont, i, cellsize, is_primary);
+                    log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                 }
                 return hit;
             };
@@ -789,48 +772,39 @@ namespace netxs::gui
                 for (auto i = 0u; i < fontstat.size(); i++)
                 {
                     fontstat[i].i = i;
-                    if (auto barefont = (IDWriteFontFamily*)nullptr; fontlist->GetFontFamily(i, &barefont), barefont)
+                    auto barefont = ComPtr<IDWriteFontFamily>{};
+                    auto fontfile = ComPtr<IDWriteFont2>{};
+                    auto face_inst = ComPtr<IDWriteFontFace2>{};
+                    if ((fontlist->GetFontFamily(i, barefont.GetAddressOf()), barefont)
+                     && (barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)fontfile.GetAddressOf()), fontfile))
                     {
-                        if (auto fontfile = (IDWriteFont2*)nullptr; barefont->GetFirstMatchingFont(DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, (IDWriteFont**)&fontfile), fontfile)
+                        netxs::set_flag<fontcat::valid>(fontstat[i].s);
+                        if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
+                        if (fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf()), face_inst)
                         {
-                            netxs::set_flag<fontcat::valid>(fontstat[i].s);
-                            if (fontfile->IsMonospacedFont()) netxs::set_flag<fontcat::monospaced>(fontstat[i].s);
-                            if (auto face_inst = font_face_ptr{}; fontfile->CreateFontFace((IDWriteFontFace**)face_inst.GetAddressOf()), face_inst)
+                            if (iscolor(face_inst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
+                            auto numberOfFiles = ui32{};
+                            face_inst->GetFiles(&numberOfFiles, nullptr);
+                            auto fontFiles = std::vector<ComPtr<IDWriteFontFile>>(numberOfFiles);
+                            if (S_OK == face_inst->GetFiles(&numberOfFiles, (IDWriteFontFile**)fontFiles.data()))
+                            if (numberOfFiles)
+                            if (auto f = fontFiles.front())
                             {
-                                if (iscolor(face_inst)) netxs::set_flag<fontcat::color>(fontstat[i].s);
-                                auto numberOfFiles = ui32{};
-                                face_inst->GetFiles(&numberOfFiles, nullptr);
-                                auto fontFiles = std::vector<IDWriteFontFile*>(numberOfFiles);
-                                if (S_OK == face_inst->GetFiles(&numberOfFiles, fontFiles.data()))
+                                auto fontFileReferenceKey = (void const*)nullptr;
+                                auto fontFileReferenceKeySize = ui32{};
+                                auto fontFileLoader = ComPtr<IDWriteFontFileLoader>{};
+                                auto fontFileStream = ComPtr<IDWriteFontFileStream>{};
+                                if ((f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize), fontFileReferenceKeySize)
+                                 && (f->GetLoader(fontFileLoader.GetAddressOf()), fontFileLoader)
+                                 && (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, fontFileStream.GetAddressOf()), fontFileStream))
                                 {
-                                    if (numberOfFiles)
-                                    if (auto f = fontFiles.front())
-                                    {
-                                        auto fontFileReferenceKey = (void const*)nullptr;
-                                        auto fontFileReferenceKeySize = ui32{};
-                                        f->GetReferenceKey(&fontFileReferenceKey, &fontFileReferenceKeySize);
-                                        auto fontFileLoader = (IDWriteFontFileLoader*)nullptr;
-                                        if (fontFileReferenceKeySize)
-                                        if (f->GetLoader(&fontFileLoader); fontFileLoader)
-                                        {
-                                            auto fontFileStream = (IDWriteFontFileStream*)nullptr;
-                                            if (fontFileLoader->CreateStreamFromKey(fontFileReferenceKey, fontFileReferenceKeySize, &fontFileStream); fontFileStream)
-                                            {
-                                                auto lastWriteTime = ui64{};
-                                                fontFileStream->GetLastWriteTime(&lastWriteTime);
-                                                fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
-                                                fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then by file_date.
-                                                fontFileStream->Release();
-                                            }
-                                            fontFileLoader->Release();
-                                        }
-                                        f->Release();
-                                    }
+                                    auto lastWriteTime = ui64{};
+                                    fontFileStream->GetLastWriteTime(&lastWriteTime);
+                                    fontstat[i].n = utf::to_utf((wchr*)fontFileReferenceKey);
+                                    fontstat[i].s |= ~((ui64)0xFF << 60) & (lastWriteTime >> 4); // Sort fonts by iscolor, monospaced then by file_date.
                                 }
                             }
-                            fontfile->Release();
                         }
-                        barefont->Release();
                     }
                 }
                 sort();
