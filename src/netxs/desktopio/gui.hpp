@@ -733,13 +733,6 @@ namespace netxs::gui
             log("%%No fonts found in the system.", prompt::gui);
             return fallback.emplace_back(); // Should never happen.
         }
-        auto& take_font(utfx codepoint, si32 format, bool& isok)
-        {
-            auto& f = take_font(codepoint);
-            fontshaper.faceinst = f.fontface[format].faceinst;
-            if (fontshaper.faceinst) isok = true;
-            return f;
-        }
 
         fonts(std::list<text>& family_names, si32 cell_height)
             : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
@@ -874,7 +867,7 @@ namespace netxs::gui
         shaper fontshaper{ *this };
         fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/)
         { }
-        auto& take_font(utfx /*base_char*/, si32 /*format*/, bool& /*isok*/)
+        auto& take_font(utfx /*base_char*/)
         {
             return fallback.front();
         }
@@ -1029,9 +1022,9 @@ namespace netxs::gui
             if (c.itc()) format |= fonts::style::italic;
             if (c.bld()) format |= fonts::style::bold;
             auto base_char = codepoints.front().cdpoint;
-            auto isok = faux;
-            auto& f = fcache.take_font(base_char, format, isok);
-            if (!isok) return;
+            auto& f = fcache.take_font(base_char);
+            fcache.fontshaper.faceinst = f.fontface[format].faceinst;
+            if (!fcache.fontshaper.faceinst) return;
 
             auto is_box_drawing = base_char >= 0x2320  && (base_char <= 0x23D0   // ⌠ ⌡ ... ⎛ ⎜ ⎝ ⎞ ⎟ ⎠ ⎡ ⎢ ⎣ ⎤ ⎥ ⎦ ⎧ ⎨ ⎩ ⎪ ⎫ ⎬ ⎭ ⎮ ⎯ ⎰ ⎱ ⎲ ⎳ ⎴ ⎵ ⎶ ⎷ ⎸ ⎹ ... ⏐
                               || (base_char >= 0x2500  && (base_char <  0x259F   // Box Elements
