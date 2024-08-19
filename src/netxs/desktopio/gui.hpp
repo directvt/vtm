@@ -325,6 +325,41 @@ namespace netxs::gui
         rect                  overline; // fonts: Overline rectangle block within the cell.
         rect                  dashline; // fonts: Dashed underline rectangle block within the cell.
         rect                  wavyline; // fonts: Wavy underline outer rectangle block within the cell.
+
+        void sort()
+        {
+            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
+            //if constexpr (debugmode)
+            //{
+            //    log("System fonts:");
+            //    for (auto& f : fontstat)
+            //    {
+            //        log("\t color=", (f.s & fontcat::color) ? "1" : "0",
+            //            "\t mono=", (f.s & fontcat::monospaced) ? "1" : "0",
+            //            "\t valid=", (f.s & fontcat::valid) ? "1" : "0",
+            //            "\t loaded=", (f.s & fontcat::loaded) ? "1" : "0",
+            //            "\t name='", f.n, "'");
+            //    }
+            //}
+        }
+        void set_cellsz(auto& fcache, si32 cell_height)
+        {
+            cellsize = { 1, std::clamp(cell_height, 2, 256) };
+            auto base_font = true;
+            for (auto& f : fallback) f.recalc_metrics(fcache, cellsize, std::exchange(base_font, faux));
+            if (fallback.size()) // Keep the same *line positions for all fonts.
+            {
+                auto& f = fallback.front().fontface.front();
+                underline = f.underline;
+                strikeout = f.strikeout;
+                doubline1 = f.doubline1;
+                doubline2 = f.doubline2;
+                overline  = f.overline;
+                dashline  = f.dashline;
+                wavyline  = f.wavyline;
+            }
+            log("%%Set cell size: ", prompt::gui, cellsize);
+        }
     };
 
 #if defined(_WIN32)
@@ -402,6 +437,29 @@ namespace netxs::gui
                 u.ratio = u.facesize.x / u.facesize.y;
                 u.color = iscolor(faceinst);
             }
+        }
+        static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
+        {
+            static auto lut = []
+            {
+                auto map = std::vector<ui16>(1000, 999);
+                auto f = ComPtr<IDWriteFactory2>{};
+                auto a = ComPtr<IDWriteTextAnalyzer1>{};
+                if ((::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)f.GetAddressOf()), f)
+                 && (f->CreateTextAnalyzer((IDWriteTextAnalyzer**)a.GetAddressOf()), a))
+                {
+                    for (auto i = ui16{}; i < map.size(); i++)
+                    {
+                        auto prop = DWRITE_SCRIPT_PROPERTIES{};
+                        a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
+                        if (i && prop.isoScriptNumber == 999) break;
+                        map[prop.isoScriptNumber] = i;
+                        auto code = view{ (char*)&prop.isoScriptCode, 4 };
+                    }
+                }
+                return map;
+            }();
+            return lut[code];
         }
 
         struct shaper
@@ -590,46 +648,6 @@ namespace netxs::gui
         wide                           oslocale; // fonts: User locale.
         shaper                         fontshaper{ *this }; // fonts: .
 
-        static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
-        {
-            static auto lut = []
-            {
-                auto map = std::vector<ui16>(1000, 999);
-                auto f = ComPtr<IDWriteFactory2>{};
-                auto a = ComPtr<IDWriteTextAnalyzer1>{};
-                if ((::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)f.GetAddressOf()), f)
-                 && (f->CreateTextAnalyzer((IDWriteTextAnalyzer**)a.GetAddressOf()), a))
-                {
-                    for (auto i = ui16{}; i < map.size(); i++)
-                    {
-                        auto prop = DWRITE_SCRIPT_PROPERTIES{};
-                        a->GetScriptProperties(DWRITE_SCRIPT_ANALYSIS{ .script = i }, &prop);
-                        if (i && prop.isoScriptNumber == 999) break;
-                        map[prop.isoScriptNumber] = i;
-                        auto code = view{ (char*)&prop.isoScriptCode, 4 };
-                    }
-                }
-                return map;
-            }();
-            return lut[code];
-        }
-
-        void sort()
-        {
-            std::sort(fontstat.begin(), fontstat.end(), [](auto& a, auto& b){ return a.s > b.s; });
-            //if constexpr (debugmode)
-            //{
-            //    log("System fonts:");
-            //    for (auto& f : fontstat)
-            //    {
-            //        log("\t color=", (f.s & fontcat::color) ? "1" : "0",
-            //            "\t mono=", (f.s & fontcat::monospaced) ? "1" : "0",
-            //            "\t valid=", (f.s & fontcat::valid) ? "1" : "0",
-            //            "\t loaded=", (f.s & fontcat::loaded) ? "1" : "0",
-            //            "\t name='", f.n, "'");
-            //    }
-            //}
-        }
         void set_fonts(auto family_names, bool fresh = true)
         {
             families = family_names;
@@ -673,24 +691,6 @@ namespace netxs::gui
                 else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
             }
             if (!fresh) sort();
-        }
-        void set_cellsz(si32 cell_height)
-        {
-            cellsize = { 1, std::clamp(cell_height, 2, 256) };
-            auto base_font = true;
-            for (auto& f : fallback) f.recalc_metrics(*this, cellsize, std::exchange(base_font, faux));
-            if (fallback.size()) // Keep the same *line positions for all fonts.
-            {
-                auto& f = fallback.front().fontface.front();
-                underline = f.underline;
-                strikeout = f.strikeout;
-                doubline1 = f.doubline1;
-                doubline2 = f.doubline2;
-                overline  = f.overline;
-                dashline  = f.dashline;
-                wavyline  = f.wavyline;
-            }
-            log("%%Set cell size: ", prompt::gui, cellsize);
         }
         auto& take_font(utfx codepoint, bool force_mono = faux)
         {
@@ -822,7 +822,7 @@ namespace netxs::gui
                 log(prompt::gui, ansi::err("No fonts provided. Fallback to first available font."));
                 take_font('A', true); // Take the first available font.
             }
-            set_cellsz(cell_height);
+            set_cellsz(*this, cell_height);
         }
     };
 
@@ -893,10 +893,6 @@ namespace netxs::gui
             return fallback.front();
         }
         void set_fonts(std::list<text>&, bool)
-        {
-            //...
-        }
-        void set_cellsz(si32 /*height*/)
         {
             //...
         }
@@ -2083,7 +2079,7 @@ namespace netxs::gui
             if (std::exchange(height, std::clamp(height + dy, 2.f, 256.f)) == height && !forced) return;
             reset_blinky();
             auto grip_cell = gripsz / cellsz;
-            fcache.set_cellsz((si32)height);
+            fcache.set_cellsz(fcache, (si32)height);
             gcache.reset();
             gripsz = grip_cell * cellsz; // cellsz was updated in fcache.
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
