@@ -472,13 +472,14 @@ namespace netxs::gui
                 shaper&                                fs;
                 DWRITE_GLYPH_RUN                       glyph_run;
                 ComPtr<IDWriteColorGlyphRunEnumerator> colored_glyphs;
+                fp2d                                   base_line;
                 si32                                   hr;
                 bool                                   is_colored;
                 bool                                   is_monochromatic;
                 DWRITE_RENDERING_MODE                  rendering_mode;
                 DWRITE_GRID_FIT_MODE                   pixel_fit_mode;
 
-                gr(shaper& fs, bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
+                gr(shaper& fs, bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
                     : fs{ fs },
                       glyph_run{ .fontFace      = fs.faceinst.Get(),
                                  .fontEmSize    = em_height,
@@ -487,7 +488,8 @@ namespace netxs::gui
                                  .glyphAdvances = fs.glyf_steps.data(),
                                  .glyphOffsets  = fs.glyf_align.data(),
                                  .bidiLevel     = is_rtl },
-                        hr{ monochromatic ? DWRITE_E_NOCOLOR : fs.fcache.factory2->TranslateColorGlyphRun((fp32)base_line.x, (fp32)base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, colored_glyphs.GetAddressOf()) },
+                        base_line{ base_line },
+                        hr{ monochromatic ? DWRITE_E_NOCOLOR : fs.fcache.factory2->TranslateColorGlyphRun(base_line.x, base_line.y, &glyph_run, nullptr, measuring_mode, nullptr, 0, colored_glyphs.GetAddressOf()) },
                         is_colored{ hr == S_OK },
                         is_monochromatic{ hr == DWRITE_E_NOCOLOR },
                         rendering_mode{ aamode || is_colored ? DWRITE_RENDERING_MODE_NATURAL : DWRITE_RENDERING_MODE_ALIASED },
@@ -532,7 +534,7 @@ namespace netxs::gui
                         else glyf_masks.pop_back();
                     }
                 }
-                void rasterize_single_layer(auto& glyph_mask, fp2d base_line)
+                void rasterize_single_layer(auto& glyph_mask)
                 {
                     create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
                 }
@@ -554,7 +556,7 @@ namespace netxs::gui
                 : fcache{ fcache }
             { }
 
-            bool generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height)
+            fp32 generate_glyph_run(std::vector<utf::prop>& codepoints, ui16 script, BOOL is_rtl, fp32 em_height, fp32 transform)
             {
                 //todo use otf tables directly: GSUB etc
                 //gindex.resize(codepoints.size());
@@ -593,7 +595,7 @@ namespace netxs::gui
                                                      glyf_index.data(),       //_Out_writes_(maxGlyphCount) UINT16* glyphIndices,
                                                      glyf_props.data(),       //_Out_writes_(maxGlyphCount) DWRITE_SHAPING_GLYPH_PROPERTIES* glyphProps,
                                                      &glyf_count);            //_Out_ UINT32* actualGlyphCount
-                if (hr != S_OK) return faux;
+                if (hr != S_OK) return 0;
                 glyf_steps.resize(glyf_count);
                 glyf_align.resize(glyf_count);
                 glyf_sizes.resize(glyf_count);
@@ -615,13 +617,9 @@ namespace netxs::gui
                                                          0,//f.features.size(),   // UINT32 featureRanges,
                                                          glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                                                          glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
-                if (hr != S_OK) return faux;
+                if (hr != S_OK) return 0;
                 hr = faceinst->GetDesignGlyphMetrics(glyf_index.data(), glyf_count, glyf_sizes.data(), faux);
-                if (hr != S_OK) return faux;
-                return true;
-            }
-            auto get_start(fp32 transform)
-            {
+                if (hr != S_OK) return 0;
                 auto length = fp32{};
                 auto penpos = fp32{};
                 for (auto i = 0u; i < glyf_count; ++i)
@@ -633,9 +631,9 @@ namespace netxs::gui
                     length = std::max(length, right_most);
                     penpos += glyf_steps[i];
                 }
-                return std::pair{ penpos, length };
+                return length;
             }
-            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
+            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
             {
                 return gr{ *this, monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing };
             }
@@ -858,24 +856,17 @@ namespace netxs::gui
                     //using irgb = netxs::irgb<fp32>;
                     //...
                 }
-                void rasterize_single_layer(auto& /*glyph_mask*/, fp2d /*base_line*/)
+                void rasterize_single_layer(auto& /*glyph_mask*/)
                 {
                     //create_texture(glyph_run, glyph_mask, base_line.x, base_line.y);
                     //...
                 }
             };
-            bool generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/)
+            fp32 generate_glyph_run(std::vector<utf::prop>& /*codepoints*/, ui16 /*script*/, bool /*is_rtl*/, fp32 /*em_height*/, fp32 /*transform*/ */)
             {
-                return true;
+                return fp32{};
             }
-            auto get_start(fp32 /*transform*/)
-            {
-                auto length = fp32{};
-                auto penpos = fp32{};
-                //...
-                return std::pair{ penpos, length };
-            }
-            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
+            auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, fp2d base_line, fp32 em_height, bool is_box_drawing)
             {
                 if (monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing)
                 {
@@ -1072,11 +1063,8 @@ namespace netxs::gui
             }
             auto script = unidata::script(codepoints.front().cdpoint);
             auto is_rtl = script >= 100 && script <= 199;
-
-            auto ok = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height);
-            if (!ok) return;
-
-            auto [penpos, length] = fcache.fontshaper.get_start(transform);
+            auto length = fcache.fontshaper.generate_glyph_run(codepoints, script, is_rtl, em_height, transform);
+            if (!length) return;
             auto actual_width = swapxy ? std::max(1.f, length) :
                         is_box_drawing ? std::max(1.f, std::floor((length / cellsz.x))) * cellsz.x
                                        : std::max(1.f, std::ceil(((length - 0.1f * cellsz.x) / cellsz.x))) * cellsz.x;
@@ -1116,13 +1104,13 @@ namespace netxs::gui
             }
 
             auto glyph_run = fcache.fontshaper.take_glyph_run(monochromatic, aamode, is_rtl, base_line, em_height, is_box_drawing);
-                 if (glyph_run.is_monochromatic) glyph_run.rasterize_single_layer(glyph_mask, base_line);
+                 if (glyph_run.is_monochromatic) glyph_run.rasterize_single_layer(glyph_mask);
             else if (glyph_run.is_colored)
             {
-                glyph_mask.bits.clear();
-                glyph_mask.type = sprite::color;
                 glyf_masks.clear();
                 glyph_run.rasterize_layer_pack(glyf_masks, buffer_pool);
+                glyph_mask.bits.clear();
+                glyph_mask.type = sprite::color;
                 glyph_mask.area = {};
                 for (auto& m : glyf_masks) glyph_mask.area |= m.area;
                 auto l = glyph_mask.area.size.x * glyph_mask.area.size.y;
