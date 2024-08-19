@@ -590,12 +590,11 @@ namespace netxs::gui
             }
         };
 
-        IDWriteFactory2*               factory2; // fonts: DWrite factory.
-        IDWriteFontCollection*         fontlist; // fonts: System font collection.
-        IDWriteTextAnalyzer2*          analyzer; // fonts: Glyph indicies reader.
-        std::thread                    bgworker; // fonts: Background thread.
+        ComPtr<IDWriteFactory2>        factory2; // fonts: DWrite factory.
+        ComPtr<IDWriteFontCollection>  fontlist; // fonts: System font collection.
+        ComPtr<IDWriteTextAnalyzer2>   analyzer; // fonts: Glyph indicies reader.
+        std::future<void>              bgworker; // fonts: Background fallback reindex.
         wide                           oslocale; // fonts: User locale.
-        flag                           complete; // fonts: Fallback index is ready.
         shaper                         fontshaper{ *this }; // fonts: .
 
         static ui16 msscript(ui32 code) // fonts: ISO<->MS script map.
@@ -715,7 +714,7 @@ namespace netxs::gui
             };
             for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].face_inst)) return f;
             for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].face_inst)) return f;
-            complete.wait(faux);
+            if (bgworker.valid()) bgworker.get();
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
@@ -766,12 +765,11 @@ namespace netxs::gui
         }
 
         fonts(std::list<text>& family_names, si32 cell_height)
-            : factory2{ (IDWriteFactory2*)[]{ auto f = (IUnknown*)nullptr; ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &f); return f; }() },
-              fontlist{ [&]{ auto c = (IDWriteFontCollection*)nullptr; factory2->GetSystemFontCollection(&c, TRUE); return c; }() },
-              analyzer{ [&]{ auto a = (IDWriteTextAnalyzer2*)nullptr; factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)&a); return a; }() },
-              oslocale(LOCALE_NAME_MAX_LENGTH, '\0'),
-              complete{ faux }
+            : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
+            ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
+            factory2->GetSystemFontCollection(fontlist.GetAddressOf(), TRUE);
+            factory2->CreateTextAnalyzer((IDWriteTextAnalyzer**)analyzer.GetAddressOf());
             fontstat.resize(fontlist ? fontlist->GetFontFamilyCount() : 0);
             if (!fontlist || !analyzer)
             {
@@ -786,7 +784,7 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'.", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            bgworker = std::thread{ [&]
+            bgworker = std::async(std::launch::async, [&]
             {
                 for (auto i = 0u; i < fontstat.size(); i++)
                 {
@@ -837,10 +835,8 @@ namespace netxs::gui
                 }
                 sort();
                 //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
-                complete.exchange(true);
-                complete.notify_all();
                 log("%%Font fallback index initialized.", prompt::gui);
-            }};
+            });
             if (fallback.empty())
             {
                 auto default_font = std::list{ "Courier New"s };
@@ -853,13 +849,6 @@ namespace netxs::gui
                 take_font('A', true); // Take the first available font.
             }
             set_cellsz(cell_height);
-        }
-        ~fonts()
-        {
-            if (bgworker.joinable()) bgworker.join();
-            if (analyzer) analyzer->Release();
-            if (fontlist) fontlist->Release();
-            if (factory2) factory2->Release();
         }
     };
 
@@ -892,7 +881,7 @@ namespace netxs::gui
                 bool is_monochromatic;
                 void rasterize_layer_pack(auto& /*glyf_masks*/, auto& /*buffer_pool*/)
                 {
-                    using irgb = netxs::irgb<fp32>;
+                    //using irgb = netxs::irgb<fp32>;
                     //...
                 }
                 void rasterize_single_layer(auto& /*glyph_mask*/, fp2d /*base_line*/)
@@ -914,7 +903,10 @@ namespace netxs::gui
             }
             auto take_glyph_run(bool monochromatic, bool aamode, bool is_rtl, twod base_line, fp32 em_height, bool is_box_drawing)
             {
-                auto t = monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing;
+                if (monochromatic || aamode || is_rtl || base_line || em_height || is_box_drawing)
+                {
+                    //...
+                }
                 return gr{};
             }
         };
@@ -1190,7 +1182,6 @@ namespace netxs::gui
                                  if (alpha == 255) dst = { 0.f, 0.f, 0.f, 256.f + 255.f };
                             else if (alpha != 0)
                             {
-                                static constexpr auto kk = (si32)netxs::saturate_cast<byte>(- 256.f);
                                 auto fgc_alpha = (si32)netxs::saturate_cast<byte>(dst.a - 256.f);
                                 dst.a = dst.a + (-(si32)dst.a + 256 + alpha + (255 - alpha) * fgc_alpha / 255);
                             }
