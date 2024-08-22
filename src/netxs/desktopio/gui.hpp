@@ -829,6 +829,7 @@ namespace netxs::gui
                 fp32 v_offset;
             };
             fonts& fcache;
+            font_face_ptr             faceinst{};
             std::vector<fp32>         glyf_steps; // shaper: .
             std::vector<glyph_offset> glyf_align; // shaper: .
 

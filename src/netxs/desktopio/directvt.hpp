@@ -119,9 +119,78 @@ namespace netxs::directvt
         };
         #pragma pack(pop)
 
+        template<class T>
+        void fuse_ext(auto& block, T&& data)
+        {
+            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            if constexpr (std::is_same_v<D, char>
+                       || std::is_same_v<D, byte>
+                       || std::is_same_v<D, type>)
+            {
+                block.text::push_back((char)data);
+            }
+            else if constexpr (std::is_arithmetic_v<D>
+                            || std::is_same_v<D, twod>
+                            || std::is_same_v<D, fp2d>
+                            || std::is_same_v<D, dent>
+                            || std::is_same_v<D, rect>)
+            {
+                auto le_data = netxs::letoh(data);
+                block += view{ (char*)&le_data, sizeof(le_data) };
+            }
+            else if constexpr (std::is_same_v<D, argb>)
+            {
+                block += view{ (char*)&data, sizeof(data) };
+            }
+            else if constexpr (std::is_same_v<D, view>
+                            || std::is_same_v<D, qiew>
+                            || std::is_same_v<D, text>)
+            {
+                auto length = (sz_t)data.length();
+                auto le_len = netxs::letoh(length);
+                block += view{ (char*)&le_len, sizeof(le_len) };
+                block += data;
+            }
+            else if constexpr (std::is_same_v<D, time>)
+            {
+                auto n = data.time_since_epoch().count();
+                auto le_n = netxs::letoh(n);
+                block += view{ (char*)&le_n, sizeof(le_n) };
+            }
+            else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
+                            || std::is_same_v<D, std::map<text, text>>
+                            || std::is_same_v<D, generics::imap<text, text>>)
+            {
+                //todo implement
+            }
+            else if constexpr (std::is_same_v<D, noop>)
+            {
+                // Noop.
+            }
+            else if constexpr (requires{ std::begin(std::declval<D>()); })
+            {
+                auto length = (sz_t)data.size();
+                auto le_len = netxs::letoh(length);
+                block += view{ (char*)&le_len, sizeof(le_len) };
+                for (auto& item : data) fuse_ext(block, item);
+            }
+            else log(prompt::dtvt, "Unsupported data type");
+        }
+
+        struct packet : text
+        {
+            void fuse(auto&& data)            { fuse_ext(*this, std::forward<decltype(data)>(data)); }
+            auto& add(auto&& data)            { fuse(std::forward<decltype(data)>(data)); return *this; }
+            auto& add(auto*  data, auto size) { operator+=(view{ data, size }); return *this; }
+            auto& add(auto&& data, auto&&... data_list)
+            {
+                fuse(std::forward<decltype(data)>(data));
+                return add(std::forward<decltype(data_list)>(data_list)...);
+            }
+        };
+
         struct stream
         {
-            //todo revise
             type next{};
 
             constexpr explicit operator bool () const
@@ -137,62 +206,7 @@ namespace netxs::directvt
 
             // stream: .
             template<class T>
-            inline void fuse(T&& data)
-            {
-                using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                if constexpr (std::is_same_v<D, char>
-                           || std::is_same_v<D, byte>
-                           || std::is_same_v<D, type>)
-                {
-                    block.text::push_back((char)data);
-                }
-                else if constexpr (std::is_arithmetic_v<D>
-                                || std::is_same_v<D, twod>
-                                || std::is_same_v<D, fp2d>
-                                || std::is_same_v<D, dent>
-                                || std::is_same_v<D, rect>)
-                {
-                    auto le_data = netxs::letoh(data);
-                    block += view{ (char*)&le_data, sizeof(le_data) };
-                }
-                else if constexpr (std::is_same_v<D, argb>)
-                {
-                    block += view{ (char*)&data, sizeof(data) };
-                }
-                else if constexpr (std::is_same_v<D, view>
-                                || std::is_same_v<D, qiew>
-                                || std::is_same_v<D, text>)
-                {
-                    auto length = (sz_t)data.length();
-                    auto le_len = netxs::letoh(length);
-                    block += view{ (char*)&le_len, sizeof(le_len) };
-                    block += data;
-                }
-                else if constexpr (std::is_same_v<D, time>)
-                {
-                    auto n = data.time_since_epoch().count();
-                    auto le_n = netxs::letoh(n);
-                    block += view{ (char*)&le_n, sizeof(le_n) };
-                }
-                else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
-                                || std::is_same_v<D, std::map<text, text>>
-                                || std::is_same_v<D, generics::imap<text, text>>)
-                {
-                    //todo implement
-                }
-                else if constexpr (std::is_same_v<D, noop>)
-                {
-                    // Noop.
-                }
-                else if constexpr (requires{ std::begin(std::declval<D>()); })
-                {
-                    auto length = (sz_t)data.size();
-                    auto le_len = netxs::letoh(length);
-                    block += view{ (char*)&le_len, sizeof(le_len) };
-                    for (auto& item : data) fuse(item);
-                }
-                else log(prompt::dtvt, "Unsupported data type");
-            }
+            void fuse(T&& data) { fuse_ext(block, std::forward<T>(data)); }
             // stream: Replace bytes at specified position.
             template<class T>
             inline auto& add_at(sz_t at, T&& data)
