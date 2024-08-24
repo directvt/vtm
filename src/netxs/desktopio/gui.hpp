@@ -2179,7 +2179,13 @@ namespace netxs::gui
         void check_window(twod coor)
         {
             if (fsmode != state::normal) return;
-            if (auto delta = coor - master.area.coor)
+            if (coor == master.hidden) // We are in an implicit hidden state caused by Win+D or so.
+            {
+                log("%%Set window to minimized state (implicit).", prompt::gui);
+                fsmode = state::minimized;
+                for (auto p : { &master, &blinky, &footer, &header }) p->hide();
+            }
+            else if (auto delta = coor - master.area.coor)
             {
                 bell::enqueue(This(), [&, delta](auto& /*boss*/) // Perform corrections.
                 {
