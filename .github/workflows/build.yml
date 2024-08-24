@@ -24,7 +24,7 @@ jobs:
             cpu: universal
             arch: any
             cxx: c++
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
           - os: windows-latest
             platform: windows
             cpu: Win32
