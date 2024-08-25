@@ -19,7 +19,7 @@ jobs:
           - os: windows-latest
             cpu: x86
         include:
-          - os: macos-13
+          - os: macos-latest
             platform: macos
             cpu: universal
             arch: any
@@ -94,7 +94,7 @@ jobs:
       run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
     - name: Test (POSIX)
-      if: matrix.os != 'macos-13' && matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
+      if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: ${{ steps.strings.outputs.bin }}/vtm -v
 
     - name: Test AV (Windows)
