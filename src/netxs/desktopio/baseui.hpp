@@ -997,8 +997,8 @@ namespace netxs::ui
 
     struct input_fields_t
     {
-        std::list<std::future<std::vector<rect>>> futures;
-        std::vector<rect> fields;
+        std::list<std::future<regs>> futures;
+        regs fields;
         id_t gear_id = {};
         si32 acpStart = {};
         si32 acpEnd = {};
@@ -1031,8 +1031,8 @@ namespace netxs::ui
     };
     struct input_fields_handler
     {
-        base&                                      owner; // input_fields_handler: .
-        std::list<std::promise<std::vector<rect>>> tasks; // input_fields_handler: .
+        base&                         owner; // input_fields_handler: .
+        std::list<std::promise<regs>> tasks; // input_fields_handler: .
 
         void send_input_fields_request(auto& boss, auto& inputfield_request) // Send request without ui sync.
         {

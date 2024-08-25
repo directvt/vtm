@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.06";
+    static const auto version = "v0.9.99.07";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -566,10 +566,8 @@ namespace netxs::app::shared
                 }
             }
             auto event_domain = netxs::events::auth{};
-            if (auto window = event_domain.create<gui::window>(event_domain, wincoord, gridsize, fontlist, cellsize, aliasing, blinking))
-            {
-                window->connect(winstate);
-            }
+            auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
+            window->connect(winstate, wincoord, gridsize);
         }
     }
     void start(text cmd, text aclass, xmls& config)

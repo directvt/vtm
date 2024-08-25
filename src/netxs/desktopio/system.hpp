@@ -37,6 +37,7 @@
     #include <sys/types.h>  // ::getaddrinfo
     #include <sys/socket.h> // ::shutdown() ::socket(2)
     #include <netdb.h>      //
+    #include <arpa/inet.h>  // ::inet_ntop()
 
     #include <stdio.h>
     #include <unistd.h>     // ::read()
@@ -3439,6 +3440,129 @@ namespace netxs::os
                 }
                 return socket;
             }
+
+            static auto open([[maybe_unused]] text addr, [[maybe_unused]] text port, [[maybe_unused]] bool logs = faux)
+            {
+                auto r = os::invalid_fd;
+                auto w = os::invalid_fd;
+                auto socket = sptr<ipc::stdcon>{};
+
+                #if defined(_WIN32)
+                    // N/A
+                #else
+                    auto addr_family = addr[0] == '/' ? AF_UNIX : AF_UNSPEC;
+                    if (addr_family == AF_UNIX)
+                    {
+                        auto saddr = sockaddr_un{ .sun_family = AF_UNIX };
+                             if (addr.size() > sizeof(sockaddr_un::sun_path) - 1)           { if (logs) os::fail("Unix socket path too long"); }
+                        else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == os::invalid_fd) { if (logs) os::fail("Unix socket opening error"); }
+                        else
+                        {
+                            r = w;
+                            std::copy(addr.begin(), addr.end(), saddr.sun_path);
+                            auto sock_addr_len = (socklen_t)(sizeof(saddr) - (sizeof(sockaddr_un::sun_path) - (addr.size() + 1)));
+                            if (-1 == ::connect(r, (struct sockaddr*)&saddr, sock_addr_len))
+                            {
+                                if (logs) os::fail("Connection to '%path%' failed", addr);
+                                os::close(r);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        auto ipaddr_to_str = [](auto* ipaddr)
+                        {
+                            auto ip_addr = (sockaddr*)ipaddr;
+                            auto family = ip_addr->sa_family;
+                            auto addr = family == AF_INET ? (void*)&(((sockaddr_in*)ip_addr)->sin_addr)
+                                                          : (void*)&(((sockaddr_in6*)ip_addr)->sin6_addr);
+                            auto str = std::array<char, INET6_ADDRSTRLEN + 1>{}; // +1 for trailing null.
+                            ::inet_ntop(family, addr, str.data(), str.size() - 1);
+                            return text{ str.data() };
+                        };
+                        auto str_to_ipaddrs = [](view str)
+                        {
+                            auto addrs = std::vector<sockaddr_in6>{};
+                            if (str == "localhost")
+                            {
+                                addrs.push_back({ .sin6_family = AF_INET });
+                                addrs.push_back({ .sin6_family = AF_INET6 });
+                                ((char*)&(addrs[0].sin6_flowinfo))[0] = 127; // [127.0.0.1]:0
+                                ((char*)&(addrs[0].sin6_flowinfo))[3] = 1;   //
+                                ((char*)&(addrs[1].sin6_addr))[15] = 1; // [::1]:0
+                                std::swap(addrs.front(), addrs.back());
+                            }
+                            else
+                            {
+                                auto& a = addrs.emplace_back();
+                                str.find(':') != text::npos ? a.sin6_family = AF_INET6 : AF_INET;
+                                auto rc = ::inet_pton(a.sin6_family, str.data(), &a.sin6_port);
+                                if (rc != 1) addrs.pop_back();
+                            }
+                            return addrs;
+                        };
+                        //  getaddrinfo() can't be statically linked.
+                        //auto addrs = (addrinfo*)nullptr;
+                        //auto hints = addrinfo{ .ai_family   = AF_UNSPEC,     // Allow IPv4 or IPv6.
+                        //                       .ai_socktype = SOCK_STREAM }; // TCP connection only.
+                        //if (ok(::getaddrinfo(addr.data(), port.data(), &hints, &addrs), "::getaddrinfo()", os::unexpected))
+                        {
+                            log("Host resolved to:");
+                            //for (auto rec = addrs; rec; rec = rec->ai_next)
+                            //{
+                            //    if (logs) log("  %addr%", ipaddr_to_str(rec->ai_addr));
+                            //}
+                            //for (auto rec = addrs; rec; rec = rec->ai_next)
+                            //{
+                            //    auto ip_addr = sockaddr{ *(rec->ai_addr) };
+                            //    auto family = rec->ai_addr->sa_family;
+                            //    if (logs) log("  connect to '%path%:%port%'...", ipaddr_to_str(&ip_addr), port);
+                            //    auto s = ::socket(family, SOCK_STREAM, 0); // protocol=0: TCP is the default streaming socket for the IP protocol suite.
+                            //    if (s == os::invalid_fd) continue;
+                            //    auto addrlen = socklen_t(family == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
+                            //    if (::connect(s, &ip_addr, addrlen) != -1)
+                            //    {
+                            //        w = s;
+                            //        r = s;
+                            //        break; // Connected.
+                            //    }
+                            //    ::close(s);
+                            //}
+                            //::freeaddrinfo(addrs);
+                            auto addrs = str_to_ipaddrs(addr);
+                            for (auto& ip_addr : addrs)
+                            {
+                                if (logs) log("  %addr%", ipaddr_to_str(&ip_addr));
+                            }
+                            for (auto& ip_addr : addrs)
+                            {
+                                auto family = ip_addr.sin6_family;
+                                if (logs) log("  connect to '[%path%]:%port%'...", ipaddr_to_str(&ip_addr), port);
+                                auto s = ::socket(family, SOCK_STREAM, 0); // protocol=0: TCP is the default streaming socket for the IP protocol suite.
+                                if (s == os::invalid_fd) continue;
+                                auto addrlen = (socklen_t)(family == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
+                                auto portval = utf::to_int(port, ui16{});
+                                ((byte*)&ip_addr.sin6_port)[0] = (byte)(portval >> 8);
+                                ((byte*)&ip_addr.sin6_port)[1] = (byte)(portval & 0xFF);
+                                if (::connect(s, (sockaddr*)&ip_addr, addrlen) != -1)
+                                {
+                                    w = s;
+                                    r = s;
+                                    break; // Connected.
+                                }
+                                ::close(s);
+                            }
+                            if (logs && w == os::invalid_fd) os::fail("Connection to '[%path%]:%port%' failed", addr, port);
+                        }
+                    }
+                #endif
+
+                if (r != os::invalid_fd && w != os::invalid_fd)
+                {
+                    socket = ptr::shared<ipc::stdcon>(r, w);
+                }
+                return socket;
+            }
         };
 
         auto stdio()
@@ -3657,13 +3781,20 @@ namespace netxs::os
                             os::stderr_fd = os::invalid_fd;
                             //if constexpr (!debugmode) ::FreeConsole();
                             ::FreeConsole();
-                            auto term = "Native GUI console";
-                            log("%%Terminal type: %term%", prompt::os, term);
-                            return;
                         }
                         // We are hosted by a shell.
                     #else
+                        if (!haspty)
+                        {
+                            dtvt::vtmode |= ui::console::gui;
+                        }
                     #endif
+                    if (dtvt::vtmode & ui::console::gui)
+                    {
+                        auto term = "Native GUI console";
+                        log("%%Terminal type: %term%", prompt::os, term);
+                        return;
+                    }
                 }
 
                 #if defined(_WIN32)

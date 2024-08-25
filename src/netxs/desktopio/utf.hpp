@@ -689,10 +689,10 @@ namespace netxs::utf
         }
         return std::nullopt;
     }
-    template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of_v<view, T>>>
+    template<class A = si32, si32 Base = 10, class T>
     auto to_int(T&& utf8)
     {
-        auto shadow = view{ std::forward<T>(utf8) };
+        auto shadow = view{ utf8 };
         return to_int<A, Base>(shadow);
     }
     template<si32 Base = 10, class T, class A>
