@@ -177,7 +177,7 @@ R"==(
             <kb_focus fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
             <shadower bgc=0xB4202020/>                        <!-- Darklighter. -->
             <shadow> <!-- Window shadow configuration. -->
-                <enabled=true/>
+                <enabled=0/>
                 <blur=3/>         <!-- Blur radius (in cells). Default is 3. -->
                 <bias=0.37/>      <!-- Shadow contour bias [0.0 - 1.0]. Default is 0.37 -->
                 <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is 105.5 -->
@@ -250,7 +250,7 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF003040>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0x80000000>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>

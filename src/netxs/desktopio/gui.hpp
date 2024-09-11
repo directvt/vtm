@@ -1254,7 +1254,7 @@ namespace netxs::gui
             auto target_ptr = &canvas;
             if constexpr (std::is_same_v<std::decay_t<T>, noop>)
             {
-                if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+                netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
             else
             {
@@ -1262,12 +1262,10 @@ namespace netxs::gui
                 {
                     target_ptr = &blink_canvas;
                     blink_canvas.clip(placeholder);
-                    if (bgc.alpha()) // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
-                    {
-                        netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
-                    }
+                    // Fill the blinking layer's background to fix DWM that doesn't take gamma into account during layered window blending.
+                    netxs::onclip(canvas, blink_canvas, [&](auto& dst, auto& src){ dst = bgc; src = bgc; });
                 }
-                else if (bgc.alpha()) netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
+                else netxs::onrect(canvas, placeholder, cell::shaders::full(bgc));
             }
             auto& target = *target_ptr;
             if (auto u = c.und())
@@ -1352,12 +1350,32 @@ namespace netxs::gui
                 else return;
             }
             auto& glyph_mask = iter->second;
-            if (!glyph_mask.area) return;
-
-            auto [w, h, x, y] = c.whxy();
-            if (x == 0 || y == 0) return;
-            auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
-            draw_glyph(target, glyph_mask, offset, fgc);
+            if (glyph_mask.area)
+            {
+                auto [w, h, x, y] = c.whxy();
+                if (x != 0 && y != 0)
+                {
+                    auto offset = placeholder.coor - twod{ cellsz.x * (x - 1), cellsz.y * (y - 1) };
+                    //todo implement a contour or a shadow layer
+                    //if (bgc.alpha() < 2 && fgc == argb{ purewhite })
+                    //{
+                    //    auto blk = argb{ pureblack };
+                    //    draw_glyph(target, glyph_mask, offset - dot_10, blk);
+                    //    draw_glyph(target, glyph_mask, offset + dot_10, blk);
+                    //    draw_glyph(target, glyph_mask, offset - dot_01, blk);
+                    //    draw_glyph(target, glyph_mask, offset + dot_01, blk);
+                    //    draw_glyph(target, glyph_mask, offset - dot_11, blk);
+                    //    draw_glyph(target, glyph_mask, offset + dot_11, blk);
+                    //    draw_glyph(target, glyph_mask, offset - dot_01 + dot_10, blk);
+                    //    draw_glyph(target, glyph_mask, offset + dot_01 - dot_10, blk);
+                    //}
+                    draw_glyph(target, glyph_mask, offset, fgc);
+                }
+            }
+            if (bgc.alpha()< 2 && fgc == argb{ purewhite })
+            {
+                //edge
+            }
         }
     };
 
@@ -2313,7 +2331,7 @@ namespace netxs::gui
         void draw_grips()
         {
             if (fsmode == state::maximized) return;
-            static auto trans = 0x01'00'00'00;
+            static auto trans = argb::active_transparent;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
             auto canvas = layer_get_bits(master);
