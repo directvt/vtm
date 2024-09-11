@@ -179,7 +179,11 @@ namespace netxs::ui
                     if (!alive) return;
                     auto area = canvas.full() + outer;
                     auto bord = outer - inner;
-                    canvas.cage(area, bord, [&](cell& c){ c.link(boss.id); });
+                    canvas.cage(area, bord, [&](cell& c)
+                    {
+                        c.link(boss.id);
+                        if (c.bga() == 0) c.bga(1); // Active transparent.
+                    });
                     items.foreach([&](auto& item)
                     {
                         item.draw(canvas, area, cell::shaders::xlight);

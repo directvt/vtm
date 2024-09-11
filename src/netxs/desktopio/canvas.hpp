@@ -412,13 +412,13 @@ namespace netxs
                     chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
                 }
             }
-            else if (chan.a == 0)
+            else if (chan.a < 2)
             {
                 auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
-                chan.r = 255;
-                chan.g = 255;
-                chan.b = 255;
-                chan.a = k;
+                chan.r = k;
+                chan.g = k;
+                chan.b = k;
+                chan.a = (byte)std::min(255, 2 * k);
             }
             else
             {
@@ -469,13 +469,13 @@ namespace netxs
                     second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
                 }
             }
-            else if (chan.a == 0)
+            else if (chan.a < 2)
             {
                 auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
-                chan.r = 255;
-                chan.g = 255;
-                chan.b = 255;
-                chan.a = k;
+                chan.r = k;
+                chan.g = k;
+                chan.b = k;
+                chan.a = (byte)std::min(255, 2 * k);
                 second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
                 second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
                 second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
@@ -491,7 +491,7 @@ namespace netxs
                     chan.r = chan.r < k ? 0x00 : chan.r - k;
                     chan.g = chan.g < k ? 0x00 : chan.g - k;
                     chan.b = chan.b < k ? 0x00 : chan.b - k;
-                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                    //chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
                     second.chan.r = second.chan.r < k ? 0x00 : second.chan.r - k;
                     second.chan.g = second.chan.g < k ? 0x00 : second.chan.g - k;
                     second.chan.b = second.chan.b < k ? 0x00 : second.chan.b - k;
@@ -502,7 +502,8 @@ namespace netxs
                     chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
                     chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
                     chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
-                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                    // xlight for 0x80'000000 is invisible on purewhite os desktop
+                    //chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
                     second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
                     second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
                     second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
@@ -542,6 +543,7 @@ namespace netxs
         }
 
         static constexpr auto default_color = 0x00'FF'FF'FF;
+        static constexpr auto active_transparent = 0x01'000000;
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
@@ -2034,8 +2036,13 @@ namespace netxs
                 {
                     if (src.isnul()) return;
                     auto& fgc = src.fgc();
-                    if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
-                    else                    dst.fusefull(src);
+                    if (fgc.chan.a == 0x00)
+                    {
+                        auto& bgc = dst.bgc();
+                        if (bgc.chan.a < 2) dst.fgc(0xFFffffff);
+                        else                dst.fgc(invert(bgc));
+                    }
+                    dst.fusefull(src);
                 }
             };
             struct lite_t : public brush_t<lite_t>

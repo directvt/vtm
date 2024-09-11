@@ -433,9 +433,9 @@ namespace netxs::app::desk
         auto background = [](auto appid, auto label, auto title)
         {
             auto highlight_color = skin::color(tone::highlight);
-            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
-                ->active(cell{}.fgc(whitedk))
+                ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
                 ->shader(c8, e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
