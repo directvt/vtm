@@ -1,4 +1,4 @@
-// Copyright (c) NetXS Group.
+// Copyright (c) Dmitry Sapozhnikov
 // Licensed under the MIT license.
 
 #if defined(DEFINE_macro)
