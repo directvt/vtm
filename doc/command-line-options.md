@@ -13,7 +13,7 @@ vtm -i | -u | -v | -?
 <script relay via piped redirection> | vtm [ -p <id> ]
 ```
 
-> By default, vtm runs Desktop Client, running an additional instance with Desktop Server in background if it is not found.
+> By default, vtm runs Desktop Client, running an additional instance with Desktop Server in background if it is not running.
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
@@ -23,17 +23,17 @@ Option                  | Description
 `-t`, `--tui`           | Force TUI mode.
 `-g`, `--gui`           | Force GUI mode.
 `-i`, `--install`       | Perform system-wide installation. Allow Desktop Server to run in user context in Session 0 on Windows.<br>Placing Desktop Server in Session 0 allows console applications to run independently of the user's GUI login session. Note: This prevents GUI applications from running from the vtm desktop environment. See "Session 0 Isolation" on the Web for details.
-`-0`, `--session0`      | Use Session 0 to run Desktop Server in background.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
+`-0`, `--session0`      | Use Session 0 to run Desktop Server in background.
 `-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
-`-c`, `--config <file>` | Specifies the settings file to load.
-`-p`, `--pin <id>`      | Specifies the desktop id it is pinned to.
+`-c`, `--config <file>` | Specifies a settings file to load or plain xml-data to merge.
+`-p`, `--pin <id>`      | Specifies the desktop id it will be pinned to.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
 `-m`, `--monitor`       | Run Desktop Monitor.
 `-r`, `--`, `--run`     | Run desktop applet standalone.
-`<type>`                | Desktop applet type to run.
+`<type>`                | Desktop applet to run.
 `<args...>`             | Desktop applet arguments.
 
 ### Desktop Applets
@@ -49,7 +49,7 @@ The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
-Instead of the path to the configuration file, the configuration body itself can be specified:
+It is possible to specify plain xml-data to modify current settings (this case is detected by the `<config` literal at the beginning):
 
   - `vtm -c \"<config><term><scrollback size=1000000/></term></config>\" -r term`.
 

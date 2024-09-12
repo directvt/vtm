@@ -2365,7 +2365,7 @@ namespace netxs::ui
                     auto new_item = item_template(data_src, arg_new_value)
                                          ->depend(data_src);
                     item_shadow = ptr::shadow(new_item); // Update current item shadow.
-                    boss_ptr->update(old_item, new_item);
+                    boss_ptr->replace(old_item, new_item);
                 }
             };
             branch(new_item);
@@ -3482,7 +3482,7 @@ namespace netxs::ui
             else base::subset.clear();
         }
         // rail: Update nested object.
-        void update(sptr old_object, sptr new_object) override
+        void replace(sptr old_object, sptr new_object) override
         {
             auto object_coor = dot_00;
             if (!empty())
@@ -3990,7 +3990,7 @@ namespace netxs::ui
             else base::subset.clear();
         }
         // pads: Update nested object.
-        void update(sptr old_object, sptr new_object) override
+        void replace(sptr old_object, sptr new_object) override
         {
             remove(old_object);
             attach(new_object);

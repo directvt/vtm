@@ -112,10 +112,8 @@ namespace netxs::os
     static constexpr auto unexpected = " returns unexpected result"sv;
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
-    static auto logbuffer = text{};
-    void release(bool clear_log = true)
+    void release()
     {
-        if (clear_log) os::logbuffer.clear(); // Graceful exit w/o errors.
         os::finalized.exchange(true);
         os::finalized.notify_all();
     }
@@ -3631,7 +3629,7 @@ namespace netxs::os
             }
             return std::max(dot_11, winsz);
         }
-        auto initialize(bool trygui = faux, [[maybe_unused]] bool forced = faux)
+        auto initialize(bool rungui = faux)
         {
             #if defined(_WIN32)
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
@@ -3743,13 +3741,15 @@ namespace netxs::os
             else
             {
                 dtvt::gridsz = dtvt::consize();
-                if (trygui)
+                if (rungui)
                 {
                     #if defined(_WIN32)
-
+                    if (nt::session()) // There is no gui mode in Session0.
+                    {
+                        dtvt::vtmode |= ui::console::gui;
                         auto processpid = DWORD{};
                         auto proc_count = ::GetConsoleProcessList(&processpid, 1);
-                        if (forced || 1 == proc_count) // Run gui console.
+                        if (1 == proc_count) // Run gui console. Close the parent text console when we are alone.
                         {
                             //auto r = RECT{};
                             //auto h = ::GetConsoleWindow();
@@ -3775,19 +3775,18 @@ namespace netxs::os
                             ////dtvt::wingui = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }}; // It doesn't work with WT.
                             //dtvt::wingui = dtvt::window;
                             //dtvt::wingui.size *= twod{ std::max(1, cell_height / 2), cell_height};
-                            dtvt::vtmode |= ui::console::gui;
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
                             //if constexpr (!debugmode) ::FreeConsole();
                             ::FreeConsole();
                         }
-                        // We are hosted by a shell.
+                    }
                     #else
-                        if (!haspty)
-                        {
-                            dtvt::vtmode |= ui::console::gui;
-                        }
+                    if (!haspty)
+                    {
+                        dtvt::vtmode |= ui::console::gui;
+                    }
                     #endif
                     if (dtvt::vtmode & ui::console::gui)
                     {
@@ -4694,7 +4693,7 @@ namespace netxs::os
                 parser.cout(utf8);
                 #endif
             }
-            else if (!(dtvt::vtmode & ui::console::redirio))
+            else if (!(dtvt::vtmode & ui::console::redirio || dtvt::vtmode & ui::console::direct))
             {
                 io::send(utf8);
             }
@@ -4799,30 +4798,8 @@ namespace netxs::os
         auto logger()
         {
             static auto dtvt_output = [](auto& data){ io::send(os::stdout_fd, data); };
-            if (dtvt::vtmode & ui::console::gui)
-            {
-                auto errmsg = []
-                {
-                    if (os::logbuffer.size())
-                    {
-                        #if defined(_WIN32)
-                        auto utf8log = ui::page{ utf::trunc(os::logbuffer, 32) }.to_utf8<faux>();
-                        auto message = utf::to_utf(utf::trim_front(view{ utf8log }, '\n'));
-                        auto caption = utf::to_utf(os::process::binary());
-                        ::MessageBoxW(NULL, message.data(), caption.data(), MB_OK);
-                        #else
-                        #endif
-                    }
-                };
-                std::atexit(errmsg);
-            }
             return netxs::logger::attach([](qiew utf8)
             {
-                if (dtvt::vtmode & ui::console::gui) // Deferred logs in gui mode.
-                {
-                    os::logbuffer += utf8;
-                    utf8 = os::logbuffer;
-                }
                 if (utf8.empty()) return;
                 if (dtvt::active || dtvt::client)
                 {
@@ -4830,9 +4807,8 @@ namespace netxs::os
                     logs.set(os::process::id.first, os::process::id.second, utf8);
                     dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
                                  : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
-                    os::logbuffer.clear();
                 }
-                else if (os::stdout_fd != os::invalid_fd)
+                if (os::stdout_fd != os::invalid_fd)
                 {
                     tty::cout(utf8);
                 }
