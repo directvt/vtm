@@ -472,14 +472,7 @@ namespace netxs::app::shared
             auto load = [&](qiew shadow)
             {
                 if (shadow.empty()) return faux;
-                if (utf::dequote(shadow).starts_with("<config")) // The configuration text data is specified directly instead of the path to the configuration file.
-                {
-                    auto utf8 = utf::dequote(shadow);
-                    log("%%Use directly specified settings:\n%body%", prompt::apps, ansi::hi(utf8));
-                    conf.fuse<Print>(utf8);
-                    return true;
-                }
-                else if (shadow.starts_with(":")) // Receive configuration via memory mapping.
+                if (shadow.starts_with(":")) // Receive configuration via memory mapping.
                 {
                     shadow.remove_prefix(1);
                     auto utf8 = os::process::memory::get(shadow);
@@ -521,12 +514,19 @@ namespace netxs::app::shared
                 log(prompt::pads, "Not found");
                 return faux;
             };
-            if (!load(cli_config_path)) // Merge explicitly specified settings.
+            auto frag = utf::dequote(cli_config_path);
+            if (!frag.starts_with("<config")) frag = {}; // The configuration fragment could be specified directly in place of the configuration file path.
+            if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
             {
                 load(app::shared::sys_config); // Merge system-wide settings.
                 load(app::shared::usr_config); // Merge user-wise settings.
             }
             conf.fuse<Print>(patch); // Apply dtvt patch.
+            if (frag)
+            {
+                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(frag));
+                conf.fuse<Print>(frag);
+            }
             return conf;
         }
     }
