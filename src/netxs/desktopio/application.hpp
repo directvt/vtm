@@ -565,9 +565,23 @@ namespace netxs::app::shared
                     fontlist.push_back(f->value());
                 }
             }
-            auto event_domain = netxs::events::auth{};
-            auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
-            window->connect(winstate, wincoord, gridsize);
+            auto connect = [&]
+            {
+                auto event_domain = netxs::events::auth{};
+                auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
+                window->connect(winstate, wincoord, gridsize);
+            };
+            if (os::stdout_fd != os::invalid_fd)
+            {
+                auto runcmd = directvt::binary::command{};
+                auto readln = os::tty::readline([&](auto line){ runcmd.send(client, line); }, [&]{ if (client) client->shut(); });
+                connect();
+                readln.stop();
+            }
+            else
+            {
+                connect();
+            }
         }
     }
     void start(text cmd, text aclass, xmls& config)
@@ -579,10 +593,8 @@ namespace netxs::app::shared
         }};
         //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto domain = ui::host::ctor(server, config)
-            ->plugin<scripting::host>();
-        auto appcfg = eccc{ .cmd = cmd,
-                            .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
+        auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
+        auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
         domain->stop();
