@@ -20,12 +20,16 @@ graph LR
 - Hardcoded settings
   - See [/src/vtm.xml](../src/vtm.xml) for reference.
 - `--config <file>` CLI option
-  - The current configuration can be patched by specifying a configuration fragment in plain text in place of the configuration file path (this case is detected by the `<config` keyword at the beginning).  
+  - `<file>`: Path to the configuration file.  
+    `command line`:
+    ```bash
+    vtm -c "/path/to/settings.xml" -r term
+    ```
+  - The current configuration can be patched by specifying plain xml-data in place of the `<file>` (this case is detected by the `<config` keyword at the beginning).  
     `command line`:
     ```bash
     vtm -c "<config><term><scrollback size=1000000 growstep=100000/></term></config>" -r term
     ```
-
 - Global settings
   - on POSIX: `/etc/vtm/settings.xml`
   - on Windows: `%programdata%/vtm/settings.xml`
