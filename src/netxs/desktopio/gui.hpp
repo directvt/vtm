@@ -713,7 +713,7 @@ namespace netxs::gui
                     netxs::set_flag<fontcat::loaded>(fontstat[i].s);
                     auto is_primary = fallback.empty();
                     auto& f = fallback.emplace_back(*this, barefont, i, cellsize, is_primary);
-                    log("%%Using font '%fontname%' (%iscolor%). Order %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                 }
                 return hit;
             };

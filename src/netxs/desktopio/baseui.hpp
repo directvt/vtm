@@ -930,7 +930,7 @@ namespace netxs::ui
             }
         }
         // base: Update nested object.
-        virtual void update(sptr old_item_ptr, sptr new_item_ptr)
+        virtual void replace(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();

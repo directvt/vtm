@@ -166,6 +166,23 @@ namespace netxs::ui
                     s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
                 });
             }
+            void handle(s11n::xs::command     lock)
+            {
+                //todo implement
+                //auto cmd = eccc{ .cmd = lock.thing.utf8 };
+                //notify(scripting::events::invoke, cmd);
+                auto cmd = qiew{ lock.thing.utf8 };
+                if (cmd.starts_with("exit") || cmd.starts_with("quit"))
+                {
+                    lock.unlock();
+                    disconnect();
+                }
+                else
+                {
+                    auto msg = utf::concat(prompt::repl, ansi::err("Not implemented: "), ansi::clr(yellowlt, utf::trim(cmd, "\r\n")));
+                    s11n::logs.send(canal, ui32{}, datetime::now(), msg);
+                }
+            }
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& focus = lock.thing;
@@ -1303,6 +1320,7 @@ namespace netxs::ui
             //LISTEN(tier::general, e2::conio::logs, utf8, tokens)
             //{
             //    //todo application internal log output
+            //    //conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
             //};
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
             {

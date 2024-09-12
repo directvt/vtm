@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.08";
+    static const auto version = "v0.9.99.09";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -472,14 +472,7 @@ namespace netxs::app::shared
             auto load = [&](qiew shadow)
             {
                 if (shadow.empty()) return faux;
-                if (utf::dequote(shadow).starts_with("<config")) // The configuration text data is specified directly instead of the path to the configuration file.
-                {
-                    auto utf8 = utf::dequote(shadow);
-                    log("%%Use directly specified settings:\n%body%", prompt::apps, ansi::hi(utf8));
-                    conf.fuse<Print>(utf8);
-                    return true;
-                }
-                else if (shadow.starts_with(":")) // Receive configuration via memory mapping.
+                if (shadow.starts_with(":")) // Receive configuration via memory mapping.
                 {
                     shadow.remove_prefix(1);
                     auto utf8 = os::process::memory::get(shadow);
@@ -521,12 +514,19 @@ namespace netxs::app::shared
                 log(prompt::pads, "Not found");
                 return faux;
             };
-            if (!load(cli_config_path)) // Merge explicitly specified settings.
+            auto frag = utf::dequote(cli_config_path);
+            if (!frag.starts_with("<config")) frag = {}; // The configuration fragment could be specified directly in place of the configuration file path.
+            if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
             {
                 load(app::shared::sys_config); // Merge system-wide settings.
                 load(app::shared::usr_config); // Merge user-wise settings.
             }
             conf.fuse<Print>(patch); // Apply dtvt patch.
+            if (frag)
+            {
+                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(frag));
+                conf.fuse<Print>(frag);
+            }
             return conf;
         }
     }
@@ -565,9 +565,23 @@ namespace netxs::app::shared
                     fontlist.push_back(f->value());
                 }
             }
-            auto event_domain = netxs::events::auth{};
-            auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
-            window->connect(winstate, wincoord, gridsize);
+            auto connect = [&]
+            {
+                auto event_domain = netxs::events::auth{};
+                auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
+                window->connect(winstate, wincoord, gridsize);
+            };
+            if (os::stdout_fd != os::invalid_fd)
+            {
+                auto runcmd = directvt::binary::command{};
+                auto readln = os::tty::readline([&](auto line){ runcmd.send(client, line); }, [&]{ if (client) client->shut(); });
+                connect();
+                readln.stop();
+            }
+            else
+            {
+                connect();
+            }
         }
     }
     void start(text cmd, text aclass, xmls& config)
@@ -579,10 +593,8 @@ namespace netxs::app::shared
         }};
         //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto domain = ui::host::ctor(server, config)
-            ->plugin<scripting::host>();
-        auto appcfg = eccc{ .cmd = cmd,
-                            .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
+        auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
+        auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
         domain->stop();
