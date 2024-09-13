@@ -3934,7 +3934,7 @@ namespace netxs::os
         }
         auto connect(eccc cfg, fdrw fds)
         {
-            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
+            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
             auto result = true;
             auto onerror = [&]()
             {
@@ -4119,7 +4119,7 @@ namespace netxs::os
                     {
                         serverfd = s_pipe_w;
                         clientfd = m_pipe_w;
-                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
+                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::replace_all(utf::debase(cmd), "\\\\", "/"));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
@@ -4130,7 +4130,7 @@ namespace netxs::os
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
-                        log("%%Process '%cmd%' disconnected", prompt::dtvt, utf::debase(cmd));
+                        log("%%Process '%cmd%' disconnected", prompt::dtvt, utf::replace_all(utf::debase(cmd), "\\\\", "/"));
                         shutdown();
                     }
                 }};
@@ -4176,7 +4176,7 @@ namespace netxs::os
             void create(auto& terminal, eccc cfg, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, cfg.win);
-                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -4187,7 +4187,7 @@ namespace netxs::os
                     if (attached.exchange(faux))
                     {
                         auto exitcode = termlink->wait();
-                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::debase(cmd), utf::to_hex_0x(exitcode));
+                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::replace_all(utf::debase(cmd), "\\\\", "/"), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
@@ -4474,8 +4474,8 @@ namespace netxs::os
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s
-                                                                                                              : "'" + cfg.cwd + "'");
+                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s
+                                                                                                                                             : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = os::invalid_fd;

@@ -375,8 +375,7 @@ namespace netxs
     using disintegrate = typename _disintegrate<std::is_arithmetic_v<T>, T>::type;
 
     // intmath: Quadratic fader delta sequence generator.
-    //          The QUADRATIC-LAW fader from the initial velocity
-    //          to stop for a given period of time.
+    //          The QUADRATIC-LAW fader from the initial velocity to stop for a given period of time.
     template<class T>
     struct quadratic
     {

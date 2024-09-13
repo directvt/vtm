@@ -248,7 +248,6 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
-                config.cd("/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -393,12 +392,10 @@ namespace netxs::app::shared
                 ->active(cB);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
-            config.cd("/config/term/color/default/");
-            auto def_fcolor = config.take("fgc", argb{ whitelt });
-            auto def_bcolor = config.take("bgc", argb{ blackdk });
+            auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(def_fcolor, def_bcolor)
+                ->colors(defclr.fgc(), defclr.bgc())
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;

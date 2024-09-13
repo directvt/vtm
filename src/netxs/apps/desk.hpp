@@ -466,17 +466,17 @@ namespace netxs::app::desk
             //auto c2 = warning_color;
             auto c1 = danger_color;
 
-            auto menu_bg_color = config.take("/config/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
-            auto menu_min_conf = config.take("/config/menu/width/folded",   si32{ 5  });
-            auto menu_max_conf = config.take("/config/menu/width/expanded", si32{ 32 });
+            auto menu_bg_color = config.take("/config/desktop/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
+            auto menu_min_conf = config.take("/config/desktop/menu/width/folded",   si32{ 5  });
+            auto menu_max_conf = config.take("/config/desktop/menu/width/expanded", si32{ 32 });
             auto bttn_min_size = twod{ 31, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
             auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
-            auto panel_top = config.take("/config/panel/height", 1);
-            auto panel_env = config.take("/config/panel/env", ""s);
-            auto panel_cwd = config.take("/config/panel/cwd", ""s);
-            auto panel_cmd = config.take("/config/panel/cmd", ""s);
+            auto panel_top = config.take("/config/desktop/panel/height", 1);
+            auto panel_env = config.take("/config/desktop/panel/env", ""s);
+            auto panel_cwd = config.take("/config/desktop/panel/cwd", ""s);
+            auto panel_cmd = config.take("/config/desktop/panel/cmd", ""s);
             auto panel = window->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {

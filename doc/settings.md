@@ -53,7 +53,7 @@ graph LR
         ...
     ```
 
-## Configuration body Format (settings.xml)
+## Configuration body format (settings.xml)
 
 Configuration body format is a slightly modified XML-format which allows to store hierarchical list of key=value pairs.
 
@@ -182,14 +182,14 @@ The following declarations have the same meaning:
 </list>
 ```
 
-### Configuration Structure
+### Configuration structure
 
 Top-level element `<config>` contains the following base elements:
   - Single `<menu>` block - taskbar menu configuration which contains:
     - Set of `<item>` elements - a list of menu items.
     - Single `<autorun>` block - a list of items to run at the environment startup.
 
-#### Application Configuration
+#### Application configuration
 
 The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
@@ -226,7 +226,7 @@ Value type | Format
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
 
-#### Desktop Window Types
+#### Desktop windows
 
 Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
@@ -244,20 +244,21 @@ The following configuration items produce the same final result:
 <item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
-### Configuration Example
+### Configuration example
 
 Note: The following configuration sections are not implemented yet:
-- config/menu/item/hotkeys
-- config/hotkeys
+- config/.../hotkeys
 
 #### Minimal config
 
 `~/.config/vtm/settings.xml`:
 ```xml
 <config>
-    <menu selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
-        <item id=Term/>  <!-- title=id type=SHELL cmd=os_default_shell -->
-    </menu>
+    <desktop>
+        <menu selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
+            <item id=Term/>  <!-- id=Term title="Term" type=SHELL cmd=os_default_shell -->
+        </menu>
+    </desktop>
 </config>
 ```
 
@@ -355,8 +356,6 @@ Notes
     <appearance>
         <defaults>
             <fps=60/>
-            <bordersz=1,1 />
-            <lucidity=0xff/> <!-- not implemented -->
             <tracking=off /> <!-- Mouse cursor highlighting. -->
             <macstyle=no  /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60/> <!-- Highlighter. -->
@@ -373,7 +372,6 @@ Notes
             <menu_white fgc=whitelt   bgc=0x80404040 />
             <menu_black fgc=blackdk   bgc=0x80404040 />
             <timings>
-                <fader duration=0ms fast=0ms/>  <!-- Fader animation config. -->
                 <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
                 <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
                 <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
@@ -385,7 +383,7 @@ Notes
                 <switching      = 200   /> <!-- Object state switching duration in ms.               -->
                 <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
                 <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
-                <active_timeout = 1s    /> <!-- Timeout off the active object.                       -->
+                <leave_timeout = 1s    /> <!-- Timeout off the active object.                       -->
                 <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
@@ -393,9 +391,6 @@ Notes
                 <window size=3000x2000/> <!-- Max window grid size -->
             </limits>
         </defaults>
-        <runapp>    <!-- Override defaults. -->
-            <brighter fgc=purewhite bgc=purewhite alpha=0/> <!-- Highlighter. -->
-        </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
         <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
@@ -420,9 +415,9 @@ Notes
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0x80000000>  <!-- Desktop background. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
-            <!-- Example of background with some gradients -->
+            <!-- Background with gradients -->
             <!-- <tile>
                 "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m \e[48;2;55;212;247m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \n"
                 "\e[48;2;82;171;239m \e[48;2;72;191;243m \e[48;2;55;212;247m \e[48;2;31;233;251m \e[m\e[48;2;0;255;255m \e[m\e[48;2;0;255;255m \e[48;2;31;233;251m \e[48;2;55;212;247m \e[48;2;72;191;243m \e[48;2;82;171;239m \n"

@@ -613,7 +613,6 @@ namespace netxs::app::test
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0'00'37'db);
-                config.cd("/config/test/", "/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object0->attach(slot::_1, menu_block);
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));

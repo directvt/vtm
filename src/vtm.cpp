@@ -263,7 +263,6 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::logmon)
     {
-        log("%%Waiting for server...", prompt::main);
         auto result = std::atomic<int>{};
         auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
         {
@@ -299,6 +298,7 @@ int main(int argc, char* argv[])
             if (active) while (result && active) std::this_thread::yield();
             if (active && stream) stream->shut();
         });
+        auto logmsg = true;
         while (online)
         {
             auto iolink = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
@@ -330,6 +330,11 @@ int main(int argc, char* argv[])
             else
             {
                 syncio.unlock();
+                if (logmsg)
+                {
+                    log("%%Waiting for server...", prompt::main);
+                    logmsg = faux;
+                }
                 os::sleep(500ms);
                 syncio.lock();
             }
@@ -455,14 +460,14 @@ int main(int argc, char* argv[])
         signal.reset();
 
         using e2 = ui::e2;
-        config.cd("/config/appearance/defaults/");
+        config.cd("/config/appwindow/");
         auto domain = ui::host::ctor<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();
 
         log("%%Session started"
-          "\n      user: %userid%"
-          "\n      pipe: %prefix%", prompt::main, userid.first, prefix);
+            "\n      user: %userid%"
+            "\n      pipe: %prefix%", prompt::main, userid.first, prefix);
 
         auto stdlog = std::thread{ [&]
         {

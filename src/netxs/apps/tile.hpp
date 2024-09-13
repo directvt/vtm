@@ -834,8 +834,6 @@ namespace netxs::app::tile
                     };
                 });
 
-            config.cd("/config/tile/", "/config/defapp/");
-
             using namespace app::shared;
             auto [menu_block, cover, menu_data] = menu::create(config,
                     menu::list

@@ -32,13 +32,10 @@ namespace netxs::app::vtm
         static constexpr auto notes    = "notes";
         static constexpr auto title    = "title";
         static constexpr auto footer   = "footer";
-        static constexpr auto bgc      = "bgc";
-        static constexpr auto fgc      = "fgc";
         static constexpr auto winsize  = "winsize";
         static constexpr auto wincoor  = "wincoor";
         static constexpr auto winform  = "winform";
         static constexpr auto focused  = "focused";
-        static constexpr auto slimmenu = "slimmenu";
         static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
         static constexpr auto env      = "env";
@@ -50,10 +47,10 @@ namespace netxs::app::vtm
     }
     namespace path
     {
-        static constexpr auto item     = "/config/menu/item";
-        static constexpr auto autorun  = "/config/menu/autorun/item";
-        static constexpr auto viewport = "/config/menu/viewport/coor";
-        static constexpr auto menuslim = "/config/defapp/menu/slim";
+        static constexpr auto item     = "/config/desktop/menu/item";
+        static constexpr auto autorun  = "/config/desktop/menu/autorun/item";
+        static constexpr auto viewport = "/config/desktop/viewport/coor";
+        static constexpr auto menuslim = "/config/appwindow/menu/slim";
     }
 
     struct events
@@ -240,10 +237,6 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    parent->LISTEN(tier::preview, e2::form::global::lucidity, alpha, boss.relyon)
-                    {
-                        boss.SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-                    };
                     parent->LISTEN(tier::preview, e2::form::layout::convey, convey_data, boss.relyon)
                     {
                         convey(convey_data.delta, convey_data.stuff);
@@ -360,7 +353,7 @@ namespace netxs::app::vtm
                 auto  newpos = target - screen.size / 2;
 
                 auto path = newpos - oldpos;
-                auto time = skin::globals().switching;
+                auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
 
@@ -911,7 +904,7 @@ namespace netxs::app::vtm
         {
             auto oldpos = viewport.center();
             auto path = oldpos - newpos;
-            auto time = skin::globals().switching;
+            auto time = datetime::round<si32>(skin::globals().switching);
             auto init = 0;
             auto func = constlinearAtoB<twod>(path, time, init);
             robot.pacify();
@@ -1851,19 +1844,6 @@ namespace netxs::app::vtm
             {
                 log<faux>(utf8);
             };
-            LISTEN(tier::general, e2::form::global::lucidity, alpha)
-            {
-                if (alpha == -1)
-                {
-                    alpha = skin::globals().lucidity;
-                }
-                else
-                {
-                    alpha = std::clamp(alpha, 0, 255);
-                    skin::globals().lucidity = alpha;
-                    this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-                }
-            };
             LISTEN(tier::release, e2::form::layout::bubble, area)
             {
                 //auto region = items.bubble(inst.bell::id);
@@ -2211,7 +2191,7 @@ namespace netxs::app::vtm
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
-            if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
+            if (selected_item.size()) app_config.set("/config/desktop/menu/selected", selected_item);
             auto lock = bell::unique_lock();
             auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);

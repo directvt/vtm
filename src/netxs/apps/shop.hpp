@@ -209,7 +209,6 @@ namespace netxs::app::shop
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    config.cd("/config/gems/", "/config/defapp/");
                     auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())

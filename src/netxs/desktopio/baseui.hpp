@@ -418,7 +418,7 @@ namespace netxs::events::userland
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
                     //deprecated - use tier::anycast
                     EVENT_XS( sysstart, si32 ), // release: notify dtvt-application started: 1 - started, 0 - exited.
-                    EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
+                    //EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
 
@@ -490,8 +490,6 @@ namespace netxs::ui
         cell menu_white;
         cell menu_black;
 
-        twod bordersz = dot_11;
-        si32 lucidity = 0xFF;
         bool tracking = faux;
         bool menuwide = faux;
         bool macstyle = faux;
@@ -503,15 +501,13 @@ namespace netxs::ui
         si32 ccl_accel;
         si32 spd_max;
         si32 ccl_max;
-        si32 switching;
+        span switching;
         span deceleration;
         span blink_period;
         span menu_timeout;
-        span active_timeout;
+        span leave_timeout;
         span repeat_delay;
         span repeat_rate;
-        span fader_time;
-        span fader_fast;
 
         bool shadow_enabled = true;
         si32 shadow_blur = 3;

@@ -92,8 +92,9 @@ namespace netxs::app::terminal
 
     namespace attr
     {
-        static constexpr auto cwdsync = "cwdsync";
-        static constexpr auto borders = "layout/border";
+        static constexpr auto cwdsync   = "/config/term/cwdsync";
+        static constexpr auto borders   = "/config/term/border";
+        static constexpr auto menuitems = "/config/term/menu/item";
     }
 
     using events = netxs::events::userland::terminal;
@@ -193,8 +194,7 @@ namespace netxs::app::terminal
             //auto highlight_color = skin::color(tone::highlight);
             //auto c3 = highlight_color;
 
-            config.cd("/config/term/", "/config/defapp/");
-            auto menudata = config.list("menu/item");
+            auto menudata = config.list(attr::menuitems);
 
             static auto brand_options = std::unordered_map<text, menu::item::type>
                {{ menu::type::Splitter, menu::item::Splitter },
@@ -773,9 +773,7 @@ namespace netxs::app::terminal
         window//->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
-        config.cd("/config/term/color/default/");
-        auto def_fcolor = config.take("fgc", argb{ whitelt });
-        auto def_bcolor = config.take("bgc", argb{ blackdk });
+        auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
         auto layers = window->attach(ui::cake::ctor())
                             ->colors(cB)
                             ->limits(dot_11);
@@ -784,7 +782,7 @@ namespace netxs::app::terminal
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
         auto inst = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
-            ->colors(def_fcolor, def_bcolor)
+            ->colors(defclr.fgc(), defclr.bgc())
             ->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);
@@ -797,7 +795,6 @@ namespace netxs::app::terminal
         auto menu_white = skin::color(tone::menu_white);
         auto cB = menu_white;
 
-        config.cd("/config/term/");
         auto border = std::max(0, config.take(attr::borders, 0));
         auto borders = dent{ border, border, 0, 0 };
         auto menu_height = ptr::shared(0);
