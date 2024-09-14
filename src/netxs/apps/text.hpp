@@ -82,7 +82,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::track>()
+                  //->plugin<pro::track>()
                   ->shader(c3, e2::form::state::keybd::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()

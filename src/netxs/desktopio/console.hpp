@@ -450,7 +450,7 @@ namespace netxs::ui
                 clip_preview_show = config.take("/config/clipboard/preview/enabled", true);
                 clip_preview_size = config.take("/config/clipboard/preview/size"   , twod{ 80,25 });
                 clip_prtscrn_mime = config.take("/config/clipboard/format"         , mime::htmltext, xml::options::format);
-                dblclick_timeout  = config.take("/config/mouse/dblclick"           , span{ 500ms });
+                dblclick_timeout  = config.take("/config/timings/dblclick"         , span{ 500ms });
                 tooltip_colors    = config.take("/config/tooltips/color"           , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
                 tooltip_timeout   = config.take("/config/tooltips/timeout"         , span{ 2000ms });
                 tooltip_enabled   = config.take("/config/tooltips/enabled"         , true);
@@ -1547,7 +1547,6 @@ namespace netxs::ui
             g.inactive       = config.take("/config/colors/inactive"  , cell{ whitespace });
             g.menu_white     = config.take("/config/colors/menu_white", cell{ whitespace });
             g.menu_black     = config.take("/config/colors/menu_black", cell{ whitespace });
-            g.tracking       = config.take("/config/mouse/tracking", faux);
             g.macstyle       = config.take("/config/appwindow/menu/macstyle"  , faux);
             g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
             g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );

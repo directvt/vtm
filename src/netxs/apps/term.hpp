@@ -847,7 +847,8 @@ namespace netxs::app::terminal
 
         auto window = ui::cake::ctor();
         window->plugin<pro::focus>(pro::focus::mode::hub)
-            ->plugin<pro::track>()
+            //->plugin<pro::track>()
+            //->plugin<pro::acryl>()
             ->plugin<pro::cache>()
             ->shader(gradient, e2::form::state::keybd::focus::count);
 

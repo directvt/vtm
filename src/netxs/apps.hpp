@@ -114,7 +114,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::track>()
+                  //->plugin<pro::track>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
@@ -238,8 +238,8 @@ namespace netxs::app::shared
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
+                  //->plugin<pro::track>()
+                  //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {

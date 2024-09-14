@@ -414,7 +414,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
-                ->plugin<pro::track>()
+                //->plugin<pro::track>()
                 ->plugin<pro::acryl>()
                 ->invoke([&](auto& boss)
                 {

@@ -600,8 +600,8 @@ namespace netxs::app::test
             auto topic = get_text();
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::track>()
-                ->plugin<pro::acryl>()
+                //->plugin<pro::track>()
+                //->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->invoke([](auto& boss)
                 {

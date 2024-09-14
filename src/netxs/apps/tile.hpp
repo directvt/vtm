@@ -934,7 +934,7 @@ namespace netxs::app::tile
                       };
                   });
             menu_data->active(cB)
-                     ->plugin<pro::track>()
+                     //->plugin<pro::track>()
                      ->plugin<pro::acryl>();
             auto menu_id = menu_block->id;
             cover->invoke([&](auto& boss)

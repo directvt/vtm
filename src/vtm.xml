@@ -25,13 +25,6 @@ R"==(<config>
             <font="Noto Sans Devanagari"/>
         </fonts>
     </gui>
-    <keyboard>
-        <layout=QWERTY/>  <!-- Not implemented. QWERTY, AZERTY, Dvorak, etc. -->
-    </keyboard>
-    <mouse>
-        <dblclick=500ms/>  <!-- Double click threshold. -->
-        <tracking=off/>    <!-- Show mouse cursor as a "█" block. -->
-    </mouse>
     <cursor>
         <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_" -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
@@ -91,6 +84,7 @@ R"==(<config>
         <leave_timeout = 1s   />  <!-- Timeout off the active object (e.g. after mouse leave). -->
         <repeat_delay  = 500ms/>  <!-- Repeat delay. -->
         <repeat_rate   = 30ms />  <!-- Repeat period. -->
+        <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
     <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
         <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->

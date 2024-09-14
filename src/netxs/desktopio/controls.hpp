@@ -366,7 +366,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Mouse cursor glow.
+        // pro: Mouse cursor glow (it is needed to apply pro::acryl after it).
         class track
             : public skill
         {
@@ -472,8 +472,8 @@ namespace netxs::ui
                 //{
                 //    del_keybd(gear.id);
                 //};
-                if (!skin::globals().tracking) return;
                 // Mouse focus.
+                //if (!skin::globals().tracking) return;
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
