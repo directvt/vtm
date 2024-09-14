@@ -201,7 +201,7 @@ namespace netxs::app::shared
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
-        static auto mini(bool autohide, bool menushow, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -347,8 +347,7 @@ namespace netxs::app::shared
                     };
                 });
             auto menutent = menuveer->attach(ui::mock::ctor()->limits({ -1,1 }, { -1,1 }));
-                 if (menushow == faux) autohide = faux;
-            else if (autohide == faux) menuveer->roll();
+            if (autohide == faux) menuveer->roll();
             menuveer->limits({ -1, slimsize ? 1 : 3 }, { -1, slimsize ? 1 : 3 })
                 ->invoke([&](auto& boss)
                 {
@@ -378,10 +377,9 @@ namespace netxs::app::shared
         };
         const auto create = [](xmls& config, list menu_items)
         {
-            auto autohide = config.take("/config/appwindow/menu/autohide", faux);
-            auto menushow = config.take("/config/appwindow/menu/enabled" , true);
-            auto slimsize = config.take("/config/appwindow/menu/slim"    , faux);
-            return mini(autohide, menushow, slimsize, 0, menu_items);
+            auto autohide = config.take("menu/autohide", faux);
+            auto slimsize = config.take("menu/slim"    , true);
+            return mini(autohide, slimsize, 0, menu_items);
         };
         const auto demo = [](xmls& config)
         {

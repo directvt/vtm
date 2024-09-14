@@ -460,7 +460,6 @@ int main(int argc, char* argv[])
         signal.reset();
 
         using e2 = ui::e2;
-        config.cd("/config/appwindow/");
         auto domain = ui::host::ctor<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();

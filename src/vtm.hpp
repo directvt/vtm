@@ -47,10 +47,9 @@ namespace netxs::app::vtm
     }
     namespace path
     {
-        static constexpr auto item     = "/config/desktop/menu/item";
-        static constexpr auto autorun  = "/config/desktop/menu/autorun/item";
+        static constexpr auto item     = "/config/desktop/taskbar/item";
+        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/item";
         static constexpr auto viewport = "/config/desktop/viewport/coor";
-        static constexpr auto menuslim = "/config/appwindow/menu/slim";
     }
 
     struct events
@@ -2191,7 +2190,7 @@ namespace netxs::app::vtm
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
-            if (selected_item.size()) app_config.set("/config/desktop/menu/selected", selected_item);
+            if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
             auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);

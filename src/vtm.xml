@@ -29,7 +29,7 @@ R"==(<config>
         <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_" -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=default bgc=default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>
         <timeout=2000ms/>
@@ -64,7 +64,7 @@ R"==(<config>
         <danger     fgc=whitelt   bgc=purered            />
         <action     fgc=whitelt   bgc=greenlt            />
         <label      fgc=blackdk   bgc=whitedk            />
-        <inactive   fgc=blacklt   bgc=transparent        />
+        <inactive   fgc=blacklt   bgc=color.transparent  />
         <menu_white fgc=whitelt   bgc=0x80404040         />
         <menu_black fgc=blackdk   bgc=0x80404040         />
     </colors>
@@ -87,37 +87,41 @@ R"==(<config>
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
     <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
-        <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
-        <reddk       = 0xFFc40f1f />
-        <greendk     = 0xFF12a10e />
-        <yellowdk    = 0xFFc09c00 />
-        <bluedk      = 0xFF0037db />
-        <magentadk   = 0xFF871798 />
-        <cyandk      = 0xFF3b96dd />
-        <whitedk     = 0xFFbbbbbb />
-        <blacklt     = 0xFF757575 />
-        <redlt       = 0xFFe64856 />
-        <greenlt     = 0xFF15c60c />
-        <yellowlt    = 0xFFf8f1a5 />
-        <bluelt      = 0xFF3a78ff />
-        <magentalt   = 0xFFb3009e />
-        <cyanlt      = 0xFF60d6d6 />
-        <whitelt     = 0xFFf3f3f3 />
-        <pureblack   = 0xFF000000 />
-        <purewhite   = 0xFFffffff />
-        <purered     = 0xFFff0000 />
-        <puregreen   = 0xFF00ff00 />
-        <pureblue    = 0xFF0000ff />
-        <puremagenta = 0xFFff00ff />
-        <purecyan    = 0xFF00ffff />
-        <pureyellow  = 0xFFff00ff />
-        <nocolor     = 0x00000000 />
-        <default     = 0x00ffffff />
-        <transparent = nocolor  />
+        <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
+        <reddk             = 0xFFc40f1f />
+        <greendk           = 0xFF12a10e />
+        <yellowdk          = 0xFFc09c00 />
+        <bluedk            = 0xFF0037db />
+        <magentadk         = 0xFF871798 />
+        <cyandk            = 0xFF3b96dd />
+        <whitedk           = 0xFFbbbbbb />
+        <blacklt           = 0xFF757575 />
+        <redlt             = 0xFFe64856 />
+        <greenlt           = 0xFF15c60c />
+        <yellowlt          = 0xFFf8f1a5 />
+        <bluelt            = 0xFF3a78ff />
+        <magentalt         = 0xFFb3009e />
+        <cyanlt            = 0xFF60d6d6 />
+        <whitelt           = 0xFFf3f3f3 />
+        <pureblack         = 0xFF000000 />
+        <purewhite         = 0xFFffffff />
+        <purered           = 0xFFff0000 />
+        <puregreen         = 0xFF00ff00 />
+        <pureblue          = 0xFF0000ff />
+        <puremagenta       = 0xFFff00ff />
+        <purecyan          = 0xFF00ffff />
+        <pureyellow        = 0xFFff00ff />
+        <nocolor           = 0x00000000 />
+        <color.default     = 0x00ffffff />
+        <color.transparent = nocolor    />
+        <menu.autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
+        <menu.slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
     </set>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
-        <menu wide=off selected=Term>  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected menu item id. -->
+        <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
+        <macstyle=no/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
+        <taskbar wide=off selected=Term>  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter label="apps">
                 <notes>
@@ -145,8 +149,8 @@ R"==(<config>
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <menu>
-                            <autohide=off/>  <!--  If true, show window menu only on hover. -->
-                            <slim=true/>
+                            <autohide=menu.autohide/>  <!--  If true, show window menu only on mouse hover. -->
+                            <slim=menu.slim/>
                         </menu>
                         <selection>
                             <mode=text/>  <!-- text | ansi | rich | html | protected | none -->
@@ -163,7 +167,7 @@ R"==(<config>
             <item id=Site label="Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
             <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
-                    <debug logs=off/>
+                    <debug logs=off/>  <!-- To avoid logging recursion. -->
                     <term>
                         <scrollback>
                             <size=5000/>
@@ -172,8 +176,8 @@ R"==(<config>
 )=="
 R"==(
                         <menu item*>
-                            <autohide=off/>
-                            <slim=true/>
+                            <autohide=menu.autohide/>
+                            <slim=menu.slim/>
                             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                                 <notes>
@@ -240,7 +244,7 @@ R"==(
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout. -->
             <color fgc=whitedk bgc=0xC0202020/>  <!-- Set the bgc alpha to FF to disable acrylics in taskbar. -->
-        </menu>
+        </taskbar>
         <panel>  <!-- Desktop info panel. -->
             <env=""/>  <!-- Environment block. -->
             <cmd=""/>  <!-- Command-line to activate. -->
@@ -264,15 +268,6 @@ R"==(
     </desktop>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
-    <appwindow>
-        <maxsize=3000x2000/>  <!-- Max window grid size -->
-        <menu>  <!-- Window menu. -->
-            <macstyle=no/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
-            <autohide=off/>
-            <enabled=true/>
-            <slim=true/>
-        </menu>
-    </appwindow>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo test\n" -->
         <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
@@ -287,7 +282,7 @@ R"==(
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. (for convenient horizontal scrolling). -->
         </scrollback>
         <colors>
-            <color0  = pureblack  />  <!-- See /config/set/* for the color name reference. -->
+            <color0  = pureblack  />  <!-- Link to global <config/set/*/> namespace. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -304,7 +299,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
+            <bground = color.default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color.default) to sync with SGR49 (default background). -->
             <match fx=color fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -318,9 +313,8 @@ R"==(
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=off/>
-            <enabled=1/>
-            <slim=1/>
+            <autohide=menu.autohide/> <!-- Link to global <config/set/menu.autohide>. -->
+            <slim=menu.slim/> <!-- Link to global <config/set/menu.slim>. -->
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
@@ -390,4 +384,10 @@ R"==(
             <key="Alt+LeftArrow"  action=FindPrev/>
         </hotkeys>
     </term>
+    <defapp>
+        <menu>
+            <autohide=menu.autohide/>  <!-- Link to global <config/set/menu.autohide>. -->
+            <slim=menu.slim/>          <!-- Link to global <config/set/menu.slim>. -->
+        </menu>
+    </defapp>
 </config>)=="

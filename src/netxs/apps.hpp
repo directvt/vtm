@@ -248,6 +248,7 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
+                config.cd("/config/defapp");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -538,7 +539,7 @@ namespace netxs::app::shared
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
             auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  Text-based Desktop Environment");
-            auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
+            auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
                 { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},

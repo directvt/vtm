@@ -379,7 +379,7 @@ namespace netxs::app::tile
             auto c1 = danger_color;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
+            auto [menu_block, cover, menu_data] = menu::mini(true, faux, 1,
             menu::list
             {
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " Launch application instance.                            \n"
@@ -835,6 +835,7 @@ namespace netxs::app::tile
                 });
 
             using namespace app::shared;
+            config.cd("/config/tile", "/config/defapp");
             auto [menu_block, cover, menu_data] = menu::create(config,
                     menu::list
                     {

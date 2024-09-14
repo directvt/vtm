@@ -466,9 +466,9 @@ namespace netxs::app::desk
             //auto c2 = warning_color;
             auto c1 = danger_color;
 
-            auto menu_bg_color = config.take("/config/desktop/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
-            auto menu_min_conf = config.take("/config/desktop/menu/width/folded",   si32{ 5  });
-            auto menu_max_conf = config.take("/config/desktop/menu/width/expanded", si32{ 32 });
+            auto menu_bg_color = config.take("/config/desktop/taskbar/color", cell{}.fgc(whitedk).bgc(0x60202020));
+            auto menu_min_conf = config.take("/config/desktop/taskbar/width/folded",   si32{ 5  });
+            auto menu_max_conf = config.take("/config/desktop/taskbar/width/expanded", si32{ 32 });
             auto bttn_min_size = twod{ 31, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 

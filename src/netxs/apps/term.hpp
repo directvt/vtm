@@ -654,6 +654,7 @@ namespace netxs::app::terminal
                 };
                 list.push_back({ item, setup });
             }
+            config.cd("/config/term", "/config/defapp");
             return menu::create(config, list);
         }
     }

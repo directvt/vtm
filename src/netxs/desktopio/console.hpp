@@ -469,7 +469,7 @@ namespace netxs::ui
                     this->session_id  = session_id;
                     os_user_id        = utf::concat("[", userid, ":", session_id, "]");
                     title             = os_user_id;
-                    selected          = config.take("/config/desktop/menu/selected", ""s);
+                    selected          = config.take("/config/desktop/taskbar/selected", ""s);
                     background_color  = config.take("/config/desktop/background/color", cell{}.fgc(whitedk).bgc(0xFF000000));
                     auto utf8_tile    = config.take("/config/desktop/background/tile", ""s);
                     if (utf8_tile.size())
@@ -1547,7 +1547,6 @@ namespace netxs::ui
             g.inactive       = config.take("/config/colors/inactive"  , cell{ whitespace });
             g.menu_white     = config.take("/config/colors/menu_white", cell{ whitespace });
             g.menu_black     = config.take("/config/colors/menu_black", cell{ whitespace });
-            g.macstyle       = config.take("/config/appwindow/menu/macstyle"  , faux);
             g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
             g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
             g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
@@ -1555,15 +1554,16 @@ namespace netxs::ui
             g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
             g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
             g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
-            g.switching      = config.take("/config/timings/switching"     , span{ 200ms });
-            g.deceleration   = config.take("/config/timings/deceleration"  , span{ 2s    });
-            g.blink_period   = config.take("/config/cursor/blink"          , span{ 400ms });
-            g.menu_timeout   = config.take("/config/desktop/menu/timeout"  , span{ 250ms });
-            g.leave_timeout  = config.take("/config/timings/leave_timeout" , span{ 1s    });
-            g.repeat_delay   = config.take("/config/timings/repeat_delay"  , span{ 500ms });
-            g.repeat_rate    = config.take("/config/timings/repeat_rate"   , span{ 30ms  });
-            g.max_value      = config.take("/config/appwindow/maxsize"     , twod{ 3000, 2000  });
-            g.menuwide       = config.take("/config/desktop/menu/wide"     , faux);
+            g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
+            g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
+            g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
+            g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
+            g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
+            g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
+            g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
+            g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
+            g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
+            g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
 
             g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
             g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
