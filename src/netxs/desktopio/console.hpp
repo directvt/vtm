@@ -10,16 +10,18 @@ namespace netxs::ui
     namespace console
     {
         static auto id = std::pair<ui32, time>{};
-        static constexpr auto mouse   = 1 << 0;
-        static constexpr auto nt      = 1 << 6; // Use win32 console api for input.
-        static constexpr auto redirio = 1 << 7;
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto mouse   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto nt      = 1 << (__COUNTER__ - _counter); // Use win32 console api for input.
+        static constexpr auto redirio = 1 << (__COUNTER__ - _counter);
+        static constexpr auto gui     = 1 << (__COUNTER__ - _counter);
+        static constexpr auto tui     = 1 << (__COUNTER__ - _counter); // Output is in TUI mode.
         //todo make 3-bit field for color mode
-        static constexpr auto vtrgb   = 0;
-        static constexpr auto nt16    = 1 << 1;
-        static constexpr auto vt16    = 1 << 2;
-        static constexpr auto vt256   = 1 << 3;
-        static constexpr auto direct  = 1 << 4;
-        static constexpr auto gui     = 1 << 5;
+        static constexpr auto nt16    = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt16    = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt256   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto direct  = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vtrgb   = 1 << (__COUNTER__ - _counter);
 
         template<class T>
         auto str(T mode)
@@ -31,10 +33,11 @@ namespace netxs::ui
                 if (mode & nt16   ) result += "nt16 ";
                 if (mode & vt16   ) result += "vt16 ";
                 if (mode & vt256  ) result += "vt256 ";
+                if (mode & vtrgb  ) result += "vtrgb ";
                 if (mode & direct ) result += "direct ";
                 if (result.size()) result.pop_back();
             }
-            else result = "vtrgb";
+            else result = "unknown";
             return result;
         }
     }
@@ -490,6 +493,7 @@ namespace netxs::ui
                        : legacy_mode & ui::console::vt256  ? svga::vt256
                        : legacy_mode & ui::console::gui    ? svga::dtvt
                        : legacy_mode & ui::console::direct ? svga::dtvt
+                       : legacy_mode & ui::console::vtrgb  ? svga::vtrgb
                                                            : svga::vtrgb;
             }
 

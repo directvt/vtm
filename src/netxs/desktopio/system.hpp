@@ -3591,7 +3591,7 @@ namespace netxs::os
 
     namespace dtvt
     {
-        static auto vtmode = ui::console::vtrgb; // dtvt: VT-mode bit set.
+        static auto vtmode = si32{}; // dtvt: VT-mode bit set.
         static auto scroll = faux;   // dtvt: Viewport/scrollback selector for windows console.
         static auto active = faux;   // dtvt: DirectVT mode is active.
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
@@ -3857,6 +3857,7 @@ namespace netxs::os
                         }
                     #endif
                 }
+                if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
 
                 log(prompt::os, "Terminal type: ", term);
                 log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
@@ -4693,7 +4694,7 @@ namespace netxs::os
                 parser.cout(utf8);
                 #endif
             }
-            else if (!(dtvt::vtmode & ui::console::redirio || dtvt::vtmode & ui::console::direct))
+            else if (!(dtvt::vtmode & (ui::console::redirio | ui::console::direct)))
             {
                 io::send(utf8);
             }
@@ -4808,7 +4809,7 @@ namespace netxs::os
                     dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
                                  : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
                 }
-                if (os::stdout_fd != os::invalid_fd)
+                if (os::stdout_fd != os::invalid_fd && !(dtvt::vtmode & ui::console::tui))
                 {
                     tty::cout(utf8);
                 }
@@ -5720,6 +5721,7 @@ namespace netxs::os
         }
         auto legacy()
         {
+            dtvt::vtmode |= ui::console::tui;
             auto& proxy = binary::proxy();
             auto clipbd = []([[maybe_unused]] auto& alarm)
             {
@@ -5897,6 +5899,7 @@ namespace netxs::os
 
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
+            dtvt::vtmode &= ~ui::console::tui;
         }
         auto splice(xipc client)
         {
