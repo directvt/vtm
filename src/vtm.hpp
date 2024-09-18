@@ -1550,7 +1550,7 @@ namespace netxs::app::vtm
             conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-            conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
+            conf_rec.appcfg.cfg = item.take(attr::cfg,      ""s);
             conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
             conf_rec.type       = item.take(attr::type,     fallback.type    );
             utf::to_low(conf_rec.type);

@@ -357,6 +357,9 @@ namespace netxs::gui
                 overline  = f.overline;
                 dashline  = f.dashline;
                 wavyline  = f.wavyline;
+                //todo implement it via realtime request (for remotes)
+                //os::dtvt::fontnm = fallback.front().font_name;
+                //os::dtvt::fontsz = cellsize;
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
@@ -3810,7 +3813,12 @@ namespace netxs::gui
         }
         void window_make_focused()    { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()    { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void window_make_foreground() { ::SetForegroundWindow((HWND)master.hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void window_make_foreground() // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        {
+            ::SetForegroundWindow((HWND)master.hWnd);
+            ::AllowSetForegroundWindow(ASFW_ANY);
+            //::LockSetForegroundWindow(LSFW_UNLOCK);
+        }
         void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         twod mouse_get_pos()          { return twod{ winmsg.pt.x, winmsg.pt.y }; }
@@ -3911,6 +3919,7 @@ namespace netxs::gui
             for (auto p : { &master, &blinky, &footer, &header }) ::ShowWindow((HWND)p->hWnd, std::exchange(mode, SW_SHOWNA));
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
+            window_make_foreground();
         }
 
         //todo static

@@ -241,37 +241,36 @@ namespace netxs::os
                     using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
                     using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
                     using RtlGetVersion_ptr       = NTSTATUS(_stdcall *)(RTL_OSVERSIONINFOW*);
+                    using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
                     //using TranslateMessageEx_ptr  = std::decay<decltype(::CallMsgFilterW)>::type;
                     //using TranslateMessageEx_ptr  = BOOL(_stdcall *)(MSG const* pmsg, UINT flags);
-                    //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
 
                     HMODULE                 ntdll_dll{};
+                    HMODULE                 user32_dll{};
                     NtOpenFile_ptr          NtOpenFile{};
                     RtlGetVersion_ptr       RtlGetVersion{};
                     CsrClientCallServer_ptr CsrClientCallServer{};
-
-                    //HMODULE                 user32_dll{};
+                    ConsoleControl_ptr      ConsoleControl{};
                     //TranslateMessageEx_ptr  TranslateMessageEx{};
-                    //ConsoleControl_ptr      ConsoleControl{};
 
                     refs()
                     {
-                        //user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        ntdll_dll = ::LoadLibraryExA("ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
-                        if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                        user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                        ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                        if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
+                        //if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
                         else
                         {
                             NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll, "NtOpenFile"));
                             RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll, "RtlGetVersion"));
                             CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll, "CsrClientCallServer"));
+                            ConsoleControl      = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             //TranslateMessageEx  = reinterpret_cast<TranslateMessageEx_ptr> (::GetProcAddress(user32_dll, "TranslateMessageEx"));
-                            //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             if (!NtOpenFile)          os::fail("::GetProcAddress(NtOpenFile)");
                             if (!RtlGetVersion)       os::fail("::GetProcAddress(RtlGetVersion)");
                             if (!CsrClientCallServer) os::fail("::GetProcAddress(CsrClientCallServer)");
+                            if (!ConsoleControl)      os::fail("::GetProcAddress(ConsoleControl)");
                             //if (!TranslateMessageEx)  os::fail("::GetProcAddress(TranslateMessageEx)");
-                            //if (!ConsoleControl) os::fail("::GetProcAddress(ConsoleControl)");
                         }
                     }
 
@@ -279,25 +278,25 @@ namespace netxs::os
                     refs(refs const&)           = delete;
                     refs(refs&& other)
                         :           ntdll_dll{ other.ntdll_dll           },
+                                   user32_dll{ other.user32_dll          },
                                    NtOpenFile{ other.NtOpenFile          },
                                 RtlGetVersion{ other.RtlGetVersion       },
-                          CsrClientCallServer{ other.CsrClientCallServer }
-                                   //user32_dll{ other.user32_dll          },
+                          CsrClientCallServer{ other.CsrClientCallServer },
+                               ConsoleControl{ other.ConsoleControl      }
                            //TranslateMessageEx{ other.TranslateMessageEx  }
-                               //ConsoleControl{ other.ConsoleControl      }
                     {
                         other.ntdll_dll           = {};
+                        other.user32_dll          = {};
                         other.NtOpenFile          = {};
                         other.RtlGetVersion       = {};
                         other.CsrClientCallServer = {};
+                        other.ConsoleControl      = {};
                         //other.TranslateMessageEx  = {};
-                        //other.user32_dll          = {};
-                        //other.ConsoleControl      = {};
                     }
                    ~refs()
                     {
                         if (ntdll_dll)  ::FreeLibrary(ntdll_dll);
-                        //if (user32_dll) ::FreeLibrary(user32_dll);
+                        if (user32_dll) ::FreeLibrary(user32_dll);
                     }
 
                     constexpr explicit operator bool () const { return NtOpenFile != nullptr; }
@@ -352,13 +351,13 @@ namespace netxs::os
             //todo: nt native api monobitness:
             //  We have to make a direct call to ntdll.dll!CsrClientCallServer
             //  due to a user32.dll!ConsoleControl does not work properly under WoW64.
-            //template<class ...Args>
-            //auto ConsoleControl(Args... args)
-            //{
-            //    auto& inst = get_ntdll();
-            //    return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
-            //                : nt::status::not_found;
-            //}
+            template<class ...Args>
+            auto ConsoleControl(Args... args)
+            {
+                auto& inst = get_ntdll();
+                return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
+                            : nt::status::not_found;
+            }
             //template<class Arch>
             //auto ConsoleTask(Arch proc_pid, ui32 what)
             //{
@@ -411,6 +410,28 @@ namespace netxs::os
                                                     (ui32)sizeof(nttask::payload)); //todo MSVC 17.7.0 requires type cast (ui32)
                 return stat;
             }
+            template<class Arch = size_t>
+            auto ConsoleFG(HANDLE h_proc, bool f_stat)
+            {
+                struct fgstat
+                {
+                    Arch h_proc;
+                    ui32 f_stat;
+                };
+                auto stat = fgstat{ .h_proc = (Arch)h_proc, .f_stat = f_stat };
+                auto rc = nt::ConsoleControl((ui32)sizeof("Stat"), &stat, (ui32)sizeof(stat));
+                return rc;
+            }
+            //void try_to_set_foreground()//HWND hWnd)
+            //{
+            //    //auto rc = 
+            //    nt::ConsoleFG(::GetCurrentProcess(), 1);
+            //    //if (!rc) log("%%Set current process foreground: rc=%%", prompt::os, utf::to_hex(rc));
+            //    //else     log("%%Set current process foreground: rc=%%", ansi::err(prompt::os), utf::to_hex(rc));
+            //    //::SetForegroundWindow(hWnd);
+            //    //::LockSetForegroundWindow(LSFW_UNLOCK);
+            //    //::AllowSetForegroundWindow(ASFW_ANY);
+            //}
             template<class I = noop, class O = noop>
             auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
             {
@@ -1954,7 +1975,6 @@ namespace netxs::os
     {
         static constexpr auto ocs52head = "\033]52;"sv;
         #if defined(_WIN32)
-            static auto winhndl = HWND{};
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
             static auto cf_text = UINT{ CF_UNICODETEXT };
@@ -3635,6 +3655,7 @@ namespace netxs::os
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
                 os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
                 os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+                ::AllowSetForegroundWindow(ASFW_ANY);
             #else
             {
                 auto conmode = -1;
