@@ -429,29 +429,31 @@ Important: Be careful with enabling the `Logs` switch when working with sensitiv
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
 ```xml
 <config>
-    <menu>
-        <!-- <item*/> --> <!-- Clear default item list -->
-        <item splitter label="Remote Access"/>
+    <desktop>
+        <taskbar>
+            <!-- <item*/> --> <!-- Clear default item list -->
+            <item splitter label="Remote Access"/>
 
-        <item id="Run remote vtm desktop in DirectVT mode over SSH" type=dtty cmd="ssh user@server vtm"/>
-        <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
-        <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
+            <item id="Run remote vtm desktop in DirectVT mode over SSH" type=dtty cmd="ssh user@server vtm"/>
+            <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
+            <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
 
-        <item splitter label="Another Examples"/>
+            <item splitter label="Another Examples"/>
 
-        <item id="Far Manager"             type=vtty cmd="far"/>
-        <item id="Far Manager in terminal" type=dtvt cmd="$0 -r term far"/>
+            <item id="Far Manager"             type=vtty cmd="far"/>
+            <item id="Far Manager in terminal" type=dtvt cmd="$0 -r term far"/>
 
-        <item id="Midnight Commander"             type=vtty cmd="mc"/>
-        <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
+            <item id="Midnight Commander"             type=vtty cmd="mc"/>
+            <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
 
-        <item id="Remote cmd in terminal over SSH" type=dtty cmd="ssh user@server vtm -r term cmd"/>
-        <item id="Remote cmd over SSH"             type=dtty cmd="ssh user@server vtm cmd"/>
-        <item id="Remote Far Manager over SSH"     type=dtty cmd="ssh user@server vtm far"/>
-        <item id="Remote wsl over SSH"             type=dtty cmd="ssh user@server vtm wsl"/>
-        <item id="Remote mc over SSH"              type=dtty cmd="ssh user@server vtm mc"/>
-        <item id="Remote wsl mc over SSH"          type=dtty cmd="ssh user@server vtm wsl mc"/>
-    </menu>
+            <item id="Remote cmd in terminal over SSH" type=dtty cmd="ssh user@server vtm -r term cmd"/>
+            <item id="Remote cmd over SSH"             type=dtty cmd="ssh user@server vtm cmd"/>
+            <item id="Remote Far Manager over SSH"     type=dtty cmd="ssh user@server vtm far"/>
+            <item id="Remote wsl over SSH"             type=dtty cmd="ssh user@server vtm wsl"/>
+            <item id="Remote mc over SSH"              type=dtty cmd="ssh user@server vtm mc"/>
+            <item id="Remote wsl mc over SSH"          type=dtty cmd="ssh user@server vtm wsl mc"/>
+        </taskbar>
+    </desktop>
 </config>
 ```
 
@@ -463,7 +465,7 @@ echo "vtm.del()" | vtm
 ```
 # Add new menu items
 echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
-echo "vtm.set(id=White label='White Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><color><default fgc=0xFF000000 bgc=0xFFffffff/></color></term></config>')" | vtm
+echo "vtm.set(id=White label='White Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><colors><default fgc=0xFF000000 bgc=0xFFffffff/></colors></term></config>')" | vtm
 echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
 echo "vtm.set(id=Tile label='Three Terminals' type=tile cmd='v(h(Term, White), Huge)')" | vtm
 echo "vtm.set(id=cmd label='Remote cmd over SSH' type=dtty cmd='ssh user@server vtm cmd')" | vtm

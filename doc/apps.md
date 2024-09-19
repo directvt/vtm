@@ -169,9 +169,6 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 <config>
     <term>
         <menu item*>
-            <autohide=true />  <!-- If true, show menu only on hover. -->
-            <enabled=1 />
-            <slim=1 />
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>

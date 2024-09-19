@@ -255,9 +255,9 @@ Note: The following configuration sections are not implemented yet:
 ```xml
 <config>
     <desktop>
-        <menu selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
+        <taskbar selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
             <item id=Term/>  <!-- id=Term title="Term" type=SHELL cmd=os_default_shell -->
-        </menu>
+        </taskbar>
     </desktop>
 </config>
 ```
