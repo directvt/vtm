@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.09";
+    static const auto version = "v0.9.99.10";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -201,7 +201,7 @@ namespace netxs::app::shared
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
-        static auto mini(bool autohide, bool menushow, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -347,8 +347,7 @@ namespace netxs::app::shared
                     };
                 });
             auto menutent = menuveer->attach(ui::mock::ctor()->limits({ -1,1 }, { -1,1 }));
-                 if (menushow == faux) autohide = faux;
-            else if (autohide == faux) menuveer->roll();
+            if (autohide == faux) menuveer->roll();
             menuveer->limits({ -1, slimsize ? 1 : 3 }, { -1, slimsize ? 1 : 3 })
                 ->invoke([&](auto& boss)
                 {
@@ -379,9 +378,8 @@ namespace netxs::app::shared
         const auto create = [](xmls& config, list menu_items)
         {
             auto autohide = config.take("menu/autohide", faux);
-            auto menushow = config.take("menu/enabled" , true);
-            auto slimsize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, slimsize, 0, menu_items);
+            auto slimsize = config.take("menu/slim"    , true);
+            return mini(autohide, slimsize, 0, menu_items);
         };
         const auto demo = [](xmls& config)
         {
@@ -395,7 +393,6 @@ namespace netxs::app::shared
                 { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
                 { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
             };
-            config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);
             return menu;
         };
@@ -415,7 +412,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
-                ->plugin<pro::track>()
+                //->plugin<pro::track>()
                 ->plugin<pro::acryl>()
                 ->invoke([&](auto& boss)
                 {
@@ -495,12 +492,7 @@ namespace netxs::app::shared
                 if (!ec && (config_file.is_regular_file(ec) || config_file.is_symlink(ec)))
                 {
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
-                    if (file.seekg(0, std::ios::end).fail())
-                    {
-                        log(prompt::pads, "Failed\n\tUnable to get settings file size, skip ", config_path_str);
-                        return faux;
-                    }
-                    else
+                    if (!file.seekg(0, std::ios::end).fail())
                     {
                         log(prompt::pads, "Merging settings from ", config_path_str);
                         auto size = file.tellg();
@@ -552,18 +544,14 @@ namespace netxs::app::shared
             auto wincoord = config.take("/config/gui/wincoor", dot_mx);
             auto gridsize = config.take("/config/gui/gridsize", dot_mx);
             auto cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256);
-            auto fontlist = utf::split<true, std::list<text>>(config.take<true>("/config/gui/fontlist", ""s), '\n');
             if (cellsize == 0) cellsize = 20;
             if (gridsize == dot_00) gridsize = dot_mx;
-            if (fontlist.size()) log(prompt::xml, ansi::err("Tag '/config/gui/fontlist' is deprecated. Use '/config/gui/fonts/*' instead."));
-            else
+            auto fontlist = std::list<text>{};
+            auto recs = config.list("/config/gui/fonts/font");
+            for (auto& f : recs)
             {
-                auto recs = config.list("/config/gui/fonts/font");
-                for (auto& f : recs)
-                {
-                    //todo implement 'fonts/font/file' - font file path/url
-                    fontlist.push_back(f->value());
-                }
+                //todo implement 'fonts/font/file' - font file path/url
+                fontlist.push_back(f->value());
             }
             auto connect = [&]
             {
@@ -591,14 +579,13 @@ namespace netxs::app::shared
         {
             app::shared::splice(client, config);
         }};
-        //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
-        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
         auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
         auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
         domain->stop();
         server->shut();
+        client->shut(); //todo revise deadlock when closing term inside desktop by X close button.
         thread.join();
     }
 }

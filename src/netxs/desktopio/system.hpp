@@ -241,37 +241,36 @@ namespace netxs::os
                     using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
                     using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
                     using RtlGetVersion_ptr       = NTSTATUS(_stdcall *)(RTL_OSVERSIONINFOW*);
+                    using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
                     //using TranslateMessageEx_ptr  = std::decay<decltype(::CallMsgFilterW)>::type;
                     //using TranslateMessageEx_ptr  = BOOL(_stdcall *)(MSG const* pmsg, UINT flags);
-                    //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
 
                     HMODULE                 ntdll_dll{};
+                    HMODULE                 user32_dll{};
                     NtOpenFile_ptr          NtOpenFile{};
                     RtlGetVersion_ptr       RtlGetVersion{};
                     CsrClientCallServer_ptr CsrClientCallServer{};
-
-                    //HMODULE                 user32_dll{};
+                    ConsoleControl_ptr      ConsoleControl{};
                     //TranslateMessageEx_ptr  TranslateMessageEx{};
-                    //ConsoleControl_ptr      ConsoleControl{};
 
                     refs()
                     {
-                        //user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        ntdll_dll = ::LoadLibraryExA("ntdll.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                        //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
-                        if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                        user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                        ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                        if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
+                        //if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
                         else
                         {
                             NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll, "NtOpenFile"));
                             RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll, "RtlGetVersion"));
                             CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll, "CsrClientCallServer"));
+                            ConsoleControl      = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             //TranslateMessageEx  = reinterpret_cast<TranslateMessageEx_ptr> (::GetProcAddress(user32_dll, "TranslateMessageEx"));
-                            //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             if (!NtOpenFile)          os::fail("::GetProcAddress(NtOpenFile)");
                             if (!RtlGetVersion)       os::fail("::GetProcAddress(RtlGetVersion)");
                             if (!CsrClientCallServer) os::fail("::GetProcAddress(CsrClientCallServer)");
+                            if (!ConsoleControl)      os::fail("::GetProcAddress(ConsoleControl)");
                             //if (!TranslateMessageEx)  os::fail("::GetProcAddress(TranslateMessageEx)");
-                            //if (!ConsoleControl) os::fail("::GetProcAddress(ConsoleControl)");
                         }
                     }
 
@@ -279,25 +278,25 @@ namespace netxs::os
                     refs(refs const&)           = delete;
                     refs(refs&& other)
                         :           ntdll_dll{ other.ntdll_dll           },
+                                   user32_dll{ other.user32_dll          },
                                    NtOpenFile{ other.NtOpenFile          },
                                 RtlGetVersion{ other.RtlGetVersion       },
-                          CsrClientCallServer{ other.CsrClientCallServer }
-                                   //user32_dll{ other.user32_dll          },
+                          CsrClientCallServer{ other.CsrClientCallServer },
+                               ConsoleControl{ other.ConsoleControl      }
                            //TranslateMessageEx{ other.TranslateMessageEx  }
-                               //ConsoleControl{ other.ConsoleControl      }
                     {
                         other.ntdll_dll           = {};
+                        other.user32_dll          = {};
                         other.NtOpenFile          = {};
                         other.RtlGetVersion       = {};
                         other.CsrClientCallServer = {};
+                        other.ConsoleControl      = {};
                         //other.TranslateMessageEx  = {};
-                        //other.user32_dll          = {};
-                        //other.ConsoleControl      = {};
                     }
                    ~refs()
                     {
                         if (ntdll_dll)  ::FreeLibrary(ntdll_dll);
-                        //if (user32_dll) ::FreeLibrary(user32_dll);
+                        if (user32_dll) ::FreeLibrary(user32_dll);
                     }
 
                     constexpr explicit operator bool () const { return NtOpenFile != nullptr; }
@@ -352,13 +351,13 @@ namespace netxs::os
             //todo: nt native api monobitness:
             //  We have to make a direct call to ntdll.dll!CsrClientCallServer
             //  due to a user32.dll!ConsoleControl does not work properly under WoW64.
-            //template<class ...Args>
-            //auto ConsoleControl(Args... args)
-            //{
-            //    auto& inst = get_ntdll();
-            //    return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
-            //                : nt::status::not_found;
-            //}
+            template<class ...Args>
+            auto ConsoleControl(Args... args)
+            {
+                auto& inst = get_ntdll();
+                return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
+                            : nt::status::not_found;
+            }
             //template<class Arch>
             //auto ConsoleTask(Arch proc_pid, ui32 what)
             //{
@@ -410,6 +409,18 @@ namespace netxs::os
                                                     0x00030401, // private api index
                                                     (ui32)sizeof(nttask::payload)); //todo MSVC 17.7.0 requires type cast (ui32)
                 return stat;
+            }
+            template<class Arch = size_t>
+            auto ConsoleFG(HANDLE h_proc, bool f_stat)
+            {
+                struct fgstat
+                {
+                    Arch h_proc;
+                    ui32 f_stat;
+                };
+                auto stat = fgstat{ .h_proc = (Arch)h_proc, .f_stat = f_stat };
+                auto rc = nt::ConsoleControl((ui32)sizeof("Stat"), &stat, (ui32)sizeof(stat));
+                return rc;
             }
             template<class I = noop, class O = noop>
             auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
@@ -1954,7 +1965,6 @@ namespace netxs::os
     {
         static constexpr auto ocs52head = "\033]52;"sv;
         #if defined(_WIN32)
-            static auto winhndl = HWND{};
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
             static auto cf_text = UINT{ CF_UNICODETEXT };
@@ -3591,7 +3601,7 @@ namespace netxs::os
 
     namespace dtvt
     {
-        static auto vtmode = ui::console::vtrgb; // dtvt: VT-mode bit set.
+        static auto vtmode = si32{}; // dtvt: VT-mode bit set.
         static auto scroll = faux;   // dtvt: Viewport/scrollback selector for windows console.
         static auto active = faux;   // dtvt: DirectVT mode is active.
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
@@ -3635,6 +3645,7 @@ namespace netxs::os
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
                 os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
                 os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+                ::AllowSetForegroundWindow(ASFW_ANY);
             #else
             {
                 auto conmode = -1;
@@ -3857,6 +3868,7 @@ namespace netxs::os
                         }
                     #endif
                 }
+                if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
 
                 log(prompt::os, "Terminal type: ", term);
                 log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
@@ -3934,7 +3946,7 @@ namespace netxs::os
         }
         auto connect(eccc cfg, fdrw fds)
         {
-            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
+            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
             auto result = true;
             auto onerror = [&]()
             {
@@ -4119,7 +4131,7 @@ namespace netxs::os
                     {
                         serverfd = s_pipe_w;
                         clientfd = m_pipe_w;
-                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
+                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::replace_all(utf::debase(cmd), "\\\\", "/"));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
@@ -4130,7 +4142,7 @@ namespace netxs::os
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
-                        log("%%Process '%cmd%' disconnected", prompt::dtvt, utf::debase(cmd));
+                        log("%%Process '%cmd%' disconnected", prompt::dtvt, utf::replace_all(utf::debase(cmd), "\\\\", "/"));
                         shutdown();
                     }
                 }};
@@ -4176,7 +4188,7 @@ namespace netxs::os
             void create(auto& terminal, eccc cfg, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, cfg.win);
-                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -4187,7 +4199,7 @@ namespace netxs::os
                     if (attached.exchange(faux))
                     {
                         auto exitcode = termlink->wait();
-                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::debase(cmd), utf::to_hex_0x(exitcode));
+                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::replace_all(utf::debase(cmd), "\\\\", "/"), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
@@ -4474,8 +4486,8 @@ namespace netxs::os
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s
-                                                                                                              : "'" + cfg.cwd + "'");
+                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::replace_all(utf::debase(cfg.cmd), "\\\\", "/"), cfg.cwd.empty() ? "current directory"s
+                                                                                                                                             : "'" + utf::replace_all(utf::debase(cfg.cwd), "\\\\", "/") + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = os::invalid_fd;
@@ -4693,7 +4705,7 @@ namespace netxs::os
                 parser.cout(utf8);
                 #endif
             }
-            else if (!(dtvt::vtmode & ui::console::redirio || dtvt::vtmode & ui::console::direct))
+            else if (!(dtvt::vtmode & (ui::console::redirio | ui::console::direct)))
             {
                 io::send(utf8);
             }
@@ -4808,7 +4820,7 @@ namespace netxs::os
                     dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
                                  : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
                 }
-                if (os::stdout_fd != os::invalid_fd)
+                if (os::stdout_fd != os::invalid_fd && !(dtvt::vtmode & ui::console::tui))
                 {
                     tty::cout(utf8);
                 }
@@ -5720,6 +5732,7 @@ namespace netxs::os
         }
         auto legacy()
         {
+            dtvt::vtmode |= ui::console::tui;
             auto& proxy = binary::proxy();
             auto clipbd = []([[maybe_unused]] auto& alarm)
             {
@@ -5897,6 +5910,7 @@ namespace netxs::os
 
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
+            dtvt::vtmode &= ~ui::console::tui;
         }
         auto splice(xipc client)
         {

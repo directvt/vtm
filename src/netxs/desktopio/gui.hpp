@@ -357,6 +357,9 @@ namespace netxs::gui
                 overline  = f.overline;
                 dashline  = f.dashline;
                 wavyline  = f.wavyline;
+                //todo implement it via realtime request (for remotes)
+                //os::dtvt::fontnm = fallback.front().font_name;
+                //os::dtvt::fontsz = cellsize;
             }
             log("%%Set cell size: ", prompt::gui, cellsize);
         }
@@ -673,7 +676,7 @@ namespace netxs::gui
                     fontlist->GetFontFamily(index, barefont.GetAddressOf());
                     netxs::set_flag<fontcat::loaded>(fontstat[index].s);
                     auto& f = fallback.emplace_back(*this, barefont, index);
-                    log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    log("%%Using font '%fontname%': %iscolor%, index %index%", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                     //auto sa = DWRITE_SCRIPT_ANALYSIS{ .script = 24 };
                     //auto maxTagCount = ui32{100};
                     //auto tags = std::vector<DWRITE_FONT_FEATURE_TAG>(maxTagCount);
@@ -682,7 +685,7 @@ namespace netxs::gui
                     //log("\tfeat count: ", maxTagCount);
                     //for (auto t : tags) log("\t feat: ", view{ (char*)&t, 4 });
                 }
-                else log("%%Font '%fontname%' is not found in the system.", prompt::gui, family_utf8);
+                else log("%%Font '%fontname%' is not found in the system", prompt::gui, family_utf8);
             }
             if (!fresh) sort();
         }
@@ -713,7 +716,7 @@ namespace netxs::gui
                     netxs::set_flag<fontcat::loaded>(fontstat[i].s);
                     auto is_primary = fallback.empty();
                     auto& f = fallback.emplace_back(*this, barefont, i, cellsize, is_primary);
-                    log("%%Using font '%fontname%' (%iscolor%). Index %index%.", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
+                    log("%%Using font '%fontname%': %iscolor%, index %index%", prompt::gui, f.font_name, f.color ? "color" : "monochromatic", fallback.size() - 1);
                 }
                 return hit;
             };
@@ -730,7 +733,7 @@ namespace netxs::gui
             {
                 if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
             }
-            log("%%No fonts found in the system.", prompt::gui);
+            log("%%No fonts found in the system", prompt::gui);
             return fallback.emplace_back(); // Should never happen.
         }
 
@@ -743,7 +746,7 @@ namespace netxs::gui
             fontstat.resize(fontlist ? fontlist->GetFontFamilyCount() : 0);
             if (!fontlist || !analyzer)
             {
-                log("%%No fonts found in the system.", prompt::gui);
+                log("%%No fonts found in the system", prompt::gui);
                 return;
             }
             set_fonts(family_names);
@@ -751,7 +754,7 @@ namespace netxs::gui
             else
             {
                 oslocale = L"en-US";
-                log("%%Using default locale 'en-US'.", prompt::gui);
+                log("%%Using default locale 'en-US'", prompt::gui);
             }
             oslocale.shrink_to_fit();
             bgworker = std::async(std::launch::async, [&]
@@ -796,17 +799,17 @@ namespace netxs::gui
                 }
                 sort();
                 //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
-                log("%%Font fallback index initialized.", prompt::gui);
+                log("%%Font fallback index initialized", prompt::gui);
             });
             if (fallback.empty())
             {
                 auto default_font = std::list{ "Courier New"s };
-                log(prompt::gui, ansi::err("No fonts provided. Fallback to '", default_font.front(), "'."));
+                log(prompt::gui, ansi::err("No fonts provided, fallback to '", default_font.front(), "'"));
                 set_fonts(default_font);
             }
             if (fallback.empty())
             {
-                log(prompt::gui, ansi::err("No fonts provided. Fallback to first available font."));
+                log(prompt::gui, ansi::err("No fonts provided, fallback to first available font"));
                 take_font('A', true); // Take the first available font.
             }
             set_cellsz(*this, cell_height);
@@ -2139,7 +2142,7 @@ namespace netxs::gui
         void set_state(si32 new_state)
         {
             if (fsmode == new_state && fsmode != state::normal) return; // Restore to normal if it was silently hidden by the system.
-            log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state.");
+            log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state");
             auto old_state = std::exchange(fsmode, state::undefined);
             if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
             window_sync_taskbar(new_state);
@@ -2199,7 +2202,7 @@ namespace netxs::gui
             if (fsmode != state::normal) return;
             if (coor == master.hidden) // We are in an implicit hidden state caused by Win+D or so.
             {
-                log("%%Set window to minimized state (implicit).", prompt::gui);
+                log("%%Set window to minimized state (implicit)", prompt::gui);
                 fsmode = state::minimized;
                 for (auto p : { &master, &blinky, &footer, &header }) p->hide();
             }
@@ -3495,7 +3498,7 @@ namespace netxs::gui
                        && SUCCEEDED(tsf_document_manager->Push(tsf_context.Get()));
                 if (ok)
                 {
-                    log("TSF activated.",
+                    log("TSF activated",
                                "\n    tsf_document_manager=", tsf_document_manager.Get(),
                                "\n    tsf_context=", tsf_context.Get(),
                                "\n    tsf_source=", tsf_source.Get(),
@@ -3506,7 +3509,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    log("TSF activation failed.");
+                    log("TSF activation failed");
                 }
             }
             void stop()
@@ -3810,7 +3813,11 @@ namespace netxs::gui
         }
         void window_make_focused()    { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()    { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void window_make_foreground() { ::SetForegroundWindow((HWND)master.hWnd); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void window_make_foreground() // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        {
+            ::SetForegroundWindow((HWND)master.hWnd);
+            ::AllowSetForegroundWindow(ASFW_ANY);
+        }
         void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         twod mouse_get_pos()          { return twod{ winmsg.pt.x, winmsg.pt.y }; }
@@ -3911,6 +3918,7 @@ namespace netxs::gui
             for (auto p : { &master, &blinky, &footer, &header }) ::ShowWindow((HWND)p->hWnd, std::exchange(mode, SW_SHOWNA));
             ::AddClipboardFormatListener((HWND)master.hWnd); // It posts WM_CLIPBOARDUPDATE to sync clipboard anyway.
             sync_clipboard(); // Clipboard should be in sync at (before) startup.
+            window_make_foreground();
         }
 
         //todo static

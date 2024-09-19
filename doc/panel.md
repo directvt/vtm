@@ -7,13 +7,13 @@ In release [v0.9.9v](https://github.com/directvt/vtm/releases/tag/v0.9.9v) a slo
 The following [configuration](../src/vtm.xml) section deals with setting up the panel:
 ```xml
 <config>
-    ...
-    <panel> <!-- Desktop info panel. -->
-        <cmd = ""/> <!-- Command-line to activate. -->
-        <cwd = ""/> <!-- Working directory. -->
-        <height = 1 /> <!-- Desktop space reserved on top. -->
-    </panel>
-    ...
+    <desktop>
+        <panel> <!-- Desktop info panel. -->
+            <cmd = ""/> <!-- Command-line to activate. -->
+            <cwd = ""/> <!-- Working directory. -->
+            <height = 1 /> <!-- Desktop space reserved on top. -->
+        </panel>
+    </desktop>
 </config>
 ```
 
@@ -23,7 +23,7 @@ This section can be used to specify the panel height and commands for continuous
 
 For this script I will be using `python3`, but I guess you can adapt this to your favorite language. A bash version will be below, to help if you don't understand python.
 
-Set the path to your script in `settings.xml` by changing the `config/panel/cmd` tag to contain the path, place your script at that location, and we can start.
+Set the path to your script in `settings.xml` by changing the `config/desktop/panel/cmd` tag to contain the path, place your script at that location, and we can start.
 
 First, the concept.
 

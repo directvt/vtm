@@ -86,10 +86,22 @@ namespace netxs::xml
     {
         auto value = utf::to_low(utf8.str());
         if (value.starts_with("undef")) return std::nullopt; // Use default.
-        return value.empty() || value.starts_with("1")  // 1 - true
-                             || value.starts_with("on") // on
-                             || value.starts_with("y")  // yes
-                             || value.starts_with("t"); // true
+        if (value.empty() || value == "1"
+                          || value == "on"
+                          || value == "yes"
+                          || value == "true")
+        {
+            return true;
+        }
+        else if (value == "0"
+              || value == "off"
+              || value == "no"
+              || value == "faux"
+              || value == "false")
+        {
+            return faux;
+        }
+        else return std::nullopt;
     }
     template<>
     auto take<twod>(qiew utf8) -> std::optional<twod>

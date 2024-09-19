@@ -418,7 +418,7 @@ namespace netxs::events::userland
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
                     //deprecated - use tier::anycast
                     EVENT_XS( sysstart, si32 ), // release: notify dtvt-application started: 1 - started, 0 - exited.
-                    EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
+                    //EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
 
@@ -473,25 +473,19 @@ namespace netxs::ui
     //todo reimplement
     struct skin
     {
-        poly kb_focus;
+        poly winfocus;
         poly brighter;
         poly shadower;
-        poly selector;
 
-        cell highlight;
         cell warning;
         cell danger;
         cell action;
         cell active;
-        cell label;
         cell inactive;
         cell selected;
         cell focused;
-        cell menu_white;
-        cell menu_black;
+        cell window_clr;
 
-        twod bordersz = dot_11;
-        si32 lucidity = 0xFF;
         bool tracking = faux;
         bool menuwide = faux;
         bool macstyle = faux;
@@ -503,15 +497,13 @@ namespace netxs::ui
         si32 ccl_accel;
         si32 spd_max;
         si32 ccl_max;
-        si32 switching;
+        span switching;
         span deceleration;
         span blink_period;
         span menu_timeout;
-        span active_timeout;
+        span leave_timeout;
         span repeat_delay;
         span repeat_rate;
-        span fader_time;
-        span fader_fast;
 
         bool shadow_enabled = true;
         si32 shadow_blur = 3;
@@ -533,21 +525,17 @@ namespace netxs::ui
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus:   return g.kb_focus;
+                case tone::prop::winfocus:   return g.winfocus;
+                case tone::prop::window_clr: return g.window_clr;
                 case tone::prop::brighter:   return g.brighter;
                 case tone::prop::shadower:   return g.shadower;
-                case tone::prop::selector:   return g.selector;
-                case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
                 case tone::prop::active:     return g.active;
                 case tone::prop::focused:    return g.focused;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;
-                case tone::prop::label:      return g.label;
                 case tone::prop::inactive:   return g.inactive;
-                case tone::prop::menu_white: return g.menu_white;
-                case tone::prop::menu_black: return g.menu_black;
                 default:                     return g.brighter;
             }
         }
@@ -557,10 +545,9 @@ namespace netxs::ui
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus: return g.kb_focus;
+                case tone::prop::winfocus: return g.winfocus;
                 case tone::prop::brighter: return g.brighter;
                 case tone::prop::shadower: return g.shadower;
-                case tone::prop::selector: return g.selector;
                 default:                   return g.brighter;
             }
         }

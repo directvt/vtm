@@ -8,7 +8,7 @@ using namespace netxs;
 int main(int argc, char* argv[])
 {
     auto defaults = 
-    #include "term.xml"
+    #include "../vtm.xml"
 
     os::dtvt::initialize();
     auto syslog = os::tty::logger();

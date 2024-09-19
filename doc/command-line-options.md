@@ -51,7 +51,7 @@ The following commands have a short form:
 
 It is possible to specify plain xml-data to modify current settings (this case is detected by the `<config` literal at the beginning):
 
-  - `vtm -c \"<config><term><scrollback size=1000000/></term></config>\" -r term`.
+  - `vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term`
 
 ### Settings loading order
 

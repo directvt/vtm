@@ -319,8 +319,8 @@ namespace netxs::app::calc
         };
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
-            auto highlight_color = skin::globals().highlight;
-            auto label_color     = skin::globals().label;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto label_color     = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
             auto c3 = highlight_color;
             //auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;
@@ -331,7 +331,7 @@ namespace netxs::app::calc
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
-                  ->plugin<pro::track>()
+                  //->plugin<pro::track>()
                   ->shader(c3, e2::form::state::keybd::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()

@@ -10,16 +10,18 @@ namespace netxs::ui
     namespace console
     {
         static auto id = std::pair<ui32, time>{};
-        static constexpr auto mouse   = 1 << 0;
-        static constexpr auto nt      = 1 << 6; // Use win32 console api for input.
-        static constexpr auto redirio = 1 << 7;
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto mouse   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto nt      = 1 << (__COUNTER__ - _counter); // Use win32 console api for input.
+        static constexpr auto redirio = 1 << (__COUNTER__ - _counter);
+        static constexpr auto gui     = 1 << (__COUNTER__ - _counter);
+        static constexpr auto tui     = 1 << (__COUNTER__ - _counter); // Output is in TUI mode.
         //todo make 3-bit field for color mode
-        static constexpr auto vtrgb   = 0;
-        static constexpr auto nt16    = 1 << 1;
-        static constexpr auto vt16    = 1 << 2;
-        static constexpr auto vt256   = 1 << 3;
-        static constexpr auto direct  = 1 << 4;
-        static constexpr auto gui     = 1 << 5;
+        static constexpr auto nt16    = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt16    = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt256   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto direct  = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vtrgb   = 1 << (__COUNTER__ - _counter);
 
         template<class T>
         auto str(T mode)
@@ -31,10 +33,11 @@ namespace netxs::ui
                 if (mode & nt16   ) result += "nt16 ";
                 if (mode & vt16   ) result += "vt16 ";
                 if (mode & vt256  ) result += "vt256 ";
+                if (mode & vtrgb  ) result += "vtrgb ";
                 if (mode & direct ) result += "direct ";
                 if (result.size()) result.pop_back();
             }
-            else result = "vtrgb";
+            else result = "unknown";
             return result;
         }
     }
@@ -443,21 +446,20 @@ namespace netxs::ui
 
             void read(xmls& config)
             {
-                config.cd("/config/client/");
-                clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
-                clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-                clip_preview_alfa = config.take("clipboard/preview/alpha"  , byte{ 0xFF });
-                clip_preview_glow = config.take("clipboard/preview/shadow" , 3);
-                clip_preview_show = config.take("clipboard/preview/enabled", true);
-                clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
-                clip_prtscrn_mime = config.take("clipboard/format"         , mime::htmltext, xml::options::format);
-                dblclick_timeout  = config.take("mouse/dblclick"           , span{ 500ms });
-                tooltip_colors    = config.take("tooltips"                 , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-                tooltip_timeout   = config.take("tooltips/timeout"         , span{ 2000ms });
-                tooltip_enabled   = config.take("tooltips/enabled"         , true);
-                debug_overlay     = config.take("debug/overlay"            , faux);
-                debug_toggle      = config.take("debug/toggle"             , "🐞"s);
-                show_regions      = config.take("regions/enabled"          , faux);
+                clip_preview_clrs = config.take("/config/clipboard/preview/color"  , cell{}.bgc(bluedk).fgc(whitelt));
+                clip_preview_time = config.take("/config/clipboard/preview/timeout", span{ 3s });
+                clip_preview_alfa = config.take("/config/clipboard/preview/alpha"  , byte{ 0xFF });
+                clip_preview_glow = config.take("/config/clipboard/preview/shadow" , 3);
+                clip_preview_show = config.take("/config/clipboard/preview/enabled", true);
+                clip_preview_size = config.take("/config/clipboard/preview/size"   , twod{ 80,25 });
+                clip_prtscrn_mime = config.take("/config/clipboard/format"         , mime::htmltext, xml::options::format);
+                dblclick_timeout  = config.take("/config/timings/dblclick"         , span{ 500ms });
+                tooltip_colors    = config.take("/config/tooltips/color"           , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+                tooltip_timeout   = config.take("/config/tooltips/timeout"         , span{ 2000ms });
+                tooltip_enabled   = config.take("/config/tooltips/enabled"         , true);
+                debug_overlay     = config.take("/config/debug/overlay"            , faux);
+                debug_toggle      = config.take("/config/debug/toggle"             , "🐞"s);
+                show_regions      = config.take("/config/debug/regions"            , faux);
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 5);
             }
 
@@ -470,10 +472,9 @@ namespace netxs::ui
                     this->session_id  = session_id;
                     os_user_id        = utf::concat("[", userid, ":", session_id, "]");
                     title             = os_user_id;
-                    selected          = config.take("/config/menu/selected", ""s);
-                    background_color  = cell{}.fgc(config.take("background/fgc", argb{ whitedk }))
-                                              .bgc(config.take("background/bgc", argb{ 0xFF000000 }));
-                    auto utf8_tile = config.take("background/tile", ""s);
+                    selected          = config.take("/config/desktop/taskbar/selected", ""s);
+                    background_color  = config.take("/config/desktop/background/color", cell{}.fgc(whitedk).bgc(0xFF000000));
+                    auto utf8_tile    = config.take("/config/desktop/background/tile", ""s);
                     if (utf8_tile.size())
                     {
                         auto block = page{ utf8_tile };
@@ -492,6 +493,7 @@ namespace netxs::ui
                        : legacy_mode & ui::console::vt256  ? svga::vt256
                        : legacy_mode & ui::console::gui    ? svga::dtvt
                        : legacy_mode & ui::console::direct ? svga::dtvt
+                       : legacy_mode & ui::console::vtrgb  ? svga::vtrgb
                                                            : svga::vtrgb;
             }
 
@@ -1534,51 +1536,44 @@ namespace netxs::ui
             auto& canal = *server;
 
             auto& g = skin::globals();
-            g.brighter       = config.take("brighter"              , cell{ whitespace });//120);
-            g.kb_focus       = config.take("kb_focus"              , cell{ whitespace });//60
-            g.shadower       = config.take("shadower"              , cell{ whitespace });//180);//60);//40);// 20);
-            g.selector       = config.take("selector"              , cell{ whitespace });//48);
-            g.highlight      = config.take("highlight"             , cell{ whitespace });
-            g.selected       = config.take("selected"              , cell{ whitespace });
-            g.active         = config.take("active"                , cell{ whitespace });
-            g.focused        = config.take("focused"               , cell{ whitespace });
-            g.warning        = config.take("warning"               , cell{ whitespace });
-            g.danger         = config.take("danger"                , cell{ whitespace });
-            g.action         = config.take("action"                , cell{ whitespace });
-            g.label          = config.take("label"                 , cell{ whitespace });
-            g.inactive       = config.take("inactive"              , cell{ whitespace });
-            g.menu_white     = config.take("menu_white"            , cell{ whitespace });
-            g.menu_black     = config.take("menu_black"            , cell{ whitespace });
-            g.lucidity       = config.take("lucidity");
-            g.tracking       = config.take("tracking"              , faux);
-            g.bordersz       = config.take("bordersz"              , dot_11);
-            g.macstyle       = config.take("macstyle"              , faux);
-            g.spd            = config.take("timings/spd"           , 10  );
-            g.pls            = config.take("timings/pls"           , 167 );
-            g.spd_accel      = config.take("timings/spd_accel"     , 1   );
-            g.spd_max        = config.take("timings/spd_max"       , 100 );
-            g.ccl            = config.take("timings/ccl"           , 120 );
-            g.ccl_accel      = config.take("timings/ccl_accel"     , 30  );
-            g.ccl_max        = config.take("timings/ccl_max"       , 1   );
-            g.switching      = config.take("timings/switching"     , 200 );
-            g.deceleration   = config.take("timings/deceleration"  , span{ 2s    });
-            g.blink_period   = config.take("timings/blink_period"  , span{ 400ms });
-            g.menu_timeout   = config.take("timings/menu_timeout"  , span{ 250ms });
-            g.active_timeout = config.take("timings/active_timeout", span{ 1s    });
-            g.repeat_delay   = config.take("timings/repeat_delay"  , span{ 500ms });
-            g.repeat_rate    = config.take("timings/repeat_rate"   , span{ 30ms  });
-            g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
-            g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
-            g.max_value      = config.take("limits/window/size"    , twod{ 3000, 2000  });
-            g.menuwide       = config.take("/config/menu/wide"     , faux);
+            g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
+            g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
+            g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
+            g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
+            g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
+            g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
+            g.action         = config.take("/config/colors/action"     , cell{ whitespace });
 
-            g.shadow_enabled = config.take("shadow/enabled", true);
-            g.shadow_bias    = config.take("shadow/bias"   , 0.37f);
-            g.shadow_blur    = config.take("shadow/blur"   , 3);
-            g.shadow_opacity = config.take("shadow/opacity", 105.5f);
-            g.shadow_offset  = config.take("shadow/offset" , dot_21);
+            g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
+            g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
+            g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
+            g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
 
-            maxfps = config.take("fps");
+            g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
+            g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
+            g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
+            g.spd_max        = config.take("/config/timings/kinetic/spd_max"  , 100 );
+            g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
+            g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
+            g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
+            g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
+            g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
+            g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
+            g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
+            g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
+            g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
+            g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
+            g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
+            g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
+            g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
+
+            g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
+            g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
+            g.shadow_blur    = config.take("/config/desktop/shadow/blur"   , 3);
+            g.shadow_opacity = config.take("/config/desktop/shadow/opacity", 105.5f);
+            g.shadow_offset  = config.take("/config/desktop/shadow/offset" , dot_21);
+
+            maxfps = config.take("/config/timings/fps", 60);
             if (maxfps <= 0) maxfps = 60;
 
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)

@@ -326,7 +326,7 @@ namespace netxs::app::tile
         };
         auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
-            auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color.bga(0x40);
 
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
@@ -371,15 +371,14 @@ namespace netxs::app::tile
         };
         auto empty_pane = []
         {
-            auto menu_black = skin::color(tone::menu_black);
-            auto cC = menu_black.fgc(whitedk);
-            auto highlight_color = skin::color(tone::highlight);
+            auto window_clr = skin::color(tone::window_clr);
+            auto highlight_color = skin::color(tone::winfocus);
             auto danger_color    = skin::color(tone::danger);
             auto c3 = highlight_color.bga(0x40);
             auto c1 = danger_color;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
+            auto [menu_block, cover, menu_data] = menu::mini(true, faux, 1,
             menu::list
             {
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " Launch application instance.                            \n"
@@ -421,7 +420,7 @@ namespace netxs::app::tile
                     };
                 }},
             });
-            menu_data->active(cC);
+            menu_data->active(window_clr);
             auto menu_id = menu_block->id;
             cover->setpad({ 0,0,3,0 });
             cover->invoke([&](auto& boss)
@@ -434,7 +433,7 @@ namespace netxs::app::tile
 
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
-                ->active(cC)
+                ->active(window_clr)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->shader(c3, e2::form::state::keybd::focus::count)
@@ -468,11 +467,10 @@ namespace netxs::app::tile
                 {
                     auto highlight = [](auto& boss, auto state)
                     {
-                        auto menu_black = skin::color(tone::menu_black);
-                        auto highlight_color = skin::color(tone::highlight);
-                        auto cC = menu_black.fgc(whitedk);
+                        auto window_clr = skin::color(tone::window_clr);
+                        auto highlight_color = skin::color(tone::winfocus);
                         auto c3 = highlight_color.alpha(0x70);
-                        auto c = state ? c3 : cC;
+                        auto c = state ? c3 : window_clr;
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
                     };
@@ -800,8 +798,7 @@ namespace netxs::app::tile
         auto build_inst = [](eccc appcfg, xmls& config) -> sptr
         {
             auto param = view{ appcfg.cmd };
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
+            auto window_clr = skin::color(tone::window_clr);
             //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
             //auto warning_color   = skin::color(tone::warning);
@@ -834,9 +831,8 @@ namespace netxs::app::tile
                     };
                 });
 
-            config.cd("/config/tile/", "/config/defapp/");
-
             using namespace app::shared;
+            config.cd("/config/tile", "/config/defapp");
             auto [menu_block, cover, menu_data] = menu::create(config,
                     menu::list
                     {
@@ -935,8 +931,8 @@ namespace netxs::app::tile
                           boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                       };
                   });
-            menu_data->active(cB)
-                     ->plugin<pro::track>()
+            menu_data->active(window_clr)
+                     //->plugin<pro::track>()
                      ->plugin<pro::acryl>();
             auto menu_id = menu_block->id;
             cover->invoke([&](auto& boss)
@@ -944,8 +940,8 @@ namespace netxs::app::tile
                 auto bar = cell{ "▀"sv }.link(menu_id);
                 boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar))
                 {
-                    auto menu_white = skin::color(tone::menu_white);
-                    auto fgc = menu_white.bgc();
+                    auto window_clr = skin::color(tone::window_clr);
+                    auto fgc = window_clr.bgc();
                     parent_canvas.fill([&](cell& c){ c.fgc(fgc).txt(bar).link(bar); });
                 };
             });

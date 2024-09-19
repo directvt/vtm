@@ -92,8 +92,9 @@ namespace netxs::app::terminal
 
     namespace attr
     {
-        static constexpr auto cwdsync = "cwdsync";
-        static constexpr auto borders = "layout/border";
+        static constexpr auto cwdsync   = "/config/term/cwdsync";
+        static constexpr auto borders   = "/config/term/border";
+        static constexpr auto menuitems = "/config/term/menu/item";
     }
 
     using events = netxs::events::userland::terminal;
@@ -193,8 +194,7 @@ namespace netxs::app::terminal
             //auto highlight_color = skin::color(tone::highlight);
             //auto c3 = highlight_color;
 
-            config.cd("/config/term/", "/config/defapp/");
-            auto menudata = config.list("menu/item");
+            auto menudata = config.list(attr::menuitems);
 
             static auto brand_options = std::unordered_map<text, menu::item::type>
                {{ menu::type::Splitter, menu::item::Splitter },
@@ -654,6 +654,7 @@ namespace netxs::app::terminal
                 };
                 list.push_back({ item, setup });
             }
+            config.cd("/config/term", "/config/defapp");
             return menu::create(config, list);
         }
     }
@@ -761,9 +762,7 @@ namespace netxs::app::terminal
     };
     auto build_teletype = [](eccc appcfg, xmls& config)
     {
-        auto menu_white = skin::color(tone::menu_white);
-        auto cB = menu_white;
-
+        auto window_clr = skin::color(tone::window_clr);
         auto window = ui::cake::ctor()
             ->plugin<pro::focus>(pro::focus::mode::active)
             ->invoke([&](auto& boss)
@@ -773,18 +772,16 @@ namespace netxs::app::terminal
         window//->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
-        config.cd("/config/term/color/default/");
-        auto def_fcolor = config.take("fgc", argb{ whitelt });
-        auto def_bcolor = config.take("bgc", argb{ blackdk });
+        auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
         auto layers = window->attach(ui::cake::ctor())
-                            ->colors(cB)
+                            ->colors(window_clr)
                             ->limits(dot_11);
         auto scroll = layers->attach(ui::rail::ctor())
                             ->limits({ 10,1 }); // mc crashes when window is too small
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
         auto inst = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
-            ->colors(def_fcolor, def_bcolor)
+            ->colors(defclr.fgc(), defclr.bgc())
             ->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);
@@ -794,10 +791,7 @@ namespace netxs::app::terminal
     };
     auto build_terminal = [](eccc appcfg, xmls& config)
     {
-        auto menu_white = skin::color(tone::menu_white);
-        auto cB = menu_white;
-
-        config.cd("/config/term/");
+        auto window_clr = skin::color(tone::window_clr);
         auto border = std::max(0, config.take(attr::borders, 0));
         auto borders = dent{ border, border, 0, 0 };
         auto menu_height = ptr::shared(0);
@@ -812,7 +806,7 @@ namespace netxs::app::terminal
                 auto spline = netxs::spline01{ -0.30f };
                 auto mx = std::max(2, region.size.x);
                 auto my = std::min(3, region.size.y);
-                bground.size({ mx, my }, skin::color(tone::kb_focus));
+                bground.size({ mx, my }, skin::color(tone::winfocus));
                 auto it = bground.begin();
                 for (auto y = 0.f; y < my; y++)
                 {
@@ -850,7 +844,8 @@ namespace netxs::app::terminal
 
         auto window = ui::cake::ctor();
         window->plugin<pro::focus>(pro::focus::mode::hub)
-            ->plugin<pro::track>()
+            //->plugin<pro::track>()
+            //->plugin<pro::acryl>()
             ->plugin<pro::cache>()
             ->shader(gradient, e2::form::state::keybd::focus::count);
 
@@ -860,10 +855,10 @@ namespace netxs::app::terminal
             ->invoke([&](auto& boss)
             {
                 if (borders)
-                boss.LISTEN(tier::release, e2::render::background::any, parent_canvas, -, (borders, cB)) // Shade left/right borders.
+                boss.LISTEN(tier::release, e2::render::background::any, parent_canvas, -, (borders, window_clr)) // Shade left/right borders.
                 {
                     auto full = parent_canvas.full();
-                    parent_canvas.cage(full, borders, [&](cell& c){ c.fuse(cB); });
+                    parent_canvas.cage(full, borders, [&](cell& c){ c.fuse(window_clr); });
                 };
             });
         auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
@@ -962,23 +957,22 @@ namespace netxs::app::terminal
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
+            auto window_clr = skin::color(tone::window_clr);
             auto term_bgc = boss.base::color().bgc();
             if (handle_len != region_len) // Show only if it is oversized.
             {
                 if (wide) // Draw full scrollbar on mouse hover.
                 {
-                    canvas.fill([&](cell& c){ c.txt(box2).link(boss.bell::id).xlight().bgc().mix(cB.bgc()); });
+                    canvas.fill([&](cell& c){ c.txt(box2).link(boss.bell::id).xlight().bgc().mix(window_clr.bgc()); });
                     canvas.fill(handle, [&](cell& c){ c.bgc().xlight(2); });
                 }
                 else
                 {
-                    canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(cB.bgc()); });
+                    canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
                     canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).fgc().xlight(2); });
                 }
             }
-            else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(cB.bgc()); });
+            else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
         };
         auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
             ->limits({ -1,1 }, { -1,1 })
@@ -993,7 +987,7 @@ namespace netxs::app::terminal
 
         auto [slot1, cover, menu_data] = construct_menu(config);
         auto menu = object->attach(slot::_1, slot1)
-            ->colors(cB)
+            ->colors(window_clr)
             ->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, e2::area, new_area, -, (menu_height))

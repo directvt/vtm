@@ -114,7 +114,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::track>()
+                  //->plugin<pro::track>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
@@ -238,8 +238,8 @@ namespace netxs::app::shared
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
+                  //->plugin<pro::track>()
+                  //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {
@@ -248,7 +248,7 @@ namespace netxs::app::shared
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA0'c4'0f'1f);
-                config.cd("/config/defapp/");
+                config.cd("/config/defapp");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -383,22 +383,18 @@ namespace netxs::app::shared
         };
         auto build_dtty = [](eccc appcfg, xmls& config)
         {
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
-
+            auto window_clr = skin::color(tone::window_clr);
             auto window = ui::veer::ctor()
                 ->limits(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active); // Required for standalone mode.
             auto term = ui::cake::ctor()
-                ->active(cB);
+                ->active(window_clr);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
-            config.cd("/config/term/color/default/");
-            auto def_fcolor = config.take("fgc", argb{ whitelt });
-            auto def_bcolor = config.take("bgc", argb{ blackdk });
+            auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(def_fcolor, def_bcolor)
+                ->colors(defclr.fgc(), defclr.bgc())
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
@@ -541,7 +537,7 @@ namespace netxs::app::shared
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
             auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  Text-based Desktop Environment");
-            auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
+            auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
                 { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},

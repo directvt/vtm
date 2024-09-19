@@ -32,13 +32,10 @@ namespace netxs::app::vtm
         static constexpr auto notes    = "notes";
         static constexpr auto title    = "title";
         static constexpr auto footer   = "footer";
-        static constexpr auto bgc      = "bgc";
-        static constexpr auto fgc      = "fgc";
         static constexpr auto winsize  = "winsize";
         static constexpr auto wincoor  = "wincoor";
         static constexpr auto winform  = "winform";
         static constexpr auto focused  = "focused";
-        static constexpr auto slimmenu = "slimmenu";
         static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
         static constexpr auto env      = "env";
@@ -50,10 +47,9 @@ namespace netxs::app::vtm
     }
     namespace path
     {
-        static constexpr auto item     = "/config/menu/item";
-        static constexpr auto autorun  = "/config/menu/autorun/item";
-        static constexpr auto viewport = "/config/menu/viewport/coor";
-        static constexpr auto menuslim = "/config/defapp/menu/slim";
+        static constexpr auto item     = "/config/desktop/taskbar/item";
+        static constexpr auto autorun  = "/config/desktop/taskbar/autorun/item";
+        static constexpr auto viewport = "/config/desktop/viewport/coor";
     }
 
     struct events
@@ -106,7 +102,7 @@ namespace netxs::app::vtm
             align(base&&) = delete;
             align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
                 : skill{ boss },
-                  nexthop{ nexthop}
+                  nexthop{ nexthop }
             {
                 boss.LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
                 {
@@ -240,10 +236,6 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    parent->LISTEN(tier::preview, e2::form::global::lucidity, alpha, boss.relyon)
-                    {
-                        boss.SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-                    };
                     parent->LISTEN(tier::preview, e2::form::layout::convey, convey_data, boss.relyon)
                     {
                         convey(convey_data.delta, convey_data.stuff);
@@ -360,7 +352,7 @@ namespace netxs::app::vtm
                 auto  newpos = target - screen.size / 2;
 
                 auto path = newpos - oldpos;
-                auto time = skin::globals().switching;
+                auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
 
@@ -527,7 +519,7 @@ namespace netxs::app::vtm
             maker(base&&) = delete;
             maker(base& boss)
                 : skill{ boss },
-                   mark{ skin::color(tone::selector) }
+                   mark{ cell{ skin::color(tone::brighter) }.txt(" ") }
             {
                 using drag = hids::events::mouse::button::drag;
 
@@ -593,7 +585,7 @@ namespace netxs::app::vtm
                             {
                                 area.coor -= dot_11;
                                 area.size += dot_22;
-                                auto mark = skin::color(tone::kb_focus);
+                                auto mark = skin::color(tone::winfocus);
                                 auto fill = [&](cell& c){ c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
                                 coder.wrp(wrap::off).add("capture area: ", slot);
@@ -911,7 +903,7 @@ namespace netxs::app::vtm
         {
             auto oldpos = viewport.center();
             auto path = oldpos - newpos;
-            auto time = skin::globals().switching;
+            auto time = datetime::round<si32>(skin::globals().switching);
             auto init = 0;
             auto func = constlinearAtoB<twod>(path, time, init);
             robot.pacify();
@@ -1558,22 +1550,8 @@ namespace netxs::app::vtm
             conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-            conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
-
-            //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
-            //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
-            conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
-            if (conf_rec.appcfg.cmd.empty())
-            {
-                auto test = item.take("param", ""s);
-                if (test.size())
-                {
-                    conf_rec.appcfg.cmd = test;
-                    log(ansi::clr(yellowlt, "settings: The 'param=' attribute is deprecated, please use 'cmd=' instead:"), " <... param=", test, " .../>");
-                }
-                else conf_rec.appcfg.cmd = fallback.appcfg.cmd;
-            }
-
+            conf_rec.appcfg.cfg = item.take(attr::cfg,      ""s);
+            conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
             conf_rec.type       = item.take(attr::type,     fallback.type    );
             utf::to_low(conf_rec.type);
             auto envar          = item.list(attr::env);
@@ -1850,19 +1828,6 @@ namespace netxs::app::vtm
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {
                 log<faux>(utf8);
-            };
-            LISTEN(tier::general, e2::form::global::lucidity, alpha)
-            {
-                if (alpha == -1)
-                {
-                    alpha = skin::globals().lucidity;
-                }
-                else
-                {
-                    alpha = std::clamp(alpha, 0, 255);
-                    skin::globals().lucidity = alpha;
-                    this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-                }
             };
             LISTEN(tier::release, e2::form::layout::bubble, area)
             {
@@ -2211,7 +2176,7 @@ namespace netxs::app::vtm
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
-            if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
+            if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
             auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);

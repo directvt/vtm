@@ -523,6 +523,7 @@ struct impl : consrv
         irec  leader; // evnt: Hanging key event record (lead byte).
         work  ostask; // evnt: Console task thread for the child process.
         bool  ctrl_c; // evnt: Ctrl+C was pressed.
+        bool  fstate; // evnt: Console has kb focus.
         cast  macros; // evnt: Doskey macros storage.
         hist  inputs; // evnt: Input history per process name storage.
         mbtn  dclick; // evnt: Mouse double-click tracker.
@@ -534,6 +535,7 @@ struct impl : consrv
                closed{ faux },
                leader{      },
                ctrl_c{ faux },
+               fstate{ true },
                mstate{      }
         { }
 
@@ -770,6 +772,33 @@ struct impl : consrv
                 if (io_log) log("", prompt, "\n\t-------------------------");
             }};
         }
+        void set_process_foreground(Arch procid)
+        {
+            if (!fstate) return;
+            std::thread{ [prompt = server.prompt, procid, io_log = server.io_log]()
+            {
+                //todo should we wait until the new app has created their fake console window? ConsoleFG doesn't work if we are too fast.
+                //wait input+timeout?
+                //std::this_thread::yield();
+                os::sleep(1s);
+                auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)procid);
+                auto rc = nt::ConsoleFG<Arch>(h_process, 1);
+                if (!rc) log("%%Set process foreground: rc=%% pid=%%", prompt, utf::to_hex(rc), procid);
+                else     log("%%Set process foreground: rc=%% pid=%%", ansi::err(prompt), utf::to_hex(rc), procid);
+                os::close(h_process);
+            }}.detach();
+        }
+        void set_all_processes_foreground(bool fgstate)
+        {
+            fstate = fgstate;
+            nt::ConsoleFG<Arch>(::GetCurrentProcess(), fgstate);
+            for (auto& client : server.joined)
+            {
+                auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)client.procid);
+                nt::ConsoleFG<Arch>(h_process, fgstate);
+                os::close(h_process);
+            }
+        }
         void sighup()
         {
             auto lock = std::lock_guard{ locker };
@@ -917,6 +946,7 @@ struct impl : consrv
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
+            set_all_processes_foreground(state);
             auto data = INPUT_RECORD{ .EventType = FOCUS_EVENT };
             data.Event.FocusEvent.bSetFocus = state;
             stream.emplace_back(data);
@@ -2503,6 +2533,7 @@ struct impl : consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
+        events.set_process_foreground(client.procid);
         log("\tprocid: ", client.procid,
           "\n\tthread: ", client.thread,
           "\n\tpgroup: ", client.pgroup,
@@ -4500,20 +4531,41 @@ struct impl : consrv
             }
             reply;
         };
+        //todo this approach is not crossplatform, use some kind of vt request instead
+        //auto brand = wide{};
+        //auto& packet = payload::cast(upload);
+        //packet.reply.index = 0;
+        //if (os::dtvt::fontsz == dot_00)
+        //{
+        //    packet.reply.sizex = 10;
+        //    packet.reply.sizey = 20;
+        //    brand = L"Consolas"s;
+        //}
+        //else
+        //{
+        //    packet.reply.sizex = (si16)os::dtvt::fontsz.x;
+        //    packet.reply.sizey = (si16)os::dtvt::fontsz.y;
+        //    brand = utf::to_utf(os::dtvt::fontnm);
+        //}
+        //brand += L'\0';
+        //packet.reply.pitch = TMPF_TRUETYPE; // Pwsh checks this to decide whether or not to switch to UTF-8. For raster fonts (non-Unicode), the low-order bits are set to zero.
+        //packet.reply.heavy = 0;
+        //std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
+
         auto& packet = payload::cast(upload);
         packet.reply.index = 0;
         packet.reply.sizex = 10;
         packet.reply.sizey = 20;
         packet.reply.pitch = TMPF_TRUETYPE; // Pwsh checks this to decide whether or not to switch to UTF-8. For raster fonts (non-Unicode), the low-order bits are set to zero.
         packet.reply.heavy = 0;
-        auto brand = L"Consolas"s + L'\0';
+        auto brand = L"Courier New"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
         log("\tinput.fullscreen: ", packet.input.fullscreen ? "true" : "faux",
           "\n\treply.index: ",      packet.reply.index,
           "\n\treply.size : ",      packet.reply.sizex, "x", packet.reply.sizey,
           "\n\treply.pitch: ",      packet.reply.pitch,
           "\n\treply.heavy: ",      packet.reply.heavy,
-          "\n\treply.brand: ", utf::to_utf(brand));
+          "\n\treply.brand: ",      utf::to_utf(brand));
     }
     auto api_window_font_set                 ()
     {
@@ -4613,14 +4665,14 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = (Arch)winhnd; // - Fake window handle to tell powershell that everything is under console control.
+        packet.reply.handle = (Arch)winhnd; // - Console window handle to tell powershell that everything is under the console control.
                                             // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
                                             // - "Far.exe" set their icon to all windows in the system if reply=-1.
                                             // - msys uses the handle to determine what processes are running in the same session.
                                             // - vim sets the icon of its hosting window.
                                             // - The handle is used to show/hide GUI console window.
                                             // - Used for SetConsoleTitle().
-        log("\tfake window handle: ", utf::to_hex_0x(packet.reply.handle));
+        log("\tconsole window handle: ", utf::to_hex_0x(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
     {
@@ -4968,6 +5020,7 @@ struct impl : consrv
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
                     case WM_CLOSE:
+                    // We do not process any of wm_title/wm_icon/wm_etc window messages bc it is not crossplatform approach.
                     default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }
                 return LRESULT{};

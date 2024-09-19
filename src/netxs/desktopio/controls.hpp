@@ -366,7 +366,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Mouse cursor glow.
+        // pro: Mouse cursor glow (it is needed to apply pro::acryl after it).
         class track
             : public skill
         {
@@ -472,8 +472,8 @@ namespace netxs::ui
                 //{
                 //    del_keybd(gear.id);
                 //};
-                if (!skin::globals().tracking) return;
                 // Mouse focus.
+                //if (!skin::globals().tracking) return;
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
@@ -3086,7 +3086,7 @@ namespace netxs::ui
         si32 ccl_accel = skin::globals().ccl_accel;
         si32 spd_max   = skin::globals().spd_max;
         si32 ccl_max   = skin::globals().ccl_max;
-        si32 switching = skin::globals().switching;
+        si32 switching = datetime::round<si32>(skin::globals().switching);
 
         si32 speed{ spd  }; // rail: Text auto-scroll initial speed component ΔR.
         si32 pulse{ pls  }; // rail: Text auto-scroll initial speed component ΔT.
@@ -3844,7 +3844,7 @@ namespace netxs::ui
                 timer.pacify(activity::mouse_leave);
 
                 if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
+                else timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
@@ -3859,7 +3859,7 @@ namespace netxs::ui
             //
             //    timer.pacify(activity::mouse_leave);
             //    apply(activity::mouse_hover);
-            //    timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
+            //    timer.template actify<activity::mouse_leave>(skin::globals().leave_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -4341,14 +4341,6 @@ namespace netxs::ui
             topic[max_id].locus.chx(pad);
             topic[min_id].locus.chx(pad);
 
-            LISTEN(tier::general, e2::form::global::lucidity, alpha)
-            {
-                if (alpha >= 0 && alpha < 256)
-                {
-                    canvas.mark().alpha(alpha);
-                    base::deface();
-                }
-            };
             LISTEN(tier::general, Event{}, cur_val)
             {
                 if (cur_val >= min_val)

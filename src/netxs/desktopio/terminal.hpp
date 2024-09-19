@@ -200,54 +200,53 @@ namespace netxs::ui
                      { "invert",  commands::fx::invert  },
                      { "reverse", commands::fx::reverse }};
 
-                config.cd("/config/term/");
-                send_input =             config.take("sendinput",                 text{});
-                def_mxline = std::max(1, config.take("scrollback/maxline",        si32{ 65535 }));
-                def_length = std::max(1, config.take("scrollback/size",           si32{ 40000 }));
-                def_growdt = std::max(0, config.take("scrollback/growstep",       si32{ 0 }    ));
-                def_growmx = std::max(0, config.take("scrollback/growlimit",      si32{ 0 }    ));
+                send_input =             config.take("/config/term/sendinput",                 text{});
+                def_mxline = std::max(1, config.take("/config/term/scrollback/maxline",        si32{ 65535 }));
+                def_length = std::max(1, config.take("/config/term/scrollback/size",           si32{ 40000 }));
+                def_growdt = std::max(0, config.take("/config/term/scrollback/growstep",       si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("/config/term/scrollback/growlimit",      si32{ 0 }    ));
                 recalc_buffer_metrics(def_length, def_growdt, def_growmx);
-                def_wrpmod =             config.take("scrollback/wrap",           deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                resetonkey =             config.take("scrollback/reset/onkey",    true);
-                resetonout =             config.take("scrollback/reset/onoutput", faux);
-                def_alt_on =             config.take("scrollback/altscroll",      true);
-                def_tablen = std::max(1, config.take("tablen",                    si32{ 8 }    ));
-                def_lucent = std::max(0, config.take("layout/oversize/opacity",   si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("layout/oversize",           si32{ 0 }    ));
-                def_border = std::max(0, config.take("layout/border",             si32{ 0 }    ));
-                def_selmod =             config.take("selection/mode",            mime::textonly, xml::options::format);
-                def_selalt =             config.take("selection/rect",            faux);
-                def_cur_on =             config.take("cursor/show",               true);
-                def_cursor =             config.take("cursor/style",              text_cursor::I_bar, xml::options::cursor);
-                def_curclr =             config.take("cursor/color",              cell{});
-                def_period =             config.take("cursor/blink",              span{ skin::globals().blink_period });
-                def_io_log =             config.take("logs",                      faux);
+                def_wrpmod =             config.take("/config/term/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("/config/term/scrollback/reset/onkey",     true);
+                resetonout =             config.take("/config/term/scrollback/reset/onoutput",  faux);
+                def_alt_on =             config.take("/config/term/scrollback/altscroll",       true);
+                def_lucent = std::max(0, config.take("/config/term/scrollback/oversize/opacity",si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("/config/term/scrollback/oversize",        si32{ 0 }    ));
+                def_tablen = std::max(1, config.take("/config/term/tablen",                     si32{ 8 }    ));
+                def_border = std::max(0, config.take("/config/term/border",                     si32{ 0 }    ));
+                def_selmod =             config.take("/config/term/selection/mode",             mime::textonly, xml::options::format);
+                def_selalt =             config.take("/config/term/selection/rect",             faux);
+                def_cur_on =             config.take("/config/cursor/show",                     true);
+                def_cursor =             config.take("/config/cursor/style",                    text_cursor::I_bar, xml::options::cursor);
+                def_curclr =             config.take("/config/cursor/color",                    cell{});
+                def_period =             config.take("/config/cursor/blink",                    span{ skin::globals().blink_period });
+                def_io_log =             config.take("/config/debug/logs",        faux);
                 allow_logs =             true; // Disallowed for dtty.
-                def_atexit =             config.take("atexit",                    commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("color/default/fgc",         argb{ whitelt });
-                def_bcolor =             config.take("color/default/bgc",         argb{ blackdk });
-                def_filler =             config.take("color/bground",             argb{ argb::default_color });
+                def_atexit =             config.take("/config/term/atexit",                     commands::atexit::smart, atexit_options);
+                def_fcolor =             config.take("/config/term/colors/default/fgc",         argb{ whitelt });
+                def_bcolor =             config.take("/config/term/colors/default/bgc",         argb{ blackdk });
+                def_filler =             config.take("/config/term/colors/bground",             argb{ argb::default_color });
 
-                def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_rich_c =             config.take("color/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_html_c =             config.take("color/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_text_c =             config.take("color/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_none_c =             config.take("color/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
-                def_find_c =             config.take("color/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_safe_c =             config.take("/config/term/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_ansi_c =             config.take("/config/term/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_rich_c =             config.take("/config/term/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_html_c =             config.take("/config/term/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_text_c =             config.take("/config/term/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_none_c =             config.take("/config/term/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
+                def_find_c =             config.take("/config/term/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
 
-                def_safe_f =             config.take("color/selection/protected/fx", commands::fx::color,  fx_options);
-                def_ansi_f =             config.take("color/selection/ansi/fx",      commands::fx::xlight, fx_options);
-                def_rich_f =             config.take("color/selection/rich/fx",      commands::fx::xlight, fx_options);
-                def_html_f =             config.take("color/selection/html/fx",      commands::fx::xlight, fx_options);
-                def_text_f =             config.take("color/selection/text/fx",      commands::fx::color,  fx_options);
-                def_none_f =             config.take("color/selection/none/fx",      commands::fx::color,  fx_options);
-                def_find_f =             config.take("color/match/fx",               commands::fx::color,  fx_options);
+                def_safe_f =             config.take("/config/term/colors/selection/protected/fx", commands::fx::color,  fx_options);
+                def_ansi_f =             config.take("/config/term/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
+                def_rich_f =             config.take("/config/term/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
+                def_html_f =             config.take("/config/term/colors/selection/html/fx",      commands::fx::xlight, fx_options);
+                def_text_f =             config.take("/config/term/colors/selection/text/fx",      commands::fx::color,  fx_options);
+                def_none_f =             config.take("/config/term/colors/selection/none/fx",      commands::fx::color,  fx_options);
+                def_find_f =             config.take("/config/term/colors/match/fx",               commands::fx::color,  fx_options);
 
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.take("color/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = config.take("/config/term/colors/color" + std::to_string(i), def_colors[i]);
                 }
             }
         };
@@ -746,11 +745,11 @@ namespace netxs::ui
             {
                 using namespace netxs::ansi;
                 #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
-                vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)"); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)"); }; // CSI n SP @  Shift left n columns(s).
                 vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.decscusr(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
-                vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack, n default is 0"); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack, n default is 0"); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
                 vt.csier.table_hash [csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
                 vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR).
@@ -1819,7 +1818,7 @@ namespace netxs::ui
             // bufferbase: Shift left n columns(s).
             void shl(si32 n)
             {
-                log("%%SHL(%n%) is not implemented.", prompt::term, n);
+                log("%%SHL(%n%) is not implemented", prompt::term, n);
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(si32 n, char c = '\0') = 0;
@@ -7155,7 +7154,7 @@ namespace netxs::ui
             if (delta)
             {
                 auto path = delta;
-                auto time = skin::globals().switching;
+                auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
                 dynamo.actify(func, [&](twod& step)

@@ -187,7 +187,7 @@ namespace netxs::app::shop
 
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
-            auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color;
             //auto x3 = cell{ c3 }.alpha(0x00);
 
@@ -195,7 +195,7 @@ namespace netxs::app::shop
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60000000)
-                  ->plugin<pro::track>()
+                  //->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -209,7 +209,7 @@ namespace netxs::app::shop
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    config.cd("/config/gems/", "/config/defapp/");
+                    config.cd("/config/defapp");
                     auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
