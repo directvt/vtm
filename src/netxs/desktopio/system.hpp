@@ -422,16 +422,6 @@ namespace netxs::os
                 auto rc = nt::ConsoleControl((ui32)sizeof("Stat"), &stat, (ui32)sizeof(stat));
                 return rc;
             }
-            //void try_to_set_foreground()//HWND hWnd)
-            //{
-            //    //auto rc = 
-            //    nt::ConsoleFG(::GetCurrentProcess(), 1);
-            //    //if (!rc) log("%%Set current process foreground: rc=%%", prompt::os, utf::to_hex(rc));
-            //    //else     log("%%Set current process foreground: rc=%%", ansi::err(prompt::os), utf::to_hex(rc));
-            //    //::SetForegroundWindow(hWnd);
-            //    //::LockSetForegroundWindow(LSFW_UNLOCK);
-            //    //::AllowSetForegroundWindow(ASFW_ANY);
-            //}
             template<class I = noop, class O = noop>
             auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
             {

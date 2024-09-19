@@ -77,7 +77,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
-            auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color;
 
             auto window = ui::cake::ctor();

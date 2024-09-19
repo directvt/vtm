@@ -775,11 +775,10 @@ struct impl : consrv
         void set_process_foreground(Arch procid)
         {
             if (!fstate) return;
-            //auto& cl = closed;
             std::thread{ [prompt = server.prompt, procid, io_log = server.io_log]()
             {
                 //todo should we wait until the new app has created their fake console window? ConsoleFG doesn't work if we are too fast.
-                //wait input
+                //wait input+timeout?
                 //std::this_thread::yield();
                 os::sleep(1s);
                 auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)procid);
@@ -792,16 +791,11 @@ struct impl : consrv
         void set_all_processes_foreground(bool fgstate)
         {
             fstate = fgstate;
-            //auto rc = 
             nt::ConsoleFG<Arch>(::GetCurrentProcess(), fgstate);
-            //log("%%Set process foreground: rc=%% pid=-1 state=%%", server.prompt, utf::to_hex(rc), fgstate?"1":"0");
             for (auto& client : server.joined)
             {
                 auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)client.procid);
-                //rc = 
                 nt::ConsoleFG<Arch>(h_process, fgstate);
-                //if (!rc) log("%%\tSet process foreground: rc=%% pid=%% state=%%", server.prompt, utf::to_hex(rc), client.procid, fgstate?"1":"0");
-                //else     log("%%\tSet process foreground: rc=%% pid=%% state=%%", ansi::err(server.prompt), utf::to_hex(rc), client.procid, fgstate?"1":"0");
                 os::close(h_process);
             }
         }

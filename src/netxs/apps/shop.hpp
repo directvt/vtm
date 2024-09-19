@@ -187,7 +187,7 @@ namespace netxs::app::shop
 
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
-            auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color;
             //auto x3 = cell{ c3 }.alpha(0x00);
 

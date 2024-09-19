@@ -2904,22 +2904,20 @@ namespace netxs::ui
 
     struct tone
     {
-        #define prop_list                              \
-        X(kb_focus  , "Keyboard focus indicator")      \
-        X(brighter  , "Highlighter modificator")       \
-        X(shadower  , "Darklighter modificator")       \
-        X(selector  , "Selection overlay")             \
-        X(highlight , "Hilighted item color")          \
-        X(warning   , "Warning color")                 \
-        X(danger    , "Danger color")                  \
-        X(action    , "Action color")                  \
-        X(selected  , "Selected item color")           \
-        X(active    , "Active item color")             \
-        X(focused   , "Focused item color")            \
-        X(label     , "Static label color")            \
-        X(inactive  , "Inactive label color")          \
-        X(menu_white, "Light menu color")              \
-        X(menu_black, "Dark menu color")
+        #define prop_list                         \
+        X(window_clr , "Window base color")       \
+        X(winfocus   , "Focused item color")      \
+        X(brighter   , "Highlighter modificator") \
+        X(shadower   , "Darklighter modificator") \
+        X(placeholder, "Placeholder overlay")     \
+        X(warning    , "Warning color")           \
+        X(danger     , "Danger color")            \
+        X(action     , "Action color")            \
+        X(selected   , "Selected item color")     \
+        X(active     , "Active item color")       \
+        X(focused    , "Focused item color")      \
+        X(label      , "Static label color")      \
+        X(inactive   , "Inactive label color")
 
         enum prop
         {

@@ -319,8 +319,8 @@ namespace netxs::app::calc
         };
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
-            auto highlight_color = skin::globals().highlight;
-            auto label_color     = skin::globals().label;
+            auto highlight_color = cell{ skin::globals().winfocus };
+            auto label_color     = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
             auto c3 = highlight_color;
             //auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;

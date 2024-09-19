@@ -271,187 +271,266 @@ Notes
 `~/.config/vtm/settings.xml`:
 ```xml
 <config>
-    <gui> <!-- GUI related settings. (win32 platform only for now) -->
+    <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
-        <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized -->
+        <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized . -->
         <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
-        <fonts> <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
-            <font*/> <!-- Clear previously defined fonts. Start a new list. -->
-            <font="Courier New"/> <!-- The first font in the list: Primary font. Its metrics define the cell geometry. -->
+        <fonts>  <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
+            <font*/>  <!-- Clear previously defined fonts. Start a new list. -->
+            <font="Courier New"/>  <!-- The first font in the list: Primary font. Its metrics define the cell geometry. -->
             <font="Cascadia Mono"/>
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
         </fonts>
     </gui>
-    <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
-        <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested attributes
-                       indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
-        <item splitter label="apps">
-            <notes>
-                " Default applications group                         \n"
-                " It can be configured in ~/.config/vtm/settings.xml "
-            </notes>
-        </item>
-        <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/> <!-- winform: normal | maximized | minimized -->
-        <item id=Term label="Term" type=dtvt title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
-            <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
-                <term>
-                    <scrollback>
-                        <size=35000/>   <!-- Initial scrollback buffer length. -->
-                        <wrap="on" />   <!-- Lines wrapping mode. -->
-                    </scrollback>
-                    <color>
-                        <color4=bluedk  /> <!-- See /config/set/* for the color name reference. -->
-                        <color15=whitelt/>
-                        <default bgc=pureblack fgc=whitedk/>  <!-- Default/current colors (SGR49/39). -->
-                        <bground=default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
-                    </color>
-                    <cursor>
-                        <style="underline"/> <!-- block | underline  -->
-                    </cursor>
-                    <selection>
-                        <mode=text/> <!-- text | ansi | rich | html | protected | none -->
-                    </selection>
-                    <menu>
-                        <autohide=off/>  <!--  If true/on, show window menu only on hover. -->
-                        <enabled=true/>
-                        <slim=1/>
-                    </menu>
-                </term>
-            </config>
-        </item>
-        <item id=pwsh label=PowerShell   type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core "/>
-   <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
-   <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
-        <item id=Tile label=Tile         type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=Site label=Site         type=site title="\e[11:3pSite "         cmd=@ winform=maximized   notes=" Desktop region marker "/>
-        <item id=Logs label=Logs         type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
-        <autorun item*>  <!-- Autorun specified menu items      -->
-            <!--  <item* id=Term winsize=80,25/>                -->
-            <!--  <item wincoor=92,31 winform=minimized/>       --> <!-- Autorun supports minimized winform only. -->
-            <!--  <item wincoor=8,31/>                          -->
-            <!--  <item wincoor=8,4 winsize=164,25 focused/>    -->
-        </autorun>
-        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
-        <width>    <!-- Taskbar menu width -->
-            <folded=11/>
-            <expanded=32/>
-        </width>
-        <color fgc=whitedk bgc=0x60202020/>
-    </menu>
-    <panel> <!-- Desktop info panel. -->
-        <cmd=""/> <!-- Command-line to activate. -->
-        <cwd=""/> <!-- Working directory. -->
-        <height=1/> <!-- Desktop space reserved on top. -->
-    </panel>
-    <hotkeys key*>    <!-- not implemented -->
-        <key="Ctrl+PgUp" action=PrevWindow/>
-        <key="Ctrl+PgDn" action=NextWindow/>
-    </hotkeys>
-    <appearance>
-        <defaults>
-            <fps=60/>
-            <tracking=off /> <!-- Mouse cursor highlighting. -->
-            <macstyle=no  /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
-            <brighter   fgc=purewhite bgc=purewhite alpha=60/> <!-- Highlighter. -->
-            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60/> <!-- Keyboard focus indicator. -->
-            <shadower   bgc=0xB4202020/>                       <!-- Darklighter. -->
-            <shadow     bgc=0xB4202020/>                       <!-- Light Darklighter. -->
-            <selector   bgc=0x30ffffff txt=" "/>               <!-- Selection overlay. -->
-            <highlight  fgc=purewhite bgc=bluelt     />
-            <warning    fgc=whitelt   bgc=yellowdk   />
-            <danger     fgc=whitelt   bgc=redlt      />
-            <action     fgc=whitelt   bgc=greenlt    />
-            <label      fgc=blackdk   bgc=whitedk    />
-            <inactive   fgc=blacklt   bgc=transparent/>
-            <menu_white fgc=whitelt   bgc=0x80404040 />
-            <menu_black fgc=blackdk   bgc=0x80404040 />
-            <timings>
-                <spd            = 10    /> <!-- Auto-scroll initial speed component ΔR.              -->
-                <pls            = 167   /> <!-- Auto-scroll initial speed component ΔT.              -->
-                <ccl            = 120   /> <!-- Auto-scroll duration in ms.                          -->
-                <spd_accel      = 1     /> <!-- Auto-scroll speed accelation.                        -->
-                <ccl_accel      = 30    /> <!-- Auto-scroll additional duration in ms.               -->
-                <spd_max        = 100   /> <!-- Auto-scroll max speed.                               -->
-                <ccl_max        = 1000  /> <!-- Auto-scroll max duration in ms                       -->
-                <deceleration   = 2s    /> <!-- Object state stopping duration in s.                 -->
-                <switching      = 200   /> <!-- Object state switching duration in ms.               -->
-                <blink_period   = 400ms /> <!-- Period in ms between the blink states of the cursor. -->
-                <menu_timeout   = 250ms /> <!-- Taskbar collaplse timeout.                           -->
-                <leave_timeout = 1s    /> <!-- Timeout off the active object.                       -->
-                <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
-                <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
-            </timings>
-            <limits>
-                <window size=3000x2000/> <!-- Max window grid size -->
-            </limits>
-        </defaults>
-    </appearance>
-    <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
-        <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
-        <reddk     = 0xFFc40f1f />
-        <greendk   = 0xFF12a10e />
-        <yellowdk  = 0xFFc09c00 />
-        <bluedk    = 0xFF0037db />
-        <magentadk = 0xFF871798 />
-        <cyandk    = 0xFF3b96dd />
-        <whitedk   = 0xFFbbbbbb />
-        <blacklt   = 0xFF757575 />
-        <redlt     = 0xFFe64856 />
-        <greenlt   = 0xFF15c60c />
-        <yellowlt  = 0xFFf8f1a5 />
-        <bluelt    = 0xFF3a78ff />
-        <magentalt = 0xFFb3009e />
-        <cyanlt    = 0xFF60d6d6 />
-        <whitelt   = 0xFFf3f3f3 />
-        <pureblack = 0xFF000000 />
-        <purewhite = 0xFFffffff />
-        <nocolor   = 0x00000000 />
-        <transparent = nocolor  />
+    <cursor>
+        <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_". -->
+        <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
+        <show=true/>
+        <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+    </cursor>
+    <tooltips>
+        <timeout=2000ms/>
+        <enabled=true/>
+        <color fgc=pureblack bgc=purewhite/>
+    </tooltips>
+    <debug>
+        <logs=off/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
+        <overlay=off/>  <!-- Show debug info overlay. -->
+        <toggle="🐞"/>  <!-- Shortcut to toggle debug info overlay/regions. -->
+        <regions=0/>    <!-- Highlight UI objects boundaries. -->
+    </debug>
+    <clipboard>
+        <preview enabled=no size=80x25>
+            <color fgc=whitelt bgc=bluedk/>
+            <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
+            <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
+            <shadow=3  />  <!-- Preview shadow strength (0-5). -->
+        </preview>
+        <format=html/>  <!-- Default clipboard format for screenshots: text | ansi | rich | html | protected . -->
+    </clipboard>
+    <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
+        <window   fgc=whitelt   bgc=0x80404040        />  <!-- Base desktop window color. -->
+        <focus    fgc=purewhite bgc=bluelt            />  <!-- Focused item tinting. -->
+        <brighter fgc=purewhite bgc=purewhite alpha=60/>  <!-- Brighter. -->
+        <shadower               bgc=0xB4202020        />  <!-- Dimmer. -->
+        <warning  fgc=whitelt   bgc=yellowdk          />  <!-- "Warning" color. -->
+        <danger   fgc=whitelt   bgc=purered           />  <!-- "Danger" color. -->
+        <action   fgc=whitelt   bgc=greenlt           />  <!-- "Action" color. -->
+    </colors>
+    <timings>
+        <fps=60/>  <!-- Frames per second. Maximum frequency of rendering UI updates. -->
+        <kinetic>  <!-- Kinetic scrolling. -->
+            <spd       = 10  />  <!-- Initial speed component ΔR. -->
+            <pls       = 167 />  <!-- Initial speed component ΔT. -->
+            <ccl       = 120 />  <!-- Duration in ms. -->
+            <spd_accel = 1   />  <!-- Speed accelation. -->
+            <ccl_accel = 30  />  <!-- Additional duration in ms. -->
+            <spd_max   = 100 />  <!-- Max speed. -->
+            <ccl_max   = 1000/>  <!-- Max duration in ms. -->
+        </kinetic>
+        <switching     = 200ms/>  <!-- Duration of an object state switching. -->
+        <deceleration  = 2s   />  <!-- Duration of stopping a moving object. -->
+        <leave_timeout = 1s   />  <!-- Timeout off the active object (e.g. after mouse leaving scrollbar). -->
+        <repeat_delay  = 500ms/>  <!-- Repeat delay. -->
+        <repeat_rate   = 30ms />  <!-- Repeat rate. -->
+        <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
+    </timings>
+    <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
+        <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
+        <reddk             = 0xFFc40f1f />
+        <greendk           = 0xFF12a10e />
+        <yellowdk          = 0xFFc09c00 />
+        <bluedk            = 0xFF0037db />
+        <magentadk         = 0xFF871798 />
+        <cyandk            = 0xFF3b96dd />
+        <whitedk           = 0xFFbbbbbb />
+        <blacklt           = 0xFF757575 />
+        <redlt             = 0xFFe64856 />
+        <greenlt           = 0xFF15c60c />
+        <yellowlt          = 0xFFf8f1a5 />
+        <bluelt            = 0xFF3a78ff />
+        <magentalt         = 0xFFb3009e />
+        <cyanlt            = 0xFF60d6d6 />
+        <whitelt           = 0xFFf3f3f3 />
+        <pureblack         = 0xFF000000 />
+        <purewhite         = 0xFFffffff />
+        <purered           = 0xFFff0000 />
+        <puregreen         = 0xFF00ff00 />
+        <pureblue          = 0xFF0000ff />
+        <puremagenta       = 0xFFff00ff />
+        <purecyan          = 0xFF00ffff />
+        <pureyellow        = 0xFFff00ff />
+        <nocolor           = 0x00000000 />
+        <color.default     = 0x00ffffff />
+        <color.transparent = nocolor    />
+        <menu.autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
+        <menu.slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+        <selection.mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+        <selection.rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
     </set>
-    <client>
-        <background fgc=whitedk bgc=0x80000000>  <!-- Desktop background. -->
-            <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
-            <!-- Background with gradients -->
-            <!-- <tile>
-                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m \e[48;2;55;212;247m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \n"
-                "\e[48;2;82;171;239m \e[48;2;72;191;243m \e[48;2;55;212;247m \e[48;2;31;233;251m \e[m\e[48;2;0;255;255m \e[m\e[48;2;0;255;255m \e[48;2;31;233;251m \e[48;2;55;212;247m \e[48;2;72;191;243m \e[48;2;82;171;239m \n"
-                "\e[48;2;83;161;238m \e[48;2;78;179;241m \e[48;2;70;195;244m \e[48;2;60;207;246m \e[48;2;55;212;247m \e[48;2;55;212;247m \e[48;2;60;207;246m \e[48;2;70;195;244m \e[48;2;78;179;241m \e[48;2;83;161;238m \e[m"
-            </tile> -->
+    <desktop>  <!-- Desktop client settings. -->
+        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
+        <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
+        <macstyle=no/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
+        <taskbar wide=off selected=Term>  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
+            <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
+            <item splitter label="apps">
+                <notes>
+                    " Default applications group                         \n"
+                    " It can be configured in ~/.config/vtm/settings.xml "
+                </notes>
+            </item>
+            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values). -->
+            <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
+                <notes>
+                    " Terminal Console               \n"
+                    "   LeftClick to launch instance \n"
+                    "   RightClick to set as default "
+                </notes>
+                <hotkeys key*>  <!-- not implemented -->
+                    <key="Ctrl+T" action=Start/>
+                </hotkeys>
+                <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
+                    <term>
+                        <scrollback>
+                            <size=40000/>  <!-- Scrollback buffer length. -->
+                            <wrap=on/>     <!-- Lines wrapping mode. -->
+                        </scrollback>
+                        <selection>
+                            <mode=selection.mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+                        </selection>
+                        <hotkeys key*>    <!-- not implemented -->
+                            <key="Alt+RightArrow" action=TerminalFindNext/>
+                            <key="Alt+LeftArrow"  action=TerminalFindPrev/>
+                            <key="Ctrl+Z"         action=TerminalQuit/>
+                        </hotkeys>
+                    </term>
+                </config>
+            </item>
+            <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl" notes=" Default WSL profile session "/> -->
+            <!-- <item id=Far  label="Far"        type=dtvt title="Far Manager"           cmd="$0 -r far"            notes=" Far Manager in its own DirectVT window "/> -->
+            <!-- <item id=Far  label="Far VTTY"   type=vtty title="Far Manager (vtty)"    cmd="far"                  notes=" Far Manager in its own window "/> -->
+            <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                   notes=" Midnight Commander in its own window "/> -->
+            <item id=Tile label="Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id=Site label="Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+                <config>
+                    <term>
+                        <scrollback>
+                            <size=5000/>
+                            <wrap="off"/>
+                        </scrollback>
+                        <menu item*>
+                            <autohide=menu.autohide/>
+                            <slim=menu.slim/>
+                            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                                <label="\e[38:2:0:255:0m<\e[m"/>
+                                <notes>
+                                    " Previous match                                  \n"
+                                    "   LeftClick to jump to previous match or scroll \n"
+                                    "             one page up if nothing to search    \n"
+                                    "   Match clipboard data if no selection          \n"
+                                    "   Left+RightClick to clear clipboard            "
+                                </notes>
+                            </item>
+                            <item label=">" action=TerminalFindNext>
+                                <label="\e[38:2:0:255:0m>\e[m"/>
+                                <notes>
+                                    " Next match                                     \n"
+                                    "   LeftClick to jump to next match or scroll    \n"
+                                    "             one page down if nothing to search \n"
+                                    "   Match clipboard data if no selection         \n"
+                                    "   Left+RightClick to clear clipboard           "
+                                </notes>
+                            </item>
+                            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                                <notes>
+                                    " Wrapping text lines on/off      \n"
+                                    "   Applied to selection if it is "
+                                </notes>
+                            </item>
+                            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                                <label data="rich">
+                                    "\e[38:2:109:231:237m""R"
+                                    "\e[38:2:109:237:186m""T"
+                                    "\e[38:2:60:255:60m"  "F"
+                                    "\e[38:2:189:255:53m" "-"
+                                    "\e[38:2:255:255:49m" "s"
+                                    "\e[38:2:255:189:79m" "t"
+                                    "\e[38:2:255:114:94m" "y"
+                                    "\e[38:2:255:60:157m" "l"
+                                    "\e[38:2:255:49:214m" "e" "\e[m"
+                                </label>
+                                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+                            </item>
+                            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+                        </menu>
+                    </term>
+                </config>
+            </item>
+            <autorun item*>  <!-- Autorun specified menu items:     -->
+                <!--  <item* id=Term winsize=80,25 />               -->
+                <!--  <item wincoor=92,31 winform=minimized />      -->  <!-- Autorun supports minimized winform only. -->
+                <!--  <item wincoor=8,31 />                         -->
+                <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
+            </autorun>
+            <width>    <!-- Taskbar menu width. -->
+                <folded=16/>
+                <expanded=32/>
+            </width>
+            <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
+            <colors>
+                <bground  fgc=whitedk bgc=0xC0202020       />  <!-- Set the bgc color non-transparent (alpha to FF) to disable acrylics in taskbar. -->
+                <focused  fgc=puregreen                    />  <!-- Focused taskbar item color. -->
+                <selected fgc=whitelt                      />  <!-- Default taskbar item color. -->
+                <active   fgc=whitelt                      />  <!-- Running taskbar item color. -->
+                <inactive fgc=blacklt bgc=color.transparent/>  <!-- Blocked taskbar item color (e.g. when the app is maximized by a remote user). -->
+            </colors>
+        </taskbar>
+        <panel>  <!-- Desktop info panel. -->
+            <env=""/>  <!-- Environment block. -->
+            <cmd=""/>  <!-- Command-line to activate. -->
+            <cwd=""/>  <!-- Working directory. -->
+            <height=1/>  <!-- Desktop space reserved on top. -->
+        </panel>
+        <background>  <!-- Desktop background. -->
+            <color fgc=whitedk bgc=0x80000000/>  <!-- Desktop background color. -->
+            <tile=""/>  <!-- Truecolor ANSI-art with gradients can be used here. -->
         </background>
-        <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
-                <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
-                <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
-            </preview>
-            <format=html/>  <!-- none | text | ansi | rich | html | protected -->
-        </clipboard>
-        <viewport coor=0,0/>
-        <mouse dblclick=500ms/>
-        <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
-        <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
-        <regions enabled=0/>  <!-- Highlight UI objects boundaries. -->
-    </client>
-    <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
+        <shadow enabled=0>  <!-- Desktop window shadows (TUI mode). -->
+            <blur=3/>         <!-- Blur radius (in cells). Default is "3". -->
+            <bias=0.37/>      <!-- Shadow contour bias [0.0 - 1.0]. Default is "0.37". -->
+            <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
+            <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
+        </shadow>
+        <hotkeys key*>    <!-- not implemented -->
+            <key="Ctrl+PgUp" action=PrevWindow/>
+            <key="Ctrl+PgDn" action=NextWindow/>
+        </hotkeys>
+    </desktop>
+    <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo test\n" -->
-        <cwdsync=" cd $P\n"/>   <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
+        <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
-            <size=40000    />   <!-- Initial scrollback buffer length. -->
+            <size=40000    />   <!-- Initial scrollback buffer size. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <growlimit=0   />   <!-- Scrollback buffer grow limit. The buffer will behave like a ring when the limit is reached. If set to zero, then the limit is equal to the initial buffer size. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
-            <wrap="on"     />   <!-- Lines wrapping mode. -->
-            <reset onkey="on" onoutput="off"/>  <!-- Scrollback viewport reset triggers. -->
-            <altscroll="on"/>   <!-- Alternate scroll mode settings. -->
+            <wrap=on       />   <!-- Lines wrapping mode. -->
+            <reset onkey=on onoutput=off/>  <!-- Scrollback viewport position reset triggers. -->
+            <altscroll=on  />   <!-- Alternate scroll mode settings. -->
+            <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
-        <color>
-            <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
+        <colors>  <!-- Terminal colors. -->
+            <color0  = pureblack  />  <!-- Link to global <config/set/*/> namespace. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -467,56 +546,23 @@ Notes
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitedk/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
-            <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
+            <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
+            <bground = color.default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color.default) to sync with SGR49 (default background). -->
+            <match fx=color fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: xlight | color | invert | reverse . -->
             <selection>
-                <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=color bgc=bluelt fgc=whitelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
-                <ansi fx=xlight bgc=bluelt fgc=whitelt/>
-                <rich fx=xlight bgc=bluelt fgc=whitelt/>
-                <html fx=xlight bgc=bluelt fgc=whitelt/>
-                <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
+                <text fx=color fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <ansi fx=xlight fgc=whitelt bgc=bluelt/>
+                <rich fx=xlight fgc=whitelt bgc=bluelt/>
+                <html fx=xlight fgc=whitelt bgc=bluelt/>
+                <none fx=color fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
             </selection>
-        </color>
-        <layout>
-            <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. (for convenient horizontal scrolling). -->
-            <border=0/>                 <!-- Terminal window left and right border size. -->
-        </layout>
-        <tablen=8/>   <!-- Tab length. -->
-        <cursor>
-            <style="underline"/> <!-- block | underline -->
-            <blink=400ms/>       <!-- blink period -->
-            <show=true/>
-        </cursor>
+        </colors>
+        <border=0/>  <!-- Width of the left and right border of the terminal window. -->
+        <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=off/>
-            <enabled=1/>
-            <slim=1/>
-            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
-                <notes>
-                    " Wrapping text lines on/off      \n"
-                    " - applied to selection if it is "
-                </notes>
-            </item>
-            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
-                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label data="rich">
-                    "\e[38:2:109:231:237m""R"
-                    "\e[38:2:109:237:186m""T"
-                    "\e[38:2:60:255:60m"  "F"
-                    "\e[38:2:189:255:53m" "-"
-                    "\e[38:2:255:255:49m" "s"
-                    "\e[38:2:255:189:79m" "t"
-                    "\e[38:2:255:114:94m" "y"
-                    "\e[38:2:255:60:157m" "l"
-                    "\e[38:2:255:49:214m" "e" "\e[m"
-                </label>
-                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
-                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
-            </item>
+            <autohide=menu.autohide/> <!-- Link to global <config/set/menu.autohide>. -->
+            <slim=menu.slim/> <!-- Link to global <config/set/menu.slim>. -->
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
@@ -537,51 +583,60 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
-            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                <notes>
+                    " Wrapping text lines on/off      \n"
+                    "   Applied to selection if it is "
+                </notes>
+            </item>
+            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                <label data="rich">
+                    "\e[38:2:109:231:237m""R"
+                    "\e[38:2:109:237:186m""T"
+                    "\e[38:2:60:255:60m"  "F"
+                    "\e[38:2:189:255:53m" "-"
+                    "\e[38:2:255:255:49m" "s"
+                    "\e[38:2:255:189:79m" "t"
+                    "\e[38:2:255:114:94m" "y"
+                    "\e[38:2:255:60:157m" "l"
+                    "\e[38:2:255:49:214m" "e" "\e[m"
+                </label>
+                <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="Sync" notes=" CWD sync is off " type=Option action=TerminalCwdSync data="off">
+                <label="\e[38:2:0:255:0mSync\e[m" notes=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
+            </item>
+            <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
+                <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
+            </item>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <item label="Top" action=TerminalViewportTop/> <!-- See Term app description below for details (readme.md). -->
-            <item label="End" action=TerminalViewportEnd/>
-            <item label="PgUp" type=Repeat action=TerminalViewportPageUp/>
-            <item label="PgDn" type=Repeat action=TerminalViewportPageDown/>
-            <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
+            <!-- <item label="Hello, World!" notes=" Simulate keypresses "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
-            <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
+            <mode=selection.mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <rect=selection.rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-        <atexit=auto/> <!-- auto:    Stay open and ask if exit code != 0. (default)
-                            ask:     Stay open and ask.
-                            close:   Always close.
-                            restart: Restart session.
-                            retry:   Restart session if exit code != 0. -->
-        <hotkeys key*> <!-- not implemented -->
-            <key="Alt+RightArrow" action=TerminalFindNext/>
-            <key="Alt+LeftArrow"  action=TerminalFindPrev/>
+        <atexit=auto/>  <!-- Behavior after the last console process has terminated: auto | ask | close | restart | retry 
+                                auto:    Stay open and ask if exit code != 0. (default)
+                                ask:     Stay open and ask.
+                                close:   Always close.
+                                restart: Restart session.
+                                retry:   Restart session if exit code != 0. -->
+        <hotkeys key*>  <!-- not implemented -->
+            <key="Alt+RightArrow" action=FindNext/>
+            <key="Alt+LeftArrow"  action=FindPrev/>
         </hotkeys>
     </term>
     <defapp>
         <menu>
-            <autohide=off/>
-            <enabled=true/>
-            <slim=true/>
+            <autohide=menu.autohide/>  <!-- Link to global <config/set/menu.autohide>. -->
+            <slim=menu.slim/>          <!-- Link to global <config/set/menu.slim>. -->
         </menu>
     </defapp>
-    <tile>
-        <menu>
-            <autohide=off/>
-            <enabled=true/>
-            <slim=true/>
-        </menu>
-    </tile>
-    <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </text>
-    <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </calc>
-    <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
-        <!-- not implemented -->
-    </settings>
 </config>
 ```

@@ -69,9 +69,8 @@ namespace netxs::app::desk
         auto app_template = [](auto& data_src, auto const& utf8)
         {
             auto tall = si32{ skin::globals().menuwide };
-            auto danger_color    = skin::globals().danger;
-            //auto highlight_color = skin::globals().highlight;
             auto focused_color   = skin::globals().focused;
+            auto danger_color    = skin::globals().danger;
             auto active_color    = skin::globals().active;
             auto cE = active_color;
             auto c1 = danger_color;
@@ -248,7 +247,7 @@ namespace netxs::app::desk
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
-            //auto highlight_color = skin::globals().highlight;
+            //auto highlight_color = skin::globals().winfocus;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
@@ -432,7 +431,7 @@ namespace netxs::app::desk
         };
         auto background = [](auto appid, auto label, auto title)
         {
-            auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::winfocus);
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
@@ -457,16 +456,16 @@ namespace netxs::app::desk
         auto build = [](eccc usrcfg, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
-            //auto highlight_color = skin::globals().highlight;
-            auto inactive_color  = skin::globals().inactive;
+            //auto highlight_color = skin::globals().winfocus;
             //auto warning_color   = skin::globals().warning;
+            auto inactive_color  = skin::globals().inactive;
             auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
             //auto c3 = highlight_color;
             //auto c2 = warning_color;
             auto c1 = danger_color;
 
-            auto menu_bg_color = config.take("/config/desktop/taskbar/color", cell{}.fgc(whitedk).bgc(0x60202020));
+            auto menu_bg_color = config.take("/config/desktop/taskbar/colors/bground", cell{}.fgc(whitedk).bgc(0x60202020));
             auto menu_min_conf = config.take("/config/desktop/taskbar/width/folded",   si32{ 5  });
             auto menu_max_conf = config.take("/config/desktop/taskbar/width/expanded", si32{ 32 });
             auto bttn_min_size = twod{ 31, 1 + tall * 2 };

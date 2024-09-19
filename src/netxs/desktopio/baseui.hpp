@@ -473,22 +473,18 @@ namespace netxs::ui
     //todo reimplement
     struct skin
     {
-        poly kb_focus;
+        poly winfocus;
         poly brighter;
         poly shadower;
-        poly selector;
 
-        cell highlight;
         cell warning;
         cell danger;
         cell action;
         cell active;
-        cell label;
         cell inactive;
         cell selected;
         cell focused;
-        cell menu_white;
-        cell menu_black;
+        cell window_clr;
 
         bool tracking = faux;
         bool menuwide = faux;
@@ -529,21 +525,17 @@ namespace netxs::ui
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus:   return g.kb_focus;
+                case tone::prop::winfocus:   return g.winfocus;
+                case tone::prop::window_clr: return g.window_clr;
                 case tone::prop::brighter:   return g.brighter;
                 case tone::prop::shadower:   return g.shadower;
-                case tone::prop::selector:   return g.selector;
-                case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
                 case tone::prop::active:     return g.active;
                 case tone::prop::focused:    return g.focused;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;
-                case tone::prop::label:      return g.label;
                 case tone::prop::inactive:   return g.inactive;
-                case tone::prop::menu_white: return g.menu_white;
-                case tone::prop::menu_black: return g.menu_black;
                 default:                     return g.brighter;
             }
         }
@@ -553,10 +545,9 @@ namespace netxs::ui
             auto& g = globals();
             switch (property)
             {
-                case tone::prop::kb_focus: return g.kb_focus;
+                case tone::prop::winfocus: return g.winfocus;
                 case tone::prop::brighter: return g.brighter;
                 case tone::prop::shadower: return g.shadower;
-                case tone::prop::selector: return g.selector;
                 default:                   return g.brighter;
             }
         }

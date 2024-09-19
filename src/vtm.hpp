@@ -102,7 +102,7 @@ namespace netxs::app::vtm
             align(base&&) = delete;
             align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
                 : skill{ boss },
-                  nexthop{ nexthop}
+                  nexthop{ nexthop }
             {
                 boss.LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
                 {
@@ -519,7 +519,7 @@ namespace netxs::app::vtm
             maker(base&&) = delete;
             maker(base& boss)
                 : skill{ boss },
-                   mark{ skin::color(tone::selector) }
+                   mark{ cell{ skin::color(tone::brighter) }.txt(" ") }
             {
                 using drag = hids::events::mouse::button::drag;
 
@@ -585,7 +585,7 @@ namespace netxs::app::vtm
                             {
                                 area.coor -= dot_11;
                                 area.size += dot_22;
-                                auto mark = skin::color(tone::kb_focus);
+                                auto mark = skin::color(tone::winfocus);
                                 auto fill = [&](cell& c){ c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
                                 coder.wrp(wrap::off).add("capture area: ", slot);

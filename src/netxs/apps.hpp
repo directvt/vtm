@@ -383,14 +383,12 @@ namespace netxs::app::shared
         };
         auto build_dtty = [](eccc appcfg, xmls& config)
         {
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
-
+            auto window_clr = skin::color(tone::window_clr);
             auto window = ui::veer::ctor()
                 ->limits(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active); // Required for standalone mode.
             auto term = ui::cake::ctor()
-                ->active(cB);
+                ->active(window_clr);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
             auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));

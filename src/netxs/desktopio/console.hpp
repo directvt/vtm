@@ -1536,21 +1536,19 @@ namespace netxs::ui
             auto& canal = *server;
 
             auto& g = skin::globals();
-            g.brighter       = config.take("/config/colors/brighter"  , cell{ whitespace });//120);
-            g.kb_focus       = config.take("/config/colors/kb_focus"  , cell{ whitespace });//60
-            g.shadower       = config.take("/config/colors/shadower"  , cell{ whitespace });//180);//60);//40);// 20);
-            g.selector       = config.take("/config/colors/selector"  , cell{ whitespace });//48);
-            g.highlight      = config.take("/config/colors/highlight" , cell{ whitespace });
-            g.selected       = config.take("/config/colors/selected"  , cell{ whitespace });
-            g.active         = config.take("/config/colors/active"    , cell{ whitespace });
-            g.focused        = config.take("/config/colors/focused"   , cell{ whitespace });
-            g.warning        = config.take("/config/colors/warning"   , cell{ whitespace });
-            g.danger         = config.take("/config/colors/danger"    , cell{ whitespace });
-            g.action         = config.take("/config/colors/action"    , cell{ whitespace });
-            g.label          = config.take("/config/colors/label"     , cell{ whitespace });
-            g.inactive       = config.take("/config/colors/inactive"  , cell{ whitespace });
-            g.menu_white     = config.take("/config/colors/menu_white", cell{ whitespace });
-            g.menu_black     = config.take("/config/colors/menu_black", cell{ whitespace });
+            g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
+            g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
+            g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
+            g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
+            g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
+            g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
+            g.action         = config.take("/config/colors/action"     , cell{ whitespace });
+
+            g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
+            g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
+            g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
+            g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
+
             g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
             g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
             g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );

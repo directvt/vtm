@@ -3817,7 +3817,6 @@ namespace netxs::gui
         {
             ::SetForegroundWindow((HWND)master.hWnd);
             ::AllowSetForegroundWindow(ASFW_ANY);
-            //::LockSetForegroundWindow(LSFW_UNLOCK);
         }
         void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
