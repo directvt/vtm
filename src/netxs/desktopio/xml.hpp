@@ -232,7 +232,7 @@ namespace netxs::xml
 
     struct document
     {
-        enum type
+        enum class type
         {
             na,            // start of file
             eof,           // end of file
@@ -251,7 +251,7 @@ namespace netxs::xml
             empty_tag,     // '/>'    ex: ... />
             equal,         // '='     ex: name=value
             defaults,      // '*'     ex: name*
-            //compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
+            compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
             include,       // ':'     ex: <name:...=value param=value />
             localpath,     //         ex: <name:/path/path=value param=value />
             filepath,      //         ex: <name:"/filepath/filepath"=value param=value />
@@ -363,28 +363,28 @@ namespace netxs::xml
                     auto bgc = argb{};
                     switch (kind)
                     {
-                        case eof:           fgc = redlt;        break;
-                        case top_token:     fgc = top_token_fg; break;
-                        case end_token:     fgc = end_token_fg; break;
-                        //case compact:       fgc = end_token_fg; break;
-                        case token:         fgc = token_fg;     break;
-                        case raw_text:      fgc = yellowdk;     break;
-                        case quoted_text:   fgc = yellowdk;     break;
-                        case comment_begin: fgc = comment_fg;   break;
-                        case comment_close: fgc = comment_fg;   break;
-                        case begin_tag:     fgc = liter_fg;     break;
-                        case close_tag:     fgc = liter_fg;     break;
-                        case close_inline:  fgc = liter_fg;     break;
-                        case empty_tag:     fgc = liter_fg;     break;
-                        case equal:         fgc = liter_fg;     break;
-                        case quotes:        fgc = quotes_fg;    break;
-                        case defaults:      fgc = defaults_fg;  break;
-                        case unknown:       fgc = redlt;        break;
-                        case tag_value:     fgc = value_fg;
-                                            bgc = value_bg;     break;
-                        case error:         fgc = whitelt;
-                                            bgc = reddk;
-                                            yield += ' ';       break;
+                        case type::eof:           fgc = redlt;        break;
+                        case type::top_token:     fgc = top_token_fg; break;
+                        case type::end_token:     fgc = end_token_fg; break;
+                        case type::compact:       fgc = end_token_fg; break;
+                        case type::token:         fgc = token_fg;     break;
+                        case type::raw_text:      fgc = yellowdk;     break;
+                        case type::quoted_text:   fgc = yellowdk;     break;
+                        case type::comment_begin: fgc = comment_fg;   break;
+                        case type::comment_close: fgc = comment_fg;   break;
+                        case type::begin_tag:     fgc = liter_fg;     break;
+                        case type::close_tag:     fgc = liter_fg;     break;
+                        case type::close_inline:  fgc = liter_fg;     break;
+                        case type::empty_tag:     fgc = liter_fg;     break;
+                        case type::equal:         fgc = liter_fg;     break;
+                        case type::quotes:        fgc = quotes_fg;    break;
+                        case type::defaults:      fgc = defaults_fg;  break;
+                        case type::unknown:       fgc = redlt;        break;
+                        case type::tag_value:     fgc = value_fg;
+                                                  bgc = value_bg;     break;
+                        case type::error:         fgc = whitelt;
+                                                  bgc = reddk;
+                                                  yield += ' ';       break;
                         default: break;
                     }
                     //test
@@ -431,6 +431,7 @@ namespace netxs::xml
                 node,
                 attr,
                 flat,
+                pact, // Element has compact form (<element/elem2/elem3 ... />).
             };
 
             frag from; // elem: First fragment in document.
@@ -702,6 +703,7 @@ namespace netxs::xml
                     auto from = item->from;
                     auto upto = item->upto;
                     auto next = upto->next;
+                    if (parent->mode != elem::form::pact)
                     if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
                     if (auto prev = gate->prev.lock())
                     if (auto past = from->prev.lock())
@@ -718,10 +720,11 @@ namespace netxs::xml
                     log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
                 }
             }
-            else log(prompt::xml, "Destination path not found ", parent_path);
+            else log("%%Destination path not found '%parent_path%'", prompt::xml, parent_path);
         }
 
     private:
+        vect compacted;
         auto fail(text msg)
         {
             page.fail = true;
@@ -739,7 +742,7 @@ namespace netxs::xml
                     case type::eol:           return view{ "{EOL}" }     ;
                     case type::token:         return view{ "{token}" }   ;
                     case type::raw_text:      return view{ "{raw text}" };
-                    //case type::compact:       return view{ "{compact}" } ;
+                    case type::compact:       return view{ "{compact}" } ;
                     case type::quoted_text:   return view_quoted_text    ;
                     case type::begin_tag:     return view_begin_tag      ;
                     case type::close_tag:     return view_close_tag      ;
@@ -769,12 +772,11 @@ namespace netxs::xml
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
             else if (data.starts_with(view_empty_tag    )) what = type::empty_tag;
-            else if (data.starts_with(view_slash        )) what = type::unknown;
-            //else if (data.starts_with(view_slash        ))
-            //{
-            //    if (last == type::token) what = type::compact;
-            //    else                     what = type::unknown;
-            //}
+            else if (data.starts_with(view_slash        ))
+            {
+                if (last == type::token) what = type::compact;
+                else                     what = type::unknown;
+            }
             else if (data.starts_with(view_close_inline )) what = type::close_inline;
             else if (data.starts_with(view_quoted_text  )) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
@@ -786,8 +788,9 @@ namespace netxs::xml
                   || last == type::token
                   || last == type::defaults
                   || last == type::raw_text
-                  || last == type::quoted_text)  what = type::token;
-            else                                 what = type::raw_text;
+                  || last == type::compact
+                  || last == type::quoted_text) what = type::token;
+            else                                what = type::raw_text;
         }
         auto name(view& data)
         {
@@ -842,7 +845,7 @@ namespace netxs::xml
                 case type::tag_value:     body(data, type::raw_text);             break;
                 case type::spaces:        utf::trim_front(data, whitespaces);     break;
                 case type::na:            utf::get_tail<faux>(data, find_start);  break;
-                //case type::compact:
+                case type::compact:
                 case type::unknown:       if (data.size()) data.remove_prefix(1); break;
                 default: break;
             }
@@ -897,13 +900,14 @@ namespace netxs::xml
                 }
                 else fail(last, what);
             }
-            else // Add placeholder for absent value.
+            else if (what != type::compact) // Add placeholder for absent value.
             {
                                      page.append(type::equal);
                                      page.append(type::quotes);
                 item->body.push_back(page.append(type::tag_value));
                                      page.append(type::quotes);
             }
+            return temp;
         }
         auto open(sptr& item)
         {
@@ -963,7 +967,21 @@ namespace netxs::xml
                 peek(data, what, last);
                 if (what == type::token)
                 {
-                    pair(item, data, what, last, type::top_token);
+                    auto temp = pair(item, data, what, last, type::top_token);
+                    while (what == type::compact)
+                    {
+                        data = temp;
+                        page.append(what, skip(data, what));
+                        item->mode = elem::form::pact;
+                        auto next = ptr::shared<elem>();
+                        open(next);
+                        peek(data, what, last);
+                        temp = pair(next, data, what, last, type::top_token);
+                        auto& sub_name = next->name->utf8;
+                        item->hive[sub_name].push_back(next);
+                        compacted.push_back(item);
+                        item = next;
+                    }
                     trim(data);
                     peek(data, what, last);
                     if (what == type::token)
@@ -991,7 +1009,7 @@ namespace netxs::xml
                         page.append(type::empty_tag, skip(data, what));
                         while (true) // Pull inline comments: .../>  <!-- comments --> ... <!-- comments -->
                         {
-                            auto temp = data;
+                            temp = data;
                             auto idle = utf::trim_front(temp, whitespaces);
                             auto w = what;
                             auto l = last;
@@ -1007,14 +1025,14 @@ namespace netxs::xml
                             else break;
                         }
                     }
-                    else if (what == type::close_inline) // Proceed nested subs.
+                    else if (compacted.empty() && what == type::close_inline) // Proceed '>' nested subs.
                     {
                         item->insA = last == type::spaces ? page.back
                                                           : page.append(type::spaces);
                         page.append(type::close_inline, skip(data, what));
                         do
                         {
-                            auto temp = data;
+                            temp = data;
                             utf::trim_front(temp, whitespaces);
                             peek(temp, what, last);
                             do
@@ -1157,6 +1175,12 @@ namespace netxs::xml
             if (fire) fail(last, what);
             if (what == type::eof) page.append(what);
             seal(item);
+            while (!compacted.empty()) // Close compact nodes.
+            {
+                item = compacted.back();
+                seal(item);
+                compacted.pop_back();
+            }
         }
         void read(view& data)
         {
