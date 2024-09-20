@@ -494,6 +494,13 @@ struct impl : consrv
         }
     };
 
+    struct timers
+    {
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto none     = __COUNTER__ - _counter;
+        static constexpr auto focus    = __COUNTER__ - _counter;
+    };
+
     struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
@@ -772,30 +779,23 @@ struct impl : consrv
                 if (io_log) log("", prompt, "\n\t-------------------------");
             }};
         }
-        void set_process_foreground(Arch procid)
+        void request_to_set_process_foreground()
         {
-            if (!fstate) return;
-            std::thread{ [prompt = server.prompt, procid, io_log = server.io_log]()
-            {
-                //todo should we wait until the new app has created their fake console window? ConsoleFG doesn't work if we are too fast.
-                //wait input+timeout?
-                //std::this_thread::yield();
-                os::sleep(1s);
-                auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)procid);
-                auto rc = nt::ConsoleFG<Arch>(h_process, 1);
-                if (!rc) log("%%Set process foreground: rc=%% pid=%%", prompt, utf::to_hex(rc), procid);
-                else     log("%%Set process foreground: rc=%% pid=%%", ansi::err(prompt), utf::to_hex(rc), procid);
-                os::close(h_process);
-            }}.detach();
+            ::SetTimer(server.winhnd, timers::focus, datetime::round<ui32>(1s), nullptr);
         }
-        void set_all_processes_foreground(bool fgstate)
+        void set_all_processes_foreground()
         {
-            fstate = fgstate;
-            nt::ConsoleFG<Arch>(::GetCurrentProcess(), fgstate);
+            auto lock = std::lock_guard{ locker };
+            nt::ConsoleFG(::GetCurrentProcess(), fstate);
             for (auto& client : server.joined)
             {
                 auto h_process = ::OpenProcess(MAXIMUM_ALLOWED, FALSE, (ui32)client.procid);
-                nt::ConsoleFG<Arch>(h_process, fgstate);
+                auto hr = nt::ConsoleFG(h_process, fstate);
+                if (server.io_log)
+                {
+                    if (hr != S_OK) log("%%ConsoleControl(ConsoleSetForeground, pid=%%) failed with hr=%%", ansi::err(server.prompt), client.procid, utf::to_hex_0x(hr));
+                    else            log("%%ConsoleControl(ConsoleSetForeground, pid=%%), hr=%%", server.prompt, client.procid, utf::to_hex_0x(hr));
+                }
                 os::close(h_process);
             }
         }
@@ -946,7 +946,8 @@ struct impl : consrv
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
-            set_all_processes_foreground(state);
+            fstate = state;
+            set_all_processes_foreground();
             auto data = INPUT_RECORD{ .EventType = FOCUS_EVENT };
             data.Event.FocusEvent.bSetFocus = state;
             stream.emplace_back(data);
@@ -2533,7 +2534,6 @@ struct impl : consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-        events.set_process_foreground(client.procid);
         log("\tprocid: ", client.procid,
           "\n\tthread: ", client.thread,
           "\n\tpgroup: ", client.pgroup,
@@ -2563,6 +2563,7 @@ struct impl : consrv
         info.events_id = (Arch)(&inphndl);
         info.scroll_id = (Arch)(&outhndl);
 
+        events.request_to_set_process_foreground();
         answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
@@ -5012,16 +5013,24 @@ struct impl : consrv
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
-            auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+            auto wndproc = [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hWnd=", utf::to_hex_0x(hWnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                auto w = (impl*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                if (!w) return ::DefWindowProcW(hWnd, uMsg, wParam, lParam);
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
+                    case WM_TIMER:   if (wParam == timers::focus)
+                    {
+                        ::KillTimer(hWnd, timers::focus);
+                        w->events.set_all_processes_foreground();
+                    }
+                    break;
                     case WM_CLOSE:
                     // We do not process any of wm_title/wm_icon/wm_etc window messages bc it is not crossplatform approach.
-                    default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
+                    default: return DefWindowProcA(hWnd, uMsg, wParam, lParam);
                 }
                 return LRESULT{};
             };
@@ -5034,6 +5043,7 @@ struct impl : consrv
             auto create_window = [&]
             {
                 winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                ::SetWindowLongPtrW(winhnd, GWLP_USERDATA, (LONG_PTR)this);
                 return winhnd;
             };
             if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExA()", os::unexpected)

@@ -3594,7 +3594,7 @@ namespace netxs::gui
             if (eventid)
             {
                 if (std::find(s.klok.begin(), s.klok.end(), eventid) == s.klok.end()) s.klok.push_back(eventid);
-                ::SetCoalescableTimer((HWND)s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr, TIMERV_DEFAULT_COALESCING);
+                ::SetTimer((HWND)s.hWnd, eventid, datetime::round<ui32>(elapse), nullptr);
             }
         }
         void layer_timer_stop(layer& s, ui32 eventid)
