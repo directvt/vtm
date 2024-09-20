@@ -30,6 +30,10 @@ graph LR
     ```bash
     vtm -c "<config><term><scrollback size=1000000 growstep=100000/></term></config>" -r term
     ```
+    `command line (compact xml syntax)`:
+    ```bash
+    vtm -c "<config/term/scrollback size=1000000 growstep=100000/>" -r term
+    ```
 - Global settings
   - on POSIX: `/etc/vtm/settings.xml`
   - on Windows: `%programdata%/vtm/settings.xml`
@@ -180,6 +184,24 @@ The following declarations have the same meaning:
     <listitem id=first />
     <listitem id=second/>
 </list>
+```
+
+### Compact XML syntax
+
+The following declarations have the same meaning:
+
+```xml
+<config>
+    <document>
+        <thing="thinf_value">
+            <name="name_value"/>
+        </thing>
+    </document>
+</config>
+```
+
+```xml
+<config/document/thing="thing_value" name="name_value"/>
 ```
 
 ### Configuration structure
