@@ -3645,7 +3645,6 @@ namespace netxs::os
                 os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
                 os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
                 os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
-                ::AllowSetForegroundWindow(ASFW_ANY);
             #else
             {
                 auto conmode = -1;

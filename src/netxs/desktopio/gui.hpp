@@ -3813,11 +3813,7 @@ namespace netxs::gui
         }
         void window_make_focused()    { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
         void window_make_exposed()    { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void window_make_foreground() // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        {
-            ::SetForegroundWindow((HWND)master.hWnd);
-            ::AllowSetForegroundWindow(ASFW_ANY);
-        }
+        void window_make_foreground() { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
         void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
         void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
         twod mouse_get_pos()          { return twod{ winmsg.pt.x, winmsg.pt.y }; }
