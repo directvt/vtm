@@ -3759,32 +3759,8 @@ namespace netxs::os
                         dtvt::vtmode |= ui::console::gui;
                         auto processpid = DWORD{};
                         auto proc_count = ::GetConsoleProcessList(&processpid, 1);
-                        if (1 == proc_count) // Run gui console. Close the parent text console when we are alone.
+                        if (1 == proc_count) // Run gui console. Close parent console when we are alone.
                         {
-                            //auto r = RECT{};
-                            //auto h = ::GetConsoleWindow();
-                            //ok(::GetWindowRect(h, &r));
-                            //auto modeflags = DWORD{};
-                            //ok(::GetConsoleDisplayMode(&modeflags));
-                            //auto maximized = modeflags == CONSOLE_FULLSCREEN;
-                            ////dtvt::iconic = maximized ? gui::window::state::fullscreen
-                            ////                         : ::IsIconic(h) ? gui::window::state::minimized
-                            ////                                         : gui::window::state::normal;
-                            //auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                            //auto cell_height = 20;
-                            //if (ok(::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info)) && font_info.dwFontSize.Y)
-                            //{
-                            //    //dtvt::uifont.emplace_back(utf::to_utf(font_info.FaceName));
-                            //    cell_height = font_info.dwFontSize.Y;
-                            //}
-                            ////if (cell_height == 0) cell_height = 20;
-                            ////if (dtvt::uifont.empty()) dtvt::uifont.emplace_back("Courier New");
-                            ////dtvt::window.coor = { r.left + (r.right - r.left - cell_height / 2 * dtvt::gridsz.x) / 2, // Centrify window.
-                            ////                      r.top  + (r.bottom - r.top - cell_height * dtvt::gridsz.y) / 2 };
-                            //dtvt::window.coor = { r.left, r.top };
-                            ////dtvt::wingui = {{ r.left, r.top }, { r.right - r.left, r.bottom - r.top }}; // It doesn't work with WT.
-                            //dtvt::wingui = dtvt::window;
-                            //dtvt::wingui.size *= twod{ std::max(1, cell_height / 2), cell_height};
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
@@ -3793,96 +3769,95 @@ namespace netxs::os
                         }
                     }
                     #else
-                    if (!haspty)
+                    if (!haspty) //todo this never happens, see ui::console::redirio above
                     {
                         dtvt::vtmode |= ui::console::gui;
                     }
                     #endif
-                    if (dtvt::vtmode & ui::console::gui)
-                    {
-                        auto term = "Native GUI console";
-                        log("%%Terminal type: %term%", prompt::os, term);
-                        return;
-                    }
                 }
-
-                #if defined(_WIN32)
+                if (dtvt::vtmode & ui::console::gui && os::stdout_fd == os::invalid_fd)
                 {
-                    //todo revise
-                    auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
-                    dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
-                                         : ui::console::nt;
+                    auto term = "Native GUI console";
+                    log("%%Terminal type: %term%", prompt::os, term);
                 }
-                #elif defined(__linux__)
-                    if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
-                #endif
-                auto colorterm = os::env::get("COLORTERM");
-                auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
-                if (term.empty()) term = os::env::get("TERM");
-                if (term.empty()) term = os::env::get("TERM_PROGRAM");
-                if (term.empty()) term = "xterm-compatible";
-                if (colorterm != "truecolor" && colorterm != "24bit")
+                else if (os::stdout_fd != os::invalid_fd)
                 {
-                    auto vt16colors = { // https://github.com//termstandard/colors
-                        "ansi",
-                        "linux",
-                        "xterm-color",
-                        "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
-                        "fbcon",
-                    };
-                    auto vt256colors = {
-                        "rxvt-unicode-256color",
-                    };
-
-                    if (term.ends_with("16color") || term.ends_with("16colour"))
+                    #if defined(_WIN32)
                     {
-                        dtvt::vtmode |= ui::console::vt16;
+                        //todo revise
+                        auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                        dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
+                                            : ui::console::nt;
                     }
-                    else
+                    #elif defined(__linux__)
+                        if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
+                    #endif
+                    auto colorterm = os::env::get("COLORTERM");
+                    auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
+                    if (term.empty()) term = os::env::get("TERM");
+                    if (term.empty()) term = os::env::get("TERM_PROGRAM");
+                    if (term.empty()) term = "xterm-compatible";
+                    if (colorterm != "truecolor" && colorterm != "24bit")
                     {
-                        for (auto& type : vt16colors)
+                        auto vt16colors = { // https://github.com//termstandard/colors
+                            "ansi",
+                            "linux",
+                            "xterm-color",
+                            "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
+                            "fbcon",
+                        };
+                        auto vt256colors = {
+                            "rxvt-unicode-256color",
+                        };
+
+                        if (term.ends_with("16color") || term.ends_with("16colour"))
                         {
-                            if (term == type)
-                            {
-                                dtvt::vtmode |= ui::console::vt16;
-                                break;
-                            }
+                            dtvt::vtmode |= ui::console::vt16;
                         }
-                        if (!(dtvt::vtmode & ui::console::vt16))
+                        else
                         {
-                            for (auto& type : vt256colors)
+                            for (auto& type : vt16colors)
                             {
                                 if (term == type)
                                 {
-                                    dtvt::vtmode |= ui::console::vt256;
+                                    dtvt::vtmode |= ui::console::vt16;
                                     break;
                                 }
                             }
+                            if (!(dtvt::vtmode & ui::console::vt16))
+                            {
+                                for (auto& type : vt256colors)
+                                {
+                                    if (term == type)
+                                    {
+                                        dtvt::vtmode |= ui::console::vt256;
+                                        break;
+                                    }
+                                }
+                            }
                         }
+                        #if defined(__APPLE__)
+                            if (!(dtvt::vtmode & ui::console::vt16)) // Apple terminal detection.
+                            {
+                                dtvt::vtmode |= ui::console::vt256;
+                            }
+                        #endif
                     }
-                    #if defined(__APPLE__)
-                        if (!(dtvt::vtmode & ui::console::vt16)) // Apple terminal detection.
-                        {
-                            dtvt::vtmode |= ui::console::vt256;
-                        }
-                    #endif
-                }
-                if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
+                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
 
-                log(prompt::os, "Terminal type: ", term);
-                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
-                                              : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
-                                              : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
-                                                                                  : "xterm truecolor");
-                log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
-                                              : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
-                                                                                  : "VT-style");
+                    log(prompt::os, "Terminal type: ", term);
+                    log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
+                                                  : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
+                                                  : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
+                                                                                      : "xterm truecolor");
+                    log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
+                                                  : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
+                                                                                      : "VT-style");
+                }
             }
-        }
-        auto checkpoint()
-        {
             if (dtvt::active || dtvt::vtmode & ui::console::redirio
-                             || dtvt::vtmode & ui::console::gui) return;
+                             || os::stdin_fd == os::invalid_fd
+                             || os::stdout_fd == os::invalid_fd) return;
             #if defined(_WIN32)
 
                 ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
