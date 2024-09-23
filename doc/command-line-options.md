@@ -104,10 +104,15 @@ Script Command                           | Description
 
 The following characters in commands will be de-escaped:
 
-Characters                         | Description
------------------------------------|-------------------------------------------
-`\e`, `\t`, `\r`, `\n`, `\a`, `\\` | For every occurrence.
-`\"` or `\'`                       | IIF a literal is enclosed in corresponding quotes.
+Characters | Expanded to
+-----------|-------------------------
+`\a`       | ASCII 0x07 BEL
+`\t`       | ASCII 0x09 TAB
+`\n`       | ASCII 0x0A LF
+`\r`       | ASCII 0x0D CR
+`\e`       | ASCII 0x1B ESC
+`\\`       | ASCII 0x5C Backslash
+`$0`       | Current module full path
 
 ### Usage Examples
 

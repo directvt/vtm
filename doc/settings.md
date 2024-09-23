@@ -78,10 +78,11 @@ Configuration body format is a slightly modified XML-format which allows to stor
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` has the same meaning.
  - Escaped characters with special meaning:
-   - `\e`  ASCII 0x1B ESC
-   - `\t`  ASCII 0x09 TAB
    - `\a`  ASCII 0x07 BEL
+   - `\t`  ASCII 0x09 TAB
    - `\n`  ASCII 0x0A LF
+   - `\r`  ASCII 0x0D CF
+   - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
    - `$0`  Current module full path
 
