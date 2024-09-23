@@ -49,7 +49,7 @@ graph LR
         </menu>
         ...
     ```
-- The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
+- The plain xml-data could be specified in place of `<file>` in `--config <file>` option:  
   `command line`:
   ```bash
   vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
