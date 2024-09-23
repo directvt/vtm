@@ -248,7 +248,7 @@ All value literals containing spaces must be enclosed in double or single quotes
 
 Value type | Format
 -----------|-----------------
-`RGBA`     | `#rrggbbaa` \| `0xaarrggbb` \| `rrr,ggg,bbb,aaa` \| 256-color index
+`RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
 `boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
