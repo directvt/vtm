@@ -564,7 +564,7 @@ namespace netxs::utf
 
     struct qiew : public view
     {
-        using span = std::span<char>;
+        using view::view;
 
         struct hash
         {
@@ -575,15 +575,10 @@ namespace netxs::utf
             auto operator()(qiew lhs, qiew rhs) const { return lhs.compare(rhs) == 0; }
         };
 
-        constexpr qiew() noexcept : view() { }
         constexpr qiew(qiew const&) = default;
-        constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
+        constexpr qiew(char const& v) noexcept : view(&v, 1) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }
-                  qiew(char const& v) noexcept : view(&v, 1) { }
-        constexpr qiew(char const* ptr, auto&&... len) noexcept : view(ptr, std::forward<decltype(len)>(len)...) { }
-        template<class Iter>
-        constexpr qiew(Iter begin, Iter end) noexcept : view(begin, end) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
                  operator text () const { return text{ data(), size() }; }
