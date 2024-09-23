@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    The following characters in commands will be de-escaped:"
                 "\n        \\e, \\t, \\r, \\n, \\a, \\\\  For every occurrence."
-                "\n        \\\" or \\'                Iif a literal is enclosed in corresponding quotes."
+                "\n        \\\" or \\'                IIF a literal is enclosed in corresponding quotes."
                 "\n");
             return 0;
         }

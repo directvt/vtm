@@ -50,11 +50,13 @@ graph LR
         ...
     ```
 - The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
-  ```cmd
+  `command line`:
+  ```bash
   vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
   ```
   or (using compact syntax)
-  ```cmd
+  `command line`:
+  ```bash
   vtm -c "<config/term/scrollback size=1000000/>" -r term
   ```
 
@@ -73,6 +75,8 @@ Configuration body format is a slightly modified XML-format which allows to stor
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
+ - Compact syntax is allowed.
+   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` has the same meaning.
  - Escaped characters:
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
