@@ -203,9 +203,14 @@ int main(int argc, char* argv[])
                 "\n    vtm.selected(<id>)            │ Set selected menu item using specified <id>."
                 "\n    vtm.shutdown()                │ Terminate the running desktop session."
                 "\n"
-                "\n    The following characters in commands will be de-escaped:"
-                "\n        \\e, \\t, \\r, \\n, \\a, \\\\  For every occurrence."
-                "\n        \\\" or \\'                IIF a literal is enclosed in corresponding quotes."
+                "\n  Escaped characters with special meaning:"
+                "\n"
+                "\n    \\e  ASCII 0x1B ESC"
+                "\n    \\t  ASCII 0x09 TAB"
+                "\n    \\a  ASCII 0x07 BEL"
+                "\n    \\n  ASCII 0x0A LF"
+                "\n    \\\\  ASCII 0x5C Backslash"
+                "\n    $0  Current module full path"
                 "\n");
             return 0;
         }

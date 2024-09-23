@@ -77,14 +77,12 @@ Configuration body format is a slightly modified XML-format which allows to stor
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` has the same meaning.
- - Escaped characters:
+ - Escaped characters with special meaning:
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
    - `\a`  ASCII 0x07 BEL
    - `\n`  ASCII 0x0A LF
    - `\\`  ASCII 0x5C Backslash
-   - `\"`  ASCII 0x22 Quotes (iif a value literal is enclosed in `"`)
-   - `\'`  ASCII 0x27 Single quote (iif a value literal is enclosed in `'`)
    - `$0`  Current module full path
 
 Let's take the following object hierarchy as an example:
