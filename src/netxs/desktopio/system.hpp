@@ -1955,8 +1955,9 @@ namespace netxs::os
             auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
                       : path.starts_with("/etc/") ? os::path::etc  / path.substr(5 /* trim "/etc" */)
                                                   : fs::path{ path };
-            auto crop_str = "'" + utf::to_utf(crop.wstring()) + "'";
+            auto crop_str = utf::to_utf(crop.wstring());
             utf::replace_all(crop_str, "\\", "/");
+            crop_str = utf::quote(crop_str);
             return std::pair{ crop, crop_str };
         }
     }
@@ -2351,7 +2352,12 @@ namespace netxs::os
                     auto tail = argv + argc;
                     while (head != tail)
                     {
-                        data.push_back(utf::quote(*head++));
+                        auto& utf8 = *head++;
+                        if (utf8.empty()
+                         || utf8.front() == '"'
+                         || utf8.front() == '\''
+                         || utf8.find(' ') != text::npos) data.push_back(utf::quote(utf8));
+                        else                              data.push_back(utf8);
                     }
                 #endif
                 if (data.size())
@@ -2554,9 +2560,10 @@ namespace netxs::os
             #if defined(_WIN32)
             #else
                 auto argv = std::vector<char*>{};
-                auto args = utf::tokenize(cmd, std::vector<text>{}, true);
+                auto args = utf::tokenize(cmd, std::vector<text>{});
                 for (auto& arg : args)
                 {
+                    utf::dequote(arg);
                     argv.push_back(arg.data());
                 }
                 argv.push_back(nullptr);

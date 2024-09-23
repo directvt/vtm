@@ -463,7 +463,7 @@ namespace netxs::app::shared
     namespace load
     {
         template<bool Print = faux>
-        auto settings(view defaults, view cli_config_path, view patch)
+        auto settings(view defaults, qiew cli_config_path, view patch)
         {
             auto conf = xmls{ defaults };
             auto load = [&](qiew shadow)
@@ -506,9 +506,10 @@ namespace netxs::app::shared
                 log(prompt::pads, "Not found");
                 return faux;
             };
-            auto frag = utf::dequote(cli_config_path);
-            if (!frag.starts_with("<config")) frag = {}; // The configuration fragment could be specified directly in place of the configuration file path.
-            if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
+            auto utf8 = text{ cli_config_path };
+            utf::dequote(utf8);
+            auto frag = utf8.starts_with("<config"); // The configuration fragment could be specified directly in place of the configuration file path.
+            if (frag || !load(utf8)) // Merge explicitly specified settings.
             {
                 load(app::shared::sys_config); // Merge system-wide settings.
                 load(app::shared::usr_config); // Merge user-wise settings.
@@ -516,8 +517,8 @@ namespace netxs::app::shared
             conf.fuse<Print>(patch); // Apply dtvt patch.
             if (frag)
             {
-                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(frag));
-                conf.fuse<Print>(frag);
+                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(utf8));
+                conf.fuse<Print>(utf8);
             }
             return conf;
         }

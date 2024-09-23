@@ -49,10 +49,6 @@ The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
-It is possible to specify plain xml-data to modify current settings (this case is detected by the `<config` literal at the beginning):
-
-  - `vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term`
-
 ### Settings loading order
 
 ```mermaid
@@ -69,6 +65,8 @@ graph LR
         D ---> H["Overlay the settings received
         from the DirectVT Gateway"]
         G --> H
+        H --> O[Overlay
+        plain xml-data]
     end
 ```
 
@@ -79,6 +77,15 @@ graph LR
     - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
     - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
 - Merge with DirectVT packet received from the hosting DirectVT Gateway.
+- Merge the settings from the plain xml-data.  
+  The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
+  ```cmd
+  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
+  ```
+  or (using compact syntax)
+  ```cmd
+  vtm -c "<config/term/scrollback size=1000000/>" -r term
+  ```
 
 ### Script commands
 
@@ -93,7 +100,14 @@ Script Command                           | Description
 `vtm.selected(<item_id>)`                | Set selected menu item using specified `<id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
 `vtm.shutdown()`                         | Terminate the running desktop session.
 
-The following characters in script commands will be de-escaped: `\e` `\t` `\r` `\n` `\a` `\"` `\'` `\\`
+### Character escaping
+
+The following characters in commands will be de-escaped:
+
+Chars                              | Description
+-----------------------------------|-------------------------------------------
+`\e`, `\t`, `\r`, `\n`, `\a`, `\\` | For every occurrence.
+`\"` or `\'`                       | Iif a literal is enclosed in corresponding quotes.
 
 ### Usage Examples
 

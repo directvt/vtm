@@ -575,8 +575,8 @@ namespace netxs::utf
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }
                   qiew(char const& v) noexcept : view(&v, 1) { }
-        template<class T, class ...Args>
-        constexpr qiew(T* ptr, Args&&... len) noexcept : view(ptr, std::forward<Args>(len)...) { }
+        constexpr qiew(auto* ptr, auto&&... len) noexcept : view(ptr, std::forward<decltype(len)>(len)...) { }
+        constexpr qiew(auto begin, auto end) noexcept : view(begin, end) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
                  operator text () const { return text{ data(), size() }; }
@@ -1616,55 +1616,48 @@ namespace netxs::utf
         trim_back (utf8, delims);
         return utf8;
     }
-    auto get_quote(view& utf8, view delims, view skip = {}) // Without quotes.
+    auto quote(text utf8) // Add quotes around, and escape the quotes inside.
     {
+        auto crop = text{};
+        crop.reserve(utf8.size() * 2 + 2);
+        crop.push_back('\"');
         auto head = utf8.begin();
         auto tail = utf8.end();
-        auto coor = find_char(head, tail, delims);
-        if (std::distance(coor, tail) < 2)
+        while (head != tail)
         {
-            utf8 = view{};
-            return utf8;
+            auto c = *head++;
+            if (c == '\"') crop.push_back('\\');
+            crop.push_back(c);
         }
-        ++coor;
-        auto stop = find_char(coor, tail, delims);
-        if (stop == tail)
-        {
-            utf8 = view{};
-            return utf8;
-        }
-        //todo Clang 13.0.0 doesn't get it
-        //auto crop = view{ coor, stop };
-        auto crop = view{ &(*coor), (size_t)(stop - coor) };
-
-        utf8.remove_prefix(crop.size() + 2);
-        if (!skip.empty()) trim_front(utf8, skip);
+        crop.push_back('\"');
         return crop;
     }
-    auto get_quote(view& utf8) // With quotes.
+    void dequote(text& utf8) // Remove the quotes around if there are any, and un-escape the quotes inside.
     {
-        if (utf8.size() < 2)
+        if (utf8.size())
         {
-            utf8 = view{};
-            return utf8;
+            auto q = utf8.front();
+            if (utf8.size() > 1 && (q == '\'' || q == '\"') && utf8.back() == q)
+            {
+                auto iter = utf8.begin();
+                auto head = std::next(utf8.begin());
+                auto tail = std::prev(utf8.end());
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c == '\\' && head != tail && *head == q) // Drop escaping back slash.
+                    {
+                        head++;
+                        *iter++ = q;
+                    }
+                    else *iter++ = c;
+                }
+                utf8.resize(iter - utf8.begin());
+            }
         }
-        auto quot = utf8.front();
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        auto stop = find_char(head + 1, tail, quot);
-        if (stop == tail)
-        {
-            utf8 = view{};
-            return utf8;
-        }
-        //todo Clang 13.0.0 doesn't get it
-        //auto crop = view{ head, stop + 1 };
-        auto crop = view{ &(*head), (size_t)(stop + 1 - head) };
-        utf8.remove_prefix(crop.size());
-        return crop;
     }
     template<bool Lazy = true>
-    auto get_tail(view& utf8, view delims)
+    auto take_front(view& utf8, view delims)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
@@ -1673,87 +1666,73 @@ namespace netxs::utf
         {
             if constexpr (Lazy)
             {
-                utf8 = view{};
+                utf8 = {};
                 return qiew{ utf8 };
             }
             else
             {
                 auto crop = qiew{ utf8 };
-                utf8 = view{};
+                utf8 = {};
                 return crop;
             }
         }
-        //todo Clang 13.0.0 doesn't get it
-        //auto str = view{ head, stop };
-        auto str = qiew{ &(*head), (size_t)(stop - head) };
-        //utf8.remove_prefix(std::distance(head, stop));
+        auto str = qiew{ head, stop };
         utf8.remove_prefix(str.size());
         return str;
     }
+    auto take_quote(view& utf8, char delim) // Take the fragment inside the quotes (shadow).
+    {
+        if (utf8.size() < 2)
+        {
+            utf8 = {};
+            return utf8;
+        }
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto coor = head + 1;
+        auto stop = find_char(coor, tail, delim);
+        if (stop == tail)
+        {
+            utf8 = {};
+            return utf8;
+        }
+        auto crop = view{ coor, stop };
+        utf8.remove_prefix(crop.size() + 2);
+        return crop;
+    }
+    auto get_quote(view& utf8) // Get the quoted fragment, including quotes.
+    {
+        if (utf8.size() < 2)
+        {
+            utf8 = {};
+            return utf8;
+        }
+        auto quot = utf8.front();
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto stop = find_char(head + 1, tail, quot);
+        if (stop == tail)
+        {
+            utf8 = {};
+            return utf8;
+        }
+        auto crop = view{ head, stop + 1 };
+        utf8.remove_prefix(crop.size());
+        return crop;
+    }
     auto get_word(view& utf8, view delims = " ")
     {
-        return get_tail<faux>(utf8, delims);
-    }
-    auto quote(text utf8)
-    {
-        if (utf8.empty() || utf8.find(' ') != text::npos)
-        {
-                 if (utf8.find('\"') == text::npos) utf8 = '\"' + utf8 + '\"';
-            else if (utf8.find('\'') == text::npos) utf8 = '\'' + utf8 + '\'';
-            else
-            {
-                auto crop = text{};
-                auto head = utf8.begin();
-                auto tail = utf8.end();
-                crop.reserve(utf8.capacity());
-                crop.push_back('\"');
-                while (head != tail)
-                {
-                    auto c = *head++;
-                    if (c == '\\')
-                    {
-                        crop.push_back(c);
-                        if (head != tail) crop.push_back(*head++);
-                    }
-                    else if (c == '\"')
-                    {
-                        crop.push_back('\\');
-                        crop.push_back(c);
-                    }
-                    else crop.push_back(c);
-                }
-                crop.push_back('\"');
-                std::swap(crop, utf8);
-            }
-        }
-        return utf8;
-    }
-    auto dequote(qiew utf8)
-    {
-        if (utf8.size() > 1) 
-        {
-            auto c = utf8.front();
-            if ((c == '\'' || c == '"') && utf8.back() == c)
-            {
-                utf8.remove_prefix(1);
-                utf8.remove_suffix(1);
-            }
-        }
-        return utf8;
+        return take_front<faux>(utf8, delims);
     }
     // utf: Split text line into quoted tokens.
-    auto tokenize(view utf8, auto&& args, bool dequote = faux)
+    auto tokenize(view utf8, auto&& args)
     {
         utf8 = utf::trim(utf8);
         while (utf8.size())
         {
             auto c = utf8.front();
-            if (c == '\'' || c == '"')
-            {
-                args.emplace_back(dequote ? utf::get_quote(utf8, view{ &c, 1 })
-                                          : utf::get_quote(utf8));
-            }
-            else args.emplace_back(utf::get_word(utf8));
+            if (c == '\'' || c == '"') args.emplace_back(utf::get_quote(utf8));
+            else                       args.emplace_back(utf::get_word(utf8));
             utf::trim_front(utf8);
         }
         return args;

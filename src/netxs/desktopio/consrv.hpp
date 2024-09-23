@@ -682,7 +682,7 @@ struct impl : consrv
             if (src_map.empty()) return;
 
             auto rest = qiew{ line };
-            auto crop = utf::get_tail<faux>(rest, " \r\n");
+            auto crop = utf::take_front<faux>(rest, " \r\n");
             auto iter = src_map.find(utf::to_low(crop));
             if (iter == src_map.end()) return;
 
@@ -692,7 +692,7 @@ struct impl : consrv
             auto result = text{};
             while (data)
             {
-                result += utf::get_tail<faux>(data, "$");
+                result += utf::take_front<faux>(data, "$");
                 if (data.size() >= 2)
                 {
                     auto s = utf::pop_front(data, 2);

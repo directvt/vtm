@@ -2074,8 +2074,9 @@ namespace netxs::app::vtm
                     }
                     return std::pair{ func, args };
                 };
-                auto backup = std::move(script.cmd);
-                auto shadow = utf::dequote(backup);
+                auto backup = xml::unescape(script.cmd);
+                auto shadow = qiew{ backup };
+                script.cmd.clear();
                 utf::trim_front(shadow, delims);
                 while (shadow)
                 {

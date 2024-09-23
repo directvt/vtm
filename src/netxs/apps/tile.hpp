@@ -777,7 +777,7 @@ namespace netxs::app::tile
             else  // Add application.
             {
                 utf::trim_front(utf8, " ");
-                auto menuid = utf::get_tail(utf8, " ,)").str();
+                auto menuid = utf::take_front(utf8, " ,)").str();
                 if (menuid.empty()) return slot;
 
                 utf::trim_front(utf8, " ,");

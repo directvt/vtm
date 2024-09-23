@@ -14,6 +14,8 @@ graph LR
         D ---> H["Overlay the settings received
         from the DirectVT Gateway"]
         G --> H
+        H --> O[Overlay
+        plain xml-data]
     end
 ```
 
@@ -24,15 +26,6 @@ graph LR
     `command line`:
     ```bash
     vtm -c "/path/to/settings.xml" -r term
-    ```
-  - The current configuration can be patched by specifying plain xml-data in place of the `<file>` (this case is detected by the `<config` keyword at the beginning).  
-    `command line`:
-    ```bash
-    vtm -c "<config><term><scrollback size=1000000 growstep=100000/></term></config>" -r term
-    ```
-    `command line (compact xml syntax)`:
-    ```bash
-    vtm -c "<config/term/scrollback size=1000000 growstep=100000/>" -r term
     ```
 - Global settings
   - on POSIX: `/etc/vtm/settings.xml`
@@ -56,6 +49,14 @@ graph LR
         </menu>
         ...
     ```
+- The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
+  ```cmd
+  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
+  ```
+  or (using compact syntax)
+  ```cmd
+  vtm -c "<config/term/scrollback size=1000000/>" -r term
+  ```
 
 ## Configuration body format (settings.xml)
 
@@ -78,8 +79,8 @@ Configuration body format is a slightly modified XML-format which allows to stor
    - `\a`  ASCII 0x07 BEL
    - `\n`  ASCII 0x0A LF
    - `\\`  ASCII 0x5C Backslash
-   - `\"`  ASCII 0x22 Quotes
-   - `\'`  ASCII 0x27 Single quote
+   - `\"`  ASCII 0x22 Quotes (iif a value literal is enclosed in `"`)
+   - `\'`  ASCII 0x27 Single quote (iif a value literal is enclosed in `'`)
    - `$0`  Current module full path
 
 Let's take the following object hierarchy as an example:
