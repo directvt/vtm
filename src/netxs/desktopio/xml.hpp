@@ -8,57 +8,57 @@
 
 namespace netxs::xml
 {
-    auto escape(qiew line)
+    auto escape(qiew line, auto... x)
     {
-        auto crop = text{};
-        crop.reserve(line.size() * 2);
+        auto dest = text{};
+        dest.reserve(line.size() * 2);
         while (line)
         {
             auto c = line.pop_front();
+            if constexpr (sizeof...(x))
+            if (((c == x && (dest.push_back('\\'), dest.push_back(x), true))||...))
+            {
+                continue;
+            }
             switch (c)
             {
-                case '\033': crop.push_back('\\'); crop.push_back('e' ); break;
-                case   '\\': crop.push_back('\\'); crop.push_back('\\'); break;
-                case   '\"': crop.push_back('\\'); crop.push_back('\"'); break;
-                case   '\n': crop.push_back('\\'); crop.push_back('n' ); break;
-                case   '\r': crop.push_back('\\'); crop.push_back('r' ); break;
-                case   '\t': crop.push_back('\\'); crop.push_back('t' ); break;
-                case   '\a': crop.push_back('\\'); crop.push_back('a' ); break;
-                default:
-                    crop.push_back(c);
-                    break;
+                case '\033': dest.push_back('\\'); dest.push_back('e' ); break;
+                case   '\\': dest.push_back('\\'); dest.push_back('\\'); break;
+                case   '\n': dest.push_back('\\'); dest.push_back('n' ); break;
+                case   '\r': dest.push_back('\\'); dest.push_back('r' ); break;
+                case   '\t': dest.push_back('\\'); dest.push_back('t' ); break;
+                case   '\a': dest.push_back('\\'); dest.push_back('a' ); break;
+                default:     dest.push_back(c); break;
             }
         }
-        return crop;
+        return dest;
     }
-    auto unescape(qiew line)
+    auto unescape(text& utf8)
     {
-        auto crop = text{};
-        crop.reserve(line.size());
-        while (line)
+        auto iter = utf8.begin();
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
         {
-            auto c = line.pop_front();
-            if (c == '\\' && line)
+            auto c = *head++;
+            if (c == '\\' && head != tail)
             {
-                c = line.pop_front();
+                c = *head++;
                 switch (c)
                 {
-                    case 'e' : crop.push_back('\x1b'); break;
-                    case 't' : crop.push_back('\t'  ); break;
-                    case 'r' : crop.push_back('\n'  ); break;
-                    case 'n' : crop.push_back('\n'  ); break;
-                    case 'a' : crop.push_back('\a'  ); break;
-                    case '\"': crop.push_back('\"'  ); break;
-                    case '\'': crop.push_back('\''  ); break;
-                    default:   crop.push_back('\\'  );
-                               crop.push_back(c     ); break;
+                    case  'e': *iter++ = '\x1b'; break;
+                    case  't': *iter++ = '\t'  ; break;
+                    case  'r': *iter++ = '\r'  ; break;
+                    case  'n': *iter++ = '\n'  ; break;
+                    case  'a': *iter++ = '\a'  ; break;
+                    case '\\': *iter++ = '\\'  ; break;
+                    default:   *iter++ = c     ; break;
                 }
             }
-            else crop.push_back(c);
+            else *iter++ = c;
         }
-        return crop;
+        utf8.resize(iter - utf8.begin());
     }
-
     template<class T>
     auto take(qiew utf8) -> std::optional<T>
     {
@@ -504,9 +504,23 @@ namespace netxs::xml
             auto value() -> text
             {
                 auto crop = text{};
-                for (auto& v : body)
+                for (auto& value_placeholder : body)
                 {
-                    crop += xml::unescape(v->utf8);
+                    if (value_placeholder->kind == type::tag_value) // quotes tag_value quotes
+                    if (auto quote_placeholder = value_placeholder->prev.lock())
+                    if (quote_placeholder->utf8.size())
+                    if (quote_placeholder->kind == type::quotes)
+                    {
+                        auto quote = quote_placeholder->utf8.front();
+                        utf::dequote(value_placeholder->utf8, crop, quote);
+                        xml::unescape(crop);
+                        continue;
+                    }
+                    if (value_placeholder->utf8.size())
+                    {
+                        crop = value_placeholder->utf8;
+                        xml::unescape(crop);
+                    }
                 }
                 return crop;
             }
@@ -535,22 +549,25 @@ namespace netxs::xml
                         {
                             if (value.size())
                             {
-                                equal_placeholder->utf8 = " = ";
+                                equal_placeholder->utf8 = "=";
                                 quote_placeholder->utf8 = "\"";
                                 if (value_placeholder->next) value_placeholder->next->utf8 = "\"";
+                                value_placeholder->utf8 = xml::escape(value, '\"');
                             }
                             else
                             {
                                 equal_placeholder->utf8 = "";
                                 quote_placeholder->utf8 = "";
                                 if (value_placeholder->next) value_placeholder->next->utf8 = "";
+                                value_placeholder->utf8 = "";
                             }
                         }
-                        else log(prompt::xml, "Equal sign not found");
+                        else log("%%Equal sign placeholder not found", prompt::xml);
+                        return;
                     }
                     value_placeholder->utf8 = xml::escape(value);
                 }
-                else log(prompt::xml, "Unexpected assignment to ", name->utf8);
+                else log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
             }
             template<class T>
             auto take(qiew attr, T fallback = {})
@@ -592,7 +609,7 @@ namespace netxs::xml
                     }
                     if (val.size())
                     {
-                        if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val) + "\"";
+                        if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val, '\"') + '\"'; //todo should we use origial quotes here?
                         else                                     data += '='   + xml::escape(val) + ' ';
                     }
                 }
@@ -658,7 +675,7 @@ namespace netxs::xml
               root{ ptr::shared<elem>()}
         {
             read(data);
-            if (page.fail) log(prompt::xml, "Inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
+            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, file.empty() ? "memory"sv : file, page.show());
         }
         template<bool WithTemplate = faux>
         auto take(view path)
@@ -729,7 +746,7 @@ namespace netxs::xml
         {
             page.fail = true;
             page.append(type::error, msg);
-            log(prompt::xml, msg, " at ", page.file, ":", page.lines());
+            log("%%%msg% at %page.file%:%lines%", prompt::xml, msg, page.file, page.lines());
         }
         auto fail(type last, type what)
         {
@@ -794,7 +811,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = utf::get_tail(data, token_delims).str();
+            auto item = utf::take_front(data, token_delims).str();
             utf::to_low(item);
             return item;
         }
@@ -806,15 +823,15 @@ namespace netxs::xml
                 auto delim = data.front();
                 if (delim != '\'' && delim != '\"')
                 {
-                    auto crop = utf::get_tail(data, rawtext_delims);
+                    auto crop = utf::take_front(data, rawtext_delims);
                                page.append(type::quotes);
                     item_ptr = page.append(kind, crop);
                                page.append(type::quotes);
                 }
                 else
                 {
+                    auto crop = utf::take_quote(data, delim);
                     auto delim_view = view(&delim, 1);
-                    auto crop = utf::get_quote(data, delim_view);
                                page.append(type::quotes, delim_view);
                     item_ptr = page.append(kind, crop);
                                page.append(type::quotes, delim_view);
@@ -842,9 +859,9 @@ namespace netxs::xml
                 case type::end_token:     utf::eat_tail(data, token_delims); break;
                 case type::raw_text:
                 case type::quotes:
-                case type::tag_value:     body(data, type::raw_text);             break;
-                case type::spaces:        utf::trim_front(data, whitespaces);     break;
-                case type::na:            utf::get_tail<faux>(data, find_start);  break;
+                case type::tag_value:     body(data, type::raw_text);         break;
+                case type::spaces:        utf::trim_front(data, whitespaces); break;
+                case type::na:            utf::take_front(data, find_start);  break;
                 case type::compact:
                 case type::unknown:       if (data.size()) data.remove_prefix(1); break;
                 default: break;
@@ -1255,7 +1272,7 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log("%% %err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
+                log("%%%err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
             }
             return test;
         }
@@ -1263,7 +1280,7 @@ namespace netxs::xml
         {
             if (cwdstack.empty())
             {
-                log(prompt::xml, "CWD stack is empty");
+                log("%%CWD stack is empty", prompt::xml);
             }
             else
             {
@@ -1301,7 +1318,7 @@ namespace netxs::xml
             if (tempbuff.size()) crop = tempbuff.back()->value();
             else
             {
-                if constexpr (!Quiet) log("%prompt%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+                if constexpr (!Quiet) log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
                 return defval;
             }
             tempbuff.clear();
@@ -1381,7 +1398,7 @@ namespace netxs::xml
             auto run_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
-                log(prompt::xml, "Settings from ", filepath.empty() ? "memory"sv : filepath, ":\n", run_config.page.show());
+                log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, run_config.page.show());
             }
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
@@ -1397,7 +1414,6 @@ namespace netxs::xml
                 }
                 else
                 {
-                    auto value = node.value();
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
@@ -1421,7 +1437,7 @@ namespace netxs::xml
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
                                 document->join(path + "/" + sub_name, sub_list, rewrite);
                             }
-                            else log(prompt::xml, "Unexpected tag without data: ", sub_name);
+                            else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
                         }
                     }
                     else

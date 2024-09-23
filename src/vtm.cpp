@@ -176,11 +176,13 @@ int main(int argc, char* argv[])
                 "\n        - Overlay system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
                 "\n        - Overlay user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n    - Overlay the settings received from the DirectVT Gateway."
+                "\n    - Overlay the settings from the plain xml-data."
                 "\n"
-                "\n    It is possible to specify plain xml-data to modify current settings:"
-                "\n    (detected by the `<config` literal)"
+                "\n    The plain xml-data could be specified in place of <file> in '--config <file>' option:"
                 "\n"
                 "\n      vtm -c \"<config><term><scrollback size=1000000/></term></config>\" -r term"
+                "\n      or (using compact syntax)"
+                "\n      vtm -c \"<config/term/scrollback size=1000000/>\" -r term"
                 "\n"
                 "\n  Script commands:"
                 "\n"
@@ -201,7 +203,15 @@ int main(int argc, char* argv[])
                 "\n    vtm.selected(<id>)            │ Set selected menu item using specified <id>."
                 "\n    vtm.shutdown()                │ Terminate the running desktop session."
                 "\n"
-                "\n    The following characters in script commands will be de-escaped: \\e \\t \\r \\n \\a \\\" \\' \\\\"
+                "\n  Escaped characters with special meaning:"
+                "\n"
+                "\n    \\a  ASCII 0x07 BEL"
+                "\n    \\t  ASCII 0x09 TAB"
+                "\n    \\n  ASCII 0x0A LF"
+                "\n    \\r  ASCII 0x0D CR"
+                "\n    \\e  ASCII 0x1B ESC"
+                "\n    \\\\  ASCII 0x5C Backslash"
+                "\n    $0  Current module full path"
                 "\n");
             return 0;
         }
@@ -215,7 +225,8 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-x", "--script"))
         {
-            script = xml::unescape(getopt.next());
+            script = getopt.next();
+            utf::dequote(script);
         }
         else
         {

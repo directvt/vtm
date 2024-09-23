@@ -14,6 +14,8 @@ graph LR
         D ---> H["Overlay the settings received
         from the DirectVT Gateway"]
         G --> H
+        H --> O[Overlay
+        plain xml-data]
     end
 ```
 
@@ -24,15 +26,6 @@ graph LR
     `command line`:
     ```bash
     vtm -c "/path/to/settings.xml" -r term
-    ```
-  - The current configuration can be patched by specifying plain xml-data in place of the `<file>` (this case is detected by the `<config` keyword at the beginning).  
-    `command line`:
-    ```bash
-    vtm -c "<config><term><scrollback size=1000000 growstep=100000/></term></config>" -r term
-    ```
-    `command line (compact xml syntax)`:
-    ```bash
-    vtm -c "<config/term/scrollback size=1000000 growstep=100000/>" -r term
     ```
 - Global settings
   - on POSIX: `/etc/vtm/settings.xml`
@@ -56,6 +49,16 @@ graph LR
         </menu>
         ...
     ```
+- The plain xml-data could be specified in place of `<file>` in `--config <file>` option:  
+  `command line`:
+  ```bash
+  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
+  ```
+  or (using compact syntax)  
+  `command line`:
+  ```bash
+  vtm -c "<config/term/scrollback size=1000000/>" -r term
+  ```
 
 ## Configuration body format (settings.xml)
 
@@ -72,14 +75,15 @@ Configuration body format is a slightly modified XML-format which allows to stor
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
- - Escaped characters:
-   - `\e`  ASCII 0x1B ESC
-   - `\t`  ASCII 0x09 TAB
+ - Compact syntax is allowed.
+   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` has the same meaning.
+ - Escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
+   - `\t`  ASCII 0x09 TAB
    - `\n`  ASCII 0x0A LF
+   - `\r`  ASCII 0x0D CF
+   - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
-   - `\"`  ASCII 0x22 Quotes
-   - `\'`  ASCII 0x27 Single quote
    - `$0`  Current module full path
 
 Let's take the following object hierarchy as an example:
@@ -243,7 +247,7 @@ All value literals containing spaces must be enclosed in double or single quotes
 
 Value type | Format
 -----------|-----------------
-`RGBA`     | `#rrggbbaa` \| `0xaarrggbb` \| `rrr,ggg,bbb,aaa` \| 256-color index
+`RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
 `boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
