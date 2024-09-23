@@ -582,7 +582,8 @@ namespace netxs::utf
                   qiew(text const& v) noexcept : view(v) { }
                   qiew(char const& v) noexcept : view(&v, 1) { }
         constexpr qiew(auto* ptr, auto&&... len) noexcept : view(ptr, std::forward<decltype(len)>(len)...) { }
-        constexpr qiew(auto begin, auto end) noexcept : view(begin, end) { }
+        template<class Iter>
+        constexpr qiew(Iter begin, Iter end) noexcept : view(begin, end) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
                  operator text () const { return text{ data(), size() }; }
