@@ -54,7 +54,7 @@ graph LR
   ```bash
   vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
   ```
-  or (using compact syntax)
+  or (using compact syntax)  
   `command line`:
   ```bash
   vtm -c "<config/term/scrollback size=1000000/>" -r term
