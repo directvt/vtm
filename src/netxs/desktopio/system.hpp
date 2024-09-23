@@ -27,6 +27,7 @@
     #pragma comment(lib, "User32")
     #pragma comment(lib, "UserEnv")
     #pragma comment(lib, "AdvAPI32") // ::StartService() for arm arch
+    #pragma comment(lib, "Shell32")  // ::CommandLineToArgvW() for arm arch
 
 #else
 
