@@ -2344,15 +2344,24 @@ namespace netxs::os
             args([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
             {
                 #if defined(_WIN32)
-                    auto line = utf::to_utf(::GetCommandLineW());
-                    utf::tokenize(line, data);
-                    if constexpr (debugmode) log(prompt::args, ansi::hi(utf::debase<faux, faux>(line)));
+                    auto n = 0;
+                    auto ppWide = ::CommandLineToArgvW(::GetCommandLineW(), &n);
+                    for (auto i = 0; i < n; i++)
+                    {
+                        auto utf8 = utf::to_utf(ppWide[i]);
+                        if (utf8.empty()
+                         || utf8.front() == '"'
+                         || utf8.front() == '\''
+                         || utf8.find(' ') != text::npos) data.push_back(utf::quote(utf8));
+                        else                              data.push_back(utf8);
+                    }
+                    ::LocalFree(ppWide);
                 #else
                     auto head = argv;
                     auto tail = argv + argc;
                     while (head != tail)
                     {
-                        auto& utf8 = *head++;
+                        auto utf8 = text{ *head++ };
                         if (utf8.empty()
                          || utf8.front() == '"'
                          || utf8.front() == '\''
@@ -2371,7 +2380,7 @@ namespace netxs::os
             auto show()
             {
                 auto crop = ansi::add(prompt::args);
-                auto line = [&](auto& arg){ crop.hi(utf::debase<faux, faux>(arg)).add(' '); };
+                auto line = [&](auto& arg){ crop.hi(utf::debase437(arg)).add(' '); };
                 if (process::arg0.size()) line(process::arg0);
                 for (auto& arg : data) line(arg);
                 if (crop.size()) crop.pop_back(); // Pop last space.

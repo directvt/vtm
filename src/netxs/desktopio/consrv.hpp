@@ -1947,10 +1947,7 @@ struct impl : consrv
         }
         auto decode_char(utfx code)
         {
-            static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
-                                              L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
-                                              L'⌂' };
-                 if (code < 0x20 || code == 0x7F) code = *(c0_wchr.begin() + std::min<size_t>(code, c0_wchr.size() - 1));
+                 if (code < 0x20 || code == 0x7F) code = *(utf::c0_wchr.begin() + std::min<size_t>(code, utf::c0_wchr.size() - 1));
             else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
             else                                  code = defchar();
             return (wchr)code;
@@ -1973,12 +1970,9 @@ struct impl : consrv
         }
         auto decode(utfx code, text& toUTF8)
         {
-            static constexpr auto c0_view = { " "sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
-                                              "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
-                                              "⌂"sv };
             if (code < 0x20 || code == 0x7F)
             {
-                toUTF8 += *(c0_view.begin() + std::min<size_t>(code, c0_view.size() - 1));
+                toUTF8 += *(utf::c0_view.begin() + std::min<size_t>(code, utf::c0_view.size() - 1));
             }
             else
             {

@@ -8,66 +8,56 @@
 
 namespace netxs::xml
 {
-    auto escape(qiew line, auto... quote)
+    auto escape(qiew line, auto... x)
     {
-        auto crop = text{};
-        crop.reserve(line.size() * 2);
+        auto dest = text{};
+        dest.reserve(line.size() * 2);
         while (line)
         {
             auto c = line.pop_front();
-            if constexpr (sizeof...(quote))
-            if (((c == quote && (crop.push_back('\\'), crop.push_back(quote), true))||...))
+            if constexpr (sizeof...(x))
+            if (((c == x && (dest.push_back('\\'), dest.push_back(x), true))||...))
             {
                 continue;
             }
             switch (c)
             {
-                case '\033': crop.push_back('\\'); crop.push_back('e' ); break;
-                case   '\\': crop.push_back('\\'); crop.push_back('\\'); break;
-                case   '\n': crop.push_back('\\'); crop.push_back('n' ); break;
-                case   '\r': crop.push_back('\\'); crop.push_back('r' ); break;
-                case   '\t': crop.push_back('\\'); crop.push_back('t' ); break;
-                case   '\a': crop.push_back('\\'); crop.push_back('a' ); break;
-                default:
-                    crop.push_back(c);
-                    break;
+                case '\033': dest.push_back('\\'); dest.push_back('e' ); break;
+                case   '\\': dest.push_back('\\'); dest.push_back('\\'); break;
+                case   '\n': dest.push_back('\\'); dest.push_back('n' ); break;
+                case   '\r': dest.push_back('\\'); dest.push_back('r' ); break;
+                case   '\t': dest.push_back('\\'); dest.push_back('t' ); break;
+                case   '\a': dest.push_back('\\'); dest.push_back('a' ); break;
+                default:     dest.push_back(c); break;
             }
         }
-        return crop;
+        return dest;
     }
-    auto unescape(qiew line, text& crop, auto... quote)
+    auto unescape(text& utf8)
     {
-        crop.reserve(crop.size() + line.size());
-        while (line)
+        auto iter = utf8.begin();
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
         {
-            auto c = line.pop_front();
-            if (c == '\\' && line)
+            auto c = *head++;
+            if (c == '\\' && head != tail)
             {
-                c = line.pop_front();
-                if constexpr (sizeof...(quote))
-                if (((c == quote && (crop.push_back(quote), true))||...))
-                {
-                    continue;
-                }
+                c = *head++;
                 switch (c)
                 {
-                    case 'e' : crop.push_back('\x1b'); break;
-                    case 't' : crop.push_back('\t'  ); break;
-                    case 'r' : crop.push_back('\r'  ); break;
-                    case 'n' : crop.push_back('\n'  ); break;
-                    case 'a' : crop.push_back('\a'  ); break;
-                    default:   crop.push_back('\\'  );
-                               crop.push_back(c     ); break;
+                    case  'e': *iter++ = '\x1b'; break;
+                    case  't': *iter++ = '\t'  ; break;
+                    case  'r': *iter++ = '\r'  ; break;
+                    case  'n': *iter++ = '\n'  ; break;
+                    case  'a': *iter++ = '\a'  ; break;
+                    case '\\': *iter++ = '\\'  ; break;
+                    default:   *iter++ = c     ; break;
                 }
             }
-            else crop.push_back(c);
+            else *iter++ = c;
         }
-    }
-    auto unescape(qiew line)
-    {
-        auto crop = text{};
-        xml::unescape(line, crop);
-        return crop;
+        utf8.resize(iter - utf8.begin());
     }
     template<class T>
     auto take(qiew utf8) -> std::optional<T>
@@ -522,10 +512,15 @@ namespace netxs::xml
                     if (quote_placeholder->kind == type::quotes)
                     {
                         auto quote = quote_placeholder->utf8.front();
-                        xml::unescape(value_placeholder->utf8, crop, quote);
+                        utf::dequote(value_placeholder->utf8, crop, quote);
+                        xml::unescape(crop);
                         continue;
                     }
-                    if (value_placeholder->utf8.size()) xml::unescape(value_placeholder->utf8, crop);
+                    if (value_placeholder->utf8.size())
+                    {
+                        crop = value_placeholder->utf8;
+                        xml::unescape(crop);
+                    }
                 }
                 return crop;
             }

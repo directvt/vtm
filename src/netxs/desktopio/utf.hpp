@@ -40,6 +40,12 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls;
 
+    static constexpr auto c0_view = { "·"sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
+                                      "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
+                                      "⌂"sv };
+    static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
+                                      L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
+                                      L'⌂' };
     static constexpr auto replacement_code = utfx{ 0x0000'FFFD };
     static constexpr auto vs04_code = utfx{ 0x0000'FE03 };
     static constexpr auto vs05_code = utfx{ 0x0000'FE04 };
@@ -1522,29 +1528,50 @@ namespace netxs::utf
         debase<Split, Multiline>(utf8, buff);
         return buff;
     }
-    template<class Iter>
-    auto find_char(Iter head, Iter tail, view delims)
+    // utf: Replace all ctrls lower than 0x20 with cp437.
+    auto debase437(qiew utf8, text& buff)
     {
-        while (head != tail)
+        if (auto code = cpit{ utf8 })
         {
-            auto c = *head;
-                 if (delims.find(c) != view::npos) break;
-            else if (c == '\\' && ++head == tail) break;
-            ++head;
+            auto next = code.take();
+            do
+            {
+                auto c = next.cdpoint;
+                if (c < 0x20 || c == 0x7F) buff += *(utf::c0_view.begin() + std::min<size_t>(c, utf::c0_view.size() - 1));
+                else                       buff += view(code.textptr, code.utf8len);
+                code.step();
+                next = code.take();
+            }
+            while (code);
+        }
+    }
+    // utf: Return a string without control chars (replace all ctrls with cp437).
+    auto debase437(qiew utf8)
+    {
+        auto buff = text{};
+        debase437(utf8, buff);
+        return buff;
+    }
+    auto _find_char(auto head, auto tail, auto notfound)
+    {
+        while (head != tail && notfound(*head))
+        {
+            while (*head++ == '\\')
+            {
+                if (head == tail) return head;
+            }
         }
         return head;
     }
     template<class Iter>
+    auto find_char(Iter head, Iter tail, view delims)
+    {
+        return _find_char(head, tail, [&](char c){ return delims.find(c) == view::npos; });
+    }
+    template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
-        while (head != tail)
-        {
-            auto c = *head;
-                 if (delim == c) break;
-            else if (c == '\\' && ++head == tail) break;
-            ++head;
-        }
-        return head;
+        return _find_char(head, tail, [&](char c){ return c != delim; });
     }
     auto check_any(view shadow, view delims)
     {
@@ -1631,6 +1658,22 @@ namespace netxs::utf
         }
         crop.push_back('\"');
         return crop;
+    }
+    void dequote(view utf8, text& dest, char qoute) // Un-escape the quotes inside and push result to the dest.
+    {
+        dest.reserve(dest.size() + utf8.size());
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
+        {
+            auto c = *head++;
+            if (c == '\\' && head != tail && *head == qoute) // Drop escaping back slash.
+            {
+                head++;
+                dest.push_back(qoute);
+            }
+            else dest.push_back(c);
+        }
     }
     void dequote(text& utf8) // Remove the quotes around if there are any, and un-escape the quotes inside.
     {
