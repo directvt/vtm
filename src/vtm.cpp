@@ -226,7 +226,6 @@ int main(int argc, char* argv[])
         else if (getopt.match("-x", "--script"))
         {
             script = getopt.next();
-            utf::dequote(script);
         }
         else
         {
