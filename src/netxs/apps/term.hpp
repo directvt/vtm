@@ -633,7 +633,7 @@ namespace netxs::app::terminal
                 {
                     item.views.push_back(
                     {
-                        .label = label->value(),
+                        .label = label->take_value(),
                         .notes = label->take(menu::attr::notes, defs.notes),
                         .param = label->take(menu::attr::param, defs.param),
                         .onkey = label->take(menu::attr::onkey, defs.onkey),

@@ -2349,12 +2349,7 @@ namespace netxs::os
                     auto ppWide = ::CommandLineToArgvW(::GetCommandLineW(), &n);
                     for (auto i = 0; i < n; i++)
                     {
-                        auto utf8 = utf::to_utf(ppWide[i]);
-                        if (utf8.empty()
-                         || utf8.front() == '"'
-                         || utf8.front() == '\''
-                         || utf8.find(' ') != text::npos) data.push_back(utf::quote(utf8));
-                        else                              data.push_back(utf8);
+                        data.push_back(utf::to_utf(ppWide[i]));
                     }
                     ::LocalFree(ppWide);
                 #else
@@ -2362,12 +2357,7 @@ namespace netxs::os
                     auto tail = argv + argc;
                     while (head != tail)
                     {
-                        auto utf8 = text{ *head++ };
-                        if (utf8.empty()
-                         || utf8.front() == '"'
-                         || utf8.front() == '\''
-                         || utf8.find(' ') != text::npos) data.push_back(utf::quote(utf8));
-                        else                              data.push_back(utf8);
+                        data.push_back(*head++);
                     }
                 #endif
                 if (data.size())
@@ -2425,7 +2415,12 @@ namespace netxs::os
                     while (iter != data.end())
                     {
                         crop.push_back(' ');
-                        crop += *iter++;
+                        auto& utf8 = *iter++;
+                        if (utf8.empty()
+                         || utf8.front() == '\"'
+                         || utf8.front() == '\''
+                         || utf8.find(' ') != text::npos) utf::quote(utf8, crop);
+                        else                              crop += utf8;
                     }
                 }
                 return crop;
@@ -2573,7 +2568,6 @@ namespace netxs::os
                 auto args = utf::tokenize(cmd, std::vector<text>{});
                 for (auto& arg : args)
                 {
-                    utf::dequote(arg);
                     argv.push_back(arg.data());
                 }
                 argv.push_back(nullptr);

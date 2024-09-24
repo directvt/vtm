@@ -102,7 +102,7 @@ Script Command                           | Description
 
 ### Character escaping
 
-The following characters in commands will be de-escaped:
+The following escaped characters have special meaning:
 
 Characters | Expanded to
 -----------|-------------------------

@@ -1549,26 +1549,25 @@ namespace netxs::utf
         debase437(utf8, buff);
         return buff;
     }
-    auto _find_char(auto head, auto tail, auto notfound)
+    auto _find_char(auto head, auto tail, auto hittest)
     {
-        while (head != tail && notfound(*head))
+        while (head != tail)
         {
-            while (*head++ == '\\')
-            {
-                if (head == tail) return head;
-            }
+            auto c = *head;
+            if (hittest(c) || (c == '\\' && ++head == tail)) break;
+            ++head;
         }
         return head;
     }
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
-        return _find_char(head, tail, [&](char c){ return delims.find(c) == view::npos; });
+        return _find_char(head, tail, [&](char c){ return delims.find(c) != view::npos; });
     }
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
-        return _find_char(head, tail, [&](char c){ return c != delim; });
+        return _find_char(head, tail, [&](char c){ return c == delim; });
     }
     auto check_any(view shadow, view delims)
     {
@@ -1640,61 +1639,94 @@ namespace netxs::utf
         trim_back (utf8, delims);
         return utf8;
     }
-    auto quote(text utf8) // Add quotes around, and escape the quotes inside.
+    void _escape(qiew line, auto& iter, auto... x)
     {
-        auto crop = text{};
-        crop.reserve(utf8.size() * 2 + 2);
-        crop.push_back('\"');
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        while (head != tail)
+        while (line)
         {
-            auto c = *head++;
-            if (c == '\"') crop.push_back('\\');
-            crop.push_back(c);
-        }
-        crop.push_back('\"');
-        return crop;
-    }
-    void dequote(view utf8, text& dest, char qoute) // Un-escape the quotes inside and push result to the dest.
-    {
-        dest.reserve(dest.size() + utf8.size());
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        while (head != tail)
-        {
-            auto c = *head++;
-            if (c == '\\' && head != tail && *head == qoute) // Drop escaping back slash.
+            auto c = line.pop_front();
+            if constexpr (sizeof...(x))
+            if (((c == x && (*iter++ = '\\', *iter++ = x, true))||...))
             {
-                head++;
-                dest.push_back(qoute);
+                continue;
             }
-            else dest.push_back(c);
+            switch (c)
+            {
+                case '\033': *iter++ = '\\'; *iter++ = 'e' ; break;
+                case   '\\': *iter++ = '\\'; *iter++ = '\\'; break;
+                case   '\"': *iter++ = '\\'; *iter++ = '\"'; break;
+                case   '\'': *iter++ = '\\'; *iter++ = '\''; break;
+                case   '\n': *iter++ = '\\'; *iter++ = 'n' ; break;
+                case   '\r': *iter++ = '\\'; *iter++ = 'r' ; break;
+                case   '\t': *iter++ = '\\'; *iter++ = 't' ; break;
+                case   '\a': *iter++ = '\\'; *iter++ = 'a' ; break;
+                default:     *iter++ = c; break;
+            }
         }
     }
-    void dequote(text& utf8) // Remove the quotes around if there are any, and un-escape the quotes inside.
+    auto _unescape(auto head, auto tail, auto& iter)
     {
-        if (utf8.size())
+        while (head != tail)
         {
-            auto q = utf8.front();
-            if (utf8.size() > 1 && (q == '\'' || q == '\"') && utf8.back() == q)
+            auto c = *head++;
+            if (c == '\\' && head != tail)
             {
-                auto iter = utf8.begin();
-                auto head = std::next(utf8.begin());
-                auto tail = std::prev(utf8.end());
-                while (head != tail)
+                c = *head++;
+                switch (c)
                 {
-                    auto c = *head++;
-                    if (c == '\\' && head != tail && *head == q) // Drop escaping back slash.
-                    {
-                        head++;
-                        *iter++ = q;
-                    }
-                    else *iter++ = c;
+                    case  'e': *iter++ = '\x1b'; break;
+                    case  't': *iter++ = '\t'  ; break;
+                    case  'r': *iter++ = '\r'  ; break;
+                    case  'n': *iter++ = '\n'  ; break;
+                    case  'a': *iter++ = '\a'  ; break;
+                    case '\\': *iter++ = '\\'  ; break;
+                    default:   *iter++ = c     ; break;
                 }
-                utf8.resize(iter - utf8.begin());
             }
+            else *iter++ = c;
         }
+    }
+    auto escape(qiew line, text& dest, auto... x)
+    {
+        dest.resize(dest.size() + line.size() * 2);
+        auto iter = dest.begin();
+        _escape(line, iter, x...);
+        dest.resize(iter - dest.begin());
+    }
+    auto unescape(text& utf8) // Unescape in place.
+    {
+        auto iter = utf8.begin();
+        _unescape(utf8.begin(), utf8.end(), iter);
+        utf8.resize(iter - utf8.begin());
+    }
+    auto unescape(qiew utf8, text& dest) // Unescape to dest.
+    {
+        auto start = dest.size();
+        dest.resize(start + utf8.size());
+        auto iter = dest.begin() + start;
+        _unescape(utf8.begin(), utf8.end(), iter);
+        dest.resize(iter - dest.begin());
+    }
+    auto unescape(qiew utf8) // Return unescaped string.
+    {
+        auto dest = text{};
+        unescape(utf8, dest);
+        return dest;
+    }
+    void quote(view utf8, text& dest) // Escape, add quotes around and append the result to the dest.
+    {
+        auto start = dest.size();
+        dest.resize(start + utf8.size() * 2 + 2);
+        auto iter = dest.begin() + start;
+        *iter++ = '\"';
+        _escape(utf8, iter);
+        *iter++ = '\"';
+        dest.resize(iter - dest.begin());
+    }
+    auto quote(view utf8) // Escape, add quotes around and return the result.
+    {
+        auto dest = text{};
+        quote(utf8, dest);
+        return dest;
     }
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)
@@ -1727,16 +1759,15 @@ namespace netxs::utf
             utf8 = {};
             return utf8;
         }
-        auto head = utf8.begin();
+        auto head = std::next(utf8.begin());
         auto tail = utf8.end();
-        auto coor = head + 1;
-        auto stop = find_char(coor, tail, delim);
+        auto stop = find_char(head, tail, delim);
         if (stop == tail)
         {
             utf8 = {};
             return utf8;
         }
-        auto crop = view{ coor, stop };
+        auto crop = view{ head, stop };
         utf8.remove_prefix(crop.size() + 2);
         return crop;
     }
@@ -1771,7 +1802,7 @@ namespace netxs::utf
         while (utf8.size())
         {
             auto c = utf8.front();
-            if (c == '\'' || c == '"') args.emplace_back(utf::get_quote(utf8));
+            if (c == '\'' || c == '"') args.emplace_back(utf::unescape(utf::take_quote(utf8, c)));
             else                       args.emplace_back(utf::get_word(utf8));
             utf::trim_front(utf8);
         }

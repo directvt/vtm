@@ -8,57 +8,6 @@
 
 namespace netxs::xml
 {
-    auto escape(qiew line, auto... x)
-    {
-        auto dest = text{};
-        dest.reserve(line.size() * 2);
-        while (line)
-        {
-            auto c = line.pop_front();
-            if constexpr (sizeof...(x))
-            if (((c == x && (dest.push_back('\\'), dest.push_back(x), true))||...))
-            {
-                continue;
-            }
-            switch (c)
-            {
-                case '\033': dest.push_back('\\'); dest.push_back('e' ); break;
-                case   '\\': dest.push_back('\\'); dest.push_back('\\'); break;
-                case   '\n': dest.push_back('\\'); dest.push_back('n' ); break;
-                case   '\r': dest.push_back('\\'); dest.push_back('r' ); break;
-                case   '\t': dest.push_back('\\'); dest.push_back('t' ); break;
-                case   '\a': dest.push_back('\\'); dest.push_back('a' ); break;
-                default:     dest.push_back(c); break;
-            }
-        }
-        return dest;
-    }
-    auto unescape(text& utf8)
-    {
-        auto iter = utf8.begin();
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        while (head != tail)
-        {
-            auto c = *head++;
-            if (c == '\\' && head != tail)
-            {
-                c = *head++;
-                switch (c)
-                {
-                    case  'e': *iter++ = '\x1b'; break;
-                    case  't': *iter++ = '\t'  ; break;
-                    case  'r': *iter++ = '\r'  ; break;
-                    case  'n': *iter++ = '\n'  ; break;
-                    case  'a': *iter++ = '\a'  ; break;
-                    case '\\': *iter++ = '\\'  ; break;
-                    default:   *iter++ = c     ; break;
-                }
-            }
-            else *iter++ = c;
-        }
-        utf8.resize(iter - utf8.begin());
-    }
     template<class T>
     auto take(qiew utf8) -> std::optional<T>
     {
@@ -501,39 +450,20 @@ namespace netxs::xml
                 }
                 return crop;
             }
-            auto value() -> text
+            auto take_value()
             {
                 auto crop = text{};
-                for (auto& value_placeholder : body)
+                for (auto& value_placeholder : body) if (value_placeholder->utf8.size())
                 {
-                    if (value_placeholder->kind == type::tag_value) // quotes tag_value quotes
-                    if (auto quote_placeholder = value_placeholder->prev.lock())
-                    if (quote_placeholder->utf8.size())
-                    if (quote_placeholder->kind == type::quotes)
-                    {
-                        auto quote = quote_placeholder->utf8.front();
-                        utf::dequote(value_placeholder->utf8, crop, quote);
-                        xml::unescape(crop);
-                        continue;
-                    }
-                    if (value_placeholder->utf8.size())
-                    {
-                        crop = value_placeholder->utf8;
-                        xml::unescape(crop);
-                    }
+                    utf::unescape(value_placeholder->utf8, crop);
                 }
                 return crop;
             }
-            void value(text value)
+            void init_value(qiew value)
             {
                 if (body.size())
                 {
-                    auto head = body.begin() + 1;
-                    auto tail = body.end();
-                    while (head != tail)
-                    {
-                        (*head++)->utf8.clear();
-                    }
+                    for (auto& value_placeholder : body) value_placeholder->utf8.clear();
                     body.resize(1);
                     auto value_placeholder = body.front();
                     if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
@@ -552,22 +482,27 @@ namespace netxs::xml
                                 equal_placeholder->utf8 = "=";
                                 quote_placeholder->utf8 = "\"";
                                 if (value_placeholder->next) value_placeholder->next->utf8 = "\"";
-                                value_placeholder->utf8 = xml::escape(value, '\"');
                             }
                             else
                             {
                                 equal_placeholder->utf8 = "";
                                 quote_placeholder->utf8 = "";
                                 if (value_placeholder->next) value_placeholder->next->utf8 = "";
-                                value_placeholder->utf8 = "";
                             }
                         }
                         else log("%%Equal sign placeholder not found", prompt::xml);
-                        return;
                     }
-                    value_placeholder->utf8 = xml::escape(value);
+                    utf::escape(value, value_placeholder->utf8);
                 }
                 else log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
+            }
+            void sync_value(elem& node)
+            {
+                if (body.size())
+                if (body.size() != node.body.size() || !std::equal(body.begin(), body.end(), node.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; }))
+                {
+                    init_value(node.take_value());
+                }
             }
             template<class T>
             auto take(qiew attr, T fallback = {})
@@ -577,7 +512,7 @@ namespace netxs::xml
                     auto& item_set = iter->second;
                     if (item_set.size()) // Take the first item only.
                     {
-                        auto crop = item_set.front()->value();
+                        auto crop = item_set.front()->take_value();
                         if (auto result = xml::take<T>(crop)) return result.value();
                         else                                  return fallback;
                     }
@@ -602,15 +537,11 @@ namespace netxs::xml
 
                 if (body.size())
                 {
-                    auto val = text{};
-                    for (auto& val_ptr : body)
+                    auto crop = take_value();
+                    if (crop.size())
                     {
-                        val += val_ptr->utf8;
-                    }
-                    if (val.size())
-                    {
-                        if (utf::check_any(val, rawtext_delims)) data += "=\"" + xml::escape(val, '\"') + '\"'; //todo should we use origial quotes here?
-                        else                                     data += '='   + xml::escape(val) + ' ';
+                        data.push_back('=');
+                        utf::quote(crop, data);
                     }
                 }
 
@@ -1315,7 +1246,7 @@ namespace netxs::xml
                 }
                 else frompath = homepath + "/" + frompath;
             }
-            if (tempbuff.size()) crop = tempbuff.back()->value();
+            if (tempbuff.size()) crop = tempbuff.back()->take_value();
             else
             {
                 if constexpr (!Quiet) log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
@@ -1381,7 +1312,9 @@ namespace netxs::xml
             }
             else
             {
-                items.front()->value(utf::concat(value));
+                auto line = utf::concat(value);
+                utf::unescape(line);
+                items.front()->init_value(line);
             }
         }
         auto utf8()
@@ -1417,12 +1350,7 @@ namespace netxs::xml
                     if (dest_list.size())
                     {
                         auto& dest = dest_list.front();
-                        auto dst_value = dest->value();
-                        auto src_value = node.value();
-                        if (dst_value != src_value)
-                        {
-                            dest->value(src_value);
-                        }
+                        dest->sync_value(node);
                         for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
                         {
                             auto count = sub_list.size();

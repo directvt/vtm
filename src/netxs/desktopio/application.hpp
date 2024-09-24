@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.14";
+    static const auto version = "v0.9.99.15";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -506,10 +506,8 @@ namespace netxs::app::shared
                 log(prompt::pads, "Not found");
                 return faux;
             };
-            auto utf8 = text{ cli_config_path };
-            utf::dequote(utf8);
-            auto frag = utf8.starts_with("<config"); // The configuration fragment could be specified directly in place of the configuration file path.
-            if (frag || !load(utf8)) // Merge explicitly specified settings.
+            auto frag = cli_config_path.starts_with("<config"); // The configuration fragment could be specified directly in place of the configuration file path.
+            if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
             {
                 load(app::shared::sys_config); // Merge system-wide settings.
                 load(app::shared::usr_config); // Merge user-wise settings.
@@ -517,8 +515,8 @@ namespace netxs::app::shared
             conf.fuse<Print>(patch); // Apply dtvt patch.
             if (frag)
             {
-                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(utf8));
-                conf.fuse<Print>(utf8);
+                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(cli_config_path));
+                conf.fuse<Print>(cli_config_path);
             }
             return conf;
         }
@@ -552,7 +550,7 @@ namespace netxs::app::shared
             for (auto& f : recs)
             {
                 //todo implement 'fonts/font/file' - font file path/url
-                fontlist.push_back(f->value());
+                fontlist.push_back(f->take_value());
             }
             auto connect = [&]
             {
