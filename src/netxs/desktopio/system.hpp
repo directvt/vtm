@@ -1956,9 +1956,10 @@ namespace netxs::os
             auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
                       : path.starts_with("/etc/") ? os::path::etc  / path.substr(5 /* trim "/etc" */)
                                                   : fs::path{ path };
-            auto crop_str = utf::to_utf(crop.wstring());
-            utf::replace_all(crop_str, "\\", "/");
-            crop_str = utf::quote(crop_str);
+            auto utf8 = utf::to_utf(crop.wstring());
+            utf::replace_all(utf8, "\\", "/");
+            auto crop_str = text{};
+            utf::quote(utf8, crop_str, '\"');
             return std::pair{ crop, crop_str };
         }
     }
@@ -2418,8 +2419,8 @@ namespace netxs::os
                         auto& utf8 = *iter++;
                         if (utf8.empty()
                          || utf8.front() == '\"'
-                         || utf8.front() == '\''
-                         || utf8.find(' ') != text::npos) utf::quote(utf8, crop);
+                         || utf8.find(' ') != text::npos) utf::quote(utf8, crop, '\"');
+                        else if (utf8.front() == '\'')    utf::quote(utf8, crop, '\'');
                         else                              crop += utf8;
                     }
                 }

@@ -1653,8 +1653,6 @@ namespace netxs::utf
             {
                 case '\033': *iter++ = '\\'; *iter++ = 'e' ; break;
                 case   '\\': *iter++ = '\\'; *iter++ = '\\'; break;
-                case   '\"': *iter++ = '\\'; *iter++ = '\"'; break;
-                case   '\'': *iter++ = '\\'; *iter++ = '\''; break;
                 case   '\n': *iter++ = '\\'; *iter++ = 'n' ; break;
                 case   '\r': *iter++ = '\\'; *iter++ = 'r' ; break;
                 case   '\t': *iter++ = '\\'; *iter++ = 't' ; break;
@@ -1712,21 +1710,15 @@ namespace netxs::utf
         unescape(utf8, dest);
         return dest;
     }
-    void quote(view utf8, text& dest) // Escape, add quotes around and append the result to the dest.
+    void quote(view utf8, text& dest, char quote) // Escape, add quotes around and append the result to the dest.
     {
         auto start = dest.size();
         dest.resize(start + utf8.size() * 2 + 2);
         auto iter = dest.begin() + start;
-        *iter++ = '\"';
-        _escape(utf8, iter);
-        *iter++ = '\"';
+        *iter++ = quote;
+        _escape(utf8, iter, quote);
+        *iter++ = quote;
         dest.resize(iter - dest.begin());
-    }
-    auto quote(view utf8) // Escape, add quotes around and return the result.
-    {
-        auto dest = text{};
-        quote(utf8, dest);
-        return dest;
     }
     template<bool Lazy = true>
     auto take_front(view& utf8, view delims)
