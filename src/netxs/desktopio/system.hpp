@@ -482,6 +482,76 @@ namespace netxs::os
                                   DUPLICATE_SAME_ACCESS);
                 return handle_clone;
             }
+            auto escape(view arg)
+            {
+                auto mscmd = text{};
+                if (std::find_if(arg.begin(), arg.end(), [&](char c){ return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\"'; }) != arg.end())
+                {
+                    mscmd.reserve(mscmd.size() + arg.size() * 2 + 2);
+                    mscmd.push_back('\"');
+                    auto head = arg.begin();
+                    auto tail = arg.end();
+                    while (head != tail)
+                    {
+                        auto c = *head++;
+                        if (c == '\\')
+                        {
+                            auto start = head;
+                            while (head != tail && *head == '\\') head++;
+                            auto count = head - start + 1;
+                            if (head == tail)
+                            {
+                                mscmd += text(count * 2, '\\');
+                                break;
+                            }
+                            c = *head++;
+                            mscmd += text(c != '\"' ? count : count * 2, '\\');
+                        }
+                        if (c == '\"') mscmd.push_back('\\');
+                        mscmd.push_back(c);
+                    }
+                    mscmd.push_back('\"');
+                }
+                else mscmd += arg;
+                return mscmd;
+            }
+            auto retokenize(view cmd)
+            {
+                auto mscmd = text{};
+                auto args = utf::tokenize(cmd, std::vector<text>{});
+                auto cmd_shim = args.size() && [&]
+                {
+                    auto cmd = args.front();
+                    utf::to_low(cmd);
+                    return cmd == "cmd"
+                        || cmd == "cmd.exe"
+                        || cmd.ends_with("\\cmd")
+                        || cmd.ends_with("\\cmd.exe");
+                }();
+                for (auto& arg : args)
+                {
+                    mscmd += cmd_shim ? arg : nt::escape(arg);
+                    mscmd.push_back(' ');
+                }
+                if (args.size()) mscmd.pop_back(); // Pop last space.
+                if (cmd_shim) log("%%Command line: '%mscmd%' (special case for cmd.exe)", prompt::os, ansi::hi(utf::debase437(mscmd)));
+                else
+                {
+                    log("%%Command line: %mscmd%", prompt::os, ansi::hi(utf::debase437(mscmd)));
+                    auto original_cmd_line = utf::to_utf(mscmd);
+                    auto n = 0;
+                    auto ppWide = ::CommandLineToArgvW(original_cmd_line.data(), &n);
+                    auto test = text{};
+                    for (auto i = 0; i < n; i++)
+                    {
+                        test += ansi::hi(utf::to_utf(ppWide[i])) + " ";
+                    }
+                    ::LocalFree(ppWide);
+                    test.pop_back();
+                    log("%%Decomposited: %mscmd%", prompt::os, test);
+                }
+                return mscmd;
+            }
 
             namespace console
             {
@@ -2344,7 +2414,9 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
                     auto n = 0;
-                    auto ppWide = ::CommandLineToArgvW(::GetCommandLineW(), &n);
+                    auto original_cmd_line = ::GetCommandLineW();
+                    log("%%Command line: '%cmd%'", prompt::os, ansi::hi(utf::debase437(utf::to_utf(original_cmd_line))));
+                    auto ppWide = ::CommandLineToArgvW(original_cmd_line, &n);
                     for (auto i = 0; i < n; i++)
                     {
                         data.push_back(utf::to_utf(ppWide[i]));
@@ -2605,7 +2677,7 @@ namespace netxs::os
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" -x ", script) : ""s));
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", nt::escape(prefix), " -c :", cfpath, script.size() ? utf::concat(" -x ", nt::escape(script)) : ""s));
                     if (os::nt::runas(cmdarg))
                     {
                         success.reset(handle); // Do not close until confirmation from the server process is received.
@@ -3929,7 +4001,7 @@ namespace netxs::os
         }
         auto connect(eccc cfg, fdrw fds)
         {
-            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase437(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
+            log("%%New process '%cmd%' at the %path%", prompt::dtvt, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
             auto result = true;
             auto onerror = [&]()
             {
@@ -3939,7 +4011,7 @@ namespace netxs::os
             };
             #if defined(_WIN32)
 
-                auto wcmd = utf::to_utf(cfg.cmd);
+                auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
                 auto wcwd = utf::to_utf(cfg.cwd);
                 auto wenv = utf::to_utf(os::env::add(cfg.env));
                 auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -4114,7 +4186,7 @@ namespace netxs::os
                     {
                         serverfd = s_pipe_w;
                         clientfd = m_pipe_w;
-                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::debase437(cmd));
+                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
@@ -4125,7 +4197,7 @@ namespace netxs::os
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
-                        log("%%Process '%cmd%' disconnected", prompt::dtvt, utf::debase437(cmd));
+                        log("%%Process '%cmd%' disconnected", prompt::dtvt, ansi::hi(utf::debase437(cmd)));
                         shutdown();
                     }
                 }};
@@ -4171,7 +4243,7 @@ namespace netxs::os
             void create(auto& terminal, eccc cfg, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, cfg.win);
-                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase437(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::vtty, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s : "'" + utf::debase437(cfg.cwd) + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -4182,7 +4254,7 @@ namespace netxs::os
                     if (attached.exchange(faux))
                     {
                         auto exitcode = termlink->wait();
-                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::debase437(cmd), utf::to_hex_0x(exitcode));
+                        log("%%Process '%cmd%' exited with code %code%", prompt::vtty, ansi::hi(utf::debase437(cmd)), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
@@ -4469,7 +4541,7 @@ namespace netxs::os
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase437(cfg.cmd), cfg.cwd.empty() ? "current directory"s
+                log("%%New process '%cmd%' at the %cwd%", prompt::task, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s
                                                                                                                                              : "'" + utf::debase437(cfg.cwd) + "'");
                 #if defined(_WIN32)
 
@@ -4530,7 +4602,7 @@ namespace netxs::os
                     };
                     auto create = [&]
                     {
-                        auto wcmd = utf::to_utf(cfg.cmd);
+                        auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
                         auto wcwd = utf::to_utf(cfg.cwd);
                         auto wenv = utf::to_utf(os::env::add(cfg.env));
                         return ::CreateProcessW(nullptr,                             // lpApplicationName

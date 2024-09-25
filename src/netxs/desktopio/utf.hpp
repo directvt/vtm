@@ -1542,13 +1542,14 @@ namespace netxs::utf
             while (code);
         }
     }
-    // utf: Return a string without control chars (replace all ctrls with cp437).
+    // utf: Return a string without control chars (replace all ctrls with "cp437" glyphs).
     auto debase437(qiew utf8)
     {
         auto buff = text{};
         debase437(utf8, buff);
         return buff;
     }
+    // utf: Find char position ignoring backslashed.
     auto _find_char(auto head, auto tail, auto hittest)
     {
         while (head != tail)
@@ -1559,11 +1560,13 @@ namespace netxs::utf
         }
         return head;
     }
+    // utf: Find char position ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
         return _find_char(head, tail, [&](char c){ return delims.find(c) != view::npos; });
     }
+    // utf: Find char position ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
