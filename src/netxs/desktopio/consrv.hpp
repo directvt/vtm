@@ -109,7 +109,7 @@ struct consrv
                              sizeof(refdrv),
                                     nullptr,
                                     nullptr);
-        auto wcmd = utf::to_utf(cfg.cmd);
+        auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
         auto wcwd = utf::to_utf(cfg.cwd);
         auto wenv = utf::to_utf(os::env::add(cfg.env += "VTM=1\0"sv));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
@@ -5009,7 +5009,7 @@ struct impl : consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hWnd=", utf::to_hex_0x(hWnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                //ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hWnd=", utf::to_hex_0x(hWnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 auto w = (impl*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
                 if (!w) return ::DefWindowProcW(hWnd, uMsg, wParam, lParam);
                 switch (uMsg)

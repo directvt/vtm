@@ -452,14 +452,15 @@ namespace netxs::xml
             }
             auto take_value()
             {
-                auto crop = text{};
-                for (auto& value_placeholder : body) if (value_placeholder->utf8.size())
+                auto value = text{};
+                for (auto& value_placeholder : body)
                 {
-                    utf::unescape(value_placeholder->utf8, crop);
+                    value += value_placeholder->utf8;
                 }
-                return crop;
+                utf::unescape(value);
+                return value;
             }
-            void init_value(qiew value)
+            void init_value(qiew value, bool unescaped = true)
             {
                 if (body.size())
                 {
@@ -492,7 +493,8 @@ namespace netxs::xml
                         }
                         else log("%%Equal sign placeholder not found", prompt::xml);
                     }
-                    utf::escape(value, value_placeholder->utf8);
+                    if (unescaped) utf::escape(value, value_placeholder->utf8, '\"');
+                    else           value_placeholder->utf8 = value;
                 }
                 else log("%%Unexpected assignment to '%%'", prompt::xml, name->utf8);
             }
@@ -501,7 +503,12 @@ namespace netxs::xml
                 if (body.size())
                 if (body.size() != node.body.size() || !std::equal(body.begin(), body.end(), node.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; }))
                 {
-                    init_value(node.take_value());
+                    auto value = text{};
+                    for (auto& value_placeholder : body)
+                    {
+                        value += value_placeholder->utf8;
+                    }
+                    init_value(value, faux);
                 }
             }
             template<class T>
@@ -541,7 +548,7 @@ namespace netxs::xml
                     if (crop.size())
                     {
                         data.push_back('=');
-                        utf::quote(crop, data);
+                        utf::quote(crop, data, '\"');
                     }
                 }
 
