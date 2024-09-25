@@ -534,7 +534,7 @@ namespace netxs::os
                     mscmd.push_back(' ');
                 }
                 if (args.size()) mscmd.pop_back(); // Pop last space.
-                if (cmd_shim) log("%%Command line: '%mscmd%' (special case for cmd.exe)", prompt::os, ansi::hi(utf::debase437(mscmd)));
+                if (cmd_shim) log("%%Command line: %mscmd% (special case for cmd.exe)", prompt::os, ansi::hi(utf::debase437(mscmd)));
                 else
                 {
                     log("%%Command line: %mscmd%", prompt::os, ansi::hi(utf::debase437(mscmd)));
