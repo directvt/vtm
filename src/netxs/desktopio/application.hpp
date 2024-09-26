@@ -506,7 +506,7 @@ namespace netxs::app::shared
                 log(prompt::pads, "Not found");
                 return faux;
             };
-            auto frag = cli_config_path.starts_with("<config"); // The configuration fragment could be specified directly in place of the configuration file path.
+            auto frag = cli_config_path.starts_with("<"); // The configuration fragment could be specified directly in place of the configuration file path.
             if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
             {
                 load(app::shared::sys_config); // Merge system-wide settings.

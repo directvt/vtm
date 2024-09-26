@@ -1,4 +1,17 @@
-R"==(<config>
+R"==(<shell>  <!-- App prerequisites. -->
+    <winheader=""/>  <!-- Window title. -->
+    <winfooter=""/>  <!-- Window footer. -->
+    <winsize=""/>    <!-- Window size. -->
+    <wincoor=""/>    <!-- Window coor. -->
+    <winstate=""/>   <!-- Window state: normal | maximized | minimized . -->
+    <env=""/>        <!-- Environment variable in "var=val" format. -->
+    <cwd=""/>        <!-- Current working directory. -->
+    <!-- Ordered list of paths to settings files. The settings (the <config> subsection only) will be overlayed in the specified order. -->
+    <cfg*/>  <!-- Clear previously defined sources. Start a new list. -->
+    <cfg="/etc/vtm/settings.xml"/>        <!-- Global settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+    <cfg="~/.config/vtm/settings.xml"/>   <!-- User wise settings source. -->
+</shell>
+<config>  <!-- App configuration. -->
     <simple=0/>  <!-- For internal use. -->
     <scripting=off engine=python>  <!-- Not implemented, see gh-393 for details. -->
         <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
@@ -31,7 +44,7 @@ R"==(<config>
         <show=true/>
         <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
-    <tooltips>
+    <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=2000ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
@@ -43,7 +56,7 @@ R"==(<config>
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
     </debug>
     <clipboard>
-        <preview enabled=no size=80x25>
+        <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
             <color fgc=whitelt bgc=bluedk/>
             <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
             <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->

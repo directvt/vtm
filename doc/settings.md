@@ -233,7 +233,7 @@ Attribute  | Description                                       | Value type | De
 `title`    |  App window title                                 | `string`   | empty
 `footer`   |  App window footer                                | `string`   | empty
 `winsize`  |  App window size                                  | `x;y`      |
-`winform`  |  App window state                                 | `undefined` \| `normal` \| `maximized` \| `minimized` |
+`winform`  |  App window state                                 | `normal` \| `maximized` \| `minimized` | `normal`
 `type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
