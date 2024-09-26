@@ -244,6 +244,13 @@ namespace netxs::xml
                   back{ data }
             { }
 
+            void init(view filename = {})
+            {
+                data = ptr::shared<literal>(type::na);
+                fail = faux;
+                file = filename;
+                back = data;
+            }
             template<class ...Args>
             auto append(type kind, Args&&... args)
             {
@@ -403,6 +410,7 @@ namespace netxs::xml
            ~elem()
             {
                 hive.clear();
+                if (from) //todo revise
                 if (auto prev = from->prev.lock())
                 {
                     auto next = upto->next;
@@ -607,13 +615,20 @@ namespace netxs::xml
         suit page;
         sptr root;
 
+        document() = default;
         document(document&&) = default;
         document(view data, view file = {})
             : page{ file },
               root{ ptr::shared<elem>()}
         {
             read(data);
-            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, file.empty() ? "memory"sv : file, page.show());
+        }
+
+        void load(view data, view file = {})
+        {
+            page.init(file);
+            root = ptr::shared<elem>();
+            read(data);
         }
         template<bool WithTemplate = faux>
         auto take(view path)
@@ -667,6 +682,47 @@ namespace netxs::xml
                 }
             }
             else log("%%Destination path not found '%parent_path%'", prompt::xml, parent_path);
+        }
+        void overlay(sptr node_ptr, text path)
+        {
+            auto& node = *node_ptr;
+            auto& name = node.name->utf8;
+            path += "/" + name;
+            auto dest_list = take<true>(path);
+            auto is_dest_list = (dest_list.size() && dest_list.front()->fake)
+                              || dest_list.size() > 1;
+            if (is_dest_list)
+            {
+                join(path, { node_ptr });
+            }
+            else
+            {
+                if (dest_list.size())
+                {
+                    auto& dest = dest_list.front();
+                    dest->sync_value(node);
+                    for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
+                    {
+                        auto count = sub_list.size();
+                        if (count == 1 && sub_list.front()->fake == faux)
+                        {
+                            overlay(sub_list.front(), path);
+                        }
+                        else if (count) // It is a list.
+                        {
+                            //todo Clang 13.0.0 don't get it.
+                            //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
+                            auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
+                            join(path + "/" + sub_name, sub_list, rewrite);
+                        }
+                        else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
+                    }
+                }
+                else
+                {
+                    join(path, { node_ptr });
+                }
+            }
         }
 
     private:
@@ -1155,6 +1211,7 @@ namespace netxs::xml
                 read_subsections(root, data, what, last, deep, defs);
                 seal(root);
             }
+            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
         }
     };
 
@@ -1340,49 +1397,8 @@ namespace netxs::xml
             {
                 log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, run_config.page.show());
             }
-            auto proc = [&](auto node_ptr, auto path, auto proc) -> void
-            {
-                auto& node = *node_ptr;
-                auto& name = node.name->utf8;
-                path += "/" + name;
-                auto dest_list = list<true>(path);
-                auto is_dest_list = (dest_list.size() && dest_list.front()->fake)
-                                  || dest_list.size() > 1;
-                if (is_dest_list)
-                {
-                    document->join(path, { node_ptr });
-                }
-                else
-                {
-                    if (dest_list.size())
-                    {
-                        auto& dest = dest_list.front();
-                        dest->sync_value(node);
-                        for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
-                        {
-                            auto count = sub_list.size();
-                            if (count == 1 && sub_list.front()->fake == faux)
-                            {
-                                proc(sub_list.front(), path, proc);
-                            }
-                            else if (count) // It is a list.
-                            {
-                                //todo Clang 13.0.0 don't get it.
-                                //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
-                                auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
-                                document->join(path + "/" + sub_name, sub_list, rewrite);
-                            }
-                            else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
-                        }
-                    }
-                    else
-                    {
-                        document->join(path, { node_ptr });
-                    }
-                }
-            };
             auto path = text{};
-            proc(run_config.root, path, proc);
+            document->overlay(run_config.root, path);
             homepath = "/";
             homelist = document->take(homepath);
         }

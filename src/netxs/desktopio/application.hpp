@@ -462,30 +462,11 @@ namespace netxs::app::shared
     };
     namespace load
     {
-        template<bool Print = faux>
-        auto settings(view defaults, qiew cli_config_path, view patch)
+        auto load_from_file(xml::document& config, qiew file_path)
         {
-            auto conf = xmls{ defaults };
-            auto load = [&](qiew shadow)
+            auto [config_path, config_path_str] = os::path::expand(file_path);
+            if (!config_path.empty())
             {
-                if (shadow.empty()) return faux;
-                if (shadow.starts_with(":")) // Receive configuration via memory mapping.
-                {
-                    shadow.remove_prefix(1);
-                    auto utf8 = os::process::memory::get(shadow);
-                    if (utf8.size())
-                    {
-                        conf.fuse<Print>(utf8);
-                        return true;
-                    }
-                    else
-                    {
-                        log(prompt::apps, "Failed to get settings from :", shadow);
-                        return faux;
-                    }
-                }
-                auto [config_path, config_path_str] = os::path::expand(shadow);
-                if (config_path.empty()) return faux;
                 log("%%Loading settings from %path%...", prompt::apps, config_path_str);
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
@@ -499,25 +480,84 @@ namespace netxs::app::shared
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        conf.fuse<Print>(buff, config_path_str);
+                        config.load(buff, config_path_str);
                         return true;
                     }
                 }
                 log(prompt::pads, "Not found");
-                return faux;
-            };
-            auto frag = cli_config_path.starts_with("<"); // The configuration fragment could be specified directly in place of the configuration file path.
-            if (frag || !load(cli_config_path)) // Merge explicitly specified settings.
-            {
-                load(app::shared::sys_config); // Merge system-wide settings.
-                load(app::shared::usr_config); // Merge user-wise settings.
             }
-            conf.fuse<Print>(patch); // Apply dtvt patch.
-            if (frag)
+            return faux;
+        }
+        template<bool Print = faux>
+        auto settings(qiew default_config, qiew cli_opt_config, qiew xmitted_config)
+        {
+            auto conf = xmls{ default_config };
+            auto& defcfg = *conf.document;
+            auto dvtcfg = xml::document{};
+            auto clicfg = xml::document{};
+
+            if (xmitted_config.size()) // Load and overlay prerequisites from directvt.
             {
-                log("%%Apply the specified configuration fragment:\n%body%", prompt::apps, ansi::hi(cli_config_path));
-                conf.fuse<Print>(cli_config_path);
+                dvtcfg.load(xmitted_config, "dtvt");
+                auto directvt_patch = dvtcfg.take("/shell/");
+                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
             }
+
+            if (cli_opt_config.size()) // Load and overlay prerequisites from cli opt.
+            {
+                auto loaded = faux;
+                if (cli_opt_config.starts_with("<")) // The configuration fragment could be specified directly in place of the configuration file path.
+                {
+                    clicfg.load(cli_opt_config, "cli");
+                    loaded = true;
+                }
+                else if (cli_opt_config.starts_with(":")) // Receive configuration via memory mapping.
+                {
+                    cli_opt_config.remove_prefix(1);
+                    auto utf8 = os::process::memory::get(cli_opt_config);
+                    if (utf8.size())
+                    {
+                        clicfg.load(utf8, cli_opt_config);
+                        loaded = true;
+                    }
+                    else log("%%Failed to get settings from :%hash%", prompt::apps, cli_opt_config);
+                }
+                else
+                {
+                    loaded = load_from_file(clicfg, cli_opt_config);
+                }
+                if (loaded) // Overlay prerequisites from cli opt.
+                {
+                    auto cli_data_patch = clicfg.take("/shell/");
+                    if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
+                }
+                else cli_opt_config = {};
+            }
+
+            auto config_sources = defcfg.take("/shell/cfg");
+            for (auto& cfg : config_sources) if (cfg) // Overlay configs from the specified sources if it is.
+            {
+                auto src_file = cfg->take_value();
+                auto src_conf = xml::document{};
+                if (load_from_file(src_conf, src_file))
+                {
+                    auto config_data = src_conf.take("/config/");
+                    if (config_data.size()) defcfg.overlay(config_data.front(), "/");
+                }
+            }
+
+            if (xmitted_config) // Overlay directvt packet config from parent.
+            {
+                auto config_data = dvtcfg.take("/config/");
+                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
+            }
+            if (cli_opt_config) // Overlay '-c <config>' plain data config.
+            {
+                auto config_data = clicfg.take("/config/");
+                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
+            }
+
+            conf.homelist = conf.document->take(conf.homepath);
             return conf;
         }
     }
