@@ -504,7 +504,7 @@ namespace netxs::xml
                 if (body.size() != node.body.size() || !std::equal(body.begin(), body.end(), node.body.begin(), [&](auto& s, auto& d){ return s->utf8 == d->utf8; }))
                 {
                     auto value = text{};
-                    for (auto& value_placeholder : body)
+                    for (auto& value_placeholder : node.body)
                     {
                         value += value_placeholder->utf8;
                     }
