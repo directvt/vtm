@@ -618,21 +618,13 @@ namespace netxs::xml
         template<bool WithTemplate = faux>
         auto take(view path)
         {
-            auto name = root && root->name ? root->name->utf8 : text{};
-            path = utf::trim(path, '/');
-            if (path.empty() || path == name)
-            {
-                return vect{ root };
-            }
+            if (!root) return vect{};
             else
             {
-                auto temp = utf::cutoff(path, '/');
-                if (name == temp)
-                {
-                    return root->list<WithTemplate>(path.substr(temp.size()));
-                }
+                path = utf::trim(path, '/');
+                if (path.empty()) return vect{ root };
+                else              return root->list<WithTemplate>(path);
             }
-            return vect{};
         }
         auto join(view path, vect const& list, bool rewrite = faux)
         {
@@ -748,9 +740,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = utf::take_front(data, token_delims).str();
-            utf::to_low(item);
-            return item;
+            return utf::take_front(data, token_delims).str();
         }
         auto body(view& data, type kind = type::tag_value) -> frag
         {

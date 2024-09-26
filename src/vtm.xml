@@ -1,5 +1,5 @@
 R"==(<shell>  <!-- App prerequisites. -->
-    <winheader=""/>  <!-- Window title. -->
+    <wintitle=""/>   <!-- Window title. -->
     <winfooter=""/>  <!-- Window footer. -->
     <winsize=""/>    <!-- Window size. -->
     <wincoor=""/>    <!-- Window coor. -->
