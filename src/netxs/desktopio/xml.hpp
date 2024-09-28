@@ -614,6 +614,7 @@ namespace netxs::xml
 
         suit page;
         sptr root;
+        bool empty = true;
 
         document() = default;
         document(document&&) = default;
@@ -623,6 +624,7 @@ namespace netxs::xml
         {
             read(data);
         }
+        operator bool () const { return !empty; }
 
         void load(view data, view file = {})
         {
@@ -1210,6 +1212,7 @@ namespace netxs::xml
                 root->name = ptr::shared<literal>(type::na);
                 read_subsections(root, data, what, last, deep, defs);
                 seal(root);
+                empty = faux;
             }
             if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
         }

@@ -494,46 +494,55 @@ namespace netxs::app::shared
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
                 , "\n\n", "\n");
+            auto envopt = os::env::get("VTM_CONFIG");
             auto defcfg = xml::document{ defaults };
+            auto envcfg = xml::document{};
             auto dvtcfg = xml::document{};
             auto clicfg = xml::document{};
 
-            if (os::dtvt::config.size()) // Load and overlay the prerequisites from the received directvt packet.
+            if (os::dtvt::config.size()) // Load the prerequisites from the received directvt packet.
             {
                 dvtcfg.load(os::dtvt::config, "dtvt");
-                auto directvt_patch = dvtcfg.take("/shell/");
-                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
             }
 
-            if (cliopt.size()) // Load and overlay prerequisites from cli opt.
+            if (envopt.size()) // Load prerequisites from the env opt (plain xml data or file path).
             {
-                auto loaded = faux;
-                if (cliopt.starts_with("<")) // The configuration fragment could be specified directly in place of the configuration file path.
+                if (envopt.starts_with("<")) // The case with a plain xml data.
+                {
+                    envcfg.load(envopt, "env");
+                }
+                else load_from_file(envcfg, envopt); // The case with a file path.
+            }
+
+            if (cliopt.size()) // Load prerequisites from the cli opt (memory mapped source, plain xml data or file path).
+            {
+                if (cliopt.starts_with("<")) // The case with a plain xml data.
                 {
                     clicfg.load(cliopt, "cli");
-                    loaded = true;
                 }
                 else if (cliopt.starts_with(":")) // Receive configuration via memory mapping.
                 {
                     cliopt.remove_prefix(1);
                     auto utf8 = os::process::memory::get(cliopt);
-                    if (utf8.size())
-                    {
-                        clicfg.load(utf8, cliopt);
-                        loaded = true;
-                    }
-                    else log("%%Failed to get settings from :%hash%", prompt::apps, cliopt);
+                    clicfg.load(utf8, cliopt);
                 }
-                else
-                {
-                    loaded = load_from_file(clicfg, cliopt);
-                }
-                if (loaded) // Overlay prerequisites from cli opt.
-                {
-                    auto cli_data_patch = clicfg.take("/shell/");
-                    if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
-                }
-                else cliopt = {};
+                else load_from_file(clicfg, cliopt); // The case with a file path.
+            }
+
+            if (envcfg) // Overlay the prerequisites from the env opt.
+            {
+                auto directvt_patch = envcfg.take("/shell/");
+                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
+            }
+            if (dvtcfg) // Overlay the prerequisites from the received directvt packet.
+            {
+                auto directvt_patch = dvtcfg.take("/shell/");
+                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
+            }
+            if (clicfg) // Overlay prerequisites from cli opt.
+            {
+                auto cli_data_patch = clicfg.take("/shell/");
+                if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
             }
 
             auto config_sources = defcfg.take("/shell/cfg");
@@ -548,12 +557,17 @@ namespace netxs::app::shared
                 }
             }
 
-            if (os::dtvt::config.size()) // Overlay directvt packet config subsection received from parent.
+            if (envcfg) // Overlay '$VTMCONFIG' plain data config.
+            {
+                auto config_data = envcfg.take("/config/");
+                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
+            }
+            if (dvtcfg) // Overlay directvt packet config subsection received from parent.
             {
                 auto config_data = dvtcfg.take("/config/");
                 if (config_data.size()) defcfg.overlay(config_data.front(), "/");
             }
-            if (cliopt) // Overlay '-c <config>' plain data config.
+            if (clicfg) // Overlay '-c <config>' plain data config.
             {
                 auto config_data = clicfg.take("/config/");
                 if (config_data.size()) defcfg.overlay(config_data.front(), "/");
