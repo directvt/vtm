@@ -489,49 +489,51 @@ namespace netxs::app::shared
             return faux;
         }
         template<bool Print = faux>
-        auto settings(qiew default_config, qiew cli_opt_config, qiew xmitted_config)
+        auto settings(qiew cliopt)
         {
-            auto conf = xmls{ default_config };
-            auto& defcfg = *conf.document;
+            static auto defaults = utf::replace_all(
+                #include "../../vtm.xml"
+                , "\n\n", "\n");
+            auto defcfg = xml::document{ defaults };
             auto dvtcfg = xml::document{};
             auto clicfg = xml::document{};
 
-            if (xmitted_config.size()) // Load and overlay prerequisites from directvt.
+            if (os::dtvt::config.size()) // Load and overlay the prerequisites from the received directvt packet.
             {
-                dvtcfg.load(xmitted_config, "dtvt");
+                dvtcfg.load(os::dtvt::config, "dtvt");
                 auto directvt_patch = dvtcfg.take("/shell/");
                 if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
             }
 
-            if (cli_opt_config.size()) // Load and overlay prerequisites from cli opt.
+            if (cliopt.size()) // Load and overlay prerequisites from cli opt.
             {
                 auto loaded = faux;
-                if (cli_opt_config.starts_with("<")) // The configuration fragment could be specified directly in place of the configuration file path.
+                if (cliopt.starts_with("<")) // The configuration fragment could be specified directly in place of the configuration file path.
                 {
-                    clicfg.load(cli_opt_config, "cli");
+                    clicfg.load(cliopt, "cli");
                     loaded = true;
                 }
-                else if (cli_opt_config.starts_with(":")) // Receive configuration via memory mapping.
+                else if (cliopt.starts_with(":")) // Receive configuration via memory mapping.
                 {
-                    cli_opt_config.remove_prefix(1);
-                    auto utf8 = os::process::memory::get(cli_opt_config);
+                    cliopt.remove_prefix(1);
+                    auto utf8 = os::process::memory::get(cliopt);
                     if (utf8.size())
                     {
-                        clicfg.load(utf8, cli_opt_config);
+                        clicfg.load(utf8, cliopt);
                         loaded = true;
                     }
-                    else log("%%Failed to get settings from :%hash%", prompt::apps, cli_opt_config);
+                    else log("%%Failed to get settings from :%hash%", prompt::apps, cliopt);
                 }
                 else
                 {
-                    loaded = load_from_file(clicfg, cli_opt_config);
+                    loaded = load_from_file(clicfg, cliopt);
                 }
                 if (loaded) // Overlay prerequisites from cli opt.
                 {
                     auto cli_data_patch = clicfg.take("/shell/");
                     if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
                 }
-                else cli_opt_config = {};
+                else cliopt = {};
             }
 
             auto config_sources = defcfg.take("/shell/cfg");
@@ -546,19 +548,19 @@ namespace netxs::app::shared
                 }
             }
 
-            if (xmitted_config) // Overlay directvt packet config from parent.
+            if (os::dtvt::config.size()) // Overlay directvt packet config subsection received from parent.
             {
                 auto config_data = dvtcfg.take("/config/");
                 if (config_data.size()) defcfg.overlay(config_data.front(), "/");
             }
-            if (cli_opt_config) // Overlay '-c <config>' plain data config.
+            if (cliopt) // Overlay '-c <config>' plain data config.
             {
                 auto config_data = clicfg.take("/config/");
                 if (config_data.size()) defcfg.overlay(config_data.front(), "/");
             }
 
-            conf.homelist = conf.document->take(conf.homepath);
-            return conf;
+            auto resultant = xmls{ defcfg };
+            return resultant;
         }
     }
 

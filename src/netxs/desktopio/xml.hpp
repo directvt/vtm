@@ -1238,6 +1238,12 @@ namespace netxs::xml
             homepath = "/";
             homelist = document->take(homepath);
         }
+        settings(xml::document& d)
+            : document{ ptr::shared<xml::document>(std::move(d)) }
+        {
+            homepath = "/";
+            homelist = document->take(homepath);
+        }
 
         //todo make it thread-safe
         //auto lock()

@@ -13,12 +13,9 @@ enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
-    auto defaults = utf::replace_all(
-        #include "vtm.xml"
-        , "\n\n", "\n");
     auto whoami = type::client;
     auto params = text{};
-    auto cfpath = text{};
+    auto cliopt = text{};
     auto errmsg = text{};
     auto vtpipe = text{};
     auto script = text{};
@@ -103,8 +100,8 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-c", "--config"))
         {
-            cfpath = getopt.next();
-            if (cfpath.empty())
+            cliopt = getopt.next();
+            if (cliopt.empty())
             {
                 errmsg = "Config file path not specified";
                 break;
@@ -268,7 +265,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
+        log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(cliopt));
     }
     else if (whoami == type::logmon)
     {
@@ -352,7 +349,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto config = app::shared::load::settings(cliopt);
         auto shadow = params;
         auto apname = view{};
         auto aptype = text{};
@@ -393,7 +390,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto config = app::shared::load::settings(cliopt);
         auto client = os::ipc::socket::open<os::role::client, faux>(prefix, denied);
         auto signal = ptr::shared<os::fire>(os::process::started(prefix)); // Signaling that the server is ready for incoming connections.
 
