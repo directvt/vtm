@@ -545,7 +545,7 @@ namespace netxs::app::shared
                 if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
             }
 
-            auto config_sources = defcfg.take("/shell/cfg");
+            auto config_sources = defcfg.take("/shell/settings/file");
             for (auto& cfg : config_sources) if (cfg) // Overlay configs from the specified sources if it is.
             {
                 auto src_file = cfg->take_value();
