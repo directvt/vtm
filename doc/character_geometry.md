@@ -106,8 +106,8 @@ void VS12(int& state) { state = (state & 0b100) | ((state + 0b011) & 0b011); }
 void VS13(int& state) { state = (state ^ 0b100) | ((state + (state & 1 ? 0 : 0b010)) & 0b011); }
 void VS14(int& state) { state = (state ^ 0b100) | ((state + (state & 1 ? 0b010 : 0)) & 0b011); }
 
-angle = 90 * (state & 0b011)
-hflip = state >> 2
+int get_angle(int state) { int angle = 90 * (state & 0b011); return angle; }
+int get_hflip(int state) { int hflip = state >> 2; return hflip; }
 ```
 
 # Summary
