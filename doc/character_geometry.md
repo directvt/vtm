@@ -32,9 +32,9 @@ Matrix fragments up to 8x4 cells require at least four associated integer values
 
 Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
 
-Users can explicitly specify the size of the character matrix (by zeroing `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character immediately after the base character (or at the end of a grapheme cluster).
+Users can explicitly specify the size of the character matrix (by zeroing `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
 
-- Example 1. Output 3x1 character:
+- Example 1. Output a 3x1 character:
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D0033}"
@@ -43,7 +43,7 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD0033\n"
     ```
-- Example 2. Output 6x2 character:
+- Example 2. Output a 6x2 character (by stacking two 3x1 fragments on top of each other):
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D00C9}`n👩‍👩‍👧‍👧`u{D00F6}"
