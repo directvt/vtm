@@ -59,7 +59,7 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
 
 By default, grapheme clustering occurs according to `Unicode UAX #29` https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules.
 
-To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, signaling the beginning of a grapheme cluster. The closing character of a grapheme cluster is always a codepoint from the range 0xD0000-0xDFFFF, which sets the dimension of the character matrix. All codepoints between STX and the closing codepoint that sets the matrix size will be included in the grapheme cluster.
+To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, signaling the beginning of a grapheme cluster. The closing character of a grapheme cluster in that case is always a codepoint from the range 0xD0000-0xDFFFF, which sets the dimension of the character matrix. All codepoints between STX and the closing codepoint that sets the matrix size will be included in the grapheme cluster.
 
 ## Another brick in the wall
 
