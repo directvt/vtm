@@ -43,7 +43,7 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD0033\n"
     ```
-- Example 2. Output a 6x2 character (by stacking two 3x2 fragments on top of each other):
+- Example 2. Output a 6x2 character (by stacking two 3x2 fragments on top of each other due to the linear nature of the terminal):
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D00C9}`n👩‍👩‍👧‍👧`u{D00F6}"
