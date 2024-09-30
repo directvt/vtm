@@ -38,7 +38,7 @@ graph LR
     `settings.xml`:
     ```xml
         ...
-        <menu>
+        <taskbar>
             ...
             <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
                 <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
@@ -46,7 +46,7 @@ graph LR
                 </config>
             </item>
             ...
-        </menu>
+        </taskbar>
         ...
     ```
 - The plain xml-data could be specified in place of `<file>` in `--config <file>` option:  

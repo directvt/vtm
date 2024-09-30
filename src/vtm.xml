@@ -1,19 +1,9 @@
-R"==(<shell>  <!-- App prerequisites. -->
-    <env=""/>        <!-- Environment variable in "var=val" format. -->
-    <cwd=""/>        <!-- Current working directory. -->
-    <window>  <!-- App main window related prerequisities. -->
-        <title=""/>   <!-- Window title. -->
-        <footer=""/>  <!-- Window footer. -->
-        <size=""/>    <!-- Window size. -->
-        <coor=""/>    <!-- Window coor. -->
-        <state=""/>   <!-- Window state: normal | maximized | minimized . -->
-    </window>
-    <settings>  <!-- Ordered list of paths to settings files. The settings (the <config> subsection only) will be overlayed in the specified order. -->
-        <file*/>  <!-- Clear previously defined sources. Start a new list. -->
-        <file="/etc/vtm/settings.xml"/>        <!-- System-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
-        <file="~/.config/vtm/settings.xml"/>   <!-- User-wise settings source. -->
-    </settings>
-</shell>
+R"==(<!-- Ordered list of paths to settings files. -->
+<!-- <file*/>  Specify a new list and clear previously defined sources. -->
+<!-- <file="/path/to/settings.xml"/> The settings (the <config> subsection only) will be loaded and overlayed in the specified order. -->
+<file*/>  <!-- Clear previously defined sources. Start a new list. -->
+<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 <config>  <!-- App configuration. -->
     <simple=0/>  <!-- For internal use. -->
     <scripting=off engine=python>  <!-- Not implemented, see gh-393 for details. -->
@@ -139,7 +129,7 @@ R"==(<shell>  <!-- App prerequisites. -->
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </notes>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values). -->
+            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
             <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
                 <notes>
                     " Terminal Console               \n"

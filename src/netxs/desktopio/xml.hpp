@@ -390,7 +390,7 @@ namespace netxs::xml
                 pact, // Element has compact form (<element/elem2/elem3 ... />).
             };
 
-            frag from; // elem: First fragment in document.
+            frag from; // elem: Pointer to the begging of the semantic block.
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
             frag insB; // elem: Insertion point for nested subelements.
@@ -399,7 +399,7 @@ namespace netxs::xml
             subs hive; // elem: Subelements.
             wptr defs; // elem: Template.
             bool fake; // elem: Is it template.
-            bool base; // elem: Merge overwrite priority.
+            bool base; // elem: Merge overwrite priority (new list?).
             form mode; // elem: Element storage form.
 
             elem()
@@ -410,7 +410,6 @@ namespace netxs::xml
            ~elem()
             {
                 hive.clear();
-                if (from) //todo revise
                 if (auto prev = from->prev.lock())
                 {
                     auto next = upto->next;
@@ -614,7 +613,6 @@ namespace netxs::xml
 
         suit page;
         sptr root;
-        bool empty = true;
 
         document() = default;
         document(document&&) = default;
@@ -624,7 +622,7 @@ namespace netxs::xml
         {
             read(data);
         }
-        operator bool () const { return !empty; }
+        operator bool () const { return root ? !root->hive.empty() : faux; }
 
         void load(view data, view file = {})
         {
@@ -643,15 +641,21 @@ namespace netxs::xml
                 else              return root->list<WithTemplate>(path);
             }
         }
-        auto join(view path, vect const& list, bool rewrite = faux)
+        auto join(view path, vect const& list)
         {
             path = utf::trim(path, '/');
-            auto parent_path = utf::cutoff(path, '/', faux);
-            auto branch_path = utf::remain(path, '/', faux);
+            auto slash_pos = path.rfind('/', path.size());
+            auto parent_path = path.substr(0, slash_pos);
+            auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : view{};
             auto dest_host = take(parent_path);
             if (dest_host.size())
             {
                 auto parent = dest_host.front();
+                if (parent->mode == elem::form::pact)
+                {
+                    log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, parent_path);
+                    return;
+                }
                 auto& hive = parent->hive;
                 auto iter = hive.find(qiew{ branch_path });
                 if (iter == hive.end())
@@ -659,14 +663,14 @@ namespace netxs::xml
                     iter = hive.emplace(branch_path , vect{}).first;
                 }
                 auto& dest = iter->second;
-                if (rewrite) dest.clear();
-                for (auto& item : list)
+                for (auto& item : list) if (item && item->name->utf8 == branch_path)
                 {
+                    //todo unify
+                    if (item->base) dest.clear();
                     auto mode = item->mode;
                     auto from = item->from;
                     auto upto = item->upto;
                     auto next = upto->next;
-                    if (parent->mode != elem::form::pact)
                     if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
                     if (auto prev = gate->prev.lock())
                     if (auto past = from->prev.lock())
@@ -685,44 +689,86 @@ namespace netxs::xml
             }
             else log("%%Destination path not found '%parent_path%'", prompt::xml, parent_path);
         }
+        // xml: Attach the node list to the specified path.
+        void attach(view mount_point, vect const& sub_list)
+        {
+            auto dest_list = take(mount_point);
+            if (dest_list.size())
+            {
+                auto& parent = dest_list.front();
+                if (parent->mode == elem::form::pact)
+                {
+                    log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, mount_point);
+                    return;
+                }
+                auto& parent_hive = parent->hive;
+                auto connect = [&](auto& subnode_name)
+                {
+                    auto iter = parent_hive.find(subnode_name);
+                    if (iter == parent_hive.end()) iter = parent_hive.emplace(subnode_name, vect{}).first;
+                    return iter;
+                };
+                auto iter = connect(sub_list.front()->name->utf8);
+                for (auto& item : sub_list)
+                {
+                    auto& current_node_name = iter->first;
+                    auto& subnode_name = sub_list.front()->name->utf8;
+                    if (current_node_name != subnode_name) // The case when the list is heterogeneous.
+                    {
+                        iter = connect(subnode_name);
+                    }
+                    //todo unify
+                    auto& dest = iter->second;
+                    if (item->base) dest.clear();
+                    auto mode = item->mode;
+                    auto from = item->from;
+                    auto upto = item->upto;
+                    auto next = upto->next;
+                    if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                    if (auto prev = gate->prev.lock())
+                    if (auto past = from->prev.lock())
+                    {
+                        from->prev = prev;
+                        upto->next = gate;
+                        gate->prev = upto;
+                        prev->next = from;
+                        past->next = next;  // Release an element from the previous list.
+                        if (next) next->prev = past;
+                        dest.push_back(item);
+                        continue;
+                    }
+                    log("%%Unexpected format for item '%mount_point%%node%'", prompt::xml, mount_point, item->name->utf8);
+                }
+            }
+            else log("%%Destination path not found '%mount_point%'", prompt::xml, mount_point);
+        }
         void overlay(sptr node_ptr, text path)
         {
             auto& node = *node_ptr;
             auto& name = node.name->utf8;
             path += "/" + name;
             auto dest_list = take<true>(path);
-            auto is_dest_list = (dest_list.size() && dest_list.front()->fake)
-                              || dest_list.size() > 1;
-            if (is_dest_list)
+            auto is_dest_list = (dest_list.size() && dest_list.front()->fake) || dest_list.size() > 1;
+            if (is_dest_list || dest_list.empty())
             {
                 join(path, { node_ptr });
             }
             else
             {
-                if (dest_list.size())
+                auto& dest = dest_list.front();
+                dest->sync_value(node);
+                for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
                 {
-                    auto& dest = dest_list.front();
-                    dest->sync_value(node);
-                    for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
+                    auto count = sub_list.size();
+                    if (count == 1 && sub_list.front()->fake == faux)
                     {
-                        auto count = sub_list.size();
-                        if (count == 1 && sub_list.front()->fake == faux)
-                        {
-                            overlay(sub_list.front(), path);
-                        }
-                        else if (count) // It is a list.
-                        {
-                            //todo Clang 13.0.0 don't get it.
-                            //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
-                            auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
-                            join(path + "/" + sub_name, sub_list, rewrite);
-                        }
-                        else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
+                        overlay(sub_list.front(), path);
                     }
-                }
-                else
-                {
-                    join(path, { node_ptr });
+                    else if (count) // It is a list.
+                    {
+                        join(path + "/" + sub_name, sub_list);
+                    }
+                    else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
                 }
             }
         }
@@ -765,14 +811,13 @@ namespace netxs::xml
         {
             last = what;
             if (data.empty()) what = type::eof;
+            else if (data.starts_with(view_comment_begin)) what = type::comment_begin;
             else if (last == type::na)
             {
-                if (!data.starts_with(view_comment_begin)
-                 && !data.starts_with(view_close_tag    )
+                if (!data.starts_with(view_close_tag    )
                  &&  data.starts_with(view_begin_tag    )) what = type::begin_tag;
                 else return;
             }
-            else if (data.starts_with(view_comment_begin)) what = type::comment_begin;
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
             else if (data.starts_with(view_empty_tag    )) what = type::empty_tag;
@@ -1009,12 +1054,10 @@ namespace netxs::xml
                         size += view_comment_close.size();
                         page.append(type::comment_begin, data.substr(0, size));
                         data.remove_prefix(size);
-
                         temp = data;
                         utf::trim_front(temp, whitespaces);
                     }
-                    else if (what != type::close_tag
-                            && what != type::eof)
+                    else if (what != type::close_tag && what != type::eof)
                     {
                         fail(last, what);
                         skip(temp, what);
@@ -1193,27 +1236,12 @@ namespace netxs::xml
             auto what = type::na;
             auto last = type::na;
             auto deep = 0;
-            auto temp = data;
-            auto idle = utf::trim_front(temp, whitespaces);
-            peek(temp, what, last);
-            while (what != type::begin_tag && what != type::eof) // Skip all non-xml data.
-            {
-                if (what == type::na) fail(last, type::raw_text);
-                else                  fail(last, what);
-                page.append(type::unknown, idle);
-                page.append(type::unknown, skip(temp, what));
-                data = temp;
-                idle = utf::trim_front(temp, whitespaces);
-                peek(temp, what, last);
-            }
-            if (what == type::begin_tag)
-            {
-                open(root);
-                root->name = ptr::shared<literal>(type::na);
-                read_subsections(root, data, what, last, deep, defs);
-                seal(root);
-                empty = faux;
-            }
+            open(root);
+            root->mode = elem::form::node;
+            root->name = page.append(type::na);
+            root->insB = page.append(type::spaces);
+            read_subsections(root, data, what, last, deep, defs);
+            seal(root);
             if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
         }
     };
@@ -1397,17 +1425,17 @@ namespace netxs::xml
         template<bool Print = faux>
         auto fuse(view utf8_xml, view filepath = {})
         {
-            if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
+            if (filepath.size()) document->page.file = filepath;
             homepath.clear();
             homelist.clear();
-            auto run_config = xml::document{ utf8_xml, filepath };
+            auto tmp_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
-                log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, run_config.page.show());
+                log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
             auto path = text{};
-            document->overlay(run_config.root, path);
+            document->overlay(tmp_config.root, path);
             homepath = "/";
             homelist = document->take(homepath);
         }

@@ -462,12 +462,16 @@ namespace netxs::app::shared
     };
     namespace load
     {
+        auto log_load(view src_path)
+        {
+            log("%%Loading settings from %path%...", prompt::apps, src_path);
+        }
         auto load_from_file(xml::document& config, qiew file_path)
         {
             auto [config_path, config_path_str] = os::path::expand(file_path);
             if (!config_path.empty())
             {
-                log("%%Loading settings from %path%...", prompt::apps, config_path_str);
+                log_load(config_path_str);
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
                 if (!ec && (config_file.is_regular_file(ec) || config_file.is_symlink(ec)))
@@ -475,12 +479,12 @@ namespace netxs::app::shared
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (!file.seekg(0, std::ios::end).fail())
                     {
-                        log(prompt::pads, "Merging settings from ", config_path_str);
                         auto size = file.tellg();
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
                         config.load(buff, config_path_str);
+                        log("%%Loaded %count% bytes", prompt::pads, size);
                         return true;
                     }
                 }
@@ -488,8 +492,32 @@ namespace netxs::app::shared
             }
             return faux;
         }
-        template<bool Print = faux>
-        auto settings(qiew cliopt)
+        auto attach_file_list(xml::document& defcfg, xml::document& cfg)
+        {
+            if (cfg)
+            {
+                auto file_list = cfg.take<true>("/file");
+                if (file_list.size())
+                {
+                    log("%%Update settings source files from %src%", prompt::apps, cfg.page.file);
+                    for (auto& file : file_list) if (file && !file->base) log("%%%file%", prompt::pads, file->take_value());
+                    defcfg.attach("/", file_list);
+                }
+            }
+        }
+        auto overlay_config(xml::document& defcfg, xml::document& cfg)
+        {
+            if (cfg)
+            {
+                auto config_data = cfg.take("/config/");
+                if (config_data.size())
+                {
+                    log(prompt::pads, "Merging settings from ", cfg.page.file);
+                    defcfg.overlay(config_data.front(), "");
+                }
+            }
+        }
+        auto settings(qiew cliopt, bool print = faux)
         {
             static auto defaults = utf::replace_all(
                 #include "../../vtm.xml"
@@ -500,25 +528,35 @@ namespace netxs::app::shared
             auto dvtcfg = xml::document{};
             auto clicfg = xml::document{};
 
-            if (os::dtvt::config.size()) // Load the prerequisites from the received directvt packet.
-            {
-                dvtcfg.load(os::dtvt::config, "dtvt");
-            }
+            auto show_cfg = [&](auto& cfg){ if (print && cfg) log("%source%:\n%config%", cfg.page.file, cfg.page.show()); };
 
-            if (envopt.size()) // Load prerequisites from the env opt (plain xml data or file path).
+            if (envopt.size()) // Load settings from the environment variable (plain xml data or file path).
             {
+                log_load("$VTM_CONFIG=" + envopt);
                 if (envopt.starts_with("<")) // The case with a plain xml data.
                 {
-                    envcfg.load(envopt, "env");
+                    envcfg.load(envopt, "settings from the environment variable");
                 }
-                else load_from_file(envcfg, envopt); // The case with a file path.
+                else
+                {
+                    load_from_file(envcfg, envopt); // The case with a file path.
+                }
+                show_cfg(envcfg);
             }
 
-            if (cliopt.size()) // Load prerequisites from the cli opt (memory mapped source, plain xml data or file path).
+            if (os::dtvt::config.size()) // Load settings from the received directvt packet.
             {
+                log_load("the received DirectVT packet");
+                dvtcfg.load(os::dtvt::config, "dtvt");
+                show_cfg(dvtcfg);
+            }
+
+            if (cliopt.size()) // Load settings from the specified '-c' cli option (memory mapped source, plain xml data or file path).
+            {
+                log_load(utf::concat("the specified '-c ", cliopt, "'"));
                 if (cliopt.starts_with("<")) // The case with a plain xml data.
                 {
-                    clicfg.load(cliopt, "cli");
+                    clicfg.load(cliopt, "settings from the specified '-c' cli option");
                 }
                 else if (cliopt.starts_with(":")) // Receive configuration via memory mapping.
                 {
@@ -527,51 +565,26 @@ namespace netxs::app::shared
                     clicfg.load(utf8, cliopt);
                 }
                 else load_from_file(clicfg, cliopt); // The case with a file path.
+                show_cfg(clicfg);
             }
 
-            if (envcfg) // Overlay the prerequisites from the env opt.
-            {
-                auto directvt_patch = envcfg.take("/shell/");
-                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
-            }
-            if (dvtcfg) // Overlay the prerequisites from the received directvt packet.
-            {
-                auto directvt_patch = dvtcfg.take("/shell/");
-                if (directvt_patch.size()) defcfg.overlay(directvt_patch.front(), "/");
-            }
-            if (clicfg) // Overlay prerequisites from cli opt.
-            {
-                auto cli_data_patch = clicfg.take("/shell/");
-                if (cli_data_patch.size()) defcfg.overlay(cli_data_patch.front(), "/");
-            }
+            attach_file_list(defcfg, envcfg);
+            attach_file_list(defcfg, dvtcfg);
+            attach_file_list(defcfg, clicfg);
 
-            auto config_sources = defcfg.take("/shell/settings/file");
-            for (auto& cfg : config_sources) if (cfg) // Overlay configs from the specified sources if it is.
+            auto config_sources = defcfg.take("/file");
+            for (auto& file_rec : config_sources) if (file_rec && !file_rec->base) // Overlay configs from the specified sources if it is.
             {
-                auto src_file = cfg->take_value();
+                auto src_file = file_rec->take_value();
                 auto src_conf = xml::document{};
-                if (load_from_file(src_conf, src_file))
-                {
-                    auto config_data = src_conf.take("/config/");
-                    if (config_data.size()) defcfg.overlay(config_data.front(), "/");
-                }
+                load_from_file(src_conf, src_file);
+                show_cfg(src_conf);
+                overlay_config(defcfg, src_conf);
             }
 
-            if (envcfg) // Overlay '$VTMCONFIG' plain data config.
-            {
-                auto config_data = envcfg.take("/config/");
-                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
-            }
-            if (dvtcfg) // Overlay directvt packet config subsection received from parent.
-            {
-                auto config_data = dvtcfg.take("/config/");
-                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
-            }
-            if (clicfg) // Overlay '-c <config>' plain data config.
-            {
-                auto config_data = clicfg.take("/config/");
-                if (config_data.size()) defcfg.overlay(config_data.front(), "/");
-            }
+            overlay_config(defcfg, envcfg);
+            overlay_config(defcfg, dvtcfg);
+            overlay_config(defcfg, clicfg);
 
             auto resultant = xmls{ defcfg };
             return resultant;

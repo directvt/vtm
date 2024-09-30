@@ -1856,7 +1856,7 @@ namespace netxs::os
                 utf::split(subset, '\0', [&](qiew rec)
                 {
                     if (rec.empty()) return;
-                    auto var = utf::cutoff(rec, '=', true, 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
+                    auto var = rec.substr(0, rec.find('=', 1)); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
                     auto val = rec.substr(var.size() + 1/*=*/);
                     env_map[var] = val;
                 });

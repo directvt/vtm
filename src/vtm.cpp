@@ -265,7 +265,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(cliopt));
+        log(prompt::resultant_settings, "\n", app::shared::load::settings(cliopt, true));
     }
     else if (whoami == type::logmon)
     {
@@ -385,7 +385,8 @@ int main(int argc, char* argv[])
             apname = app::teletype::name;
         }
         log("%appname% %version%", apname, app::shared::version);
-        params = utf::remain(params, ' ');
+        auto coor = params.find(' ') + 1; // npos+1=0
+        params = params.substr(coor ? coor : params.size());
         app::shared::start(params, aptype, config);
     }
     else
