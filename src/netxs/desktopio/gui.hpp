@@ -641,9 +641,10 @@ namespace netxs::gui
         ComPtr<IDWriteFactory2>        factory2; // fonts: DWrite factory.
         ComPtr<IDWriteFontCollection>  fontlist; // fonts: System font collection.
         ComPtr<IDWriteTextAnalyzer2>   analyzer; // fonts: Glyph indicies reader.
-        std::future<void>              bgworker; // fonts: Background fallback reindex.
+        std::thread                    bgworker; // fonts: Background fallback reindex.
         wide                           oslocale; // fonts: User locale.
         shaper                         fontshaper{ *this }; // fonts: .
+        si32                           index_ready{ 0 }; // fonts: Font fallback reindex is complete if index > 0.
 
         void set_fonts(auto family_names, bool fresh = true)
         {
@@ -700,7 +701,13 @@ namespace netxs::gui
             };
             for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
             for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
-            if (bgworker.valid()) bgworker.get();
+            if (index_ready <= 0) // Font index is not ready yet.
+            {
+                static auto empty_font = typeface{};
+                if constexpr (debugmode) log("%%Font fallback index is not ready yet", prompt::gui);
+                index_ready--;
+                return empty_font;
+            }
             auto try_font = [&](auto i, bool test)
             {
                 auto hit = faux;
@@ -737,7 +744,12 @@ namespace netxs::gui
             return fallback.emplace_back(); // Should never happen.
         }
 
-        fonts(std::list<text>& family_names, si32 cell_height)
+        ~fonts()
+        {
+            index_ready = 10;
+            if (bgworker.joinable()) bgworker.join();
+        }
+        fonts(std::list<text>& family_names, si32 cell_height, auto signal_to_redraw)
             : oslocale(LOCALE_NAME_MAX_LENGTH, '\0')
         {
             ::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)factory2.GetAddressOf());
@@ -757,10 +769,11 @@ namespace netxs::gui
                 log("%%Using default locale 'en-US'", prompt::gui);
             }
             oslocale.shrink_to_fit();
-            bgworker = std::async(std::launch::async, [&]
+            bgworker = std::thread{ [&, signal_to_redraw]
             {
                 for (auto i = 0u; i < fontstat.size(); i++)
                 {
+                    if (index_ready > 0) break;
                     fontstat[i].i = i;
                     auto barefont = ComPtr<IDWriteFontFamily>{};
                     auto fontfile = ComPtr<IDWriteFont2>{};
@@ -800,7 +813,9 @@ namespace netxs::gui
                 sort();
                 //for (auto f : fontstat) log("id=", utf::to_hex(f.s), " i= ", f.i, " n=", f.n);
                 log("%%Font fallback index initialized", prompt::gui);
-            });
+                auto state = std::exchange(index_ready, 10);
+                if (state < 0) signal_to_redraw(); // Notify about font fallback index is ready to redraw canvas.
+            }};
             if (fallback.empty())
             {
                 auto default_font = std::list{ "Courier New"s };
@@ -1027,6 +1042,11 @@ namespace netxs::gui
             if (c.bld()) format |= fonts::style::bold;
             auto base_char = codepoints.front().cdpoint;
             auto& f = fcache.take_font(base_char);
+            if (f.fontface.empty()) // Font index is not ready yet. Try again later.
+            {
+                glyph_mask.type = sprite::undef;
+                return;
+            }
             fcache.fontshaper.faceinst = f.fontface[format].faceinst;
             if (!fcache.fontshaper.faceinst) return;
 
@@ -1348,11 +1368,15 @@ namespace netxs::gui
                 if (c.jgc())
                 {
                     iter = glyphs.emplace(token, mono_buffer).first;
-                    rasterize(iter->second, c);
                 }
                 else return;
             }
             auto& glyph_mask = iter->second;
+            if (glyph_mask.type == sprite::undef)
+            {
+                if (c.jgc()) rasterize(glyph_mask, c);
+                else return;
+            }
             if (glyph_mask.area)
             {
                 auto [w, h, x, y] = c.whxy();
@@ -1463,6 +1487,7 @@ namespace netxs::gui
             X(pass_state) /* Pass keybd modifiers state.           */ \
             X(pass_input) /* Pass keybd input.                     */ \
             X(expose_win) /* Order to expose window.               */ \
+            X(no_command) /* Noop. Just to update.                 */ \
             X(cmd_w_data) /* Command with payload.                 */
             static constexpr auto _base = 99900;
             static constexpr auto _counter = __COUNTER__ + 1 - _base;
@@ -1941,7 +1966,7 @@ namespace netxs::gui
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
-              fcache{ font_names, cell_height },
+              fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },
               cellsz{ fcache.cellsize },

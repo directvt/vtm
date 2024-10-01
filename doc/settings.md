@@ -189,7 +189,7 @@ The following declarations have the same meaning:
 ```xml
 <config>
     <document>
-        <thing="thinf_value">
+        <thing="thing_value">
             <name="name_value"/>
         </thing>
     </document>
