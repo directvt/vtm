@@ -1856,8 +1856,9 @@ namespace netxs::os
                 utf::split(subset, '\0', [&](qiew rec)
                 {
                     if (rec.empty()) return;
-                    auto var = rec.substr(0, rec.find('=', 1)); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
-                    auto val = rec.substr(var.size() + 1/*=*/);
+                    auto pos = rec.find('=', 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
+                    auto var = rec.substr(0, pos);
+                    auto val = rec.substr(pos + 1/*=*/);
                     env_map[var] = val;
                 });
             };
@@ -1898,6 +1899,15 @@ namespace netxs::os
                 auto val = value.str();
                 ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv()", os::unexpected);
             #endif
+        }
+        // os::env: Set envvar value.
+        auto set(qiew variable_value)
+        {
+            if (variable_value.size() < 2) return;
+            auto pos = variable_value.find('=', 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
+            auto var = variable_value.substr(0, pos);
+            auto val = variable_value.substr(pos + 1/*=*/);
+            set(var, val);
         }
         // os::env: Unset envvar.
         auto unset(qiew variable)
@@ -1972,6 +1982,13 @@ namespace netxs::os
             auto err = std::error_code{};
             auto cwd = std::filesystem::current_path(err).string();
             return cwd;
+        }
+        // os::env: Set current working directory.
+        auto cwd(text path)
+        {
+            auto err = std::error_code{};
+            if (path.size()) fs::current_path(path, err);
+            return !!err;
         }
     }
 

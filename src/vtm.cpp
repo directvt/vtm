@@ -29,7 +29,25 @@ int main(int argc, char* argv[])
     }
     else while (getopt)
     {
-        if (getopt.match("--svc"))
+        if (getopt.match("--cwd"))
+        {
+            auto path = getopt.next();
+            if (path.size())
+            {
+                if (os::env::cwd(path)) log("%%Set current working directory to '%path%'", prompt::os, path);
+                else                    log("%%Failed to set current working directory to '%path%'", prompt::os, ansi::err(path));
+            }
+        }
+        else if (getopt.match("--env"))
+        {
+            auto var_val = getopt.next();
+            if (var_val.size())
+            {
+                log("%%Set environment variable '%var_val%'", prompt::os, var_val);
+                os::env::set(var_val);
+            }
+        }
+        else if (getopt.match("--svc"))
         {
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
@@ -151,6 +169,8 @@ int main(int argc, char* argv[])
                 "\n    -r, --, --run        Run desktop applet standalone."
                 "\n    <type>               Desktop applet to run."
                 "\n    <args...>            Desktop applet arguments."
+                "\n    --env <var=val>      Set environment variable."
+                "\n    --cwd <path>         Set current working directory."
                 "\n"
                 "\n    Desktop applet             │ Type │ Arguments"
                 "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"

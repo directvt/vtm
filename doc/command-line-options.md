@@ -35,6 +35,8 @@ Option                  | Description
 `-r`, `--`, `--run`     | Run desktop applet standalone.
 `<type>`                | Desktop applet to run.
 `<args...>`             | Desktop applet arguments.
+`--env <var=val>`       | Set environment variable.
+`--cwd <path>`          | Set current working directory.
 
 The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
 - `command-line`:
