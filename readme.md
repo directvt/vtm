@@ -35,3 +35,4 @@ vtm is a text-based desktop environment.
 - [Command-line options](doc/command-line-options.md)
 - [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
+- [Unicode Character Geometry Modifiers](doc/character_geometry.md)
