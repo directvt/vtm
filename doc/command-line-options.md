@@ -36,6 +36,17 @@ Option                  | Description
 `<type>`                | Desktop applet to run.
 `<args...>`             | Desktop applet arguments.
 
+The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
+- `command-line`:
+  ```cmd
+  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
+  ```
+  or (using compact syntax)
+- `command-line`:
+  ```cmd
+  vtm -c "<config/term/scrollback size=1000000/>" -r term
+  ```
+
 ### Desktop Applets
 
 Applet                     | Type | Arguments
@@ -48,44 +59,6 @@ DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT 
 The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
-
-### Settings loading order
-
-```mermaid
-graph LR
-    subgraph Settings loading order
-    direction LR
-        B("Init hardcoded
-        settings")
-        B --> C["--config ‹file›
-        specified?"]
-        C -->|Yes| D["Overlay the settings from the ‹file›"]
-        C --->|No| F["Overlay global settings"]
-        F --> G["Overlay user wise settings"]
-        D ---> H["Overlay the settings received
-        from the DirectVT Gateway"]
-        G --> H
-        H --> O[Overlay
-        plain xml-data]
-    end
-```
-
-- Initialize hardcoded settings.
-- In case of using the `--config <file>` option and the `<file>` can be loaded:
-    - Merge settings from the `<file>`.
-- otherwise:
-    - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
-    - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
-- Merge with DirectVT packet received from the hosting DirectVT Gateway.
-- Merge the settings from the plain xml-data.  
-  The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
-  ```cmd
-  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
-  ```
-  or (using compact syntax)
-  ```cmd
-  vtm -c "<config/term/scrollback size=1000000/>" -r term
-  ```
 
 ### Script commands
 

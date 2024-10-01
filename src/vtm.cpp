@@ -13,12 +13,9 @@ enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
-    auto defaults = utf::replace_all(
-        #include "vtm.xml"
-        , "\n\n", "\n");
     auto whoami = type::client;
     auto params = text{};
-    auto cfpath = text{};
+    auto cliopt = text{};
     auto errmsg = text{};
     auto vtpipe = text{};
     auto script = text{};
@@ -103,8 +100,8 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-c", "--config"))
         {
-            cfpath = getopt.next();
-            if (cfpath.empty())
+            cliopt = getopt.next();
+            if (cliopt.empty())
             {
                 errmsg = "Config file path not specified";
                 break;
@@ -146,7 +143,7 @@ int main(int argc, char* argv[])
                 #endif
                 "\n    -q, --quiet          Disable logging."
                 "\n    -x, --script <cmds>  Specifies script commands."
-                "\n    -c, --config <file>  Specifies a settings file to load or plain xml-data to merge."
+                "\n    -c, --config <file>  Specifies a settings file to load or plain xml-data to overlay."
                 "\n    -p, --pin <id>       Specifies the desktop id it will be pinned to."
                 "\n    -s, --server         Run Desktop Server."
                 "\n    -d, --daemon         Run Desktop Server in background."
@@ -167,51 +164,12 @@ int main(int argc, char* argv[])
                 "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
                 "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
                 "\n"
-                "\n  Settings loading order:"
-                "\n"
-                "\n    - Initialize hard-coded settings."
-                "\n    - In case of using the '--config <file>' option and the <file> can be loaded:"
-                "\n        - Overlay the settings from the <file>."
-                "\n      otherwise:"
-                "\n        - Overlay system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
-                "\n        - Overlay user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
-                "\n    - Overlay the settings received from the DirectVT Gateway."
-                "\n    - Overlay the settings from the plain xml-data."
-                "\n"
-                "\n    The plain xml-data could be specified in place of <file> in '--config <file>' option:"
+                "\n    Plain xml-data can be specified in place of <file> in the '--config <file>' option,"
+                "\n    as well as in the $VTM_CONFIG environment variable:"
                 "\n"
                 "\n      vtm -c \"<config><term><scrollback size=1000000/></term></config>\" -r term"
                 "\n      or (using compact syntax)"
                 "\n      vtm -c \"<config/term/scrollback size=1000000/>\" -r term"
-                "\n"
-                "\n  Script commands:"
-                "\n"
-                "\n    Syntax: \"<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]\""
-                "\n"
-                "\n    Command                       │ Description"
-                "\n    ──────────────────────────────┼───────────────────────────────────────────────────────"
-                "\n    vtm.run([<attrs...>])         │ Create and run a menu item constructed using"
-                "\n                                  │ a space-separated list of <attr>=<val>."
-                "\n                                  │ Run a temporary menu item constructed using"
-                "\n                                  │ default attributes if no arguments specified."
-                "\n    vtm.set(id=<id> [<attrs...>]) │ Create or override a menu item using a space-separated"
-                "\n                                  │ list of <attr>=<val>."
-                "\n    vtm.del([<id>])               │ Delete the taskbar menu item by <id>."
-                "\n                                  │ Delete all menu items if no <id> specified."
-                "\n    vtm.dtvt(<dtvt_app...>)       │ Create a temporary menu item and run DirectVT Gateway"
-                "\n                                  │ to host specified <dtvt_app...>."
-                "\n    vtm.selected(<id>)            │ Set selected menu item using specified <id>."
-                "\n    vtm.shutdown()                │ Terminate the running desktop session."
-                "\n"
-                "\n  Escaped characters with special meaning:"
-                "\n"
-                "\n    \\a  ASCII 0x07 BEL"
-                "\n    \\t  ASCII 0x09 TAB"
-                "\n    \\n  ASCII 0x0A LF"
-                "\n    \\r  ASCII 0x0D CR"
-                "\n    \\e  ASCII 0x1B ESC"
-                "\n    \\\\  ASCII 0x5C Backslash"
-                "\n    $0  Current module full path"
                 "\n");
             return 0;
         }
@@ -268,7 +226,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
+        log(prompt::resultant_settings, "\n", app::shared::load::settings(cliopt, true));
     }
     else if (whoami == type::logmon)
     {
@@ -352,7 +310,7 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto config = app::shared::load::settings(cliopt);
         auto shadow = params;
         auto apname = view{};
         auto aptype = text{};
@@ -388,12 +346,13 @@ int main(int argc, char* argv[])
             apname = app::teletype::name;
         }
         log("%appname% %version%", apname, app::shared::version);
-        params = utf::remain(params, ' ');
+        auto coor = params.find(' ') + 1; // npos+1=0
+        params = params.substr(coor ? coor : params.size());
         app::shared::start(params, aptype, config);
     }
     else
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto config = app::shared::load::settings(cliopt);
         auto client = os::ipc::socket::open<os::role::client, faux>(prefix, denied);
         auto signal = ptr::shared<os::fire>(os::process::started(prefix)); // Signaling that the server is ready for incoming connections.
 

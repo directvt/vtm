@@ -1,4 +1,10 @@
-R"==(<config>
+R"==(<!-- Ordered list of paths to settings files. -->
+<!-- <file*/>  Specify a new list and clear previously defined sources. -->
+<!-- <file="/path/to/settings.xml"/> The settings (the <config> subsection only) will be loaded and overlayed in the specified order. -->
+<file*/>  <!-- Clear previously defined sources. Start a new list. -->
+<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<config>  <!-- App configuration. -->
     <simple=0/>  <!-- For internal use. -->
     <scripting=off engine=python>  <!-- Not implemented, see gh-393 for details. -->
         <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
@@ -31,7 +37,7 @@ R"==(<config>
         <show=true/>
         <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
-    <tooltips>
+    <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=2000ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
@@ -43,7 +49,7 @@ R"==(<config>
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
     </debug>
     <clipboard>
-        <preview enabled=no size=80x25>
+        <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
             <color fgc=whitelt bgc=bluedk/>
             <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
             <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
@@ -78,7 +84,7 @@ R"==(<config>
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
+    <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
         <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
         <reddk             = 0xFFc40f1f />
         <greendk           = 0xFF12a10e />
@@ -123,7 +129,7 @@ R"==(<config>
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </notes>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values). -->
+            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
             <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
                 <notes>
                     " Terminal Console               \n"

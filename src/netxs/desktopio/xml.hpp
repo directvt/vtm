@@ -244,6 +244,13 @@ namespace netxs::xml
                   back{ data }
             { }
 
+            void init(view filename = {})
+            {
+                data = ptr::shared<literal>(type::na);
+                fail = faux;
+                file = filename;
+                back = data;
+            }
             template<class ...Args>
             auto append(type kind, Args&&... args)
             {
@@ -383,7 +390,7 @@ namespace netxs::xml
                 pact, // Element has compact form (<element/elem2/elem3 ... />).
             };
 
-            frag from; // elem: First fragment in document.
+            frag from; // elem: Pointer to the begging of the semantic block.
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
             frag insB; // elem: Insertion point for nested subelements.
@@ -392,7 +399,7 @@ namespace netxs::xml
             subs hive; // elem: Subelements.
             wptr defs; // elem: Template.
             bool fake; // elem: Is it template.
-            bool base; // elem: Merge overwrite priority.
+            bool base; // elem: Merge overwrite priority (new list?).
             form mode; // elem: Element storage form.
 
             elem()
@@ -607,43 +614,48 @@ namespace netxs::xml
         suit page;
         sptr root;
 
+        document() = default;
         document(document&&) = default;
         document(view data, view file = {})
             : page{ file },
               root{ ptr::shared<elem>()}
         {
             read(data);
-            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, file.empty() ? "memory"sv : file, page.show());
+        }
+        operator bool () const { return root ? !root->hive.empty() : faux; }
+
+        void load(view data, view file = {})
+        {
+            page.init(file);
+            root = ptr::shared<elem>();
+            read(data);
         }
         template<bool WithTemplate = faux>
         auto take(view path)
         {
-            auto name = root && root->name ? root->name->utf8 : text{};
-            path = utf::trim(path, '/');
-            if (path.empty()
-             || path == name)
-            {
-                return vect{ root };
-            }
+            if (!root) return vect{};
             else
             {
-                auto temp = utf::cutoff(path, '/');
-                if (name == temp)
-                {
-                    return root->list<WithTemplate>(path.substr(temp.size()));
-                }
+                path = utf::trim(path, '/');
+                if (path.empty()) return vect{ root };
+                else              return root->list<WithTemplate>(path);
             }
-            return vect{};
         }
-        auto join(view path, vect const& list, bool rewrite = faux)
+        auto join(view path, vect const& list)
         {
             path = utf::trim(path, '/');
-            auto parent_path = utf::cutoff(path, '/', faux);
-            auto branch_path = utf::remain(path, '/', faux);
+            auto slash_pos = path.rfind('/', path.size());
+            auto parent_path = path.substr(0, slash_pos);
+            auto branch_path = slash_pos != text::npos ? path.substr(slash_pos + sizeof('/')) : view{};
             auto dest_host = take(parent_path);
             if (dest_host.size())
             {
                 auto parent = dest_host.front();
+                if (parent->mode == elem::form::pact)
+                {
+                    log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, parent_path);
+                    return;
+                }
                 auto& hive = parent->hive;
                 auto iter = hive.find(qiew{ branch_path });
                 if (iter == hive.end())
@@ -651,14 +663,14 @@ namespace netxs::xml
                     iter = hive.emplace(branch_path , vect{}).first;
                 }
                 auto& dest = iter->second;
-                if (rewrite) dest.clear();
-                for (auto& item : list)
+                for (auto& item : list) if (item && item->name->utf8 == branch_path)
                 {
+                    //todo unify
+                    if (item->base) dest.clear();
                     auto mode = item->mode;
                     auto from = item->from;
                     auto upto = item->upto;
                     auto next = upto->next;
-                    if (parent->mode != elem::form::pact)
                     if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
                     if (auto prev = gate->prev.lock())
                     if (auto past = from->prev.lock())
@@ -676,6 +688,89 @@ namespace netxs::xml
                 }
             }
             else log("%%Destination path not found '%parent_path%'", prompt::xml, parent_path);
+        }
+        // xml: Attach the node list to the specified path.
+        void attach(view mount_point, vect const& sub_list)
+        {
+            auto dest_list = take(mount_point);
+            if (dest_list.size())
+            {
+                auto& parent = dest_list.front();
+                if (parent->mode == elem::form::pact)
+                {
+                    log("%%Destination path is not suitable for merging '%parent_path%'", prompt::xml, mount_point);
+                    return;
+                }
+                auto& parent_hive = parent->hive;
+                auto connect = [&](auto& subnode_name)
+                {
+                    auto iter = parent_hive.find(subnode_name);
+                    if (iter == parent_hive.end()) iter = parent_hive.emplace(subnode_name, vect{}).first;
+                    return iter;
+                };
+                auto iter = connect(sub_list.front()->name->utf8);
+                for (auto& item : sub_list)
+                {
+                    auto& current_node_name = iter->first;
+                    auto& subnode_name = sub_list.front()->name->utf8;
+                    if (current_node_name != subnode_name) // The case when the list is heterogeneous.
+                    {
+                        iter = connect(subnode_name);
+                    }
+                    //todo unify
+                    auto& dest = iter->second;
+                    if (item->base) dest.clear();
+                    auto mode = item->mode;
+                    auto from = item->from;
+                    auto upto = item->upto;
+                    auto next = upto->next;
+                    if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
+                    if (auto prev = gate->prev.lock())
+                    if (auto past = from->prev.lock())
+                    {
+                        from->prev = prev;
+                        upto->next = gate;
+                        gate->prev = upto;
+                        prev->next = from;
+                        past->next = next;  // Release an element from the previous list.
+                        if (next) next->prev = past;
+                        dest.push_back(item);
+                        continue;
+                    }
+                    log("%%Unexpected format for item '%mount_point%%node%'", prompt::xml, mount_point, item->name->utf8);
+                }
+            }
+            else log("%%Destination path not found '%mount_point%'", prompt::xml, mount_point);
+        }
+        void overlay(sptr node_ptr, text path)
+        {
+            auto& node = *node_ptr;
+            auto& name = node.name->utf8;
+            path += "/" + name;
+            auto dest_list = take<true>(path);
+            auto is_dest_list = (dest_list.size() && dest_list.front()->fake) || dest_list.size() > 1;
+            if (is_dest_list || dest_list.empty())
+            {
+                join(path, { node_ptr });
+            }
+            else
+            {
+                auto& dest = dest_list.front();
+                dest->sync_value(node);
+                for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
+                {
+                    auto count = sub_list.size();
+                    if (count == 1 && sub_list.front()->fake == faux)
+                    {
+                        overlay(sub_list.front(), path);
+                    }
+                    else if (count) // It is a list.
+                    {
+                        join(path + "/" + sub_name, sub_list);
+                    }
+                    else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
+                }
+            }
         }
 
     private:
@@ -716,14 +811,13 @@ namespace netxs::xml
         {
             last = what;
             if (data.empty()) what = type::eof;
+            else if (data.starts_with(view_comment_begin)) what = type::comment_begin;
             else if (last == type::na)
             {
-                if (!data.starts_with(view_comment_begin)
-                 && !data.starts_with(view_close_tag    )
+                if (!data.starts_with(view_close_tag    )
                  &&  data.starts_with(view_begin_tag    )) what = type::begin_tag;
                 else return;
             }
-            else if (data.starts_with(view_comment_begin)) what = type::comment_begin;
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
             else if (data.starts_with(view_empty_tag    )) what = type::empty_tag;
@@ -749,11 +843,9 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = utf::take_front(data, token_delims).str();
-            utf::to_low(item);
-            return item;
+            return utf::take_front(data, token_delims).str();
         }
-        auto body(view& data, type kind = type::tag_value)
+        auto body(view& data, type kind = type::tag_value) -> frag
         {
             auto item_ptr = frag{};
             if (data.size())
@@ -892,26 +984,149 @@ namespace netxs::xml
             data.remove_prefix(size);
             return true;
         }
-        void read(sptr& item, view& data, si32 deep = {})
+        void push(sptr& item, sptr& next, auto& defs)
         {
-            auto what = type::na;
-            auto last = type::na;
-            auto defs = std::unordered_map<text, wptr>{};
-            auto fire = faux;
-            auto push = [&](sptr& next)
+            auto& sub_name = next->name->utf8;
+            if (next->fake) defs[sub_name] = next;
+            else
             {
-                auto& sub_name = next->name->utf8;
-                if (next->fake) defs[sub_name] = next;
-                else
+                auto iter = defs.find(sub_name);
+                if (iter != defs.end())
                 {
-                    auto iter = defs.find(sub_name);
-                    if (iter != defs.end())
+                    next->defs = iter->second;
+                }
+            }
+            item->hive[sub_name].push_back(next);
+        }
+        void read_subsections(sptr& item, view& data, type& what, type& last, si32& deep, auto& defs)
+        {
+            do
+            {
+                auto temp = data;
+                utf::trim_front(temp, whitespaces);
+                peek(temp, what, last);
+                do
+                {
+                    if (what == type::quoted_text)
                     {
-                        next->defs = iter->second;
+                        diff(temp, data, type::quoted_text);
+                        data = temp;
+                        item->body.push_back(body(data));
+                        trim(data);
+                        temp = data;
+                    }
+                    else if (what == type::raw_text)
+                    {
+                        auto size = data.find('<');
+                        if (size == view::npos)
+                        {
+                            item->body.push_back(page.append(type::unknown, data));
+                            data = {};
+                            last = what;
+                            what = type::eof;
+                            break;
+                        }
+                        item->body.push_back(page.append(type::raw_text, data.substr(0, size)));
+                        data.remove_prefix(size);
+                        temp = data;
+                    }
+                    else if (what == type::begin_tag && deep < 30)
+                    {
+                        trim(data);
+                        data = temp;
+                        auto next = ptr::shared<elem>();
+                        read_node(next, data, deep + 1);
+                        push(item, next, defs);
+                        temp = data;
+                        utf::trim_front(temp, whitespaces);
+                    }
+                    else if (what == type::comment_begin) // Proceed '<!--'.
+                    {
+                        auto size = data.find(view_comment_close);
+                        if (size == view::npos)
+                        {
+                            page.append(type::unknown, data);
+                            data = {};
+                            last = what;
+                            what = type::eof;
+                            break;
+                        }
+                        size += view_comment_close.size();
+                        page.append(type::comment_begin, data.substr(0, size));
+                        data.remove_prefix(size);
+                        temp = data;
+                        utf::trim_front(temp, whitespaces);
+                    }
+                    else if (what != type::close_tag && what != type::eof)
+                    {
+                        fail(last, what);
+                        skip(temp, what);
+                        diff(temp, data, type::unknown);
+                        data = temp;
+                    }
+                    peek(temp, what, last);
+                }
+                while (what != type::close_tag && what != type::eof);
+                if (what == type::close_tag) // Proceed '</token>'.
+                {
+                    auto skip_frag = skip(temp, what);
+                    auto trim_frag = utf::trim_front(temp, whitespaces);
+                    peek(temp, what, last);
+                    if (what == type::token)
+                    {
+                        auto object = name(temp);
+                        auto spaced = trim(data);
+                        if (object == item->name->utf8)
+                        {
+                            item->insB = spaced ? page.back
+                                                : page.append(type::spaces);
+                            page.append(                      type::close_tag, skip_frag);
+                            if (trim_frag.size()) page.append(type::spaces,    trim_frag);
+                            page.append(                      type::end_token, item->name->utf8);
+                            data = temp;
+                            auto tail = data.find('>');
+                            if (tail != view::npos) data.remove_prefix(tail + 1);
+                            else                    data = {};
+                            diff(data, temp, type::close_tag);
+                            break;
+                        }
+                        else
+                        {
+                            what = type::unknown;
+                            page.append(                      what, skip_frag);
+                            if (trim_frag.size()) page.append(what, trim_frag);
+                            page.append(                      what, object);
+                            data = temp;
+                            auto tail = data.find('>');
+                            if (tail != view::npos) data.remove_prefix(tail + 1);
+                            else                    data = {};
+                            diff(data, temp, what);
+                            fail(ansi::add("Unexpected closing tag name '", object, "', expected: '", item->name->utf8, "'"));
+                            continue; // Repeat until eof or success.
+                        }
+                    }
+                    else
+                    {
+                        diff(temp, data, type::unknown);
+                        data = temp;
+                        fail(last, what);
+                        continue; // Repeat until eof or success.
                     }
                 }
-                item->hive[sub_name].push_back(next);
-            };
+                else if (what == type::eof)
+                {
+                    trim(data);
+                    if (page.back->kind == type::eof) fail("Unexpected {EOF}");
+                }
+            }
+            while (data.size());
+        }
+        void read_node(sptr& item, view& data, si32 deep = {})
+        {
+            auto defs = std::unordered_map<text, wptr>{};
+            auto what = type::na;
+            auto last = type::na;
+            auto fire = faux;
             trim(data);
             open(item);
             peek(data, what, last);
@@ -949,7 +1164,7 @@ namespace netxs::xml
                             pair(next, data, what, last, type::token);
                             if (last == type::defaults) next->base = true; // Inlined list resetter.
                             seal(next);
-                            push(next);
+                            push(item, next, defs);
                             trim(data);
                             peek(data, what, last);
                         }
@@ -985,129 +1200,7 @@ namespace netxs::xml
                         item->insA = last == type::spaces ? page.back
                                                           : page.append(type::spaces);
                         page.append(type::close_inline, skip(data, what));
-                        do
-                        {
-                            temp = data;
-                            utf::trim_front(temp, whitespaces);
-                            peek(temp, what, last);
-                            do
-                            {
-                                if (what == type::quoted_text)
-                                {
-                                    diff(temp, data, type::quoted_text);
-                                    data = temp;
-                                    item->body.push_back(body(data));
-                                    trim(data);
-                                    temp = data;
-                                }
-                                else if (what == type::raw_text)
-                                {
-                                    auto size = data.find('<');
-                                    if (size == view::npos)
-                                    {
-                                        item->body.push_back(page.append(type::unknown, data));
-                                        data = {};
-                                        last = what;
-                                        what = type::eof;
-                                        break;
-                                    }
-                                    item->body.push_back(page.append(type::raw_text, data.substr(0, size)));
-                                    data.remove_prefix(size);
-                                    temp = data;
-                                }
-                                else if (what == type::begin_tag && deep < 30)
-                                {
-                                    trim(data);
-                                    data = temp;
-                                    auto next = ptr::shared<elem>();
-                                    read(next, data, deep + 1);
-                                    push(next);
-                                    temp = data;
-                                    utf::trim_front(temp, whitespaces);
-                                }
-                                else if (what == type::comment_begin) // Proceed '<!--'.
-                                {
-                                    auto size = data.find(view_comment_close);
-                                    if (size == view::npos)
-                                    {
-                                        page.append(type::unknown, data);
-                                        data = {};
-                                        last = what;
-                                        what = type::eof;
-                                        break;
-                                    }
-                                    size += view_comment_close.size();
-                                    page.append(type::comment_begin, data.substr(0, size));
-                                    data.remove_prefix(size);
-
-                                    temp = data;
-                                    utf::trim_front(temp, whitespaces);
-                                }
-                                else if (what != type::close_tag
-                                      && what != type::eof)
-                                {
-                                    fail(last, what);
-                                    skip(temp, what);
-                                    diff(temp, data, type::unknown);
-                                    data = temp;
-                                }
-                                peek(temp, what, last);
-                            }
-                            while (what != type::close_tag
-                                && what != type::eof);
-                            if (what == type::close_tag) // Proceed '</token>'.
-                            {
-                                auto skip_frag = skip(temp, what);
-                                auto trim_frag = utf::trim_front(temp, whitespaces);
-                                peek(temp, what, last);
-                                if (what == type::token)
-                                {
-                                    auto object = name(temp);
-                                    auto spaced = trim(data);
-                                    if (object == item->name->utf8)
-                                    {
-                                        item->insB = spaced ? page.back
-                                                            : page.append(type::spaces);
-                                        page.append(                      type::close_tag, skip_frag);
-                                        if (trim_frag.size()) page.append(type::spaces,    trim_frag);
-                                        page.append(                      type::end_token, item->name->utf8);
-                                        data = temp;
-                                        auto tail = data.find('>');
-                                        if (tail != view::npos) data.remove_prefix(tail + 1);
-                                        else                    data = {};
-                                        diff(data, temp, type::close_tag);
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        what = type::unknown;
-                                        page.append(                      what, skip_frag);
-                                        if (trim_frag.size()) page.append(what, trim_frag);
-                                        page.append(                      what, object);
-                                        data = temp;
-                                        auto tail = data.find('>');
-                                        if (tail != view::npos) data.remove_prefix(tail + 1);
-                                        else                    data = {};
-                                        diff(data, temp, what);
-                                        fail(ansi::add("Unexpected closing tag name '", object, "', expected: '", item->name->utf8, "'"));
-                                        continue; // Repeat until eof or success.
-                                    }
-                                }
-                                else
-                                {
-                                    diff(temp, data, type::unknown);
-                                    data = temp;
-                                    fail(last, what);
-                                    continue; // Repeat until eof or success.
-                                }
-                            }
-                            else if (what == type::eof)
-                            {
-                                trim(data);
-                                if (page.back->kind == type::eof) fail("Unexpected {EOF}");
-                            }
-                        }
-                        while (data.size());
+                        read_subsections(item, data, what, last, deep, defs);
                     }
                     else fire = true;
                 }
@@ -1139,22 +1232,17 @@ namespace netxs::xml
         }
         void read(view& data)
         {
-            auto temp = data;
+            auto defs = std::unordered_map<text, wptr>{};
             auto what = type::na;
             auto last = type::na;
-            auto idle = utf::trim_front(temp, whitespaces);
-            peek(temp, what, last);
-            while (what != type::begin_tag && what != type::eof) // Skip all non-xml data.
-            {
-                if (what == type::na) fail(last, type::raw_text);
-                else                  fail(last, what);
-                page.append(type::unknown, idle);
-                page.append(type::unknown, skip(temp, what));
-                data = temp;
-                idle = utf::trim_front(temp, whitespaces);
-                peek(temp, what, last);
-            }
-            read(root, data);
+            auto deep = 0;
+            open(root);
+            root->mode = elem::form::node;
+            root->name = page.append(type::na);
+            root->insB = page.append(type::spaces);
+            read_subsections(root, data, what, last, deep, defs);
+            seal(root);
+            if (page.fail) log("%%Inconsistent xml data from %file%:\n%config%\n", prompt::xml, page.file.empty() ? "memory"sv : page.file, page.show());
         }
     };
 
@@ -1177,6 +1265,12 @@ namespace netxs::xml
         settings(settings const&) = default;
         settings(view utf8_xml)
             : document{ ptr::shared<xml::document>(utf8_xml, "") }
+        {
+            homepath = "/";
+            homelist = document->take(homepath);
+        }
+        settings(xml::document& d)
+            : document{ ptr::shared<xml::document>(std::move(d)) }
         {
             homepath = "/";
             homelist = document->take(homepath);
@@ -1331,58 +1425,17 @@ namespace netxs::xml
         template<bool Print = faux>
         auto fuse(view utf8_xml, view filepath = {})
         {
-            if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
+            if (filepath.size()) document->page.file = filepath;
             homepath.clear();
             homelist.clear();
-            auto run_config = xml::document{ utf8_xml, filepath };
+            auto tmp_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
-                log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, run_config.page.show());
+                log("%%Settings from %file%:\n%config%", prompt::xml, filepath.empty() ? "memory"sv : filepath, tmp_config.page.show());
             }
-            auto proc = [&](auto node_ptr, auto path, auto proc) -> void
-            {
-                auto& node = *node_ptr;
-                auto& name = node.name->utf8;
-                path += "/" + name;
-                auto dest_list = list<true>(path);
-                auto is_dest_list = (dest_list.size() && dest_list.front()->fake)
-                                  || dest_list.size() > 1;
-                if (is_dest_list)
-                {
-                    document->join(path, { node_ptr });
-                }
-                else
-                {
-                    if (dest_list.size())
-                    {
-                        auto& dest = dest_list.front();
-                        dest->sync_value(node);
-                        for (auto& [sub_name, sub_list] : node.hive) // Proceed subelements.
-                        {
-                            auto count = sub_list.size();
-                            if (count == 1 && sub_list.front()->fake == faux)
-                            {
-                                proc(sub_list.front(), path, proc);
-                            }
-                            else if (count) // It is a list.
-                            {
-                                //todo Clang 13.0.0 don't get it.
-                                //auto rewrite = sub_list.end() != std::ranges::find_if(sub_list, [](auto& a){ return a->base; });
-                                auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
-                                document->join(path + "/" + sub_name, sub_list, rewrite);
-                            }
-                            else log("%%Unexpected tag without data: %tag%", prompt::xml, sub_name);
-                        }
-                    }
-                    else
-                    {
-                        document->join(path, { node_ptr });
-                    }
-                }
-            };
             auto path = text{};
-            proc(run_config.root, path, proc);
+            document->overlay(tmp_config.root, path);
             homepath = "/";
             homelist = document->take(homepath);
         }

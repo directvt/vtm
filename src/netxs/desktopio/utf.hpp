@@ -1087,40 +1087,6 @@ namespace netxs::utf
         replace_all(crop, from, to);
         return crop;
     }
-    template<class TextOrView, class T>
-    auto remain(TextOrView&& utf8, T const& delimiter, bool lazy = true)
-    {
-        auto crop = std::remove_cvref_t<TextOrView>{};
-        auto what = view{ delimiter };
-        auto coor = lazy ? utf8.find(what) : utf8.rfind(what);
-        if (coor != text::npos)
-        {
-            crop = utf8.substr(coor + what.size(), text::npos);
-        }
-        return crop;
-    }
-    template<class TextOrView>
-    auto remain(TextOrView&& utf8, char delimiter = '.', bool lazy = true)
-    {
-        auto what = view{ &delimiter, 1 };
-        return remain(std::forward<TextOrView>(utf8), what, lazy);
-    }
-    // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
-    template<class T>
-    T cutoff(T const& txt, T const& delimiter = T{ '.' }, bool lazy = true, size_t skip = 0)
-    {
-        return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
-    }
-    template<class T>
-    T cutoff(T const& txt, char delimiter, bool lazy = true, size_t skip = 0)
-    {
-        return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
-    }
-    template<class T>
-    T domain(T const& txt)
-    {
-        return remain(txt);
-    }
     template<class TextOrView, class F>
     auto adjust(TextOrView&& utf8, size_t required_width, F const& fill_char, bool right_aligned = faux)
     {
