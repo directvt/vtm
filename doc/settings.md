@@ -59,16 +59,16 @@ The file list is built in the following order from the following sources:
 ### Key differences from the standard XML
 
  - All stored values are UTF-8 strings:
-   - `name=2000` and `name="2000"` has the same meaning.
+   - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
-   - `<name param=value />` and `<name> <param=value /> </name>` has the same meaning.
+   - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
  - In addition to a set of sub-objects each object can contain its own text value:
    - E.g. `<name=names_value param=params_value />`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
-   - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
+   - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
-   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` has the same meaning.
+   - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
  - Escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
