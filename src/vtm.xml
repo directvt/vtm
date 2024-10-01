@@ -84,7 +84,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
+    <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
         <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
         <reddk             = 0xFFc40f1f />
         <greendk           = 0xFF12a10e />

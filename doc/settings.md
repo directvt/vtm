@@ -200,20 +200,44 @@ The following declarations have the same meaning:
 <config/document/thing="thing_value" name="name_value"/>
 ```
 
-### Configuration structure
+### Vtm configuration structure
 
-Top-level element `<config>` contains the following base elements:
-  - Single `<menu>` block - taskbar menu configuration which contains:
-    - Set of `<item>` elements - a list of menu items.
-    - Single `<autorun>` block - a list of items to run at the environment startup.
+```xml
+<file= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
+...
+<config>  <!-- Global configuration. -->
+    <set>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
+        <variable.name = value/>  <!-- Globally referenced variable declaration. -->
+        ...  <!-- Set of global variables. -->
+    </set>
+    <desktop>  <!-- Desktop client settings. -->
+        <taskbar ... >  <!-- Taskbar menu settings. -->
+            ...  <!-- Set of additional taskbar settings. -->
+            <item ... >  <!-- Taskbar menu item definition. -->
+                ...  <!-- Additional application settings. -->
+            </item>
+            ...  <!-- Set of taskbar menu items. -->
+        </taskbar>
+        ...  <!-- Set of additional desktop settings. -->
+    </desktop>
+    <term ... >  <!-- Built-in terminal configuration section. -->
+    ...
+    </term>
+</config>
+```
 
-#### Application configuration
+#### Value literals `attribute=literal`
 
-The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
+All value literals containing spaces must be enclosed in double or single quotes.
 
-The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
+Value type | Format
+-----------|-----------------
+`RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
+`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
+`string`   | _UTF-8 text string_
+`x;y`      | _integer_ <any_delimeter> _integer_
 
-#### Taskbar menu item attributes
+#### Taskbar menu item configuration `<config/desktop/taskbar/item ... />`
 
 Attribute  | Description                                       | Value type | Default value
 -----------|---------------------------------------------------|------------|---------------
@@ -233,18 +257,11 @@ Attribute  | Description                                       | Value type | De
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
-#### Value literals
+The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection or a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
-All value literals containing spaces must be enclosed in double or single quotes.
+The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
-Value type | Format
------------|-----------------
-`RGBA`     | Hex: `#rrggbbaa` \| Hex: `0xaarrggbb` \| Decimal: `r,g,b,a` \| 256-color index: `i`
-`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off` \| `undef`
-`string`   | _UTF-8 text string_
-`x;y`      | _integer_ <any_delimeter> _integer_
-
-#### Desktop windows
+#### Desktop window type `<config/desktop/taskbar/item type=... />`
 
 Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
@@ -262,9 +279,9 @@ The following configuration items produce the same final result:
 <item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
-### DirectVT configuration payload from the parent process
+### DirectVT configuration payload received from the parent process
 
-The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the child dtvt-aware application on launch.  
+The value of the `cfg` menu item attribute (or a whole `<config>` subsection) will be passed to the child dtvt-aware application on launch.  
 
 - `settings.xml`:
   ```xml
@@ -272,7 +289,7 @@ The value of the `cfg` menu item attribute (or `<config>` subsection) will be pa
     <desktop>
       <taskbar>
         ...
-        <item ... title="DirectVT-aware Application" type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
+        <item ... title="DirectVT-aware Application" type=dtvt ... cfg="plain xml data as alternative to <config> subsection" cmd="dtvt_app...">
           <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
             ...
           </config>
@@ -286,9 +303,9 @@ The value of the `cfg` menu item attribute (or `<config>` subsection) will be pa
 ### Configuration example
 
 Note: The following configuration sections are not implemented yet:
-- config/.../hotkeys
+- `<config/.../hotkeys/>`
 
-#### Minimal config
+#### Minimal configuration
 
 `~/.config/vtm/settings.xml`:
 ```xml
@@ -307,8 +324,11 @@ Notes
 - Hardcoded settings can be found in the source file [/src/vtm.xml](../src/vtm.xml).
 - The `$0` tag will be expanded to the fully qualified current module filename at runtime.
 
-`~/.config/vtm/settings.xml`:
+`$VTM-CONFIG=/path/to/settings.xml`.
+`settings.xml`:
 ```xml
+<file*/>  <!-- Clear previously defined sources. Start a new list. -->
+<file="/path/to/override_defaults.xml"/>  <!-- Reference to the base configuration. -->
 <config>
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
