@@ -1,68 +1,60 @@
 # Text-based Desktop Environment settings
 
 ```mermaid
-graph LR
+graph TB
     subgraph Settings loading order
     direction LR
-        B("Init hardcoded
-        settings")
-        B --> C["--config ‹file›
-        specified?"]
-        C -->|Yes| D["Overlay the settings from the ‹file›"]
-        C --->|No| F["Overlay global settings"]
-        F --> G["Overlay user wise settings"]
-        D ---> H["Overlay the settings received
-        from the DirectVT Gateway"]
-        G --> H
-        H --> O[Overlay
-        plain xml-data]
+        A1["1"] --- B1("Init hardcoded &lt;file=.../&gt; list")
+        B1 --> C1("Take &lt;file=.../&gt; list from the $VTM_CONFIG value or file it referencing")
+        C1 --> G1("Take &lt;file=.../&gt; list from the received DirectVT packet")
+        G1 --> H1("Take &lt;file=.../&gt; list from the --config' CLI option value or file it referencing")
+    direction LR
+        A2["2"] --- B2("Overlay &lt;config/&gt; subsections from the resultant &lt;file=.../&gt; list")
+        B2 --> C2("Overlay &lt;config/&gt; subsection from the $VTM_CONFIG value or file it referencing")
+        C2 --> G2("Overlay &lt;config/&gt; subsection from the received DirectVT packet")
+        G2 --> H2("Overlay &lt;config/&gt; subsection from the --config' CLI option value or file it referencing")
     end
 ```
 
-- Hardcoded settings
-  - See [/src/vtm.xml](../src/vtm.xml) for reference.
-- `--config <file>` CLI option
-  - `<file>`: Path to the configuration file.  
-    `command line`:
-    ```bash
-    vtm -c "/path/to/settings.xml" -r term
-    ```
-- Global settings
-  - on POSIX: `/etc/vtm/settings.xml`
-  - on Windows: `%programdata%/vtm/settings.xml`
-- User wise settings
-  - on POSIX: `~/.config/vtm/settings.xml`
-  - on Windows: `%userprofile%/.config/vtm/settings.xml`
-- DirectVT packet with configuration payload
-  - The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the dtvt-aware application on launch.  
-    `settings.xml`:
-    ```xml
-        ...
-        <taskbar>
-            ...
-            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
-                <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
-                    ...
-                </config>
-            </item>
-            ...
-        </taskbar>
-        ...
-    ```
-- The plain xml-data could be specified in place of `<file>` in `--config <file>` option:  
-  `command line`:
-  ```bash
-  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
-  ```
-  or (using compact syntax)  
-  `command line`:
-  ```bash
-  vtm -c "<config/term/scrollback size=1000000/>" -r term
-  ```
+## TL;DR
 
-## Configuration body format (settings.xml)
+The settings are stored in a slightly modified XML-like format which allows to store hierarchical list of key=value pairs.
 
-Configuration body format is a slightly modified XML-format which allows to store hierarchical list of key=value pairs.
+There are two default settings locations that can be overridden:
+```xml
+<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+```
+
+The process of loading settings consists of the following steps:
+- Build an ordered list of source files by looking for the root `<file=.../>` subsections.
+- Overlay the `<config/>` subsection from the source files in the loading order.
+- Overlay the `<config/>` subsection from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
+- Overlay the `<config/>` subsection from the DirectVT config received from the parent process.
+- Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
+
+The file list is built in the following order from the following sources:
+- The settings file list from the hardcoded configuration containing a list of two files (see [/src/vtm.xml](../src/vtm.xml) for reference):
+  ```xml
+  <file*/>  <!-- Clear previously defined sources. Start a new list. -->
+  <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+  <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+  ...
+  ```
+- The settings file list from the `$VTM_CONFIG` environment variable value or from a settings file it referencing.
+  - A case with a plain XML-data:
+    - `$VTM_CONFIG=<file*/><file='/path/to/override_defaults.xml'/>...` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml'.
+    - `$VTM_CONFIG=<file='/path/to/first.xml'/><file='/path/to/second.xml'/>...` - Append the current file list with the files '/path/to/first.xml' and '/path/to/second.xml'.
+  - A case with a file reference:
+    - `$VTM_CONFIG='/path/to/override_defaults.xml'` - Take the file list from the '/path/to/override_defaults.xml'.
+- The settings file list from the DirectVT config received from the parent process.
+- The settings file list from the specified `--config <...>` CLI option value or from a settings file it referencing.
+  - A case with a plain XML-data:
+    - `./vtm --config "<file*/><file='/path/to/override_defaults.xml'/>..."` - Clear the current file list and begin a new file list containing a single file '/path/to/override_defaults.xml/'.
+  - A case with a file reference:
+    - `./vtm --config "/path/to/override_defaults.xml"` - Take the file list from the '/path/to/override_defaults.xml'.
+
+## Details
 
 ### Key differences from the standard XML
 
@@ -84,7 +76,7 @@ Configuration body format is a slightly modified XML-format which allows to stor
    - `\r`  ASCII 0x0D CF
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
-   - `$0`  Current module full path
+   - `$0`  Current module full path (it only expands in cases where it makes sense)
 
 Let's take the following object hierarchy as an example:
 
@@ -233,7 +225,7 @@ Attribute  | Description                                       | Value type | De
 `title`    |  App window title                                 | `string`   | empty
 `footer`   |  App window footer                                | `string`   | empty
 `winsize`  |  App window size                                  | `x;y`      |
-`winform`  |  App window state                                 | `normal` \| `maximized` \| `minimized` | `normal`
+`winform`  |  App window state                                 | `undefined` \| `normal` \| `maximized` \| `minimized` |
 `type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
@@ -269,6 +261,27 @@ The following configuration items produce the same final result:
 <item ... type=vtty cmd=mc/>
 <item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
+
+### DirectVT configuration payload from the parent process
+
+The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the child dtvt-aware application on launch.  
+
+- `settings.xml`:
+  ```xml
+    ...
+    <desktop>
+      <taskbar>
+        ...
+        <item ... title="DirectVT-aware Application" type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
+          <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
+            ...
+          </config>
+        </item>
+        ...
+      </taskbar>
+    </desktop>
+    ...
+  ```
 
 ### Configuration example
 
