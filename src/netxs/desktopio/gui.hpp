@@ -701,9 +701,10 @@ namespace netxs::gui
             };
             for (auto& f : fallback) if ((f.color || f.fixed) && hittest(f.fontface[0].faceinst)) return f;
             for (auto& f : fallback) if ((!f.color && !f.fixed) && hittest(f.fontface[0].faceinst)) return f;
+            static auto empty_font = typeface{};
+            //todo enqueue font fallback lookup and return empty_font;
             if (index_ready <= 0) // Font index is not ready yet.
             {
-                static auto empty_font = typeface{};
                 if constexpr (debugmode) log("%%Font fallback index is not ready yet", prompt::gui);
                 index_ready--;
                 return empty_font;
@@ -741,7 +742,7 @@ namespace netxs::gui
                 if ((fontstat[i].s & fontcat::valid) && try_font(fontstat[i].i, faux)) return fallback.back();
             }
             log("%%No fonts found in the system", prompt::gui);
-            return fallback.emplace_back(); // Should never happen.
+            return empty_font; // Should never happen.
         }
 
         ~fonts()
@@ -884,7 +885,7 @@ namespace netxs::gui
         };
 
         shaper fontshaper{ *this };
-        fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/)
+        fonts(std::list<text>& /*family_names*/, si32 /*cell_height*/, auto ...)
         { }
         auto& take_font(utfx /*base_char*/)
         {

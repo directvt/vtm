@@ -1109,7 +1109,7 @@ namespace netxs::ui
               debug{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
-              direct{ props.vtmode == svga::dtvt },
+              direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               local{ true },
               yield{ faux },
               fullscreen{ faux }
