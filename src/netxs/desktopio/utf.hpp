@@ -1663,7 +1663,7 @@ namespace netxs::utf
                         auto shadow = qiew{ next, tail };
                         if (auto v = to_int<si32, 16>(shadow))
                         if (auto codepoint = v.value(); codepoint >= 0 && codepoint <= 0x10FFFF)
-                        if (!quoted || shadow.size() && shadow.pop_front() == '}')
+                        if (!quoted || (shadow.size() && shadow.pop_front() == '}'))
                         {
                             _to_utf(iter, codepoint); // This expansion cannot cause overflow.
                             head = tail - shadow.size();
