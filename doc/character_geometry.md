@@ -55,6 +55,44 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
 - Screenshot:  
   ![image](https://github.com/user-attachments/assets/5c6d0e5c-ba36-4602-a626-95f64042c67f)
 
+### Helper functions
+
+Example functions for converting between modifier codepoints and character matrix parameter tuples `wh_xy`.
+
+```c++
+struct wh_xy
+{
+    int w, h, x, y;
+};
+static int p(int n) { return n * (n + 1) / 2; }
+const int kx = 8; // Max width of the character matrix.
+const int ky = 4; // Max height of the character matrix.
+const int mx = p(kx + 1); // Lookup table boundaries.
+const int my = p(ky + 1); //
+const int unicode_block = 0xD0000; // Unicode codepoint block for geometry modifiers.
+
+// Returns the modifier codepoint value for the specified tuple w, h, x, y.
+static int modifier(int w, int h, int x, int y) { return unicode_block + p(w) + x + (p(h) + y) * mx; };
+
+// Returns a tuple w, h, x, y for the specified codepoint modifier using a static lookup table.
+static wh_xy matrix(int codepoint)
+{
+    static auto lut = []
+    {
+        auto v = std::vector(mx * my, wh_xy{});
+        for (auto w = 1; w <= kx; w++)
+        for (auto h = 1; h <= ky; h++)
+        for (auto y = 0; y <= h; y++)
+        for (auto x = 0; x <= w; x++)
+        {
+            v[p(w) + x + (p(h) + y) * mx] = wh_xy{ w, h, x, y };
+        }
+        return v;
+    }();
+    return lut[codepoint - unicode_block];
+}
+```
+
 ## Grapheme cluster boundaries
 
 By default, grapheme clustering occurs according to `Unicode UAX #29` https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules.
