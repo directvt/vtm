@@ -1856,8 +1856,9 @@ namespace netxs::os
                 utf::split(subset, '\0', [&](qiew rec)
                 {
                     if (rec.empty()) return;
-                    auto var = rec.substr(0, rec.find('=', 1)); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
-                    auto val = rec.substr(var.size() + 1/*=*/);
+                    auto pos = rec.find('=', 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
+                    auto var = rec.substr(0, pos);
+                    auto val = rec.substr(pos + 1/*=*/);
                     env_map[var] = val;
                 });
             };
@@ -1898,6 +1899,15 @@ namespace netxs::os
                 auto val = value.str();
                 ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv()", os::unexpected);
             #endif
+        }
+        // os::env: Set envvar value.
+        auto set(qiew variable_value)
+        {
+            if (variable_value.size() < 2) return;
+            auto pos = variable_value.find('=', 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
+            auto var = variable_value.substr(0, pos);
+            auto val = variable_value.substr(pos + 1/*=*/);
+            set(var, val);
         }
         // os::env: Unset envvar.
         auto unset(qiew variable)
@@ -1972,6 +1982,13 @@ namespace netxs::os
             auto err = std::error_code{};
             auto cwd = std::filesystem::current_path(err).string();
             return cwd;
+        }
+        // os::env: Set current working directory.
+        auto cwd(text path)
+        {
+            auto err = std::error_code{};
+            if (path.size()) fs::current_path(path, err);
+            return !!err;
         }
     }
 
@@ -5872,14 +5889,6 @@ namespace netxs::os
                 inpmode &=~nt::console::inmode::quickedit;
                 ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode()", os::unexpected);
 
-                // Switch to altbuf.
-                auto saved_fd = os::stdout_fd;
-                if (!ok(os::stdout_fd = ::CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr), "::CreateConsoleScreenBuffer()", os::unexpected))
-                {
-                    os::stdout_fd = saved_fd;
-                    saved_fd = os::invalid_fd;
-                }
-                else ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer(", utf::to_hex_0x(os::stdout_fd), ")", os::unexpected);
                 io::send(os::stdout_fd, ansi::altbuf(true).cursor(faux).bpmode(true)); // Windows 10 console compatibility (turning scrollback off, cursor not hidden by WinAPI).
                 auto palette = CONSOLE_SCREEN_BUFFER_INFOEX{ .cbSize = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX), .wAttributes = {} };
                 ok(::GetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::GetConsoleScreenBufferInfoEx()", os::unexpected);
@@ -5891,7 +5900,9 @@ namespace netxs::os
                 if (dtvt::vtmode & ui::console::nt16)
                 {
                     auto c16 = palette;
+                    c16.dwSize = { (si16)dtvt::gridsz.x, (si16)dtvt::gridsz.y };
                     c16.srWindow = { .Right = (si16)dtvt::gridsz.x, .Bottom = (si16)dtvt::gridsz.y }; // Suppress unexpected scrollbars.
+                    c16.dwCursorPosition = {};
                     argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
@@ -5945,19 +5956,6 @@ namespace netxs::os
                     auto count = DWORD{};
                     ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::gridsz.x * dtvt::gridsz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
-                }
-                if (saved_fd != os::invalid_fd)
-                {
-                    auto s = dtvt::consize();
-                    os::close(os::stdout_fd);
-                    os::stdout_fd = saved_fd;
-                    if (ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected))
-                    {
-                        if (!(dtvt::vtmode & ui::console::nt16) && s != dtvt::consize()) // wt issue GH #16231
-                        {
-                            std::cout << prompt::os << ansi::err("Terminal size is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
-                        }
-                    }
                 }
             #else 
                 io::send(os::stdout_fd, vtend);

@@ -76,6 +76,7 @@ The file list is built in the following order from the following sources:
    - `\r`  ASCII 0x0D CF
    - `\e`  ASCII 0x1B ESC
    - `\\`  ASCII 0x5C Backslash
+   - `\u`  A Unicode escape sequence in the form `\u{XXX}` or `\uXXX`, where `XXX` is the hexadecimal codepoint value.
    - `$0`  Current module full path (it only expands in cases where it makes sense)
 
 Let's take the following object hierarchy as an example:
