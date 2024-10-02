@@ -812,30 +812,38 @@ namespace netxs::utf
     }
     namespace
     {
-        void _to_utf(text& utf8, utfx code)
+        void _to_utf(utfx code, auto push)
         {
             if (code <= 0x007f)
             {
-                utf8.push_back(static_cast<char>(code));
+                push(static_cast<char>(code));
             }
             else if (code <= 0x07ff)
             {
-                utf8.push_back(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
-                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
+                push(static_cast<char>(0x80 | ( code          & 0x3f)));
             }
             else if (code <= 0xffff)
             {
-                utf8.push_back(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
-                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
+                push(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                push(static_cast<char>(0x80 | ( code          & 0x3f)));
             }
             else
             {
-                utf8.push_back(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
-                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
-                utf8.push_back(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-                utf8.push_back(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
+                push(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
+                push(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
+                push(static_cast<char>(0x80 | ( code          & 0x3f)));
             }
+        }
+        void _to_utf(text& utf8, utfx code)
+        {
+            _to_utf(code, [&](char c){ utf8.push_back(c); });
+        }
+        void _to_utf(auto& iter, utfx code)
+        {
+            _to_utf(code, [&](char c){ *iter++ = c; });
         }
     }
     auto to_utf_from_code(utfx code)
@@ -1646,7 +1654,24 @@ namespace netxs::utf
                     case  'n': *iter++ = '\n'  ; break;
                     case  'a': *iter++ = '\a'  ; break;
                     case '\\': *iter++ = '\\'  ; break;
-                    default:   *iter++ = c     ; break;
+                    case  'u': if (head != tail)
+                    {
+                        auto next = head;
+                        auto d = *next;
+                        auto quoted = d == '{';
+                        if (quoted) ++next;
+                        auto shadow = qiew{ next, tail };
+                        if (auto v = to_int<si32, 16>(shadow))
+                        if (auto codepoint = v.value(); codepoint >= 0 && codepoint <= 0x10FFFF)
+                        if (!quoted || shadow.size() && shadow.pop_front() == '}')
+                        {
+                            _to_utf(iter, codepoint); // This expansion cannot cause overflow.
+                            head = tail - shadow.size();
+                            break;
+                        }
+                    }
+                    [[fallthrough]];
+                    default: *iter++ = c; break;
                 }
             }
             else *iter++ = c;

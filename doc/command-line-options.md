@@ -87,6 +87,7 @@ Characters | Expanded to
 `\r`       | ASCII 0x0D CR
 `\e`       | ASCII 0x1B ESC
 `\\`       | ASCII 0x5C Backslash
+`\u`       | A Unicode escape sequence in the form `\u{XXX}` or `\uXXX`, where `XXX` is the hexadecimal codepoint value.
 `$0`       | Current module full path
 
 ### Usage Examples
