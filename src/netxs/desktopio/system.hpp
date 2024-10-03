@@ -2980,7 +2980,7 @@ namespace netxs::os
             #endif
             return true;
         }
-        auto create_reg_keys(auto& file)
+        auto create_reg_keys([[maybe_unused]] auto& file)
         {
             #if defined(_WIN32)
             auto file_exe = utf::to_utf(file.filename().string());
