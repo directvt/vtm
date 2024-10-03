@@ -2967,11 +2967,60 @@ namespace netxs::os
             auto done = remove() || rename();
             return done;
         }
+        auto delete_reg_keys()
+        {
+            auto subtree1 = L"Directory\\shell\\vtm";
+            auto subtree2 = L"Directory\\Background\\shell\\vtm";
+            ::RegDeleteTreeW(HKEY_CLASSES_ROOT, subtree1);
+            ::RegDeleteTreeW(HKEY_CLASSES_ROOT, subtree2);
+            log("The following registry keys have been removed:"
+                "\n    HKEY_CLASSES_ROOT\\%subtree1%"
+                "\n    HKEY_CLASSES_ROOT\\%subtree2%", utf::to_utf(subtree1), utf::to_utf(subtree2));
+            return true;
+        }
+        auto create_reg_keys(auto& file)
+        {
+            auto file_exe = utf::to_utf(file.filename().string());
+            if (file_exe.find(' ') != text::npos)
+            {
+                log("Registry keys were not created: The source binary file name contains spaces.");
+                return true;
+            }
+            auto key_vtm1 = L"Directory\\shell\\vtm";
+            auto key_cmd1 = L"Directory\\shell\\vtm\\command";
+            auto key_vtm2 = L"Directory\\Background\\shell\\vtm";
+            auto key_cmd2 = L"Directory\\Background\\shell\\vtm\\command";
+            auto verb_value = L"Run in vtm"s;
+            auto icon_value = file_exe;
+            auto exec_value = file_exe + L" --cwd \"%v\" --run term";
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_vtm1, nullptr, REG_SZ, verb_value.data(), 2 * ((DWORD)verb_value.size() + 1/*terminating null*/));
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_vtm1, L"Icon", REG_SZ, icon_value.data(), 2 * ((DWORD)icon_value.size() + 1));
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_cmd1, nullptr, REG_SZ, exec_value.data(), 2 * ((DWORD)exec_value.size() + 1));
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_vtm2, nullptr, REG_SZ, verb_value.data(), 2 * ((DWORD)verb_value.size() + 1));
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_vtm2, L"Icon", REG_SZ, icon_value.data(), 2 * ((DWORD)icon_value.size() + 1));
+            ::RegSetKeyValueW(HKEY_CLASSES_ROOT, key_cmd2, nullptr, REG_SZ, exec_value.data(), 2 * ((DWORD)exec_value.size() + 1));
+            auto root_key1 = "HKEY_CLASSES_ROOT\\" + utf::to_utf(key_vtm1);
+            auto root_key2 = "HKEY_CLASSES_ROOT\\" + utf::to_utf(key_vtm2);
+            log("The following registry keys were created:"
+                "\n    %key_vtm1%\\Default=%verb%"
+                "\n    %key_vtm1%\\Icon=%icon%"
+                "\n    %key_cmd1%\\command\\Default=%exec%"
+                "\n    %key_vtm2%\\Default=%verb%"
+                "\n    %key_vtm2%\\Icon=%icon%"
+                "\n    %key_cmd2%\\command\\Default=%exec%",
+                    root_key1, utf::to_utf(verb_value),
+                    root_key1, utf::to_utf(icon_value),
+                    root_key1, utf::to_utf(exec_value),
+                    root_key2, utf::to_utf(verb_value),
+                    root_key2, utf::to_utf(icon_value),
+                    root_key2, utf::to_utf(exec_value));
+            return true;
+        }
         auto uninstall()
         {
             auto file = fs::path{};
             auto dest = fs::path{};
-            auto done = getpaths(file, dest, faux) && removefile(dest);
+            auto done = getpaths(file, dest, faux) && delete_reg_keys() && removefile(dest);
             return done;
         }
         auto install()
@@ -3022,7 +3071,7 @@ namespace netxs::os
                 else log("Failed to copy process image to '%path%'.", dest.string());
                 return done;
             };
-            auto done = getpaths(file, dest) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
+            auto done = getpaths(file, dest) && create_reg_keys(file) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
             return done;
         }
     }
