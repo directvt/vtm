@@ -2969,6 +2969,7 @@ namespace netxs::os
         }
         auto delete_reg_keys()
         {
+            #if defined(_WIN32)
             auto subtree1 = L"Directory\\shell\\vtm";
             auto subtree2 = L"Directory\\Background\\shell\\vtm";
             ::RegDeleteTreeW(HKEY_CLASSES_ROOT, subtree1);
@@ -2976,10 +2977,12 @@ namespace netxs::os
             log("The following registry keys have been removed:"
                 "\n    HKEY_CLASSES_ROOT\\%subtree1%"
                 "\n    HKEY_CLASSES_ROOT\\%subtree2%", utf::to_utf(subtree1), utf::to_utf(subtree2));
+            #endif
             return true;
         }
         auto create_reg_keys(auto& file)
         {
+            #if defined(_WIN32)
             auto file_exe = utf::to_utf(file.filename().string());
             if (file_exe.find(' ') != text::npos)
             {
@@ -3014,6 +3017,7 @@ namespace netxs::os
                     root_key2, utf::to_utf(verb_value),
                     root_key2, utf::to_utf(icon_value),
                     root_key2, utf::to_utf(exec_value));
+            #endif
             return true;
         }
         auto uninstall()
