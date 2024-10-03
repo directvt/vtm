@@ -5117,7 +5117,7 @@ struct impl : consrv
     }
     si32 wait()
     {
-        allout.wait(faux);
+        allout.wait(faux); //todo set timeout or something to avoid deadlocks (far manager deadlocking here)
         auto procstat = sigt{};
         if (::GetExitCodeProcess(prochndl, &procstat) && (procstat == STILL_ACTIVE || procstat == nt::status::control_c_exit))
         {

@@ -1144,20 +1144,23 @@ namespace netxs::utf
     {
         return std::bitset<L>(n).to_string();
     }
-    template<bool UpperCase = faux, class V, class = std::enable_if_t<std::is_integral_v<V>>>
-    auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
+    template<bool UpperCase = faux>
+    auto _to_hex(auto number, size_t width, auto push)
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
+        auto part = width * 4;
+        while (part -= 4)
+        {
+            push(nums[(number >> part) & 0x0f]);
+        }
+    }
+    template<bool UpperCase = faux, class V, class = std::enable_if_t<std::is_integral_v<V>>>
+    auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
+    {
         auto crop = text(width, filler);
         auto head = crop.begin();
-        auto tail = head + width;
-        auto part = -4 + 4*width;
-        while (head != tail)
-        {
-            *head++ = nums[(number >> part) & 0x0f];
-             part  -= 4;
-        }
+        _to_hex<UpperCase>(number, width, [&](char c){ *head++ = c; });
         return crop;
     }
     template<class T, class ...Args>
@@ -1169,15 +1172,14 @@ namespace netxs::utf
     template<bool UpperCase = faux, class T, class = std::enable_if_t<std::is_integral_v<T>>>
     auto to_hex(T number, text& crop, size_t width = sizeof(T) * 2)
     {
-        static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
-                                               : "0123456789abcdef";
-        auto part = -4 + 4 * width;
-        while (width--)
-        {
-            crop.push_back(nums[(number >> part) & 0x0f]);
-            part -= 4;
-        }
+        _to_hex<UpperCase>(number, width, [&](char c){ crop.push_back(c); });
         return crop;
+    }
+    auto to_hex_0x(auto const& n)
+    {
+        auto h = [](auto const& n){ return (flux{} << std::showbase << std::hex << n).str(); };
+        if constexpr (std::is_same_v<wchr, std::decay_t<decltype(n)>>) return h((si32)n);
+        else                                                           return h(n);
     }
     template<bool UpperCase = faux>
     auto buffer_to_hex(view buffer, bool formatted = faux)
@@ -1863,15 +1865,6 @@ namespace netxs::utf
             utf8.replace(spot, what_sz, fill);
             spot += what_sz;
         }
-    }
-    auto to_hex_0x(auto const& n)
-    {
-        auto result = (flux{} << std::showbase << std::hex << n).str();
-        return result;
-    }
-    auto to_hex_0x(wchr n)
-    {
-        return to_hex_0x((int)n);
     }
     auto trunc(view utf8, size_t maxy) // Returns a string trimmed at maxy lines.
     {
