@@ -1920,10 +1920,10 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
-        layer master; // winbase: Layer index for Client.
-        layer blinky; // winbase: Layer index for blinking characters.
-        layer header; // winbase: Layer index for Header.
-        layer footer; // winbase: Layer index for Footer.
+        layer master; // winbase: Layer for Client.
+        layer blinky; // winbase: Layer for blinking characters.
+        layer header; // winbase: Layer for Header.
+        layer footer; // winbase: Layer for Footer.
         fonts fcache; // winbase: Font cache.
         glyph gcache; // winbase: Glyph cache.
         blink blinks; // winbase: Blinking layer state.

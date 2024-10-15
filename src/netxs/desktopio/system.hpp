@@ -2092,7 +2092,7 @@ namespace netxs::os
                         sync(error, mime::textonly);
                         return;
                     }
-                    std::this_thread::yield();
+                    os::sleep(15ms);
                 }
                 if (auto seqno = ::GetClipboardSequenceNumber(); seqno != os::clipboard::sequence)
                 {
