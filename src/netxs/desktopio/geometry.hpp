@@ -323,13 +323,15 @@ namespace netxs
             return *this;
         }
         // rect: Return circumscribed rect.
-        static constexpr rect unite(rect r1, rect r2)
+        static constexpr rect unite(rect r1, rect r2, auto... rn)
         {
             r1.normalize_itself();
             r2.normalize_itself();
             auto tl = std::min(r1.coor, r2.coor);
             auto br = std::max(r1.coor + r1.size, r2.coor + r2.size );
-            return { tl, br - tl};
+            auto ur = rect{ tl, br - tl};
+            if constexpr (sizeof...(rn)) return unite(ur, rn...);
+            else                         return ur;
         }
         // rect: Return true in case of normalized rectangles are overlapped.
         constexpr bool overlap(rect r) const

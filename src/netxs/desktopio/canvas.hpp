@@ -511,11 +511,12 @@ namespace netxs
             }
         }
         // argb: Darken the color.
-        void shadow(byte k = 39)
+        auto shadow(byte k = 39)
         {
             chan.r = chan.r < k ? 0x00 : chan.r - k;
             chan.g = chan.g < k ? 0x00 : chan.g - k;
             chan.b = chan.b < k ? 0x00 : chan.b - k;
+            return *this;
         }
         // argb: Lighten the color.
         void bright(si32 factor = 1)
