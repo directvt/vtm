@@ -448,9 +448,12 @@ int main(int argc, char* argv[])
         signal.reset();
 
         using e2 = ui::e2;
+        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto domain = ui::host::ctor<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();
+        auto settings = config.utf8();
+        config_lock.unlock();
 
         log("%%Session started"
             "\n      user: %userid%"
@@ -500,7 +503,6 @@ int main(int argc, char* argv[])
             }
         }};
 
-        auto settings = config.utf8();
         auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
         auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
         execline(script);

@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.22";
+    static const auto version = "v0.9.99.23";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -606,6 +606,7 @@ namespace netxs::app::shared
         else
         {
             os::dtvt::client = client;
+            auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
             auto winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options);
             auto aliasing = config.take("/config/gui/antialiasing", faux);
             auto blinking = config.take("/config/gui/blinkrate", span{ 400ms });
@@ -621,6 +622,7 @@ namespace netxs::app::shared
                 //todo implement 'fonts/font/file' - font file path/url
                 fontlist.push_back(f->take_value());
             }
+            config_lock.unlock();
             auto connect = [&]
             {
                 auto event_domain = netxs::events::auth{};
@@ -647,9 +649,11 @@ namespace netxs::app::shared
         {
             app::shared::splice(client, config);
         }};
+        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
         auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
+        config_lock.unlock();
         domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
         domain->stop();
         server->shut();
