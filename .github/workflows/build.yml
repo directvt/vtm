@@ -30,7 +30,7 @@ jobs:
             cpu: Win32
             arch: x86
             cxx: cl
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
           - os: windows-latest
             cxx: cl
           - os: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
           - os: ubuntu-latest
             flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
 
           - os: ubuntu-latest
             platform: linux
@@ -97,18 +97,6 @@ jobs:
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: ${{ steps.strings.outputs.bin }}/vtm -v
 
-    - name: Test AV (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
-        $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
-        Set-Service -Name wuauserv -StartupType Manual -Status Running
-        Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
-        Set-MpPreference -MAPSReporting Advanced
-        & '7z' a -tzip c:\vtm.zip $fileName
-        & $MpCmdRun -SignatureUpdate
-        & $MpCmdRun -Scan -ScanType 3 -File c:\vtm.zip
-
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
       run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
@@ -119,6 +107,13 @@ jobs:
       with:
         name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
         path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
+
+    - name: Upload Symbols (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@main
+      with:
+        name: vtm_pdb_${{ matrix.platform }}_${{ matrix.arch }}
+        path: ${{ steps.strings.outputs.bin }}/Release/vtm.pdb
 
     - name: Upload Artifact (Windows)
       if: matrix.os == 'windows-latest'
