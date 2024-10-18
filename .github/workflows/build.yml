@@ -30,7 +30,7 @@ jobs:
             cpu: Win32
             arch: x86
             cxx: cl
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
           - os: windows-latest
             cxx: cl
           - os: ubuntu-latest
