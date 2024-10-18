@@ -1420,8 +1420,10 @@ namespace netxs::ansi
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
                 return utf8;
             };
-            auto y = [&](auto const& cluster){ client->post(cluster); };
-
+            auto y = [&](auto const& cluster)
+            {
+                client->post(cluster);
+            };
             utf::decode(s, y, utf8, client->decsg);
             client->flush();
         }

@@ -599,35 +599,46 @@ namespace netxs::app::shared
             map[app_typename] = builder;
         }
     };
+    struct gui_config_t
+    {
+        si32 winstate{};
+        bool aliasing{};
+        span blinking{};
+        twod wincoord{};
+        twod gridsize{};
+        si32 cellsize{};
+        std::list<text> fontlist;
+    };
 
-    void splice(xipc client, xmls& config)
+    auto get_gui_config(xmls& config)
+    {
+        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options),
+                                        .aliasing = config.take("/config/gui/antialiasing", faux),
+                                        .blinking = config.take("/config/gui/blinkrate", span{ 400ms }),
+                                        .wincoord = config.take("/config/gui/wincoor", dot_mx),
+                                        .gridsize = config.take("/config/gui/gridsize", dot_mx),
+                                        .cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
+        if (gui_config.cellsize == 0) gui_config.cellsize = 20;
+        if (gui_config.gridsize == dot_00) gui_config.gridsize = dot_mx;
+        auto recs = config.list("/config/gui/fonts/font");
+        for (auto& f : recs)
+        {
+            //todo implement 'fonts/font/file' - font file path/url
+            gui_config.fontlist.push_back(f->take_value());
+        }
+        return gui_config;
+    }
+    void splice(xipc client, gui_config_t& gc)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
         else
         {
             os::dtvt::client = client;
-            auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
-            auto winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options);
-            auto aliasing = config.take("/config/gui/antialiasing", faux);
-            auto blinking = config.take("/config/gui/blinkrate", span{ 400ms });
-            auto wincoord = config.take("/config/gui/wincoor", dot_mx);
-            auto gridsize = config.take("/config/gui/gridsize", dot_mx);
-            auto cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256);
-            if (cellsize == 0) cellsize = 20;
-            if (gridsize == dot_00) gridsize = dot_mx;
-            auto fontlist = std::list<text>{};
-            auto recs = config.list("/config/gui/fonts/font");
-            for (auto& f : recs)
-            {
-                //todo implement 'fonts/font/file' - font file path/url
-                fontlist.push_back(f->take_value());
-            }
-            config_lock.unlock();
             auto connect = [&]
             {
                 auto event_domain = netxs::events::auth{};
-                auto window = event_domain.create<gui::window>(event_domain, fontlist, cellsize, aliasing, blinking);
-                window->connect(winstate, wincoord, gridsize);
+                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking);
+                window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)
             {
@@ -645,11 +656,12 @@ namespace netxs::app::shared
     void start(text cmd, text aclass, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
+        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
+        auto gui_config = app::shared::get_gui_config(config);
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
-            app::shared::splice(client, config);
+            app::shared::splice(client, gui_config);
         }};
-        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
         auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);

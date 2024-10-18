@@ -6862,22 +6862,28 @@ namespace netxs::ui
         }
         // term: Proceed terminal input.
         template<bool Forced = faux>
+        auto ondata_direct(view data = {}, bufferbase* target_buffer = {})
+        {
+            auto& console_ptr = target_buffer ? target_buffer : this->target;
+            if (data.size())
+            {
+                if (io_log) log(prompt::cout, "\n\t", utf::replace_all(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                ansi::parse(data, console_ptr);
+                return true;
+            }
+            else
+            {
+                console_ptr->parser::flush(); // Update line style, etc.
+                return Forced;
+            }
+        }
+        // term: Proceed terminal input.
+        template<bool Forced = faux>
         void ondata(view data = {}, bufferbase* target_buffer = {})
         {
             update([&]
             {
-                auto& console_ptr = target_buffer ? target_buffer : this->target;
-                if (data.size())
-                {
-                    if (io_log) log(prompt::cout, "\n\t", utf::replace_all(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                    ansi::parse(data, console_ptr);
-                    return true;
-                }
-                else
-                {
-                    console_ptr->parser::flush(); // Update line style, etc.
-                    return Forced;
-                }
+                return ondata_direct<Forced>(data, target_buffer);
             });
         }
         // term: Reset to defaults.

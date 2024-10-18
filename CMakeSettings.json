@@ -155,7 +155,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
+          "type": "STRING"
+        },
+        {
+          "name": "DCMAKE_EXE_LINKER_FLAGS_RELEASE",
+          "value": "/DEBUG /OPT:REF /OPT:ICF",
           "type": "STRING"
         }
       ]
