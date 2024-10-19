@@ -405,8 +405,9 @@ int main(int argc, char* argv[])
                 auto cmd = script;
                 auto cfg = config.utf8();
                 auto win = os::dtvt::gridsz;
+                auto gui = app::shared::get_gui_config(config);
                 userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
-                app::shared::splice(client, config);
+                app::shared::splice(client, gui);
                 return 0;
             }
             else return failed(denied ? code::noaccess : code::noserver);

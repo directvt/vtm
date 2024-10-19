@@ -100,9 +100,15 @@ namespace netxs::scripting
         vtty engine; // scripting::host: Scripting engine instance.
 
         // scripting::host: Proceed input.
-        void ondata(view data)
+        auto ondata_direct(view data)
         {
             log<faux>(ansi::fgc(greenlt).add(data).nil());
+            return faux;
+        }
+        // scripting::host: Proceed input.
+        void ondata(view data)
+        {
+            ondata_direct(data);
         }
         // scripting::host: Cooked read input.
         void data(rich& /*data*/)

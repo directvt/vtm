@@ -2311,8 +2311,8 @@ struct impl : consrv
         {
             if (handle_ptr->link == &uiterm.target)
             {
-                     if (uiterm.target == &uiterm.normal) uiterm.update([&]{ proc(uiterm.normal); return faux; });
-                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&]{ proc(uiterm.altbuf); return faux; });
+                     if (uiterm.target == &uiterm.normal) unsync |= proc(uiterm.normal);
+                else if (uiterm.target == &uiterm.altbuf) unsync |= proc(uiterm.altbuf);
                 return true;
             }
             else
@@ -2329,7 +2329,7 @@ struct impl : consrv
                         if (auto iter2 = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
                             iter2 != client.alters.end()) // Buffer exists.
                         {
-                            uiterm.update([&]{ proc(*iter2); return faux; });
+                            unsync |= proc(*iter2);
                             return true;
                         }
                     }
@@ -3118,15 +3118,15 @@ struct impl : consrv
                 if constexpr (isreal())
                 {
                     auto active = scroll_handle.link == &uiterm.target || scroll_handle.link == uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
-                    if (!direct(packet.target, [&](auto& scrollback){ active ? uiterm.ondata(crop)
-                                                                             : uiterm.ondata(crop, &scrollback); }))
+                    if (!direct(packet.target, [&](auto& scrollback){ return active ? uiterm.ondata_direct(crop)
+                                                                                    : uiterm.ondata_direct(crop, &scrollback); }))
                     {
                         datasize = 0;
                     }
                 }
                 else
                 {
-                    uiterm.ondata(crop);
+                    unsync |= uiterm.ondata_direct(crop);
                 }
                 log("\t", show_page(packet.input.utf16, codec.codepage), ": ", ansi::hi(utf::debase<faux, faux>(crop)));
                 scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
@@ -3184,6 +3184,7 @@ struct impl : consrv
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     scrollback._data(count, filler.pick(), cell::shaders::meta);
+                    return true;
                 });
                 if (!success)
                 {
@@ -3229,6 +3230,7 @@ struct impl : consrv
                         line.crop(maxsz);
                     }
                     scrollback._data<true>(count, line.pick(), cell::shaders::text);
+                    return true;
                 });
                 if (!success)
                 {
@@ -3454,6 +3456,7 @@ struct impl : consrv
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
+                    return true;
                 });
                 if (!success) crop = {};
             }
@@ -3482,7 +3485,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            if (!direct(packet.target, [&](auto& scrollback){ scrollback.brush = attr_to_brush(packet.input.color); }))
+            if (!direct(packet.target, [&](auto& scrollback){ scrollback.brush = attr_to_brush(packet.input.color); return faux; }))
             {
                 log("\tdirect()", os::unexpected);
             }
@@ -3550,7 +3553,7 @@ struct impl : consrv
                     if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
-                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::meta); return true; }))
                     {
                         count = 0;
                     }
@@ -3598,7 +3601,7 @@ struct impl : consrv
                             (head++)->wdt(utf::matrix::vs<21,21>);
                         }
                     }
-                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::text); return true; }))
                     {
                         count = 0;
                     }
@@ -4393,6 +4396,7 @@ struct impl : consrv
             {
                 uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
                 uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
+                return true;
             });
         }
         else
