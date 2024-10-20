@@ -5927,27 +5927,26 @@ namespace netxs::ui
             text selection_pickup(si32 selmod) override
             {
                 auto yield = escx{};
-                auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return yield;
                 if (selmod != mime::textonly
                  && selmod != mime::safetext) yield.nil();
-                len = yield.size();
+                auto len = yield.size();
                 if (uptop.role != grip::idle)
                 {
                     bufferbase::selection_pickup(yield, upbox, uptop.coor, dntop.coor, selmod, selbox);
                 }
                 if (upmid.role != grip::idle)
                 {
-                    if (len(yield.size())) yield.eol();
+                    if (std::exchange(len, yield.size()) != len) yield.eol();
                     scroll_buf::selection_pickup(yield, selmod);
                 }
                 if (upend.role != grip::idle)
                 {
-                    if (len(yield.size())) yield.eol();
+                    if (std::exchange(len, yield.size()) != len) yield.eol();
                     bufferbase::selection_pickup(yield, dnbox, upend.coor, dnend.coor, selmod, selbox);
                 }
-                if (selbox && len(yield.size())) yield.eol();
+                if (selbox && std::exchange(len, yield.size()) != len) yield.eol();
                 return yield;
             }
             // scroll_buf: Highlight selection.

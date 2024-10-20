@@ -4288,7 +4288,7 @@ namespace netxs::os
         struct vtty
         {
             std::thread             stdwrite{};
-            testy<twod>             termsize{};
+            twod                    termsize{};
             flag                    attached{};
             flag                    signaled{};
             escx                    writebuf{};
@@ -4318,7 +4318,7 @@ namespace netxs::os
                 {
                     termlink = consrv::create(terminal);
                 }
-                termsize(cfg.win);
+                termsize = cfg.win;
                 auto trailer = [&, cmd = cfg.cmd]
                 {
                     if (attached.exchange(faux))

@@ -3974,11 +3974,11 @@ namespace netxs::gui
                 static auto xbttn = [](auto wParam){ return hi(wParam) == XBUTTON1 ? bttn::xbutton1 : bttn::xbutton2; };
                 static auto moved = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return !(p.flags & SWP_NOMOVE); };
                 static auto coord = [](auto lParam){ auto& p = *((WINDOWPOS*)lParam); return twod{ p.x, p.y }; };
-                static auto hover_win = testy<HWND>{};
+                static auto hover_win = HWND{};
                 static auto hover_rec = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT), .dwFlags = TME_LEAVE, .dwHoverTime = HOVER_DEFAULT };
                 switch (msg)
                 {
-                    case WM_MOUSEMOVE:        if (hover_win(hWnd)) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
+                    case WM_MOUSEMOVE:        if (std::exchange(hover_win, hWnd) != hover_win) ::TrackMouseEvent((hover_rec.hwndTrack = hWnd, &hover_rec));
                                               w->mouse_moved();                                  break; //todo mouse events are broken when IME is active (only work on lower rotated monitor half). TSF message pump?
                     case WM_TIMER:            w->timer_event(wParam);                            break;
                     case WM_MOUSELEAVE:       w->mouse_leave(); hover_win = {};                  break;

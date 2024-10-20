@@ -1254,13 +1254,13 @@ namespace netxs::input
         span&       tooltip_timeout; // hids: .
         text        tooltip_data; // hids: Tooltip data.
         ui32        digest = 0; // hids: Tooltip digest.
-        testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
+        ui32        digest_tracker = 0; // hids: Tooltip changes tracker.
         ui32        tooltip_digest = 0; // hids: Tooltip digest.
         time        tooltip_time = {}; // hids: The moment to show tooltip.
         bool        tooltip_show = faux; // hids: Show tooltip or not.
         bool        tooltip_stop = true; // hids: Disable tooltip.
         bool        tooltip_set  = faux; // hids: Tooltip has been set.
-        testy<twod> tooltip_coor = {}; // hids: .
+        twod        tooltip_coor = {}; // hids: .
 
         si32 ctlstate = {};
 
@@ -1342,7 +1342,7 @@ namespace netxs::input
         }
         auto is_tooltip_changed()
         {
-            return digest_tracker(digest);
+            return std::exchange(digest_tracker, digest) != digest_tracker;
         }
         auto get_tooltip()
         {

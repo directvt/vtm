@@ -1161,7 +1161,7 @@ struct impl : consrv
             // server.uiterm.bpmode = true;
             // restore at exit
             auto& hist = ref_history(nameview);
-            auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
+            auto mode = !!(server.inpmod & nt::console::inmode::insert);
             auto buff = text{};
             //auto nums = utfx{};
             auto line = para{ 'C', cooked.ustr }; // Set semantic marker OSC 133;C.
@@ -1249,7 +1249,8 @@ struct impl : consrv
                                 else
                                 {
                                     burn();
-                                    mode(!mode);
+                                    mode = !mode;
+                                    //log(ansi::err("MODE CHANGED ", mode ? "1" : "0"));
                                 }
                                 break;
                             case VK_F6:     burn(); hist.save(line);               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
@@ -1410,11 +1411,13 @@ struct impl : consrv
                                 term.cr();
                                 term.lf(crlf);
                             }
-                            else term.move(line.caret - line.length());
-
-                            if (mode.reset())
+                            else
                             {
-                                if constexpr (isreal())
+                                term.move(line.caret - line.length());
+                            }
+                            if constexpr (isreal())
+                            {
+                                if (mode != !!(server.inpmod & nt::console::inmode::insert))
                                 {
                                     server.uiterm.cursor.toggle();
                                 }
@@ -1429,6 +1432,10 @@ struct impl : consrv
                         server.uiterm.data(data);
                     }
                     lock.lock();
+                    if (mode != !!(server.inpmod & nt::console::inmode::insert))
+                    {
+                        netxs::set_flag<nt::console::inmode::insert>(server.inpmod, mode);
+                    }
                 }
             }
             while (!done && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
@@ -1443,8 +1450,6 @@ struct impl : consrv
             map_cd_shim(nameview, cooked.ustr);
             cooked.save(utf16);
             if (stream.empty()) ondata.flush();
-
-            server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
         }
         template<class L>
         auto readchar(L& lock, bool& cancel, bool utf16)

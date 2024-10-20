@@ -2447,8 +2447,6 @@ namespace netxs
 
         struct szgrips
         {
-            using test = testy<twod>;
-
             twod origin; // szgrips: Grab's initial coord info.
             twod dtcoor; // szgrips: The form coor parameter change factor while resizing.
             twod sector; // szgrips: Active quadrant, x,y = {-1|+1}. Border widths.
