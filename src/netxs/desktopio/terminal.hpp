@@ -924,6 +924,8 @@ namespace netxs::ui
 
                 vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
                 vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
+                vt.csier.table[dec_set] = V{ p->owner.modset(q); }; // ESC [ n h
+                vt.csier.table[dec_rst] = V{ p->owner.modrst(q); }; // ESC [ n l
 
                 vt.oscer[osc_label_title] = V{ p->owner.wtrack.set(osc_label_title, q); };
                 vt.oscer[osc_label      ] = V{ p->owner.wtrack.set(osc_label,       q); };
@@ -6849,6 +6851,42 @@ namespace netxs::ui
         {
             target->flush();
             while (auto next = q(0)) _decrst(next);
+        }
+        // term: Set termnail parameters.
+        void _modset(si32 n)
+        {
+            switch (n)
+            {
+            case 20:    // LNM—Line Feed/New Line Mode on.
+                target->set_autocr(true);
+                break;
+            default:
+                break;
+            }
+        }
+        // term: Reset termnail parameters.
+        void _modrst(si32 n)
+        {
+            switch (n)
+            {
+            case 20:    // LNM—Line Feed/New Line Mode off.
+                target->set_autocr(faux);
+                break;
+            default:
+                break;
+            }
+        }
+        // term: Set termnail parameters.
+        void modset(fifo& q)
+        {
+            target->flush();
+            while (auto next = q(0)) _modset(next);
+        }
+        // term: Reset termnail parameters.
+        void modrst(fifo& q)
+        {
+            target->flush();
+            while (auto next = q(0)) _modrst(next);
         }
         // term: Set scrollback buffer size and grow step.
         void sbsize(fifo& q)
