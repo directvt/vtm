@@ -697,6 +697,11 @@ namespace netxs::ui
                     show();
                 }
             }
+            // pro::caret: Get cursor background color.
+            auto bgc()
+            {
+                return mark.bgc();
+            }
             // pro::caret: Set cursor color.
             void color(cell c)
             {

@@ -1002,11 +1002,11 @@ namespace netxs::app::terminal
             auto& term_bgc = *term_bgc_ptr;
             auto winsz = ptr::shared(dot_00);
             auto visible = ptr::shared(slot1->back() != boss.This());
-            auto check_state = ptr::function([state = testy<bool>{ true }, winsz, visible](base& boss) mutable
+            auto check_state = ptr::function([state = true, winsz, visible](base& boss) mutable
             {
-                if (state(*visible || winsz->y != 1))
+                if (std::exchange(state, *visible || winsz->y != 1) != state)
                 {
-                    boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state.last);
+                    boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state);
                 }
             });
             boss.LISTEN(tier::release, e2::form::state::visible, menu_visible, -, (visible, check_state))

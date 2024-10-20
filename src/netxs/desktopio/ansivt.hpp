@@ -1019,6 +1019,8 @@ namespace netxs::ansi
         void  sav()               { spare.set(*this);          } // mark: Save current SGR attributes.
         void  sfg(argb c)         { spare.fgc(c);              } // mark: Set default foreground color.
         void  sbg(argb c)         { spare.bgc(c);              } // mark: Set default background color.
+        auto  sfg()const          { return spare.fgc();        } // mark: Return default foreground color.
+        auto  sbg()const          { return spare.bgc();        } // mark: Return default background color.
         void  nil()               { this->set(spare);          } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc());    } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc());    } // mark: Reset SGR Background color.
@@ -1424,7 +1426,11 @@ namespace netxs::ansi
             {
                 client->post(cluster);
             };
-            utf::decode(s, y, utf8, client->decsg);
+            auto a = [&](view plain)
+            {
+                client->ascii(plain);
+            };
+            utf::decode(s, y, a, utf8, client->decsg);
             client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
@@ -1742,10 +1748,29 @@ namespace netxs::ansi
                 data(len, cooked.pick());
             }
         }
-        void post(utf::frag const& cluster)
+        auto& get_ansi_marker()
         {
             static auto marker = ansi::marker{};
-
+            return marker;
+        }
+        void ascii(view plain)
+        {
+            assert(plain.length());
+            brush.txt(plain.back());
+            auto start = proto_cells.size();
+            proto_cells.resize(start + plain.length(), brush);
+            proto_count += (si32)plain.length();
+            auto iter = plain.begin();
+            auto head = proto_cells.begin() + start;
+            auto tail = std::prev(proto_cells.end());
+            while (head != tail)
+            {
+                auto& dst = *head++;
+                dst.gc.set(*iter++);
+            }
+        }
+        void post(utf::frag const& cluster)
+        {
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
             if (auto v = attr.cmatrix)
@@ -1759,6 +1784,7 @@ namespace netxs::ansi
             }
             else
             {
+                auto& marker = get_ansi_marker();
                 if (auto set_prop = marker.setter[attr.control])
                 {
                     if (proto_cells.size())
