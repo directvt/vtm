@@ -1019,6 +1019,8 @@ namespace netxs::ansi
         void  sav()               { spare.set(*this);          } // mark: Save current SGR attributes.
         void  sfg(argb c)         { spare.fgc(c);              } // mark: Set default foreground color.
         void  sbg(argb c)         { spare.bgc(c);              } // mark: Set default background color.
+        auto  sfg()const          { return spare.fgc();        } // mark: Return default foreground color.
+        auto  sbg()const          { return spare.bgc();        } // mark: Return default background color.
         void  nil()               { this->set(spare);          } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc());    } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc());    } // mark: Reset SGR Background color.
