@@ -232,30 +232,32 @@ namespace netxs::utf
         size_t balance;
         size_t utf8len;
 
+        operator bool () { return balance > 0; }
         cpit(view utf8)
             : textptr{ utf8.data() },
               balance{ utf8.size() },
               utf8len{ 0           }
         { }
 
+        auto front()
+        {
+            return *textptr;
+        }
         void redo(view utf8)
         {
             textptr = utf8.data();
             balance = utf8.size();
         }
-
         view rest()
         {
             return view{ textptr, balance };
         }
-
         void step()
         {
             textptr += utf8len;
             balance -= utf8len;
             utf8len = 0;
         }
-
         prop take()
         {
             utfx cp;
@@ -287,7 +289,6 @@ namespace netxs::utf
                             else return prop(utf8len = 1);
                         }
                         else return prop(utf8len = 1);
-
                         break;
                     case 3:
                         if (balance > 2)
@@ -311,7 +312,6 @@ namespace netxs::utf
                             else return prop(utf8len = 1);
                         }
                         else return prop(utf8len = balance);
-
                         break;
                     default: // case 4
                         if (balance > 3)
@@ -347,17 +347,11 @@ namespace netxs::utf
 
             return prop(cp, utf8len);
         }
-
         auto next()
         {
             auto cpoint = take();
                           step();
             return cpoint;
-        }
-
-        operator bool ()
-        {
-            return balance > 0;
         }
     };
 
@@ -452,8 +446,8 @@ namespace netxs::utf
     //      yield: Handle grapheme clusters.
     //             auto y = [&](frag const& cluster){};
     //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
-    template<bool Clusterize = true, class S, class Y>
-    void decode(S serve, Y yield, view utf8, si32& decsg)
+    template<bool Clusterize = true, class S, class Y, class A>
+    void decode(S serve, Y yield, A ascii,  view utf8, si32& decsg)
     {
         static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
         {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
@@ -507,10 +501,24 @@ namespace netxs::utf
                 }
                 else
                 {
+                    auto is_plain = [](char c){ return c >= 0x20 && (byte)(c - 0x7f) > 0x20; };
                     if (decsg && next.cdpoint <= 0x7e && next.cdpoint >= 0x5f) // ['_' - '~']
                     {
                         yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
                         code.step();
+                        next = code.take();
+                    }
+                    else if (is_plain(code.front()))
+                    {
+                        auto rest = code.rest();
+                        auto head = rest.begin();
+                        auto iter = head;
+                        auto tail = rest.end();
+                        while (++iter != tail && is_plain(*iter))
+                        { }
+                        auto plain = view{ head, iter };
+                        ascii(plain);
+                        code.redo(view{ iter, tail });
                         next = code.take();
                     }
                     else if constexpr (Clusterize)
@@ -1483,6 +1491,14 @@ namespace netxs::utf
             }
             return utf8;
         };
+        auto a = [&](view plain)
+        {
+            for (auto c : plain)
+            {
+                if (c == '\\') buff += "\\\\";
+                else           buff += c;
+            }
+        };
         auto y = [&](frag const& cluster)
         {
                  if (cluster.text.front() == '\\') buff += "\\\\";
@@ -1490,7 +1506,7 @@ namespace netxs::utf
             //else if (cluster.text.front() == ' ') buff += "\x20";
             else                                   buff += cluster.text;
         };
-        decode<faux>(s, y, utf8, mode);
+        decode<faux>(s, y, a, utf8, mode);
         return static_cast<si32>(buff.length() - init);
     }
     // utf: Return a string without control chars (replace all ctrls with printables).
