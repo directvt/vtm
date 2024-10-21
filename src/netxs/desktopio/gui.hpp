@@ -1461,9 +1461,10 @@ namespace netxs::gui
         };
         struct timers
         {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto none     = __COUNTER__ - _counter;
-            static constexpr auto blink    = __COUNTER__ - _counter;
+            static constexpr auto _counter  = __COUNTER__ + 1;
+            static constexpr auto none      = __COUNTER__ - _counter;
+            static constexpr auto blink     = __COUNTER__ - _counter;
+            static constexpr auto clipboard = __COUNTER__ - _counter;
         };
         struct syscmd
         {
@@ -3089,9 +3090,14 @@ namespace netxs::gui
         }
         void timer_event(arch eventid)
         {
-            bell::enqueue(This(), [&, eventid](auto& /*boss*/)
+            if (eventid == timers::clipboard)
             {
-                if (fsmode == state::minimized || eventid != timers::blink) return;
+                layer_timer_stop(master, timers::clipboard);
+                sync_clipboard();
+            }
+            else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                if (fsmode == state::minimized) return;
                 auto visible = blinky.live;
                 if (mfocus.focused() && visible)
                 {
@@ -3124,6 +3130,11 @@ namespace netxs::gui
                     case syscmd::update: update_gui(); break;
                 }
             });
+        }
+        void book_clipboard()
+        {
+            auto random_delay = 150ms + datetime::milliseconds(os::process::id.second) / 2; // Delay in random range from 150ms upto 650ms.
+            layer_timer_start(master, random_delay, timers::clipboard);
         }
         void sync_clipboard()
         {
@@ -3998,7 +4009,7 @@ namespace netxs::gui
                     case WM_KILLFOCUS:        if (wParam != (arch)hWnd) w->focus_event(faux);    break; // Don't refocus.
                     case WM_COPYDATA:         stat = w->run_command(ipc::cmd_w_data, lParam);    break; // Receive command with data.
                     case WM_USER:             stat = w->run_command(wParam, lParam);             break; // Receive command.
-                    case WM_CLIPBOARDUPDATE:  w->sync_clipboard();                               break;
+                    case WM_CLIPBOARDUPDATE:  w->book_clipboard();                               break; // Schedule clipboard update.
                     case WM_INPUTLANGCHANGE:  w->keybd_sync_layout();                            break;
                     case WM_SETTINGCHANGE:    w->sync_os_settings();                             break;
                     case WM_WINDOWPOSCHANGED: if (moved(lParam)) w->check_window(coord(lParam)); break; // Check moving only. Windows moves our layers the way they wants without our control.

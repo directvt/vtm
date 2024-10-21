@@ -48,11 +48,19 @@ namespace netxs::datetime
     }
     auto breakdown(span t)
     {
-        auto days    = datetime::round<ui32, std::chrono::   days>(t);
-        auto hours   = datetime::round<ui32, std::chrono::  hours>(t -= std::chrono::   days{ days    });
-        auto minutes = datetime::round<ui32, std::chrono::minutes>(t -= std::chrono::  hours{ hours   });
-        auto seconds = datetime::round<ui32, std::chrono::seconds>(t -= std::chrono::minutes{ minutes });
-        return std::tuple{ days, hours, minutes, seconds };
+        auto days         = datetime::round<ui32, std::chrono::        days>(t);
+        auto hours        = datetime::round<ui32, std::chrono::       hours>(t -= std::chrono::   days{ days    });
+        auto minutes      = datetime::round<ui32, std::chrono::     minutes>(t -= std::chrono::  hours{ hours   });
+        auto seconds      = datetime::round<ui32, std::chrono::     seconds>(t -= std::chrono::minutes{ minutes });
+        auto milliseconds = datetime::round<ui32, std::chrono::milliseconds>(t -= std::chrono::seconds{ seconds });
+        return std::tuple{ days, hours, minutes, seconds, milliseconds };
+    }
+    auto milliseconds(time t)
+    {
+        auto period = t.time_since_epoch();
+        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(period).count();
+        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(period -= std::chrono::seconds{ seconds });
+        return milliseconds;
     }
 
     template<class Bell, auto Tier, auto Deed>

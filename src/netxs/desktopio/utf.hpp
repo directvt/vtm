@@ -507,6 +507,7 @@ namespace netxs::utf
                         yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
                         code.step();
                         next = code.take();
+                        continue;
                     }
                     else if (is_plain(code.front()))
                     {
@@ -517,11 +518,34 @@ namespace netxs::utf
                         while (++iter != tail && is_plain(*iter))
                         { }
                         auto plain = view{ head, iter };
-                        ascii(plain);
+                        if (iter == tail)
+                        {
+                            ascii(plain);
+                            break;
+                        }
                         code.redo(view{ iter, tail });
+                        auto left = next;
                         next = code.take();
+                        if (left.allied(next)) // Check if the next codepoint is some kind of joiner/modifier.
+                        {
+                            --iter;
+                            if (head != iter)
+                            {
+                                plain = view{ head, iter };
+                                ascii(plain);
+                            }
+                            code.redo(view{ iter, tail });
+                            code.utf8len = 1; // ASCII.
+                            next = left;
+                            // Fall to clusterize.
+                        }
+                        else
+                        {
+                            ascii(plain);
+                            continue;
+                        }
                     }
-                    else if constexpr (Clusterize)
+                    if constexpr (Clusterize)
                     {
                         auto head = code.textptr;
                         auto left = next;

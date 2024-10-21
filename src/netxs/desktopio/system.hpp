@@ -5869,14 +5869,27 @@ namespace netxs::os
                     auto wndproc = [](auto hWnd, auto uMsg, auto wParam, auto lParam)
                     {
                         static auto alive = flag{ true };
+                        static auto timers_clipboard = 1;
                         switch (uMsg)
                         {
                             case WM_CREATE:
                                 ok(::AddClipboardFormatListener(hWnd), "::AddClipboardFormatListener()", os::unexpected);
-                                // Continue processing the switch to initialize the clipboard state after startup.
-                            case WM_CLIPBOARDUPDATE:
                                 os::clipboard::sync((arch)hWnd, binary::proxy(), dtvt::client, dtvt::gridsz);
                                 break;
+                            case WM_TIMER:
+                                if (wParam == timers_clipboard)
+                                {
+                                    ::KillTimer(hWnd, timers_clipboard);
+                                    os::clipboard::sync((arch)hWnd, binary::proxy(), dtvt::client, dtvt::gridsz);
+                                }
+                                else return DefWindowProc(hWnd, uMsg, wParam, lParam);
+                                break;
+                            case WM_CLIPBOARDUPDATE:
+                            {
+                                auto random_delay = 150ms + datetime::milliseconds(os::process::id.second) / 2; // Delay in random range from 150ms upto 650ms.
+                                ::SetTimer(hWnd, timers_clipboard, datetime::round<ui32>(random_delay), nullptr);
+                                break;
+                            }
                             case WM_DESTROY:
                                 ok(::RemoveClipboardFormatListener(hWnd), "::RemoveClipboardFormatListener()", os::unexpected);
                                 ::PostQuitMessage(0);
