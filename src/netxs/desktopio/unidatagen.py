@@ -279,6 +279,7 @@ namespace netxs::unidata
         static constexpr auto zwj   = 13; // ZERO WIDTH JOINER
         static constexpr auto ep    = 14; // Extended_Pictographic
         static constexpr auto combo = 15; // EP + ZWJ
+        static constexpr auto count = 16; // GB class count.
     }}
 
     enum cntrls : ui32
@@ -321,34 +322,38 @@ namespace netxs::unidata
         // Unicode 15.1.0 UAX #29 https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundary_Rules
         bool allied(unidata const& next)
         {{
+            static const auto lut = []
+            {{
+                auto table = std::array<byte, gbreak::count * gbreak::count>{{}};
+                auto check = [](auto l, auto r)
+                {{
+                    return (  l == gbreak::cr    &&  r == gbreak::lf   )  ? true: // GB3
+                           (  l >= gbreak::cr    &&  l <= gbreak::ctrl )  ? faux: // GB4
+                           (  r >= gbreak::cr    &&  r <= gbreak::ctrl )  ? faux: // GB5
+                           (  l == gbreak::l     && (r == gbreak::l
+                                                 ||  r == gbreak::v
+                                                 ||  r == gbreak::lv
+                                                 ||  r == gbreak::lvt  )) ? true: // GB6
+                           (( l == gbreak::lv    ||  l == gbreak::v    )
+                         && ( r == gbreak::v     ||  r == gbreak::t    )) ? true: // GB7
+                           (( l == gbreak::lvt   ||  l == gbreak::t    )
+                                                 &&  r == gbreak::t    )  ? true: // GB8
+                           (  l == gbreak::prep  ||  r == gbreak::zwj
+                                                 ||  r == gbreak::sm
+                                                 ||  r == gbreak::ext  )  ? true: // GB9,a,b
+                           (  l == gbreak::combo &&  r == gbreak::ep   )  ? true: // GB11
+                           (  l == gbreak::ri    &&  r == gbreak::ri   )  ? true: // GB12,13
+                                                                            faux; // GB999
+                  }};
+                  for (auto l = 0; l < gbreak::count; l++)
+                  for (auto r = 0; r < gbreak::count; r++)
+                  {{
+                      table[l + r * gbreak::count] = check(l, r);
+                  }}
+                  return table;
+            }}();
             auto l = brgroup;
             auto r = next.brgroup;
-            auto result = //todo use lut(l, r)
-                (  l == gbreak::cr    &&  r == gbreak::lf   )  ? true: // GB3
-
-                (  l >= gbreak::cr    &&  l <= gbreak::ctrl )  ? faux: // GB4
-
-                (  r >= gbreak::cr    &&  r <= gbreak::ctrl )  ? faux: // GB5
-
-                (  l == gbreak::l     && (r == gbreak::l
-                                      ||  r == gbreak::v
-                                      ||  r == gbreak::lv
-                                      ||  r == gbreak::lvt  )) ? true: // GB6
-
-                (( l == gbreak::lv    ||  l == gbreak::v    )
-              && ( r == gbreak::v     ||  r == gbreak::t    )) ? true: // GB7
-
-                (( l == gbreak::lvt   ||  l == gbreak::t    )
-                                      &&  r == gbreak::t    )  ? true: // GB8
-
-                (  l == gbreak::prep  ||  r == gbreak::zwj
-                                      ||  r == gbreak::sm
-                                      ||  r == gbreak::ext  )  ? true: // GB9,a,b
-
-                (  l == gbreak::combo &&  r == gbreak::ep   )  ? true: // GB11
-
-                (  l == gbreak::ri    &&  r == gbreak::ri   )  ? true: // GB12,13
-                                                                 faux; // GB999
             if (l == gbreak::ep)
             {{
                 brgroup = (r == gbreak::ext) ? gbreak::ep    :
@@ -358,6 +363,7 @@ namespace netxs::unidata
             {{
                 brgroup = (l == gbreak::ri && r == gbreak::ri) ? gbreak::any : r;
             }}
+            auto result = lut[l + r * gbreak::count];
             return result;
         }}
     }};
