@@ -554,10 +554,9 @@ namespace netxs::utf
                             code.step();
                             if (next.correct)
                             {
-                                next = code.take();
-                                if (auto size = left.combine(next))
+                                if (!code || (next = code.take(), left.combine(next)))
                                 {
-                                    auto crop = frag{ view(head, size), left };
+                                    auto crop = frag{ view(head, left.utf8len), left };
                                     yield(crop);
                                     break;
                                 }
