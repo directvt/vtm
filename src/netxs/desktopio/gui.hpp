@@ -3095,7 +3095,7 @@ namespace netxs::gui
                 layer_timer_stop(master, timers::clipboard);
                 sync_clipboard();
             }
-            else if (eventid == timers::blink) bell::enqueue(This(), [&, eventid](auto& /*boss*/)
+            else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
             {
                 if (fsmode == state::minimized) return;
                 auto visible = blinky.live;
