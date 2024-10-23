@@ -7345,7 +7345,9 @@ namespace netxs::ui
                     if (gear.whlsi)
                     {
                         auto count = std::abs(gear.whlsi);
-                        data_out(utf::repeat(gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv, count));
+                        auto arrow = decckm ? gear.whlsi > 0 ? "\033OA"sv : "\033OB"sv
+                                            : gear.whlsi > 0 ? "\033[A"sv : "\033[B"sv;
+                        data_out(utf::repeat(arrow, count));
                     }
                     gear.dismiss();
                 }

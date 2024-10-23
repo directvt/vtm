@@ -114,7 +114,7 @@ namespace netxs::utf
         {
             return vs_block + p(w) + x + (p(h) + y) * mx;
         }
-        auto whxy(si32 vs)
+        auto whxy(si32 vs_value)
         {
             static auto lut = []
             {
@@ -135,7 +135,7 @@ namespace netxs::utf
                 }
                 return v;
             }();
-            return lut[vs];
+            return lut[vs_value];
         }
     }
     static constexpr auto mtx = std::to_array({ matrix::vs<00,00>, matrix::vs<11,11>, matrix::vs<21,00> });
