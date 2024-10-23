@@ -265,6 +265,7 @@ namespace netxs::app::tile
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
+                                gear.click -= applet.base::coor(); // Rebase mouse click.
                                 what.square.size = applet.base::size();
                                 applet.global(what.square.coor);
                                 what.square.coor = -what.square.coor;

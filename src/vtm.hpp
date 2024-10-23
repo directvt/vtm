@@ -462,7 +462,7 @@ namespace netxs::app::vtm
                     auto& step = data.step;
 
                     data.ctrl = gear.meta(hids::anyCtrl);
-                    slot.coor = init = step = gear.coord;
+                    slot.coor = init = step = gear.click;
                     slot.size = dot_00;
                     boss.deface(slot);
                     gear.dismiss();

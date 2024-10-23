@@ -536,7 +536,6 @@ namespace netxs::input
     struct mouse
     {
         using mouse_event = netxs::events::userland::hids::mouse;
-        using click = mouse_event::button::click;
 
         enum mode
         {
@@ -559,12 +558,12 @@ namespace netxs::input
         };
         enum buttons
         {
-            left      = click::left     .index(),
-            right     = click::right    .index(),
-            middle    = click::middle   .index(),
-            xbutton1  = click::xbutton1 .index(),
-            xbutton2  = click::xbutton2 .index(),
-            leftright = click::leftright.index(),
+            left      = mouse_event::button::click::left     .index(),
+            right     = mouse_event::button::click::right    .index(),
+            middle    = mouse_event::button::click::middle   .index(),
+            xbutton1  = mouse_event::button::click::xbutton1 .index(),
+            xbutton2  = mouse_event::button::click::xbutton2 .index(),
+            leftright = mouse_event::button::click::leftright.index(),
             numofbuttons,
         };
 
@@ -583,6 +582,7 @@ namespace netxs::input
             bool pressed; // knod: Button pressed state.
             bool dragged; // knod: The button is in a dragging state.
             bool blocked; // knod: The button is blocked (leftright disables left and right).
+            fp2d clickxy; // knob: Press coordinates.
         };
         struct hist_t // Timer for successive double-clicks, e.g. triple-clicks.
         {
@@ -607,9 +607,11 @@ namespace netxs::input
         static constexpr auto wheeling = mouse_event::scroll::act.id;
         static constexpr auto movement = mouse_event::move.id;
         static constexpr auto noactive = si32{ -1 };
+        static constexpr auto drag_threshold = 0.3f; // mouse: Mouse drag threshold (to support jittery clicks).
 
         fp2d prime{}; // mouse: System mouse cursor coordinates.
         fp2d coord{}; // mouse: Relative mouse cursor coordinates.
+        fp2d click{}; // mouse: Click position on drag start. Should be used in area selection (not dragging).
         fp32 accum{}; // mouse: Mouse motion accumulator to delay mouse drag.
         tail delta{}; // mouse: History of mouse movements for a specified period of time.
         bool reach{}; // mouse: Has the event tree relay reached the mouse event target.
@@ -629,7 +631,6 @@ namespace netxs::input
         sysmouse m_sys{}; // mouse: Device state.
         sysmouse m_sav{}; // mouse: Previous device state.
 
-        static constexpr auto drag_threshold = 0.5f; // mouse: Threshold for mouse drag.
 
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
@@ -752,6 +753,7 @@ namespace netxs::input
                     {
                         if (allow_drag && !genbtn.dragged)
                         {
+                            click = genbtn.clickxy;
                             fire(dragstrt, i);
                             genbtn.dragged = true;
                         }
@@ -787,6 +789,7 @@ namespace netxs::input
                     genbtn.pressed = sysbtn;
                     if (genbtn.pressed)
                     {
+                        genbtn.clickxy = prime;
                         fire(pushdown, i);
                     }
                     else
@@ -1404,13 +1407,14 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, fp2d new_coord, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
+        void replay(hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
             ctlstate = new_ctlstate;
             mouse::coord = new_coord;
+            mouse::click = new_click;
             mouse::whlfp = new_whlfp;
             mouse::whlsi = new_whlsi;
             mouse::hzwhl = new_hzwhl;
@@ -1491,14 +1495,18 @@ namespace netxs::input
         {
             if (object)
             {
-                auto temp = mouse::coord;
-                mouse::coord += offset;
+                auto temp_coord = mouse::coord;
+                auto temp_click = mouse::click;
                 if (relative)
                 {
                     object->global(coord);
+                    click += coord - temp_coord;
                 }
+                mouse::coord += offset;
+                mouse::click += offset;
                 object->bell::template signal<Tier>(mouse::cause, *this);
-                mouse::coord = temp;
+                mouse::coord = temp_coord;
+                mouse::click = temp_click;
             }
         }
         void mouse_leave(id_t last_id, id_t start_id)

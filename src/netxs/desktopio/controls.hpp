@@ -3202,7 +3202,7 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (auto delta = twod{ gear.coord } - twod { drag_origin })
+                    if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                     {
                         drag_origin = gear.coord;
                         auto value = permit * delta;

@@ -7250,9 +7250,9 @@ namespace netxs::ui
             auto& console = *target;
             auto boxed = selalt ^ !!gear.meta(hids::anyAlt);
             auto go_on = gear.meta(hids::anyCtrl);
-            console.selection_follow(gear.coord, go_on);
-            if (go_on) console.selection_extend(gear.coord, boxed);
-            else       console.selection_create(gear.coord, boxed);
+            console.selection_follow(gear.click, go_on);
+            if (go_on) console.selection_extend(gear.click, boxed);
+            else       console.selection_create(gear.click, boxed);
             base::deface();
         }
         void selection_moveto(twod delta)
@@ -8044,7 +8044,7 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
+                        gear.replay(m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                         gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
                 });
