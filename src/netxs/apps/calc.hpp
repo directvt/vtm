@@ -207,7 +207,9 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).grab(gear.coord, gear.meta(hids::anyCtrl)))
+                    auto& g = items.take(gear);
+                    g.calc(boss, gear.click);
+                    if (g.grab(gear.click, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }

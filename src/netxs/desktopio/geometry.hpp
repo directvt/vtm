@@ -22,8 +22,16 @@ namespace netxs
 
         T x, y;
 
-        template<class D> constexpr static auto cast(D x) requires(std::is_floating_point_v<T> || (std::is_integral_v<T> == std::is_integral_v<D>)) { return netxs::saturate_cast<T>(x); }
-        template<class D> constexpr static auto cast(D x) requires(std::is_integral_v<T> && std::is_floating_point_v<D>)                            { return netxs::saturate_cast<T>(std::floor(x)); }
+        template<class D>
+        constexpr static auto cast(D x) requires(std::is_floating_point_v<T> || (std::is_integral_v<T> == std::is_integral_v<D>))
+        {
+            return netxs::saturate_cast<T>(x);
+        }
+        template<class D>
+        constexpr static auto cast(D x) requires(std::is_integral_v<T> && std::is_floating_point_v<D>)
+        {
+            return netxs::saturate_cast<T>(std::floor(x));
+        }
 
         constexpr xy2d(xy2d const&) = default;
         constexpr xy2d()
