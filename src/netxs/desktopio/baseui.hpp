@@ -861,10 +861,20 @@ namespace netxs::ui
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
-        template<tier Tier, class Event, class T>
-        void riseup(Event, T&& param, bool forced = faux)
+        template<tier Tier, class Event>
+        void riseup(Event, Event::type&& param = {}, bool forced = faux)
         {
-            raw_riseup<Tier>(Event::id, std::forward<T>(param), forced);
+            raw_riseup<Tier>(Event::id, std::move(param), forced);
+        }
+        template<tier Tier, class Event>
+        void riseup(Event, Event::type& param, bool forced = faux)
+        {
+            raw_riseup<Tier>(Event::id, param, forced);
+        }
+        template<tier Tier, class Event>
+        void riseup(Event, Event::type const& param = {}, bool forced = faux)
+        {
+            raw_riseup<Tier>(Event::id, param, forced);
         }
         // base: Syntax sugar helper.
         void _saveme()

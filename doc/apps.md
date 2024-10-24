@@ -113,56 +113,56 @@ Repeat    | Selects the next label and exec the function specified by the `actio
 
 `*` - Not implemented.
 
-Value                        | Description
------------------------------|------------
-TerminalCwdSync              | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
-TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
-TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
-TerminalFindNext             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
-TerminalSendKey              | Simulating keypresses using the `data=` string.
-TerminalQuit                 | Terminate runnning console apps and close terminal.
-TerminalRestart              | Terminate runnning console apps and restart current session.
-TerminalFullscreen           | Toggle fullscreen mode.
-TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-TerminalClipboardPaste       | Paste from clipboard.
-TerminalClipboardWipe        | Reset clipboard.
-TerminalSelectionMode        | Set terminal text selection mode.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-TerminalSelectionCopy        | Сopy selection to clipboard.
-TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
-TerminalSelectionClear       | Deselect a selection.
-TerminalSelectionOneShot     | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-TerminalViewportCopy         | Сopy viewport to clipboard.
-TerminalViewportPageUp       | Scroll one page up.
-TerminalViewportPageDown     | Scroll one page down.
-TerminalViewportLineUp       | Scroll N lines up.
-TerminalViewportLineDown     | Scroll N lines down.
-TerminalViewportPageLeft     | Scroll one page to the left.
-TerminalViewportPageRight    | Scroll one page to the right.
-TerminalViewportColumnLeft   | Scroll N cells to the left.
-TerminalViewportColumnRight  | Scroll N cells to the right.
-TerminalViewportTop          | Scroll to the scrollback top.
-TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
-TerminalStdioLog             | Stdin/stdout log toggle.
-*TerminalLogStart            | Start logging to file.
-*TerminalLogPause            | Pause logging.
-*TerminalLogStop             | Stop logging.
-*TerminalLogAbort            | Abort logging.
-*TerminalLogRestart          | Restart logging to file.
-*TerminalVideoRecStart       | Start DirectVT(dtvt) video recording to file.
-*TerminalVideoRecStop        | Stop dtvt-video recording.
-*TerminalVideoRecPause       | Pause dtvt-video recording.
-*TerminalVideoRecAbort       | Abort dtvt-video recording.
-*TerminalVideoRecRestart     | Restart dtvt-video recording to file.
-*TerminalVideoPlay           | Play dtvt-video from file.
-*TerminalVideoPause          | Pause dtvt-video.
-*TerminalVideoStop           | Stop dtvt-video.
-*TerminalVideoForward        | Fast forward dtvt-video by N ms.
-*TerminalVideoBackward       | Rewind dtvt-video by N ms.
-*TerminalVideoHome           | Rewind dtvt-video to the beginning.
-*TerminalVideoEnd            | Rewind dtvt-video to the end.
+Value                        | Default Hotkey          | Description
+-----------------------------|-------------------------|------------
+TerminalCwdSync              |                         | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
+TerminalWrapMode             |                         | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
+TerminalAlignMode            |                         | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
+TerminalFindNext             |                         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+TerminalFindPrev             |                         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+TerminalOutput               |                         | Direct output the `data=` value to the terminal scrollback.
+TerminalSendKey              |                         | Simulating keypresses using the `data=` string.
+TerminalQuit                 |                         | Terminate runnning console apps and close terminal.
+TerminalRestart              |                         | Terminate runnning console apps and restart current session.
+TerminalFullscreen           |                         | Toggle fullscreen mode.
+TerminalUndo                 |                         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+TerminalRedo                 |                         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+TerminalClipboardPaste       |                         | Paste from clipboard.
+TerminalClipboardWipe        |                         | Reset clipboard.
+TerminalSelectionMode        |                         | Set terminal text selection mode.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+TerminalSelectionCopy        |                         | Сopy selection to clipboard.
+TerminalSelectionRect        |                         | Set linear(false) or rectangular(true) selection form using boolean value.
+TerminalSelectionClear       | `Esc`                   | Deselect a selection.
+TerminalSelectionOneShot     |                         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+TerminalViewportCopy         |                         | Сopy viewport to clipboard.
+TerminalViewportPageUp       | `Shift+PageUp`          | Scroll one page up.
+TerminalViewportPageDown     | `Shift+PageDown`        | Scroll one page down.
+TerminalViewportLineUp       | `Shift+ArrowUp`         | Scroll N lines up.
+TerminalViewportLineDown     | `Shift+ArrowDown`       | Scroll N lines down.
+TerminalViewportPageLeft     | `Shift+Ctrl+ArrowLeft`  | Scroll one page to the left.
+TerminalViewportPageRight    | `Shift+Ctrl+ArrowRight` | Scroll one page to the right.
+TerminalViewportColumnLeft   | `Shift+ArrowLeft`       | Scroll N cells to the left.
+TerminalViewportColumnRight  | `Shift+ArrowRight`      | Scroll N cells to the right.
+TerminalViewportTop          | `Shift+Home`            | Scroll to the scrollback top.
+TerminalViewportEnd          | `Shift+End`             | Scroll to the scrollback bottom (reset viewport position).
+TerminalStdioLog             |                         | Stdin/stdout log toggle.
+*TerminalLogStart            |                         | Start logging to file.
+*TerminalLogPause            |                         | Pause logging.
+*TerminalLogStop             |                         | Stop logging.
+*TerminalLogAbort            |                         | Abort logging.
+*TerminalLogRestart          |                         | Restart logging to file.
+*TerminalVideoRecStart       |                         | Start DirectVT(dtvt) video recording to file.
+*TerminalVideoRecStop        |                         | Stop dtvt-video recording.
+*TerminalVideoRecPause       |                         | Pause dtvt-video recording.
+*TerminalVideoRecAbort       |                         | Abort dtvt-video recording.
+*TerminalVideoRecRestart     |                         | Restart dtvt-video recording to file.
+*TerminalVideoPlay           |                         | Play dtvt-video from file.
+*TerminalVideoPause          |                         | Pause dtvt-video.
+*TerminalVideoStop           |                         | Stop dtvt-video.
+*TerminalVideoForward        |                         | Fast forward dtvt-video by N ms.
+*TerminalVideoBackward       |                         | Rewind dtvt-video by N ms.
+*TerminalVideoHome           |                         | Rewind dtvt-video to the beginning.
+*TerminalVideoEnd            |                         | Rewind dtvt-video to the end.
 
 #### Terminal configuration example
 ```xml
