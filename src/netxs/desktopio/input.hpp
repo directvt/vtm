@@ -1437,7 +1437,7 @@ namespace netxs::input
             alive = faux;
             if (set_nodbl) nodbl = true;
         }
-        void set_handled(bool b)
+        void set_handled(bool b = true)
         {
             handled = b;
         }
