@@ -346,7 +346,7 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.base::riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
+                        boss.base::template riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
                     });
                 }
                 static void TerminalRestart(ui::item& boss, menu::item& item)
@@ -894,7 +894,7 @@ namespace netxs::app::terminal
                         boss.base::locked = faux; // Unlock resizing.
                         boss.base::resize(new_size);
                         boss.base::locked = true; // Lock resizing until reflow is complete.
-                        boss.base::riseup<tier::preview>(e2::form::layout::swarp, warp);
+                        boss.base::template riseup<tier::preview>(e2::form::layout::swarp, warp);
                     }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area)
