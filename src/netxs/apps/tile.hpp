@@ -681,7 +681,7 @@ namespace netxs::app::tile
                                 parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr, (boss.This())); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
                                 if (item_ptr != boss.This()) // Parallel slot is not empty or both slots are empty (item_ptr == null).
                                 {
-                                    parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                    parent->base::template riseup<tier::release>(e2::form::proceed::swap, item_ptr);
                                 }
                             }
                             boss.deface();
