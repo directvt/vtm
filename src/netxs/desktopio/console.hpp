@@ -1261,7 +1261,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::proceed::create, dest_region, tokens)
             {
                 dest_region.coor += base::coor();
-                this->RISEUP(tier::release, e2::form::proceed::create, dest_region);
+                this->base::riseup<tier::release>(e2::form::proceed::create, dest_region);
             };
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
             {
@@ -1331,7 +1331,7 @@ namespace netxs::ui
                 //todo revise
                 if (props.title.length())
                 {
-                    this->RISEUP(tier::preview, e2::form::prop::ui::header, props.title);
+                    this->base::riseup<tier::preview>(e2::form::prop::ui::header, props.title);
                 }
             };
             LISTEN(tier::request, e2::form::prop::ui::footer, f, tokens)

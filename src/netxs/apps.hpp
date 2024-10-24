@@ -125,7 +125,7 @@ namespace netxs::app::shared
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
-                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::mock::ctor())
@@ -285,7 +285,7 @@ namespace netxs::app::shared
                 //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
-                //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
+                //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
                 //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                 //    if (actual_rect.hittest(gear.coord))
                 //    {
@@ -320,14 +320,14 @@ namespace netxs::app::shared
                     if (cmd.starts_with("@"))
                     {
                         static auto title_map = std::unordered_map<text, si32>{};
-                        boss.RISEUP(tier::request, e2::form::prop::ui::header, title, ());
+                        auto title = boss.base::template riseup<tier::request>(e2::form::prop::ui::header);
                         title += std::to_string(++title_map[title]);
-                        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                     }
-                    boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
-                    boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
-                    boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                    boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
+                    boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
+                    boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
+                    boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
+                    boss.base::template riseup<tier::preview>(e2::form::prop::zorder, zpos::backmost);
                     parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
@@ -369,7 +369,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
-                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                        boss.base::template riseup<tier::release>(e2::config::plugins::sizer::alive, state);
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
@@ -425,7 +425,7 @@ namespace netxs::app::shared
                     auto& term_inst = *inst;
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
-                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                        boss.base::template riseup<tier::release>(e2::config::plugins::sizer::alive, state);
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
@@ -470,7 +470,7 @@ namespace netxs::app::shared
                             if (order) pro::focus::pass(t, d);
                             else       pro::focus::pass(d, t);
                             boss.roll();
-                            boss.back()->RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
+                            boss.back()->base::template riseup<tier::preview>(e2::form::prop::ui::footer);
                             boss.back()->reflow();
                             boss.back()->deface();
                             order = !order;
@@ -482,7 +482,7 @@ namespace netxs::app::shared
                         if (--count == 0)
                         if (auto parent = boss.parent())
                         {
-                            parent->RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                            parent->base::template riseup<tier::release>(e2::form::proceed::quit::one, fast);
                         }
                     };
                 });
@@ -522,15 +522,15 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                        boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
                     {
-                        boss.RISEUP(tier::request, e2::form::prop::window::instance, window_ptr, ());
+                        auto window_ptr = boss.base::template riseup<tier::request>(e2::form::prop::window::instance);
                         //todo too hacky
                         if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
                         {
-                            form_ptr->plugins<pro::title>().live = faux;
+                            form_ptr->template plugins<pro::title>().live = faux;
                         }
                     };
                 });
@@ -549,7 +549,7 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
+                        boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
                     };
                 }},

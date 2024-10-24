@@ -331,23 +331,23 @@ namespace netxs::ui
                 auto s = std::bitset<8>{ (ui32)gear.m_sav.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
-                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+                    auto gear_test = owner.base::riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
                         pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
-                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                    owner.base::riseup<tier::preview>(e2::form::layout::expose);
                 }
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
-                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+                    auto gear_test = owner.base::riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
                         pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                         : pro::focus::solo::on, pro::focus::flip::on);
                     }
-                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                    owner.base::riseup<tier::preview>(e2::form::layout::expose);
                 }
             }
             void enable(mode m)
@@ -440,7 +440,7 @@ namespace netxs::ui
                 auto& utf8 = props[property];
                 if (property == ansi::osc_title)
                 {
-                    owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
+                    owner.base::riseup<tier::request>(e2::form::prop::ui::header, utf8);
                 }
                 return utf8;
             }
@@ -453,14 +453,14 @@ namespace netxs::ui
                 {
                                   props[ansi::osc_label] = txt;
                     auto& utf8 = (props[ansi::osc_title] = txt);
-                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
+                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::osc_title)
                     {
-                        owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
+                        owner.base::riseup<tier::preview>(e2::form::prop::ui::header, utf8);
                     }
                 }
             }
@@ -6605,7 +6605,7 @@ namespace netxs::ui
                     auto path = text{ data.substr(delimpos) };
                     bell::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
                     {
-                        this->RISEUP(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
+                        this->base::riseup<tier::preview>(e2::form::prop::cwd, path); //todo VS2019 requires `this`
                     });
                 }
             }
@@ -6623,7 +6623,7 @@ namespace netxs::ui
                 clipdata.form = mime::disabled;
                 clipdata.size = target->panel;
                 clipdata.hash = datetime::now();
-                RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
+                auto gates = base::riseup<tier::request>(e2::form::state::keybd::enlist); // Take all foci.
                 for (auto gate_id : gates) // Signal them to set the clipboard data.
                 {
                     if (auto gear_ptr = bell::getref<hids>(gate_id))
@@ -7033,7 +7033,7 @@ namespace netxs::ui
         {
             auto coor = base::coor();
             auto info = e2::form::upon::scroll::bystep::v.param({ .vector = delta });
-            RISEUP(tier::preview, e2::form::upon::scroll::bystep::v, info);
+            base::riseup<tier::preview>(e2::form::upon::scroll::bystep::v, info);
             return base::coor() - coor;
         }
         // term: Is the selection allowed.
@@ -7095,7 +7095,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
+            gear.owner.base::riseup<tier::request>(hids::events::clipbrd, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
             {
@@ -7175,7 +7175,7 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+            auto gear_test = base::riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
             if (!gear_test.second) // Set exclusive focus on right click.
             {
                 pro::focus::set(This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
@@ -7369,7 +7369,7 @@ namespace netxs::ui
             }
             else
             {
-                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
+                gear.owner.base::riseup<tier::request>(hids::events::clipbrd, gear);
                 auto& data = gear.board::cargo;
                 if (data.utf8.size())
                 {
@@ -7536,7 +7536,7 @@ namespace netxs::ui
                             }
                         }
                     };
-                    this->RISEUP(tier::release, e2::form::global::sysstart, 0);
+                    this->base::riseup<tier::release>(e2::form::global::sysstart, 0);
                 };
                 auto renew = [&]
                 {
@@ -7560,7 +7560,7 @@ namespace netxs::ui
         }
         void start()
         {
-            RISEUP(tier::release, e2::form::upon::started, This());
+            base::riseup<tier::release>(e2::form::upon::started, This());
         }
         void start(eccc cfg, os::fdrw fds = {})
         {
@@ -7594,20 +7594,20 @@ namespace netxs::ui
                     bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
                     {
                         ipccon.payoff(io_log); // Wait child process.
-                        this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                        this->base::riseup<tier::release>(e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
                     });
                 }
             }
             else // Child process exited with non-zero code and term waits keypress.
             {
                 onerun.reset();
-                this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                this->base::riseup<tier::release>(e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
             }
         }
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
-            RISEUP(tier::preview, e2::form::prop::window::size, winsz);
+            base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
         }
         // term: Custom data output (ConSrv callback).
         template<class Fx>
@@ -7768,24 +7768,31 @@ namespace netxs::ui
                 {
                     case keybd::type::keypress:
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
-                        if (gear.handled) return; // Don't pass registered keyboard shortcuts.
+                        if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
                         if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyCtrl))
                         {
-                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::LeftArrow                            ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::RightArrow                           ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::UpArrow                              ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::DownArrow                            ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::Home                                 ){ base::riseup<tier::preview>(e2::form::upon::scroll::to_top::y);                        gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::End                                  ){ base::riseup<tier::preview>(e2::form::upon::scroll::to_end::y);                        gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::PageUp                               ){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::PageDown                             ){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); gear.set_handled(); return; }
+                            auto found = true;
+                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt)) base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = dot_10  });
+                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt)) base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = -dot_10 });
+                            else if (gear.keycode == input::key::LeftArrow                            ) base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }});
+                            else if (gear.keycode == input::key::RightArrow                           ) base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }});
+                            else if (gear.keycode == input::key::UpArrow                              ) base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }});
+                            else if (gear.keycode == input::key::DownArrow                            ) base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }});
+                            else if (gear.keycode == input::key::Home                                 ) base::riseup<tier::preview>(e2::form::upon::scroll::to_top::y);
+                            else if (gear.keycode == input::key::End                                  ) base::riseup<tier::preview>(e2::form::upon::scroll::to_end::y);
+                            else if (gear.keycode == input::key::PageUp                               ) base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = dot_01  });
+                            else if (gear.keycode == input::key::PageDown                             ) base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = -dot_01 });
+                            else found = faux;
+                            if (found)
+                            {
+                                gear.set_handled();
+                                break;
+                            }
                         }
                         if (config.resetonkey && gear.doinput())
                         {
-                            this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                            this->base::riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
                             unsync = true;
                             follow[axis::X] = true;
                             follow[axis::Y] = true;
@@ -7835,7 +7842,7 @@ namespace netxs::ui
                 auto& console = *target;
                 if (status.update(console))
                 {
-                    this->RISEUP(tier::preview, e2::form::prop::ui::footer, status.data);
+                    this->base::riseup<tier::preview>(e2::form::prop::ui::footer, status.data);
                 }
 
                 auto clip = parent_canvas.clip();
@@ -7978,7 +7985,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                        parent_ptr->base::riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
                     }
                 });
             }
@@ -7992,7 +7999,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        parent_ptr->base::riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
                     }
                 });
             }
@@ -8004,7 +8011,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                        auto seed = parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::cut, { .id = k.gear_id, .item = owner.This() });
                     }
                 });
             }
@@ -8016,7 +8023,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
+                        auto seed = parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
                     }
                 });
             }
@@ -8073,7 +8080,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        owner.RISEUP(tier::release, e2::form::size::minimize, gear);
+                        owner.base::riseup<tier::release>(e2::form::size::minimize, gear);
                     }
                 });
             }
@@ -8081,7 +8088,7 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
-                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                    owner.base::riseup<tier::preview>(e2::form::layout::expose);
                 });
             }
             void handle(s11n::xs::clipdata            lock)
@@ -8103,7 +8110,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
+                        gear.owner.base::riseup<tier::request>(hids::events::clipbrd, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {
@@ -8120,7 +8127,7 @@ namespace netxs::ui
                 auto& h = lock.thing;
                 owner.bell::enqueue(owner.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
                 {
-                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, header);
+                    owner.base::riseup<tier::preview>(e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
@@ -8128,7 +8135,7 @@ namespace netxs::ui
                 auto& f = lock.thing;
                 owner.bell::enqueue(owner.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
                 {
-                    owner.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
+                    owner.base::riseup<tier::preview>(e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::header_request      lock)
@@ -8137,7 +8144,7 @@ namespace netxs::ui
                 owner.trysync(owner.active, [&]
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    auto header = owner.base::riseup<tier::request>(e2::form::prop::ui::header);
                     s11n::header.send(owner, c.window_id, header);
                 });
             }
@@ -8147,7 +8154,7 @@ namespace netxs::ui
                 owner.trysync(owner.active, [&]
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
+                    auto footer = owner.base::riseup<tier::request>(e2::form::prop::ui::footer);
                     s11n::footer.send(owner, c.window_id, footer);
                 });
             }
@@ -8157,7 +8164,7 @@ namespace netxs::ui
                 owner.bell::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::preview, e2::form::layout::swarp, warp);
+                    owner.base::riseup<tier::preview>(e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::fps                 lock)
@@ -8188,14 +8195,14 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 {
-                    owner.RISEUP(tier::release, e2::form::global::sysstart, 1);
+                    owner.base::riseup<tier::release>(e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
                 owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 {
-                    owner.RISEUP(tier::preview, e2::form::prop::cwd, path);
+                    owner.base::riseup<tier::preview>(e2::form::prop::cwd, path);
                 });
             }
             evnt(dtvt& owner)
@@ -8300,7 +8307,7 @@ namespace netxs::ui
             bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
-                this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
+                this->base::riseup<tier::release>(e2::form::proceed::quit::one, true); // MSVC2019
             });
         }
         // dtvt: Splash screen if there is no next frame.

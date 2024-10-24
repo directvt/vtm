@@ -837,14 +837,14 @@ namespace netxs::ui
         // Usage example:
         //          base::raw_riseup<tier::preview>(e2::form::prop::ui::header, txt);
         template<tier Tier, class T>
-        void raw_riseup(hint event_id, T&& param, bool forced = faux)
+        void raw_riseup(hint event_id, T& param, bool forced = faux)
         {
             if (forced)
             {
                 bell::template signal<Tier>(event_id, param);
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template raw_riseup<Tier>(event_id, std::forward<T>(param), forced);
+                    boss.base::template raw_riseup<Tier>(event_id, param, forced);
                 });
             }
             else
@@ -853,7 +853,7 @@ namespace netxs::ui
                 {
                     base::toboss([&](auto& boss)
                     {
-                        boss.base::template raw_riseup<Tier>(event_id, std::forward<T>(param), forced);
+                        boss.base::template raw_riseup<Tier>(event_id, param, forced);
                     });
                 }
             }
@@ -862,9 +862,10 @@ namespace netxs::ui
         // Usage example:
         //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
         template<tier Tier, class Event>
-        void riseup(Event, Event::type&& param = {}, bool forced = faux)
+        auto riseup(Event, Event::type&& param = {}, bool forced = faux)
         {
-            raw_riseup<Tier>(Event::id, std::move(param), forced);
+            raw_riseup<Tier>(Event::id, param, forced);
+            return param;
         }
         template<tier Tier, class Event>
         void riseup(Event, Event::type& param, bool forced = faux)

@@ -346,7 +346,7 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.RISEUP(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                        boss.base::template riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
                     });
                 }
                 static void TerminalRestart(ui::item& boss, menu::item& item)
@@ -876,13 +876,13 @@ namespace netxs::app::terminal
                     //    0 -- maximize (toggle)
                     if (new_size == dot_00) // Toggle fullscreen terminal (only if it is focused by someone).
                     {
-                        boss.RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ());
+                        auto gates = boss.base::template riseup<tier::request>(e2::form::state::keybd::enlist);
                         if (gates.size())
                         if (auto gate_ptr = boss.bell::getref(gates.back()))
                         {
                             gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                             {
-                                boss.RISEUP(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                                boss.base::template riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
                             });
                         }
                     }
@@ -894,7 +894,7 @@ namespace netxs::app::terminal
                         boss.base::locked = faux; // Unlock resizing.
                         boss.base::resize(new_size);
                         boss.base::locked = true; // Lock resizing until reflow is complete.
-                        boss.RISEUP(tier::preview, e2::form::layout::swarp, warp);
+                        boss.base::template riseup<tier::preview>(e2::form::layout::swarp, warp);
                     }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area)
@@ -1006,7 +1006,7 @@ namespace netxs::app::terminal
             {
                 if (std::exchange(state, *visible || winsz->y != 1) != state)
                 {
-                    boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state);
+                    boss.base::riseup<tier::preview>(e2::form::prop::ui::cache, state);
                 }
             });
             boss.LISTEN(tier::release, e2::form::state::visible, menu_visible, -, (visible, check_state))
