@@ -872,7 +872,7 @@ namespace netxs::ui
             raw_riseup<Tier>(Event::id, param, forced);
         }
         template<tier Tier, class Event>
-        void riseup(Event, Event::type const& param = {}, bool forced = faux)
+        void riseup(Event, Event::type const& param, bool forced = faux)
         {
             raw_riseup<Tier>(Event::id, param, forced);
         }
