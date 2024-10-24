@@ -7770,18 +7770,18 @@ namespace netxs::ui
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) return; // Don't pass registered keyboard shortcuts.
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-                        if (gear.pressed && gear.meta(hids::anyShift))
+                        if (gear.pressed && gear.meta(hids::anyShift | hids::anyCtrl))
                         {
-                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyCtrl | hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyCtrl | hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::UpArrow    && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::DownArrow  && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::Home       && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::to_top::y);                        gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::End        && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::to_end::y);                        gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::PageUp     && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); gear.set_handled(); return; }
-                            else if (gear.keycode == input::key::PageDown   && gear.meta(hids::anyCtrl               )){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); gear.set_handled(); return; }
+                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt)){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::LeftArrow                            ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::RightArrow                           ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::UpArrow                              ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::DownArrow                            ){ base::riseup<tier::preview>(e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::Home                                 ){ base::riseup<tier::preview>(e2::form::upon::scroll::to_top::y);                        gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::End                                  ){ base::riseup<tier::preview>(e2::form::upon::scroll::to_end::y);                        gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::PageUp                               ){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); gear.set_handled(); return; }
+                            else if (gear.keycode == input::key::PageDown                             ){ base::riseup<tier::preview>(e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); gear.set_handled(); return; }
                         }
                         if (config.resetonkey && gear.doinput())
                         {
