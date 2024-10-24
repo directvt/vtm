@@ -1159,7 +1159,7 @@ namespace netxs::ui
                     {
                         auto backup = boss.This();
                         log(prompt::gate, "No mouse clicking events");
-                        boss.template base::riseup<tier::release>(e2::form::proceed::quit::one, true);
+                        boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
                         ping.reset();
                         memo.clear();
                     }
