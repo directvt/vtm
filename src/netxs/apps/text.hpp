@@ -91,13 +91,13 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                       //boss.keybd.accept(true);
                       boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                       {
-                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                          boss.base::riseup<tier::release>(e2::form::proceed::quit::one, fast);
                       };
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                          boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                          boss.base::riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

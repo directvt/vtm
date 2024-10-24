@@ -203,7 +203,7 @@ namespace netxs::app::shop
                         //boss.keybd.accept(true);
                         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                         {
-                            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                            boss.base::riseup<tier::release>(e2::form::proceed::quit::one, fast);
                         };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

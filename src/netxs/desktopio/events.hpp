@@ -411,17 +411,6 @@ namespace netxs::events
     #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
     #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
-    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var) // Multi-statement macro. Use with caution.
-    #define RISEUP_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, RISEUP_N, RISEUP_S))
-    #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
-
-    //todo deprecated?
-    //#define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&](typename decltype( event )::type && param)
-    //#define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&](typename decltype( event )::type && param)
-    //#define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    //#define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
-
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
                                     public: static constexpr auto any = netxs::events::type_clue<_group_type, decltype(base)::type, decltype(base)::id>

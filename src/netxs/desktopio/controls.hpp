@@ -1159,7 +1159,7 @@ namespace netxs::ui
                     {
                         auto backup = boss.This();
                         log(prompt::gate, "No mouse clicking events");
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
+                        boss.base::riseup<tier::release>(e2::form::proceed::quit::one, true);
                         ping.reset();
                         memo.clear();
                     }
@@ -1256,7 +1256,7 @@ namespace netxs::ui
             {
                 auto fire = [&](auto id)
                 {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
+                    auto seed = item_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::set, { .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip });
                     //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1267,7 +1267,7 @@ namespace netxs::ui
             {
                 auto fire = [&](auto id)
                 {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
+                    auto seed = item_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::off, { .id = id });
                     //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1275,23 +1275,23 @@ namespace netxs::ui
             }
             static auto off(sptr item_ptr)
             {
-                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                auto gear_id_list = item_ptr->base::riseup<tier::request>(e2::form::state::keybd::enlist);
                 pro::focus::off(item_ptr, gear_id_list);
                 //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
                 return gear_id_list;
             }
             static auto get(sptr item_ptr, bool remove_default = faux)
             {
-                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                auto gear_id_list = item_ptr->base::riseup<tier::request>(e2::form::state::keybd::enlist);
                 for (auto next_id : gear_id_list)
                 {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
+                    auto seed = item_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::get, { .id = next_id });
                     //if constexpr (debugmode) log(prompt::foci, "Focus get gear:", seed.id, " item:", item_ptr->id);
                 }
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
                 {
-                    parent->RISEUP(tier::preview, hids::events::keybd::focus::dry, seed, ({ .item = item_ptr }));
+                    auto seed = parent->base::riseup<tier::preview>(hids::events::keybd::focus::dry, { .item = item_ptr });
                 }
                 return gear_id_list;
             }
@@ -1299,14 +1299,14 @@ namespace netxs::ui
             {
                 if (auto parent = src_ptr->parent())
                 {
-                    parent->RISEUP(tier::release, hids::events::keybd::focus::hop, seed, ({ .what = src_ptr, .item = dst_ptr }));
+                    auto seed = parent->base::riseup<tier::release>(hids::events::keybd::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
                     pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
                 }
             }
             static auto test(base& item, input::hids& gear)
             {
-                item.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+                auto gear_test = item.base::riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
                 return gear_test.second;
             }
 
@@ -1445,7 +1445,7 @@ namespace netxs::ui
                             if (auto parent_ptr = boss.parent())
                             {
                                 seed.item = boss.This();
-                                parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                                parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::cut, seed);
                             }
                             return;
                         }
@@ -1516,7 +1516,7 @@ namespace netxs::ui
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
-                        parent->RISEUP(tier::preview, hids::events::keybd::focus::set, seed);
+                        parent->base::riseup<tier::preview>(hids::events::keybd::focus::set, seed);
                     }
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::off, seed, memo)
@@ -1529,7 +1529,7 @@ namespace netxs::ui
                         {
                             auto temp = seed.item;
                             seed.item = boss.This();
-                            parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                            parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::cut, seed);
                             seed.item = temp;
                         }
                     }
@@ -4297,7 +4297,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                RISEUP(Tier, Event{}, cur_val);
+                base::riseup<Tier>(Event{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -4331,7 +4331,7 @@ namespace netxs::ui
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            RISEUP(Tier, Event{}, cur_val);
+            base::riseup<Tier>(Event{}, cur_val);
 
             base::limits(twod{ utf::length(caption) + (pad + 2) * 2, 10 });
 
