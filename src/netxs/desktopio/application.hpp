@@ -33,7 +33,7 @@ namespace netxs::app::shared
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
-            boss.template base::riseup<tier::release>(e2::form::proceed::quit::one, fast); // Apple clang requires template keyword.
+            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, fast); // Apple clang requires template keyword.
         };
     };
     const auto closing_by_gesture = [](auto& boss)
