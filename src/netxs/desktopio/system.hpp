@@ -4321,9 +4321,9 @@ namespace netxs::os
                 termsize = cfg.win;
                 auto trailer = [&, cmd = cfg.cmd]
                 {
+                    auto exitcode = termlink->wait(); // Wait all attached processes to exit (waiting for conversations to complete, send pending writebuf).
                     if (attached.exchange(faux))
                     {
-                        auto exitcode = termlink->wait();
                         log("%%Process '%cmd%' exited with code %code%", prompt::vtty, ansi::hi(utf::debase437(cmd)), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
