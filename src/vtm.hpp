@@ -257,11 +257,11 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
-                    boss.base::riseup<tier::preview>(e2::form::layout::expose);
+                    boss.base::template riseup<tier::preview>(e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::right, gear, memo)
                 {
-                    boss.base::riseup<tier::preview>(e2::form::layout::expose);
+                    boss.base::template riseup<tier::preview>(e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
@@ -273,7 +273,7 @@ namespace netxs::app::vtm
                 //};
                 boss.LISTEN(tier::preview, e2::form::upon::changed, delta, memo)
                 {
-                    boss.base::riseup<tier::preview>(e2::form::layout::bubble);
+                    boss.base::template riseup<tier::preview>(e2::form::layout::bubble);
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::down::any, gear, memo)
                 {
@@ -1304,7 +1304,7 @@ namespace netxs::app::vtm
                         else // Hide if visible and refocus.
                         {
                             boss.hidden = true;
-                            auto gear_test = boss.base::riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
+                            auto gear_test = boss.base::template riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
                             if (auto parent = boss.parent())
                             if (gear_test.second) // If it is focused pass the focus to the next desktop window.
                             {
@@ -1344,7 +1344,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.base::riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
+                        boss.base::template riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
@@ -1433,7 +1433,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                     {
-                        auto order = boss.base::riseup<tier::request>(e2::form::prop::zorder);
+                        auto order = boss.base::template riseup<tier::request>(e2::form::prop::zorder);
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                         auto recalc = [](auto& boss, auto viewport)
                         {
