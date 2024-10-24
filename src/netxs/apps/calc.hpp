@@ -342,13 +342,13 @@ namespace netxs::app::calc
                       //boss.keybd.accept(true);
                       boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                       {
-                          boss.base::riseup<tier::release>(e2::form::proceed::quit::one, fast);
+                          boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, fast);
                       };
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
-                          boss.base::riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

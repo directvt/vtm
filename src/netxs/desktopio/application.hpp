@@ -41,13 +41,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.base::riseup<tier::release>(e2::form::proceed::quit::one, true);
+            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.base::riseup<tier::release>(e2::form::proceed::quit::one, true);
+            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
     };
@@ -267,7 +267,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.base::riseup<tier::release>(e2::form::size::minimize, gear);
+                            boss.base::template riseup<tier::release>(e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -276,7 +276,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.base::riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
+                            boss.base::template riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -423,7 +423,7 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         auto title = "error"s;
-                        boss.base::riseup<tier::preview>(e2::form::prop::ui::header, title);
+                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
                     };
                 });
             auto msg = ui::post::ctor()
