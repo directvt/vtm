@@ -1424,11 +1424,10 @@ namespace netxs::input
         }
 
         auto meta(si32 ctl_key = -1) { return ctlstate & ctl_key; }
-        template<class ...Args>
-        auto chord(si32 k, Args&&... mods)
+        auto chord(si32 k, si32 mods = {})
         {
-            if constexpr (sizeof...(mods)) return k == keybd::keycode && (meta(mods) && ...);
-            else                           return k == keybd::keycode && !meta(hids::anyMod);
+            if (mods) return k == keybd::keycode && meta(mods) && !meta(~mods & hids::anyMod);
+            else      return k == keybd::keycode && !meta(hids::anyMod);
         }
 
         // hids: Stop handeling this event.
