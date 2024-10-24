@@ -614,21 +614,6 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) skip ? release.skip() : release.stop();
             else                                      skip ? anycast.skip() : anycast.stop();
         }
-        // bell: Sync with UI thread.
-        template<class P>
-        auto trysync(auto&& active, P proc)
-        {
-            while (active)
-            {
-                if (auto guard = indexer.try_sync())
-                {
-                    proc();
-                    return true;
-                }
-                std::this_thread::yield();
-            }            
-            return faux;
-        }
         void _saveme()
         {
             saveme_mutex.lock();

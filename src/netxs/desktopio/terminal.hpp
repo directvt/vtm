@@ -6939,27 +6939,25 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            bell::trysync(true, [&]
+            auto guard = bell::sync();
+            if (config.resetonout) follow[axis::Y] = true;
+            if (follow[axis::Y])
             {
-                if (config.resetonout) follow[axis::Y] = true;
-                if (follow[axis::Y])
+                unsync |= proc();
+            }
+            else
+            {
+                auto last_basis = target->get_basis();
+                auto last_slide = target->get_slide();
+                auto is_changed = proc();
+                unsync |= is_changed;
+                if (is_changed)
                 {
-                    unsync |= proc();
+                    auto next_basis = target->get_basis();
+                    follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
+                                   || (next_basis <= last_slide && last_slide <= last_basis);
                 }
-                else
-                {
-                    auto last_basis = target->get_basis();
-                    auto last_slide = target->get_slide();
-                    auto is_changed = proc();
-                    unsync |= is_changed;
-                    if (is_changed)
-                    {
-                        auto next_basis = target->get_basis();
-                        follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
-                                       || (next_basis <= last_slide && last_slide <= last_basis);
-                    }
-                }
-            });
+            }
         }
         // term: Proceed terminal input.
         template<bool Forced = faux>
@@ -7978,8 +7976,9 @@ namespace netxs::ui
             void handle(s11n::xs::fullscrn            lock)
             {
                 auto& m = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
@@ -7987,13 +7986,14 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->base::riseup<tier::preview>(e2::form::size::enlarge::fullscreen, gear);
                     }
-                });
+                }
             }
             void handle(s11n::xs::maximize            lock)
             {
                 auto& m = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
@@ -8001,37 +8001,40 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->base::riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
                     }
-                });
+                }
             }
             void handle(s11n::xs::focus_cut           lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto seed = parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::cut, { .id = k.gear_id, .item = owner.This() });
                     }
-                });
+                }
             }
             void handle(s11n::xs::focus_set           lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto seed = parent_ptr->base::riseup<tier::preview>(hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
                     }
-                });
+                }
             }
             void handle(s11n::xs::keybd_event         lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
@@ -8053,13 +8056,14 @@ namespace netxs::ui
                         }
                         while (gear && parent_ptr);
                     }
-                });
+                }
             };
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
@@ -8070,7 +8074,7 @@ namespace netxs::ui
                         gear.replay(m.cause, m.coord - basis, m.click - basis, m.delta, m.buttons, m.ctlstat, m.whlfp, m.whlsi, m.hzwhl);
                         gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
-                });
+                }
             }
             void handle(s11n::xs::minimize            lock)
             {
@@ -8094,19 +8098,21 @@ namespace netxs::ui
             void handle(s11n::xs::clipdata            lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         gear_ptr->set_clipboard(c);
                     }
-                });
+                }
             }
             void handle(s11n::xs::clipdata_request    lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
+                    auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
@@ -8120,7 +8126,7 @@ namespace netxs::ui
                     }
                     else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
                     s11n::clipdata.send(owner, c.gear_id, c.hash, dot_00, text{}, mime::ansitext, text{});
-                });
+                }
             }
             void handle(s11n::xs::header              lock)
             {
@@ -8141,22 +8147,24 @@ namespace netxs::ui
             void handle(s11n::xs::header_request      lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
                     //todo use window_id
-                    auto header = owner.base::riseup<tier::request>(e2::form::prop::ui::header);
-                    s11n::header.send(owner, c.window_id, header);
-                });
+                    auto guard = owner.sync();
+                    auto header_utf8 = owner.base::riseup<tier::request>(e2::form::prop::ui::header);
+                    s11n::header.send(owner, c.window_id, header_utf8);
+                }
             }
             void handle(s11n::xs::footer_request      lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                if (owner.active)
                 {
                     //todo use window_id
-                    auto footer = owner.base::riseup<tier::request>(e2::form::prop::ui::footer);
-                    s11n::footer.send(owner, c.window_id, footer);
-                });
+                    auto guard = owner.sync();
+                    auto footer_utf8 = owner.base::riseup<tier::request>(e2::form::prop::ui::footer);
+                    s11n::footer.send(owner, c.window_id, footer_utf8);
+                }
             }
             void handle(s11n::xs::warping             lock)
             {
