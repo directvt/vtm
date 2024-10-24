@@ -124,7 +124,7 @@ namespace netxs::app::desk
                             auto& window = *data_src;
                             if (gear.meta(hids::anyAlt)) // Pull window.
                             {
-                                window.base::riseup<tier::preview>(e2::form::layout::expose);
+                                window.base::template riseup<tier::preview>(e2::form::layout::expose);
                                 gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                                 window.SIGNAL(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
                                 if (window.hidden) // Restore if minimized.
@@ -154,7 +154,7 @@ namespace netxs::app::desk
                                 }
                                 else // Expose and set group focus.
                                 {
-                                    window.base::riseup<tier::preview>(e2::form::layout::expose);
+                                    window.base::template riseup<tier::preview>(e2::form::layout::expose);
                                     if (window.hidden) // Restore if minimized.
                                     {
                                         window.SIGNAL(tier::release, e2::form::size::minimize, gear);
@@ -169,7 +169,7 @@ namespace netxs::app::desk
                             }
                             else // Set unique focus.
                             {
-                                window.base::riseup<tier::preview>(e2::form::layout::expose);
+                                window.base::template riseup<tier::preview>(e2::form::layout::expose);
                                 if (window.hidden) // Restore if minimized.
                                 {
                                     window.SIGNAL(tier::release, e2::form::size::minimize, gear);
@@ -273,7 +273,7 @@ namespace netxs::app::desk
                                  "   LeftClick to start the application instance \n"
                                  "   RightClick to set it as default             \n"
                                  "   LeftDrag to move desktop viewport           "};
-            auto conf_list_ptr = data_src->base::riseup<tier::request>(desk::events::menu);
+            auto conf_list_ptr = data_src->base::template riseup<tier::request>(desk::events::menu);
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;

@@ -261,7 +261,7 @@ namespace netxs::app::tile
                                 if (what.header.empty()) what.header = menuid;
 
                                 // Find creator.
-                                auto world_ptr = master.base::riseup<tier::request>(e2::config::creator);
+                                auto world_ptr = master.base::template riseup<tier::request>(e2::config::creator);
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
@@ -279,7 +279,7 @@ namespace netxs::app::tile
                                     auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
                                     world_ptr->SIGNAL(tier::request, vtm::events::handoff, what); // Attach to the world.
                                     pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
-                                    master.base::riseup<tier::release>(e2::form::proceed::quit::one, true); // Destroy placeholder.
+                                    master.base::template riseup<tier::release>(e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 }
 
                                 // Redirect this mouse event to the new world's window.

@@ -1414,8 +1414,8 @@ namespace netxs::app::vtm
                         auto what = what_copy;
                         what.applet = window_ptr;
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
-                        window_ptr->base::riseup<tier::request>(e2::form::prop::ui::header, what.header);
-                        window_ptr->base::riseup<tier::request>(e2::form::prop::ui::footer, what.footer);
+                        window_ptr->base::template riseup<tier::request>(e2::form::prop::ui::header, what.header);
+                        window_ptr->base::template riseup<tier::request>(e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
                     boss.LISTEN(tier::release, e2::form::size::restore, item_ptr)
