@@ -113,11 +113,12 @@ namespace netxs::scripting
         // scripting::host: Cooked read input.
         void data(rich& /*data*/)
         {
-            boss.bell::trysync(active, [&]
+            if (active)
             {
+                auto lock = boss.bell::sync();
                 // It is a powershell readline echo.
                 //log<faux>(ansi::fgc(cyanlt).add(data.utf8()).nil());
-            });
+            }
         }
         // scripting::host: Shutdown callback handler.
         void onexit(si32 /*code*/, view /*msg*/ = {}, bool /*exit_after_sighup*/ = faux)
@@ -135,10 +136,11 @@ namespace netxs::scripting
         template<class P>
         void update(P api_proc)
         {
-            boss.bell::trysync(active, [&]
+            if (active)
             {
+                auto lock = boss.bell::sync();
                 api_proc();
-            });
+            }
         }
         // scripting::host: Write client data.
         template<bool Echo = true>
@@ -208,7 +210,7 @@ namespace netxs::scripting
                 if (engine)
                 {
                     write(script.cmd);
-                    owner.bell::template expire<tier::release>();
+                    owner.bell::expire(tier::release);
                 }
             };
         }

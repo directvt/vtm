@@ -125,7 +125,7 @@ namespace netxs::app::shared
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
-                          boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                          boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
             auto object = window->attach(ui::mock::ctor())
@@ -285,12 +285,12 @@ namespace netxs::app::shared
                 //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
-                //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
+                //    boss.base::riseup(tier::request, e2::config::plugins::sizer::outer, outer);
                 //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
                 //    if (actual_rect.hittest(gear.coord))
                 //    {
                 //        rect viewport;
-                //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                //        gate.owner.bell::signal(tier::request, e2::form::prop::viewport, viewport);
                 //        boss.base::extend(viewport);
                 //        gear.dismiss();
                 //    }
@@ -320,14 +320,14 @@ namespace netxs::app::shared
                     if (cmd.starts_with("@"))
                     {
                         static auto title_map = std::unordered_map<text, si32>{};
-                        auto title = boss.base::template riseup<tier::request>(e2::form::prop::ui::header);
+                        auto title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
                         title += std::to_string(++title_map[title]);
-                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                        boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                     }
-                    boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
-                    boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
-                    boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
-                    boss.base::template riseup<tier::preview>(e2::form::prop::zorder, zpos::backmost);
+                    boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
+                    boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
+                    boss.base::riseup(tier::release, e2::config::plugins::align, faux);
+                    boss.base::riseup(tier::preview, e2::form::prop::zorder, zpos::backmost);
                     parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
@@ -342,7 +342,7 @@ namespace netxs::app::shared
                         if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, parent);
+                            gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, parent);
                         }
                     };
                 };
@@ -369,11 +369,11 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
-                        boss.base::template riseup<tier::release>(e2::config::plugins::sizer::alive, state);
+                        boss.base::riseup(tier::release, e2::config::plugins::sizer::alive, state);
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -406,7 +406,7 @@ namespace netxs::app::shared
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -425,11 +425,11 @@ namespace netxs::app::shared
                     auto& term_inst = *inst;
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
-                        boss.base::template riseup<tier::release>(e2::config::plugins::sizer::alive, state);
+                        boss.base::riseup(tier::release, e2::config::plugins::sizer::alive, state);
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -459,7 +459,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
-                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
+                        boss.bell::signal(tier::release, e2::form::upon::started, root);
                     };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
@@ -470,19 +470,19 @@ namespace netxs::app::shared
                             if (order) pro::focus::pass(t, d);
                             else       pro::focus::pass(d, t);
                             boss.roll();
-                            boss.back()->base::template riseup<tier::preview>(e2::form::prop::ui::footer);
+                            boss.back()->base::riseup(tier::preview, e2::form::prop::ui::footer);
                             boss.back()->reflow();
                             boss.back()->deface();
                             order = !order;
                         }
-                        boss.bell::template expire<tier::release>(true);
+                        boss.bell::expire(tier::release, true);
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
                     {
                         if (--count == 0)
                         if (auto parent = boss.parent())
                         {
-                            parent->base::template riseup<tier::release>(e2::form::proceed::quit::one, fast);
+                            parent->base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                         }
                     };
                 });
@@ -522,11 +522,11 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, fast);
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
                     {
-                        auto window_ptr = boss.base::template riseup<tier::request>(e2::form::prop::window::instance);
+                        auto window_ptr = boss.base::riseup(tier::request, e2::form::prop::window::instance);
                         //todo too hacky
                         if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
                         {
@@ -549,7 +549,7 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();
-                        boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
                     };
                 }},
@@ -644,7 +644,7 @@ namespace netxs::app::shared
                      || gear.chord(input::key::Enter)
                      || gear.chord(input::key::Esc))
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.set_handled(true);
                     }
                     else update(items_inst);

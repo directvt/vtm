@@ -92,7 +92,7 @@ namespace netxs::datetime
                 prior =  now;
 
                 now = datetime::now();
-                owner.template signal<Tier>(Deed, now);
+                owner.signal(Tier, Deed, now);
 
                 if (letup.exchange(faux))
                 {

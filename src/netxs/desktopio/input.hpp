@@ -1294,14 +1294,14 @@ namespace netxs::input
             mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
-            SIGNAL(tier::general, events::device::user::login, user_index);
+            bell::signal(tier::general, events::device::user::login, user_index);
         }
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
-            SIGNAL(tier::general, events::halt, *this);
-            SIGNAL(tier::general, events::die, *this);
-            SIGNAL(tier::general, events::device::user::logout, user_index);
+            bell::signal(tier::general, events::halt, *this);
+            bell::signal(tier::general, events::die, *this);
+            bell::signal(tier::general, events::device::user::logout, user_index);
         }
 
         // hids: Whether event processing is complete.
@@ -1489,8 +1489,7 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        template<tier Tier>
-        void pass(sptr object, fp2d offset, bool relative = faux)
+        void pass(si32 Tier, sptr object, fp2d offset, bool relative = faux)
         {
             if (object)
             {
@@ -1503,7 +1502,7 @@ namespace netxs::input
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object->bell::template signal<Tier>(mouse::cause, *this);
+                object->bell::signal(Tier, mouse::cause, *this);
                 mouse::coord = temp_coord;
                 mouse::click = temp_click;
             }
@@ -1516,7 +1515,7 @@ namespace netxs::input
                 {
                     auto saved_start = mouse::start;
                     mouse::start = start_id;
-                    last->SIGNAL(tier::release, events::notify::mouse::leave, *this);
+                    last->bell::signal(tier::release, events::notify::mouse::leave, *this);
                     mouse::start = saved_start;
                 }
                 else
@@ -1543,7 +1542,7 @@ namespace netxs::input
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
                 tooltip_set = faux;
-                boss.SIGNAL(tier::release, events::notify::mouse::enter, *this);
+                boss.bell::signal(tier::release, events::notify::mouse::enter, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;
             }
@@ -1553,7 +1552,7 @@ namespace netxs::input
             mouse::load_button_state(0);
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
-            SIGNAL(tier::general, events::halt, *this);
+            bell::signal(tier::general, events::halt, *this);
             disabled = true;
         }
         void okay(base& boss)
@@ -1561,7 +1560,7 @@ namespace netxs::input
             if (boss.id == relay)
             {
                 redirect_mouse_focus(boss);
-                boss.bell::template signal<tier::release>(mouse::cause, *this);
+                boss.bell::signal(tier::release, mouse::cause, *this);
             }
         }
         void fire(hint new_cause, si32 new_index = mouse::noactive)
@@ -1581,11 +1580,11 @@ namespace netxs::input
                 if (next)
                 {
                     redirect_mouse_focus(*next);
-                    pass<tier::release>(next, offset, true);
+                    pass(tier::release, next, offset, true);
 
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.bell::template signal<tier::release>(new_cause, *this);
+                        owner.bell::signal(tier::release, new_cause, *this);
                     }
                 }
                 else mouse::setfree();
@@ -1593,7 +1592,7 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.bell::template signal<tier::preview>(new_cause, *this);
+                owner.bell::signal(tier::preview, new_cause, *this);
 
                 if (!alive) return;
 
@@ -1601,13 +1600,13 @@ namespace netxs::input
                 if (next != owner.id)
                 {
                     relay = next;
-                    pass<tier::preview>(bell::getref<base>(next), offset, true);
+                    pass(tier::preview, bell::getref<base>(next), offset, true);
                     relay = 0;
 
                     if (!alive) return;
                 }
 
-                owner.bell::template signal<tier::release>(new_cause, *this); // Pass unhandled event to the gate.
+                owner.bell::signal(tier::release, new_cause, *this); // Pass unhandled event to the gate.
             }
         }
         bool fire_fast()
@@ -1624,7 +1623,7 @@ namespace netxs::input
                     auto  temp = m_sys.coordxy;
                     m_sys.coordxy += idmap.coor();
                     next.global(m_sys.coordxy);
-                    next.SIGNAL(tier::release, events::device::mouse::on, *this);
+                    next.bell::signal(tier::release, events::device::mouse::on, *this);
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
@@ -1641,19 +1640,19 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
+            owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_focus()
         {
             alive = true;
             //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
-            if (focus::state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
-            else              owner.SIGNAL(tier::release, hids::events::focus::off, *this);
+            if (focus::state) owner.bell::signal(tier::release, hids::events::focus::set, *this);
+            else              owner.bell::signal(tier::release, hids::events::focus::off, *this);
         }
         void fire_board()
         {
-            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
+            owner.bell::signal(tier::release, hids::events::clipbrd, *this);
             mouse::delta.set(); // Update time stamp.
         }
         text interpret(bool decckm)

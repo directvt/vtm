@@ -275,7 +275,7 @@ namespace netxs::os
                         }
                     }
 
-                    void operator=(refs const&) = delete;
+                    void operator = (refs const&) = delete;
                     refs(refs const&)           = delete;
                     refs(refs&& other)
                         :           ntdll_dll{ other.ntdll_dll           },
@@ -5869,7 +5869,7 @@ namespace netxs::os
                     auto wndproc = [](auto hWnd, auto uMsg, auto wParam, auto lParam)
                     {
                         static auto alive = flag{ true };
-                        static auto timers_clipboard = 1;
+                        static auto timers_clipboard = 1u;
                         switch (uMsg)
                         {
                             case WM_CREATE:

@@ -475,7 +475,7 @@ int main(int argc, char* argv[])
                         if (active)
                         {
                             onecmd.cmd = cmd;
-                            domain->SIGNAL(tier::release, scripting::events::invoke, onecmd);
+                            domain->bell::signal(tier::release, scripting::events::invoke, onecmd);
                         }
                         else
                         {
@@ -504,8 +504,8 @@ int main(int argc, char* argv[])
             }
         }};
 
-        auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
-        auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
+        auto execline = [&](qiew line){ domain->bell::signal(tier::release, scripting::events::invoke, { .cmd = line }); };
+        auto shutdown = [&]{ domain->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::main, "Shutdown on signal")); };
         execline(script);
         auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
