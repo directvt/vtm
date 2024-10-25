@@ -19,11 +19,11 @@ namespace netxs::events
     struct tier
     {
         static constexpr auto counter = __COUNTER__ + 1;
+        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
         static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param. Preserve subscription order.
         static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
         static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
-        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
     };
 
     /*************************************************************************************************
@@ -455,15 +455,11 @@ namespace netxs::events
         subs         tracker;
 
     private:
-        //reactor release{ true };
-        //reactor preview{ faux };
-        //reactor request{ true };
-        //reactor anycast{ faux };
-        reactor reactors[4] = {{ true }, { faux }, { true }, { faux }};
-        reactor& release = reactors[tier::release];
-        reactor& preview = reactors[tier::preview];
-        reactor& request = reactors[tier::request];
-        reactor& anycast = reactors[tier::anycast];
+        reactor release{ true };
+        reactor preview{ faux };
+        reactor request{ true };
+        reactor anycast{ faux };
+        reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
 
         template<auto Tier, class Event>
         struct submit_helper
@@ -503,22 +499,19 @@ namespace netxs::events
         void submit(Event, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
-            if (Tier == tier::general)tracker.admit(general.subscribe(Event::id, handler));
-            else                      tracker.admit(reactors[Tier].subscribe(Event::id, handler));
+            tracker.admit(reactors[Tier]->subscribe(Event::id, handler));
         }
         template<auto Tier, class Event>
         void submit(Event, hook& token, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
-            if (Tier == tier::general)token = general.subscribe(Event::id, handler);
-            else                      token = reactors[Tier].subscribe(Event::id, handler);
+            token = reactors[Tier]->subscribe(Event::id, handler);
         }
         template<auto Tier, class F>
         auto signal(hint event, F&& data)
         {
             auto lock = indexer.sync();
-                 if (Tier == tier::general)return general.notify(event, std::forward<F>(data));
-            else if (Tier == tier::anycast)
+            if (Tier == tier::anycast)
             {
                 auto root = gettop();
                 auto proc = ftor{ [&](auto boss_ptr)
@@ -528,28 +521,27 @@ namespace netxs::events
                 }};
                 return root->release.notify(userland::root::cascade.id, proc);
             }
-            else return reactors[Tier].notify(event, std::forward<F>(data));
+            else return reactors[Tier]->notify(event, std::forward<F>(data));
         }
         // bell: Return initial event of the current event execution branch.
         template<auto Tier>
         auto protos()
         {
-            if (Tier == tier::general)return general.queue.empty() ? hint{} : general.queue.back();
-            else                      return reactors[Tier].queue.empty() ? hint{} : reactors[Tier].queue.back();
+            return reactors[Tier]->queue.empty() ? hint{}
+                                                 : reactors[Tier]->queue.back();
         }
         template<auto Tier, class Event>
         auto protos(Event) { return bell::protos<Tier>() == Event::id; }
         template<auto Tier>
         auto& router()
         {
-            if (Tier == tier::general)return general;
-            else                      return reactors[Tier];
+            return *reactors[Tier];
         }
         template<auto Tier>
         void expire(bool skip = faux)
         {
-            if (Tier == tier::general)return skip ? general.skip() : general.stop();
-            else                      return skip ? reactors[Tier].skip() : reactors[Tier].stop();
+            skip ? reactors[Tier]->skip()
+                 : reactors[Tier]->stop();
         }
         void _saveme()
         {
@@ -610,10 +602,10 @@ namespace netxs::events
             LISTEN(tier::general, userland::root::cleanup, counter)
             {
                 counter.obj_count++;
-                reactors[tier::preview].cleanup(counter.ref_count, counter.del_count);
-                reactors[tier::request].cleanup(counter.ref_count, counter.del_count);
-                reactors[tier::release].cleanup(counter.ref_count, counter.del_count);
-                reactors[tier::anycast].cleanup(counter.ref_count, counter.del_count);
+                preview.cleanup(counter.ref_count, counter.del_count);
+                request.cleanup(counter.ref_count, counter.del_count);
+                release.cleanup(counter.ref_count, counter.del_count);
+                anycast.cleanup(counter.ref_count, counter.del_count);
             };
         }
        ~bell()
