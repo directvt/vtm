@@ -141,6 +141,7 @@ namespace netxs::events
         std::vector<hint>    queue; // reactor: Event queue.
         vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
         branch               alive; // reactor: Current exec branch interruptor.
+        bool                 handled{}; // reactor: Last notify operation result.
 
         void cleanup(ui64& ref_count, ui64& del_count)
         {
@@ -178,7 +179,7 @@ namespace netxs::events
         }
         // reactor: Calling delegates. Returns the number of active ones.
         template<class F>
-        auto notify(hint event, F&& param)
+        void notify(hint event, F&& param)
         {
             alive = branch::proceed;
             queue.push_back(event);
@@ -230,7 +231,7 @@ namespace netxs::events
             }
 
             queue.pop_back();
-            return alive != branch::nothandled && size;
+            handled = alive != branch::nothandled && size;
         }
         // reactor: Interrupt current invocation branch.
         void stop()
@@ -520,6 +521,10 @@ namespace netxs::events
             auto lock = indexer.sync();
             token = reactors[Tier]->subscribe(Event::id, handler);
         }
+        auto accomplished(si32 Tier)
+        {
+            return reactors[Tier]->handled;
+        }
         template<class F>
         auto signal(si32 Tier, hint event, F&& data)
         {
@@ -532,18 +537,20 @@ namespace netxs::events
                     boss_ptr->anycast.notify(event, std::forward<F>(data));
                     return true;
                 }};
-                return root->release.notify(userland::root::cascade.id, proc);
+                root->release.notify(userland::root::cascade.id, proc);
             }
-            else return reactors[Tier]->notify(event, std::forward<F>(data));
+            else reactors[Tier]->notify(event, std::forward<F>(data));
         }
         // bell: Return initial event of the current event execution branch.
         auto protos(si32 Tier)
         {
-            return reactors[Tier]->queue.empty() ? hint{}
-                                                 : reactors[Tier]->queue.back();
+            return reactors[Tier]->queue.empty() ? hint{} : reactors[Tier]->queue.back();
         }
         template<class Event>
-        auto protos(si32 Tier, Event) { return bell::protos(Tier) == Event::id; }
+        auto protos(si32 Tier, Event)
+        {
+            return bell::protos(Tier) == Event::id;
+        }
         auto& router(si32 Tier)
         {
             return *reactors[Tier];

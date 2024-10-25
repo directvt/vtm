@@ -115,7 +115,7 @@ namespace netxs::scripting
         {
             if (active)
             {
-                auto guard = boss.bell::sync();
+                auto lock = boss.bell::sync();
                 // It is a powershell readline echo.
                 //log<faux>(ansi::fgc(cyanlt).add(data.utf8()).nil());
             }
@@ -138,7 +138,7 @@ namespace netxs::scripting
         {
             if (active)
             {
-                auto guard = boss.bell::sync();
+                auto lock = boss.bell::sync();
                 api_proc();
             }
         }

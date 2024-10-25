@@ -6939,7 +6939,7 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            auto guard = bell::sync();
+            auto lock = bell::sync();
             if (config.resetonout) follow[axis::Y] = true;
             if (follow[axis::Y])
             {

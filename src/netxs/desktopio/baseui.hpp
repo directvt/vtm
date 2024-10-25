@@ -836,12 +836,12 @@ namespace netxs::ui
         // Warning: The parameter type is not checked/casted.
         // Usage example:
         //          base::raw_riseup(tier::preview, e2::form::prop::ui::header, txt);
-        template<class T>
-        void raw_riseup(si32 Tier, hint event_id, T& param, bool forced = faux)
+        void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
+            auto lock = bell::sync();
+            bell::signal(Tier, event_id, param);
             if (forced)
             {
-                bell::signal(Tier, event_id, param);
                 base::toboss([&](auto& boss)
                 {
                     boss.base::raw_riseup(Tier, event_id, param, forced);
@@ -849,7 +849,7 @@ namespace netxs::ui
             }
             else
             {
-                if (!bell::signal(Tier, event_id, param))
+                if (!bell::accomplished(Tier))
                 {
                     base::toboss([&](auto& boss)
                     {
