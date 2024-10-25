@@ -5869,7 +5869,7 @@ namespace netxs::os
                     auto wndproc = [](auto hWnd, auto uMsg, auto wParam, auto lParam)
                     {
                         static auto alive = flag{ true };
-                        static auto timers_clipboard = 1;
+                        static auto timers_clipboard = 1u;
                         switch (uMsg)
                         {
                             case WM_CREATE:
