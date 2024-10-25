@@ -836,7 +836,7 @@ namespace netxs::ui
         // Warning: The parameter type is not checked/casted.
         // Usage example:
         //          base::raw_riseup<tier::preview>(e2::form::prop::ui::header, txt);
-        template<tier Tier, class T>
+        template<auto Tier, class T>
         void raw_riseup(hint event_id, T& param, bool forced = faux)
         {
             if (forced)
@@ -861,18 +861,18 @@ namespace netxs::ui
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         auto riseup(Event, Event::type&& param = {}, bool forced = faux)
         {
             raw_riseup<Tier>(Event::id, param, forced);
             return param;
         }
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         void riseup(Event, Event::type& param, bool forced = faux)
         {
             raw_riseup<Tier>(Event::id, param, forced);
         }
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         void riseup(Event, Event::type const& param, bool forced = faux)
         {
             raw_riseup<Tier>(Event::id, param, forced);

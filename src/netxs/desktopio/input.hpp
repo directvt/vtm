@@ -1489,7 +1489,7 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        template<tier Tier>
+        template<auto Tier>
         void pass(sptr object, fp2d offset, bool relative = faux)
         {
             if (object)

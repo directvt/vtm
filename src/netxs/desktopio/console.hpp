@@ -137,7 +137,7 @@ namespace netxs::ui
             { }
 
             // link: Send an event message to the link owner.
-            template<tier Tier = tier::release, class E, class T>
+            template<auto Tier = tier::release, class E, class T>
             void notify(E, T&& data)
             {
                 owner.bell::enqueue(owner.This(), [d = data](auto& boss) mutable

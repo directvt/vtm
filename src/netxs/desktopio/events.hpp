@@ -16,19 +16,14 @@
 
 namespace netxs::events
 {
-    enum class execution_order
+    struct tier
     {
-        forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
-        reverse, // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
-    };
-
-    enum class tier
-    {
-        release, // events: Run forwrad handlers with fixed param. Preserve subscription order.
-        preview, // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
-        general, // events: Run forwrad handlers for all objects. Preserve subscription order.
-        request, // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
-        anycast, // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
+        static constexpr auto counter = __COUNTER__ + 1;
+        static constexpr auto release = __COUNTER__ - counter; // events: Run forwrad handlers with fixed param. Preserve subscription order.
+        static constexpr auto preview = __COUNTER__ - counter; // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
+        static constexpr auto general = __COUNTER__ - counter; // events: Run forwrad handlers for all objects. Preserve subscription order.
+        static constexpr auto request = __COUNTER__ - counter; // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
+        static constexpr auto anycast = __COUNTER__ - counter; // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
     };
 
     /*************************************************************************************************
@@ -91,10 +86,10 @@ namespace netxs::events
         auto entity = group | ((index + 1) <<  offset);
         return entity;
     }
-    template<hint Event>             constexpr auto offset = level(Event) * block;                                  // events: Item/msg bit shift.
-    template<hint Event>             constexpr auto parent =          Event & ((1 << (offset<Event> - block)) - 1); // events: Event group ID.
-    template<hint Event>             constexpr auto number =               (Event >> (offset<Event> - block)) - 1;  // events: Item index inside the group by its ID.
-    template<hint Group, auto Index> constexpr auto entity = Group | ((Index + 1) <<  offset<Group>);               // events: Event ID of the specified item inside the group.
+    template<hint Event>             constexpr auto offset = level(Event) * block;                         // events: Item/msg bit shift.
+    template<hint Event>             constexpr auto parent = Event & ((1 << (offset<Event> - block)) - 1); // events: Event group ID.
+    template<hint Event>             constexpr auto number = (Event >> (offset<Event> - block)) - 1;       // events: Item index inside the group by its ID.
+    template<hint Group, auto Index> constexpr auto entity = Group | ((Index + 1) <<  offset<Group>);      // events: Event ID of the specified item inside the group.
 
     template<hint Group, auto... Index>
     constexpr auto _instantiate(std::index_sequence<Index...>)
@@ -139,6 +134,8 @@ namespace netxs::events
             proceed,
         };
 
+        // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
+        // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
         bool                 order; // reactor: Execution order. True means Forward.
         std::map<hint, list> stock; // reactor: Handlers repository.
         std::vector<hint>    queue; // reactor: Event queue.
@@ -464,7 +461,7 @@ namespace netxs::events
         reactor anycast{ faux };
 
         //todo deprecated?
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         struct submit_helper2
         {
             using type = typename Event::type;
@@ -482,7 +479,7 @@ namespace netxs::events
             }
         };
         //todo deprecated?
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         struct submit_helper2_token
         {
             using type = typename Event::type;
@@ -501,7 +498,7 @@ namespace netxs::events
                 h(static_cast<type&&>(p));
             }
         };
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         struct submit_helper
         {
             bell& owner;
@@ -514,7 +511,7 @@ namespace netxs::events
                 owner.submit<Tier>(Event{}, h);
             }
         };
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         struct submit_helper_token
         {
             bell& owner;
@@ -532,14 +529,14 @@ namespace netxs::events
 
     public:
         //todo deprecated?
-        template<tier Tier, class Event> auto submit2(typename Event::type & p)               { return submit_helper2      <Tier, Event>(*this, p);                 }
-        template<tier Tier, class Event> auto submit2(typename Event::type & p, subs& tokens) { return submit_helper2_token<Tier, Event>(*this, p, tokens.extra()); }
+        template<auto Tier, class Event> auto submit2(typename Event::type & p)               { return submit_helper2      <Tier, Event>(*this, p);                 }
+        template<auto Tier, class Event> auto submit2(typename Event::type & p, subs& tokens) { return submit_helper2_token<Tier, Event>(*this, p, tokens.extra()); }
 
-        template<tier Tier, class Event> auto submit(Event)               { return submit_helper      <Tier, Event>(*this);                 }
-        template<tier Tier, class Event> auto submit(Event, si32)         { return submit_helper      <Tier, Event>(*this);                 }
-        template<tier Tier, class Event> auto submit(Event, hook& token)  { return submit_helper_token<Tier, Event>(*this, token);          }
-        template<tier Tier, class Event> auto submit(Event, subs& tokens) { return submit_helper_token<Tier, Event>(*this, tokens.extra()); }
-        template<tier Tier, class Event>
+        template<auto Tier, class Event> auto submit(Event)               { return submit_helper      <Tier, Event>(*this);                 }
+        template<auto Tier, class Event> auto submit(Event, si32)         { return submit_helper      <Tier, Event>(*this);                 }
+        template<auto Tier, class Event> auto submit(Event, hook& token)  { return submit_helper_token<Tier, Event>(*this, token);          }
+        template<auto Tier, class Event> auto submit(Event, subs& tokens) { return submit_helper_token<Tier, Event>(*this, tokens.extra()); }
+        template<auto Tier, class Event>
         void submit(Event, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
@@ -549,7 +546,7 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) tracker.admit(release.subscribe(Event::id, handler));
             else                                      tracker.admit(anycast.subscribe(Event::id, handler));
         }
-        template<tier Tier, class Event>
+        template<auto Tier, class Event>
         void submit(Event, hook& token, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
@@ -559,7 +556,7 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) token = release.subscribe(Event::id, handler);
             else                                      token = anycast.subscribe(Event::id, handler);
         }
-        template<tier Tier, class F>
+        template<auto Tier, class F>
         auto signal(hint event, F&& data)
         {
             auto lock = indexer.sync();
@@ -583,7 +580,7 @@ namespace netxs::events
         //template<class Event> static auto submit_global(Event, hook& token)   { return submit_helper_token_global<Event>(token); }
         //template<class Event> static auto submit_global(Event, subs& tokens)  { return submit_helper_token_global<Event>(tokens.extra()); }
         // bell: Return initial event of the current event execution branch.
-        template<tier Tier>
+        template<auto Tier>
         auto protos()
         {
                  if constexpr (Tier == tier::preview) return preview.queue.empty() ? hint{} : preview.queue.back();
@@ -592,8 +589,8 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) return release.queue.empty() ? hint{} : release.queue.back();
             else                                      return anycast.queue.empty() ? hint{} : anycast.queue.back();
         }
-        template<tier Tier, class Event> auto protos(Event) { return bell::protos<Tier>() == Event::id; }
-        template<tier Tier>
+        template<auto Tier, class Event> auto protos(Event) { return bell::protos<Tier>() == Event::id; }
+        template<auto Tier>
         auto& router()
         {
                  if constexpr (Tier == tier::preview) return preview;
@@ -602,7 +599,7 @@ namespace netxs::events
             else if constexpr (Tier == tier::release) return release;
             else                                      return anycast;
         }
-        template<tier Tier>
+        template<auto Tier>
         void expire(bool skip = faux)
         {
                  if constexpr (Tier == tier::preview) skip ? preview.skip() : preview.stop();
