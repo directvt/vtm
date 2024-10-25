@@ -118,8 +118,8 @@ Value                        | Default Hotkey               | Description
 TerminalCwdSync              |                              | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             |                              | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
 TerminalAlignMode            |                              | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
-TerminalFindNext             |                              | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-TerminalFindPrev             |                              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+TerminalFindNext             | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+TerminalFindPrev             | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 TerminalOutput               |                              | Direct output the `data=` value to the terminal scrollback.
 TerminalSendKey              |                              | Simulating keypresses using the `data=` string.
 TerminalQuit                 |                              | Terminate runnning console apps and close terminal.
@@ -139,8 +139,8 @@ TerminalViewportPageUp       | `Shift+Ctrl+PageUp`          | Scroll one page up
 TerminalViewportPageDown     | `Shift+Ctrl+PageDown`        | Scroll one page down.
 TerminalViewportLineUp       | `Shift+Ctrl+ArrowUp`         | Scroll N lines up.
 TerminalViewportLineDown     | `Shift+Ctrl+ArrowDown`       | Scroll N lines down.
-TerminalViewportPageLeft     | `Shift+Ctrl+Alt+ArrowLeft`   | Scroll one page to the left.
-TerminalViewportPageRight    | `Shift+Ctrl+Alt+ArrowRight`  | Scroll one page to the right.
+TerminalViewportPageLeft     | `Shift+Alt+ArrowLeft`        | Scroll one page to the left.
+TerminalViewportPageRight    | `Shift+Alt+ArrowRight`       | Scroll one page to the right.
 TerminalViewportColumnLeft   | `Shift+Ctrl+ArrowLeft`       | Scroll N cells to the left.
 TerminalViewportColumnRight  | `Shift+Ctrl+ArrowRight`      | Scroll N cells to the right.
 TerminalViewportTop          | `Shift+Ctrl+Home`            | Scroll to the scrollback top.
