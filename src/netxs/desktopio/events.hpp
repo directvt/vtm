@@ -116,7 +116,6 @@ namespace netxs::events
         using sptr<handler>::sptr;
         auto& operator - (si32) { return *this; }
     };
-    template<execution_order Order = execution_order::forward>
     struct reactor
     {
         template<class F>
@@ -140,6 +139,7 @@ namespace netxs::events
             proceed,
         };
 
+        bool                 order; // reactor: Execution order. True means Forward.
         std::map<hint, list> stock; // reactor: Handlers repository.
         std::vector<hint>    queue; // reactor: Event queue.
         vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
@@ -187,7 +187,7 @@ namespace netxs::events
             queue.push_back(event);
             auto head = qcopy.size();
 
-            if constexpr (Order == execution_order::forward)
+            if (order)
             {
                 auto itermask = events::level_mask(event);
                 auto subgroup = event;
@@ -247,9 +247,6 @@ namespace netxs::events
         }
     };
 
-    using fwd_reactor = reactor<execution_order::forward>;
-    using rev_reactor = reactor<execution_order::reverse>;
-
     struct auth
     {
         id_t                       newid;
@@ -257,7 +254,7 @@ namespace netxs::events
         std::recursive_mutex       mutex;
         std::map<id_t, wptr<bell>> store;
         generics::jobs<wptr<bell>> agent;
-        fwd_reactor              general;
+        reactor                    general{ true };
 
         // auth: .
         auto sync()
@@ -456,15 +453,15 @@ namespace netxs::events
         static constexpr auto noid = std::numeric_limits<id_t>::max();
 
         auth&        indexer;
-        fwd_reactor& general;
+        reactor&     general;
         const id_t   id;
         subs         tracker;
 
     private:
-        fwd_reactor  release;
-        fwd_reactor  request;
-        rev_reactor  preview;
-        rev_reactor  anycast;
+        reactor release{ true };
+        reactor request{ true };
+        reactor preview{ faux };
+        reactor anycast{ faux };
 
         //todo deprecated?
         template<tier Tier, class Event>

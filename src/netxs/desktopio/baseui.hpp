@@ -877,12 +877,6 @@ namespace netxs::ui
         {
             raw_riseup<Tier>(Event::id, param, forced);
         }
-        // base: Syntax sugar helper.
-        void _saveme()
-        {
-            bell::_saveme();
-        }
-
         void limits(twod new_min_sz = -dot_11, twod new_max_sz = -dot_11)
         {
             base::min_sz = new_min_sz.less(dot_00, skin::globals().min_value, new_min_sz);

@@ -1249,7 +1249,7 @@ namespace netxs::ui
             enum class mode { hub, focusable, focused, active };
             enum class solo { off, on, mix };
             enum class flip { off = faux, on = true };
-            friend auto operator ==(si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
+            friend auto operator == (si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
             static void set(sptr item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)

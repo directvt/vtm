@@ -1054,7 +1054,7 @@ namespace netxs::ansi
               rlfeed{ (byte)((format >> 6) & 0x03) },
               tablen{ (byte)((format >> 8) & 0xFF) }
         { }
-        bool operator==(deco const&) const = default;
+        bool operator == (deco const&) const = default;
         // deco: Return serialized deco (wo margins).
         auto format() const
         {
