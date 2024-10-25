@@ -6327,11 +6327,7 @@ namespace netxs::ui
                         {
                             uirev = faux;
                             done = find(batch.end() - 1, [](auto& head) -> auto& { return *++head; });
-                            if (done)
-                            {
-                                uirev = true;
-                            }
-                            else if (sctop)
+                            if (!done && sctop)
                             {
                                 from = si32{ 0 };
                                 done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
@@ -6347,11 +6343,7 @@ namespace netxs::ui
                         {
                             uifwd = faux;
                             done = find(batch.begin(), [](auto& head) -> auto& { return *--head; });
-                            if (done)
-                            {
-                                uifwd = true;
-                            }
-                            else if (scend)
+                            if (!done && scend)
                             {
                                 from = upbox.size().x * upbox.size().y;
                                 done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
@@ -6363,6 +6355,11 @@ namespace netxs::ui
                                 }
                             }
                         }
+                    }
+                    if (done)
+                    {
+                        if (ahead) uirev = true;
+                        else       uifwd = true;
                     }
                     return done;
                 };
@@ -7768,6 +7765,18 @@ namespace netxs::ui
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
+                        if (gear.pressed && gear.meta(hids::anyAlt))
+                        {
+                            auto found = true;
+                                 if (gear.keycode == input::key::LeftArrow ) search(gear, feed::rev);
+                            else if (gear.keycode == input::key::RightArrow) search(gear, feed::fwd);
+                            else found = faux;
+                            if (found)
+                            {
+                                gear.set_handled();
+                                break;
+                            }
+                        }
                         if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
                         {
                             auto found = true;

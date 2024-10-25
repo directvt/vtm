@@ -136,9 +136,6 @@ R"==(<!-- Ordered list of paths to settings files. -->
                     "   LeftClick to launch instance \n"
                     "   RightClick to set as default "
                 </notes>
-                <hotkeys key*>  <!-- not implemented -->
-                    <key="Ctrl+T" action=Start/>
-                </hotkeys>
                 <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                     <term>
                         <scrollback>
@@ -148,10 +145,9 @@ R"==(<!-- Ordered list of paths to settings files. -->
                         <selection>
                             <mode=selection.mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
                         </selection>
-                        <hotkeys key*>    <!-- not implemented -->
-                            <key="Alt+RightArrow" action=TerminalFindNext/>
-                            <key="Alt+LeftArrow"  action=TerminalFindPrev/>
-                            <key="Ctrl+Z"         action=TerminalQuit/>
+                        <hotkeys>    <!-- not implemented -->
+                            <key="Alt+RightArrow" action=TerminalFindNext()/>
+                            <key="Alt+LeftArrow"  action=TerminalFindPrev()/>
                         </hotkeys>
                     </term>
                 </config>
@@ -257,8 +253,9 @@ R"==(
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
         <hotkeys key*>    <!-- not implemented -->
-            <key="Ctrl+PgUp" action=PrevWindow/>
-            <key="Ctrl+PgDn" action=NextWindow/>
+            <key="Ctrl+PgUp" action=vtm.PrevWindow()/>
+            <key="Ctrl+PgDn" action=vtm.NextWindow()/>
+            <key="Ctrl+T"    action="vtm.Start(\"Term\")"/>
         </hotkeys>
     </desktop>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
