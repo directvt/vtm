@@ -137,13 +137,13 @@ namespace netxs::ui
             { }
 
             // link: Send an event message to the link owner.
-            template<auto Tier = tier::release, class E, class T>
-            void notify(E, T&& data)
+            template<class E, class T>
+            void notify(E, T&& data, si32 Tier = tier::release)
             {
-                owner.bell::enqueue(owner.This(), [d = data](auto& boss) mutable
+                owner.bell::enqueue(owner.This(), [Tier, d = data](auto& boss) mutable
                 {
                     //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
-                    boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
+                    boss.bell::signal(Tier, E::id, static_cast<typename E::type &&>(d));
                 });
             }
             void handle(s11n::xs::focusbus    lock)
@@ -154,7 +154,7 @@ namespace netxs::ui
                 owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
-                    boss.bell::template signal<tier::release>(deed, seed);
+                    boss.bell::signal(tier::release, deed, seed);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
@@ -215,7 +215,7 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 if (ui::console::id.first == item.id)
                 {
-                    notify<tier::general>(e2::conio::logs, item.data);
+                    notify(e2::conio::logs, item.data, tier::general);
                 }
                 else
                 {
@@ -227,7 +227,7 @@ namespace netxs::ui
                         {
                             data.add(netxs::prompt::pads, item.id, ": ", line, '\n');
                         });
-                        notify<tier::general>(e2::conio::logs, data);
+                        notify(e2::conio::logs, data, tier::general);
                     }
                 }
             }
@@ -271,7 +271,7 @@ namespace netxs::ui
             void handle(s11n::xs::cwd         lock)
             {
                 auto& path = lock.thing.path;
-                notify<tier::anycast>(e2::form::prop::cwd, path);
+                notify(e2::form::prop::cwd, path, tier::anycast);
             }
             void handle(s11n::xs::sysclose    lock)
             {
@@ -1173,12 +1173,12 @@ namespace netxs::ui
                     seed.id = gear_ptr->id;
                 }
 
-                auto deed = this->bell::template protos<tier::release>();
+                auto deed = this->bell::protos(tier::release);
                 //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
-                    target->bell::template signal<tier::release>(deed, seed);
+                    target->bell::signal(tier::release, deed, seed);
                 }
                 //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
             };
@@ -1261,7 +1261,7 @@ namespace netxs::ui
             LISTEN(tier::preview, e2::form::proceed::create, dest_region, tokens)
             {
                 dest_region.coor += base::coor();
-                this->base::riseup<tier::release>(e2::form::proceed::create, dest_region);
+                this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
             {
@@ -1281,7 +1281,7 @@ namespace netxs::ui
             {
                 if (gear.clear_clipboard())
                 {
-                    this->bell::template expire<tier::release>();
+                    this->bell::expire(tier::release);
                     gear.dismiss();
                 }
             };
@@ -1331,7 +1331,7 @@ namespace netxs::ui
                 //todo revise
                 if (props.title.length())
                 {
-                    this->base::riseup<tier::preview>(e2::form::prop::ui::header, props.title);
+                    this->base::riseup(tier::preview, e2::form::prop::ui::header, props.title);
                 }
             };
             LISTEN(tier::request, e2::form::prop::ui::footer, f, tokens)
@@ -1598,7 +1598,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::cleanup, counter, tokens)
             {
-                this->template router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+                this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
             };
             LISTEN(tier::general, hids::events::halt, gear, tokens)
             {

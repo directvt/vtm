@@ -835,47 +835,47 @@ namespace netxs::ui
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
         // Usage example:
-        //          base::raw_riseup<tier::preview>(e2::form::prop::ui::header, txt);
-        template<auto Tier, class T>
-        void raw_riseup(hint event_id, T& param, bool forced = faux)
+        //          base::raw_riseup(tier::preview, e2::form::prop::ui::header, txt);
+        template<class T>
+        void raw_riseup(si32 Tier, hint event_id, T& param, bool forced = faux)
         {
             if (forced)
             {
-                bell::template signal<Tier>(event_id, param);
+                bell::signal(Tier, event_id, param);
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template raw_riseup<Tier>(event_id, param, forced);
+                    boss.base::raw_riseup(Tier, event_id, param, forced);
                 });
             }
             else
             {
-                if (!bell::template signal<Tier>(event_id, param))
+                if (!bell::signal(Tier, event_id, param))
                 {
                     base::toboss([&](auto& boss)
                     {
-                        boss.base::template raw_riseup<Tier>(event_id, param, forced);
+                        boss.base::raw_riseup(Tier, event_id, param, forced);
                     });
                 }
             }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
-        //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
-        template<auto Tier, class Event>
-        auto riseup(Event, Event::type&& param = {}, bool forced = faux)
+        //          base::riseup(tier::preview, e2::form::prop::ui::header, txt);
+        template<class Event>
+        auto riseup(si32 Tier, Event, Event::type&& param = {}, bool forced = faux)
         {
-            raw_riseup<Tier>(Event::id, param, forced);
+            raw_riseup(Tier, Event::id, param, forced);
             return param;
         }
-        template<auto Tier, class Event>
-        void riseup(Event, Event::type& param, bool forced = faux)
+        template<class Event>
+        void riseup(si32 Tier, Event, Event::type& param, bool forced = faux)
         {
-            raw_riseup<Tier>(Event::id, param, forced);
+            raw_riseup(Tier, Event::id, param, forced);
         }
-        template<auto Tier, class Event>
-        void riseup(Event, Event::type const& param, bool forced = faux)
+        template<class Event>
+        void riseup(si32 Tier, Event, Event::type const& param, bool forced = faux)
         {
-            raw_riseup<Tier>(Event::id, param, forced);
+            raw_riseup(Tier, Event::id, param, forced);
         }
         void limits(twod new_min_sz = -dot_11, twod new_max_sz = -dot_11)
         {
@@ -954,7 +954,7 @@ namespace netxs::ui
             {
                 auto backup = This();
                 auto keepon = proc(backup);
-                if (!keepon) this->bell::expire<tier::release>();
+                if (!keepon) this->bell::expire(tier::release);
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
@@ -973,7 +973,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
             {
-                if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
+                if (this->bell::protos(tier::release, e2::form::upon::vtree::detached))
                 {
                     relyon.reset();
                 }

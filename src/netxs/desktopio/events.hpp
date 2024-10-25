@@ -394,14 +394,23 @@ namespace netxs::events
     #define GET_END1_XS(a, b, c, d, e, last, ...) last
     #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    #define LISTEN_S(level, event, param              ) bell::template submit<level>( event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    #define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
+    //#define LISTEN_S(level, event, param              ) bell::template submit<level>( event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
+    //#define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
+    //#define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
+    //#define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
+    //#define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
+    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
+    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
+    //#define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
+    //#define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
+    //#define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
+    //#define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
+    #define SIGNAL_S(level, event, var       ) bell::signal(level, decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
+    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->signal(level, decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
     #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
     #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
 
@@ -461,54 +470,58 @@ namespace netxs::events
         reactor anycast{ faux };
         reactor* reactors[5] = { &general, &release, &preview, &request, &anycast };
 
-        template<auto Tier, class Event>
+        template<class Event>
         struct submit_helper
         {
             bell& owner;
-            submit_helper(bell& owner)
-                : owner{ owner }
+            si32  level;
+            submit_helper(si32 level, bell& owner)
+                : owner{ owner },
+                  level{ level }
             { }
             template<class F>
             void operator = (F h)
             {
-                owner.submit<Tier>(Event{}, h);
+                owner.submit(level, Event{}, h);
             }
         };
-        template<auto Tier, class Event>
+        template<class Event>
         struct submit_helper_token
         {
             bell& owner;
             hook& token;
-            submit_helper_token(bell& owner, hook& token)
+            si32  level;
+            submit_helper_token(si32 level, bell& owner, hook& token)
                 : owner{ owner },
-                  token{ token }
+                  token{ token },
+                  level{ level }
             { }
             template<class F>
             void operator = (F h)
             {
-                owner.submit<Tier>(Event{}, token, h);
+                owner.submit(level, Event{}, token, h);
             }
         };
 
     public:
-        template<auto Tier, class Event> auto submit(Event)               { return submit_helper      <Tier, Event>(*this);                 }
-        template<auto Tier, class Event> auto submit(Event, si32)         { return submit_helper      <Tier, Event>(*this);                 }
-        template<auto Tier, class Event> auto submit(Event, hook& token)  { return submit_helper_token<Tier, Event>(*this, token);          }
-        template<auto Tier, class Event> auto submit(Event, subs& tokens) { return submit_helper_token<Tier, Event>(*this, tokens.extra()); }
-        template<auto Tier, class Event>
-        void submit(Event, std::function<void(typename Event::type &&)> handler)
+        template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                 }
+        template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                 }
+        template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);          }
+        template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.extra()); }
+        template<class Event>
+        void submit(si32 Tier, Event, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
             tracker.admit(reactors[Tier]->subscribe(Event::id, handler));
         }
-        template<auto Tier, class Event>
-        void submit(Event, hook& token, std::function<void(typename Event::type &&)> handler)
+        template<class Event>
+        void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type &&)> handler)
         {
             auto lock = indexer.sync();
             token = reactors[Tier]->subscribe(Event::id, handler);
         }
-        template<auto Tier, class F>
-        auto signal(hint event, F&& data)
+        template<class F>
+        auto signal(si32 Tier, hint event, F&& data)
         {
             auto lock = indexer.sync();
             if (Tier == tier::anycast)
@@ -524,21 +537,18 @@ namespace netxs::events
             else return reactors[Tier]->notify(event, std::forward<F>(data));
         }
         // bell: Return initial event of the current event execution branch.
-        template<auto Tier>
-        auto protos()
+        auto protos(si32 Tier)
         {
             return reactors[Tier]->queue.empty() ? hint{}
                                                  : reactors[Tier]->queue.back();
         }
-        template<auto Tier, class Event>
-        auto protos(Event) { return bell::protos<Tier>() == Event::id; }
-        template<auto Tier>
-        auto& router()
+        template<class Event>
+        auto protos(si32 Tier, Event) { return bell::protos(Tier) == Event::id; }
+        auto& router(si32 Tier)
         {
             return *reactors[Tier];
         }
-        template<auto Tier>
-        void expire(bool skip = faux)
+        void expire(si32 Tier, bool skip = faux)
         {
             skip ? reactors[Tier]->skip()
                  : reactors[Tier]->stop();

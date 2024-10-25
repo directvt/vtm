@@ -1727,24 +1727,24 @@ namespace netxs::gui
             void handle(s11n::xs::header_request   lock)
             {
                 auto& item = lock.thing;
-                auto header_utf8 = owner.base::riseup<tier::request>(e2::form::prop::ui::header);
+                auto header_utf8 = owner.base::riseup(tier::request, e2::form::prop::ui::header);
                 s11n::header.send(intio, item.window_id, header_utf8);
             }
             void handle(s11n::xs::footer_request   lock)
             {
                 auto& item = lock.thing;
-                auto footer_utf8 = owner.base::riseup<tier::request>(e2::form::prop::ui::footer);
+                auto footer_utf8 = owner.base::riseup(tier::request, e2::form::prop::ui::footer);
                 s11n::footer.send(intio, item.window_id, footer_utf8);
             }
             void handle(s11n::xs::header           lock)
             {
                 auto& item = lock.thing;
-                owner.base::riseup<tier::preview>(e2::form::prop::ui::header, item.utf8);
+                owner.base::riseup(tier::preview, e2::form::prop::ui::header, item.utf8);
             }
             void handle(s11n::xs::footer           lock)
             {
                 auto& item = lock.thing;
-                owner.base::riseup<tier::preview>(e2::form::prop::ui::footer, item.utf8);
+                owner.base::riseup(tier::preview, e2::form::prop::ui::footer, item.utf8);
             }
             void handle(s11n::xs::clipdata         lock)
             {
@@ -1796,7 +1796,7 @@ namespace netxs::gui
                 owner.window_post_command(ipc::expose_win);
                 //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
-                //    owner.base::riseup<tier::preview>(e2::form::layout::expose);
+                //    owner.base::riseup(tier::preview, e2::form::layout::expose);
                 //});
             }
             void handle(s11n::xs::focus_cut        lock)
@@ -1839,7 +1839,7 @@ namespace netxs::gui
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
                 gear.replay(mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
-                gear.pass<tier::release>(owner.This(), gear.owner.base::coor(), true);
+                gear.pass(tier::release, owner.This(), gear.owner.base::coor(), true);
             }
             void handle(s11n::xs::warping          lock)
             {
@@ -1879,7 +1879,7 @@ namespace netxs::gui
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
                 //{
-                //    owner.base::riseup<tier::release>(e2::form::global::sysstart, 1);
+                //    owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 //});
             }
             void handle(s11n::xs::cwd            /*lock*/)
@@ -1887,7 +1887,7 @@ namespace netxs::gui
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
                 //{
-                //    owner.base::riseup<tier::preview>(e2::form::prop::cwd, path);
+                //    owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 //});
             }
             struct
@@ -3193,7 +3193,7 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
                 {
-                    auto deed = this->bell::template protos<tier::release>();
+                    auto deed = this->bell::protos(tier::release);
                     if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
                     {
                         seed.guid = os::process::id.second;

@@ -1489,8 +1489,7 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        template<auto Tier>
-        void pass(sptr object, fp2d offset, bool relative = faux)
+        void pass(si32 Tier, sptr object, fp2d offset, bool relative = faux)
         {
             if (object)
             {
@@ -1503,7 +1502,7 @@ namespace netxs::input
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object->bell::template signal<Tier>(mouse::cause, *this);
+                object->bell::signal(Tier, mouse::cause, *this);
                 mouse::coord = temp_coord;
                 mouse::click = temp_click;
             }
@@ -1561,7 +1560,7 @@ namespace netxs::input
             if (boss.id == relay)
             {
                 redirect_mouse_focus(boss);
-                boss.bell::template signal<tier::release>(mouse::cause, *this);
+                boss.bell::signal(tier::release, mouse::cause, *this);
             }
         }
         void fire(hint new_cause, si32 new_index = mouse::noactive)
@@ -1581,11 +1580,11 @@ namespace netxs::input
                 if (next)
                 {
                     redirect_mouse_focus(*next);
-                    pass<tier::release>(next, offset, true);
+                    pass(tier::release, next, offset, true);
 
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.bell::template signal<tier::release>(new_cause, *this);
+                        owner.bell::signal(tier::release, new_cause, *this);
                     }
                 }
                 else mouse::setfree();
@@ -1593,7 +1592,7 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.bell::template signal<tier::preview>(new_cause, *this);
+                owner.bell::signal(tier::preview, new_cause, *this);
 
                 if (!alive) return;
 
@@ -1601,13 +1600,13 @@ namespace netxs::input
                 if (next != owner.id)
                 {
                     relay = next;
-                    pass<tier::preview>(bell::getref<base>(next), offset, true);
+                    pass(tier::preview, bell::getref<base>(next), offset, true);
                     relay = 0;
 
                     if (!alive) return;
                 }
 
-                owner.bell::template signal<tier::release>(new_cause, *this); // Pass unhandled event to the gate.
+                owner.bell::signal(tier::release, new_cause, *this); // Pass unhandled event to the gate.
             }
         }
         bool fire_fast()

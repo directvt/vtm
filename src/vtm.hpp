@@ -132,10 +132,10 @@ namespace netxs::app::vtm
 
                 auto newhead = std::move(what.header);
                 auto newfoot = std::move(what.footer);
-                boss.base::riseup<tier::request>(e2::form::prop::ui::header, what.header);
-                boss.base::riseup<tier::request>(e2::form::prop::ui::footer, what.footer);
-                boss.base::riseup<tier::preview>(e2::form::prop::ui::header, newhead);
-                boss.base::riseup<tier::preview>(e2::form::prop::ui::footer, newfoot);
+                boss.base::riseup(tier::request, e2::form::prop::ui::header, what.header);
+                boss.base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+                boss.base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
+                boss.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
                 boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                 {
@@ -148,7 +148,7 @@ namespace netxs::app::vtm
                 };
                 window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
                 {
-                    auto deed = what.applet->bell::template protos<tier::preview>();
+                    auto deed = what.applet->bell::protos(tier::preview);
                     if (deed == e2::form::size::enlarge::maximize.id)
                     {
                         unbind();
@@ -156,13 +156,13 @@ namespace netxs::app::vtm
                 };
                 window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
                 {
-                    what.applet->bell::expire<tier::release>(); // Suppress hide/minimization.
+                    what.applet->bell::expire(tier::release); // Suppress hide/minimization.
                     unbind();
                 };
                 window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.expire<tier::release>(true); //todo revise: window_ptr(what.applet) or boss?
+                    boss.expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
                 };
                 window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
@@ -185,10 +185,10 @@ namespace netxs::app::vtm
                 memo.clear();
                 auto prev_header = std::move(what.header);
                 auto prev_footer = std::move(what.footer);
-                boss.base::riseup<tier::request>(e2::form::prop::ui::header, what.header);
-                boss.base::riseup<tier::request>(e2::form::prop::ui::footer, what.footer);
-                boss.base::riseup<tier::preview>(e2::form::prop::ui::header, prev_header);
-                boss.base::riseup<tier::preview>(e2::form::prop::ui::footer, prev_footer);
+                boss.base::riseup(tier::request, e2::form::prop::ui::header, what.header);
+                boss.base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+                boss.base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
+                boss.base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 window_ptr->base::detach();
@@ -257,11 +257,11 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
-                    boss.base::template riseup<tier::preview>(e2::form::layout::expose);
+                    boss.base::riseup(tier::preview, e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::right, gear, memo)
                 {
-                    boss.base::template riseup<tier::preview>(e2::form::layout::expose);
+                    boss.base::riseup(tier::preview, e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
@@ -273,7 +273,7 @@ namespace netxs::app::vtm
                 //};
                 boss.LISTEN(tier::preview, e2::form::upon::changed, delta, memo)
                 {
-                    boss.base::template riseup<tier::preview>(e2::form::layout::bubble);
+                    boss.base::riseup(tier::preview, e2::form::layout::bubble);
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::down::any, gear, memo)
                 {
@@ -287,7 +287,7 @@ namespace netxs::app::vtm
                 {
                     if (gear)
                     {
-                        auto deed = boss.bell::template protos<tier::release>();
+                        auto deed = boss.bell::protos(tier::release);
                         switch (deed)
                         {
                             case e2::form::drag::pull::left.id:
@@ -506,7 +506,7 @@ namespace netxs::app::vtm
                         gear.slot = data.slot;
                         gear.slot.coor += boss.base::coor();
                         gear.slot_forced = true;
-                        boss.base::riseup<tier::request>(e2::form::proceed::createby, gear);
+                        boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
                     }
                     slots.erase(gear.id);
                     if (slots.empty()) cache = {};
@@ -703,11 +703,11 @@ namespace netxs::app::vtm
                             auto object = vtm::events::d_n_d::ask.param();
                             if (auto old_object = boss.bell::getref<base>(under))
                             {
-                                old_object->base::riseup<tier::release>(vtm::events::d_n_d::abort, object);
+                                old_object->base::riseup(tier::release, vtm::events::d_n_d::abort, object);
                             }
                             if (auto new_object = boss.bell::getref<base>(new_under))
                             {
-                                new_object->base::riseup<tier::release>(vtm::events::d_n_d::ask, object);
+                                new_object->base::riseup(tier::release, vtm::events::d_n_d::ask, object);
                             }
                             boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
                                                                                         : 0xFF); // Make it semi-transparent on success and opaque otherwise.
@@ -764,17 +764,17 @@ namespace netxs::app::vtm
                 if (gear.chord(input::key::F7, hids::anyShift)) // Disconnect by Shift+F7.
                 {
                     gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
-                    this->bell::expire<tier::preview>();
+                    this->bell::expire(tier::preview);
                     gear.set_handled(true);
                 }
                 else if (gear.chord(input::key::F10))
                 {
                     auto window_ptr = e2::form::layout::go::item.param();
-                    this->base::riseup<tier::request>(e2::form::layout::go::item, window_ptr); // Take current window.
+                    this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
                     if (!window_ptr)
                     {
                         this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::gate, "Server shutdown")));
-                        this->bell::expire<tier::preview>();
+                        this->bell::expire(tier::preview);
                         gear.set_handled(true);
                     }
                 }
@@ -787,7 +787,7 @@ namespace netxs::app::vtm
                         align.unbind();
                     }
                     auto window_ptr = e2::form::layout::go::item.param();
-                    this->base::riseup<tier::request>(e2::form::layout::go::item, window_ptr); // Take current window.
+                    this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
                     if (window_ptr) window_ptr->SIGNAL(tier::release, e2::form::layout::unselect, gear);
 
                     auto current = window_ptr; 
@@ -797,8 +797,8 @@ namespace netxs::app::vtm
                     {
                         window_ptr.reset();
                         owner_id = id_t{};
-                        if (down) this->base::riseup<tier::request>(e2::form::layout::go::prev, window_ptr); // Take prev window.
-                        else      this->base::riseup<tier::request>(e2::form::layout::go::next, window_ptr); // Take next window.
+                        if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                        else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
                         if (window_ptr) window_ptr->SIGNAL(tier::request, e2::form::state::maximized, owner_id);
                         maximized = owner_id == gear.owner.id;
                         if (!owner_id || maximized) break;
@@ -813,7 +813,7 @@ namespace netxs::app::vtm
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     //gear.dismiss();
-                    this->bell::expire<tier::preview>(); //todo temp
+                    this->bell::expire(tier::preview); //todo temp
                     gear.set_handled(true);
                 }
             };
@@ -1055,12 +1055,12 @@ namespace netxs::app::vtm
                 window.LISTEN(tier::preview, e2::form::layout::expose, area, -)
                 {
                     area = expose(window.id);
-                    if (area) window.base::riseup<tier::release>(e2::form::layout::expose, area);
+                    if (area) window.base::riseup(tier::release, e2::form::layout::expose, area);
                 };
                 window.LISTEN(tier::preview, e2::form::layout::bubble, area, -)
                 {
                     area = bubble(window.id);
-                    if (area) window.base::riseup<tier::release>(e2::form::layout::bubble, area);
+                    if (area) window.base::riseup(tier::release, e2::form::layout::bubble, area);
                 };
                 items.push_back(ptr::shared<node>(window_ptr));
             }
@@ -1304,7 +1304,7 @@ namespace netxs::app::vtm
                         else // Hide if visible and refocus.
                         {
                             boss.hidden = true;
-                            auto gear_test = boss.base::template riseup<tier::request>(e2::form::state::keybd::find, { gear.id, 0 });
+                            auto gear_test = boss.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                             if (auto parent = boss.parent())
                             if (gear_test.second) // If it is focused pass the focus to the next desktop window.
                             {
@@ -1344,7 +1344,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.base::template riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
+                        boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
@@ -1414,8 +1414,8 @@ namespace netxs::app::vtm
                         auto what = what_copy;
                         what.applet = window_ptr;
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
-                        window_ptr->base::template riseup<tier::request>(e2::form::prop::ui::header, what.header);
-                        window_ptr->base::template riseup<tier::request>(e2::form::prop::ui::footer, what.footer);
+                        window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
+                        window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
                     boss.LISTEN(tier::release, e2::form::size::restore, item_ptr)
@@ -1433,7 +1433,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                     {
-                        auto order = boss.base::template riseup<tier::request>(e2::form::prop::zorder);
+                        auto order = boss.base::riseup(tier::request, e2::form::prop::zorder);
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                         auto recalc = [](auto& boss, auto viewport)
                         {
@@ -1503,7 +1503,7 @@ namespace netxs::app::vtm
                                     if (forbidden)
                                     {
                                         seed.id = {};
-                                        boss.bell::template expire<tier::preview>();
+                                        boss.bell::expire(tier::preview);
                                     }
                                 }
                             };
@@ -2216,7 +2216,7 @@ namespace netxs::app::vtm
             if (items.size()) // Pass focus to the top most object.
             {
                 auto last_ptr = items.back();
-                auto gear_id_list = item_ptr->base::riseup<tier::request>(e2::form::state::keybd::enlist);
+                auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 for (auto gear_id : gear_id_list)
                 {
                     if (auto gear_ptr = bell::getref<hids>(gear_id))

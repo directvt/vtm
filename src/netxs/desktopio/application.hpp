@@ -33,7 +33,7 @@ namespace netxs::app::shared
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
-            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, fast); // Apple clang requires template keyword.
+            boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast); // Apple clang requires template keyword.
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -41,13 +41,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
+            boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.base::template riseup<tier::release>(e2::form::proceed::quit::one, true);
+            boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
     };
@@ -87,8 +87,8 @@ namespace netxs::app::shared
     };
     const auto set_title = [](base& boss, input::hids& gear, bias alignment = bias::left)
     {
-        auto old_title = boss.base::riseup<tier::request>(e2::form::prop::ui::header);
-        gear.owner.base::riseup<tier::request>(hids::events::clipbrd, gear);
+        auto old_title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
+        gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
         auto& data = gear.board::cargo;
         if (data.utf8.empty())
         {
@@ -99,11 +99,11 @@ namespace netxs::app::shared
             if (utf::is_plain(data.utf8) || alignment != bias::left) // Reset aligning to the center if text is plain.
             {
                 auto align = ansi::jet(alignment);
-                boss.base::riseup<tier::preview>(e2::form::prop::ui::header, align);
+                boss.base::riseup(tier::preview, e2::form::prop::ui::header, align);
             }
             // Copy clipboard data to title.
             auto title = data.utf8;
-            boss.base::riseup<tier::preview>(e2::form::prop::ui::header, title);
+            boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
             if (old_title.size()) // Copy old title to clipboard.
             {
                 gear.set_clipboard(dot_00, old_title, mime::ansitext);
@@ -267,7 +267,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.base::template riseup<tier::release>(e2::form::size::minimize, gear);
+                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -276,7 +276,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.base::template riseup<tier::preview>(e2::form::size::enlarge::maximize, gear);
+                            boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -423,7 +423,7 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         auto title = "error"s;
-                        boss.base::template riseup<tier::preview>(e2::form::prop::ui::header, title);
+                        boss.base::riseup(tier::preview, e2::form::prop::ui::header, title);
                     };
                 });
             auto msg = ui::post::ctor()

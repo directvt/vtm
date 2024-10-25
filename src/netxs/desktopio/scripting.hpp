@@ -210,7 +210,7 @@ namespace netxs::scripting
                 if (engine)
                 {
                     write(script.cmd);
-                    owner.bell::template expire<tier::release>();
+                    owner.bell::expire(tier::release);
                 }
             };
         }
