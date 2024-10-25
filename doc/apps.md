@@ -139,8 +139,8 @@ TerminalViewportPageUp       | `Shift+Ctrl+PageUp`          | Scroll one page up
 TerminalViewportPageDown     | `Shift+Ctrl+PageDown`        | Scroll one page down.
 TerminalViewportLineUp       | `Shift+Ctrl+ArrowUp`         | Scroll N lines up.
 TerminalViewportLineDown     | `Shift+Ctrl+ArrowDown`       | Scroll N lines down.
-TerminalViewportPageLeft     | `Shift+Ctrl+Alt+ArrowLeft`   | Scroll one page to the left.
-TerminalViewportPageRight    | `Shift+Ctrl+Alt+ArrowRight`  | Scroll one page to the right.
+TerminalViewportPageLeft     | `Shift+Alt+ArrowLeft`        | Scroll one page to the left.
+TerminalViewportPageRight    | `Shift+Alt+ArrowRight`       | Scroll one page to the right.
 TerminalViewportColumnLeft   | `Shift+Ctrl+ArrowLeft`       | Scroll N cells to the left.
 TerminalViewportColumnRight  | `Shift+Ctrl+ArrowRight`      | Scroll N cells to the right.
 TerminalViewportTop          | `Shift+Ctrl+Home`            | Scroll to the scrollback top.

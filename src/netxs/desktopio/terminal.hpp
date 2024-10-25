@@ -7768,19 +7768,19 @@ namespace netxs::ui
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-                        if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyCtrl))
+                        if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
                         {
                             auto found = true;
-                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  });
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 });
-                            else if (gear.keycode == input::key::LeftArrow                            ) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }});
-                            else if (gear.keycode == input::key::RightArrow                           ) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }});
-                            else if (gear.keycode == input::key::UpArrow                              ) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }});
-                            else if (gear.keycode == input::key::DownArrow                            ) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }});
-                            else if (gear.keycode == input::key::Home                                 ) base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
-                            else if (gear.keycode == input::key::End                                  ) base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
-                            else if (gear.keycode == input::key::PageUp                               ) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  });
-                            else if (gear.keycode == input::key::PageDown                             ) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 });
+                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  });
+                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 });
+                            else if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }});
+                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }});
+                            else if (gear.keycode == input::key::UpArrow    && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }});
+                            else if (gear.keycode == input::key::DownArrow  && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }});
+                            else if (gear.keycode == input::key::Home       && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
+                            else if (gear.keycode == input::key::End        && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
+                            else if (gear.keycode == input::key::PageUp     && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  });
+                            else if (gear.keycode == input::key::PageDown   && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 });
                             else found = faux;
                             if (found)
                             {
