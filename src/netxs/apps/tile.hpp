@@ -158,7 +158,7 @@ namespace netxs::app::tile
                     if (gear_test.second)
                     {
                         if (auto parent = boss.parent())
-                        if (auto deed = parent->bell::protos(tier::anycast)) //todo "template" keyword is required by clang 13.0.0
+                        if (auto deed = parent->bell::protos(tier::anycast))
                         {
                             switch (deed)
                             {
@@ -979,7 +979,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
                     {
-                        if (auto deed = boss.bell::protos(tier::anycast)) //todo "template" keyword is required by clang 13.0.0
+                        if (auto deed = boss.bell::protos(tier::anycast))
                         {
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {
