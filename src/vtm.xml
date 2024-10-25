@@ -375,54 +375,54 @@ R"==(
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
         <hotkeys key*>  <!-- not implemented -->
-            <key=""                      action="TerminalCwdSync(!TerminalCwdSync())"/>             <!-- Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
-            <key=""                      action="TerminalWrapMode(!TerminalWrapMode())"/>           <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
-            <key=""                      action="TerminalAlignMode(TerminalAlignMode() + 1)"/>      <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. The argument can be the one of the following: 0:`none`, 1:`left`, 2:`right`, 3:`center`. -->
-            <key="Alt+RightArrow"        action="TerminalFindNext"/>                                <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"         action="TerminalFindPrev"/>                                <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key=""                      action="TerminalOutput('Hello \"world\"!')"/>              <!-- Direct output the specified string to the terminal scrollback. -->
-            <key=""                      action="TerminalSendKey('K')"/>                            <!-- Simulating keypresses using the specified string. -->
-            <key=""                      action="TerminalQuit"/>                                    <!-- Terminate runnning console apps and close terminal. -->
-            <key=""                      action="TerminalRestart"/>                                 <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                      action="TerminalFullscreen(!TerminalFullscreen())"/>       <!-- Toggle fullscreen mode. -->
-            <key=""                      action="TerminalUndo"/>                                    <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                      action="TerminalRedo"/>                                    <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                      action="TerminalClipboardPaste"/>                          <!-- Paste from clipboard. -->
-            <key=""                      action="TerminalClipboardWipe"/>                           <!-- Reset clipboard. -->
-            <key=""                      action="TerminalSelectionMode(TerminalSelectionMode() ? text : none)"/> <!-- Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
-            <key=""                      action="TerminalSelectionCopy"/>                           <!-- Сopy selection to clipboard. -->
-            <key=""                      action="TerminalSelectionRect(!TerminalSelectionRect())"/> <!-- Toggle between linear(0) and rectangular(1) selection form. -->
-            <key="Esc"                   action="TerminalSelectionClear"/>                          <!-- Deselect a selection. -->
-            <key=""                      action="TerminalSelectionOneShot(text)"/>                  <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
-            <key=""                      action="TerminalViewportCopy"/>                            <!-- Сopy viewport to clipboard. -->
-            <key="Shift+Ctrl+PageUp"     action="TerminalViewportPageUp(1)"/>                       <!-- Scroll one page up. -->
-            <key="Shift+Ctrl+PageDown"   action="TerminalViewportPageDown(1)"/>                     <!-- Scroll one page down. -->
-            <key="Shift+Ctrl+ArrowUp"    action="TerminalViewportLineUp(1)"/>                       <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+ArrowDown"  action="TerminalViewportLineDown(1)"/>                     <!-- Scroll one line down. -->
-            <key="Shift+Alt+ArrowLeft"   action="TerminalViewportPageLeft(1)"/>                     <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+ArrowRight"  action="TerminalViewportPageRight(1)"/>                    <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+ArrowLeft"  action="TerminalViewportColumnLeft(1)"/>                   <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+ArrowRight" action="TerminalViewportColumnRight(1)"/>                  <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"       action="TerminalViewportTop"/>                             <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"        action="TerminalViewportEnd"/>                             <!-- Scroll to the scrollback bottom (reset viewport position). -->
-            <key=""                      action="TerminalStdioLog(!TerminalStdioLog())"/>           <!-- Stdin/stdout log toggle. -->
-            <key=""                      action="TerminalLogStart"/>             <!-- not implemented. Start logging to file. -->
-            <key=""                      action="TerminalLogPause"/>             <!-- not implemented. Pause logging. -->
-            <key=""                      action="TerminalLogStop"/>              <!-- not implemented. Stop logging. -->
-            <key=""                      action="TerminalLogAbort"/>             <!-- not implemented. Abort logging. -->
-            <key=""                      action="TerminalLogRestart"/>           <!-- not implemented. Restart logging to file. -->
-            <key=""                      action="TerminalVideoRecStart"/>        <!-- not implemented. Start DirectVT(dtvt) video recording to file. -->
-            <key=""                      action="TerminalVideoRecStop"/>         <!-- not implemented. Stop dtvt-video recording. -->
-            <key=""                      action="TerminalVideoRecPause"/>        <!-- not implemented. Pause dtvt-video recording. -->
-            <key=""                      action="TerminalVideoRecAbort"/>        <!-- not implemented. Abort dtvt-video recording. -->
-            <key=""                      action="TerminalVideoRecRestart"/>      <!-- not implemented. Restart dtvt-video recording to file. -->
-            <key=""                      action="TerminalVideoPlay"/>            <!-- not implemented. Play dtvt-video from file. -->
-            <key=""                      action="TerminalVideoPause"/>           <!-- not implemented. Pause dtvt-video. -->
-            <key=""                      action="TerminalVideoStop"/>            <!-- not implemented. Stop dtvt-video. -->
-            <key=""                      action="TerminalVideoForward"/>         <!-- not implemented. Fast forward dtvt-video by N ms. -->
-            <key=""                      action="TerminalVideoBackward"/>        <!-- not implemented. Rewind dtvt-video by N ms. -->
-            <key=""                      action="TerminalVideoHome"/>            <!-- not implemented. Rewind dtvt-video to the beginning. -->
-            <key=""                      action="TerminalVideoEnd"/>             <!-- not implemented. Rewind dtvt-video to the end. -->
+            <key=""                      action="TerminalCwdSync(!TerminalCwdSync())"/>               <!-- Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
+            <key=""                      action="TerminalWrapMode(!TerminalWrapMode())"/>             <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
+            <key=""                      action="TerminalAlignMode((TerminalAlignMode() + 1) % 3)"/>  <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. The argument can be the one of the following: 0:`left`, 1:`right`, 2:`center`. -->
+            <key="Alt+RightArrow"        action="TerminalFindNext()"/>                                <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"         action="TerminalFindPrev()"/>                                <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key=""                      action="TerminalOutput('Hello \"world\"!')"/>                <!-- Direct output the specified string to the terminal scrollback. -->
+            <key=""                      action="TerminalSendKey('A')"/>                              <!-- Simulating keypresses using the specified string. -->
+            <key=""                      action="TerminalQuit()"/>                                    <!-- Terminate runnning console apps and close terminal. -->
+            <key=""                      action="TerminalRestart()"/>                                 <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                      action="TerminalFullscreen(!TerminalFullscreen())"/>         <!-- Toggle fullscreen mode. -->
+            <key=""                      action="TerminalUndo()"/>                                    <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                      action="TerminalRedo()"/>                                    <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                      action="TerminalClipboardPaste()"/>                          <!-- Paste from clipboard. -->
+            <key=""                      action="TerminalClipboardWipe()"/>                           <!-- Reset clipboard. -->
+            <key=""                      action="TerminalSelectionMode(!TerminalSelectionMode())"/>   <!-- Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+            <key=""                      action="TerminalSelectionCopy()"/>                           <!-- Сopy selection to clipboard. -->
+            <key=""                      action="TerminalSelectionRect(!TerminalSelectionRect())"/>   <!-- Toggle between linear(0) and rectangular(1) selection form. -->
+            <key="Esc"                   action="TerminalSelectionClear()"/>                          <!-- Deselect a selection. -->
+            <key=""                      action="TerminalSelectionOneShot(1)"/>                       <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+            <key=""                      action="TerminalViewportCopy()"/>                            <!-- Сopy viewport to clipboard. -->
+            <key="Shift+Ctrl+PageUp"     action="TerminalViewportMoveByPage(0,-1)"/>                  <!-- Scroll one page up. -->
+            <key="Shift+Ctrl+PageDown"   action="TerminalViewportMoveByPage(0, 1)"/>                  <!-- Scroll one page down. -->
+            <key="Shift+Ctrl+ArrowUp"    action="TerminalViewportMoveByChar(0,-1)"/>                  <!-- Scroll one line up. -->
+            <key="Shift+Ctrl+ArrowDown"  action="TerminalViewportMoveByChar(0, 1)"/>                  <!-- Scroll one line down. -->
+            <key="Shift+Alt+ArrowLeft"   action="TerminalViewportMoveByPage(-1, 0)"/>                 <!-- Scroll one page to the left. -->
+            <key="Shift+Alt+ArrowRight"  action="TerminalViewportMoveByPage( 1, 0)"/>                 <!-- Scroll one page to the right. -->
+            <key="Shift+Ctrl+ArrowLeft"  action="TerminalViewportMoveByChar(-1, 0)"/>                 <!-- Scroll one cell to the left. -->
+            <key="Shift+Ctrl+ArrowRight" action="TerminalViewportMoveByChar( 1, 0)"/>                 <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"       action="TerminalViewportMoveToTop()"/>                       <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"        action="TerminalViewportMoveToEnd()"/>                       <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key=""                      action="TerminalStdioLog(!TerminalStdioLog())"/>             <!-- Stdin/stdout log toggle. -->
+            <key=""                      action="TerminalLogStart()"/>             <!-- not implemented. Start logging to file. -->
+            <key=""                      action="TerminalLogPause()"/>             <!-- not implemented. Pause logging. -->
+            <key=""                      action="TerminalLogStop()"/>              <!-- not implemented. Stop logging. -->
+            <key=""                      action="TerminalLogAbort()"/>             <!-- not implemented. Abort logging. -->
+            <key=""                      action="TerminalLogRestart()"/>           <!-- not implemented. Restart logging to file. -->
+            <key=""                      action="TerminalVideoRecStart()"/>        <!-- not implemented. Start DirectVT(dtvt) video recording to file. -->
+            <key=""                      action="TerminalVideoRecStop()"/>         <!-- not implemented. Stop dtvt-video recording. -->
+            <key=""                      action="TerminalVideoRecPause()"/>        <!-- not implemented. Pause dtvt-video recording. -->
+            <key=""                      action="TerminalVideoRecAbort()"/>        <!-- not implemented. Abort dtvt-video recording. -->
+            <key=""                      action="TerminalVideoRecRestart()"/>      <!-- not implemented. Restart dtvt-video recording to file. -->
+            <key=""                      action="TerminalVideoPlay()"/>            <!-- not implemented. Play dtvt-video from file. -->
+            <key=""                      action="TerminalVideoPause()"/>           <!-- not implemented. Pause dtvt-video. -->
+            <key=""                      action="TerminalVideoStop()"/>            <!-- not implemented. Stop dtvt-video. -->
+            <key=""                      action="TerminalVideoForward()"/>         <!-- not implemented. Fast forward dtvt-video by N ms. -->
+            <key=""                      action="TerminalVideoBackward()"/>        <!-- not implemented. Rewind dtvt-video by N ms. -->
+            <key=""                      action="TerminalVideoHome()"/>            <!-- not implemented. Rewind dtvt-video to the beginning. -->
+            <key=""                      action="TerminalVideoEnd()"/>             <!-- not implemented. Rewind dtvt-video to the end. -->
         </hotkeys>
     </term>
     <defapp>
