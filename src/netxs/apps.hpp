@@ -290,7 +290,7 @@ namespace netxs::app::shared
                 //    if (actual_rect.hittest(gear.coord))
                 //    {
                 //        rect viewport;
-                //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                //        gate.owner.bell::signal(tier::request, e2::form::prop::viewport, viewport);
                 //        boss.base::extend(viewport);
                 //        gear.dismiss();
                 //    }
@@ -342,7 +342,7 @@ namespace netxs::app::shared
                         if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, parent);
+                            gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, parent);
                         }
                     };
                 };
@@ -373,7 +373,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -406,7 +406,7 @@ namespace netxs::app::shared
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -429,7 +429,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -459,7 +459,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
-                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
+                        boss.bell::signal(tier::release, e2::form::upon::started, root);
                     };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
@@ -644,7 +644,7 @@ namespace netxs::app::shared
                      || gear.chord(input::key::Enter)
                      || gear.chord(input::key::Esc))
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.set_handled(true);
                     }
                     else update(items_inst);

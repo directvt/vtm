@@ -193,13 +193,13 @@ namespace netxs::ui
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
                 log(prompt::calc, "DATA ", data, ansi::nil());
-                boss.SIGNAL(tier::release, e2::data::utf8, data);
+                boss.bell::signal(tier::release, e2::data::utf8, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
             template<hids::buttons Button>
             void engage()
             {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
+                boss.bell::signal(tier::release, e2::form::draggable::_<Button>, true);
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);

@@ -286,7 +286,7 @@ namespace netxs::app::shared
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
                             auto backup = boss.This();
-                            boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
                             gear.dismiss();
                         };
                     }},
@@ -367,7 +367,7 @@ namespace netxs::app::shared
                                 boss.reflow();
                                 if (auto menutent = menutent_shadow.lock())
                                 {
-                                    menutent->SIGNAL(tier::release, e2::form::state::visible, menu_visible);
+                                    menutent->bell::signal(tier::release, e2::form::state::visible, menu_visible);
                                 }
                             }
                         }

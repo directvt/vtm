@@ -142,8 +142,7 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner.This(), [Tier, d = data](auto& boss) mutable
                 {
-                    //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
-                    boss.bell::signal(Tier, E::id, static_cast<typename E::type &&>(d));
+                    boss.bell::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::focusbus    lock)
@@ -163,7 +162,7 @@ namespace netxs::ui
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
-                    owner.SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+                    auto inputfield_request = owner.bell::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
                     auto field_list = inputfield_request.wait_for();
                     for (auto& f : field_list) f.coor -= owner.coor();
                     s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
@@ -763,7 +762,7 @@ namespace netxs::ui
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
                     boss.base::strike();
                 };
-                boss.SIGNAL(tier::general, e2::config::fps, e2::config::fps.param(-1));
+                boss.bell::signal(tier::general, e2::config::fps, e2::config::fps.param(-1));
                 boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
                 {
                     update(f.state);
@@ -971,7 +970,7 @@ namespace netxs::ui
         {
             std::swap(applet, item);
             if (local) nexthop = applet;
-            applet->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            applet->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
         }
         // gate: .
         void _rebuild_scene(bool damaged)
@@ -1096,9 +1095,9 @@ namespace netxs::ui
         // gate: Main loop.
         void launch()
         {
-            SIGNAL(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
+            bell::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
             conio.run();
-            SIGNAL(tier::release, e2::form::upon::stopped, true);
+            bell::signal(tier::release, e2::form::upon::stopped, true);
         }
 
         //todo revise
@@ -1136,7 +1135,7 @@ namespace netxs::ui
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
-                    target->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
+                    target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
             if (!direct)
@@ -1146,7 +1145,7 @@ namespace netxs::ui
                     //if (auto target = local ? applet : base::parent())
                     if (auto target = nexthop.lock())
                     {
-                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = gear.id }));
+                        auto seed = target->bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = gear.id });
                     }
                 };
                 LISTEN(tier::release, hids::events::focus::off, gear)
@@ -1154,7 +1153,7 @@ namespace netxs::ui
                     //if (auto target = local ? applet : base::parent())
                     if (auto target = nexthop.lock())
                     {
-                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = gear.id }));
+                        auto seed = target->bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = gear.id });
                     }
                 };
             }
@@ -1197,7 +1196,7 @@ namespace netxs::ui
                     if (auto target = base::parent())
                     //if (auto target = nexthop.lock())
                     {
-                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                        target->bell::signal(tier::release, hids::events::keybd::focus::bus::off, seed);
                     }
                 }
             };
@@ -1213,7 +1212,7 @@ namespace netxs::ui
                 {
                     if (seed.item)
                     {
-                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                        seed.item->bell::signal(tier::release, hids::events::keybd::focus::bus::on, seed);
                     }
                 }
             };
@@ -1288,7 +1287,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
             {
                 auto new_area = rect{ dot_00, new_size };
-                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
+                if (applet) applet->bell::signal(tier::anycast, e2::form::upon::resized, new_area);
                 auto old_size = base::size();
                 auto delta = base::resize(new_size).size - old_size;
                 if (delta && direct) paint.cancel();
@@ -1304,7 +1303,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
             {
-                this->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast);
+                this->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 conio.disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
@@ -1327,7 +1326,7 @@ namespace netxs::ui
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
             {
                 if (props.debug_overlay) debug.start();
-                this->SIGNAL(tier::release, e2::form::prop::name, props.title);
+                this->bell::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise
                 if (props.title.length())
                 {
@@ -1460,7 +1459,7 @@ namespace netxs::ui
                 };
                 LISTEN(tier::release, e2::config::fps, fps, tokens)
                 {
-                    if (fps > 0) this->SIGNAL(tier::general, e2::config::fps, fps);
+                    if (fps > 0) this->bell::signal(tier::general, e2::config::fps, fps);
                 };
                 LISTEN(tier::preview, e2::config::fps, fps, tokens)
                 {
@@ -1652,7 +1651,7 @@ namespace netxs::ui
         {
             auto lock = bell::unique_lock();
             auto portal = ui::gate::ctor(uplink, vtmode, host::config);
-            portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            portal->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             portal->attach(applet);
             portal->base::resize(winsz);
             auto& screen = *portal;

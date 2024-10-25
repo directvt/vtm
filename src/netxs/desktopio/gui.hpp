@@ -1803,14 +1803,14 @@ namespace netxs::gui
             {
                 auto& item = lock.thing;
                 // We are the focus tree endpoint. Signal back the focus set up.
-                owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = item.gear_id }));
+                auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = item.gear_id });
             }
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
                 if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
                 {
-                    owner.SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = item.gear_id, .solo = item.solo, .item = owner.This() }));
+                    auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
                 }
                 else owner.window_post_command(ipc::take_focus);
                 if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
@@ -1830,7 +1830,7 @@ namespace netxs::gui
                 gear.pressed  = keybd.pressed;
                 gear.cluster  = keybd.cluster;
                 gear.handled  = keybd.handled;
-                owner.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
+                owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {
@@ -1851,7 +1851,7 @@ namespace netxs::gui
                 //todo revise
                 //owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 //{
-                //    owner.SIGNAL(tier::general, e2::config::fps, fps);
+                //    owner.bell::signal(tier::general, e2::config::fps, fps);
                 //});
             }
             void handle(s11n::xs::logs             lock)
@@ -3033,7 +3033,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() }));
+                        auto seed = bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3047,7 +3047,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = stream.gears->id }));
+                        auto seed = bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = stream.gears->id });
                     });
                 }
             }
@@ -3146,7 +3146,7 @@ namespace netxs::gui
             auto inputfield_request = ui::e2::command::request::inputfields.param({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd });
             stream.send_input_fields_request(*this, inputfield_request);
             // We can't sync with the ui here. This causes a deadlock.
-            //SIGNAL(tier::general, ui::e2::command::request::inputfields, inputfield_request, ({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd })); // pro::focus retransmits as a tier::release for focused objects.
+            //auto inputfield_request = bell::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
             fields = inputfield_request.wait_for();
             auto win_area = blinky.area;
             if (fields.empty()) fields.push_back(win_area);

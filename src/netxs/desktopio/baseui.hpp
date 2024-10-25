@@ -91,7 +91,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( background )
                 {
-                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt bell::signal) and any kind of highlighters.
                 };
             };
             SUBSET_XS( config )
@@ -611,12 +611,12 @@ namespace netxs::ui
             base::filler.bgc(bg_color)
                         .fgc(fg_color)
                         .txt(whitespace);
-            SIGNAL(tier::release, e2::form::prop::filler, filler);
+            bell::signal(tier::release, e2::form::prop::filler, filler);
         }
         void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
         {
             base::filler = new_filler;
-            SIGNAL(tier::release, e2::form::prop::filler, filler);
+            bell::signal(tier::release, e2::form::prop::filler, filler);
         }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
@@ -662,7 +662,7 @@ namespace netxs::ui
             xform(atcrop.y, atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
-            SIGNAL(tier::release, e2::area, new_area);
+            bell::signal(tier::release, e2::area, new_area);
             base::region = new_area;
         }
         // base: Notify about appoved area (ext rect) for the object.
@@ -702,7 +702,7 @@ namespace netxs::ui
             base::socket.size = base::region.size;
             auto new_area = base::socket;
             auto old_coor = base::region.coor;
-            SIGNAL(tier::release, e2::area, new_area);
+            bell::signal(tier::release, e2::area, new_area);
             base::region.coor = new_area.coor;
             return base::region.coor - old_coor;
         }
@@ -900,8 +900,8 @@ namespace netxs::ui
             if (hidden) return;
             if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
             {
-                if (pred) SIGNAL(tier::release, e2::render::background::prerender, canvas);
-                if (post) SIGNAL(tier::release, e2::postrender, canvas);
+                if (pred) bell::signal(tier::release, e2::render::background::prerender, canvas);
+                if (post) bell::signal(tier::release, e2::postrender, canvas);
             }
         }
 
@@ -918,7 +918,7 @@ namespace netxs::ui
             {
                 auto backup = This();
                 subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // base: Update nested object.
@@ -931,9 +931,9 @@ namespace netxs::ui
             {
                 auto backup = This();
                 auto pos = subset.erase(iter);
-                old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, new_item_ptr);
-                new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+                new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
         virtual ~base() = default;
@@ -963,7 +963,7 @@ namespace netxs::ui
                     parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
                     {
                         auto backup = This(); // Object can be deleted inside proc.
-                        backup->SIGNAL(tier::release, e2::cascade, proc);
+                        backup->bell::signal(tier::release, e2::cascade, proc);
                     };
                 }
                 father = parent_ptr;

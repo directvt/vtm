@@ -114,7 +114,7 @@ namespace netxs::events
     struct reactor
     {
         template<class F>
-        using hndl = std::function<void(F&&)>;
+        using hndl = std::function<void(F&)>;
         using list = std::list<wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
 
@@ -179,12 +179,11 @@ namespace netxs::events
         }
         // reactor: Calling delegates. Returns the number of active ones.
         template<class F>
-        void notify(hint event, F&& param)
+        void notify(hint event, F& param)
         {
             alive = branch::proceed;
             queue.push_back(event);
             auto head = qcopy.size();
-
             if (order)
             {
                 auto itermask = events::level_mask(event);
@@ -210,7 +209,6 @@ namespace netxs::events
                 }
                 while (subgroup != event);
             }
-
             auto tail = qcopy.size();
             auto size = tail - head;
             if (size)
@@ -222,14 +220,13 @@ namespace netxs::events
                     {
                         if (auto compatible = static_cast<wrapper<F>*>(proc_ptr.get()))
                         {
-                            compatible->proc(std::forward<F>(param));
+                            compatible->proc(param);
                         }
                     }
                 }
                 while (alive == branch::proceed && ++iter != tail);
                 qcopy.resize(head);
             }
-
             queue.pop_back();
             handled = alive != branch::nothandled && size;
         }
@@ -395,25 +392,11 @@ namespace netxs::events
     #define GET_END1_XS(a, b, c, d, e, last, ...) last
     #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    //#define LISTEN_S(level, event, param              ) bell::template submit<level>( event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    //#define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    //#define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
-    //#define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
-    //#define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
-    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type&& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type&& param) mutable
+    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
-
-    //#define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    //#define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
-    //#define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
-    //#define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
-    #define SIGNAL_S(level, event, var       ) bell::signal(level, decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->signal(level, decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)) // Multi-statement macro. Use with caution.
-    #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
-    #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
@@ -510,13 +493,13 @@ namespace netxs::events
         template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);          }
         template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.extra()); }
         template<class Event>
-        void submit(si32 Tier, Event, std::function<void(typename Event::type &&)> handler)
+        void submit(si32 Tier, Event, std::function<void(typename Event::type&)> handler)
         {
             auto lock = indexer.sync();
             tracker.admit(reactors[Tier]->subscribe(Event::id, handler));
         }
         template<class Event>
-        void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type &&)> handler)
+        void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type&)> handler)
         {
             auto lock = indexer.sync();
             token = reactors[Tier]->subscribe(Event::id, handler);
@@ -525,8 +508,7 @@ namespace netxs::events
         {
             return reactors[Tier]->handled;
         }
-        template<class F>
-        auto signal(si32 Tier, hint event, F&& data)
+        auto signal(si32 Tier, hint event, auto& param)
         {
             auto lock = indexer.sync();
             if (Tier == tier::anycast)
@@ -534,12 +516,31 @@ namespace netxs::events
                 auto root = gettop();
                 auto proc = ftor{ [&](auto boss_ptr)
                 {
-                    boss_ptr->anycast.notify(event, std::forward<F>(data));
+                    boss_ptr->anycast.notify(event, param);
                     return true;
                 }};
                 root->release.notify(userland::root::cascade.id, proc);
             }
-            else reactors[Tier]->notify(event, std::forward<F>(data));
+            else reactors[Tier]->notify(event, param);
+        }
+        // bell: Fire an event.
+        // Usage example:
+        //          bell::signal(tier::preview, e2::form::prop::ui::header, txt);
+        template<class Event>
+        auto signal(si32 Tier, Event, Event::type&& param = {})
+        {
+            signal(Tier, Event::id, param);
+            return param;
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type& param)
+        {
+            signal(Tier, Event::id, param);
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type const& param)
+        {
+            signal(Tier, Event::id, param);
         }
         // bell: Return initial event of the current event execution branch.
         auto protos(si32 Tier)
@@ -627,7 +628,7 @@ namespace netxs::events
         }
        ~bell()
         {
-            SIGNAL(tier::release, userland::root::dtor, id);
+            signal(tier::release, userland::root::dtor, id);
         }
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
