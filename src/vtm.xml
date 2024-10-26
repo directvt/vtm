@@ -389,7 +389,7 @@ R"==(
             <key=""                      action="TerminalSelectionMode(!TerminalSelectionMode())"/>   <!-- Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
             <key=""                      action="TerminalSelectionCopy()"/>                           <!-- Сopy selection to clipboard. -->
             <key=""                      action="TerminalSelectionRect(!TerminalSelectionRect())"/>   <!-- Toggle between linear(0) and rectangular(1) selection form. -->
-            <key="Esc"                   action="TerminalSelectionClear()"/>                          <!-- Deselect a selection. -->
+            <key="Esc"                   action="TerminalSelectionClear(); Continue()"/>              <!-- Deselect a selection. -->
             <key=""                      action="TerminalSelectionOneShot(1)"/>                       <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
             <key=""                      action="TerminalViewportCopy()"/>                            <!-- Сopy viewport to clipboard. -->
             <key="Shift+Ctrl+PageUp"     action="TerminalViewportMoveByPage(0,-1)"/>                  <!-- Scroll one page up. -->

@@ -418,6 +418,21 @@ namespace netxs::xml
                 }
             }
 
+            auto is_quoted()
+            {
+                if (body.size() == 1)
+                {
+                    auto& value_placeholder = body.front();
+                    if (value_placeholder->kind == type::tag_value) // equal [spaces] quotes tag_value quotes
+                    if (auto quote_placeholder = value_placeholder->prev.lock())
+                    if (quote_placeholder->kind == type::quotes && quote_placeholder->utf8.size())
+                    {
+                        auto c = quote_placeholder->utf8.front();
+                        return c == '\"' || c == '\'';
+                    }
+                }
+                return faux;
+            }
             template<bool WithTemplate = faux>
             auto list(qiew path_str)
             {
@@ -467,7 +482,7 @@ namespace netxs::xml
                 utf::unescape(value);
                 return value;
             }
-            void init_value(qiew value, bool unescaped = true)
+            void init_value(qiew value, bool unescaped = true, std::optional<bool> quoted = {})
             {
                 if (body.size())
                 {
@@ -485,17 +500,17 @@ namespace netxs::xml
                         }
                         if (equal_placeholder && equal_placeholder->kind == type::equal)
                         {
-                            if (value.size())
+                            if ((value.size() && !quoted) || quoted.value())
                             {
-                                equal_placeholder->utf8 = "=";
-                                quote_placeholder->utf8 = "\"";
-                                if (value_placeholder->next) value_placeholder->next->utf8 = "\"";
+                                equal_placeholder->utf8 = "="sv;
+                                quote_placeholder->utf8 = "\""sv;
+                                if (value_placeholder->next) value_placeholder->next->utf8 = "\""sv;
                             }
                             else
                             {
-                                equal_placeholder->utf8 = "";
-                                quote_placeholder->utf8 = "";
-                                if (value_placeholder->next) value_placeholder->next->utf8 = "";
+                                equal_placeholder->utf8 = value.size() ? "="sv : ""sv;
+                                quote_placeholder->utf8 = ""sv;
+                                if (value_placeholder->next) value_placeholder->next->utf8 = ""sv;
                             }
                         }
                         else log("%%Equal sign placeholder not found", prompt::xml);
@@ -515,7 +530,7 @@ namespace netxs::xml
                     {
                         value += value_placeholder->utf8;
                     }
-                    init_value(value, faux);
+                    init_value(value, faux, node.is_quoted());
                 }
             }
             template<class T>
@@ -1346,9 +1361,17 @@ namespace netxs::xml
                 if constexpr (!Quiet) log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
                 return defval;
             }
+            auto is_quoted = tempbuff.back()->is_quoted();
             tempbuff.clear();
+            if constexpr (std::is_same_v<std::decay_t<T>, text>)
+            {
+                if (!is_quoted && crop.size() < 128) // Try to find variable if it is not quoted and its len < 128.
+                {
+                    return take<Quiet>("/config/set/" + crop, crop);
+                }
+            }
             if (auto result = xml::take<T>(crop)) return result.value();
-            if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);
+            if (!is_quoted && crop.size() < 128)  return take<Quiet>("/config/set/" + crop, defval);
             else                                  return defval;
         }
         template<class T>
