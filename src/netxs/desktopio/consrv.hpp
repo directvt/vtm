@@ -2271,7 +2271,7 @@ struct impl : consrv
         }
     }
     template<class T, class ...Args>
-    auto take_text(T&& packet, Args&& ...args)
+    auto take_text(T&& packet, Args&&... args)
     {
         auto size = (args + ...);
         if (packet.input.utf16)

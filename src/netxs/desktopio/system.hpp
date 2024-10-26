@@ -3857,8 +3857,8 @@ namespace netxs::os
                     });
                 };
                 haspty = ::isatty(os::stdin_fd);
-                haspty ? proc([&](auto ...args){ return io::select<true>(args...); })
-                       : proc([&](auto ...args){ return io::select<faux>(args...); });
+                haspty ? proc([&](auto... args){ return io::select<true>(args...); })
+                       : proc([&](auto... args){ return io::select<faux>(args...); });
 
             #endif
             if (cfsize)
@@ -6094,7 +6094,7 @@ namespace netxs::os
                     auto mutex = std::mutex{};
                     auto panel = dtvt::consize();
                     auto wraps = true;
-                    auto clear = [&](auto&& ...args) // Erase the readline block and output the args.
+                    auto clear = [&](auto&&... args) // Erase the readline block and output the args.
                     {
                         if (width)
                         {
@@ -6126,7 +6126,7 @@ namespace netxs::os
                         osout(yield);
                         yield.clear();
                     };
-                    auto enter = [&](auto&& ...args)
+                    auto enter = [&](auto&&... args)
                     {
                         if (block.length()) yield.add("\r\n");
                         if constexpr (sizeof...(args)) yield.add(std::forward<decltype(args)>(args)...);

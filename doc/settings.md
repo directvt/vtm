@@ -69,6 +69,8 @@ The file list is built in the following order from the following sources:
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
+ - Objects can reference values ​​of other objects using absolute references (three levels of indirection allowed).
+   - `thing2` refers to the value `thing1` in `<node1 thing1=value1/><node2 thing2=/node1/thing1 />`.
  - Escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
@@ -208,9 +210,14 @@ The following declarations have the same meaning:
 ...
 <config>  <!-- Global configuration. -->
     <set>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <variable.name = value/>  <!-- Globally referenced variable declaration. -->
+        <variable = value/>  <!-- Globally referenced variable. -->
         ...  <!-- Set of global variables. -->
     </set>
+    ...
+    <object1=variable/>           <!-- object1 references the value of /config/set/variable (/config/set is a default namespace). -->
+    <object2=/config/object1/>    <!-- object2 references the value of /config/object1 using an absolute reference (three levels of indirection allowed). -->
+    <object3="/config/object1"/>  <!-- object3 contains the string value "/config/object1". -->
+    ...
     <desktop>  <!-- Desktop client settings. -->
         <taskbar ... >  <!-- Taskbar menu settings. -->
             ...  <!-- Set of additional taskbar settings. -->
@@ -350,7 +357,7 @@ Notes
         <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_". -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>
         <timeout=2000ms/>
@@ -400,37 +407,43 @@ Notes
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
     <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
-        <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
-        <reddk             = 0xFFc40f1f />
-        <greendk           = 0xFF12a10e />
-        <yellowdk          = 0xFFc09c00 />
-        <bluedk            = 0xFF0037db />
-        <magentadk         = 0xFF871798 />
-        <cyandk            = 0xFF3b96dd />
-        <whitedk           = 0xFFbbbbbb />
-        <blacklt           = 0xFF757575 />
-        <redlt             = 0xFFe64856 />
-        <greenlt           = 0xFF15c60c />
-        <yellowlt          = 0xFFf8f1a5 />
-        <bluelt            = 0xFF3a78ff />
-        <magentalt         = 0xFFb3009e />
-        <cyanlt            = 0xFF60d6d6 />
-        <whitelt           = 0xFFf3f3f3 />
-        <pureblack         = 0xFF000000 />
-        <purewhite         = 0xFFffffff />
-        <purered           = 0xFFff0000 />
-        <puregreen         = 0xFF00ff00 />
-        <pureblue          = 0xFF0000ff />
-        <puremagenta       = 0xFFff00ff />
-        <purecyan          = 0xFF00ffff />
-        <pureyellow        = 0xFFff00ff />
-        <nocolor           = 0x00000000 />
-        <color.default     = 0x00ffffff />
-        <color.transparent = nocolor    />
-        <menu.autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
-        <menu.slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
-        <selection.mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
-        <selection.rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+        <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
+        <reddk       = 0xFFc40f1f />
+        <greendk     = 0xFF12a10e />
+        <yellowdk    = 0xFFc09c00 />
+        <bluedk      = 0xFF0037db />
+        <magentadk   = 0xFF871798 />
+        <cyandk      = 0xFF3b96dd />
+        <whitedk     = 0xFFbbbbbb />
+        <blacklt     = 0xFF757575 />
+        <redlt       = 0xFFe64856 />
+        <greenlt     = 0xFF15c60c />
+        <yellowlt    = 0xFFf8f1a5 />
+        <bluelt      = 0xFF3a78ff />
+        <magentalt   = 0xFFb3009e />
+        <cyanlt      = 0xFF60d6d6 />
+        <whitelt     = 0xFFf3f3f3 />
+        <pureblack   = 0xFF000000 />
+        <purewhite   = 0xFFffffff />
+        <purered     = 0xFFff0000 />
+        <puregreen   = 0xFF00ff00 />
+        <pureblue    = 0xFF0000ff />
+        <puremagenta = 0xFFff00ff />
+        <purecyan    = 0xFF00ffff />
+        <pureyellow  = 0xFFff00ff />
+        <nocolor     = 0x00000000 />
+        <color>
+            <default     = 0x00ffffff />
+            <transparent = nocolor    />
+        </color>
+        <menu>
+            <autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
+            <slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+        </menu>
+        <selection>
+            <mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+        </selection>
     </set>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
@@ -445,7 +458,7 @@ Notes
                 </notes>
             </item>
             <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values). -->
-            <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
+            <item id=Term label="\u{1F6E0}\u{FE0E}\u{D0030} Term" type=dtvt title="Terminal Console" cmd="$0 -r term">  <!-- \u{D0030} is a character geometry modifier to make the character '🛠' size 2x1. See https://github.com/directvt/vtm/blob/master/doc/character_geometry.md for details. -->
                 <notes>
                     " Terminal Console               \n"
                     "   LeftClick to launch instance \n"
@@ -461,7 +474,7 @@ Notes
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=selection.mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+                            <mode=selection/mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
                         </selection>
                         <hotkeys key*>    <!-- not implemented -->
                             <key="Alt+RightArrow" action=TerminalFindNext/>
@@ -475,9 +488,9 @@ Notes
             <!-- <item id=Far  label="Far"        type=dtvt title="Far Manager"           cmd="$0 -r far"            notes=" Far Manager in its own DirectVT window "/> -->
             <!-- <item id=Far  label="Far VTTY"   type=vtty title="Far Manager (vtty)"    cmd="far"                  notes=" Far Manager in its own window "/> -->
             <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                   notes=" Midnight Commander in its own window "/> -->
-            <item id=Tile label="Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id=Site label="Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id=Tile label="🎞️\u{FE0E}\u{D0030} Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id=Site label="🚩\u{FE0E}\u{D0030} Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id=Logs label="⚙️\u{FE0E}\u{D0030} Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
                     <term>
                         <scrollback>
@@ -485,8 +498,8 @@ Notes
                             <wrap="off"/>
                         </scrollback>
                         <menu item*>
-                            <autohide=menu.autohide/>
-                            <slim=menu.slim/>
+                            <autohide=menu/autohide/>
+                            <slim=menu/slim/>
                             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                                 <notes>
@@ -607,7 +620,7 @@ Notes
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color.default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color.default) to sync with SGR49 (default background). -->
+            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
             <match fx=color fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: xlight | color | invert | reverse . -->
             <selection>
                 <text fx=color fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -621,8 +634,8 @@ Notes
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu.autohide/> <!-- Link to global <config/set/menu.autohide>. -->
-            <slim=menu.slim/> <!-- Link to global <config/set/menu.slim>. -->
+            <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
@@ -678,8 +691,8 @@ Notes
             <!-- <item label="Hello, World!" notes=" Simulate keypresses "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
-            <mode=selection.mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
-            <rect=selection.rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode=selection/mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit=auto/>  <!-- Behavior after the last console process has terminated: auto | ask | close | restart | retry 
                                 auto:    Stay open and ask if exit code != 0. (default)
@@ -694,8 +707,8 @@ Notes
     </term>
     <defapp>
         <menu>
-            <autohide=menu.autohide/>  <!-- Link to global <config/set/menu.autohide>. -->
-            <slim=menu.slim/>          <!-- Link to global <config/set/menu.slim>. -->
+            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
         </menu>
     </defapp>
 </config>

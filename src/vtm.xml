@@ -35,7 +35,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_". -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
-        <color fgc=color.default bgc=color.default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
+        <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
     <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=2000ms/>
@@ -85,37 +85,43 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
     <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <blackdk           = 0xFF101010 />  <!-- Color reference literals. -->
-        <reddk             = 0xFFc40f1f />
-        <greendk           = 0xFF12a10e />
-        <yellowdk          = 0xFFc09c00 />
-        <bluedk            = 0xFF0037db />
-        <magentadk         = 0xFF871798 />
-        <cyandk            = 0xFF3b96dd />
-        <whitedk           = 0xFFbbbbbb />
-        <blacklt           = 0xFF757575 />
-        <redlt             = 0xFFe64856 />
-        <greenlt           = 0xFF15c60c />
-        <yellowlt          = 0xFFf8f1a5 />
-        <bluelt            = 0xFF3a78ff />
-        <magentalt         = 0xFFb3009e />
-        <cyanlt            = 0xFF60d6d6 />
-        <whitelt           = 0xFFf3f3f3 />
-        <pureblack         = 0xFF000000 />
-        <purewhite         = 0xFFffffff />
-        <purered           = 0xFFff0000 />
-        <puregreen         = 0xFF00ff00 />
-        <pureblue          = 0xFF0000ff />
-        <puremagenta       = 0xFFff00ff />
-        <purecyan          = 0xFF00ffff />
-        <pureyellow        = 0xFFff00ff />
-        <nocolor           = 0x00000000 />
-        <color.default     = 0x00ffffff />
-        <color.transparent = nocolor    />
-        <menu.autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
-        <menu.slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
-        <selection.mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
-        <selection.rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+        <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
+        <reddk       = 0xFFc40f1f />
+        <greendk     = 0xFF12a10e />
+        <yellowdk    = 0xFFc09c00 />
+        <bluedk      = 0xFF0037db />
+        <magentadk   = 0xFF871798 />
+        <cyandk      = 0xFF3b96dd />
+        <whitedk     = 0xFFbbbbbb />
+        <blacklt     = 0xFF757575 />
+        <redlt       = 0xFFe64856 />
+        <greenlt     = 0xFF15c60c />
+        <yellowlt    = 0xFFf8f1a5 />
+        <bluelt      = 0xFF3a78ff />
+        <magentalt   = 0xFFb3009e />
+        <cyanlt      = 0xFF60d6d6 />
+        <whitelt     = 0xFFf3f3f3 />
+        <pureblack   = 0xFF000000 />
+        <purewhite   = 0xFFffffff />
+        <purered     = 0xFFff0000 />
+        <puregreen   = 0xFF00ff00 />
+        <pureblue    = 0xFF0000ff />
+        <puremagenta = 0xFFff00ff />
+        <purecyan    = 0xFF00ffff />
+        <pureyellow  = 0xFFff00ff />
+        <nocolor     = 0x00000000 />
+        <color>
+            <default     = 0x00ffffff />
+            <transparent = nocolor    />
+        </color>
+        <menu>
+            <autohide=no/>  <!-- Auto hide window menu items on mouse leave. -->
+            <slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
+        </menu>
+        <selection>
+            <mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+        </selection>
     </set>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
@@ -143,7 +149,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=selection.mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+                            <mode=/config/set/selection/mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
                         </selection>
                         <hotkeys>    <!-- not implemented -->
                             <key="Alt+RightArrow" action=TerminalFindNext()/>
@@ -164,8 +170,8 @@ R"==(<!-- Ordered list of paths to settings files. -->
 )=="
 R"==(
                         <menu item*>
-                            <autohide=menu.autohide/>
-                            <slim=menu.slim/>
+                            <autohide=menu/autohide/>
+                            <slim=menu/slim/>
                             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                                 <notes>
@@ -291,7 +297,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color.default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color.default) to sync with SGR49 (default background). -->
+            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
             <match fx=color fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: xlight | color | invert | reverse . -->
             <selection>
                 <text fx=color fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -305,8 +311,8 @@ R"==(
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu.autohide/> <!-- Link to global <config/set/menu.autohide>. -->
-            <slim=menu.slim/> <!-- Link to global <config/set/menu.slim>. -->
+            <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
@@ -362,8 +368,8 @@ R"==(
             <!-- <item label="Hello, World!" notes=" Simulate keypress "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
-            <mode=selection.mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
-            <rect=selection.rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode=selection/mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit=auto/>  <!-- Behavior after the last console process has terminated: auto | ask | close | restart | retry 
                                 auto:    Stay open and ask if exit code != 0. (default)
@@ -424,8 +430,8 @@ R"==(
     </term>
     <defapp>
         <menu>
-            <autohide=menu.autohide/>  <!-- Link to global <config/set/menu.autohide>. -->
-            <slim=menu.slim/>          <!-- Link to global <config/set/menu.slim>. -->
+            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
         </menu>
     </defapp>
 </config>)=="

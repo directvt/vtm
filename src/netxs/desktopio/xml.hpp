@@ -613,7 +613,7 @@ namespace netxs::xml
         };
 
         static constexpr auto find_start         = "<"sv;
-        static constexpr auto rawtext_delims     = " \t\n\r/><"sv;
+        static constexpr auto rawtext_delims     = std::tuple{ " "sv, "/>"sv, ">"sv, "<"sv, "\n"sv, "\r"sv, "\t"sv };
         static constexpr auto token_delims       = " \t\n\r=*/><"sv;
         static constexpr auto view_comment_begin = "<!--"sv;
         static constexpr auto view_comment_close = "-->"sv;
@@ -836,12 +836,12 @@ namespace netxs::xml
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
             else if (data.starts_with(view_empty_tag    )) what = type::empty_tag;
+            else if (data.starts_with(view_close_inline )) what = type::close_inline;
             else if (data.starts_with(view_slash        ))
             {
                 if (last == type::token) what = type::compact;
-                else                     what = type::unknown;
+                else                     what = type::raw_text;
             }
-            else if (data.starts_with(view_close_inline )) what = type::close_inline;
             else if (data.starts_with(view_quoted_text  )) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_defaults     )
@@ -1335,7 +1335,7 @@ namespace netxs::xml
             cd(gotopath, fallback);
         }
         template<bool Quiet = faux, class T = si32>
-        auto take(text frompath, T defval = {})
+        auto take(text frompath, T defval = {}, si32 primary_value = 3) // Three levels of references (to avoid circular references).
         {
             if (frompath.empty()) return defval;
             auto crop = text{};
@@ -1363,15 +1363,16 @@ namespace netxs::xml
             }
             auto is_quoted = tempbuff.back()->is_quoted();
             tempbuff.clear();
+            auto is_like_variable = [&]{ return primary_value && !is_quoted && crop.size() && (crop.front() == '/' || crop.size() < 128); };
             if constexpr (std::is_same_v<std::decay_t<T>, text>)
             {
-                if (!is_quoted && crop.size() < 128) // Try to find variable if it is not quoted and its len < 128.
+                if (is_like_variable()) // Try to find variable if it is not quoted and its len < 128.
                 {
-                    return take<Quiet>("/config/set/" + crop, crop);
+                    return take<Quiet>(crop.front() == '/' ? crop : "/config/set/" + crop, crop, primary_value - 1);
                 }
             }
             if (auto result = xml::take<T>(crop)) return result.value();
-            if (!is_quoted && crop.size() < 128)  return take<Quiet>("/config/set/" + crop, defval);
+            if (is_like_variable())               return take<Quiet>(crop.front() == '/' ? crop : "/config/set/" + crop, defval, primary_value - 1);
             else                                  return defval;
         }
         template<class T>
