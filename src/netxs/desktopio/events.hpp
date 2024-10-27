@@ -561,18 +561,6 @@ namespace netxs::events
             skip ? reactors[Tier]->skip()
                  : reactors[Tier]->stop();
         }
-        void _saveme()
-        {
-            saveme_mutex.lock();
-            saveme_queue.push_back(this);
-        }
-        static auto _revive()
-        {
-            auto ptr = saveme_queue.back();
-                       saveme_queue.pop_back();
-            saveme_mutex.unlock();
-            return static_cast<bell*>(ptr);
-        }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
         auto create(Args&&... args) -> sptr<T>
