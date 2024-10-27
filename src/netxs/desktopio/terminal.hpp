@@ -8049,15 +8049,8 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         //todo use temp gear object
-                        gear.alive    = true;
-                        gear.ctlstate = k.ctlstat;
-                        gear.extflag  = k.extflag;
-                        gear.payload  = k.payload;
-                        gear.virtcod  = k.virtcod;
-                        gear.scancod  = k.scancod;
-                        gear.pressed  = k.pressed;
-                        gear.cluster  = k.cluster;
-                        gear.handled  = k.handled;
+                        gear.alive   = true;
+                        k.syncto(gear);
                         do
                         {
                             parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
@@ -8408,16 +8401,8 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {
-                stream.syskeybd.send(*this, gear.id,
-                                            gear.ctlstate, // It is expanded because of ctlstate is not ctlstat.
-                                            gear.extflag,
-                                            gear.payload,
-                                            gear.virtcod,
-                                            gear.scancod,
-                                            gear.pressed,
-                                            gear.cluster,
-                                            gear.handled,
-                                            gear.keycode);
+                gear.gear_id = gear.id;
+                stream.syskeybd.send(*this, gear);
                 gear.dismiss();
             };
             LISTEN(tier::general, e2::config::fps, frame_rate)

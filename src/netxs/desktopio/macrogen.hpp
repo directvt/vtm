@@ -23,7 +23,8 @@
         #define MAKE_ATTR_macro(type, name, ...) type name{};
         #define MAKE_SIGN_macro(type, name, ...) type TAKE_TEMP_macro(name)
         #define MAKE_TYPE_macro(type, name, ...) type
-        #define MAKE_TEMP_macro(type, name, ...) this->name = source. name;
+        #define MAKE_TEMP_macro(type, name, ...) this->name = src. name;
+        #define MAKE_SYNC_macro(type, name, ...) dst. name = this->name;
         #define MAKE_LOGS_macro(type, name, ...) s << "\n\t " << #name << ": " << o.name;
         #define MAKE_WIPE_macro(type, name, ...) this->name = {};
 
@@ -44,6 +45,12 @@
         #define SEQ_TEMP_even_last
         #define SEQ_TEMP__odd_last
         #define SEQ_TEMP_macro(args) EVAL_macro(CAT_macro(SEQ_TEMP__odd args, _last))
+
+        #define SEQ_SYNC__odd(...) MAKE_SYNC_macro __VA_ARGS__ SEQ_SYNC_even
+        #define SEQ_SYNC_even(...) MAKE_SYNC_macro __VA_ARGS__ SEQ_SYNC__odd
+        #define SEQ_SYNC_even_last
+        #define SEQ_SYNC__odd_last
+        #define SEQ_SYNC_macro(args) EVAL_macro(CAT_macro(SEQ_SYNC__odd args, _last))
 
         #define SEQ_WIPE__odd(...) MAKE_WIPE_macro __VA_ARGS__ SEQ_WIPE_even
         #define SEQ_WIPE_even(...) MAKE_WIPE_macro __VA_ARGS__ SEQ_WIPE__odd

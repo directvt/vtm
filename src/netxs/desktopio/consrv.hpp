@@ -967,7 +967,7 @@ struct impl : consrv
         }
         void mouse(input::hids& gear, twod coord)
         {
-            auto state = os::nt::ms_kbstate(gear.ctlstate);
+            auto state = os::nt::ms_kbstate(gear.ctlstat);
             auto bttns = gear.m_sys.buttons & 0b00011111;
             auto moved = gear.m_sys.buttons == gear.m_sav.buttons && gear.m_sys.wheelfp == 0.f; // No events means mouse move. MSFT: "MOUSE_EVENT_RECORD::dwEventFlags: If this value is zero, it indicates a mouse button being pressed or released". Far Manager relies on this.
             auto flags = ui32{};
@@ -1078,7 +1078,7 @@ struct impl : consrv
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
-            auto ctrls = os::nt::ms_kbstate(gear.ctlstate) | (gear.extflag ? ENHANCED_KEY : 0);
+            auto ctrls = os::nt::ms_kbstate(gear.ctlstat) | (gear.extflag ? ENHANCED_KEY : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.pressed)

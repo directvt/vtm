@@ -1225,15 +1225,8 @@ namespace netxs::ui
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         if (gear_ptr)
                         {
-                            conio.keybd_event.send(canal, ext_gear_id,
-                                                          gear.ctlstate,
-                                                          gear.extflag,
-                                                          gear.payload,
-                                                          gear.virtcod,
-                                                          gear.scancod,
-                                                          gear.pressed,
-                                                          gear.cluster,
-                                                          gear.handled);
+                            gear.gear_id = ext_gear_id;
+                            conio.keybd_event.send(canal, gear);
                         }
                     }
                 };
@@ -1414,7 +1407,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -1453,7 +1446,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
                 };

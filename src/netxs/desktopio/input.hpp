@@ -949,6 +949,9 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        text kbchord{};
+        text chchord{};
+        text scchord{};
 
         auto doinput()
         {
@@ -968,6 +971,9 @@ namespace netxs::input
             cluster = k.cluster;
             handled = k.handled;
             keycode = k.keycode;
+            kbchord = k.kbchord;
+            chchord = k.chchord;
+            scchord = k.scchord;
             fire_keybd();
         }
 
@@ -1265,7 +1271,8 @@ namespace netxs::input
         bool        tooltip_set  = faux; // hids: Tooltip has been set.
         twod        tooltip_coor = {}; // hids: .
 
-        si32 ctlstate = {};
+        si32 ctlstat = {};
+        id_t gear_id = {};
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1412,7 +1419,7 @@ namespace netxs::input
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
-            ctlstate = new_ctlstate;
+            hids::ctlstat = new_ctlstate;
             mouse::coord = new_coord;
             mouse::click = new_click;
             mouse::whlfp = new_whlfp;
@@ -1423,7 +1430,7 @@ namespace netxs::input
             mouse::load_button_state(new_button_state);
         }
 
-        auto meta(si32 ctl_key = -1) { return ctlstate & ctl_key; }
+        auto meta(si32 ctl_key = -1) { return hids::ctlstat & ctl_key; }
         auto chord(si32 k, si32 mods = {})
         {
             if (mods) return k == keybd::keycode && meta(mods) && !meta(~mods & hids::anyMod);
@@ -1457,7 +1464,7 @@ namespace netxs::input
             }
             #endif
             disabled = faux;
-            ctlstate = m.ctlstat;
+            hids::ctlstat = m.ctlstat;
             mouse::update(m, idmap);
         }
         void take(syskeybd& k)
@@ -1473,7 +1480,7 @@ namespace netxs::input
             else
             {
                 tooltip_stop = true;
-                ctlstate = k.ctlstat;
+                hids::ctlstat = k.ctlstat;
                 keybd::update(k);
             }
         }
@@ -1662,7 +1669,7 @@ namespace netxs::input
 
             if (keybd::pressed)
             {
-                auto s = hids::ctlstate;
+                auto s = hids::ctlstat;
                 auto v = keybd::keycode & -2; // Generic keys only
                 auto c = keybd::cluster.empty() ? 0 : keybd::cluster.front();
 
