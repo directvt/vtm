@@ -1418,6 +1418,7 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
+        using kmap = std::decay_t<decltype(input::key::key_scan_map)>;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
@@ -1949,6 +1950,7 @@ namespace netxs::gui
         foci  mfocus; // winbase: GUI multi-focus control.
         regs  fields; // winbase: Text input field list.
         evnt  stream; // winbase: DirectVT event proxy.
+        kmap  keymap; // winbase: Pressed key table.
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell = dot_21)
             : base{ indexer },
@@ -1978,7 +1980,8 @@ namespace netxs::gui
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
-              stream{ *this, *os::dtvt::client }
+              stream{ *this, *os::dtvt::client },
+              keymap{ input::key::key_scan_map }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -2845,24 +2848,10 @@ namespace netxs::gui
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lwin     || virtcod == vkey::rwin);
-            print_vkstat("keybd_send_state");
+            //print_vkstat("keybd_send_state");
             if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
             else
             {
-                struct key_map
-                {
-                    si32 keyid;
-                    si32 stat_pos;
-                    si32 scancode;
-                };
-                static constexpr auto key_scan_map = std::to_array<key_map>
-                ({
-                    key_map{ },
-                });
-                //todo form chords
-                //auto& vkchord = stream.k.vkchord;
-                //auto& scchord = stream.k.scchord;
-                //...
                 if (changed || stream.k.ctlstat != keymod)
                 {
                     stream.gears->ctlstat = keymod;
@@ -2878,6 +2867,31 @@ namespace netxs::gui
                 stream.k.keystat = keystat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
+                //todo do it inside input::key::xlat
+                if (keystat == input::key::pressed)
+                {
+                    keymap[input::key::key_refs[stream.k.keycode]].scode = scancod | (extflag ? 0x100 : 0); // Store scan code of a pressed key.
+                }
+                // Build key chords.
+                // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
+                //  15 bit: 0 - virt code, 1 - scan code.
+                //  14 bit: 0 - pressed, 1 - released.
+                //  13 bit: 1 - all subsequent bytes form a grapheme cluster
+                //  0-12 bits: virt or scan code.
+                auto& vkchord = stream.k.vkchord;
+                auto& scchord = stream.k.scchord;
+                vkchord.clear();
+                scchord.clear();
+                for (auto& km : keymap)
+                {
+                    if (km.keyid != stream.k.keycode && keybd_test_pressed(km.index))
+                    {
+                        vkchord.push_back(0);
+                        vkchord.push_back((byte)km.keyid);
+                        scchord.push_back((byte)0x80);
+                        scchord.push_back((byte)km.scode);
+                    }
+                }
                 stream_keybd(stream.k);
             }
         }
