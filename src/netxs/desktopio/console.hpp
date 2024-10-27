@@ -1226,7 +1226,7 @@ namespace netxs::ui
                         if (gear_ptr)
                         {
                             gear.gear_id = ext_gear_id;
-                            conio.keybd_event.send(canal, gear);
+                            conio.syskeybd.send(canal, gear);
                         }
                     }
                 };

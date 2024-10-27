@@ -1818,7 +1818,7 @@ namespace netxs::gui
                     owner.window_post_command(ipc::solo_focus);
                 }
             }
-            void handle(s11n::xs::keybd_event      lock)
+            void handle(s11n::xs::syskeybd         lock)
             {
                 auto& gear = *gears;
                 auto& keybd = lock.thing;

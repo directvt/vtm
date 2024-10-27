@@ -74,7 +74,7 @@ namespace netxs::scripting
             {
                 //...
             }
-            void handle(s11n::xs::keybd_event       /*lock*/)
+            void handle(s11n::xs::syskeybd          /*lock*/)
             {
                 //...
             };

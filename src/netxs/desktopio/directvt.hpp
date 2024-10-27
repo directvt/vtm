@@ -861,19 +861,6 @@ namespace netxs::directvt
                                         (si32, whlsi)
                                         (bool, hzwhl)
                                         (fp2d, click))
-        STRUCT_macro(keybd_event,       (id_t, gear_id)
-                                        (si32, ctlstat)
-                                        (bool, extflag)
-                                        (byte, payload)
-                                        (si32, virtcod)
-                                        (si32, scancod)
-                                        (bool, pressed)
-                                        (text, cluster)
-                                        (bool, handled)
-                                        (si32, keycode)  // syskeybd: Key id.
-                                        (text, kbchord)  // sysmouse: Key code chord.
-                                        (text, chchord)  // sysmouse: Key cluster chord.
-                                        (text, scchord)) // sysmouse: Key scancode chord.
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
@@ -1423,7 +1410,6 @@ namespace netxs::directvt
             X(bitmap_vt256     ) /* Canvas in 256-color format.                   */\
             X(bitmap_vt16      ) /* Canvas in 16-color format.                    */\
             X(mouse_event      ) /* Mouse events.                                 */\
-            X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(focus_cut        ) /* Request to focus cut.                         */\

@@ -8038,7 +8038,7 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(s11n::xs::keybd_event         lock)
+            void handle(s11n::xs::syskeybd            lock)
             {
                 auto& k = lock.thing;
                 if (owner.active)
@@ -8048,7 +8048,7 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        //todo use temp gear object
+                        //todo should we use temp gear object here?
                         gear.alive   = true;
                         k.syncto(gear);
                         do
