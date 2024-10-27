@@ -1060,7 +1060,7 @@ struct impl : consrv
             toWIDE.clear();
             if constexpr (isreal()) // Copy/Paste by Ctrl/Shift+Insert in cooked read mode.
             {
-                if (incook && gear.pressed && gear.keycode == input::key::Insert)
+                if (incook && gear.keystat && gear.keycode == input::key::Insert)
                 {
                     if (gear.meta(input::hids::anyShift))
                     {
@@ -1081,7 +1081,7 @@ struct impl : consrv
             auto ctrls = os::nt::ms_kbstate(gear.ctlstat) | (gear.extflag ? ENHANCED_KEY : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
-                if (gear.pressed)
+                if (gear.keystat)
                 {
                     for (auto a : toWIDE)
                     {
@@ -1097,7 +1097,7 @@ struct impl : consrv
                     auto yield = gear.interpret(decckm);
                     if (yield.size()) generate(yield);
                 }
-                else generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
+                else generate(c, ctrls, gear.virtcod, gear.keystat, gear.scancod);
             }
 
             if (c == ansi::c0_etx)
@@ -1106,11 +1106,11 @@ struct impl : consrv
                 {
                     // Do not pop_back to provide the same behavior as Ctrl+C does in cmd.exe and in pwsh. (despite it emits one more ^C in wsl, but it's okay)
                     //stream.pop_back();
-                    if (gear.pressed) alert(os::signals::ctrl_break);
+                    if (gear.keystat) alert(os::signals::ctrl_break);
                 }
                 else
                 {
-                    if (gear.pressed)
+                    if (gear.keystat)
                     {
                         ctrl_c = true;
                         if (server.inpmod & nt::console::inmode::preprocess)

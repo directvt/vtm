@@ -623,7 +623,7 @@ namespace netxs::ui
             X(key_code     , "key virt"         ) \
             X(key_scancode , "key scan"         ) \
             X(key_character, "key data"         ) \
-            X(key_pressed  , "key push"         ) \
+            X(key_state    , "key state"        ) \
             X(key_payload  , "key type"         ) \
             X(ctrl_state   , "controls"         ) \
             X(k            , "k"                ) \
@@ -803,9 +803,10 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
                 {
+                    static constexpr auto kstate = std::to_array({ "idle", "pressed", "repeated" });
                     shadow();
                     status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_pressed  ].set(stress) = k.pressed ? "pressed" : "idle";
+                    status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
                     status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );

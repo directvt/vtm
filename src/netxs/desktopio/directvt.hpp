@@ -890,12 +890,11 @@ namespace netxs::directvt
                                         (byte, payload)  // syskeybd: Payload type.
                                         (si32, virtcod) //todo deprecated
                                         (si32, scancod)  // syskeybd: Scancode.
-                                        (bool, pressed)  // syskeybd: Key is pressed.
+                                        (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)  // syskeybd: Key id.
-                                        (text, kbchord)  // sysmouse: Key code chord.
-                                        (text, chchord)  // sysmouse: Key cluster chord.
+                                        (text, vkchord)  // sysmouse: Key virtcode chord.
                                         (text, scchord)) // sysmouse: Key scancode chord.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.

@@ -7522,7 +7522,7 @@ namespace netxs::ui
                     ondata(byemsg);
                     this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
-                        if (gear.pressed)
+                        if (gear.keystat)
                         {
                             switch (gear.keybd::generic())
                             {
@@ -7764,8 +7764,8 @@ namespace netxs::ui
                     case keybd::type::keypress:
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
-                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-                        if (gear.pressed && gear.meta(hids::anyAlt))
+                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
+                        if (gear.keystat && gear.meta(hids::anyAlt))
                         {
                             auto found = true;
                                  if (gear.keycode == input::key::LeftArrow ) search(gear, feed::rev);
@@ -7777,7 +7777,7 @@ namespace netxs::ui
                                 break;
                             }
                         }
-                        if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
+                        if (target == &normal && gear.keystat && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
                         {
                             auto found = true;
                                  if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  });

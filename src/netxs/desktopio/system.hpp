@@ -5042,7 +5042,7 @@ namespace netxs::os
                                 k.extflag = faux;
                                 k.virtcod = 'C';
                                 k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
-                                k.pressed = true;
+                                k.keystat = input::key::pressed;
                                 k.keycode = input::key::KeyC;
                                 k.cluster = "\x03";
                                 keybd(k);
@@ -5052,7 +5052,7 @@ namespace netxs::os
                                 k.extflag = faux;
                                 k.virtcod = ansi::c0_etx;
                                 k.scancod = ansi::ctrl_break;
-                                k.pressed = true;
+                                k.keystat = input::key::pressed;
                                 k.keycode = input::key::Break;
                                 k.cluster = "\x03";
                                 keybd(k);
@@ -5108,7 +5108,8 @@ namespace netxs::os
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                k.pressed = r.Event.KeyEvent.bKeyDown;
+                                //todo repeated?
+                                k.keystat = r.Event.KeyEvent.bKeyDown ? input::key::pressed : input::key::released;
                                 k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
                                 k.cluster = toutf;
                                 do
@@ -5136,9 +5137,9 @@ namespace netxs::os
                                     k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
                                     do
                                     {
-                                        k.pressed = true;
+                                        k.keystat = input::key::pressed;
                                         keybd(k);
-                                        k.pressed = faux;
+                                        k.keystat = input::key::released;
                                         keybd(k);
                                     }
                                     while (r.Event.KeyEvent.wRepeatCount-- > 1);
@@ -5609,8 +5610,10 @@ namespace netxs::os
                     }
                     k.extflag = {};
                     k.handled = {};
-                    k.pressed = true; keybd(k);
-                    k.pressed = faux; keybd(k);
+                    k.keystat = input::key::pressed;
+                    keybd(k);
+                    k.keystat = input::key::released;
+                    keybd(k);
                 };
 
                 auto parser = [&, input = text{}, pflag = faux](view accum) mutable
@@ -6164,7 +6167,7 @@ namespace netxs::os
                                 print(true);
                                 break;
                             case input::keybd::type::keypress:
-                                if (!data.pressed) return;
+                                if (!data.keystat) return;
                                 [[fallthrough]];
                             case input::keybd::type::imeinput:
                                 if (!alive || data.cluster.empty()) return;

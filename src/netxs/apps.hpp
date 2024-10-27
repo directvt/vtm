@@ -639,7 +639,7 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
-                    if (!gear.keybd::pressed) return;
+                    if (!gear.keystat) return;
                     if (gear.chord(input::key::F10)
                      || gear.chord(input::key::Enter)
                      || gear.chord(input::key::Esc))

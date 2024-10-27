@@ -279,6 +279,11 @@ namespace netxs::input
         static constexpr auto ExtendedKey = 0x0100;
         static constexpr auto NumLockMode = 0x0020;
 
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto released = __COUNTER__ - _counter;
+        static constexpr auto pressed  = __COUNTER__ - _counter;
+        static constexpr auto repeated = __COUNTER__ - _counter;
+
         struct map
         {
             sz_t hash; // map: Key hash.
@@ -944,18 +949,17 @@ namespace netxs::input
         text cluster{};
         byte payload{}; // keybd: Payload type.
         bool extflag{};
-        bool pressed{};
+        si32 keystat{};
         bool handled{};
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
-        text kbchord{};
-        text chchord{};
+        text vkchord{};
         text scchord{};
 
         auto doinput()
         {
-            return pressed && key::map::data(keycode).edit;
+            return keystat && key::map::data(keycode).edit;
         }
         auto generic()
         {
@@ -965,14 +969,13 @@ namespace netxs::input
         {
             extflag = k.extflag;
             payload = k.payload;
-            pressed = k.pressed;
+            keystat = k.keystat;
             virtcod = k.virtcod;
             scancod = k.scancod;
             cluster = k.cluster;
             handled = k.handled;
             keycode = k.keycode;
-            kbchord = k.kbchord;
-            chchord = k.chchord;
+            vkchord = k.vkchord;
             scchord = k.scchord;
             fire_keybd();
         }
@@ -1667,7 +1670,7 @@ namespace netxs::input
             static auto alone_key = build_alone_key();
             static auto shift_key = build_shift_key();
 
-            if (keybd::pressed)
+            if (keystat != input::key::released)
             {
                 auto s = hids::ctlstat;
                 auto v = keybd::keycode & -2; // Generic keys only

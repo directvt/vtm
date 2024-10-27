@@ -343,7 +343,7 @@ Notes
         <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
-        <winstate=normal/>    <!-- Window initial state: normal | maximized | minimized . -->
+        <winstate="normal"/>  <!-- Window initial state: normal | maximized | minimized . -->
         <blinkrate=400ms/>    <!-- SGR5/6 attribute blink rate. Blinking will be disabled when set to zero. -->
         <fonts>  <!-- Font fallback ordered list. The rest of the fonts available in the system will be loaded dynamically. -->
             <font*/>  <!-- Clear previously defined fonts. Start a new list. -->
@@ -354,12 +354,12 @@ Notes
         </fonts>
     </gui>
     <cursor>
-        <style=bar/>    <!-- Cursor style: bar "|" | block "█" | underline "_". -->
+        <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
         <blink=400ms/>  <!-- Cursor blink period. Set to zero for a steady cursor. -->
         <show=true/>
         <color fgc=color/default bgc=color/default/>  <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
     </cursor>
-    <tooltips>
+    <tooltips>  <!-- Not implemented for GUI mode. -->
         <timeout=2000ms/>
         <enabled=true/>
         <color fgc=pureblack bgc=purewhite/>
@@ -371,13 +371,13 @@ Notes
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
     </debug>
     <clipboard>
-        <preview enabled=no size=80x25>
+        <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
             <color fgc=whitelt bgc=bluedk/>
             <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type. -->
             <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
             <shadow=3  />  <!-- Preview shadow strength (0-5). -->
         </preview>
-        <format=html/>  <!-- Default clipboard format for screenshots: text | ansi | rich | html | protected . -->
+        <format="html"/>  <!-- Default clipboard format for screenshots: "text" | "ansi" | "rich" | "html" | "protected" . -->
     </clipboard>
     <colors>  <!-- Along with fgc, bgc and txt, other SGR attributes (boolean) are allowed here: itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink. -->
         <window   fgc=whitelt   bgc=0x80404040        />  <!-- Base desktop window color. -->
@@ -406,7 +406,7 @@ Notes
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <set>        <!-- Global namespace - Unresolved literals will try to be evaluated from here. -->
+    <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
         <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
         <reddk       = 0xFFc40f1f />
         <greendk     = 0xFF12a10e />
@@ -441,15 +441,15 @@ Notes
             <slim=true/>    <!-- Make the window menu one cell high (slim=true) or three cells high (slim=false). -->
         </menu>
         <selection>
-            <mode=text/>   <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
-            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
+            <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+            <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
     </set>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
         <macstyle=no/>  <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS). -->
-        <taskbar wide=off selected=Term>  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
+        <taskbar wide=off selected="Term">  <!-- Taskbar menu. wide: Set wide/compact menu layout; selected: Set selected taskbar menu item id. -->
             <item*/>  <!-- Clear all previously defined items. Start a new list of items. -->
             <item splitter label="apps">
                 <notes>
@@ -457,16 +457,13 @@ Notes
                     " It can be configured in ~/.config/vtm/settings.xml "
                 </notes>
             </item>
-            <item* hidden=no winsize=0,0 wincoor=0,0 winform=normal/>  <!-- winform: normal | maximized | minimized (asterisk in the xml node name to set default node values). -->
-            <item id=Term label="\u{1F6E0}\u{FE0E}\u{D0030} Term" type=dtvt title="Terminal Console" cmd="$0 -r term">  <!-- \u{D0030} is a character geometry modifier to make the character '🛠' size 2x1. See https://github.com/directvt/vtm/blob/master/doc/character_geometry.md for details. -->
+            <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
+            <item id="Term" label="Term" type="dtvt" title="Terminal Console" cmd="$0 -r term">
                 <notes>
                     " Terminal Console               \n"
                     "   LeftClick to launch instance \n"
                     "   RightClick to set as default "
                 </notes>
-                <hotkeys key*>  <!-- not implemented -->
-                    <key="Ctrl+T" action=Start/>
-                </hotkeys>
                 <config>  <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                     <term>
                         <scrollback>
@@ -474,23 +471,18 @@ Notes
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=selection/mode/>  <!-- Text selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+                            <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
-                        <hotkeys key*>    <!-- not implemented -->
-                            <key="Alt+RightArrow" action=TerminalFindNext/>
-                            <key="Alt+LeftArrow"  action=TerminalFindPrev/>
-                            <key="Ctrl+Z"         action=TerminalQuit/>
+                        <hotkeys>    <!-- not implemented -->
+                            <key="Alt+RightArrow" action="TerminalFindNext()"/>
+                            <key="Alt+LeftArrow"  action="TerminalFindPrev()"/>
                         </hotkeys>
                     </term>
                 </config>
             </item>
-            <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl" notes=" Default WSL profile session "/> -->
-            <!-- <item id=Far  label="Far"        type=dtvt title="Far Manager"           cmd="$0 -r far"            notes=" Far Manager in its own DirectVT window "/> -->
-            <!-- <item id=Far  label="Far VTTY"   type=vtty title="Far Manager (vtty)"    cmd="far"                  notes=" Far Manager in its own window "/> -->
-            <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                   notes=" Midnight Commander in its own window "/> -->
-            <item id=Tile label="🎞️\u{FE0E}\u{D0030} Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id=Site label="🚩\u{FE0E}\u{D0030} Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id=Logs label="⚙️\u{FE0E}\u{D0030} Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id="Tile" label="Tile" type="tile" title="Tiling Window Manager" cmd="h1:1(Term, Term)"      notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id="Site" label="Site" type="site" title="\e[11:3pSite "         cmd="@" winform="maximized" notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Logs" type="dtvt" title="Logs"                  cmd="$0 -q -r term $0 -m"   notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
                     <term>
                         <scrollback>
@@ -500,7 +492,7 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <item label="<" action="TerminalFindPrev">  <!-- type=Command is a default item's attribute. -->
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                                 <notes>
                                     " Previous match                                  \n"
@@ -510,7 +502,7 @@ Notes
                                     "   Left+RightClick to clear clipboard            "
                                 </notes>
                             </item>
-                            <item label=">" action=TerminalFindNext>
+                            <item label=">" action="TerminalFindNext">
                                 <label="\e[38:2:0:255:0m>\e[m"/>
                                 <notes>
                                     " Next match                                     \n"
@@ -520,14 +512,14 @@ Notes
                                     "   Left+RightClick to clear clipboard           "
                                 </notes>
                             </item>
-                            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                            <item label="Wrap" type="Option" action="TerminalWrapMode" data="off">
                                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                                 <notes>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </notes>
                             </item>
-                            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="Selection" notes=" Text selection mode " type="Option" action="TerminalSelectionMode" data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                                 <label data="rich">
@@ -544,7 +536,7 @@ Notes
                                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                             </item>
-                            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+                            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action="TerminalOutput" data="\e[!p"/>
                         </menu>
                     </term>
                 </config>
@@ -585,12 +577,13 @@ Notes
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
         <hotkeys key*>    <!-- not implemented -->
-            <key="Ctrl+PgUp" action=PrevWindow/>
-            <key="Ctrl+PgDn" action=NextWindow/>
+            <key="Ctrl+PgUp" action="vtm.PrevWindow()"/>
+            <key="Ctrl+PgDn" action="vtm.NextWindow()"/>
+            <key="Ctrl+T"    action="vtm.Start(\"Term\")"/>
         </hotkeys>
     </desktop>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
-        <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo test\n" -->
+        <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
         <cwdsync=" cd $P\n"/>  <!-- Command to sync the current working directory. When 'Sync' is active, $P (case sensitive) will be replaced with the current path received via OSC9;9 notification. Prefixed with a space to avoid touching command history. -->
         <scrollback>
             <size=40000    />   <!-- Initial scrollback buffer size. -->
@@ -621,14 +614,14 @@ Notes
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
             <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
-            <match fx=color fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: xlight | color | invert | reverse . -->
+            <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
-                <text fx=color fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=color fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
-                <ansi fx=xlight fgc=whitelt bgc=bluelt/>
-                <rich fx=xlight fgc=whitelt bgc=bluelt/>
-                <html fx=xlight fgc=whitelt bgc=bluelt/>
-                <none fx=color fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
+                <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <ansi      fx="xlight" fgc=whitelt bgc=bluelt/>
+                <rich      fx="xlight" fgc=whitelt bgc=bluelt/>
+                <html      fx="xlight" fgc=whitelt bgc=bluelt/>
+                <none      fx="color"  fgc=whitedk bgc=blacklt/>  <!-- Inactive selection color. -->
             </selection>
         </colors>
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
@@ -636,7 +629,7 @@ Notes
         <menu item*>
             <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
             <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item label="<" action="TerminalFindPrev">  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                                  \n"
@@ -646,7 +639,7 @@ Notes
                     "   Left+RightClick to clear clipboard            "
                 </notes>
             </item>
-            <item label=">" action=TerminalFindNext>
+            <item label=">" action="TerminalFindNext">
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                                     \n"
@@ -656,14 +649,14 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
-            <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+            <item label="Wrap" type="Option" action="TerminalWrapMode" data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </notes>
             </item>
-            <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="Selection" notes=" Text selection mode " type="Option" action="TerminalSelectionMode" data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                 <label data="rich">
@@ -680,30 +673,26 @@ Notes
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="Sync" notes=" CWD sync is off " type=Option action=TerminalCwdSync data="off">
+            <item label="Sync" notes=" CWD sync is off " type="Option" action="TerminalCwdSync" data="off">
                 <label="\e[38:2:0:255:0mSync\e[m" notes=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
             </item>
-            <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
+            <item label="Log" notes=" Console logging is off " type="Option" action="TerminalStdioLog" data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
-            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <!-- <item label="Hello, World!" notes=" Simulate keypresses "       action=TerminalSendKey data="Hello World!"/> -->
+            <item label="Clear" notes=" Clear TTY viewport "                  action="TerminalOutput" data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action="TerminalOutput" data="\e[!p"/>
+            <!-- <item label="Hello, World!" notes=" Simulate keypress "       action="TerminalSendKey" data="Hello World!"/> -->
         </menu>
         <selection>
-            <mode=selection/mode/>  <!-- Selection clipboard copy format: text | ansi | rich | html | protected | none . -->
+            <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
             <rect=selection/rect/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-        <atexit=auto/>  <!-- Behavior after the last console process has terminated: auto | ask | close | restart | retry 
+        <atexit="auto"/>  <!-- Behavior after the last console process has terminated: "auto" | "ask" | "close" | "restart" | "retry" 
                                 auto:    Stay open and ask if exit code != 0. (default)
                                 ask:     Stay open and ask.
                                 close:   Always close.
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
-        <hotkeys key*>  <!-- not implemented -->
-            <key="Alt+RightArrow" action=FindNext/>
-            <key="Alt+LeftArrow"  action=FindPrev/>
-        </hotkeys>
     </term>
     <defapp>
         <menu>

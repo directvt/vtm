@@ -1310,6 +1310,7 @@ namespace netxs::xml
                 homepath += relative;
             }
             auto test = !!homelist.size();
+            if constexpr (debugmode)
             if (!test)
             {
                 log("%%%err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
@@ -1379,10 +1380,14 @@ namespace netxs::xml
         auto take(text frompath, T defval, std::unordered_map<text, T> const& dict)
         {
             if (frompath.empty()) return defval;
-            auto crop = take(frompath, ""s);
+            auto crop = take<true>(frompath, ""s);
+            if (crop.empty())
+            {
+                log("%%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+                return defval;
+            }
             auto iter = dict.find(crop);
-            return iter == dict.end() ? defval
-                                      : iter->second;
+            return iter == dict.end() ? defval : iter->second;
         }
         auto take(text frompath, cell defval)
         {
