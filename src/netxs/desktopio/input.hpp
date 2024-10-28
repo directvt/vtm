@@ -518,8 +518,11 @@ namespace netxs::input
             cmap keymap{}; // kmap: .
             bool keyout{}; // kmap: Some key has left the key chord.
 
-            void reset()
+            void reset(syskeybd& k)
             {
+                k.vkchord.clear();
+                k.scchord.clear();
+                k.chchord.clear();
                 keymap.clear();
                 keyout = {};
             }
@@ -528,7 +531,8 @@ namespace netxs::input
                 auto iter = keymap.find(keyid);
                 return iter != keymap.end();
             }
-            void build(syskeybd& k, auto keybd_test_pressed)
+            template<class P = noop>
+            void build(syskeybd& k, P keybd_test_released = {})
             {
                 // Build key chords.
                 // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
@@ -551,15 +555,15 @@ namespace netxs::input
                         std::erase_if(keymap, [&](auto& rec)
                         {
                             auto& [keyid, val] = rec;
-                            auto still_pressed = keybd_test_pressed(val.index); // Check if it is still pressed.
-                            if (still_pressed && keyid != k.keycode/*exclude repeated key*/)
+                            auto is_released = keybd_test_released(val.index); // Check if it is still pressed.
+                            if (!is_released && keyid != k.keycode/*exclude repeated key*/)
                             {
                                 k.vkchord.push_back(0);
                                 k.vkchord.push_back((byte)keyid);
                                 k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
                                 k.scchord.push_back((byte)(val.scode & 0xFF));
                             }
-                            return !still_pressed;
+                            return is_released;
                         });
                         auto sign = k.keystat ? '\0' : '\x40';
                         if (k.cluster.size())

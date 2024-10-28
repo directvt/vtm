@@ -2866,7 +2866,7 @@ namespace netxs::gui
                 stream.k.keystat = keystat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
-                chords.build(stream.k, [&](auto k){ return keybd_test_pressed(k); });
+                chords.build(stream.k, [&](auto k){ return !keybd_test_pressed(k); });
                 stream_keybd(stream.k);
             }
         }
@@ -2874,8 +2874,7 @@ namespace netxs::gui
         {
             stream.k.payload = payload_type;
             stream.k.cluster = utf8;
-            stream.k.vkchord.clear();
-            stream.k.scchord.clear();
+            chords.reset(stream.k);
             stream_keybd(stream.k);
             stream.k.payload = input::keybd::type::keypress;
         }

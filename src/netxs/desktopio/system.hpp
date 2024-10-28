@@ -4976,6 +4976,7 @@ namespace netxs::os
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
             auto p_txtdata = text{};
+            auto chords = input::key::kmap{};
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
             auto f = input::sysfocus{};
@@ -5042,9 +5043,13 @@ namespace netxs::os
                                 k.extflag = faux;
                                 k.virtcod = 'C';
                                 k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
-                                k.keystat = input::key::pressed;
                                 k.keycode = input::key::KeyC;
+                                k.keystat = input::key::pressed;
                                 k.cluster = "\x03";
+                                chords.build(k);
+                                keybd(k);
+                                k.keystat = input::key::released;
+                                chords.build(k);
                                 keybd(k);
                             }
                             else if (signal == os::signals::ctrl_break)
@@ -5052,9 +5057,13 @@ namespace netxs::os
                                 k.extflag = faux;
                                 k.virtcod = ansi::c0_etx;
                                 k.scancod = ansi::ctrl_break;
-                                k.keystat = input::key::pressed;
                                 k.keycode = input::key::Break;
+                                k.keystat = input::key::pressed;
                                 k.cluster = "\x03";
+                                chords.build(k);
+                                keybd(k);
+                                k.keystat = input::key::released;
+                                chords.build(k);
                                 keybd(k);
                             }
                             else if (signal == os::signals::close
@@ -5108,15 +5117,16 @@ namespace netxs::os
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                //todo repeated?
-                                k.keystat = r.Event.KeyEvent.bKeyDown ? input::key::pressed : input::key::released;
                                 k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
+                                k.keystat = r.Event.KeyEvent.bKeyDown ? (chords.exist(k.keycode) ? input::key::repeated : input::key::pressed) : input::key::released;
                                 k.cluster = toutf;
-                                do
+                                chords.build(k);
+                                if (r.Event.KeyEvent.wRepeatCount-- > 0) keybd(k);
+                                if (k.keystat != input::key::released) while (r.Event.KeyEvent.wRepeatCount-- > 0)
                                 {
+                                    k.keystat = input::key::repeated;
                                     keybd(k);
                                 }
-                                while (r.Event.KeyEvent.wRepeatCount-- > 1);
                             }
                             else if (std::distance(head, tail) > 2) // Surrogate pairs special case.
                             {
@@ -5135,14 +5145,20 @@ namespace netxs::os
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                     k.cluster = toutf;
                                     k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
-                                    do
+                                    if (r.Event.KeyEvent.wRepeatCount-- > 0)
                                     {
                                         k.keystat = input::key::pressed;
-                                        keybd(k);
-                                        k.keystat = input::key::released;
+                                        chords.build(k);
                                         keybd(k);
                                     }
-                                    while (r.Event.KeyEvent.wRepeatCount-- > 1);
+                                    while (r.Event.KeyEvent.wRepeatCount-- > 0)
+                                    {
+                                        k.keystat = input::key::repeated;
+                                        keybd(k);
+                                    }
+                                    k.keystat = input::key::released;
+                                    chords.build(k);
+                                    keybd(k);
                                 }
                             }
                             point = {};
@@ -5168,6 +5184,7 @@ namespace netxs::os
                                     utf::to_utf(wcopy, p_txtdata);
                                     k.payload = input::keybd::type::keypaste;
                                     k.cluster = p_txtdata;
+                                    chords.reset(k);
                                     keybd(k);
                                     k.payload = input::keybd::type::keypress;
                                     wcopy.clear();
@@ -5216,6 +5233,7 @@ namespace netxs::os
                         }
                         else if (r.EventType == FOCUS_EVENT)
                         {
+                            chords.reset(k);
                             f.state = r.Event.FocusEvent.bSetFocus;
                             focus(f);
                             if (!f.state) kbmod = {}; // To keep the modifiers from sticking.
@@ -5518,6 +5536,7 @@ namespace netxs::os
                 {
                     k.payload = input::keybd::type::keypaste;
                     k.cluster = cluster;
+                    chords.reset(k);
                     keybd(k);
                     k.payload = input::keybd::type::keypress;
                 };
@@ -5611,8 +5630,10 @@ namespace netxs::os
                     k.extflag = {};
                     k.handled = {};
                     k.keystat = input::key::pressed;
+                    chords.build(k);
                     keybd(k);
                     k.keystat = input::key::released;
+                    chords.build(k);
                     keybd(k);
                 };
 
