@@ -2868,7 +2868,6 @@ namespace netxs::gui
                 stream.k.cluster = cluster;
                 chords.build(stream.k, [&](auto k){ return keybd_test_pressed(k); });
                 stream_keybd(stream.k);
-                chords.admit(stream.k);
             }
         }
         void keybd_send_input(view utf8, byte payload_type)

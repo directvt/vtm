@@ -518,6 +518,16 @@ namespace netxs::input
             cmap keymap{}; // kmap: .
             bool keyout{}; // kmap: Some key has left the key chord.
 
+            void reset()
+            {
+                keymap.clear();
+                keyout = {};
+            }
+            auto exist(si32 keyid)
+            {
+                auto iter = keymap.find(keyid);
+                return iter != keymap.end();
+            }
             void build(syskeybd& k, auto keybd_test_pressed)
             {
                 // Build key chords.
@@ -526,50 +536,50 @@ namespace netxs::input
                 //  14 bit: 0 - pressed, 1 - released ('\x40').
                 //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
                 //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
-                if (k.keystat == input::key::released)
+                if (k.keystat != input::key::repeated)
                 {
-                    keymap.erase(k.keycode);
-                }
-                k.vkchord.clear();
-                k.scchord.clear();
-                k.chchord.clear();
-                if (!keyout || k.keystat != input::key::released)
-                {
-                    keyout = k.keystat == input::key::released;
-                    std::erase_if(keymap, [&](auto& rec)
+                    if (k.keystat == input::key::released)
                     {
-                        auto& [keyid, val] = rec;
-                        auto still_pressed = keybd_test_pressed(val.index); // Check if it is still pressed.
-                        if (still_pressed && keyid != k.keycode/*exclude repeated key*/)
-                        {
-                            k.vkchord.push_back(0);
-                            k.vkchord.push_back((byte)keyid);
-                            k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
-                            k.scchord.push_back((byte)(val.scode & 0xFF));
-                        }
-                        return !still_pressed;
-                    });
-                    auto sign = k.keystat ? '\0' : '\x40';
-                    if (k.cluster.size())
-                    {
-                        k.chchord = k.vkchord;
-                        k.chchord += sign | '\x20';
-                        k.chchord += '\xFF';
-                        k.chchord += k.cluster;
+                        keymap.erase(k.keycode);
                     }
-                    k.vkchord += sign;
-                    k.scchord += sign | '\x80' | (k.extflag ? 0x01 : 0);
-                    k.vkchord.push_back((byte)k.keycode);
-                    k.scchord.push_back((byte)k.scancod);
-                }
-            }
-            void admit(syskeybd& k)
-            {
-                if (k.keystat == input::key::pressed)
-                {
-                    auto& key = keymap[k.keycode];
-                    key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
-                    key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                    k.vkchord.clear();
+                    k.scchord.clear();
+                    k.chchord.clear();
+                    if (!keyout || k.keystat != input::key::released)
+                    {
+                        keyout = k.keystat == input::key::released;
+                        std::erase_if(keymap, [&](auto& rec)
+                        {
+                            auto& [keyid, val] = rec;
+                            auto still_pressed = keybd_test_pressed(val.index); // Check if it is still pressed.
+                            if (still_pressed && keyid != k.keycode/*exclude repeated key*/)
+                            {
+                                k.vkchord.push_back(0);
+                                k.vkchord.push_back((byte)keyid);
+                                k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
+                                k.scchord.push_back((byte)(val.scode & 0xFF));
+                            }
+                            return !still_pressed;
+                        });
+                        auto sign = k.keystat ? '\0' : '\x40';
+                        if (k.cluster.size())
+                        {
+                            k.chchord = k.vkchord;
+                            k.chchord += sign | '\x20';
+                            k.chchord += '\xFF';
+                            k.chchord += k.cluster;
+                        }
+                        k.vkchord += sign;
+                        k.scchord += sign | '\x80' | (k.extflag ? 0x01 : 0);
+                        k.vkchord.push_back((byte)k.keycode);
+                        k.scchord.push_back((byte)k.scancod);
+                    }
+                    if (k.keystat == input::key::pressed)
+                    {
+                        auto& key = keymap[k.keycode];
+                        key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
+                        key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                    }
                 }
             }
             static auto to_string(qiew chord, bool generic)
