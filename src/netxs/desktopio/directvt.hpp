@@ -895,7 +895,8 @@ namespace netxs::directvt
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)  // syskeybd: Key id.
                                         (text, vkchord)  // sysmouse: Key virtcode chord.
-                                        (text, scchord)) // sysmouse: Key scancode chord.
+                                        (text, scchord) // sysmouse: Key scancode chord.
+                                        (text, chchord)) // sysmouse: Key virtcode+cluster chord.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.

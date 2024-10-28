@@ -502,19 +502,19 @@ namespace netxs::input
             #undef X
         };
 
-        struct key_map_t
+        struct chord_item_t
         {
-            si32 keyid;
+            //si32 keyid;
             si32 index;
             si32 scode;
         };
-        static constexpr auto key_scan_map = std::to_array<key_map_t>
-        ({
-            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name) \
-                { KeyId, Index, Scan },
-                key_list
-            #undef X
-        });
+        //static constexpr auto key_scan_map = std::to_array<key_map_t>
+        //({
+        //    #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name) \
+        //        { KeyId, Index, Scan },
+        //        key_list
+        //    #undef X
+        //});
         //todo make it constexpr
         static auto key_refs = []
         {
@@ -971,6 +971,8 @@ namespace netxs::input
 
         si32 nullkey = key::Key2;
 
+        si32 ctlstat{};
+        id_t gear_id{};
         text cluster{};
         byte payload{}; // keybd: Payload type.
         bool extflag{};
@@ -981,6 +983,7 @@ namespace netxs::input
         si32 keycode{};
         text vkchord{};
         text scchord{};
+        text chchord{};
 
         auto doinput()
         {
@@ -992,16 +995,7 @@ namespace netxs::input
         }
         void update(syskeybd& k)
         {
-            extflag = k.extflag;
-            payload = k.payload;
-            keystat = k.keystat;
-            virtcod = k.virtcod;
-            scancod = k.scancod;
-            cluster = k.cluster;
-            handled = k.handled;
-            keycode = k.keycode;
-            vkchord = k.vkchord;
-            scchord = k.scchord;
+            k.syncto(*this);
             fire_keybd();
         }
 
@@ -1299,9 +1293,6 @@ namespace netxs::input
         bool        tooltip_set  = faux; // hids: Tooltip has been set.
         twod        tooltip_coor = {}; // hids: .
 
-        si32 ctlstat = {};
-        id_t gear_id = {};
-
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
         bool slot_forced = faux; // .
@@ -1508,7 +1499,6 @@ namespace netxs::input
             else
             {
                 tooltip_stop = true;
-                hids::ctlstat = k.ctlstat;
                 keybd::update(k);
             }
         }

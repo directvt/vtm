@@ -7764,37 +7764,41 @@ namespace netxs::ui
                     case keybd::type::keypress:
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
-                        if (gear.vkchord.size() > 1)
+                        if (gear.vkchord.size() && gear.keystat != input::key::repeated)
                         {
-                            auto vkqiew = qiew{ gear.vkchord };
-                            auto scqiew = qiew{ gear.scchord };
-                            auto chord1 = text{};
-                            auto chord2 = text{};
-                            while (vkqiew.size() > 1 && scqiew.size() > 1)
+                            auto chord_str = [&](qiew chord)
                             {
-                                auto vkstate = (byte)vkqiew.pop_front();
-                                auto vkvalue = (byte)vkqiew.pop_front();
-                                auto scstate = (byte)scqiew.pop_front();
-                                auto scvalue = (byte)scqiew.pop_front();
-                                chord1 += input::key::map::data(vkvalue).name;
-                                chord1 += '+';
-                                chord2 += utf::to_hex_0x((ui16)scvalue);
-                                chord2 += '+';
-                            }
-                            auto sign = gear.keystat ? '+' : '-';
-                            chord1.back() = sign;
-                            chord2.back() = sign;
-                            auto chord3 = chord1 + (gear.cluster.size() ? '\'' + gear.cluster + '\'' : "<empty>"s);
-                            chord1 += input::key::map::data(gear.keycode).name;
-                            chord2 += utf::to_hex_0x((ui16)(gear.scancod | (gear.extflag ? 0x100 : 0)));
-                            auto gear_vkchord = gear.vkchord + (gear.keystat ? '\0' : '\x40') + (char)gear.keycode;
-                            auto gear_scchord = gear.scchord + (gear.keystat ? '\0' : '\xC0') + (char)gear.scancod;
-                            log("chords: %% %%", ansi::hi(utf::buffer_to_hex(gear_vkchord)), ansi::hi(utf::buffer_to_hex(gear_scchord)),
-                                "\n\t     Virtual keys:", ansi::hi(chord1),
-                                "\n\t        Scancodes:", ansi::hi(chord2),
-                                "\n\t Grapheme cluster:", gear.cluster.empty() || gear.cluster.front() < 0x20 ? "<empty>"s : ansi::hi(chord3));
+                                auto crop = text{};
+                                if (chord.size() < 2) return crop;
+                                while (chord.size() > 1)
+                                {
+                                    auto s = (byte)chord.pop_front();
+                                    auto v = (byte)chord.pop_front();
+                                    auto sign = s & 0x40 ? '-' : '+';
+                                    if (crop.size() || s & 0x40) crop += sign;
+                                    if (s & 0x80) // Scancode.
+                                    {
+                                        crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));
+                                    }
+                                    else if (s & 0x20) // Cluster.
+                                    {
+                                        crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear();
+                                    }
+                                    else // Key id
+                                    {
+                                        crop += input::key::map::data(v).name;
+                                    }
+                                }
+                                return crop;
+                            };
+                            auto vkchord = chord_str(gear.vkchord);
+                            auto scchord = chord_str(gear.scchord);
+                            auto chchord = chord_str(gear.chchord);
+                            log("chords: %% %% %%", ansi::hi(utf::buffer_to_hex(gear.vkchord)), ansi::hi(utf::buffer_to_hex(gear.scchord)), ansi::hi(utf::buffer_to_hex(gear.chchord)),
+                                "\n\t     Virtual keys:", vkchord.size() ? ansi::hi(vkchord) : "<na>",
+                                "\n\t        Scancodes:", vkchord.size() ? ansi::hi(scchord) : "<na>",
+                                "\n\t Grapheme cluster:", vkchord.size() ? ansi::hi(chchord) : "<na>");
                         }
-
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
                         if (gear.keystat && gear.meta(hids::anyAlt))
                         {
