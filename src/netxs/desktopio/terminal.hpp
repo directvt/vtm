@@ -7769,35 +7769,41 @@ namespace netxs::ui
                             auto chord_str = [&](qiew chord)
                             {
                                 auto crop = text{};
-                                if (chord.size() < 2) return crop;
                                 while (chord.size() > 1)
                                 {
                                     auto s = (byte)chord.pop_front();
                                     auto v = (byte)chord.pop_front();
-                                    auto sign = s & 0x40 ? '-' : '+';
-                                    if (crop.size() || s & 0x40) crop += sign;
-                                    if (s & 0x80) // Scancode.
-                                    {
-                                        crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));
-                                    }
-                                    else if (s & 0x20) // Cluster.
-                                    {
-                                        crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear();
-                                    }
-                                    else // Key id
-                                    {
-                                        crop += input::key::map::data(v).name;
-                                    }
+                                    if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
+                                         if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));          // Scancodes.
+                                    else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear(); // Cluster.
+                                    else               crop += input::key::map::data(v).name;                               // Keyids
                                 }
                                 return crop;
+                            };
+                            auto generalized = [](text chord)
+                            {
+                                //todo optimize
+                                utf::replace_all(chord, input::key::map::data(input::key::RightCtrl).name, "Ctrl");
+                                utf::replace_all(chord, input::key::map::data(input::key::LeftCtrl).name, "Ctrl");
+                                utf::replace_all(chord, input::key::map::data(input::key::RightAlt).name, "Alt");
+                                utf::replace_all(chord, input::key::map::data(input::key::LeftAlt).name, "Alt");
+                                utf::replace_all(chord, input::key::map::data(input::key::RightShift).name, "Shift");
+                                utf::replace_all(chord, input::key::map::data(input::key::LeftShift).name, "Shift");
+                                utf::replace_all(chord, input::key::map::data(input::key::RightWin).name, "Win");
+                                utf::replace_all(chord, input::key::map::data(input::key::LeftWin).name, "Win");
+                                utf::replace_all(chord, "Numpad", "");
+                                utf::replace_all(chord, "Key", "");
+                                return chord;
                             };
                             auto vkchord = chord_str(gear.vkchord);
                             auto scchord = chord_str(gear.scchord);
                             auto chchord = chord_str(gear.chchord);
-                            log("chords: %% %% %%", ansi::hi(utf::buffer_to_hex(gear.vkchord)), ansi::hi(utf::buffer_to_hex(gear.scchord)), ansi::hi(utf::buffer_to_hex(gear.chchord)),
-                                "\n\t     Virtual keys:", vkchord.size() ? ansi::hi(vkchord) : "<na>",
-                                "\n\t        Scancodes:", vkchord.size() ? ansi::hi(scchord) : "<na>",
-                                "\n\t Grapheme cluster:", vkchord.size() ? ansi::hi(chchord) : "<na>");
+                            auto gen_vkchord = generalized(vkchord);
+                            auto gen_chchord = generalized(chchord);
+                            log("chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
+                                "\n     Virtual keys: ", vkchord.size() ? (vkchord == gen_vkchord ? vkchord : gen_vkchord + "   " + vkchord) : "<na>",
+                                "\n Grapheme cluster: ", vkchord.size() ? (chchord == gen_chchord ? chchord : gen_chchord + "   " + chchord) : "<na>",
+                                "\n        Scancodes: ", vkchord.size() ? (scchord) : "<na>");
                         }
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
                         if (gear.keystat && gear.meta(hids::anyAlt))
