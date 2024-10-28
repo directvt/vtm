@@ -7766,7 +7766,7 @@ namespace netxs::ui
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (gear.vkchord.size() && gear.keystat != input::key::repeated)
                         {
-                            auto chord_str = [&](qiew chord)
+                            auto chord_str = [&](qiew chord, bool generic)
                             {
                                 auto crop = text{};
                                 while (chord.size() > 1)
@@ -7776,30 +7776,15 @@ namespace netxs::ui
                                     if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
                                          if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));          // Scancodes.
                                     else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear(); // Cluster.
-                                    else               crop += input::key::map::data(v).name;                               // Keyids
+                                    else               crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name;                               // Keyids
                                 }
                                 return crop;
                             };
-                            auto generalized = [](text chord)
-                            {
-                                //todo optimize
-                                utf::replace_all(chord, input::key::map::data(input::key::RightCtrl).name, "Ctrl");
-                                utf::replace_all(chord, input::key::map::data(input::key::LeftCtrl).name, "Ctrl");
-                                utf::replace_all(chord, input::key::map::data(input::key::RightAlt).name, "Alt");
-                                utf::replace_all(chord, input::key::map::data(input::key::LeftAlt).name, "Alt");
-                                utf::replace_all(chord, input::key::map::data(input::key::RightShift).name, "Shift");
-                                utf::replace_all(chord, input::key::map::data(input::key::LeftShift).name, "Shift");
-                                utf::replace_all(chord, input::key::map::data(input::key::RightWin).name, "Win");
-                                utf::replace_all(chord, input::key::map::data(input::key::LeftWin).name, "Win");
-                                utf::replace_all(chord, "Numpad", "");
-                                utf::replace_all(chord, "Key", "");
-                                return chord;
-                            };
-                            auto vkchord = chord_str(gear.vkchord);
-                            auto scchord = chord_str(gear.scchord);
-                            auto chchord = chord_str(gear.chchord);
-                            auto gen_vkchord = generalized(vkchord);
-                            auto gen_chchord = generalized(chchord);
+                            auto vkchord = chord_str(gear.vkchord, faux);
+                            auto scchord = chord_str(gear.scchord, faux);
+                            auto chchord = chord_str(gear.chchord, faux);
+                            auto gen_vkchord = chord_str(gear.vkchord, true);
+                            auto gen_chchord = chord_str(gear.chchord, true);
                             log("chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
                                 "\n     Virtual keys: ", vkchord.size() ? (vkchord == gen_vkchord ? vkchord : gen_vkchord + "   " + vkchord) : "<na>",
                                 "\n Grapheme cluster: ", vkchord.size() ? (chchord == gen_chchord ? chchord : gen_chchord + "   " + chchord) : "<na>",

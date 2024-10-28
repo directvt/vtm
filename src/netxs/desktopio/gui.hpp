@@ -2868,16 +2868,16 @@ namespace netxs::gui
                 stream.k.keystat = keystat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
-                if (keystat == input::key::released)
-                {
-                    keymap.erase(stream.k.keycode);
-                }
                 // Build key chords.
                 // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
                 //  15 bit: 0 - virt code, 1 - scan code ('\x80').
                 //  14 bit: 0 - pressed, 1 - released ('\x40').
                 //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
                 //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
+                if (keystat == input::key::released)
+                {
+                    keymap.erase(stream.k.keycode);
+                }
                 auto& vkchord = stream.k.vkchord;
                 auto& scchord = stream.k.scchord;
                 auto& chchord = stream.k.chchord;
