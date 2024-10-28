@@ -1418,7 +1418,7 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
-        using kmap = std::map<si32, input::key::chord_item_t>; // std::unordered_map doesn't sort items.
+        using kmap = input::key::kmap;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
         static constexpr auto wheel_delta_base = 120; // WHEEL_DELTA
@@ -1950,8 +1950,7 @@ namespace netxs::gui
         foci  mfocus; // winbase: GUI multi-focus control.
         regs  fields; // winbase: Text input field list.
         evnt  stream; // winbase: DirectVT event proxy.
-        kmap  keymap; // winbase: Pressed key table (key chord).
-        bool  keyout; // winbase: Some key has left the key chord.
+        kmap  chords; // winbase: Pressed key table (key chord).
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell = dot_21)
             : base{ indexer },
@@ -1981,8 +1980,7 @@ namespace netxs::gui
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
-              stream{ *this, *os::dtvt::client },
-              keyout{ faux }
+              stream{ *this, *os::dtvt::client }
         { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -2868,60 +2866,9 @@ namespace netxs::gui
                 stream.k.keystat = keystat;
                 stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
                 stream.k.cluster = cluster;
-                // Build key chords.
-                // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
-                //  15 bit: 0 - virt code, 1 - scan code ('\x80').
-                //  14 bit: 0 - pressed, 1 - released ('\x40').
-                //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
-                //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
-                if (keystat == input::key::released)
-                {
-                    keymap.erase(stream.k.keycode);
-                }
-                auto& vkchord = stream.k.vkchord;
-                auto& scchord = stream.k.scchord;
-                auto& chchord = stream.k.chchord;
-                vkchord.clear();
-                scchord.clear();
-                chchord.clear();
-                if (!keyout || keystat != input::key::released)
-                {
-                    keyout = keystat == input::key::released;
-                    std::erase_if(keymap, [&](auto& rec)
-                    {
-                        auto& [keyid, val] = rec;
-                        auto pressed = keybd_test_pressed(val.index); // Check if it is still pressed.
-                        if (pressed && keyid != stream.k.keycode/*exclude repeated key*/)
-                        {
-                            vkchord.push_back(0);
-                            vkchord.push_back((byte)keyid);
-                            scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
-                            scchord.push_back((byte)(val.scode & 0xFF));
-                        }
-                        return !pressed;
-                    });
-                    auto sign = keystat ? '\0' : '\x40';
-                    if (cluster.size())
-                    {
-                        chchord = vkchord;
-                        chchord += sign | '\x20';
-                        chchord += '\xFF';
-                        chchord += cluster;
-                    }
-                    vkchord += sign;
-                    scchord += sign | '\x80' | (extflag ? 0x01 : 0);
-                    vkchord.push_back((byte)stream.k.keycode);
-                    scchord.push_back((byte)(stream.k.scancod & 0xFF));
-                }
-
+                chords.build(stream.k, [&](auto k){ return keybd_test_pressed(k); });
                 stream_keybd(stream.k);
-
-                if (keystat == input::key::pressed)
-                {
-                    auto& key = keymap[stream.k.keycode];
-                    key.scode = scancod | (extflag ? 0x100 : 0); // Store the scan code of a pressed key.
-                    key.index = virtcod; // Store the virtual code to check later that it is still pressed.
-                }
+                chords.admit(stream.k);
             }
         }
         void keybd_send_input(view utf8, byte payload_type)

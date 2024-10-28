@@ -503,13 +503,90 @@ namespace netxs::input
             #undef X
         };
 
-        struct chord_item_t
-        {
-            si32 index;
-            si32 scode;
-        };
-
         #undef key_list
+
+        struct kmap
+        {
+            struct chord_item_t
+            {
+                si32 index;
+                si32 scode;
+            };
+
+            using cmap = std::map<si32, chord_item_t>; // std::unordered_map doesn't sort items.
+
+            cmap keymap{}; // kmap: .
+            bool keyout{}; // kmap: Some key has left the key chord.
+
+            void build(syskeybd& k, auto keybd_test_pressed)
+            {
+                // Build key chords.
+                // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
+                //  15 bit: 0 - virt code, 1 - scan code ('\x80').
+                //  14 bit: 0 - pressed, 1 - released ('\x40').
+                //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
+                //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
+                if (k.keystat == input::key::released)
+                {
+                    keymap.erase(k.keycode);
+                }
+                k.vkchord.clear();
+                k.scchord.clear();
+                k.chchord.clear();
+                if (!keyout || k.keystat != input::key::released)
+                {
+                    keyout = k.keystat == input::key::released;
+                    std::erase_if(keymap, [&](auto& rec)
+                    {
+                        auto& [keyid, val] = rec;
+                        auto still_pressed = keybd_test_pressed(val.index); // Check if it is still pressed.
+                        if (still_pressed && keyid != k.keycode/*exclude repeated key*/)
+                        {
+                            k.vkchord.push_back(0);
+                            k.vkchord.push_back((byte)keyid);
+                            k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
+                            k.scchord.push_back((byte)(val.scode & 0xFF));
+                        }
+                        return !still_pressed;
+                    });
+                    auto sign = k.keystat ? '\0' : '\x40';
+                    if (k.cluster.size())
+                    {
+                        k.chchord = k.vkchord;
+                        k.chchord += sign | '\x20';
+                        k.chchord += '\xFF';
+                        k.chchord += k.cluster;
+                    }
+                    k.vkchord += sign;
+                    k.scchord += sign | '\x80' | (k.extflag ? 0x01 : 0);
+                    k.vkchord.push_back((byte)k.keycode);
+                    k.scchord.push_back((byte)k.scancod);
+                }
+            }
+            void admit(syskeybd& k)
+            {
+                if (k.keystat == input::key::pressed)
+                {
+                    auto& key = keymap[k.keycode];
+                    key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
+                    key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                }
+            }
+            static auto to_string(qiew chord, bool generic)
+            {
+                auto crop = text{};
+                while (chord.size() > 1)
+                {
+                    auto s = (byte)chord.pop_front();
+                    auto v = (byte)chord.pop_front();
+                    if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
+                         if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));          // Scancodes.
+                    else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear(); // Cluster.
+                    else               crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name;                               // Keyids
+                }
+                return crop;
+            }
+        };
 
         template<class ...Args>
         auto xlat(Args&&... args)
