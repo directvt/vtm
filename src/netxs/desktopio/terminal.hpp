@@ -7772,9 +7772,10 @@ namespace netxs::ui
                             auto gen_vkchord = input::key::kmap::to_string(gear.vkchord, true);
                             auto gen_chchord = input::key::kmap::to_string(gear.chchord, true);
                             log("chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                                "\n     Virtual keys: \"", vkchord.size() ? (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"   \"" + vkchord) : "<na>", "\"",
-                                "\n Grapheme cluster: \"", vkchord.size() ? (chchord == gen_chchord ? chchord : gen_chchord + "\"   \"" + chchord) : "<na>", "\"",
-                                "\n        Scancodes: \"", vkchord.size() ? (scchord) : "<na>\"");
+                                "\n     Virtual keys: ", vkchord.size() ? "\"" + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"  \"" + vkchord) + "\"" : "<na>",
+                                "\n Grapheme cluster: ", chchord.size() ? "\"" + (chchord == gen_chchord ? chchord : gen_chchord + "\"  \"" + chchord) + "\"" : "<na>",
+                                "\n        Scancodes: ", scchord.size() ? "\"" + scchord + "\"" : "<na>",
+                                "\n");
                         }
                         if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
                         if (gear.keystat && gear.meta(hids::anyAlt))

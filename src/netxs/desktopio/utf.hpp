@@ -1181,7 +1181,7 @@ namespace netxs::utf
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
         auto part = width * 4;
-        while (part -= 4)
+        while (std::exchange(part, part - 4))
         {
             push(nums[(number >> part) & 0x0f]);
         }
@@ -1508,8 +1508,9 @@ namespace netxs::utf
                 default:
                 {
                     auto cp = traits.cdpoint;
-                    if (cp < 0x100000) { buff += "\\u"; utf::to_hex<true>(cp, buff, 4); }
-                    else               { buff += "\\U"; utf::to_hex<true>(cp, buff, 8); }
+                    buff += "\\u{";
+                    utf::to_hex<true>(cp, buff, cp < 0x100000 ? 4 : 8);
+                    buff += "}";
                 }
             }
             return utf8;

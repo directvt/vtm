@@ -566,7 +566,7 @@ namespace netxs::input
                             return is_released;
                         });
                         auto sign = k.keystat ? '\0' : '\x40';
-                        if (k.cluster.size())
+                        if (k.cluster.size() && k.cluster.front() != '\0')
                         {
                             k.chchord = k.vkchord;
                             k.chchord += sign | '\x20';
