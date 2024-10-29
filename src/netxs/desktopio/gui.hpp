@@ -2930,7 +2930,7 @@ namespace netxs::gui
                         update_gui();
                     });
                 }
-                else if (keybd_test_pressed(vkey::home) && keybd_test_pressed(vkey::end)) // Shutdown by LeftArrow+RightArrow.
+                else if (keybd_test_pressed(vkey::home) && keybd_test_pressed(vkey::end)) // Shutdown by Home+End.
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {

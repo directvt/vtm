@@ -5462,14 +5462,14 @@ namespace netxs::os
                         { "\x2b"      , { "+",    key::Plus                              }},
                         { "\x2c"      , { ",",    key::Comma                             }},
                         { "\x2d"      , { "-",    key::Minus                             }},
-                        { "\x2e"      , { ".",    key::Period                            }},
+                        { "\x2e"      , { ".",    key::Dot                               }},
                         { "\x2f"      , { "/",    key::Slash                             }},
 
                         { "\x3a"      , { ":",    key::Semicolon     | hids::LShift << 8 }},
                         { "\x3b"      , { ";",    key::Semicolon                         }},
                         { "\x3c"      , { "<",    key::Comma         | hids::LShift << 8 }},
                         { "\x3d"      , { "=",    key::Equal                             }},
-                        { "\x3e"      , { ">",    key::Period        | hids::LShift << 8 }},
+                        { "\x3e"      , { ">",    key::Dot           | hids::LShift << 8 }},
                         { "\x3f"      , { "?",    key::Slash         | hids::LShift << 8 }},
                         { "\x40"      , { "@",    key::Key2          | hids::LShift << 8 }},
 
@@ -5632,11 +5632,42 @@ namespace netxs::os
                     k.extflag = {};
                     k.handled = {};
                     k.keystat = input::key::pressed;
+                    if (auto mods = std::exchange(k.ctlstat, 0))
+                    {
+                        auto cluster = std::exchange(k.cluster, ""s);
+                        auto keycode = std::exchange(k.keycode, 0);
+                        auto virtcod = std::exchange(k.virtcod, 0);
+                        auto scancod = std::exchange(k.scancod, 0);
+                        if (mods & hids::LCtrl)  k.ctlstat |= hids::LCtrl,  k.keycode = input::key::LeftCtrl,  k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LAlt)   k.ctlstat |= hids::LAlt,   k.keycode = input::key::LeftAlt,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LShift) k.ctlstat |= hids::LShift, k.keycode = input::key::LeftShift, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LWin)   k.ctlstat |= hids::LWin,   k.keycode = input::key::LeftWin,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        std::swap(k.cluster, cluster);
+                        std::swap(k.keycode, keycode);
+                        std::swap(k.virtcod, virtcod);
+                        std::swap(k.scancod, scancod);
+                    }
                     chords.build(k);
                     keybd(k);
                     k.keystat = input::key::released;
                     chords.build(k);
                     keybd(k);
+                    if (auto mods = k.ctlstat)
+                    {
+                        auto cluster = std::exchange(k.cluster, ""s);
+                        auto keycode = std::exchange(k.keycode, 0);
+                        auto virtcod = std::exchange(k.virtcod, 0);
+                        auto scancod = std::exchange(k.scancod, 0);
+                        if (mods & hids::LWin  ) k.ctlstat &= ~hids::LWin,   k.keycode = input::key::LeftWin,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LShift) k.ctlstat &= ~hids::LShift, k.keycode = input::key::LeftShift, k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LAlt  ) k.ctlstat &= ~hids::LAlt,   k.keycode = input::key::LeftAlt,   k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        if (mods & hids::LCtrl ) k.ctlstat &= ~hids::LCtrl,  k.keycode = input::key::LeftCtrl,  k.virtcod = input::key::map::data(k.keycode).vkey, k.scancod = input::key::map::data(k.keycode).scan, chords.build(k), keybd(k);
+                        k.ctlstat = mods;
+                        std::swap(k.cluster, cluster);
+                        std::swap(k.keycode, keycode);
+                        std::swap(k.virtcod, virtcod);
+                        std::swap(k.scancod, scancod);
+                    }
                 };
 
                 auto parser = [&, input = text{}, pflag = faux](view accum) mutable
