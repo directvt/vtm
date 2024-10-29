@@ -571,6 +571,12 @@ namespace netxs::app::shared
                 return std::list<text>
                 {
                     utf::fprint("%%"
+                        "\nKeyboard"
+                        "\n"
+                        "\n             Generic   \tLiteral   \tSpecific   \tScancodes"
+                        "\n    pressed: "
+                        "\n   released: ", ansi::wrp(wrap::off)),
+                    utf::fprint("%%"
                         "\nStatus"
                         "\n"
                         "\n     Owner: %user@host%"
@@ -601,23 +607,45 @@ namespace netxs::app::shared
                     app::test::test_page(purewhite, whitelt),
                 };
             };
-            auto update = [](auto& boss)
+            auto pressed = ptr::shared<text>();
+            auto released = ptr::shared<text>();
+            auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 auto body = data();
                 auto iter = body.begin();
                 auto i = 0;
                 for (auto& rec : boss.base::subset)
                 {
-                    if (++i == 2) break;
+                    ++i;
+                    if (i == 4) break;
                     auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
-                    rec_ptr->upload(*iter++, -1);
+                    if (i == 1)
+                    {
+                        if (is_key_event && gear.keystat != input::key::repeated && gear.vkchord.size())
+                        {
+                            auto& dst = gear.keystat ? *pressed : *released;
+                            dst = utf::fprint("%generic%  \t%literal%  \t%specific%  \t%scancodes%", input::key::kmap::to_string(gear.vkchord, true), input::key::kmap::to_string(gear.chchord, true), input::key::kmap::to_string(gear.vkchord, faux), input::key::kmap::to_string(gear.scchord, faux));
+                        }
+                        auto keybd_state = utf::fprint("%%"
+                        "\nKeyboard"
+                        "\n"
+                        "\n             Generic   \tLiteral   \tSpecific   \tScancodes"
+                        "\n    pressed: %pressed%"
+                        "\n   released: %released%",
+                        ansi::wrp(wrap::off),
+                        ansi::clr(purewhite, *pressed),
+                        ansi::clr(purewhite, *released));
+                        rec_ptr->upload(keybd_state, -1);
+                    }
+                    else rec_ptr->upload(*iter, -1);
+                    iter++;
                 }
             };
             auto body = data();
             auto items = scroll->attach(ui::list::ctor());
             for (auto& item : body)
             {
-                auto stats = items->subset.size() < 2;
+                auto stats = items->subset.size() < 3;
                 auto block = items->attach(ui::post::ctor())
                     ->setpad({ 2, 2, 0, 2})
                     ->upload(item, stats ? -1 : 0)
@@ -625,13 +653,13 @@ namespace netxs::app::shared
                     ->template plugin<pro::focus>()
                     ->template plugin<pro::grade>();
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
-                if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);
+                if (stats && items->subset.size() != 1) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
             items->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
-                    update(boss);
+                    update(boss, gear, faux);
                 };
             });
             window->invoke([&](auto& boss)
@@ -639,15 +667,12 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
-                    if (!gear.keystat) return;
-                    if (gear.chord(input::key::F10)
-                     || gear.chord(input::key::Enter)
-                     || gear.chord(input::key::Esc))
+                    if (gear.keystat && gear.chord(input::key::Esc))
                     {
                         boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                         gear.set_handled(true);
                     }
-                    else update(items_inst);
+                    else update(items_inst, gear, true);
                 };
             });
             inside->attach(slot::_2, ui::post::ctor())
