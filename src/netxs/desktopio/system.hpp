@@ -742,9 +742,10 @@ namespace netxs::os
                     : public ansi::parser
                 {
                     using redo = std::list<std::pair<deco, ansi::mark>>;
+                    using body = core::body;
 
                     redo stack; // vtparser: Style state stack.
-                    grid cache; // vtparser: Temp buffer for console cells.
+                    body cache; // vtparser: Temp buffer for console cells.
                     twod coord; // vtparser: Current cursor position inside console::buffer.
                     twod saved; // vtparser: Saved cursor position.
                     bool shown; // vtparser: Cursor visibility state.
@@ -944,7 +945,7 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 count, grid const& proto)
+                    void data(si32 count, core::body const& proto)
                     {
                         auto start = coord;
                         auto panel = std::max(dot_11, console::buffer);

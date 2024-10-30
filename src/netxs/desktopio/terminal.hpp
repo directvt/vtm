@@ -2403,7 +2403,7 @@ namespace netxs::ui
                 }
             }
             // alt_screen: Parser callback.
-            void data(si32 count, grid const& proto) override
+            void data(si32 count, core::body const& proto) override
             {
                 //_data(count, proto, cell::shaders::full);
                 _data(count, proto, cell::shaders::skipnuls);
@@ -4586,7 +4586,7 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 count, grid const& proto) override
+            void data(si32 count, core::body const& proto) override
             {
                 _data(count, proto, cell::shaders::skipnuls);
             }

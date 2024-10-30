@@ -2590,7 +2590,6 @@ namespace netxs
         }
     }
 
-    using grid = std::vector<cell>;
     using vrgb = netxs::raw_vector<irgb<si32>>;
 
     // canvas: Core grid.
@@ -2608,27 +2607,29 @@ namespace netxs
               canvas(size.x * size.y)
         { }
 
+    public:
+        using span = std::span<cell const>;
+        using body = std::vector<cell>;
+
     protected:
         si32 digest = 0; // core: Resize stamp.
         rect region; // core: Physical square of canvas relative to current basis (top-left corner of the current rendering object, see face::change_basis).
         rect client; // core: Active canvas area relative to current basis.
-        grid canvas; // core: Cell data.
+        body canvas; // core: Cell data.
         cell marker; // core: Current brush.
 
     public:
-        using span = std::span<cell const>;
-
         core()                         = default;
         core(core&&)                   = default;
         core(core const&)              = default;
         core& operator = (core&&)      = default;
         core& operator = (core const&) = default;
-        core(span body, twod size)
+        core(span cells, twod size)
             : region{ dot_00, size },
               client{ dot_00, size },
-              canvas( body.begin(), body.end() )
+              canvas( cells.begin(), cells.end() )
         {
-            assert(size.x * size.y == std::distance(body.begin(), body.end()));
+            assert(size.x * size.y == std::distance(cells.begin(), cells.end()));
         }
         core(cell const& fill, si32 length)
             : region{ dot_00, { length, 1 } },
@@ -2776,13 +2777,13 @@ namespace netxs
             each([&](cell& c){ c.scan(crop); });
             return crop;
         }
-        auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
+        auto copy(body& target) const // core: Copy only body of the canvas to the specified body bitmap.
         {
             target = canvas;
             return region.size;
         }
         template<class Face>
-        void copy(Face& dest) const // core: Copy only grid of the canvas to the specified core.
+        void copy(Face& dest) const // core: Copy only body of the canvas to the specified core.
         {
             dest.size(region.size);
             dest.canvas = canvas;
@@ -2868,7 +2869,7 @@ namespace netxs
             canvas.swap(other.canvas);
             std::swap(region, other.region);
         }
-        auto swap(grid& target) // core: Move the canvas to the specified array and return the current layout size.
+        auto swap(body& target) // core: Move the canvas to the specified array and return the current layout size.
         {
             if (auto size = canvas.size())
             {

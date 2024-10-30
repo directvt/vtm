@@ -1480,7 +1480,7 @@ namespace netxs::ui
             else if (!busy()) locus.push(cmd);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 count, grid const& proto) override
+        void data(si32 count, core::body const& proto) override
         {
             lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
@@ -2126,7 +2126,7 @@ namespace netxs::ui
                 ansi::parser::post(cluster);
             }
         }
-        void data(si32 count, grid const& proto) override
+        void data(si32 count, core::body const& proto) override
         {
             auto& item = **layer;
             item.lyric->splice(item.caret, count, proto, cell::shaders::full);

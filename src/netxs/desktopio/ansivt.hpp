@@ -1189,7 +1189,7 @@ namespace netxs::ansi
             * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(si32 count, grid const& proto);  // Proceed new cells.
+            * - void data(si32 count, core::body const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1696,8 +1696,8 @@ namespace netxs::ansi
         si32 decsg{}; // parser: DEC Special Graphics Mode.
 
     private:
-        grid proto_cells{}; // parser: Proto lyric.
-        si32 proto_count{}; // parser: Proto lyric length.
+        core::body proto_cells{}; // parser: Proto lyric.
+        si32       proto_count{}; // parser: Proto lyric length.
         //text debug{};
 
     public:
@@ -1831,7 +1831,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& /*old_style*/) { };
-        virtual void data(si32 /*count*/, grid const& /*proto*/) { };
+        virtual void data(si32 /*count*/, core::body const& /*proto*/) { };
     };
 
     // ansi: Cursor manipulation command list.

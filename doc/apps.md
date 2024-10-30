@@ -57,8 +57,8 @@
 
 Name               | Sequence                         | Description
 -------------------|----------------------------------|------------
-`grid color`       | `CSI` 68 : 2 :: r : g : b `m`<br>`CSI` 68 : 5 : n `m`<br>`CSI` 68 : n `m`    | Set grid color.
-`reset grid color` | `CSI` 69 `m`                     | Reset grid color (sync with foreground color).
+`grid color`       | `CSI` 68 : 2 :: r : g : b `m`<br>`CSI` 68 : 5 : n `m`<br>`CSI` 68 : n `m`    | (not implemented) Set grid color.
+`reset grid color` | `CSI` 69 `m`                     | (not implemented) Reset grid color (sync with foreground color).
 
 ### Runtime configuraion vt-sequences
 
