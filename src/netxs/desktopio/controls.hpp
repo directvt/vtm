@@ -3191,12 +3191,13 @@ namespace netxs::ui
             }
             auto& cover = flow::minmax();
             //todo move it to flow
+            //todo do not use cover - it is impossible to distinguish 1x1 and empty.
             base::oversz = { -std::min(0, cover.l),
                               std::max(0, cover.r - square.x + 1),
                              -std::min(0, cover.t),
                               0 };
-            auto height = cover.width() ? cover.height() + 1
-                                        : 0;
+            auto not_empty = topic.batch.size() && topic.batch.front()->size().x;
+            auto height = not_empty ? cover.height() + 1 : 0;
             if (beyond) square.y += height - 1;
             else        square.y  = height;
             new_area.size.y = square.y;

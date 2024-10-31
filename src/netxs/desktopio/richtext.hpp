@@ -170,6 +170,7 @@ namespace netxs::ui
             //todo revise: It is actually only for the coor.y that is negative.
 
             printout.coor += cliprect.coor;
+            //todo use rect instead of side
             boundary |= printout;
 
             if constexpr (!std::is_same_v<P, noop>)
@@ -1778,10 +1779,10 @@ namespace netxs::ui
     class rope
     {
         using iter = std::list<netxs::sptr<para>>::const_iterator;
-        iter source;
-        si32 prefix;
-        iter finish;
-        si32 suffix;
+        iter source; // rope: First segment.
+        si32 prefix; // rope: .
+        iter finish; // rope: Last segment (inclusive).
+        si32 suffix; // rope: .
         twod volume; // Rope must consist of text lines of the same height.
 
         rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod volume)

@@ -594,9 +594,9 @@ namespace netxs::input
                     auto s = (byte)chord.pop_front();
                     auto v = (byte)chord.pop_front();
                     if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
-                         if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));          // Scancodes.
-                    else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear(); // Cluster.
-                    else               crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name;                               // Keyids
+                         if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));                         // Scancodes.
+                    else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear();                // Cluster.
+                    else               crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name; // Keyids
                 }
                 return crop;
             }

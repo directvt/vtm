@@ -652,6 +652,10 @@ namespace netxs::app::shared
                             dst[1]->upload(literal, -1);
                             dst[2]->upload(specific, -1);
                             dst[3]->upload(scancodes, -1);
+                            if (gear.keystat == input::key::pressed)
+                            {
+                                for (auto& r : released) r->upload("", -1);
+                            }
                         }
                     }
                     else
