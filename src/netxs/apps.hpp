@@ -571,12 +571,6 @@ namespace netxs::app::shared
                 return std::list<text>
                 {
                     utf::fprint("%%"
-                        "\nKeyboard"
-                        "\n"
-                        "\n             Generic   \tLiteral   \tSpecific   \tScancodes"
-                        "\n    pressed: "
-                        "\n   released: ", ansi::wrp(wrap::off)),
-                    utf::fprint("%%"
                         "\nStatus"
                         "\n"
                         "\n     Owner: %user@host%"
@@ -607,8 +601,35 @@ namespace netxs::app::shared
                     app::test::test_page(purewhite, whitelt),
                 };
             };
-            auto pressed = ptr::shared<text>();
-            auto released = ptr::shared<text>();
+            auto body = data();
+            auto items = scroll->attach(ui::list::ctor());
+            auto chord_grid = items->attach(ui::grid::ctor(twod{ 5, 3 }))
+                ->setpad({ 5, 5, 1, 2})
+                ->active()
+                ->template plugin<pro::focus>()
+                ->template plugin<pro::grade>();
+            auto field = []
+            {
+                return ui::post::ctor()
+                    ->setpad({ 2, 2, 0, 0 })
+                    ->active()
+                    ->colors(purewhite, 0x00)
+                    ->shader(cell::shaders::xlight, e2::form::state::hover);
+            };
+            auto label = [](auto str)
+            {
+                return ui::post::ctor()
+                    ->setpad({ 2, 2, 0, 0 })
+                    ->upload(str);
+            };
+            auto pressed  = std::to_array({ field(), field(), field(), field() });
+            auto released = std::to_array({ field(), field(), field(), field() });
+            chord_grid->attach_cells({ {},                label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
+                                       label("pressed:"), pressed[0],       pressed[1],       pressed[2],        pressed[3],
+                                      label("released:"), released[0],      released[1],      released[2],       released[3]});
+            released[0]->upload("<Press any keys>");
+            //auto label_pressed   = ;//->alignment({ snap::tail, snap::head });
+            //auto label_released  = ;//->alignment({ snap::tail, snap::head });
             auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 auto body = data();
@@ -618,42 +639,39 @@ namespace netxs::app::shared
                 {
                     ++i;
                     if (i == 4) break;
-                    auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
                     if (i == 1)
                     {
                         if (is_key_event && gear.keystat != input::key::repeated && gear.vkchord.size())
                         {
-                            auto& dst = gear.keystat ? *pressed : *released;
-                            dst = utf::fprint("%generic%  \t%literal%  \t%specific%  \t%scancodes%", input::key::kmap::to_string(gear.vkchord, true), input::key::kmap::to_string(gear.chchord, true), input::key::kmap::to_string(gear.vkchord, faux), input::key::kmap::to_string(gear.scchord, faux));
+                            auto& dst = gear.keystat ? pressed : released;
+                            auto generic = input::key::kmap::to_string(gear.vkchord, true);
+                            auto literal = input::key::kmap::to_string(gear.chchord, true);
+                            auto specific = input::key::kmap::to_string(gear.vkchord, faux);
+                            auto scancodes = input::key::kmap::to_string(gear.scchord, faux);
+                            dst[0]->upload(generic, -1);
+                            dst[1]->upload(literal, -1);
+                            dst[2]->upload(specific, -1);
+                            dst[3]->upload(scancodes, -1);
                         }
-                        auto keybd_state = utf::fprint("%%"
-                        "\nKeyboard"
-                        "\n"
-                        "\n             Generic   \tLiteral   \tSpecific   \tScancodes"
-                        "\n    pressed: %pressed%"
-                        "\n   released: %released%",
-                        ansi::wrp(wrap::off),
-                        ansi::clr(purewhite, *pressed),
-                        ansi::clr(purewhite, *released));
-                        rec_ptr->upload(keybd_state, -1);
                     }
-                    else rec_ptr->upload(*iter, -1);
-                    iter++;
+                    else
+                    {
+                        auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
+                        rec_ptr->upload(*iter++, -1);
+                    }
                 }
             };
-            auto body = data();
-            auto items = scroll->attach(ui::list::ctor());
             for (auto& item : body)
             {
                 auto stats = items->subset.size() < 3;
                 auto block = items->attach(ui::post::ctor())
-                    ->setpad({ 2, 2, 0, 2})
+                    ->setpad({ 2, 2, 0, 2 })
                     ->upload(item, stats ? -1 : 0)
                     ->active()
                     ->template plugin<pro::focus>()
                     ->template plugin<pro::grade>();
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
-                if (stats && items->subset.size() != 1) block->shader(cell::shaders::xlight, e2::form::state::hover);
+                if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
             items->invoke([&](auto& boss)
             {

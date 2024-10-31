@@ -734,6 +734,7 @@ namespace netxs::input
         sysmouse m_sys{}; // mouse: Device state.
         sysmouse m_sav{}; // mouse: Previous device state.
 
+        si32 pressed_count{}; // mouse: The number of pressed physical buttons.
 
         // mouse: Forward the extended mouse event.
         virtual void fire(hint cause, si32 index = mouse::noactive) = 0;
@@ -799,6 +800,13 @@ namespace netxs::input
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
         {
+            auto button_state = m.buttons;
+            pressed_count = 0;
+            while (button_state)
+            {
+                pressed_count += button_state & 0x1;
+                button_state >>= 1;
+            }
             auto m_buttons = std::bitset<8>(m.buttons);
             // Interpret button combinations.
             //todo possible bug in Apple's Terminal - it does not return the second release

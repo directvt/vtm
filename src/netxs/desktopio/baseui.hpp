@@ -977,7 +977,7 @@ namespace netxs::ui
                 {
                     relyon.reset();
                 }
-                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
+                if (parent_ptr && !hidden) parent_ptr->base::reflow();
             };
             LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
