@@ -787,7 +787,7 @@ namespace netxs::ansi
                                                    p.x, csi_ccc); }
         auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
                                                    p.y, csi_ccc); }
-        auto& mgn(side n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
+        auto& mgn(dent n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
                                                    n.r, ':',
                                                    n.t, ':',
                                                    n.b, csi_ccc); }
@@ -899,7 +899,7 @@ namespace netxs::ansi
     auto cpx(si32 n)           { return escx{}.cpx(n);        } // ansi: Cursor horizontal percent position.
     auto cpy(si32 n)           { return escx{}.cpy(n);        } // ansi: Cursor vertical percent position.
     auto tbs(si32 n)           { return escx{}.tbs(n);        } // ansi: Tabulation step length.
-    auto mgn(side s)           { return escx{}.mgn(s);        } // ansi: Margin (left, right, top, bottom).
+    auto mgn(dent s)           { return escx{}.mgn(s);        } // ansi: Margin (left, right, top, bottom).
     auto mgl(si32 n)           { return escx{}.mgl(n);        } // ansi: Left margin.
     auto mgr(si32 n)           { return escx{}.mgr(n);        } // ansi: Right margin.
     auto mgt(si32 n)           { return escx{}.mgt(n);        } // ansi: Top margin.

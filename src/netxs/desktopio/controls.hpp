@@ -947,8 +947,7 @@ namespace netxs::ui
                     cp = ooooooooo.flow::print(combo);
                 };
                 object.stream(publish);
-                auto& cover = ooooooooo.flow::minmax();
-                size.y = cover.height() + 1;
+                size.y = ooooooooo.flow::minmax().size.y;
                 return cp;
             }
             void recalc(twod new_size)
@@ -3189,15 +3188,12 @@ namespace netxs::ui
                 // Apply only vertical anchoring for this type of control.
                 base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
             }
-            auto& cover = flow::minmax();
-            //todo move it to flow
-            //todo do not use cover - it is impossible to distinguish 1x1 and empty.
-            base::oversz = { -std::min(0, cover.l),
-                              std::max(0, cover.r - square.x + 1),
-                             -std::min(0, cover.t),
+            auto cover = flow::minmax();
+            base::oversz = { -std::min(0, cover.coor.x),
+                              std::max(0, cover.coor.x + cover.size.x - square.x),
+                             -std::min(0, cover.coor.y),
                               0 };
-            auto not_empty = topic.batch.size() && topic.batch.front()->size().x;
-            auto height = not_empty ? cover.height() + 1 : 0;
+            auto height = cover.size.y;
             if (beyond) square.y += height - 1;
             else        square.y  = height;
             new_area.size.y = square.y;
