@@ -549,24 +549,31 @@ namespace netxs::input
                     k.vkchord.clear();
                     k.scchord.clear();
                     k.chchord.clear();
+                    auto vk_valid = k.keycode > input::key::config;
+                    auto sc_valid = k.scancod > 0;
                     if (!keyout || k.keystat != input::key::released)
                     {
                         keyout = k.keystat == input::key::released;
+                        //log("erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
                         std::erase_if(keymap, [&](auto& rec)
                         {
                             auto& [keyid, val] = rec;
+                            //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
                             auto is_released = keybd_test_released(val.index); // Check if it is still pressed.
                             if (!is_released && keyid != k.keycode/*exclude repeated key*/)
                             {
+                                if (keyid <= input::key::config) vk_valid = faux;
+                                if (val.scode == 0) sc_valid = faux;
                                 k.vkchord.push_back(0);
                                 k.vkchord.push_back((byte)keyid);
                                 k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
                                 k.scchord.push_back((byte)(val.scode & 0xFF));
                             }
+                            //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
                             return is_released;
                         });
                         auto sign = k.keystat ? '\0' : '\x40';
-                        if (k.cluster.size() && k.cluster.front() != '\0')
+                        if (vk_valid && k.cluster.size() && k.cluster.front() != '\0')
                         {
                             k.chchord = k.vkchord;
                             k.chchord += sign | '\x20';
@@ -577,6 +584,8 @@ namespace netxs::input
                         k.scchord += sign | '\x80' | (k.extflag ? 0x01 : 0);
                         k.vkchord.push_back((byte)k.keycode);
                         k.scchord.push_back((byte)k.scancod);
+                        if (!vk_valid) k.vkchord.clear();
+                        if (!sc_valid) k.scchord.clear();
                     }
                     if (k.keystat == input::key::pressed)
                     {
@@ -594,9 +603,19 @@ namespace netxs::input
                     auto s = (byte)chord.pop_front();
                     auto v = (byte)chord.pop_front();
                     if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
-                         if (s & 0x80) crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));                         // Scancodes.
-                    else if (s & 0x20) crop += '\'' + utf::debase<faux, faux>(chord) + '\'', chord.clear();                // Cluster.
-                    else               crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name; // Keyids
+                    if (s & 0x80) // Scancodes.
+                    {
+                        crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));
+                    }
+                    else if (s & 0x20) // Cluster.
+                    {
+                        crop += '\'' + utf::debase<faux, faux>(chord) + '\'';
+                        chord.clear();
+                    }
+                    else // Keyids
+                    {
+                        crop += generic ? input::key::map::data(v).generic : input::key::map::data(v).name;
+                    }
                 }
                 return crop;
             }

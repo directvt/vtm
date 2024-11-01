@@ -544,8 +544,9 @@ namespace netxs::app::shared
                 [](auto& /*boss*/, auto& /*item*/)
                 { }},
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
-                [](auto& boss, auto& /*item*/)
+                [window, c1](auto& boss, auto& /*item*/)
                 {
+                    boss.shader(cell::shaders::color(c1), e2::form::state::keybd::command::close, window);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();
@@ -610,11 +611,33 @@ namespace netxs::app::shared
                 ->template plugin<pro::grade>();
             auto field = []
             {
-                return ui::post::ctor()
+                auto f = ui::post::ctor()
                     ->setpad({ 2, 2, 0, 0 })
                     ->active()
                     ->colors(purewhite, 0x00)
-                    ->shader(cell::shaders::xlight, e2::form::state::hover);
+                    ->shader(cell::shaders::xlight, e2::form::state::hover)
+                    ->invoke([&](auto& boss)
+                    {
+                        auto backup = ptr::shared<text>();
+                        boss.LISTEN(tier::release, hids::events::mouse::any, gear, -, (backup))
+                        {
+                            if (events::subevent(gear.cause, hids::events::mouse::button::down::any.id))
+                            {
+                                if (backup->empty())
+                                {
+                                    *backup = boss.get_source();
+                                    gear.set_clipboard({ (si32)backup->length(), 1 }, *backup, mime::textonly);
+                                    boss.upload("<copied>", -1);
+                                }
+                            }
+                            else if (backup->size() && gear.pressed_count == 0)
+                            {
+                                boss.upload(*backup, -1);
+                                backup->clear();
+                            }
+                        };
+                    });
+                return f;
             };
             auto label = [](auto str)
             {
@@ -632,6 +655,11 @@ namespace netxs::app::shared
             //auto label_released  = ;//->alignment({ snap::tail, snap::head });
             auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
+                //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
+                //    input::key::map::data(gear.keycode).name,
+                //    utf::buffer_to_hex(gear.vkchord),
+                //    utf::buffer_to_hex(gear.scchord),
+                //    utf::buffer_to_hex(gear.chchord));
                 auto body = data();
                 auto iter = body.begin();
                 auto i = 0;
@@ -641,7 +669,7 @@ namespace netxs::app::shared
                     if (i == 4) break;
                     if (i == 1)
                     {
-                        if (is_key_event && gear.keystat != input::key::repeated && gear.vkchord.size())
+                        if (is_key_event && gear.vkchord.size())
                         {
                             auto& dst = gear.keystat ? pressed : released;
                             auto generic = input::key::kmap::to_string(gear.vkchord, true);
@@ -656,6 +684,8 @@ namespace netxs::app::shared
                             {
                                 for (auto& r : released) r->upload("", -1);
                             }
+                            for (auto& r : pressed)  r->hidden = r->get_source().empty();
+                            for (auto& r : released) r->hidden = r->get_source().empty();
                         }
                     }
                     else
@@ -687,14 +717,23 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
-                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
+                auto esc_pressed = ptr::shared(faux);
+                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update, esc_pressed)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
-                    if (gear.keystat && gear.chord(input::key::Esc))
+                    auto changed = faux;
+                    if (gear.chord(input::key::Esc))
                     {
-                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                        gear.set_handled(true);
+                        if (gear.keystat == input::key::released && gear.vkchord.size())
+                        {
+                            boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                            gear.set_handled(true);
+                            return;
+                        }
+                        if (!std::exchange(*esc_pressed, gear.vkchord.size())) changed = true;
                     }
-                    else update(items_inst, gear, true);
+                    else if (std::exchange(*esc_pressed, faux)) changed = true;
+                    if (changed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
+                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                 };
             });
             inside->attach(slot::_2, ui::post::ctor())

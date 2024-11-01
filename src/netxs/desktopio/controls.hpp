@@ -2825,9 +2825,9 @@ namespace netxs::ui
                 object_area.size.x = std::accumulate( widths.begin() + elem.coor.x, widths.begin()  + elem.coor.x + elem.span.x, 0, sum);
                 object_area.size.y = std::accumulate(heights.begin() + elem.coor.y, heights.begin() + elem.coor.y + elem.span.y, 0, sum);
                 object->base::recalc(object_area);
-                log(" object_area: %%\n\t", elem.coor, object_area);
+                //log(" object_area: %%\n\t", elem.coor, object_area);
             }
-            log("------------------");
+            //log("------------------");
             //auto& object_area = new_area;
             //auto& new_size = object_area.size;
             //auto& height = object_area.coor[updown];

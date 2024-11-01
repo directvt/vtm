@@ -2844,29 +2844,30 @@ namespace netxs::gui
             if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
             else                                    mouse_release(by::keybd);
             auto changed = std::exchange(keymod, state) != keymod;
+            if (changed || stream.k.ctlstat != keymod)
+            {
+                stream.gears->ctlstat = keymod;
+                stream.k.ctlstat = keymod;
+                stream.m.ctlstat = keymod;
+                stream.m.timecod = datetime::now();
+                stream.m.changed++;
+                stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
+            }
+            stream.k.extflag = extflag;
+            stream.k.virtcod = virtcod;
+            stream.k.scancod = scancod;
+            auto keycode = input::key::xlat(virtcod, scancod, cs);
+            if ((stream.k.keystat == input::key::released || keycode != stream.k.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
+            stream.k.keystat = keystat;
+            stream.k.keycode = keycode;
+            stream.k.cluster = cluster;
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lwin     || virtcod == vkey::rwin);
             //print_vkstat("keybd_send_state");
-            if (!changed && (repeat_ctrl || (scancod == 0 && cluster.empty()))) return; // We don't send repeated modifiers.
-            else
+            if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
-                if (changed || stream.k.ctlstat != keymod)
-                {
-                    stream.gears->ctlstat = keymod;
-                    stream.k.ctlstat = keymod;
-                    stream.m.ctlstat = keymod;
-                    stream.m.timecod = datetime::now();
-                    stream.m.changed++;
-                    stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
-                }
-                stream.k.extflag = extflag;
-                stream.k.virtcod = virtcod;
-                stream.k.scancod = scancod;
-                stream.k.keystat = keystat;
-                stream.k.keycode = input::key::xlat(virtcod, scancod, cs);
-                stream.k.cluster = cluster;
-                chords.build(stream.k, [&](auto k){ return !keybd_test_pressed(k); });
+                chords.build(stream.k, [&](auto index){ return !keybd_test_pressed(index); });
                 stream_keybd(stream.k);
             }
         }
@@ -3710,6 +3711,7 @@ namespace netxs::gui
             auto param = key_state_t{ .token = (ui32)winmsg.lParam };
             if (param.v.state == 2/*unknown*/) return faux;
             virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
+            // When RightMod is pressed while the LeftMod is pressed it is treated as repeating.
             keystat = param.v.state == 0 ? input::key::pressed
                     : param.v.state == 1 ? input::key::repeated
                     /*param.v.state ==3*/: input::key::released;
