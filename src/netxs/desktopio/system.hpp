@@ -5457,14 +5457,14 @@ namespace netxs::os
                         { "\x2b"      , { "+",    key::Plus                              }},
                         { "\x2c"      , { ",",    key::Comma                             }},
                         { "\x2d"      , { "-",    key::Minus                             }},
-                        { "\x2e"      , { ".",    key::Dot                               }},
+                        { "\x2e"      , { ".",    key::Period                            }},
                         { "\x2f"      , { "/",    key::Slash                             }},
 
                         { "\x3a"      , { ":",    key::Semicolon     | hids::LShift << 8 }},
                         { "\x3b"      , { ";",    key::Semicolon                         }},
                         { "\x3c"      , { "<",    key::Comma         | hids::LShift << 8 }},
                         { "\x3d"      , { "=",    key::Equal                             }},
-                        { "\x3e"      , { ">",    key::Dot           | hids::LShift << 8 }},
+                        { "\x3e"      , { ">",    key::Period        | hids::LShift << 8 }},
                         { "\x3f"      , { "?",    key::Slash         | hids::LShift << 8 }},
                         { "\x40"      , { "@",    key::Key2          | hids::LShift << 8 }},
 
