@@ -623,7 +623,7 @@ namespace netxs::ui
             X(key_code     , "key virt"         ) \
             X(key_scancode , "key scan"         ) \
             X(key_character, "key data"         ) \
-            X(key_pressed  , "key push"         ) \
+            X(key_state    , "key state"        ) \
             X(key_payload  , "key type"         ) \
             X(ctrl_state   , "controls"         ) \
             X(k            , "k"                ) \
@@ -803,9 +803,10 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
                 {
+                    static constexpr auto kstate = std::to_array({ "idle", "pressed", "repeated" });
                     shadow();
                     status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_pressed  ].set(stress) = k.pressed ? "pressed" : "idle";
+                    status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
                     status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
                     status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
@@ -1225,15 +1226,8 @@ namespace netxs::ui
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         if (gear_ptr)
                         {
-                            conio.keybd_event.send(canal, ext_gear_id,
-                                                          gear.ctlstate,
-                                                          gear.extflag,
-                                                          gear.payload,
-                                                          gear.virtcod,
-                                                          gear.scancod,
-                                                          gear.pressed,
-                                                          gear.cluster,
-                                                          gear.handled);
+                            gear.gear_id = ext_gear_id;
+                            conio.syskeybd.send(canal, gear);
                         }
                     }
                 };
@@ -1414,7 +1408,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -1453,7 +1447,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
                 };

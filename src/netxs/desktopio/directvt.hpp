@@ -775,11 +775,14 @@ namespace netxs::directvt
                     SEQ_INIT_macro(WRAP_macro(struct_members))                              \
                     set();                                                                  \
                 }                                                                           \
-                template<class T>                                                           \
-                void set(T&& source)                                                        \
+                void set(auto&& src)                                                        \
                 {                                                                           \
                     SEQ_TEMP_macro(WRAP_macro(struct_members))                              \
                     set();                                                                  \
+                }                                                                           \
+                void syncto(auto& dst)                                                      \
+                {                                                                           \
+                    SEQ_SYNC_macro(WRAP_macro(struct_members))                              \
                 }                                                                           \
                 void get(view& _data)                                                       \
                 {                                                                           \
@@ -787,8 +790,7 @@ namespace netxs::directvt
                     std::tie(SEQ_NAME_macro(WRAP_macro(struct_members)) _tmp) =             \
                       stream::take<SEQ_TYPE_macro(WRAP_macro(struct_members)) noop>(_data); \
                 }                                                                           \
-                template<class P>                                                           \
-                auto load(P _recv)                                                          \
+                auto load(auto _recv)                                                       \
                 {                                                                           \
                     stream::valid = stream::read_block(*this, _recv);                       \
                     return stream::valid;                                                   \
@@ -849,8 +851,16 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (fp2d, coord) (fp2d, delta) (si32, buttons) (fp32, whlfp) (si32, whlsi) (bool, hzwhl) (fp2d, click))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (byte, payload) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
+        STRUCT_macro(mouse_event,       (id_t, gear_id)
+                                        (si32, ctlstat)
+                                        (hint, cause)
+                                        (fp2d, coord)
+                                        (fp2d, delta)
+                                        (si32, buttons)
+                                        (fp32, whlfp)
+                                        (si32, whlsi)
+                                        (bool, hzwhl)
+                                        (fp2d, click))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
@@ -880,10 +890,13 @@ namespace netxs::directvt
                                         (byte, payload)  // syskeybd: Payload type.
                                         (si32, virtcod) //todo deprecated
                                         (si32, scancod)  // syskeybd: Scancode.
-                                        (bool, pressed)  // syskeybd: Key is pressed.
+                                        (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
-                                        (si32, keycode)) // syskeybd: Key id.
+                                        (si32, keycode)  // syskeybd: Key id.
+                                        (text, vkchord)  // sysmouse: Key virtcode chord.
+                                        (text, scchord) // sysmouse: Key scancode chord.
+                                        (text, chchord)) // sysmouse: Key virtcode+cluster chord.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
@@ -1397,7 +1410,6 @@ namespace netxs::directvt
             X(bitmap_vt256     ) /* Canvas in 256-color format.                   */\
             X(bitmap_vt16      ) /* Canvas in 16-color format.                    */\
             X(mouse_event      ) /* Mouse events.                                 */\
-            X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(focus_cut        ) /* Request to focus cut.                         */\

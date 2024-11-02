@@ -1181,7 +1181,7 @@ namespace netxs::utf
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
         auto part = width * 4;
-        while (part -= 4)
+        while (std::exchange(part, part - 4))
         {
             push(nums[(number >> part) & 0x0f]);
         }
@@ -1206,9 +1206,10 @@ namespace netxs::utf
         _to_hex<UpperCase>(number, width, [&](char c){ crop.push_back(c); });
         return crop;
     }
+    template<bool Uppercase = faux>
     auto to_hex_0x(auto const& n)
     {
-        auto h = [](auto const& n){ return (flux{} << std::showbase << std::hex << n).str(); };
+        auto h = [](auto const& n){ return (flux{} << std::showbase << (Uppercase ? std::uppercase : std::nouppercase) << std::hex << n).str(); };
         if constexpr (std::is_same_v<wchr, std::decay_t<decltype(n)>>) return h((si32)n);
         else                                                           return h(n);
     }
@@ -1508,8 +1509,9 @@ namespace netxs::utf
                 default:
                 {
                     auto cp = traits.cdpoint;
-                    if (cp < 0x100000) { buff += "\\u"; utf::to_hex<true>(cp, buff, 4); }
-                    else               { buff += "\\U"; utf::to_hex<true>(cp, buff, 8); }
+                    buff += "\\u{";
+                    utf::to_hex<true>(cp, buff, cp < 0x100000 ? 4 : 8);
+                    buff += "}";
                 }
             }
             return utf8;
@@ -1569,8 +1571,7 @@ namespace netxs::utf
     {
         while (head != tail)
         {
-            auto c = *head;
-            if (hittest(c) || (c == '\\' && ++head == tail)) break;
+            if (hittest(head) || (*head == '\\' && ++head == tail)) break;
             ++head;
         }
         return head;
@@ -1579,13 +1580,20 @@ namespace netxs::utf
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
-        return _find_char(head, tail, [&](char c){ return delims.find(c) != view::npos; });
+        return _find_char(head, tail, [&](auto iter){ return delims.find(*iter) != view::npos; });
+    }
+    // utf: Find substring position ignoring backslashed.
+    auto find_substring(view& utf8, auto... delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        return _find_char(head, tail, [&](auto iter){ return (view{ iter, tail }.starts_with(delims) || ...); });
     }
     // utf: Find char position ignoring backslashed.
     template<class Iter>
     auto find_char(Iter head, Iter tail, char delim)
     {
-        return _find_char(head, tail, [&](char c){ return c == delim; });
+        return _find_char(head, tail, [&](auto iter){ return *iter == delim; });
     }
     auto check_any(view shadow, view delims)
     {
@@ -1779,6 +1787,31 @@ namespace netxs::utf
         utf8.remove_prefix(str.size());
         return str;
     }
+    template<bool Lazy = true, class ...ViewList>
+    auto take_front(view& utf8, std::tuple<ViewList...> const& delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto args = std::tuple_cat(std::make_tuple(utf8), delims);
+        auto stop = std::apply(find_substring<ViewList...>, args);
+        if (stop == tail)
+        {
+            if constexpr (Lazy)
+            {
+                utf8 = {};
+                return qiew{ utf8 };
+            }
+            else
+            {
+                auto crop = qiew{ utf8 };
+                utf8 = {};
+                return crop;
+            }
+        }
+        auto str = qiew{ head, stop };
+        utf8.remove_prefix(str.size());
+        return str;
+    }
     auto take_quote(view& utf8, char delim) // Take the fragment inside the quotes (shadow).
     {
         if (utf8.size() < 2)
@@ -1920,7 +1953,7 @@ namespace netxs::utf
     {
         input << format;
     }
-    void print2(auto& input, view& format, auto&& arg, auto&& ...args)
+    void print2(auto& input, view& format, auto&& arg, auto&&... args)
     {
         auto crop = [](view& format)
         {

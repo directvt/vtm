@@ -947,8 +947,7 @@ namespace netxs::ui
                     cp = ooooooooo.flow::print(combo);
                 };
                 object.stream(publish);
-                auto& cover = ooooooooo.flow::minmax();
-                size.y = cover.height() + 1;
+                size.y = ooooooooo.flow::minmax().size.y;
                 return cp;
             }
             void recalc(twod new_size)
@@ -1674,6 +1673,15 @@ namespace netxs::ui
                     {
                         auto& offset = boss.base::coor();
                         gear.pass(tier::release, boss.parent(), offset);
+                    }
+                };
+                // pro::mouse: Amplify mouse hover on any button press.
+                boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, memo)
+                {
+                    if (events::subevent(gear.cause, hids::events::mouse::button::down::any.id)
+                     || events::subevent(gear.cause, hids::events::mouse::button::up::any.id))
+                    {
+                        boss.bell::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
@@ -2613,8 +2621,7 @@ namespace netxs::ui
             }
         }
         // fork: .
-        template<class T>
-        auto attach(slot Slot, T item_ptr)
+        auto attach(slot Slot, auto item_ptr)
         {
             if (Slot == slot::_1)
             {
@@ -2769,14 +2776,217 @@ namespace netxs::ui
             return sptr{};
         }
         // list: Attach specified item.
-        template<sort Order = sort::forward, class T>
-        auto attach(T object)
+        template<sort Order = sort::forward>
+        auto attach(auto object)
         {
             auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
             if (order == sort::reverse) subset.insert(subset.begin(), object);
             else                        subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
+        }
+    };
+
+    // controls: 2D grid.
+    class grid
+        : public form<grid>
+    {
+        struct size
+        {
+            si32 max;
+            si32 min;
+            si32 val;
+        };
+        struct elem
+        {
+            twod coor; // elem: Grid cell coordinates for placing the object.
+            twod span; // elem: The number of adjacent grid cells occupied by the object.
+            rect area; // elem: Object slot.
+        };
+        auto cellsz(twod coor, twod span)
+        {
+            auto s = dot_00;
+            auto m = coor + span;
+            for (auto x = coor.x; x < m.x; x++) s.x += widths[x].val;
+            for (auto y = coor.y; y < m.y; y++) s.y += heights[y].val;
+            return s;
+        }
+        std::vector<size> widths;  // grid: Grid column widths.
+        std::vector<size> heights; // grid: Grid row heights.
+        std::vector<elem> blocks;  // grid: Geometry of stored objects.
+
+    protected:
+        // grid: .
+        void deform(rect& new_area) override
+        {
+            for (auto& h : heights) h = {};
+            for (auto& w : widths) w = {};
+            //log("DEFORM==================================");
+            auto recalc = [&](auto object_iter, auto tail2, auto elem_iter)
+            {
+                auto changed = faux;
+                while (object_iter != tail2)
+                {
+                    auto& object = *(*object_iter++);
+                    auto& elem = *elem_iter++;
+                    if (elem.span.x < 1 || elem.span.y < 1) continue;
+                    auto area_size = cellsz(elem.coor, elem.span);
+                    elem.area.size = area_size;
+                    object.base::recalc(elem.area);
+                    //log("elem.area=", elem.area);
+                    auto delta = elem.area.size - area_size;
+                    if (delta.x > 0)
+                    {
+                        auto tail = widths.end();
+                        auto head = widths.begin() + elem.coor.x + elem.span.x - 1;
+                        (*head++).val += delta.x;
+                        changed = true;//head != tail;
+                        while (delta.x && head != tail)
+                        {
+                            auto& w = (*head++).val;
+                            auto dx = std::min(w, delta.x);
+                            w -= dx;
+                            delta.x -= dx;
+                        }
+                    }
+                    if (delta.y > 0)
+                    {
+                        auto tail = heights.end();
+                        auto head = heights.begin() + elem.coor.y + elem.span.y - 1;
+                        (*head++).val += delta.y;
+                        changed = true;//head != tail;
+                        while (delta.y && head != tail)
+                        {
+                            auto& w = (*head++).val;
+                            auto dx = std::min(w, delta.y);
+                            w -= dx;
+                            delta.y -= dx;
+                        }
+                    }
+                }
+                //log("-------------------");
+                return changed;
+            };
+            auto recoor = [&](auto object_iter, auto tail, auto elem_iter)
+            {
+                while (object_iter != tail)
+                {
+                    auto& object = *(*object_iter++);
+                    auto& elem = *elem_iter++;
+                    elem.area.coor = cellsz(dot_00, elem.coor);
+                    object.base::recalc(elem.area);
+                }
+            };
+            //todo optimize
+            while (recalc(subset.begin(), subset.end(), blocks.begin()))
+            { }
+            //recalc(subset.rbegin(), subset.rend(), blocks.rbegin());
+            recoor(subset.begin(), subset.end(), blocks.begin());
+            new_area.size = std::max(new_area.size, cellsz(dot_00, { widths.size(), heights.size() }));
+        }
+        // grid: .
+        void inform(rect /*new_area*/) override
+        {
+            auto elem_ptr = blocks.begin();
+            for (auto& object : subset)
+            {
+                auto& elem = *elem_ptr++;
+                object->base::notify(elem.area);
+            }
+        }
+
+    public:
+        grid(twod grid_size)
+            : widths(grid_size.x),
+             heights(grid_size.y)
+        {
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (auto context = form::nested_context(parent_canvas))
+                {
+                    for (auto& object : subset)
+                    {
+                        object->render(parent_canvas);
+                    }
+                }
+            };
+        }
+        // grid: .
+        void clear()
+        {
+            auto backup = This();
+            while (subset.size())
+            {
+                auto item_ptr = subset.back();
+                subset.pop_back();
+                item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+            blocks.clear();
+        }
+        // grid: Remove specified object by index.
+        //auto remove_by_index(si32 index)
+        //{
+        //    if (index < subset.size())
+        //    {
+        //        auto object = subset[index];
+        //        auto backup = This();
+        //        subset.erase(subset.begin() + index);
+        //        blocks.erase(blocks.begin() + index);
+        //        object->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
+        //        return object;
+        //    }
+        //    return sptr{};
+        //}
+        // grid: Return specified object with its geometry by index.
+        auto get_item(si32 index)
+        {
+            if (index < (si32)subset.size())
+            {
+                return std::pair{ subset[index], blocks[index] };
+            }
+            return std::pair{ sptr{}, elem{} };
+        }
+        // grid: Attach specified item.
+        auto attach(auto object, twod coor, twod span = dot_11)
+        {
+            auto size = coor + span;
+            if ((si32)widths.size() < size.x) widths.resize(size.x);
+            if ((si32)heights.size() < size.y) heights.resize(size.y);
+            blocks.push_back({ coor, span });
+            subset.push_back(object);
+            object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            return object;
+        }
+        // grid: Attach item grid.
+        void attach_cells(std::vector<sptr> objects)
+        {
+            if (widths.empty() || heights.empty()) return;
+            auto coor = dot_00;
+            auto temp = std::exchange(base::hidden, true); // Suppress reflowing during attaching.
+            for (auto object : objects)
+            {
+                if (object) attach(object, coor);
+                if (++coor.x == (si32)widths.size())
+                {
+                    coor.x = 0;
+                    if (++coor.y == (si32)heights.size()) break;
+                }
+            }
+            base::hidden = temp;
+        }
+        // grid: Remove nested object.
+        void remove(sptr item_ptr) override
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
+            {
+                auto backup = This();
+                blocks.erase(blocks.begin() + std::distance(subset.begin(), iter));
+                subset.erase(iter);
+                item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
+            }
         }
     };
 
@@ -2841,8 +3051,7 @@ namespace netxs::ui
             return sptr{};
         }
         // cake: Create a new item of the specified subtype and attach it.
-        template<class T>
-        auto attach(T object)
+        auto attach(auto object)
         {
             if (object)
             {
@@ -2945,8 +3154,7 @@ namespace netxs::ui
             }
         }
         // veer: Create a new item of the specified subtype and attach it.
-        template<class T>
-        auto attach(T object)
+        auto attach(auto object)
         {
             subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
@@ -2991,14 +3199,12 @@ namespace netxs::ui
                 // Apply only vertical anchoring for this type of control.
                 base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
             }
-            auto& cover = flow::minmax();
-            //todo move it to flow
-            base::oversz = { -std::min(0, cover.l),
-                              std::max(0, cover.r - square.x + 1),
-                             -std::min(0, cover.t),
+            auto cover = flow::minmax();
+            base::oversz = { -std::min(0, cover.coor.x),
+                              std::max(0, cover.coor.x + cover.size.x - square.x),
+                             -std::min(0, cover.coor.y),
                               0 };
-            auto height = cover.width() ? cover.height() + 1
-                                        : 0;
+            auto height = cover.size.y;
             if (beyond) square.y += height - 1;
             else        square.y  = height;
             new_area.size.y = square.y;
@@ -3448,8 +3654,7 @@ namespace netxs::ui
             base::deface();
         }
         // rail: Attach specified item.
-        template<class T>
-        auto attach(T object)
+        auto attach(auto object)
         {
             if (!empty()) remove(base::subset.back());
             base::subset.push_back(object);
@@ -3975,8 +4180,7 @@ namespace netxs::ui
             };
         }
         // pads: Attach specified object.
-        template<class T>
-        auto attach(T object)
+        auto attach(auto object)
         {
             if (!empty()) remove(base::subset.back());
             base::subset.push_back(object);
@@ -4013,9 +4217,18 @@ namespace netxs::ui
     {
         static constexpr auto dots = "…"sv;
         para data{}; // item: Label content.
+        text utf8{}; // item: Text source.
         bool flex{}; // item: Violate or not the label size.
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
         bool ulin{}; // item: Draw full-width underline.
+
+        // item: .
+        void _set(view new_utf8)
+        {
+            data.parser::style.wrp(wrap::off);
+            data = new_utf8;
+            utf8 = new_utf8;
+        }
 
     protected:
         // item: .
@@ -4026,9 +4239,23 @@ namespace netxs::ui
         }
 
     public:
-        item(view label = {})
-            : data{ label }
+        // item: .
+        template<bool Reflow = true>
+        auto set(view new_utf8)
         {
+            _set(new_utf8);
+            if constexpr (Reflow) base::reflow();
+            return This();
+        }
+        // item: .
+        auto& get_source()
+        {
+            return utf8;
+        }
+
+        item(view label = {})
+        {
+            _set(label);
             LISTEN(tier::release, e2::data::utf8, utf8)
             {
                 set(utf8);
@@ -4083,14 +4310,6 @@ namespace netxs::ui
         void brush(cell c)
         {
             data.parser::brush.reset(c);
-        }
-        // item: .
-        template<bool Reflow = true>
-        void set(view utf8)
-        {
-            data.parser::style.wrp(wrap::off);
-            data = utf8;
-            if constexpr (Reflow) base::reflow();
         }
     };
 

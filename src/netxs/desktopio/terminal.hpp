@@ -2403,7 +2403,7 @@ namespace netxs::ui
                 }
             }
             // alt_screen: Parser callback.
-            void data(si32 count, grid const& proto) override
+            void data(si32 count, core::body const& proto) override
             {
                 //_data(count, proto, cell::shaders::full);
                 _data(count, proto, cell::shaders::skipnuls);
@@ -4586,7 +4586,7 @@ namespace netxs::ui
                 assert(test_coord());
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 count, grid const& proto) override
+            void data(si32 count, core::body const& proto) override
             {
                 _data(count, proto, cell::shaders::skipnuls);
             }
@@ -7522,7 +7522,7 @@ namespace netxs::ui
                     ondata(byemsg);
                     this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
-                        if (gear.pressed)
+                        if (gear.keystat)
                         {
                             switch (gear.keybd::generic())
                             {
@@ -7764,8 +7764,21 @@ namespace netxs::ui
                     case keybd::type::keypress:
                         //todo configurable Ctrl+Ins, Shift+Ins etc.
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
-                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.pressed ? " pressed" : " released");
-                        if (gear.pressed && gear.meta(hids::anyAlt))
+                        if (gear.vkchord.size() && gear.keystat != input::key::repeated)
+                        {
+                            auto vkchord =     input::key::kmap::to_string(gear.vkchord, faux);
+                            auto scchord =     input::key::kmap::to_string(gear.scchord, faux);
+                            auto chchord =     input::key::kmap::to_string(gear.chchord, faux);
+                            auto gen_vkchord = input::key::kmap::to_string(gear.vkchord, true);
+                            auto gen_chchord = input::key::kmap::to_string(gear.chchord, true);
+                            log("chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
+                                "\n     Virtual keys: ", vkchord.size() ? "\"" + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"  \"" + vkchord) + "\"" : "<na>",
+                                "\n Grapheme cluster: ", chchord.size() ? "\"" + (chchord == gen_chchord ? chchord : gen_chchord + "\"  \"" + chchord) + "\"" : "<na>",
+                                "\n        Scancodes: ", scchord.size() ? "\"" + scchord + "\"" : "<na>",
+                                "\n");
+                        }
+                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
+                        if (gear.keystat && gear.meta(hids::anyAlt))
                         {
                             auto found = true;
                                  if (gear.keycode == input::key::LeftArrow ) search(gear, feed::rev);
@@ -7777,7 +7790,7 @@ namespace netxs::ui
                                 break;
                             }
                         }
-                        if (target == &normal && gear.pressed && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
+                        if (target == &normal && gear.keystat && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
                         {
                             auto found = true;
                                  if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  });
@@ -8038,7 +8051,7 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(s11n::xs::keybd_event         lock)
+            void handle(s11n::xs::syskeybd            lock)
             {
                 auto& k = lock.thing;
                 if (owner.active)
@@ -8048,16 +8061,9 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        //todo use temp gear object
-                        gear.alive    = true;
-                        gear.ctlstate = k.ctlstat;
-                        gear.extflag  = k.extflag;
-                        gear.payload  = k.payload;
-                        gear.virtcod  = k.virtcod;
-                        gear.scancod  = k.scancod;
-                        gear.pressed  = k.pressed;
-                        gear.cluster  = k.cluster;
-                        gear.handled  = k.handled;
+                        //todo should we use temp gear object here?
+                        gear.alive   = true;
+                        k.syncto(gear);
                         do
                         {
                             parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
@@ -8408,16 +8414,8 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {
-                stream.syskeybd.send(*this, gear.id,
-                                            gear.ctlstate, // It is expanded because of ctlstate is not ctlstat.
-                                            gear.extflag,
-                                            gear.payload,
-                                            gear.virtcod,
-                                            gear.scancod,
-                                            gear.pressed,
-                                            gear.cluster,
-                                            gear.handled,
-                                            gear.keycode);
+                gear.gear_id = gear.id;
+                stream.syskeybd.send(*this, gear);
                 gear.dismiss();
             };
             LISTEN(tier::general, e2::config::fps, frame_rate)

@@ -382,11 +382,11 @@ namespace netxs::app::calc
                                     auto scroll = layers->attach(ui::rail::ctor())
                                                         ->active()
                                                         ->limits({ -1,1 }, { -1,-1 });
-                                        auto grid = scroll->attach(ui::post::ctor())
-                                                          ->active()
-                                                          ->colors(0xFF000000, 0xFFffffff)
-                                                          ->plugin<pro::cell_highlight>()
-                                                          ->upload(cellatix_text);
+                                        auto sheet_body = scroll->attach(ui::post::ctor())
+                                                                ->active()
+                                                                ->colors(0xFF000000, 0xFFffffff)
+                                                                ->plugin<pro::cell_highlight>()
+                                                                ->upload(cellatix_text);
                                     auto sum = fx_sum->attach(slot::_2, ui::post::ctor())
                                                      ->colors(0, whitelt)
                                                      ->upload(ansi::bgc(whitelt).fgc(blacklt)
@@ -394,7 +394,7 @@ namespace netxs::app::calc
                                                      .fgc(blacklt).add(")"))
                                                      ->invoke([&](ui::post& boss)
                                                      {
-                                                         grid->LISTEN(tier::release, e2::data::utf8, data)
+                                                         sheet_body->LISTEN(tier::release, e2::data::utf8, data)
                                                          {
                                                             boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };

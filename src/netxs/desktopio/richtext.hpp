@@ -47,7 +47,7 @@ namespace netxs::ui
     {
         rect textline{ }; // flow: Textline placeholder.
         si32 textsize{ }; // flow: Full textline length (1D).
-        side boundary{ }; // flow: Affected area by the text output.
+        rect boundary{ }; // flow: Affected area by the text output.
         si32 curpoint{ }; // flow: Current substring start position.
         si32 caret_mx{ }; // flow: Maximum x-coor value on the visible area.
         twod caretpos{ }; // flow: Current virtual (w/o style applied) cursor position.
@@ -170,7 +170,7 @@ namespace netxs::ui
             //todo revise: It is actually only for the coor.y that is negative.
 
             printout.coor += cliprect.coor;
-            boundary |= printout;
+            minmax(printout);
 
             if constexpr (!std::is_same_v<P, noop>)
             {
@@ -244,13 +244,13 @@ namespace netxs::ui
             : flow{ pagerect.size }
         { }
 
-        void   vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
-        void    size(twod size)   { pagerect.size = size; } // flow: Set client full size.
-        void    full(rect area)   { pagerect = area;      } // flow: Set client full rect.
-        auto&   full() const      { return pagerect;      } // flow: Get client full rect reference.
-        auto& minmax() const      { return boundary;      } // flow: Return the output range.
-        void  minmax(twod p)      { boundary |= p;        } // flow: Register twod.
-        void  minmax(rect r)      { boundary |= r;        } // flow: Register rect.
+        void   vsize(si32 height) { pagerect.size.y = height;      } // flow: Set client full height.
+        void    size(twod size)   { pagerect.size = size;          } // flow: Set client full size.
+        void    full(rect area)   { pagerect = area;               } // flow: Set client full rect.
+        auto&   full() const      { return pagerect;               } // flow: Get client full rect reference.
+        auto& minmax() const      { return boundary;               } // flow: Return the output range.
+        void  minmax(twod p)      { boundary |= rect{ p, dot_11 }; } // flow: Register twod (cursor).
+        void  minmax(rect r)      { boundary |= r;                 } // flow: Register rect.
 
         // flow: Sync paragraph style.
         template<class T>
@@ -401,7 +401,7 @@ namespace netxs::ui
         twod up () // flow: Register cursor position.
         {
             auto cp = flow::cp();
-            boundary |= cp; /* |= cursor*/;
+            minmax(cp); /* |= cursor*/;
             return cp;
         }
         void zz (twod offset = dot_00)
@@ -437,7 +437,7 @@ namespace netxs::ui
         {
             flow::zz(offset);
             flow::sc();
-            boundary = caretpos;
+            boundary = { .coor = caretpos };
         }
         void reset(flow const& canvas) // flow: Reset flow state.
         {
@@ -1480,7 +1480,7 @@ namespace netxs::ui
             else if (!busy()) locus.push(cmd);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 count, grid const& proto) override
+        void data(si32 count, core::body const& proto) override
         {
             lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
@@ -1778,10 +1778,10 @@ namespace netxs::ui
     class rope
     {
         using iter = std::list<netxs::sptr<para>>::const_iterator;
-        iter source;
-        si32 prefix;
-        iter finish;
-        si32 suffix;
+        iter source; // rope: First segment.
+        si32 prefix; // rope: .
+        iter finish; // rope: Last segment (inclusive).
+        si32 suffix; // rope: .
         twod volume; // Rope must consist of text lines of the same height.
 
         rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod volume)
@@ -2126,7 +2126,7 @@ namespace netxs::ui
                 ansi::parser::post(cluster);
             }
         }
-        void data(si32 count, grid const& proto) override
+        void data(si32 count, core::body const& proto) override
         {
             auto& item = **layer;
             item.lyric->splice(item.caret, count, proto, cell::shaders::full);
@@ -2650,7 +2650,7 @@ namespace netxs::ui
             };
             object.stream(publish);
             auto& cover = flow::minmax();
-            size.y = cover.height() + 1;
+            size.y = cover.size.y;
             return cp;
         }
         // face: Reflow text page on the canvas and hold position
@@ -2675,7 +2675,7 @@ namespace netxs::ui
                     // Don't tie the first line if it's the only one. Make one step forward.
                     if (anker.y == 0
                      && anker.y == flow::cp().y
-                     && cover.height() > 1)
+                     && cover.size.y > 1)
                     {
                         //todo? the increment is removed bcos it shifts mc one row down on Ctrl+O and back
                         //basis.y++;
@@ -2690,7 +2690,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    basis.y = std::clamp(basis.y, -cover.b, region.size.y - cover.t - 1);
+                    basis.y = std::clamp(basis.y, -(cover.coor.y + cover.size.y - 1), region.size.y - cover.coor.y - 1);
                 }
 
                 moved = faux;

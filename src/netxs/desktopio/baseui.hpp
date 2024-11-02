@@ -452,12 +452,17 @@ namespace netxs::events::userland
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
                         GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
+                        GROUP_XS( command , si32               ), // release: Hotkey command preview.
 
                         SUBSET_XS( focus )
                         {
                             EVENT_XS( on    , const id_t ),
                             EVENT_XS( off   , const id_t ),
                             EVENT_XS( count , si32       ),
+                        };
+                        SUBSET_XS( command )
+                        {
+                            EVENT_XS( close, si32 ), // release: Hotkey close command preview.
                         };
                     };
                 };
@@ -977,7 +982,7 @@ namespace netxs::ui
                 {
                     relyon.reset();
                 }
-                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
+                if (parent_ptr && !hidden) parent_ptr->base::reflow();
             };
             LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {

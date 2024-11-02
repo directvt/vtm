@@ -35,9 +35,13 @@ namespace netxs::app::textancy
 
     namespace
     {
-        text topic3 = R"( 
-Plain text vs. rich text
-
+        template<auto ...Args>
+        constexpr auto vss = utf::matrix::vss<Args...>;
+        auto header = [](auto caption)
+        {
+            return ansi::wrp(wrap::off).mgr(3).bld(true).cap(caption).erl().und(unln::none).eol().mgr(1).unc(0).wrp(wrap::on);
+        };
+        auto topic3_chars = R"( 
 There are important differences between plain text (created and edited by text editors) and rich text (such as that created by word processors or desktop publishing software).
 
 Plain text exclusively consists of character representation. Each character is represented by a fixed-length sequence of one, two, or four bytes, or as a variable-length sequence of one to four bytes, in accordance to specific character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or Unicode. These conventions define many printable characters, but also non-printing characters that control the flow of the text, such as space, line break, and page break. Plain text contains no other information about the text itself, not even the character encoding convention employed. Plain text is stored in text files, although text files do not exclusively store plain text. In the early days of computers, plain text was displayed using a monospace font, such that horizontal alignment and columnar formatting were sometimes done using hitespace characters. For compatibility reasons, this tradition has not changed.
@@ -74,6 +78,7 @@ A text editor written or customized for a specific use can determine what the us
 displaying the requested definition in a popup window or temporary buffer. Some editors implement this ability themselves, but often an auxiliary utility like ctags is used to locate the definitions.
 
 )";
+        auto topic3 = header("Plain text vs. rich text") + topic3_chars;
 
         auto build = [](eccc /*appcfg*/, xmls& config)
         {

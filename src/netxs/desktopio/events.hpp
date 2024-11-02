@@ -134,8 +134,8 @@ namespace netxs::events
             proceed,
         };
 
-        // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
-        // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
+        // Forward execution order: Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
+        // Reverse execution order: Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
         bool                 order; // reactor: Execution order. True means Forward.
         std::map<hint, list> stock; // reactor: Handlers repository.
         std::vector<hint>    queue; // reactor: Event queue.
@@ -560,18 +560,6 @@ namespace netxs::events
         {
             skip ? reactors[Tier]->skip()
                  : reactors[Tier]->stop();
-        }
-        void _saveme()
-        {
-            saveme_mutex.lock();
-            saveme_queue.push_back(this);
-        }
-        static auto _revive()
-        {
-            auto ptr = saveme_queue.back();
-                       saveme_queue.pop_back();
-            saveme_mutex.unlock();
-            return static_cast<bell*>(ptr);
         }
         // bell: Create a new object of the specified subtype and return its sptr.
         template<class T, class ...Args>
