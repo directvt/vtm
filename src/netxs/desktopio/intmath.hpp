@@ -14,7 +14,6 @@
 #include <atomic>
 #include <cstring> // std::memcpy
 #include <utility> // std::cmp_equal
-#include <numeric> // std::accumulate
 
 #ifndef faux
     #define faux (false)

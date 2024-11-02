@@ -611,7 +611,7 @@ namespace netxs::app::shared
                 ->template plugin<pro::grade>();
             auto field = []
             {
-                auto f = ui::post::ctor()
+                auto f = ui::item::ctor()
                     ->setpad({ 2, 2, 0, 0 })
                     ->active()
                     ->colors(purewhite, 0x00)
@@ -625,14 +625,16 @@ namespace netxs::app::shared
                             {
                                 if (backup->empty())
                                 {
+                                    gear.capture(boss.bell::id);
                                     *backup = boss.get_source();
                                     gear.set_clipboard({ (si32)backup->length(), 1 }, *backup, mime::textonly);
-                                    boss.upload("<copied>", -1);
+                                    boss.set("<copied>");
                                 }
                             }
                             else if (backup->size() && gear.pressed_count == 0)
                             {
-                                boss.upload(*backup, -1);
+                                gear.setfree();
+                                boss.set(*backup);
                                 backup->clear();
                             }
                         };
@@ -641,18 +643,18 @@ namespace netxs::app::shared
             };
             auto label = [](auto str)
             {
-                return ui::post::ctor()
-                    ->setpad({ 2, 2, 0, 0 })
-                    ->upload(str);
+                return ui::item::ctor(str)
+                    ->setpad({ 2, 2, 0, 0 });
+                    //->upload(str);
             };
             auto pressed  = std::to_array({ field(), field(), field(), field() });
             auto released = std::to_array({ field(), field(), field(), field() });
-            chord_grid->attach_cells({ {},                label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
-                                       label("pressed:"), pressed[0],       pressed[1],       pressed[2],        pressed[3],
-                                      label("released:"), released[0],      released[1],      released[2],       released[3]});
-            released[0]->upload("<Press any keys>");
-            //auto label_pressed   = ;//->alignment({ snap::tail, snap::head });
-            //auto label_released  = ;//->alignment({ snap::tail, snap::head });
+            auto pressed_label  = label( "pressed:");//->alignment({ snap::both, snap::both }, { snap::tail, snap::none });
+            auto released_label = label("released:");
+            chord_grid->attach_cells({ {},            label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
+                                       pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
+                                      released_label, released[0],      released[1],      released[2],       released[3]});
+            released[0]->set("<Press any keys>");
             auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
@@ -676,13 +678,13 @@ namespace netxs::app::shared
                             auto literal = input::key::kmap::to_string(gear.chchord, true);
                             auto specific = input::key::kmap::to_string(gear.vkchord, faux);
                             auto scancodes = input::key::kmap::to_string(gear.scchord, faux);
-                            dst[0]->upload(generic, -1);
-                            dst[1]->upload(literal, -1);
-                            dst[2]->upload(specific, -1);
-                            dst[3]->upload(scancodes, -1);
+                            dst[0]->set(generic);
+                            dst[1]->set(literal);
+                            dst[2]->set(specific);
+                            dst[3]->set(scancodes);
                             if (gear.keystat == input::key::pressed)
                             {
-                                for (auto& r : released) r->upload("", -1);
+                                for (auto& r : released) r->set("");
                             }
                             for (auto& r : pressed)  r->hidden = r->get_source().empty();
                             for (auto& r : released) r->hidden = r->get_source().empty();

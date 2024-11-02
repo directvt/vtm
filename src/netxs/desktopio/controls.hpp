@@ -2803,6 +2803,14 @@ namespace netxs::ui
             twod span; // elem: The number of adjacent grid cells occupied by the object.
             rect area; // elem: Object slot.
         };
+        auto cellsz(twod coor, twod span)
+        {
+            auto s = dot_00;
+            auto m = coor + span;
+            for (auto x = coor.x; x < m.x; x++) s.x += widths[x].val;
+            for (auto y = coor.y; y < m.y; y++) s.y += heights[y].val;
+            return s;
+        }
         std::vector<size> widths;  // grid: Grid column widths.
         std::vector<size> heights; // grid: Grid row heights.
         std::vector<elem> blocks;  // grid: Geometry of stored objects.
@@ -2811,76 +2819,79 @@ namespace netxs::ui
         // grid: .
         void deform(rect& new_area) override
         {
-            for (auto& h : heights) h = { 1, 1, 1 };
-            for (auto& w : widths) w = { 1, 1, 20 };
-            new_area.size = { widths.size() * 20, heights.size() * 1 };
-            auto elem_ptr = blocks.begin();
-            for (auto& object : subset)
+            for (auto& h : heights) h = {};
+            for (auto& w : widths) w = {};
+            //log("DEFORM==================================");
+            auto recalc = [&](auto object_iter, auto tail2, auto elem_iter)
             {
-                auto& elem = *elem_ptr++;
-                auto& object_area = elem.area;
-                auto sum = [](si32 s, size const& e) { return s + e.val; };
-                object_area.coor.x = std::accumulate( widths.begin(), widths.begin()  + elem.coor.x, 0, sum);
-                object_area.coor.y = std::accumulate(heights.begin(), heights.begin() + elem.coor.y, 0, sum);
-                object_area.size.x = std::accumulate( widths.begin() + elem.coor.x, widths.begin()  + elem.coor.x + elem.span.x, 0, sum);
-                object_area.size.y = std::accumulate(heights.begin() + elem.coor.y, heights.begin() + elem.coor.y + elem.span.y, 0, sum);
-                object->base::recalc(object_area);
-                //log(" object_area: %%\n\t", elem.coor, object_area);
-            }
-            //log("------------------");
-            //auto& object_area = new_area;
-            //auto& new_size = object_area.size;
-            //auto& height = object_area.coor[updown];
-            //auto& y_size = new_size[updown];
-            //auto& x_size = new_size[1 - updown];
-            //auto  x_temp = x_size;
-            //auto start = height;
-            //auto meter = [&]
-            //{
-            //    height = start;
-            //    for (auto& object : subset)
-            //    {
-            //        if (!object || object->base::hidden) continue;
-            //        auto& entry = *object;
-            //        y_size = 0;
-            //        entry.base::recalc(object_area);
-            //        if (x_size > x_temp) x_temp = x_size;
-            //        else                 x_size = x_temp;
-            //        height += entry.base::socket.size[updown];
-            //    }
-            //};
-            //meter(); if (subset.size() > 1 && x_temp != x_size) meter();
-            //y_size = height;
+                auto changed = faux;
+                while (object_iter != tail2)
+                {
+                    auto& object = *(*object_iter++);
+                    auto& elem = *elem_iter++;
+                    if (elem.span.x < 1 || elem.span.y < 1) continue;
+                    auto area_size = cellsz(elem.coor, elem.span);
+                    elem.area.size = area_size;
+                    object.base::recalc(elem.area);
+                    //log("elem.area=", elem.area);
+                    auto delta = elem.area.size - area_size;
+                    if (delta.x > 0)
+                    {
+                        auto tail = widths.end();
+                        auto head = widths.begin() + elem.coor.x + elem.span.x - 1;
+                        (*head++).val += delta.x;
+                        changed = true;//head != tail;
+                        while (delta.x && head != tail)
+                        {
+                            auto& w = (*head++).val;
+                            auto dx = std::min(w, delta.x);
+                            w -= dx;
+                            delta.x -= dx;
+                        }
+                    }
+                    if (delta.y > 0)
+                    {
+                        auto tail = heights.end();
+                        auto head = heights.begin() + elem.coor.y + elem.span.y - 1;
+                        (*head++).val += delta.y;
+                        changed = true;//head != tail;
+                        while (delta.y && head != tail)
+                        {
+                            auto& w = (*head++).val;
+                            auto dx = std::min(w, delta.y);
+                            w -= dx;
+                            delta.y -= dx;
+                        }
+                    }
+                }
+                //log("-------------------");
+                return changed;
+            };
+            auto recoor = [&](auto object_iter, auto tail, auto elem_iter)
+            {
+                while (object_iter != tail)
+                {
+                    auto& object = *(*object_iter++);
+                    auto& elem = *elem_iter++;
+                    elem.area.coor = cellsz(dot_00, elem.coor);
+                    object.base::recalc(elem.area);
+                }
+            };
+            //todo optimize
+            while (recalc(subset.begin(), subset.end(), blocks.begin()))
+            { }
+            //recalc(subset.rbegin(), subset.rend(), blocks.rbegin());
+            recoor(subset.begin(), subset.end(), blocks.begin());
+            new_area.size = std::max(new_area.size, cellsz(dot_00, { widths.size(), heights.size() }));
         }
         // grid: .
-        void inform(rect new_area) override
+        void inform(rect /*new_area*/) override
         {
-            //auto object_area = new_area;
-            //auto& size_y = object_area.size[updown];
-            //auto& coor_y = object_area.coor[updown];
-            //auto& lock_y = base::anchor[updown];
-            //auto found = faux;
             auto elem_ptr = blocks.begin();
             for (auto& object : subset)
             {
                 auto& elem = *elem_ptr++;
-                if (!object || object->base::hidden) continue;
-                auto& entry = *object;
-                auto& object_area = elem.area;
-            //    if (!found) // Looking for anchored list entry.
-            //    {
-            //        auto anker = entry.base::area() + entry.base::extpad; // Use old entry position.
-            //        auto anker_coor_y = anker.coor[updown];
-            //        auto anker_size_y = anker.size[updown];
-            //        if (lock_y < anker_coor_y + anker_size_y || lock_y < anker_coor_y)
-            //        {
-            //            base::anchor += object_area.coor - anker.coor;
-            //            found = true;
-            //        }
-            //    }
-            //    size_y = entry.base::socket.size[updown];
-                entry.base::notify(object_area);
-            //    coor_y += size_y;
+                object->base::notify(elem.area);
             }
         }
 
@@ -4206,6 +4217,7 @@ namespace netxs::ui
     {
         static constexpr auto dots = "…"sv;
         para data{}; // item: Label content.
+        text utf8{}; // item: Text source.
         bool flex{}; // item: Violate or not the label size.
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
         bool ulin{}; // item: Draw full-width underline.
@@ -4220,8 +4232,8 @@ namespace netxs::ui
 
     public:
         item(view label = {})
-            : data{ label }
         {
+            set<faux>(label);
             LISTEN(tier::release, e2::data::utf8, utf8)
             {
                 set(utf8);
@@ -4279,11 +4291,17 @@ namespace netxs::ui
         }
         // item: .
         template<bool Reflow = true>
-        void set(view utf8)
+        void set(view new_utf8)
         {
             data.parser::style.wrp(wrap::off);
-            data = utf8;
+            data = new_utf8;
+            utf8 = new_utf8;
             if constexpr (Reflow) base::reflow();
+        }
+        // item: .
+        auto& get_source()
+        {
+            return utf8;
         }
     };
 
