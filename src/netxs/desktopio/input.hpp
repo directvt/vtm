@@ -409,8 +409,8 @@ namespace netxs::input
             X(85,  0x6C, 0x6C,    0, NumLockMode, 0x0020'00'FF, 1, NumpadSeparator , Separator        )\
             X(86,  0xBD, 0xBD, 0x0C,           0, 0x0000'00'FF, 1, Minus           , Minus            )\
             X(87,  0x6D, 0x6D, 0x4A,           0, 0x0000'00'FF, 1, NumpadMinus     , Minus            )\
-            X(88,  0xBE, 0xBE, 0x34,           0, 0x0000'00'FF, 1, Dot             , Dot              )\
-            X(89,  0x6E, 0x6E, 0x53, NumLockMode, 0x0000'00'FF, 1, NumpadDecimal   , Dot              )\
+            X(88,  0xBE, 0xBE, 0x34,           0, 0x0000'00'FF, 1, Period          , Period           )\
+            X(89,  0x6E, 0x6E, 0x53, NumLockMode, 0x0000'00'FF, 1, NumpadDecimal   , Period           )\
             X(90,  0xBF, 0xBF, 0x35,           0, 0x0000'00'FF, 1, Slash           , Slash            )\
             X(91,  0x6F, 0x6F, 0x35, ExtendedKey, 0x0000'00'FF, 1, NumpadSlash     , Slash            )\
             X(92,  0xDC, 0xDC, 0x2B,           0, 0x0000'00'FF, 1, BackSlash       , BackSlash        )\
@@ -542,6 +542,7 @@ namespace netxs::input
                 //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
                 if (k.keystat != input::key::repeated)
                 {
+                    //log("key=%% pressed=%%", input::key::map::data(k.keycode).name, k.keystat);
                     if (k.keystat == input::key::released)
                     {
                         keymap.erase(k.keycode);
@@ -554,7 +555,7 @@ namespace netxs::input
                     if (!keyout || k.keystat != input::key::released)
                     {
                         keyout = k.keystat == input::key::released;
-                        //log("erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
+                        //log(" erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
                         std::erase_if(keymap, [&](auto& rec)
                         {
                             auto& [keyid, val] = rec;

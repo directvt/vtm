@@ -2820,30 +2820,63 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}, view cluster = {})
+        void keybd_send_state(si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
-            //todo revise
-            //todo implement all possible modifiers state (eg kana)
-            //if (keybd_test_toggled(vkey::oem_copy) cs |= ...;
-            //if (keybd_test_toggled(vkey::oem_auto) cs |= ...;
-            //if (keybd_test_toggled(vkey::oem_enlw) cs |= NLS_HIRAGANA;
-            auto state  = si32{};
+            auto state  = 0;
             auto cs = 0;
             if (extflag) cs |= input::key::ExtendedKey;
-            if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
-            if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
-            if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
-            if (keybd_test_pressed(vkey::lshift  )) state |= input::hids::LShift;
-            if (keybd_test_pressed(vkey::rshift  )) state |= input::hids::RShift;
-            if (keybd_test_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
-            if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
-            if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
-            if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
-            if (keybd_test_pressed(vkey::lwin    )) state |= input::hids::LWin;
-            if (keybd_test_pressed(vkey::rwin    )) state |= input::hids::RWin;
-            if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
-            else                                    mouse_release(by::keybd);
-            auto changed = std::exchange(keymod, state) != keymod;
+            if (synth)
+            {
+                state = keymod;
+            }
+            else
+            {
+                if (keybd_test_toggled(vkey::numlock )) state |= input::hids::NumLock, cs |= input::key::NumLockMode;
+                if (keybd_test_toggled(vkey::capslock)) state |= input::hids::CapsLock;
+                if (keybd_test_toggled(vkey::scrllock)) state |= input::hids::ScrlLock;
+                if (keybd_test_pressed(vkey::lcontrol)) state |= input::hids::LCtrl;
+                if (keybd_test_pressed(vkey::rcontrol)) state |= input::hids::RCtrl;
+                if (keybd_test_pressed(vkey::lalt    )) state |= input::hids::LAlt;
+                if (keybd_test_pressed(vkey::ralt    )) state |= input::hids::RAlt;
+                if (keybd_test_pressed(vkey::lwin    )) state |= input::hids::LWin;
+                if (keybd_test_pressed(vkey::rwin    )) state |= input::hids::RWin;
+                if (keybd_test_pressed(vkey::control )) mouse_capture(by::keybd); // Capture mouse if Ctrl modifier is pressed (to catch Ctrl+AnyClick outside the window).
+                else                                    mouse_release(by::keybd);
+                auto old_ls = keymod & input::hids::LShift;
+                auto old_rs = keymod & input::hids::RShift;
+                auto new_ls = keybd_test_pressed(vkey::lshift);
+                auto new_rs = keybd_test_pressed(vkey::rshift);
+                //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
+                state |= old_ls | old_rs;
+                if (new_ls != !!old_ls || new_rs != !!old_rs)
+                {
+                    keymod = state;
+                    if (old_rs && !new_rs) // RightShift released.
+                    {
+                        keymod &= ~input::hids::RShift;
+                        keybd_send_state(input::key::released, vkey::shift, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                    }
+                    if (old_ls && !new_ls) // LeftShift released.
+                    {
+                        keymod &= ~input::hids::LShift;
+                        keybd_send_state(input::key::released, vkey::shift, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                    }
+                    if (!old_ls && new_ls) // LeftShift pressed.
+                    {
+                        keymod |= input::hids::LShift;
+                        keybd_send_state(input::key::pressed, vkey::shift, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                    }
+                    if (!old_rs && new_rs) // RightShift pressed.
+                    {
+                        keymod |= input::hids::RShift;
+                        keybd_send_state(input::key::pressed, vkey::shift, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                    }
+                    //log(" keymod=%%", utf::to_hex(keymod));
+                    if (virtcod == vkey::shift) return;
+                    state = keymod;
+                }
+            }
+            auto changed = std::exchange(keymod, state) != keymod || synth;
             if (changed || stream.k.ctlstat != keymod)
             {
                 stream.gears->ctlstat = keymod;
@@ -2867,7 +2900,8 @@ namespace netxs::gui
             //print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
-                chords.build(stream.k, [&](auto index){ return !keybd_test_pressed(index); });
+                synth ? chords.build(stream.k)
+                      : chords.build(stream.k, [&](auto index){ return !keybd_test_pressed(index); });
                 stream_keybd(stream.k);
             }
         }
