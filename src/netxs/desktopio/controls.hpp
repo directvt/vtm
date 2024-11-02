@@ -2940,7 +2940,7 @@ namespace netxs::ui
         // grid: Return specified object with its geometry by index.
         auto get_item(si32 index)
         {
-            if (index < subset.size())
+            if (index < (si32)subset.size())
             {
                 return std::pair{ subset[index], blocks[index] };
             }
@@ -2950,8 +2950,8 @@ namespace netxs::ui
         auto attach(auto object, twod coor, twod span = dot_11)
         {
             auto size = coor + span;
-            if (widths.size() < size.x) widths.resize(size.x);
-            if (heights.size() < size.y) heights.resize(size.y);
+            if ((si32)widths.size() < size.x) widths.resize(size.x);
+            if ((si32)heights.size() < size.y) heights.resize(size.y);
             blocks.emplace_back(coor, span);
             subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
@@ -2966,10 +2966,10 @@ namespace netxs::ui
             for (auto object : objects)
             {
                 if (object) attach(object, coor);
-                if (++coor.x == widths.size())
+                if (++coor.x == (si32)widths.size())
                 {
                     coor.x = 0;
-                    if (++coor.y == heights.size()) break;
+                    if (++coor.y == (si32)heights.size()) break;
                 }
             }
             base::hidden = temp;
@@ -4239,6 +4239,20 @@ namespace netxs::ui
         }
 
     public:
+        // item: .
+        template<bool Reflow = true>
+        auto set(view new_utf8)
+        {
+            _set(new_utf8);
+            if constexpr (Reflow) base::reflow();
+            return This();
+        }
+        // item: .
+        auto& get_source()
+        {
+            return utf8;
+        }
+
         item(view label = {})
         {
             _set(label);
@@ -4296,19 +4310,6 @@ namespace netxs::ui
         void brush(cell c)
         {
             data.parser::brush.reset(c);
-        }
-        // item: .
-        template<bool Reflow = true>
-        auto set(view new_utf8)
-        {
-            _set(new_utf8);
-            if constexpr (Reflow) base::reflow();
-            return This();
-        }
-        // item: .
-        auto& get_source()
-        {
-            return utf8;
         }
     };
 
