@@ -2952,7 +2952,7 @@ namespace netxs::ui
             auto size = coor + span;
             if ((si32)widths.size() < size.x) widths.resize(size.x);
             if ((si32)heights.size() < size.y) heights.resize(size.y);
-            blocks.emplace_back(coor, span);
+            blocks.push_back({ coor, span });
             subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
