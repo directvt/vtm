@@ -4168,7 +4168,7 @@ namespace netxs::gui
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
-        bool keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) {}
+        bool keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) { return true; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_sync_layout() {}
