@@ -1454,10 +1454,11 @@ namespace netxs::gui
         };
         struct timers
         {
-            static constexpr auto _counter  = __COUNTER__ + 1;
-            static constexpr auto none      = __COUNTER__ - _counter;
-            static constexpr auto blink     = __COUNTER__ - _counter;
-            static constexpr auto clipboard = __COUNTER__ - _counter;
+            static constexpr auto _counter   = __COUNTER__ + 1;
+            static constexpr auto none       = __COUNTER__ - _counter;
+            static constexpr auto blink      = __COUNTER__ - _counter;
+            static constexpr auto clipboard  = __COUNTER__ - _counter;
+            static constexpr auto rightshift = __COUNTER__ - _counter;
         };
         struct syscmd
         {
@@ -1991,6 +1992,7 @@ namespace netxs::gui
         virtual void layer_timer_start(layer& s, span elapse, ui32 eventid) = 0;
         virtual void layer_timer_stop(layer& s, ui32 eventid) = 0;
 
+        virtual void keybd_sync_state(si32 virtcod = 0) = 0;
         virtual void keybd_sync_layout() = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
@@ -2820,7 +2822,7 @@ namespace netxs::gui
                 }
             });
         }
-        void keybd_send_state(si32 keystat = {}, si32 virtcod = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
+        void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
             auto state  = 0;
             auto cs = 0;
@@ -2848,28 +2850,51 @@ namespace netxs::gui
                 auto new_rs = keybd_test_pressed(vkey::rshift);
                 //log("old_ls=%% old_rs=%%  new_ls=%% new_rs=%% keymod=%%", (si32)old_ls, (si32)old_rs, (si32)new_ls, (si32)new_rs, utf::to_hex(keymod));
                 state |= old_ls | old_rs;
-                if (new_ls != !!old_ls || new_rs != !!old_rs)
+                if (new_ls != !!old_ls || new_rs != !!old_rs) // MS Windows Shift+Shift bug workaround.
                 {
                     keymod = state;
-                    if (old_rs && !new_rs) // RightShift released.
+                    //todo unify
+                    if (!new_ls && !new_rs && old_ls && old_rs && chords.keymap[input::key::LeftShift].stamp < chords.keymap[input::key::RightShift].stamp) // Respect release order.
                     {
-                        keymod &= ~input::hids::RShift;
-                        keybd_send_state(input::key::released, vkey::shift, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        //if (old_rs && !new_rs) // RightShift released.
+                        {
+                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
+                            keymod &= ~input::hids::RShift;
+                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        }
+                        //if (old_ls && !new_ls) // LeftShift released.
+                        {
+                            keymod &= ~input::hids::LShift;
+                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        }
                     }
-                    if (old_ls && !new_ls) // LeftShift released.
+                    else
                     {
-                        keymod &= ~input::hids::LShift;
-                        keybd_send_state(input::key::released, vkey::shift, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        if (old_ls && !new_ls) // LeftShift released.
+                        {
+                            keymod &= ~input::hids::LShift;
+                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        }
+                        if (old_rs && !new_rs) // RightShift released.
+                        {
+                            layer_timer_stop(master, timers::rightshift); // Stop catching RightShift release.
+                            keymod &= ~input::hids::RShift;
+                            keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        }
                     }
                     if (!old_ls && new_ls) // LeftShift pressed.
                     {
                         keymod |= input::hids::LShift;
-                        keybd_send_state(input::key::pressed, vkey::shift, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
+                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::LeftShift).scan, {}, {}, true);
                     }
                     if (!old_rs && new_rs) // RightShift pressed.
                     {
                         keymod |= input::hids::RShift;
-                        keybd_send_state(input::key::pressed, vkey::shift, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                        keybd_send_state(vkey::shift, input::key::pressed, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                    }
+                    if (new_ls && new_rs) // Two Shifts pressed.
+                    {
+                        layer_timer_start(master, 33ms, timers::rightshift); // Try to catch RightShift release.
                     }
                     //log(" keymod=%%", utf::to_hex(keymod));
                     if (virtcod == vkey::shift) return;
@@ -3110,6 +3135,21 @@ namespace netxs::gui
             {
                 layer_timer_stop(master, timers::clipboard);
                 sync_clipboard();
+            }
+            else if (eventid == timers::rightshift)
+            {
+                auto new_rs = keybd_read_pressed(vkey::rshift);
+                if (!new_rs)
+                {
+                    layer_timer_stop(master, timers::rightshift);
+                    keybd_sync_state();
+                    //::GetKeyboardState(vkstat.data()); // Sync with thread kb state.
+                    //if (keymod & input::hids::RShift)
+                    //{
+                    //    keymod &= ~input::hids::RShift;
+                    //    keybd_send_state(vkey::shift, input::key::released, input::key::map::data(input::key::RightShift).scan, {}, {}, true);
+                    //}
+                }
             }
             else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
             {
@@ -3790,14 +3830,14 @@ namespace netxs::gui
                     utf::to_utf(toWIDE, toUTF8);
                     if (keystat == input::key::released) // Only Alt+Numpad fires on release.
                     {
-                        keybd_send_state(keystat, virtcod, scancod, extflag); // Release Alt. Send empty string.
+                        keybd_send_state(virtcod, keystat, scancod, extflag); // Release Alt. Send empty string.
                         keybd_send_input(toUTF8, input::keybd::type::imeinput); // Send Alt+Numpads result.
                         toWIDE.clear();
                         //print_vkstat("Alt+Numpad");
                         return true;
                     }
                 }
-                keybd_send_state(keystat, virtcod, scancod, extflag, toUTF8);
+                keybd_send_state(virtcod, keystat, scancod, extflag, toUTF8);
             }
             toWIDE.clear();
             //print_vkstat("keybd_read_input");
@@ -3823,10 +3863,10 @@ namespace netxs::gui
             }
             tslink.stop();
         }
-        void keybd_sync_state()
+        void keybd_sync_state(si32 virtcod = {})
         {
             ::GetKeyboardState(vkstat.data());
-            keybd_send_state();
+            keybd_send_state(virtcod);
             //print_vkstat("keybd_sync_state");
         }
         void keybd_read_vkstat() // Loading without sending. Will be sent after the focus bus is turned on.
@@ -4132,6 +4172,7 @@ namespace netxs::gui
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_sync_layout() {}
+        void keybd_sync_state(si32 /*virtcod*/) {}
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
         void window_sync_taskbar(si32 /*new_state*/) {}

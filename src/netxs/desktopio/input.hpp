@@ -511,6 +511,7 @@ namespace netxs::input
             {
                 si32 index;
                 si32 scode;
+                time stamp;
             };
 
             using cmap = std::map<si32, chord_item_t>; // std::unordered_map doesn't sort items.
@@ -593,6 +594,7 @@ namespace netxs::input
                         auto& key = keymap[k.keycode];
                         key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
                         key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
+                        key.stamp = datetime::now();
                     }
                 }
             }
