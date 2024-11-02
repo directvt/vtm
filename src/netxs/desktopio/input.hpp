@@ -608,7 +608,9 @@ namespace netxs::input
                     if (crop.size() || s & 0x40) crop += s & 0x40 ? '-' : '+';
                     if (s & 0x80) // Scancodes.
                     {
-                        crop += utf::to_hex_0x((ui16)(v | (s & 0x01 ? 0x100 : 0)));
+                        auto value = v | (s & 0x01 ? 0x100 : 0);
+                        auto length = value & 0xF00 ? 3 : 2;
+                        crop += "0x" + utf::to_hex<true>(value, length);
                     }
                     else if (s & 0x20) // Cluster.
                     {

@@ -1206,9 +1206,10 @@ namespace netxs::utf
         _to_hex<UpperCase>(number, width, [&](char c){ crop.push_back(c); });
         return crop;
     }
+    template<bool Uppercase = faux>
     auto to_hex_0x(auto const& n)
     {
-        auto h = [](auto const& n){ return (flux{} << std::showbase << std::hex << n).str(); };
+        auto h = [](auto const& n){ return (flux{} << std::showbase << (Uppercase ? std::uppercase : std::nouppercase) << std::hex << n).str(); };
         if constexpr (std::is_same_v<wchr, std::decay_t<decltype(n)>>) return h((si32)n);
         else                                                           return h(n);
     }

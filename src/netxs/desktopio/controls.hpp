@@ -4222,6 +4222,14 @@ namespace netxs::ui
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
         bool ulin{}; // item: Draw full-width underline.
 
+        // item: .
+        void _set(view new_utf8)
+        {
+            data.parser::style.wrp(wrap::off);
+            data = new_utf8;
+            utf8 = new_utf8;
+        }
+
     protected:
         // item: .
         void deform(rect& new_area) override
@@ -4233,7 +4241,7 @@ namespace netxs::ui
     public:
         item(view label = {})
         {
-            set<faux>(label);
+            _set(label);
             LISTEN(tier::release, e2::data::utf8, utf8)
             {
                 set(utf8);
@@ -4291,12 +4299,11 @@ namespace netxs::ui
         }
         // item: .
         template<bool Reflow = true>
-        void set(view new_utf8)
+        auto set(view new_utf8)
         {
-            data.parser::style.wrp(wrap::off);
-            data = new_utf8;
-            utf8 = new_utf8;
+            _set(new_utf8);
             if constexpr (Reflow) base::reflow();
+            return This();
         }
         // item: .
         auto& get_source()

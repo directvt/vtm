@@ -604,20 +604,23 @@ namespace netxs::app::shared
             };
             auto body = data();
             auto items = scroll->attach(ui::list::ctor());
-            auto chord_grid = items->attach(ui::grid::ctor(twod{ 5, 3 }))
-                ->setpad({ 5, 5, 1, 2})
+            auto title_grid = items->attach(ui::fork::ctor(axis::Y));
+            auto title_data = title_grid->attach(slot::_1, ui::item::ctor("Keyboard Test")->setpad({ 2, 0, 1, 0 }));
+            auto chord_grid = title_grid->attach(slot::_2, ui::grid::ctor(twod{ 5, 3 }))
+                ->setpad({ 4, 5, 0, 2})
                 ->active()
                 ->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto field = []
             {
                 auto f = ui::item::ctor()
-                    ->setpad({ 2, 2, 0, 0 })
+                    ->setpad({ 2, 2, 0, 0 }, { -2, 1, 0, 0 })
                     ->active()
                     ->colors(purewhite, 0x00)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->invoke([&](auto& boss)
                     {
+                        boss.base::hidden = true;
                         auto backup = ptr::shared<text>();
                         boss.LISTEN(tier::release, hids::events::mouse::any, gear, -, (backup))
                         {
@@ -644,17 +647,17 @@ namespace netxs::app::shared
             auto label = [](auto str)
             {
                 return ui::item::ctor(str)
-                    ->setpad({ 2, 2, 0, 0 });
+                    ->setpad({ 0, 4, 0, 0 });
                     //->upload(str);
             };
             auto pressed  = std::to_array({ field(), field(), field(), field() });
             auto released = std::to_array({ field(), field(), field(), field() });
-            auto pressed_label  = label( "pressed:");//->alignment({ snap::both, snap::both }, { snap::tail, snap::none });
+            auto pressed_label  = label( "pressed:")->alignment({ snap::tail, snap::both });
             auto released_label = label("released:");
             chord_grid->attach_cells({ {},            label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
                                        pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                       released_label, released[0],      released[1],      released[2],       released[3]});
-            released[0]->set("<Press any keys>");
+            released[0]->set("<Press any keys>")->hidden = faux;;
             auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
@@ -736,6 +739,7 @@ namespace netxs::app::shared
                     else if (std::exchange(*esc_pressed, faux)) changed = true;
                     if (changed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
                     if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                    gear.set_handled(true);
                 };
             });
             inside->attach(slot::_2, ui::post::ctor())
