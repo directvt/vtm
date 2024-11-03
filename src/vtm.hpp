@@ -736,60 +736,10 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.bind("Shift+F7", [&](hids& gear) // Disconnect by Shift+F7.
-            {
-                gear.owner.bell::signal(tier::preview, e2::conio::quit);
-                this->bell::expire(tier::preview);
-                gear.set_handled(true);
-            });
-            keybd.bind("Ctrl+PageUp | Ctrl+PageDown", [&](hids& gear)
-            {
-                auto down = gear.keycode == input::key::PageDown;
-                if (align.what.applet)
-                {
-                    align.unbind();
-                }
-                auto window_ptr = e2::form::layout::go::item.param();
-                this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
-                if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
-
-                auto current = window_ptr; 
-                auto maximized = faux;
-                auto owner_id = id_t{};
-                do
-                {
-                    window_ptr.reset();
-                    owner_id = id_t{};
-                    if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                    else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                    if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
-                    maximized = owner_id == gear.owner.id;
-                    if (!owner_id || maximized) break;
-                }
-                while (window_ptr != current); // Skip all foreign maximized windows.
-
-                if (window_ptr && (!owner_id || maximized))
-                {
-                    auto& window = *window_ptr;
-                    window.bell::signal(tier::release, e2::form::layout::selected, gear);
-                    if (!maximized) jump_to(window);
-                    pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
-                }
-                //gear.dismiss();
-                this->bell::expire(tier::preview); //todo temp
-                gear.set_handled(true);
-            });
-            keybd.bind("F10", [&](hids& gear)
-            {
-                auto window_ptr = e2::form::layout::go::item.param();
-                this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
-                if (!window_ptr)
-                {
-                    this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
-                    this->bell::expire(tier::preview);
-                    gear.set_handled(true);
-                }
-            });
+            keybd.bind("Ctrl+PageUp",   [&](hids& gear){ focus_next_window(gear, feed::rev); });
+            keybd.bind("Ctrl+PageDown", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
+            keybd.bind("Shift+F7",      [&](hids& gear){ disconnect(gear); });
+            keybd.bind("F10",           [&](hids& gear){ try_quit(gear); });
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;
@@ -892,6 +842,60 @@ namespace netxs::app::vtm
             };
         }
 
+        void try_quit(hids& gear)
+        {
+            auto window_ptr = e2::form::layout::go::item.param();
+            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+            if (!window_ptr)
+            {
+                this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
+                this->bell::expire(tier::preview);
+                gear.set_handled(true);
+            }
+        }
+        void disconnect(hids& gear)
+        {
+            gear.owner.bell::signal(tier::preview, e2::conio::quit);
+            this->bell::expire(tier::preview);
+            gear.set_handled(true);
+        }
+        void focus_next_window(hids& gear, feed forward)
+        {
+            auto down = forward == feed::fwd;//gear.keycode == input::key::PageDown;
+            if (align.what.applet)
+            {
+                align.unbind();
+            }
+            auto window_ptr = e2::form::layout::go::item.param();
+            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+
+            auto current = window_ptr; 
+            auto maximized = faux;
+            auto owner_id = id_t{};
+            do
+            {
+                window_ptr.reset();
+                owner_id = id_t{};
+                if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                maximized = owner_id == gear.owner.id;
+                if (!owner_id || maximized) break;
+            }
+            while (window_ptr != current); // Skip all foreign maximized windows.
+
+            if (window_ptr && (!owner_id || maximized))
+            {
+                auto& window = *window_ptr;
+                window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                if (!maximized) jump_to(window);
+                pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+            }
+            //gear.dismiss();
+            this->bell::expire(tier::preview); //todo temp
+            gear.set_handled();
+        }
         void move_viewport(twod newpos, rect viewport)
         {
             auto oldpos = viewport.center();
