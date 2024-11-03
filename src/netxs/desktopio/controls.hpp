@@ -1814,6 +1814,82 @@ namespace netxs::ui
             }
         };
 
+        // pro: Keyboard events.
+        class keybd
+            : public skill
+        {
+            using func = std::function<void(hids&)>;
+            using wptr = netxs::wptr<func>;
+            using sptr = netxs::sptr<func>;
+            using skill::boss,
+                  skill::memo;
+
+            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers;
+            std::vector<sptr> chord_handlers;
+
+            auto _set(view chord_str, func handler)
+            {
+                auto chords = input::key::kmap::chord_list(chord_str);
+                if (chords.size())
+                {
+                    auto handler_ptr = ptr::shared(std::move(handler));
+                    for (auto& chord : chords)
+                    {
+                        handlers[chord].push_back(handler_ptr);
+                    }
+                    return handler_ptr;
+                }
+                else
+                {
+                    log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
+                    return sptr{};
+                }
+            }
+            void _dispatch(hids& gear, qiew chord)
+            {
+                auto iter = handlers.find(chord);
+                if (iter != handlers.end())
+                {
+                    auto& procs = iter->second;
+                    std::erase_if(procs, [&](auto& proc_wptr)
+                    {
+                        auto proc_ptr = proc_wptr.lock();
+                        if (proc_ptr)
+                        {
+                            (*proc_ptr)(gear);
+                        }
+                        return !proc_ptr;
+                    });
+                    if (procs.empty()) handlers.erase(iter);
+                }
+            }
+
+        public:
+            keybd(base&&) = delete;
+            keybd(base& boss)
+                : skill{ boss }
+            {
+                boss.LISTEN(tier::preview, hids::events::keybd::key::any, gear, memo)
+                {
+                    if (gear.payload == input::keybd::type::keypress)
+                    if (gear.keystat) (_dispatch(gear, gear.vkchord), gear.keystat) &&
+                                      (_dispatch(gear, gear.chchord), gear.keystat) &&
+                                      (_dispatch(gear, gear.scchord), gear.keystat);
+                };
+            }
+
+            template<class ...Args>
+            auto bind(view chord_str, func handler, Args&&... chords_handlers)
+            {
+                if (auto h = _set(chord_str, std::move(handler))) chord_handlers.push_back(h);
+                if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
+            }
+            auto reset()
+            {
+                chord_handlers.clear();
+            }
+        };
+
         // pro: Glow gradient filter.
         class grade
             : public skill

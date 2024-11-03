@@ -624,6 +624,29 @@ namespace netxs::input
                 }
                 return crop;
             }
+            static auto chord_list(qiew chord)
+            {
+                auto crop = std::vector<text>{};
+                if (chord == "Shift+F7")
+                {
+                    crop.push_back("\x00\x0a\x00\x79"s);
+                    crop.push_back("\x80\x2a\x80\x41"s);
+                }
+                else if (chord == "Ctrl+PageUp | Ctrl+PageDown")
+                {
+                    crop.push_back("\x00\x04\x00\x26"s);
+                    crop.push_back("\x81\x1d\x41\x49"s);
+
+                    crop.push_back("\x00\x04\x00\x28"s);
+                    crop.push_back("\x81\x1d\x41\x51"s);
+                }
+                else if (chord == "F10")
+                {
+                    crop.push_back("\x00\x7e"s);
+                    crop.push_back("\x80\x44"s);
+                }
+                return crop;
+            }
         };
 
         template<class ...Args>
