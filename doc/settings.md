@@ -310,9 +310,6 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
 
 ### Configuration example
 
-Note: The following configuration sections are not implemented yet:
-- `<config/.../hotkeys/>`
-
 #### Minimal configuration
 
 `~/.config/vtm/settings.xml`:
@@ -473,7 +470,7 @@ Notes
                         <selection>
                             <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
-                        <hotkeys>    <!-- not implemented -->
+                        <hotkeys>
                             <key="Alt+RightArrow" action="TerminalFindNext()"/>
                             <key="Alt+LeftArrow"  action="TerminalFindPrev()"/>
                         </hotkeys>
@@ -576,10 +573,11 @@ Notes
             <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
-        <hotkeys key*>    <!-- not implemented -->
-            <key="Ctrl+PgUp" action="vtm.PrevWindow()"/>
-            <key="Ctrl+PgDn" action="vtm.NextWindow()"/>
-            <key="Ctrl+T"    action="vtm.Start(\"Term\")"/>
+        <hotkeys key*>
+            <key="Ctrl+PgUp" action="FocusPrevWindow()"/>
+            <key="Ctrl+PgDn" action="FocusNextWindow()"/>
+            <key="Shift+F7"  action="Disconnect()"/>
+            <key="F10"       action="TryQuit()"/>
         </hotkeys>
     </desktop>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
