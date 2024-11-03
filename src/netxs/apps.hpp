@@ -606,7 +606,7 @@ namespace netxs::app::shared
             auto items = scroll->attach(ui::list::ctor());
             auto title_grid = items->attach(ui::fork::ctor(axis::Y));
             auto title_data = title_grid->attach(slot::_1, ui::item::ctor("Keyboard Test")->setpad({ 2, 0, 1, 0 }));
-            auto chord_grid = title_grid->attach(slot::_2, ui::grid::ctor(twod{ 5, 3 }))
+            auto chord_grid = title_grid->attach(slot::_2, ui::grid::ctor())
                 ->setpad({ 4, 5, 0, 2})
                 ->active()
                 ->template plugin<pro::focus>()
@@ -654,9 +654,9 @@ namespace netxs::app::shared
             auto released = std::to_array({ field(), field(), field(), field() });
             auto pressed_label  = label( "pressed:")->alignment({ snap::tail, snap::both });
             auto released_label = label("released:");
-            chord_grid->attach_cells({ {},            label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
-                                       pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
-                                      released_label, released[0],      released[1],      released[2],       released[3]});
+            chord_grid->attach_cells({ 5, 3 }, {            {}, label("Generic"), label("Literal"), label("Specific"), label("Scancodes"),
+                                                 pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
+                                                released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;;
             auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
             {

@@ -2791,37 +2791,29 @@ namespace netxs::ui
     class grid
         : public form<grid>
     {
-        struct size
-        {
-            si32 max;
-            si32 min;
-            si32 val;
-        };
         struct elem
         {
             twod coor; // elem: Grid cell coordinates for placing the object.
             twod span; // elem: The number of adjacent grid cells occupied by the object.
             rect area; // elem: Object slot.
+            bool done; // elem: Object resized.
         };
         auto cellsz(twod coor, twod span)
         {
-            auto s = dot_00;
-            auto m = coor + span;
-            for (auto x = coor.x; x < m.x; x++) s.x += widths[x].val;
-            for (auto y = coor.y; y < m.y; y++) s.y += heights[y].val;
-            return s;
+            auto x = std::accumulate(widths.begin() + coor.x, widths.begin() + coor.x + span.x, 0);
+            auto y = std::accumulate(heights.begin() + coor.y, heights.begin() + coor.y + span.y, 0);
+            return twod{ x, y };
         }
-        std::vector<size> widths;  // grid: Grid column widths.
-        std::vector<size> heights; // grid: Grid row heights.
+        std::vector<si32> widths;  // grid: Grid column widths.
+        std::vector<si32> heights; // grid: Grid row heights.
         std::vector<elem> blocks;  // grid: Geometry of stored objects.
 
     protected:
         // grid: .
         void deform(rect& new_area) override
         {
-            for (auto& h : heights) h = {};
-            for (auto& w : widths) w = {};
-            //log("DEFORM==================================");
+            widths.clear();
+            heights.clear();
             auto recalc = [&](auto object_iter, auto tail2, auto elem_iter)
             {
                 auto changed = faux;
@@ -2830,20 +2822,24 @@ namespace netxs::ui
                     auto& object = *(*object_iter++);
                     auto& elem = *elem_iter++;
                     if (elem.span.x < 1 || elem.span.y < 1) continue;
+                    auto dimension = elem.coor + elem.span;
+                    if (dimension.x > widths.size()) widths.resize(dimension.x);
+                    if (dimension.y > heights.size()) heights.resize(dimension.y);
                     auto area_size = cellsz(elem.coor, elem.span);
+                    if (elem.done && elem.area.size == area_size) continue;
                     elem.area.size = area_size;
+                    elem.done = true;
                     object.base::recalc(elem.area);
-                    //log("elem.area=", elem.area);
                     auto delta = elem.area.size - area_size;
                     if (delta.x > 0)
                     {
+                        changed = true;
                         auto tail = widths.end();
                         auto head = widths.begin() + elem.coor.x + elem.span.x - 1;
-                        (*head++).val += delta.x;
-                        changed = true;//head != tail;
+                        *head++ += delta.x;
                         while (delta.x && head != tail)
                         {
-                            auto& w = (*head++).val;
+                            auto& w = *head++;
                             auto dx = std::min(w, delta.x);
                             w -= dx;
                             delta.x -= dx;
@@ -2851,20 +2847,19 @@ namespace netxs::ui
                     }
                     if (delta.y > 0)
                     {
+                        changed = true;
                         auto tail = heights.end();
                         auto head = heights.begin() + elem.coor.y + elem.span.y - 1;
-                        (*head++).val += delta.y;
-                        changed = true;//head != tail;
+                        *head++ += delta.y;
                         while (delta.y && head != tail)
                         {
-                            auto& w = (*head++).val;
-                            auto dx = std::min(w, delta.y);
-                            w -= dx;
-                            delta.y -= dx;
+                            auto& h = *head++;
+                            auto dy = std::min(h, delta.y);
+                            h -= dy;
+                            delta.y -= dy;
                         }
                     }
                 }
-                //log("-------------------");
                 return changed;
             };
             auto recoor = [&](auto object_iter, auto tail, auto elem_iter)
@@ -2874,13 +2869,12 @@ namespace netxs::ui
                     auto& object = *(*object_iter++);
                     auto& elem = *elem_iter++;
                     elem.area.coor = cellsz(dot_00, elem.coor);
+                    elem.done = {};
                     object.base::recalc(elem.area);
                 }
             };
-            //todo optimize
-            while (recalc(subset.begin(), subset.end(), blocks.begin()))
+            while (recalc(subset.rbegin(), subset.rend(), blocks.rbegin()))
             { }
-            //recalc(subset.rbegin(), subset.rend(), blocks.rbegin());
             recoor(subset.begin(), subset.end(), blocks.begin());
             new_area.size = std::max(new_area.size, cellsz(dot_00, { widths.size(), heights.size() }));
         }
@@ -2896,9 +2890,7 @@ namespace netxs::ui
         }
 
     public:
-        grid(twod grid_size)
-            : widths(grid_size.x),
-             heights(grid_size.y)
+        grid()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2947,29 +2939,25 @@ namespace netxs::ui
             return std::pair{ sptr{}, elem{} };
         }
         // grid: Attach specified item.
-        auto attach(auto object, twod coor, twod span = dot_11)
+        auto attach(auto object, elem conf = { .span = dot_11 })
         {
-            auto size = coor + span;
-            if ((si32)widths.size() < size.x) widths.resize(size.x);
-            if ((si32)heights.size() < size.y) heights.resize(size.y);
-            blocks.push_back({ coor, span });
+            blocks.push_back(conf);
             subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
         }
         // grid: Attach item grid.
-        void attach_cells(std::vector<sptr> objects)
+        void attach_cells(twod size, std::vector<sptr> object_list)
         {
-            if (widths.empty() || heights.empty()) return;
-            auto coor = dot_00;
+            auto conf = elem{ .span = dot_11, .done = faux };
             auto temp = std::exchange(base::hidden, true); // Suppress reflowing during attaching.
-            for (auto object : objects)
+            for (auto object : object_list)
             {
-                if (object) attach(object, coor);
-                if (++coor.x == (si32)widths.size())
+                if (object) attach(object, conf);
+                if (++conf.coor.x == size.x)
                 {
-                    coor.x = 0;
-                    if (++coor.y == (si32)heights.size()) break;
+                    conf.coor.x = 0;
+                    if (++conf.coor.y == size.y) break;
                 }
             }
             base::hidden = temp;
