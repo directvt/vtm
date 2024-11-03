@@ -1825,24 +1825,25 @@ namespace netxs::ui
                   skill::memo;
 
             std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers;
+            std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             std::vector<sptr> chord_handlers;
 
-            auto _set(view chord_str, func handler)
+            auto _set(qiew chord_str, sptr handler_ptr)
             {
                 auto chords = input::key::kmap::chord_list(chord_str);
                 if (chords.size())
                 {
-                    auto handler_ptr = ptr::shared(std::move(handler));
+                    //auto handler_ptr = ptr::shared(std::move(handler));
                     for (auto& chord : chords)
                     {
                         handlers[chord].push_back(handler_ptr);
                     }
-                    return handler_ptr;
+                    return true;//handler_ptr;
                 }
                 else
                 {
                     log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
-                    return sptr{};
+                    return faux;//sptr{};
                 }
             }
             void _dispatch(hids& gear, qiew chord)
@@ -1878,15 +1879,32 @@ namespace netxs::ui
                 };
             }
 
-            template<class ...Args>
-            auto bind(view chord_str, func handler, Args&&... chords_handlers)
+            auto proc(qiew name, func proc)
             {
-                if (auto h = _set(chord_str, std::move(handler))) chord_handlers.push_back(h);
+                api_map[name] = ptr::shared(std::move(proc));
+            }
+            template<class ...Args>
+            auto bind(qiew chord_str, func handler, Args&&... chords_handlers)
+            {
+                auto handler_ptr = ptr::shared(std::move(handler));
+                if (_set(chord_str, handler_ptr)) chord_handlers.push_back(handler_ptr);
                 if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
+            }
+            auto bind(qiew chord_str, qiew proc_name)
+            {
+                if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                {
+                    if (_set(chord_str, iter->second))
+                    {
+                        //chord_handlers.push_back(iter->second);
+                    }
+                }
+                else log("%%Function '%proc%' not found", prompt::user, proc_name);
             }
             auto reset()
             {
                 chord_handlers.clear();
+                handlers.clear();
             }
         };
 

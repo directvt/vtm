@@ -736,10 +736,28 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.bind("Ctrl+PageUp",   [&](hids& gear){ focus_next_window(gear, feed::rev); });
-            keybd.bind("Ctrl+PageDown", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
-            keybd.bind("Shift+F7",      [&](hids& gear){ disconnect(gear); });
-            keybd.bind("F10",           [&](hids& gear){ try_quit(gear); });
+            keybd.proc("FocusPrevWindow()", [&](hids& gear){ focus_next_window(gear, feed::rev); });
+            keybd.proc("FocusNextWindow()", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
+            keybd.proc("Disconnect()",      [&](hids& gear){ disconnect(gear); });
+            keybd.proc("TryQuit()",         [&](hids& gear){ try_quit(gear); });
+
+            auto keybinds = config.list("/config/desktop/hotkeys/key");
+            for (auto keybind_ptr : keybinds)
+            {
+                auto& keybind = *keybind_ptr;
+                if (!keybind.fake)
+                {
+                    auto chord = keybind.take_value();
+                    if (chord.size())
+                    {
+                        auto action = keybind.take("action", ""s);
+                        if (action.size())
+                        {
+                            keybd.bind(chord, action);
+                        }
+                    }
+                }
+            }
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;

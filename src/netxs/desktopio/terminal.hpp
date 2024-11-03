@@ -7708,21 +7708,52 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            chords.bind("Alt+LeftArrow",         [&](hids& gear){ gear.set_handled(); search(gear, feed::rev); });
-            chords.bind("Alt+RightArrow",        [&](hids& gear){ gear.set_handled(); search(gear, feed::fwd); });
-            chords.bind("Alt+Shift+LeftArrow",   [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); });
-            chords.bind("Alt+Shift+RightArrow",  [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); });
-            chords.bind("Ctrl+Shift+LeftArrow",  [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); });
-            chords.bind("Ctrl+Shift+RightArrow", [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); });
-            chords.bind("Ctrl+Shift+UpArrow",    [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); });
-            chords.bind("Ctrl+Shift+DownArrow",  [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); });
-            chords.bind("Ctrl+Shift+Home",       [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-            chords.bind("Ctrl+Shift+End",        [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-            chords.bind("Ctrl+Shift+PageUp",     [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); });
-            chords.bind("Ctrl+Shift+PageDown",   [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); });
-            chords.bind("Esc",                   [&](hids& /*gear*/){ selection_cancel(); });
-            //chords.bind("Ctrl+Insert",           [&](hids& gear){ gear.set_handled(); paste(gear); });
-            //chords.bind("Shift+Insert",          [&](hids& gear){ gear.set_handled(); copy(gear); });
+            chords.proc("TerminalFindPrev()",                 [&](hids& gear){ gear.set_handled(); search(gear, feed::rev); });
+            chords.proc("TerminalFindNext()",                 [&](hids& gear){ gear.set_handled(); search(gear, feed::fwd); });
+            chords.proc("TerminalViewportMoveOnePageLeft()",  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); });
+            chords.proc("TerminalViewportMoveOnePageRight()", [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); });
+            chords.proc("TerminalViewportMoveOneCharLeft()",  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); });
+            chords.proc("TerminalViewportMoveOneCharRight()", [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); });
+            chords.proc("TerminalViewportMoveOneCharUp()",    [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); });
+            chords.proc("TerminalViewportMoveOneCharDown()",  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); });
+            chords.proc("TerminalViewportMoveOnePageUp()",    [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); });
+            chords.proc("TerminalViewportMoveOnePageDown()",  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); });
+            chords.proc("TerminalViewportMoveToTop()",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
+            chords.proc("TerminalViewportMoveToEnd()",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
+            chords.proc("TerminalSelectionClear()",           [&](hids& gear){ if (selection_active()) { selection_cancel(); gear.set_handled(); }});
+            chords.proc("TerminalToggleCwdSync()",            [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalToggleWrapMode()",           [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalQuit()",                     [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalRestart()",                  [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalToggleFullscreen()",         [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalUndo()",                     [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalRedo()",                     [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalClipboardPaste()",           [&](hids& gear){ gear.set_handled(); paste(gear); });
+            chords.proc("TerminalClipboardWipe()",            [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalSwitchCopyMode()",           [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalSelectionCopy()",            [&](hids& gear){ gear.set_handled(); copy(gear); });
+            chords.proc("TerminalToggleSelectionMode()",      [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalSelectionOneShot()",         [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalViewportCopy()",             [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+            chords.proc("TerminalToggleStdioLog()",           [&](hids& gear){ log("%% Not implemented, ", prompt::term, gear.id); });
+
+            auto keybinds = xml_config.list("/config/term/hotkeys/key");
+            for (auto keybind_ptr : keybinds)
+            {
+                auto& keybind = *keybind_ptr;
+                if (!keybind.fake)
+                {
+                    auto chord = keybind.take_value();
+                    if (chord.size())
+                    {
+                        auto action = keybind.take("action", ""s);
+                        if (action.size())
+                        {
+                            chords.bind(chord, action);
+                        }
+                    }
+                }
+            }
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
