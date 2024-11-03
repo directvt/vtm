@@ -1869,7 +1869,7 @@ namespace netxs::ui
             keybd(base& boss)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::preview, hids::events::keybd::key::any, gear, memo)
+                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo)
                 {
                     if (gear.payload == input::keybd::type::keypress)
                     if (gear.keystat) (_dispatch(gear, gear.vkchord), gear.keystat) &&
