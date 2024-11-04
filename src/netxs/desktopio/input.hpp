@@ -506,14 +506,14 @@ namespace netxs::input
         static const auto specific_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { #Name, KeyId },
+                { utf::to_low(#Name), KeyId },
                 key_list
             #undef X
         };
         static const auto generic_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { #GenericName, KeyId & -2 },
+                { utf::to_low(#GenericName), KeyId & -2 },
                 key_list
             #undef X
         };
@@ -708,10 +708,11 @@ namespace netxs::input
                     }
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
-                        auto iter = input::key::generic_names.find(key_name);
+                        auto name = utf::to_low(key_name);
+                        auto iter = input::key::generic_names.find(name);
                         if (iter == input::key::generic_names.end()) // Is specific.
                         {
-                            auto iter2 = input::key::specific_names.find(key_name);
+                            auto iter2 = input::key::specific_names.find(name);
                             if (iter2 != input::key::specific_names.end())
                             {
                                 k.code1 = iter2->second;

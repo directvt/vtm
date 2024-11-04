@@ -913,6 +913,10 @@ namespace netxs::app::terminal
                 auto cwd_path_ptr = ptr::shared<os::fs::path>();
                 auto& cwd_sync = *cwd_sync_ptr;
                 auto& cwd_path = *cwd_path_ptr;
+                boss.LISTEN(tier::preview, ui::term::events::toggle::cwdsync, state, -)
+                {
+                    boss.bell::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
+                };
                 boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state, -, (cwd_commands))
                 {
                     if (cwd_sync != state)
