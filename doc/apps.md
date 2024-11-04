@@ -309,6 +309,36 @@ TerminalSelectionOneShot     |                    |                             
                 </notes>
             </item>
         </menu>
+        <hotkeys key*>  <!--  You can generate the hotkey you need on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
+            <key="Alt+RightArrow"        action="TerminalFindNext"/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"         action="TerminalFindPrev"/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"     action="TerminalViewportOnePageUp"/>         <!-- Scroll one page up. -->
+            <key="Shift+Ctrl+PageDown"   action="TerminalViewportOnePageDown"/>       <!-- Scroll one page down. -->
+            <key="Shift+Alt+LeftArrow"   action="TerminalViewportOnePageLeft"/>       <!-- Scroll one page to the left. -->
+            <key="Shift+Alt+RightArrow"  action="TerminalViewportOnePageRight"/>      <!-- Scroll one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"    action="TerminalViewportOneCharUp"/>         <!-- Scroll one line up. -->
+            <key="Shift+Ctrl+DownArrow"  action="TerminalViewportOneCharDown"/>       <!-- Scroll one line down. -->
+            <key="Shift+Ctrl+LeftArrow"  action="TerminalViewportOneCharLeft"/>       <!-- Scroll one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow" action="TerminalViewportOneCharRight"/>      <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"       action="TerminalViewportTop"/>               <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"        action="TerminalViewportEnd"/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key=""                      action="TerminalViewportCopy"/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                      action="TerminalClipboardPaste"/>            <!-- Paste from clipboard. -->
+            <key=""                      action="TerminalClipboardWipe"/>             <!-- Reset clipboard. -->
+            <key=""                      action="TerminalUndo"/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                      action="TerminalRedo"/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                      action="TerminalToggleCwdSync"/>             <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
+            <key=""                      action="TerminalToggleWrapMode"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
+            <key=""                      action="TerminalToggleSelectionMode"/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
+            <key=""                      action="TerminalToggleFullscreen"/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action="TerminalToggleStdioLog"/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                      action="TerminalQuit"/>                      <!-- Terminate runnning console apps and close terminal. -->
+            <key=""                      action="TerminalRestart"/>                   <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                      action="TerminalSwitchCopyMode"/>            <!-- Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+            <key=""                      action="TerminalSelectionCopy"/>             <!-- Сopy selection to clipboard. -->
+            <key="Esc"                   action="TerminalSelectionClear"/>            <!-- Deselect a selection. -->
+            <key=""                      action="TerminalSelectionOneShot"/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+        </hotkeys>
     </term>
 </config>
 ```

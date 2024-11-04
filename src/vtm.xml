@@ -377,7 +377,7 @@ R"==(
                                 retry:   Restart session if exit code != 0. -->
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
-		<hotkeys key*>
+        <hotkeys key*>  <!--  You can generate the hotkey you need on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
             <key="Alt+RightArrow"        action="TerminalFindNext"/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"         action="TerminalFindPrev"/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"     action="TerminalViewportOnePageUp"/>         <!-- Scroll one page up. -->
