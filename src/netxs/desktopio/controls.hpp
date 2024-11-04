@@ -1880,16 +1880,20 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::keybd::key::post, gear, memo)
                 {
                     if (gear.payload == input::keybd::type::keypress)
-                    if (gear.keystat) (_dispatch<tier::release>(gear, gear.vkchord), gear.keystat) &&
-                                      (_dispatch<tier::release>(gear, gear.chchord), gear.keystat) &&
-                                      (_dispatch<tier::release>(gear, gear.scchord), gear.keystat);
+                    {
+                        if (gear.keystat) _dispatch<tier::release>(gear, gear.vkchord);
+                        if (gear.keystat) _dispatch<tier::release>(gear, gear.chchord);
+                        if (gear.keystat) _dispatch<tier::release>(gear, gear.scchord);
+                    }
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::key::any, gear, memo)
                 {
                     if (gear.payload == input::keybd::type::keypress)
-                    if (gear.keystat) (_dispatch<tier::preview>(gear, gear.vkchord), gear.keystat) &&
-                                      (_dispatch<tier::preview>(gear, gear.chchord), gear.keystat) &&
-                                      (_dispatch<tier::preview>(gear, gear.scchord), gear.keystat);
+                    {
+                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.vkchord);
+                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.chchord);
+                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.scchord);
+                    }
                 };
             }
 
