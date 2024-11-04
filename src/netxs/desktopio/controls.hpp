@@ -1824,12 +1824,15 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers;
+            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_preview;
+            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             std::vector<sptr> chord_handlers;
 
+            template<si32 Tier = tier::release>
             auto _set(qiew chord_str, sptr handler_ptr)
             {
+                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
                 auto chords = input::key::kmap::chord_list(chord_str);
                 //log("Chord: ", chord_str);
                 if (chords.size())
@@ -1848,8 +1851,10 @@ namespace netxs::ui
                     return faux;//sptr{};
                 }
             }
+            template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
             {
+                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
@@ -1872,12 +1877,19 @@ namespace netxs::ui
             keybd(base& boss)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo)
+                boss.LISTEN(tier::release, hids::events::keybd::key::post, gear, memo)
                 {
                     if (gear.payload == input::keybd::type::keypress)
-                    if (gear.keystat) (_dispatch(gear, gear.vkchord), gear.keystat) &&
-                                      (_dispatch(gear, gear.chchord), gear.keystat) &&
-                                      (_dispatch(gear, gear.scchord), gear.keystat);
+                    if (gear.keystat) (_dispatch<tier::release>(gear, gear.vkchord), gear.keystat) &&
+                                      (_dispatch<tier::release>(gear, gear.chchord), gear.keystat) &&
+                                      (_dispatch<tier::release>(gear, gear.scchord), gear.keystat);
+                };
+                boss.LISTEN(tier::preview, hids::events::keybd::key::any, gear, memo)
+                {
+                    if (gear.payload == input::keybd::type::keypress)
+                    if (gear.keystat) (_dispatch<tier::preview>(gear, gear.vkchord), gear.keystat) &&
+                                      (_dispatch<tier::preview>(gear, gear.chchord), gear.keystat) &&
+                                      (_dispatch<tier::preview>(gear, gear.scchord), gear.keystat);
                 };
             }
 
@@ -1885,18 +1897,19 @@ namespace netxs::ui
             {
                 api_map[name] = ptr::shared(std::move(proc));
             }
-            template<class ...Args>
-            auto bind(qiew chord_str, func handler, Args&&... chords_handlers)
-            {
-                auto handler_ptr = ptr::shared(std::move(handler));
-                if (_set(chord_str, handler_ptr)) chord_handlers.push_back(handler_ptr);
-                if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
-            }
+            //template<class ...Args>
+            //auto bind(qiew chord_str, func handler, Args&&... chords_handlers)
+            //{
+            //    auto handler_ptr = ptr::shared(std::move(handler));
+            //    if (_set(chord_str, handler_ptr)) chord_handlers.push_back(handler_ptr);
+            //    if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
+            //}
+            template<si32 Tier = tier::release>
             auto bind(qiew chord_str, qiew proc_name)
             {
                 if (auto iter = api_map.find(proc_name); iter != api_map.end())
                 {
-                    if (_set(chord_str, iter->second))
+                    if (_set<Tier>(chord_str, iter->second))
                     {
                         //chord_handlers.push_back(iter->second);
                     }
@@ -1906,7 +1919,8 @@ namespace netxs::ui
             auto reset()
             {
                 chord_handlers.clear();
-                handlers.clear();
+                handlers_release.clear();
+                handlers_preview.clear();
             }
         };
 

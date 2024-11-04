@@ -753,7 +753,7 @@ namespace netxs::app::vtm
                         auto action = keybind.take("action", ""s);
                         if (action.size())
                         {
-                            keybd.bind(chord, action);
+                            keybd.bind<tier::preview>(chord, action);
                         }
                     }
                 }
