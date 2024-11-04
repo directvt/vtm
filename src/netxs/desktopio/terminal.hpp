@@ -15,10 +15,15 @@ namespace netxs::events::userland
             EVENT_XS( selmod, si32 ),
             EVENT_XS( onesht, si32 ),
             EVENT_XS( selalt, si32 ),
+            GROUP_XS( toggle, bool ),
             GROUP_XS( colors, argb ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( search, input::hids ),
 
+            SUBSET_XS( toggle )
+            {
+                EVENT_XS( cwdsync, bool ), // preview: Request to toggle cwdsync.
+            };
             SUBSET_XS( layout )
             {
                 EVENT_XS( align , si32 ),
@@ -79,6 +84,7 @@ namespace netxs::ui
                     center,
                     togglewrp,
                     togglesel,
+                    toggleselalt,
                     restart,
                     sighup,
                     undo,
@@ -6474,6 +6480,7 @@ namespace netxs::ui
         pro::caret cursor; // term: Text cursor controller.
         pro::timer worker; // term: Linear animation controller.
         pro::robot dynamo; // term: Linear animation controller.
+        pro::keybd chords; // term: Keyboard controller.
         m_tracking mtrack; // term: VT-style mouse tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -7063,6 +7070,15 @@ namespace netxs::ui
             auto newmod = (selmod + 1) % mime::count;
             selection_selmod(newmod);
         }
+        // term: Toggle selection form.
+        void selection_toggle_selalt()
+        {
+            selection_selalt(!selalt);
+            target->selection_locked(faux);
+            target->selection_selbox(selalt);
+            target->selection_update();
+            base::deface();
+        }
         auto selection_cancel()
         {
             auto active = target->selection_cancel();
@@ -7472,15 +7488,16 @@ namespace netxs::ui
             auto& console = *target;
             switch (cmd)
             {
-                case commands::ui::togglewrp: console.selection_setwrp();          break;
-                case commands::ui::togglesel: selection_selmod();                  break;
-                case commands::ui::restart:   restart();                           break;
-                case commands::ui::sighup:    close(true);                         break;
-                case commands::ui::undo:      ipccon.undo(true);                   break;
-                case commands::ui::redo:      ipccon.undo(faux);                   break;
-                case commands::ui::deselect:  selection_cancel();                  break;
-                case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
-                case commands::ui::look_rev:  console.selection_search(feed::rev); break;
+                case commands::ui::togglewrp:    console.selection_setwrp();          break;
+                case commands::ui::togglesel:    selection_selmod();                  break;
+                case commands::ui::toggleselalt: selection_toggle_selalt();           break;
+                case commands::ui::restart:      restart();                           break;
+                case commands::ui::sighup:       close(true);                         break;
+                case commands::ui::undo:         ipccon.undo(true);                   break;
+                case commands::ui::redo:         ipccon.undo(faux);                   break;
+                case commands::ui::deselect:     selection_cancel();                  break;
+                case commands::ui::look_fwd:     console.selection_search(feed::fwd); break;
+                case commands::ui::look_rev:     console.selection_search(feed::rev); break;
                 default: break;
             }
             if (cmd != commands::ui::togglesel && !console.selection_active())
@@ -7526,8 +7543,9 @@ namespace netxs::ui
                         {
                             switch (gear.keybd::generic())
                             {
-                                case key::Esc:   close(); onerun.reset(); break;
-                                case key::Enter: start(); onerun.reset(); break;
+                                //todo key
+                                case key::Esc:      close(); onerun.reset(); break;
+                                case key::KeyEnter: start(); onerun.reset(); break;
                             }
                         }
                     };
@@ -7667,6 +7685,7 @@ namespace netxs::ui
               cursor{ *this, config.def_cur_on, config.def_cursor, dot_00, config.def_period, config.def_curclr },
               worker{ *this },
               dynamo{ *this },
+              chords{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
@@ -7705,6 +7724,53 @@ namespace netxs::ui
             publish_property(ui::term::events::layout::align,  [&](auto& v){ v = (si32)target->style.jet(); });
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
+
+            chords.proc("TerminalFindPrev",                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::look_rev); });
+            chords.proc("TerminalFindNext",                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::look_fwd); });
+            chords.proc("TerminalViewportOnePageLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); });
+            chords.proc("TerminalViewportOnePageRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); });
+            chords.proc("TerminalViewportOneCharLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); });
+            chords.proc("TerminalViewportOneCharRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); });
+            chords.proc("TerminalViewportOneCharUp",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); });
+            chords.proc("TerminalViewportOneCharDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); });
+            chords.proc("TerminalViewportOnePageUp",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); });
+            chords.proc("TerminalViewportOnePageDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); });
+            chords.proc("TerminalViewportTop",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
+            chords.proc("TerminalViewportEnd",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
+            chords.proc("TerminalSelectionClear",           [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
+            chords.proc("TerminalToggleCwdSync",            [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
+            chords.proc("TerminalToggleWrapMode",           [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
+            chords.proc("TerminalQuit",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
+            chords.proc("TerminalRestart",                  [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
+            chords.proc("TerminalToggleFullscreen",         [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); });
+            chords.proc("TerminalUndo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
+            chords.proc("TerminalRedo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
+            chords.proc("TerminalClipboardPaste",           [&](hids& gear){ gear.set_handled(); paste(gear);                       });
+            chords.proc("TerminalClipboardWipe",            [&](hids& gear){ gear.set_handled(); gear.clear_clipboard();            });
+            chords.proc("TerminalSwitchCopyMode",           [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::togglesel); });
+            chords.proc("TerminalSelectionCopy",            [&](hids& gear){ gear.set_handled(); copy(gear);                        });
+            chords.proc("TerminalToggleSelectionMode",      [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::toggleselalt); });
+            chords.proc("TerminalSelectionOneShot",         [&](hids& gear){ gear.set_handled(); set_oneshot(mime::textonly);       });
+            chords.proc("TerminalViewportCopy",             [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
+            chords.proc("TerminalToggleStdioLog",           [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
+
+            auto keybinds = xml_config.list("/config/term/hotkeys/key");
+            for (auto keybind_ptr : keybinds)
+            {
+                auto& keybind = *keybind_ptr;
+                if (!keybind.fake)
+                {
+                    auto chord = keybind.take_value();
+                    if (chord.size())
+                    {
+                        auto action = keybind.take("action", ""s);
+                        if (action.size())
+                        {
+                            chords.bind(chord, action);
+                        }
+                    }
+                }
+            }
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
@@ -7762,64 +7828,30 @@ namespace netxs::ui
                 switch (gear.payload)
                 {
                     case keybd::type::keypress:
-                        //todo configurable Ctrl+Ins, Shift+Ins etc.
+                        if (io_log)
+                        {
+                            log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
+                            if (gear.vkchord.size() && gear.keystat != input::key::repeated)
+                            {
+                                auto vkchord =     input::key::kmap::to_string(gear.vkchord, faux);
+                                auto scchord =     input::key::kmap::to_string(gear.scchord, faux);
+                                auto chchord =     input::key::kmap::to_string(gear.chchord, faux);
+                                auto gen_vkchord = input::key::kmap::to_string(gear.vkchord, true);
+                                auto gen_chchord = input::key::kmap::to_string(gear.chchord, true);
+                                log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
+                                    "\n     Virtual keys: ", vkchord.size() ? "\"" + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"  \"" + vkchord) + "\"" : "<na>",
+                                    "\n Grapheme cluster: ", chchord.size() ? "\"" + (chchord == gen_chchord ? chchord : gen_chchord + "\"  \"" + chchord) + "\"" : "<na>",
+                                    "\n        Scancodes: ", scchord.size() ? "\"" + scchord + "\"" : "<na>",
+                                    "\n");
+                            }
+                        }
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
-                        if (gear.vkchord.size() && gear.keystat != input::key::repeated)
-                        {
-                            auto vkchord =     input::key::kmap::to_string(gear.vkchord, faux);
-                            auto scchord =     input::key::kmap::to_string(gear.scchord, faux);
-                            auto chchord =     input::key::kmap::to_string(gear.chchord, faux);
-                            auto gen_vkchord = input::key::kmap::to_string(gear.vkchord, true);
-                            auto gen_chchord = input::key::kmap::to_string(gear.chchord, true);
-                            log("chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                                "\n     Virtual keys: ", vkchord.size() ? "\"" + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"  \"" + vkchord) + "\"" : "<na>",
-                                "\n Grapheme cluster: ", chchord.size() ? "\"" + (chchord == gen_chchord ? chchord : gen_chchord + "\"  \"" + chchord) + "\"" : "<na>",
-                                "\n        Scancodes: ", scchord.size() ? "\"" + scchord + "\"" : "<na>",
-                                "\n");
-                        }
-                        if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
-                        if (gear.keystat && gear.meta(hids::anyAlt))
-                        {
-                            auto found = true;
-                                 if (gear.keycode == input::key::LeftArrow ) search(gear, feed::rev);
-                            else if (gear.keycode == input::key::RightArrow) search(gear, feed::fwd);
-                            else found = faux;
-                            if (found)
-                            {
-                                gear.set_handled();
-                                break;
-                            }
-                        }
-                        if (target == &normal && gear.keystat && gear.meta(hids::anyShift) && gear.meta(hids::anyAlt | hids::anyCtrl))
-                        {
-                            auto found = true;
-                                 if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  });
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyAlt )) base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 });
-                            else if (gear.keycode == input::key::LeftArrow  && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }});
-                            else if (gear.keycode == input::key::RightArrow && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }});
-                            else if (gear.keycode == input::key::UpArrow    && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }});
-                            else if (gear.keycode == input::key::DownArrow  && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }});
-                            else if (gear.keycode == input::key::Home       && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
-                            else if (gear.keycode == input::key::End        && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
-                            else if (gear.keycode == input::key::PageUp     && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  });
-                            else if (gear.keycode == input::key::PageDown   && gear.meta(hids::anyCtrl)) base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 });
-                            else found = faux;
-                            if (found)
-                            {
-                                gear.set_handled();
-                                break;
-                            }
-                        }
                         if (config.resetonkey && gear.doinput())
                         {
                             this->base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
                             unsync = true;
                             follow[axis::X] = true;
                             follow[axis::Y] = true;
-                        }
-                        if (gear.keycode == input::key::Esc && !gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift))
-                        {
-                            selection_cancel();
                         }
                         ipccon.keybd(gear, decckm, kbmode);
                         break;

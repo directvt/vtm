@@ -724,6 +724,7 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::robot robot{*this }; // gate: Animation controller.
+        pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.
@@ -735,6 +736,28 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
+            keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
+            keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
+            keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
+            keybd.proc("TryQuit",         [&](hids& gear){ try_quit(gear); });
+
+            auto keybinds = config.list("/config/desktop/hotkeys/key");
+            for (auto keybind_ptr : keybinds)
+            {
+                auto& keybind = *keybind_ptr;
+                if (!keybind.fake)
+                {
+                    auto chord = keybind.take_value();
+                    if (chord.size())
+                    {
+                        auto action = keybind.take("action", ""s);
+                        if (action.size())
+                        {
+                            keybd.bind<tier::preview>(chord, action);
+                        }
+                    }
+                }
+            }
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;
@@ -753,67 +776,6 @@ namespace netxs::app::vtm
                     {
                         //...
                     }
-                }
-            };
-            LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
-            {
-                //todo deprecated
-                //todo unify
-                if (!gear.keystat) return;
-                if (gear.chord(input::key::F7, hids::anyShift)) // Disconnect by Shift+F7.
-                {
-                    gear.owner.bell::signal(tier::preview, e2::conio::quit);
-                    this->bell::expire(tier::preview);
-                    gear.set_handled(true);
-                }
-                else if (gear.chord(input::key::F10))
-                {
-                    auto window_ptr = e2::form::layout::go::item.param();
-                    this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
-                    if (!window_ptr)
-                    {
-                        this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
-                        this->bell::expire(tier::preview);
-                        gear.set_handled(true);
-                    }
-                }
-                else if (gear.chord(input::key::PageUp,   hids::anyCtrl)
-                      || gear.chord(input::key::PageDown, hids::anyCtrl))
-                {
-                    auto down = gear.keycode == input::key::PageDown;
-                    if (align.what.applet)
-                    {
-                        align.unbind();
-                    }
-                    auto window_ptr = e2::form::layout::go::item.param();
-                    this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
-                    if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
-
-                    auto current = window_ptr; 
-                    auto maximized = faux;
-                    auto owner_id = id_t{};
-                    do
-                    {
-                        window_ptr.reset();
-                        owner_id = id_t{};
-                        if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                        else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                        if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
-                        maximized = owner_id == gear.owner.id;
-                        if (!owner_id || maximized) break;
-                    }
-                    while (window_ptr != current); // Skip all foreign maximized windows.
-
-                    if (window_ptr && (!owner_id || maximized))
-                    {
-                        auto& window = *window_ptr;
-                        window.bell::signal(tier::release, e2::form::layout::selected, gear);
-                        if (!maximized) jump_to(window);
-                        pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
-                    }
-                    //gear.dismiss();
-                    this->bell::expire(tier::preview); //todo temp
-                    gear.set_handled(true);
                 }
             };
             LISTEN(tier::release, e2::form::layout::jumpto, window, tokens)
@@ -898,6 +860,60 @@ namespace netxs::app::vtm
             };
         }
 
+        void try_quit(hids& gear)
+        {
+            auto window_ptr = e2::form::layout::go::item.param();
+            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+            if (!window_ptr)
+            {
+                this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
+                this->bell::expire(tier::preview);
+                gear.set_handled(true);
+            }
+        }
+        void disconnect(hids& gear)
+        {
+            gear.owner.bell::signal(tier::preview, e2::conio::quit);
+            this->bell::expire(tier::preview);
+            gear.set_handled(true);
+        }
+        void focus_next_window(hids& gear, feed forward)
+        {
+            auto down = forward == feed::fwd;//gear.keycode == input::key::PageDown;
+            if (align.what.applet)
+            {
+                align.unbind();
+            }
+            auto window_ptr = e2::form::layout::go::item.param();
+            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+
+            auto current = window_ptr; 
+            auto maximized = faux;
+            auto owner_id = id_t{};
+            do
+            {
+                window_ptr.reset();
+                owner_id = id_t{};
+                if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                maximized = owner_id == gear.owner.id;
+                if (!owner_id || maximized) break;
+            }
+            while (window_ptr != current); // Skip all foreign maximized windows.
+
+            if (window_ptr && (!owner_id || maximized))
+            {
+                auto& window = *window_ptr;
+                window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                if (!maximized) jump_to(window);
+                pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+            }
+            //gear.dismiss();
+            this->bell::expire(tier::preview); //todo temp
+            gear.set_handled();
+        }
         void move_viewport(twod newpos, rect viewport)
         {
             auto oldpos = viewport.center();
