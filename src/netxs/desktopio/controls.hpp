@@ -2933,8 +2933,8 @@ namespace netxs::ui
                     auto& elem = *elem_iter++;
                     if (elem.span.x < 1 || elem.span.y < 1) continue;
                     auto dimension = elem.coor + elem.span;
-                    if (dimension.x > widths.size()) widths.resize(dimension.x);
-                    if (dimension.y > heights.size()) heights.resize(dimension.y);
+                    if (dimension.x > (si32)widths.size()) widths.resize(dimension.x);
+                    if (dimension.y > (si32)heights.size()) heights.resize(dimension.y);
                     auto area_size = cellsz(elem.coor, elem.span);
                     if (elem.done && elem.area.size == area_size) continue;
                     elem.area.size = area_size;
