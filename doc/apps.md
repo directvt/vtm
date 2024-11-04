@@ -137,12 +137,12 @@ TerminalSelectionOneShot     |                              | One-shot toggle to
 TerminalViewportCopy         |                              | Сopy viewport to clipboard.
 TerminalViewportPageUp       | `Shift+Ctrl+PageUp`          | Scroll one page up.
 TerminalViewportPageDown     | `Shift+Ctrl+PageDown`        | Scroll one page down.
-TerminalViewportLineUp       | `Shift+Ctrl+ArrowUp`         | Scroll N lines up.
-TerminalViewportLineDown     | `Shift+Ctrl+ArrowDown`       | Scroll N lines down.
-TerminalViewportPageLeft     | `Shift+Alt+ArrowLeft`        | Scroll one page to the left.
-TerminalViewportPageRight    | `Shift+Alt+ArrowRight`       | Scroll one page to the right.
-TerminalViewportColumnLeft   | `Shift+Ctrl+ArrowLeft`       | Scroll N cells to the left.
-TerminalViewportColumnRight  | `Shift+Ctrl+ArrowRight`      | Scroll N cells to the right.
+TerminalViewportLineUp       | `Shift+Ctrl+UpArrow`         | Scroll N lines up.
+TerminalViewportLineDown     | `Shift+Ctrl+DownArrow`       | Scroll N lines down.
+TerminalViewportPageLeft     | `Shift+Alt+LeftArrow`        | Scroll one page to the left.
+TerminalViewportPageRight    | `Shift+Alt+RightArrow`       | Scroll one page to the right.
+TerminalViewportColumnLeft   | `Shift+Ctrl+LeftArrow`       | Scroll N cells to the left.
+TerminalViewportColumnRight  | `Shift+Ctrl+RightArrow`      | Scroll N cells to the right.
 TerminalViewportTop          | `Shift+Ctrl+Home`            | Scroll to the scrollback top.
 TerminalViewportEnd          | `Shift+Ctrl+End`             | Scroll to the scrollback bottom (reset viewport position).
 TerminalStdioLog             |                              | Stdin/stdout log toggle.

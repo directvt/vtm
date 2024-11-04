@@ -5019,8 +5019,8 @@ namespace netxs::os
                      || (quest_key & 0xff) != VK_OEM_2)
                     {
                         true_null = input::key::find(true_null & 0xff, input::key::Key2);
-                        slash_key = input::key::find(slash_key & 0xff, input::key::Slash) | (slash_key & 0xff00);
-                        quest_key = input::key::find(quest_key & 0xff, input::key::Slash) | (quest_key & 0xff00);
+                        slash_key = input::key::find(slash_key & 0xff, input::key::KeySlash) | (slash_key & 0xff00);
+                        quest_key = input::key::find(quest_key & 0xff, input::key::KeySlash) | (quest_key & 0xff00);
                         k.keycode = input::key::config;
                         k.cluster.clear();
                         utf::to_utf_from_code(true_null, k.cluster);

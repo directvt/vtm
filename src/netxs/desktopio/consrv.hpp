@@ -1060,7 +1060,8 @@ struct impl : consrv
             toWIDE.clear();
             if constexpr (isreal()) // Copy/Paste by Ctrl/Shift+Insert in cooked read mode.
             {
-                if (incook && gear.keystat && gear.keycode == input::key::Insert)
+                //todo key
+                if (incook && gear.keystat && gear.keycode == input::key::KeyInsert)
                 {
                     if (gear.meta(input::hids::anyShift))
                     {

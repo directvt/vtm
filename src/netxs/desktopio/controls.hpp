@@ -1831,11 +1831,13 @@ namespace netxs::ui
             auto _set(qiew chord_str, sptr handler_ptr)
             {
                 auto chords = input::key::kmap::chord_list(chord_str);
+                //log("Chord: ", chord_str);
                 if (chords.size())
                 {
                     //auto handler_ptr = ptr::shared(std::move(handler));
                     for (auto& chord : chords)
                     {
+                        //log("\t", input::key::kmap::to_string(chord, faux));
                         handlers[chord].push_back(handler_ptr);
                     }
                     return true;//handler_ptr;

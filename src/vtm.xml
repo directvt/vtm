@@ -255,10 +255,10 @@ R"==(
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
         <hotkeys key*>
-            <key="Ctrl+PgUp" action="FocusPrevWindow()"/>
-            <key="Ctrl+PgDn" action="FocusNextWindow()"/>
-            <key="Shift+F7"  action="Disconnect()"/>
-            <key="F10"       action="TryQuit()"/>
+            <key="Ctrl+PageUp"   action="FocusPrevWindow()"/>
+            <key="Ctrl+PageDown" action="FocusNextWindow()"/>
+            <key="Shift+F7"      action="Disconnect()"/>
+            <key="F10"           action="TryQuit()"/>
             <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
         </hotkeys>
     </desktop>
@@ -380,12 +380,12 @@ R"==(
 		<hotkeys key*>
             <key="Alt+RightArrow"        action="TerminalFindNext()"/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"         action="TerminalFindPrev()"/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Alt+ArrowLeft"   action="TerminalViewportMoveOnePageLeft()"/>   <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+ArrowRight"  action="TerminalViewportMoveOnePageRight()"/>  <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+ArrowLeft"  action="TerminalViewportMoveOneCharLeft()"/>   <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+ArrowRight" action="TerminalViewportMoveOneCharRight()"/>  <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+ArrowUp"    action="TerminalViewportMoveOneCharUp()"/>     <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+ArrowDown"  action="TerminalViewportMoveOneCharDown()"/>   <!-- Scroll one line down. -->
+            <key="Shift+Alt+LeftArrow"   action="TerminalViewportMoveOnePageLeft()"/>   <!-- Scroll one page to the left. -->
+            <key="Shift+Alt+RightArrow"  action="TerminalViewportMoveOnePageRight()"/>  <!-- Scroll one page to the right. -->
+            <key="Shift+Ctrl+LeftArrow"  action="TerminalViewportMoveOneCharLeft()"/>   <!-- Scroll one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow" action="TerminalViewportMoveOneCharRight()"/>  <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+UpArrow"    action="TerminalViewportMoveOneCharUp()"/>     <!-- Scroll one line up. -->
+            <key="Shift+Ctrl+DownArrow"  action="TerminalViewportMoveOneCharDown()"/>   <!-- Scroll one line down. -->
             <key="Shift+Ctrl+PageUp"     action="TerminalViewportMoveOnePageUp()"/>     <!-- Scroll one page up. -->
             <key="Shift+Ctrl+PageDown"   action="TerminalViewportMoveOnePageDown()"/>   <!-- Scroll one page down. -->
             <key="Shift+Ctrl+Home"       action="TerminalViewportMoveToTop()"/>         <!-- Scroll to the scrollback top. -->

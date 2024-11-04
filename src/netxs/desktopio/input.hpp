@@ -337,17 +337,17 @@ namespace netxs::input
             X(0,      0,    0,    0,           0, 0x0000'00'FF, 1, undef           , undef            )\
             X(1,      0, 0xFF, 0xFF,           0, 0x0000'FF'FF, 0, config          , config           )\
             X(2,   0xA2, 0x11, 0x1D,           0, 0x0100'00'FF, 0, LeftCtrl        , Ctrl             )\
-            X(4,   0xA3, 0x11, 0x1D, ExtendedKey, 0x0100'00'FF, 0, RightCtrl       , Ctrl             )\
-            X(6,   0xA4, 0x12, 0x38,           0, 0x0100'00'FF, 0, LeftAlt         , Alt              )\
-            X(8,   0xA5, 0x12, 0x38, ExtendedKey, 0x0100'00'FF, 0, RightAlt        , Alt              )\
-            X(10,  0xA0, 0x10, 0x2A,           0, 0x0000'FF'FF, 0, LeftShift       , Shift            )\
-            X(11,  0xA1, 0x10, 0x36,           0, 0x0000'FF'FF, 0, RightShift      , Shift            )\
-            X(12,  0x5B, 0x5B, 0x5B, ExtendedKey, 0x0000'00'FF, 0, LeftWin         , Win              )\
-            X(13,  0x5D, 0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, 0, Apps            , Apps             )\
-            X(14,  0x5C, 0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, 0, RightWin        , Win              )\
-            X(15,  0x90, 0x90, 0x45,           0, 0x0000'00'FF, 0, NumLock         , NumLock          )\
-            X(16,  0x14, 0x14, 0x3A,           0, 0x0000'00'FF, 0, CapsLock        , CapsLock         )\
-            X(17,  0x91, 0x91, 0x45,           0, 0x0000'00'FF, 0, ScrollLock      , ScrollLock       )\
+            X(3,   0xA3, 0x11, 0x1D, ExtendedKey, 0x0100'00'FF, 0, RightCtrl       , Ctrl             )\
+            X(4,   0xA4, 0x12, 0x38,           0, 0x0100'00'FF, 0, LeftAlt         , Alt              )\
+            X(5,   0xA5, 0x12, 0x38, ExtendedKey, 0x0100'00'FF, 0, RightAlt        , Alt              )\
+            X(6,   0xA0, 0x10, 0x2A,           0, 0x0000'FF'FF, 0, LeftShift       , Shift            )\
+            X(7,   0xA1, 0x10, 0x36,           0, 0x0000'FF'FF, 0, RightShift      , Shift            )\
+            X(8,   0x5B, 0x5B, 0x5B, ExtendedKey, 0x0000'00'FF, 0, LeftWin         , Win              )\
+            X(9,   0x5C, 0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, 0, RightWin        , Win              )\
+            X(10,  0x5D, 0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, 0, Apps            , Apps             )\
+            X(12,  0x90, 0x90, 0x45,           0, 0x0000'00'FF, 0, NumLock         , NumLock          )\
+            X(14,  0x14, 0x14, 0x3A,           0, 0x0000'00'FF, 0, CapsLock        , CapsLock         )\
+            X(16,  0x91, 0x91, 0x45,           0, 0x0000'00'FF, 0, ScrollLock      , ScrollLock       )\
             X(18,  0x1B, 0x1B, 0x01,           0, 0x0000'00'FF, 1, Esc             , Esc              )\
             X(20,  0x20, 0x20, 0x39,           0, 0x0000'00'FF, 1, Space           , Space            )\
             X(22,  0x08, 0x08, 0x0E,           0, 0x0000'00'FF, 1, Backspace       , Backspace        )\
@@ -357,23 +357,23 @@ namespace netxs::input
             X(30,  0x29, 0x29,    0,           0, 0x0000'00'FF, 0, Select          , Select           )\
             X(32,  0x2C, 0x2C, 0x54,           0, 0x0000'FF'FF, 1, SysRq           , SysRq            )\
             X(34,  0x2C, 0x2C, 0x37, ExtendedKey, 0x0100'FF'FF, 0, PrintScreen     , PrintScreen      )\
-            X(36,  0x0D, 0x0D, 0x1C,           0, 0x0100'00'FF, 1, Enter           , Enter            )\
+            X(36,  0x0D, 0x0D, 0x1C,           0, 0x0100'00'FF, 1, KeyEnter        , Enter            )\
             X(37,  0x0D, 0x0D, 0x1C, ExtendedKey, 0x0100'00'FF, 1, NumpadEnter     , Enter            )\
-            X(38,  0x21, 0x21, 0x49, ExtendedKey, 0x0100'00'FF, 1, PageUp          , PageUp           )\
+            X(38,  0x21, 0x21, 0x49, ExtendedKey, 0x0100'00'FF, 1, KeyPageUp       , PageUp           )\
             X(39,  0x21, 0x21, 0x49,           0, 0x0100'00'FF, 1, NumpadPageUp    , PageUp           )\
-            X(40,  0x22, 0x22, 0x51, ExtendedKey, 0x0100'00'FF, 1, PageDown        , PageDown         )\
+            X(40,  0x22, 0x22, 0x51, ExtendedKey, 0x0100'00'FF, 1, KeyPageDown     , PageDown         )\
             X(41,  0x22, 0x22, 0x51,           0, 0x0100'00'FF, 1, NumpadPageDown  , PageDown         )\
-            X(42,  0x23, 0x23, 0x4F, ExtendedKey, 0x0100'00'FF, 1, End             , End              )\
+            X(42,  0x23, 0x23, 0x4F, ExtendedKey, 0x0100'00'FF, 1, KeyEnd          , End              )\
             X(43,  0x23, 0x23, 0x4F,           0, 0x0100'00'FF, 1, NumpadEnd       , End              )\
-            X(44,  0x24, 0x24, 0x47, ExtendedKey, 0x0100'00'FF, 1, Home            , Home             )\
+            X(44,  0x24, 0x24, 0x47, ExtendedKey, 0x0100'00'FF, 1, KeyHome         , Home             )\
             X(45,  0x24, 0x24, 0x47,           0, 0x0100'00'FF, 1, NumpadHome      , Home             )\
-            X(46,  0x25, 0x25, 0x4B, ExtendedKey, 0x0100'00'FF, 1, LeftArrow       , LeftArrow        )\
+            X(46,  0x25, 0x25, 0x4B, ExtendedKey, 0x0100'00'FF, 1, KeyLeftArrow    , LeftArrow        )\
             X(47,  0x25, 0x25, 0x4B,           0, 0x0100'00'FF, 1, NumpadLeftArrow , LeftArrow        )\
-            X(48,  0x26, 0x26, 0x48, ExtendedKey, 0x0100'00'FF, 1, UpArrow         , UpArrow          )\
+            X(48,  0x26, 0x26, 0x48, ExtendedKey, 0x0100'00'FF, 1, KeyUpArrow      , UpArrow          )\
             X(49,  0x26, 0x26, 0x48,           0, 0x0100'00'FF, 1, NumpadUpArrow   , UpArrow          )\
-            X(50,  0x27, 0x27, 0x4D, ExtendedKey, 0x0100'00'FF, 1, RightArrow      , RightArrow       )\
+            X(50,  0x27, 0x27, 0x4D, ExtendedKey, 0x0100'00'FF, 1, KeyRightArrow   , RightArrow       )\
             X(51,  0x27, 0x27, 0x4D,           0, 0x0100'00'FF, 1, NumpadRightArrow, RightArrow       )\
-            X(52,  0x28, 0x28, 0x50, ExtendedKey, 0x0100'00'FF, 1, DownArrow       , DownArrow        )\
+            X(52,  0x28, 0x28, 0x50, ExtendedKey, 0x0100'00'FF, 1, KeyDownArrow    , DownArrow        )\
             X(53,  0x28, 0x28, 0x50,           0, 0x0100'00'FF, 1, NumpadDownArrow , DownArrow        )\
             X(54,  0x30, 0x30, 0x0B,           0, 0x0000'FF'FF, 1, Key0            , 0                )\
             X(55,  0x60, 0x60, 0x52, NumLockMode, 0x0000'FF'FF, 1, Numpad0         , 0                )\
@@ -395,23 +395,23 @@ namespace netxs::input
             X(71,  0x68, 0x68, 0x48, NumLockMode, 0x0000'FF'FF, 1, Numpad8         , 8                )\
             X(72,  0x39, 0x39, 0x0A,           0, 0x0000'FF'FF, 1, Key9            , 9                )\
             X(73,  0x69, 0x69, 0x49, NumLockMode, 0x0000'FF'FF, 1, Numpad9         , 9                )\
-            X(74,  0x2D, 0x2D, 0x52, ExtendedKey, 0x0100'00'FF, 1, Insert          , Insert           )\
+            X(74,  0x2D, 0x2D, 0x52, ExtendedKey, 0x0100'00'FF, 1, KeyInsert       , Insert           )\
             X(75,  0x2D, 0x2D, 0x52,           0, 0x0100'00'FF, 1, NumpadInsert    , Insert           )\
-            X(76,  0x2E, 0x2E, 0x53, ExtendedKey, 0x0100'00'FF, 1, Delete          , Delete           )\
+            X(76,  0x2E, 0x2E, 0x53, ExtendedKey, 0x0100'00'FF, 1, KeyDelete       , Delete           )\
             X(77,  0x2E, 0x2E, 0x55,           0, 0x0100'00'FF, 1, NumpadDelete    , Delete           )\
-            X(78,  0x0C, 0x0C, 0x4C, ExtendedKey, 0x0100'00'FF, 1, Clear           , Clear            )\
+            X(78,  0x0C, 0x0C, 0x4C, ExtendedKey, 0x0100'00'FF, 1, KeyClear        , Clear            )\
             X(79,  0x0C, 0x0C, 0x4C,           0, 0x0100'00'FF, 1, NumpadClear     , Clear            )\
-            X(80,  0x6A, 0x6A, 0x09,           0, 0x0000'FF'FF, 1, Multiply        , Multiply         )\
+            X(80,  0x6A, 0x6A, 0x09,           0, 0x0000'FF'FF, 1, KeyMultiply     , Multiply         )\
             X(81,  0x6A, 0x6A, 0x37,           0, 0x0000'FF'FF, 1, NumpadMultiply  , Multiply         )\
-            X(82,  0x6B, 0x6B, 0x0D,           0, 0x0000'FF'FF, 1, Plus            , Plus             )\
+            X(82,  0x6B, 0x6B, 0x0D,           0, 0x0000'FF'FF, 1, KeyPlus         , Plus             )\
             X(83,  0x6B, 0x6B, 0x4E,           0, 0x0000'FF'FF, 1, NumpadPlus      , Plus             )\
-            X(84,  0x6C, 0x6C,    0,           0, 0x0020'00'FF, 1, Separator       , Separator        )\
+            X(84,  0x6C, 0x6C,    0,           0, 0x0020'00'FF, 1, KeySeparator    , Separator        )\
             X(85,  0x6C, 0x6C,    0, NumLockMode, 0x0020'00'FF, 1, NumpadSeparator , Separator        )\
-            X(86,  0xBD, 0xBD, 0x0C,           0, 0x0000'00'FF, 1, Minus           , Minus            )\
+            X(86,  0xBD, 0xBD, 0x0C,           0, 0x0000'00'FF, 1, KeyMinus        , Minus            )\
             X(87,  0x6D, 0x6D, 0x4A,           0, 0x0000'00'FF, 1, NumpadMinus     , Minus            )\
-            X(88,  0xBE, 0xBE, 0x34,           0, 0x0000'00'FF, 1, Period          , Period           )\
+            X(88,  0xBE, 0xBE, 0x34,           0, 0x0000'00'FF, 1, KeyPeriod       , Period           )\
             X(89,  0x6E, 0x6E, 0x53, NumLockMode, 0x0000'00'FF, 1, NumpadDecimal   , Period           )\
-            X(90,  0xBF, 0xBF, 0x35,           0, 0x0000'00'FF, 1, Slash           , Slash            )\
+            X(90,  0xBF, 0xBF, 0x35,           0, 0x0000'00'FF, 1, KeySlash        , Slash            )\
             X(91,  0x6F, 0x6F, 0x35, ExtendedKey, 0x0000'00'FF, 1, NumpadSlash     , Slash            )\
             X(92,  0xDC, 0xDC, 0x2B,           0, 0x0000'00'FF, 1, BackSlash       , BackSlash        )\
             X(94,  0xDB, 0xDB, 0x1A,           0, 0x0000'00'FF, 1, OpenBracket     , OpenBracket      )\
@@ -503,6 +503,21 @@ namespace netxs::input
             #undef X
         };
 
+        static const auto specific_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
+        {
+            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
+                { #Name, KeyId },
+                key_list
+            #undef X
+        };
+        static const auto generic_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
+        {
+            #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
+                { #GenericName, KeyId & -2 },
+                key_list
+            #undef X
+        };
+
         #undef key_list
 
         struct kmap
@@ -532,15 +547,31 @@ namespace netxs::input
                 auto iter = keymap.find(keyid);
                 return iter != keymap.end();
             }
-            template<class P = noop>
-            void build(syskeybd& k, P keybd_test_released = {})
+            // Build key chords.
+            // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
+            //  15 bit: 0 - virt code, 1 - scan code ('\x80').
+            //  14 bit: 0 - pressed, 1 - released ('\x40').
+            //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
+            //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
+            static void push_keyid(bool is_pressed, text& vkchord, si32 keyid)
             {
-                // Build key chords.
-                // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
-                //  15 bit: 0 - virt code, 1 - scan code ('\x80').
-                //  14 bit: 0 - pressed, 1 - released ('\x40').
-                //  13 bit: 1 - all subsequent bytes form a grapheme cluster ('\x20').
-                //  0-12 bits: virt or scan code. For clusters it is set to '\x0FFF'.
+                vkchord.push_back(is_pressed ? '\x00' : '\x40');
+                vkchord.push_back((byte)keyid);
+            }
+            static void push_scode(bool is_pressed, text& scchord, si32 scode)
+            {
+                scchord.push_back((byte)((is_pressed ? 0x00 : 0x40) | 0x80 | ((scode >> 8) & 0x01)));
+                scchord.push_back((byte)(scode & 0xFF));
+            }
+            static void push_cluster(bool is_pressed, text& chchord, view cluster)
+            {
+                chchord += (is_pressed ? '\x00' : '\x40') | '\x20';
+                chchord += '\xFF';
+                chchord += cluster;
+            }
+            template<class P = noop>
+            void build(syskeybd& k, P test_key_released = {})
+            {
                 if (k.keystat != input::key::repeated)
                 {
                     //log("key=%% pressed=%%", input::key::map::data(k.keycode).name, k.keystat);
@@ -561,31 +592,25 @@ namespace netxs::input
                         {
                             auto& [keyid, val] = rec;
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
-                            auto is_released = keybd_test_released(val.index); // Check if it is still pressed.
+                            auto is_released = test_key_released(val.index); // Check if it is still pressed.
                             if (!is_released && keyid != k.keycode/*exclude repeated key*/)
                             {
                                 if (keyid <= input::key::config) vk_valid = faux;
                                 if (val.scode == 0) sc_valid = faux;
-                                k.vkchord.push_back(0);
-                                k.vkchord.push_back((byte)keyid);
-                                k.scchord.push_back((byte)(0x80 | ((val.scode >> 8) & 0x01)));
-                                k.scchord.push_back((byte)(val.scode & 0xFF));
+                                push_keyid(true, k.vkchord, keyid);
+                                push_scode(true, k.scchord, val.scode);
                             }
                             //else if (is_released) log("\tkeyid=%% released", input::key::map::data(keyid).name);
                             return is_released;
                         });
-                        auto sign = k.keystat ? '\0' : '\x40';
+                        auto sign = !!k.keystat;
                         if (vk_valid && k.cluster.size() && k.cluster.front() != '\0')
                         {
                             k.chchord = k.vkchord;
-                            k.chchord += sign | '\x20';
-                            k.chchord += '\xFF';
-                            k.chchord += k.cluster;
+                            push_cluster(sign, k.chchord, k.cluster);
                         }
-                        k.vkchord += sign;
-                        k.scchord += sign | '\x80' | (k.extflag ? 0x01 : 0);
-                        k.vkchord.push_back((byte)k.keycode);
-                        k.scchord.push_back((byte)k.scancod);
+                        push_keyid(sign, k.vkchord, k.keycode);
+                        push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
                         if (!vk_valid) k.vkchord.clear();
                         if (!sc_valid) k.scchord.clear();
                     }
@@ -626,24 +651,128 @@ namespace netxs::input
             }
             static auto chord_list(qiew chord)
             {
+                struct key_t
+                {
+                    byte sign;
+                    si32 code1;
+                    si32 code2;
+                    text utf8;
+                    auto is_scancode() const { return sign & 0x80; }
+                    auto is_pressed() const { return !(sign & 0x40); }
+                    auto is_cluster() const { return sign & 0x20; }
+                };
+                auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
-                if (chord == "Shift+F7")
+                auto take = [](qiew& chord)
                 {
-                    crop.push_back("\x00\x0a\x00\x79"s);
-                    crop.push_back("\x80\x2a\x80\x41"s);
+                    auto k = key_t{};
+                    utf::trim(chord);
+                    if (chord.empty()) return k;
+                    auto c = chord.front();
+                    if (c != '-') // Is pressed.
+                    {
+                        if (c == '+')
+                        {
+                            chord.pop_front(); // Pop '+'.
+                            utf::trim(chord);
+                            if (chord.empty()) return k;
+                            c = chord.front();
+                        }
+                    }
+                    else if (chord.size() > 1)
+                    {
+                        k.sign |= 0x40;
+                        chord.pop_front(); // Pop '-'.
+                        utf::trim(chord);
+                        if (chord.empty()) return k;
+                        c = chord.front();
+                    }
+                    utf::trim(chord);
+                    if (chord.empty()) return k;
+                    auto is_scancode = chord.starts_with("0x") || chord.starts_with("0X");
+                    if (is_scancode)
+                    {
+                        chord.remove_prefix(2);
+                        if (auto v = utf::to_int<si32, 16>(chord))
+                        {
+                            k.sign |= 0x80;
+                            k.code1 = v.value();
+                        }
+                    }
+                    else if (chord.front() == '\'' || chord.front() == '\"')
+                    {
+                        auto delim = chord.front();
+                        k.sign |= 0x20;
+                        k.utf8 = utf::unescape(utf::take_quote(chord, (char)delim));
+                        k.code1 = 0xFF;
+                    }
+                    else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
+                    {
+                        auto iter = input::key::generic_names.find(key_name);
+                        if (iter == input::key::generic_names.end()) // Is specific.
+                        {
+                            auto iter2 = input::key::specific_names.find(key_name);
+                            if (iter2 != input::key::specific_names.end())
+                            {
+                                k.code1 = iter2->second;
+                            }
+                        }
+                        else // Is generic.
+                        {
+                            auto code = iter->second & -2;
+                            auto n1 = input::key::map::data(code).name.size();
+                            auto n2 = input::key::map::data(code + 1).name.size();
+                            k.code1 = n1 ? code : 0;
+                            k.code2 = n2 ? code + 1 : 0;
+                        }
+                    }
+                    utf::trim(chord);
+                    return k;
+                };
+                // Split.
+                while (chord)
+                {
+                    auto k = take(chord); // Unfold.
+                    if (!k.code1) return crop; // Unknown key.
+                    keys.push_back(k);
                 }
-                else if (chord == "Ctrl+PageUp | Ctrl+PageDown")
+                if (keys.empty() || keys.size() > 8) return crop; // A maximum of eight keys are allowed per chord.
+                // Sort all but last.
+                std::sort(keys.begin(), std::prev(keys.end()), [](auto& l, auto& r){ return l.code1 < r.code1; });
+                // Generate.
+                auto count = 1 << keys.size();
+                auto temp = text{};
+                while (count--)
                 {
-                    crop.push_back("\x00\x04\x00\x26"s);
-                    crop.push_back("\x81\x1d\x41\x49"s);
-
-                    crop.push_back("\x00\x04\x00\x28"s);
-                    crop.push_back("\x81\x1d\x41\x51"s);
-                }
-                else if (chord == "F10")
-                {
-                    crop.push_back("\x00\x7e"s);
-                    crop.push_back("\x80\x44"s);
+                    auto bits = count;
+                    for (auto& k : keys)
+                    {
+                        if (auto code = bits & 1 ? k.code1 : k.code2)
+                        {
+                            auto sign = k.is_pressed();
+                            if (k.is_scancode())
+                            {
+                                push_scode(sign, temp, code);
+                            }
+                            else if (k.is_cluster())
+                            {
+                                push_cluster(sign, temp, k.utf8);
+                                break;
+                            }
+                            else
+                            {
+                                push_keyid(sign, temp, code);
+                            }
+                        }
+                        else
+                        {
+                            temp.clear();
+                            break;
+                        }
+                        bits >>= 1;
+                    }
+                    if (temp.size()) crop.push_back(temp);
+                    temp.clear();
                 }
                 return crop;
             }
@@ -1319,60 +1448,60 @@ namespace netxs::input
         {
             return std::unordered_map<si32, text>
             {
-                { key::Backspace,  "\x7f"     },
-                { key::Tab,        "\x09"     },
-                { key::Pause,      "\x1a"     },
-                { key::Esc,        "\033"     },
-                { key::PageUp,     "\033[5~"  },
-                { key::PageDown,   "\033[6~"  },
-                { key::End,        "\033[F"   },
-                { key::Home,       "\033[H"   },
-                { key::LeftArrow,  "\033[D"   },
-                { key::UpArrow,    "\033[A"   },
-                { key::RightArrow, "\033[C"   },
-                { key::DownArrow,  "\033[B"   },
-                { key::Insert,     "\033[2~"  },
-                { key::Delete,     "\033[3~"  },
-                { key::F1,         "\033OP"   },
-                { key::F2,         "\033OQ"   },
-                { key::F3,         "\033OR"   },
-                { key::F4,         "\033OS"   },
-                { key::F5,         "\033[15~" },
-                { key::F6,         "\033[17~" },
-                { key::F7,         "\033[18~" },
-                { key::F8,         "\033[19~" },
-                { key::F9,         "\033[20~" },
-                { key::F10,        "\033[21~" },
-                { key::F11,        "\033[23~" },
-                { key::F12,        "\033[24~" },
+                { key::Backspace,     "\x7f"     },
+                { key::Tab,           "\x09"     },
+                { key::Pause,         "\x1a"     },
+                { key::Esc,           "\033"     },
+                { key::KeyPageUp,     "\033[5~"  },
+                { key::KeyPageDown,   "\033[6~"  },
+                { key::KeyEnd,        "\033[F"   },
+                { key::KeyHome,       "\033[H"   },
+                { key::KeyLeftArrow,  "\033[D"   },
+                { key::KeyUpArrow,    "\033[A"   },
+                { key::KeyRightArrow, "\033[C"   },
+                { key::KeyDownArrow,  "\033[B"   },
+                { key::KeyInsert,     "\033[2~"  },
+                { key::KeyDelete,     "\033[3~"  },
+                { key::F1,            "\033OP"   },
+                { key::F2,            "\033OQ"   },
+                { key::F3,            "\033OR"   },
+                { key::F4,            "\033OS"   },
+                { key::F5,            "\033[15~" },
+                { key::F6,            "\033[17~" },
+                { key::F7,            "\033[18~" },
+                { key::F8,            "\033[19~" },
+                { key::F9,            "\033[20~" },
+                { key::F10,           "\033[21~" },
+                { key::F11,           "\033[23~" },
+                { key::F12,           "\033[24~" },
             };
         }
         static auto build_shift_key()
         {
             return std::unordered_map<si32, text>
             {
-                { key::PageUp,     "\033[5; ~"  },
-                { key::PageDown,   "\033[6; ~"  },
-                { key::End,        "\033[1; F"  },
-                { key::Home,       "\033[1; H"  },
-                { key::LeftArrow,  "\033[1; D"  },
-                { key::UpArrow,    "\033[1; A"  },
-                { key::RightArrow, "\033[1; C"  },
-                { key::DownArrow,  "\033[1; B"  },
-                { key::Insert,     "\033[2; ~"  },
-                { key::Delete,     "\033[3; ~"  },
-                { key::F1,         "\033[1; P"  },
-                { key::F2,         "\033[1; Q"  },
-                { key::F3,         "\033[1; R"  },
-                { key::F4,         "\033[1; S"  },
-                { key::F5,         "\033[15; ~" },
-                { key::F6,         "\033[17; ~" },
-                { key::F7,         "\033[18; ~" },
-                { key::F8,         "\033[19; ~" },
-                { key::F9,         "\033[20; ~" },
-                { key::F10,        "\033[21; ~" },
-                { key::F11,        "\033[23; ~" },
-                { key::F12,        "\033[24; ~" },
+                { key::KeyPageUp,     "\033[5; ~"  },
+                { key::KeyPageDown,   "\033[6; ~"  },
+                { key::KeyEnd,        "\033[1; F"  },
+                { key::KeyHome,       "\033[1; H"  },
+                { key::KeyLeftArrow,  "\033[1; D"  },
+                { key::KeyUpArrow,    "\033[1; A"  },
+                { key::KeyRightArrow, "\033[1; C"  },
+                { key::KeyDownArrow,  "\033[1; B"  },
+                { key::KeyInsert,     "\033[2; ~"  },
+                { key::KeyDelete,     "\033[3; ~"  },
+                { key::F1,            "\033[1; P"  },
+                { key::F2,            "\033[1; Q"  },
+                { key::F3,            "\033[1; R"  },
+                { key::F4,            "\033[1; S"  },
+                { key::F5,            "\033[15; ~" },
+                { key::F6,            "\033[17; ~" },
+                { key::F7,            "\033[18; ~" },
+                { key::F8,            "\033[19; ~" },
+                { key::F9,            "\033[20; ~" },
+                { key::F10,           "\033[21; ~" },
+                { key::F11,           "\033[23; ~" },
+                { key::F12,           "\033[24; ~" },
             };
 
         }
@@ -1380,7 +1509,7 @@ namespace netxs::input
         {
             return std::unordered_map<si32, text>
             {
-                { key::Enter     | hids::anyCtrl  << 8, { "\x0a"      }},
+                { key::KeyEnter  | hids::anyCtrl  << 8, { "\x0a"      }},
                 { key::Backspace | hids::anyCtrl  << 8, { "\x08"      }},
                 { key::Backspace | hids::anyAlt   << 8, { "\033\x7f"  }},
                 { key::Backspace | hids::anyAltGr << 8, { "\033\x08"  }},
@@ -1396,7 +1525,7 @@ namespace netxs::input
                 { key::Key7      | hids::anyCtrl  << 8, { "\x1f"      }},
                 { key::Key8      | hids::anyCtrl  << 8, { "\x7f"      }},
                 { key::Key9      | hids::anyCtrl  << 8, { "9"         }},
-                { key::Slash     | hids::anyCtrl  << 8, { "\x1f"      }},
+                { key::KeySlash  | hids::anyCtrl  << 8, { "\x1f"      }},
                 { slash          | hids::anyAltGr << 8, { "\033\x1f"  }},
                 { slash          | hids::anyCtrl  << 8, { "\x1f"      }},
                 { quest          | hids::anyAltGr << 8, { "\033\x7f"  }},
@@ -1440,7 +1569,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               tooltip_timeout{   props.tooltip_timeout },
-              other_key{ build_other_key(key::Slash, key::Slash | (hids::anyShift << 8)) } // Defaults for US layout.
+              other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) } // Defaults for US layout.
         {
             board::ghost = props.clip_preview_glow;
             board::brush = props.clip_preview_clrs;
@@ -1862,7 +1991,8 @@ namespace netxs::input
 
                 if (auto it_alone = alone_key.find(v); it_alone != alone_key.end())
                 {
-                    if (v >= key::End && v <= key::DownArrow) it_alone->second[1] = decckm ? 'O' : '[';
+                    //todo key
+                    if (v >= key::KeyEnd && v <= key::KeyDownArrow) it_alone->second[1] = decckm ? 'O' : '[';
                     return it_alone->second;
                 }
                 else if (c) return keybd::cluster;

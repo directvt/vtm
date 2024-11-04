@@ -726,6 +726,7 @@ namespace netxs::app::shared
                 boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update, esc_pressed)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
                     auto changed = faux;
+                    //todo key
                     if (gear.chord(input::key::Esc))
                     {
                         if (gear.keystat == input::key::released && gear.vkchord.size())

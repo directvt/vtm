@@ -7527,8 +7527,9 @@ namespace netxs::ui
                         {
                             switch (gear.keybd::generic())
                             {
-                                case key::Esc:   close(); onerun.reset(); break;
-                                case key::Enter: start(); onerun.reset(); break;
+                                //todo key
+                                case key::Esc:      close(); onerun.reset(); break;
+                                case key::KeyEnter: start(); onerun.reset(); break;
                             }
                         }
                     };
