@@ -3008,7 +3008,7 @@ namespace netxs::ui
             while (recalc(subset.rbegin(), subset.rend(), blocks.rbegin()))
             { }
             recoor(subset.begin(), subset.end(), blocks.begin());
-            new_area.size = std::max(new_area.size, cellsz(dot_00, { m.x, m.y }));
+            new_area.size = std::max(new_area.size, cellsz(dot_00, m));
         }
         // grid: .
         void inform(rect /*new_area*/) override
