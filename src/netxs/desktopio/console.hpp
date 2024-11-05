@@ -1219,9 +1219,15 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, hids::events::keybd::focus::exclusive, seed) // Request exclusive mode.
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
+                    if (!gear_ptr) return;
+                    conio.focus_set.send(canal, ext_gear_id, seed.item ? -1 : -2); // -1: set, -2: reset.
+                };
                 LISTEN(tier::release, hids::events::keybd::key::any, gear) // Return back unhandled keybd events.
                 {
-                    if (gear && !gear.handled)
+                    if (gear && !gear.handled && ptr::is_empty(gear.exclusive_wptr)) // Do not return events in exclusive mode.
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         if (gear_ptr)

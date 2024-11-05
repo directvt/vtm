@@ -8079,7 +8079,14 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        if (k.solo < 0) // Exclusive keyboard mode: -1: set, -2: reset.
+                        {
+                            gear_ptr->set_exclusive(k.solo == -1 ? owner.This() : sptr{}); // Exclusive mode will be reset automatically when focus is changed.
+                        }
+                        else
+                        {
+                            auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        }
                     }
                 }
             }

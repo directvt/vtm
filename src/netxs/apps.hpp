@@ -624,14 +624,14 @@ namespace netxs::app::shared
                     auto& window_inst = *window;
                     window->LISTEN(tier::release, hids::events::keybd::focus::exclusive, seed, boss.tracker, (state_ptr))
                     {
-                        state = seed.id == window_inst.id;
+                        state = !!seed.item;
                         boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    window->LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, boss.tracker)
+                    window->LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, boss.tracker) // Call gear's subscription
                     {
-                        if (state) window_inst.bell::signal(tier::preview, hids::events::keybd::focus::exclusive, {}); // Reset exclusive mode.
+                        if (state) window_inst.bell::signal(tier::preview, hids::events::keybd::focus::exclusive, {}); // to reset exclusive mode.
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {

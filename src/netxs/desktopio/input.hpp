@@ -1606,15 +1606,16 @@ namespace netxs::input
             {
                 exclusive_wptr = kb_owner;
                 exclusive_memo.reset();
-                if (prev) prev->bell::signal(tier::release, hids::events::keybd::focus::exclusive, {});
+                if (prev) prev->bell::signal(tier::release, hids::events::keybd::focus::exclusive, {}); // Trigger to reset exclusive mode.
                 if (kb_owner)
                 {
-                    kb_owner->bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = kb_owner->id });
-                    kb_owner->LISTEN(tier::preview, hids::events::keybd::focus::exclusive, seed, exclusive_memo) // Reset exclusive mode on owner focus change.
+                    kb_owner->bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Notify requestee.
+                    kb_owner->LISTEN(tier::preview, hids::events::keybd::focus::exclusive, seed, exclusive_memo) // Reset exclusive mode on requestee focus change (requestee calls signal(tier::preview, hids::events::keybd::focus::exclusive)).
                     {
                         set_exclusive();
                     };
                 }
+                owner.bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Forward outside (crossprocess).
             }
         }
 
@@ -1951,11 +1952,13 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
+            if (!ptr::is_empty(exclusive_wptr))
             if (auto target = exclusive_wptr.lock())
             {
                 target->bell::signal(tier::preview, hids::events::keybd::key::post, *this);
+                return;
             }
-            else owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
+            owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_focus()
         {
