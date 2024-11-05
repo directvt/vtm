@@ -2945,6 +2945,7 @@ namespace netxs::gui
             if (keybd_read_input(keystat, virtcod)) return;
             if (keystat)
             {
+                //todo key
                 if (keybd_test_pressed(vkey::capslock) && (keybd_test_pressed(vkey::up) || keybd_test_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
                 {
                     auto dir = keybd_test_pressed(vkey::up) ? 1.f : -1.f;

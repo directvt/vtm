@@ -2912,14 +2912,20 @@ namespace netxs::ui
             rect area; // elem: Object slot.
             bool done; // elem: Object resized.
         };
+        struct cell
+        {
+            twod size; // Cell size.
+            si32 span; // Cell span.
+        };
+        template<bool SetInner = faux>
         auto cellsz(twod coor, twod span)
         {
-            auto x = std::accumulate(widths.begin() + coor.x, widths.begin() + coor.x + span.x, 0);
-            auto y = std::accumulate(heights.begin() + coor.y, heights.begin() + coor.y + span.y, 0);
+            auto size = coor + span;
+            auto x = std::accumulate(widths.begin() + coor.x, widths.begin() + size.x, 0, [](auto x, auto& w){ return x += w.size.x; });
+            auto y = std::accumulate(widths.begin() + coor.y, widths.begin() + size.y, 0, [](auto y, auto& w){ return y += w.size.y; });
             return twod{ x, y };
         }
-        std::vector<si32> widths;  // grid: Grid column widths.
-        std::vector<si32> heights; // grid: Grid row heights.
+        std::vector<cell> widths;  // grid: Grid cell metrics.
         std::vector<elem> blocks;  // grid: Geometry of stored objects.
 
     protected:
@@ -2927,7 +2933,8 @@ namespace netxs::ui
         void deform(rect& new_area) override
         {
             widths.clear();
-            heights.clear();
+            auto m = dot_00;
+            auto first_run = true;
             auto recalc = [&](auto object_iter, auto tail2, auto elem_iter)
             {
                 auto changed = faux;
@@ -2937,9 +2944,18 @@ namespace netxs::ui
                     auto& elem = *elem_iter++;
                     if (elem.span.x < 1 || elem.span.y < 1) continue;
                     auto dimension = elem.coor + elem.span;
-                    if (dimension.x > (si32)widths.size()) widths.resize(dimension.x);
-                    if (dimension.y > (si32)heights.size()) heights.resize(dimension.y);
-                    auto area_size = cellsz(elem.coor, elem.span);
+                    auto max_len = std::max(dimension.x, dimension.y);
+                    if (max_len > (si32)widths.size())
+                    {
+                        m = std::max(m, dimension);
+                        widths.resize(max_len);
+                    }
+                    auto area_size = cellsz<true>(elem.coor, elem.span);
+                    if (first_run)
+                    {
+                        widths[elem.coor.x].span = std::max(elem.span.x, widths[elem.coor.x].span);
+                        widths[elem.coor.y].span = std::max(elem.span.y, widths[elem.coor.y].span);
+                    }
                     if (elem.done && elem.area.size == area_size) continue;
                     elem.area.size = area_size;
                     elem.done = true;
@@ -2948,12 +2964,13 @@ namespace netxs::ui
                     if (delta.x > 0)
                     {
                         changed = true;
-                        auto tail = widths.end();
-                        auto head = widths.begin() + elem.coor.x + elem.span.x - 1;
-                        *head++ += delta.x;
-                        while (delta.x && head != tail)
+                        auto head = widths.begin() + elem.coor.x;
+                        auto tail = head + widths[elem.coor.x].span;
+                        auto iter = head + elem.span.x - 1;
+                        (*iter++).size.x += delta.x;
+                        while (delta.x && iter != tail)
                         {
-                            auto& w = *head++;
+                            auto& w = (*iter++).size.x;
                             auto dx = std::min(w, delta.x);
                             w -= dx;
                             delta.x -= dx;
@@ -2962,12 +2979,13 @@ namespace netxs::ui
                     if (delta.y > 0)
                     {
                         changed = true;
-                        auto tail = heights.end();
-                        auto head = heights.begin() + elem.coor.y + elem.span.y - 1;
-                        *head++ += delta.y;
-                        while (delta.y && head != tail)
+                        auto head = widths.begin() + elem.coor.y;
+                        auto tail = head + widths[elem.coor.y].span;
+                        auto iter = head + elem.span.y - 1;
+                        (*iter++).size.y += delta.y;
+                        while (delta.y && iter != tail)
                         {
-                            auto& h = *head++;
+                            auto& h = (*iter++).size.y;
                             auto dy = std::min(h, delta.y);
                             h -= dy;
                             delta.y -= dy;
@@ -2987,10 +3005,11 @@ namespace netxs::ui
                     object.base::recalc(elem.area);
                 }
             };
+            auto o = 0;
             while (recalc(subset.rbegin(), subset.rend(), blocks.rbegin()))
             { }
             recoor(subset.begin(), subset.end(), blocks.begin());
-            new_area.size = std::max(new_area.size, cellsz(dot_00, { widths.size(), heights.size() }));
+            new_area.size = std::max(new_area.size, cellsz(dot_00, { m.x, m.y }));
         }
         // grid: .
         void inform(rect /*new_area*/) override
