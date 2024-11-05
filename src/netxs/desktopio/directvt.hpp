@@ -894,6 +894,9 @@ namespace netxs::directvt
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)  // syskeybd: Key id.
+                                        (ui64, vk_hash)  // sysmouse: Recalculated virtcode chord hash.
+                                        (ui64, sc_hash)  // sysmouse: Recalculated scancode chord hash.
+                                        (ui64, ch_hash)  // sysmouse: Recalculated virtcode+cluster chord hash.
                                         (text, vkchord)  // sysmouse: Key virtcode chord.
                                         (text, scchord) // sysmouse: Key scancode chord.
                                         (text, chchord)) // sysmouse: Key virtcode+cluster chord.

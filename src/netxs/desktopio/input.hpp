@@ -614,6 +614,9 @@ namespace netxs::input
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
                         if (!vk_valid) k.vkchord.clear();
                         if (!sc_valid) k.scchord.clear();
+                        k.vk_hash = qiew::hash{}(k.vkchord);
+                        k.sc_hash = qiew::hash{}(k.scchord);
+                        k.ch_hash = qiew::hash{}(k.chchord);
                     }
                     if (k.keystat == input::key::pressed)
                     {
@@ -1240,6 +1243,9 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        ui64 vk_hash{};
+        ui64 sc_hash{};
+        ui64 ch_hash{};
         text vkchord{};
         text scchord{};
         text chchord{};
