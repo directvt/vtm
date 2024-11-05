@@ -614,9 +614,6 @@ namespace netxs::input
                         push_scode(sign, k.scchord, k.scancod | (k.extflag ? 0x100 : 0));
                         if (!vk_valid) k.vkchord.clear();
                         if (!sc_valid) k.scchord.clear();
-                        k.vk_hash = qiew::hash{}(k.vkchord);
-                        k.sc_hash = qiew::hash{}(k.scchord);
-                        k.ch_hash = qiew::hash{}(k.chchord);
                     }
                     if (k.keystat == input::key::pressed)
                     {
