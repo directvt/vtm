@@ -1881,18 +1881,18 @@ namespace netxs::ui
                 {
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (gear.keystat) _dispatch<tier::release>(gear, gear.vkchord);
-                        if (gear.keystat) _dispatch<tier::release>(gear, gear.chchord);
-                        if (gear.keystat) _dispatch<tier::release>(gear, gear.scchord);
+                        if (!gear.handled) _dispatch<tier::release>(gear, gear.vkchord);
+                        if (!gear.handled) _dispatch<tier::release>(gear, gear.chchord);
+                        if (!gear.handled) _dispatch<tier::release>(gear, gear.scchord);
                     }
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::key::any, gear, memo)
                 {
                     if (gear.payload == input::keybd::type::keypress)
                     {
-                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.vkchord);
-                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.chchord);
-                        if (gear.keystat) _dispatch<tier::preview>(gear, gear.scchord);
+                        if (!gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
+                        if (!gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
+                        if (!gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
                     }
                 };
             }

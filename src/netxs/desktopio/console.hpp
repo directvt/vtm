@@ -1221,7 +1221,7 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, hids::events::keybd::key::any, gear) // Return back unhandled keybd events.
                 {
-                    if (gear)
+                    if (gear && !gear.handled)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         if (gear_ptr)
@@ -1264,6 +1264,7 @@ namespace netxs::ui
             LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
             {
                 //todo unify
+                //todo key
                 if (gear.keybd::cluster == props.debug_toggle)
                 {
                     debug ? debug.stop()
