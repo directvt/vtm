@@ -2030,7 +2030,6 @@ namespace netxs::input
 
                 if (auto it_alone = alone_key.find(v); it_alone != alone_key.end())
                 {
-                    //todo key
                     if (v >= key::KeyEnd && v <= key::KeyDownArrow) it_alone->second[1] = decckm ? 'O' : '[';
                     return it_alone->second;
                 }
