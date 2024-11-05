@@ -7754,6 +7754,7 @@ namespace netxs::ui
             chords.proc("TerminalViewportCopy",             [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
             chords.proc("TerminalToggleStdioLog",           [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
 
+            //todo unify, see vtm.hpp
             auto keybinds = xml_config.list("/config/term/hotkeys/key");
             for (auto keybind_ptr : keybinds)
             {
@@ -7764,10 +7765,12 @@ namespace netxs::ui
                     if (chord.size())
                     {
                         auto action = keybind.take("action", ""s);
-                        if (action.size())
-                        {
-                            chords.bind(chord, action);
-                        }
+                        auto data = keybind.take("data", ""s);
+                             if (action == "bind" ) chords. bind<tier::release>(chord, data);
+                        else if (action == "drop" ) chords. drop<tier::release>(chord);
+                        else if (action == "reset") chords.reset<tier::release>(chord, data);
+                        else if (action == "rekey") chords.rekey<tier::release>(chord, data);
+                        else log("%%Unknown action: '%%'", prompt::gate, ansi::err(action));
                     }
                 }
             }

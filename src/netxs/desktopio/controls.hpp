@@ -1827,26 +1827,36 @@ namespace netxs::ui
             std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_preview;
             std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
+            std::unordered_map<text, sptr, qiew::hash, qiew::equal> rekey_map;
             std::vector<sptr> chord_handlers;
 
-            template<si32 Tier = tier::release>
-            auto _set(qiew chord_str, sptr handler_ptr)
+            auto _get_chords(qiew chord_str)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
                 auto chords = input::key::kmap::chord_list(chord_str);
                 if (chords.size())
                 {
-                    for (auto& chord : chords)
-                    {
-                        handlers[chord].push_back(handler_ptr);
-                    }
-                    return true;
+                    return std::optional{ chords };
                 }
                 else
                 {
                     log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
-                    return faux;
+                    return std::optional<decltype(chords)>{};
                 }
+            }
+            template<si32 Tier = tier::release, bool Reset = faux>
+            auto _set(qiew chord_str, sptr handler_ptr)
+            {
+                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                if (auto chords = _get_chords(chord_str))
+                {
+                    for (auto& chord : chords.value())
+                    {
+                        if constexpr (Reset) handlers[chord].clear();
+                        handlers[chord].push_back(handler_ptr);
+                    }
+                    return true;
+                }
+                else return faux;
             }
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
@@ -1892,11 +1902,59 @@ namespace netxs::ui
                         if (!gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
                     }
                 };
+                proc("_drop", [](hids& gear){ gear.set_handled(); });
+                //proc("_rekey", [](hids& gear){ log("Not implemented: _rekey"); });
             }
 
-            auto proc(qiew name, func proc)
+            void proc(qiew name, func proc)
             {
                 api_map[name] = ptr::shared(std::move(proc));
+            }
+            template<si32 Tier = tier::release>
+            auto rekey(qiew chord_str, qiew rekey_str)
+            {
+                auto name = utf::to_low(chord_str);
+                if (rekey_str)
+                {
+                    if (auto chords = _get_chords(rekey_str))
+                    {
+                        auto chord = chords.value().front();
+                        auto keyevent = input::key::kmap::get_key_event_by_chord(chord);
+                        auto proc = func{ [keyevent](hids& gear){ keyevent.syncto(gear); } };
+                        auto proc_ptr = ptr::shared(std::move(proc));
+                        rekey_map[name] = proc_ptr;
+                        _set<Tier>(chord_str, proc_ptr);
+                    }
+                }
+                else
+                {
+                    rekey_map.erase(name);
+                }
+            }
+            template<si32 Tier = tier::release, bool Reset = faux>
+            auto bind(qiew chord_str, qiew proc_name)
+            {
+                if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                {
+                    _set<Tier, Reset>(chord_str, iter->second);
+                }
+                else log("%%Function '%proc%' not found", prompt::user, proc_name);
+            }
+            template<si32 Tier = tier::release>
+            auto reset(qiew chord_str, qiew proc_name)
+            {
+                bind<Tier, true>(chord_str, proc_name);
+            }
+            template<si32 Tier = tier::release>
+            auto drop(qiew chord_str)
+            {
+                reset<Tier>(chord_str, "_drop");
+            }
+            auto wipe()
+            {
+                chord_handlers.clear();
+                handlers_release.clear();
+                handlers_preview.clear();
             }
             //template<class ...Args>
             //auto bind(qiew chord_str, func handler, Args&&... chords_handlers)
@@ -1905,24 +1963,6 @@ namespace netxs::ui
             //    if (_set(chord_str, handler_ptr)) chord_handlers.push_back(handler_ptr);
             //    if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
             //}
-            template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew proc_name)
-            {
-                if (auto iter = api_map.find(proc_name); iter != api_map.end())
-                {
-                    if (_set<Tier>(chord_str, iter->second))
-                    {
-                        //chord_handlers.push_back(iter->second);
-                    }
-                }
-                else log("%%Function '%proc%' not found", prompt::user, proc_name);
-            }
-            auto reset()
-            {
-                chord_handlers.clear();
-                handlers_release.clear();
-                handlers_preview.clear();
-            }
         };
 
         // pro: Glow gradient filter.

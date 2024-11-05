@@ -780,7 +780,7 @@ namespace netxs::directvt
                     SEQ_TEMP_macro(WRAP_macro(struct_members))                              \
                     set();                                                                  \
                 }                                                                           \
-                void syncto(auto& dst)                                                      \
+                void syncto(auto& dst) const                                                \
                 {                                                                           \
                     SEQ_SYNC_macro(WRAP_macro(struct_members))                              \
                 }                                                                           \

@@ -650,6 +650,18 @@ namespace netxs::input
                 }
                 return crop;
             }
+            static auto get_key_event_by_chord(qiew chord)
+            {
+                //todo implement
+                chord.clear();
+                auto k = syskeybd{};
+                k.keystat = 0 ? input::key::pressed : input::key::released;
+                k.virtcod = {};
+                k.scancod = {};
+                k.keycode = {};
+                k.cluster = {};
+                return k;
+            }
             static auto chord_list(qiew chord)
             {
                 struct key_t

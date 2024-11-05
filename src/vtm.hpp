@@ -751,10 +751,12 @@ namespace netxs::app::vtm
                     if (chord.size())
                     {
                         auto action = keybind.take("action", ""s);
-                        if (action.size())
-                        {
-                            keybd.bind<tier::preview>(chord, action);
-                        }
+                        auto data = keybind.take("data", ""s);
+                             if (action == "bind" ) keybd. bind<tier::preview>(chord, data);
+                        else if (action == "drop" ) keybd. drop<tier::preview>(chord);
+                        else if (action == "reset") keybd.reset<tier::preview>(chord, data);
+                        else if (action == "rekey") keybd.rekey<tier::preview>(chord, data);
+                        else log("%%Unknown action: '%%'", prompt::gate, ansi::err(action));
                     }
                 }
             }
