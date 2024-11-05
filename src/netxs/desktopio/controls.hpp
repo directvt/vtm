@@ -3005,7 +3005,6 @@ namespace netxs::ui
                     object.base::recalc(elem.area);
                 }
             };
-            auto o = 0;
             while (recalc(subset.rbegin(), subset.rend(), blocks.rbegin()))
             { }
             recoor(subset.begin(), subset.end(), blocks.begin());
