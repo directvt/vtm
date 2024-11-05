@@ -110,6 +110,7 @@ namespace netxs::events::userland
                     EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                     EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
                     EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
+                    EVENT_XS( exclusive, input::foci ), // preview/release: Request exclusive keyboard mode.
                     GROUP_XS( bus, input::foci ),
 
                     SUBSET_XS( bus )
@@ -1239,6 +1240,9 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        ui64 vk_hash{};
+        ui64 sc_hash{};
+        ui64 ch_hash{};
         text vkchord{};
         text scchord{};
         text chchord{};
@@ -1562,6 +1566,9 @@ namespace netxs::input
         id_t user_index; // hids: User/Device image/icon index.
         kmap other_key; // hids: Dynamic key-vt mapping.
 
+        wptr exclusive_wptr; // hids: Exclusive keyboard owner.
+        hook exclusive_memo; // hids: Exclusive keyboard owner reset.
+
         template<class T>
         hids(auth& indexer, T& props, base& owner, core const& idmap)
             : bell{ indexer },
@@ -1592,6 +1599,27 @@ namespace netxs::input
         operator bool () const
         {
             return alive;
+        }
+
+        void set_exclusive(sptr kb_owner = {})
+        {
+            //todo make it crossprocess
+            auto prev = exclusive_wptr.lock();
+            if (kb_owner != prev)
+            {
+                exclusive_wptr = kb_owner;
+                exclusive_memo.reset();
+                if (prev) prev->bell::signal(tier::release, hids::events::keybd::focus::exclusive, {}); // Trigger to reset exclusive mode.
+                if (kb_owner)
+                {
+                    kb_owner->bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Notify requestee.
+                    kb_owner->LISTEN(tier::preview, hids::events::keybd::focus::exclusive, seed, exclusive_memo) // Reset exclusive mode on requestee focus change (requestee calls signal(tier::preview, hids::events::keybd::focus::exclusive)).
+                    {
+                        set_exclusive();
+                    };
+                }
+                owner.bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Forward outside (crossprocess).
+            }
         }
 
         auto tooltip_enabled(time const& now)
@@ -1719,6 +1747,10 @@ namespace netxs::input
         {
             alive = faux;
             if (set_nodbl) nodbl = true;
+        }
+        void dismiss_dblclick()
+        {
+            nodbl = true;
         }
         void set_handled(bool b = true)
         {
@@ -1923,6 +1955,12 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
+            if (!ptr::is_empty(exclusive_wptr))
+            if (auto target = exclusive_wptr.lock())
+            {
+                target->bell::signal(tier::preview, hids::events::keybd::key::post, *this);
+                return;
+            }
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_focus()

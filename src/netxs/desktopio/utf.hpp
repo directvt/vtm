@@ -596,14 +596,15 @@ namespace netxs::utf
     struct qiew : public view
     {
         using view::view;
+        using equal = std::equal_to<>;
 
         struct hash
         {
-            auto operator()(qiew key) const { return std::hash<view>{}(key); }
-        };
-        struct equal
-        {
-            auto operator()(qiew lhs, qiew rhs) const { return lhs.compare(rhs) == 0; }
+            using is_transparent = void;
+            using hash_type = std::hash<view>;
+            auto operator()(text const& s) const { return hash_type{}(s); }
+            auto operator()(char const* s) const { return hash_type{}(s); }
+            auto operator()(view s)        const { return hash_type{}(s); }
         };
 
         constexpr qiew(qiew const&) = default;

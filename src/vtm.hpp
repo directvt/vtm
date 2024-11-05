@@ -2004,7 +2004,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb event.
             {
-                if (gear)
+                if (gear && !gear.handled)
                 {
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }

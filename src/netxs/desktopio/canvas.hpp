@@ -1100,7 +1100,6 @@ namespace netxs
             }
             void set_direct(view utf8, si32 w, si32 h)
             {
-                static constexpr auto hasher = std::hash<view>{};
                 auto count = utf8.size();
                 token &= rtl_mask; // Keep rtl bit.
                 if (count < limit)
@@ -1114,7 +1113,7 @@ namespace netxs
                 }
                 else
                 {
-                    token |= hasher(utf8) & ~rtl_mask; // Keep rtl bit.
+                    token |= qiew::hash{}(utf8) & ~rtl_mask; // Keep rtl bit.
                     set_jumbo();
                     mtx(w, h);
                     jumbos().add(token & token_mask, utf8);
