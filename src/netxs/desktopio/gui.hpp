@@ -1418,6 +1418,7 @@ namespace netxs::gui
         using b256 = std::array<byte, 256>;
         using title = ui::pro::title;
         using focus = ui::pro::focus;
+        using keybd = ui::pro::keybd;
         using kmap = input::key::kmap;
 
         static constexpr auto shadow_dent = dent{ 1,1,1,1 } * 3;
@@ -1912,6 +1913,7 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
+        keybd wkeybd; // winbase: Keyboard controller.
         layer master; // winbase: Layer for Client.
         layer blinky; // winbase: Layer for blinking characters.
         layer header; // winbase: Layer for Header.
@@ -1956,10 +1958,11 @@ namespace netxs::gui
         evnt  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell = dot_21)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::pair<text, text>>& hotkeys)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
+              wkeybd{ *this },
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },
@@ -1985,7 +1988,17 @@ namespace netxs::gui
               whlacc{ 0.f },
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client }
-        { }
+        {
+            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
+            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
+            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ResetCellHeight();        });
+            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ToggleFullscreenMode();   });
+            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ToggleAntialiasingMode(); });
+            wkeybd.proc("CloseGuiWindow"        , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) CloseGuiWindow();         });
+            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) RollFontList(feed::rev);  });
+            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) RollFontList(feed::fwd);  });
+            for (auto& [chord, action] : hotkeys) wkeybd.bind<tier::preview>(chord, action);
+        }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         //virtual void layer_delete(layer& s) = 0;
@@ -2857,7 +2870,7 @@ namespace netxs::gui
                 {
                     keymod = state;
                     //todo unify
-                    if (!new_ls && !new_rs && old_ls && old_rs && chords.keymap[input::key::LeftShift].stamp < chords.keymap[input::key::RightShift].stamp) // Respect release order.
+                    if (!new_ls && !new_rs && old_ls && old_rs && chords.pushed[input::key::LeftShift].stamp < chords.pushed[input::key::RightShift].stamp) // Respect release order.
                     {
                         //if (old_rs && !new_rs) // RightShift released.
                         {
@@ -2941,6 +2954,63 @@ namespace netxs::gui
             stream_keybd(stream.k);
             stream.k.payload = input::keybd::type::keypress;
         }
+        void IncreaseCellHeight(fp32 dir)
+        {
+            if (!isbusy.exchange(true))
+            bell::enqueue(This(), [&, dir](auto& /*boss*/)
+            {
+                change_cell_size(faux, dir);
+                sync_cellsz();
+                update_gui();
+            });
+        }
+        void ResetCellHeight()
+        {
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                auto dy = origsz - cellsz.y;
+                change_cell_size(faux, (fp32)dy, master.area.size / 2);
+                sync_cellsz();
+                update_gui();
+            });
+        }
+        void ToggleFullscreenMode()
+        {
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+            });
+        }
+        void ToggleAntialiasingMode()
+        {
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                set_aa_mode(!gcache.aamode);
+            });
+        }
+        void CloseGuiWindow()
+        {
+            bell::enqueue(This(), [&](auto& /*boss*/)
+            {
+                window_shutdown();
+            });
+        }
+        void RollFontList(feed dir)
+        {
+            if (fcache.families.empty()) return;
+            auto& families = fcache.families;
+            if (dir == feed::fwd)
+            {
+                families.push_back(std::move(families.front()));
+                families.pop_front();
+            }
+            else
+            {
+                families.push_front(std::move(families.back()));
+                families.pop_back();
+            }
+            set_font_list(families);
+        }
         void keybd_press()
         {
             auto keystat = input::key::released;
@@ -2948,17 +3018,9 @@ namespace netxs::gui
             if (!keybd_read_input(keystat, virtcod)) return;
             if (keystat)
             {
-                //todo key
                 if (keybd_test_pressed(vkey::capslock) && (keybd_test_pressed(vkey::up) || keybd_test_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
                 {
-                    auto dir = keybd_test_pressed(vkey::up) ? 1.f : -1.f;
-                    if (!isbusy.exchange(true))
-                    bell::enqueue(This(), [&, dir](auto& /*boss*/)
-                    {
-                        change_cell_size(faux, dir);
-                        sync_cellsz();
-                        update_gui();
-                    });
+                    IncreaseCellHeight(keybd_test_pressed(vkey::up) ? 1.f : -1.f);
                 }
             }
             else // if (keystat == input::key::released)
@@ -2972,52 +3034,24 @@ namespace netxs::gui
             {
                 if (keybd_test_pressed(vkey::alt) && keybd_test_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
-                    {
-                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
-                    });
+                    ToggleFullscreenMode();
                 }
                 else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::control)) // Toggle antialiasing mode by Ctrl+CapsLock.
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
-                    {
-                        set_aa_mode(!gcache.aamode);
-                    });
+                    ToggleAntialiasingMode();
                 }
                 else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::key_0)) // Reset cell scaling.
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
-                    {
-                        auto dy = origsz - cellsz.y;
-                        change_cell_size(faux, (fp32)dy, master.area.size / 2);
-                        sync_cellsz();
-                        update_gui();
-                    });
+                    ResetCellHeight();
                 }
                 else if (keybd_test_pressed(vkey::home) && keybd_test_pressed(vkey::end)) // Shutdown by Home+End.
                 {
-                    bell::enqueue(This(), [&](auto& /*boss*/)
-                    {
-                        window_shutdown();
-                    });
+                    CloseGuiWindow();
                 }
                 else if (keybd_test_pressed(vkey::control) && keybd_test_pressed(vkey::shift) // Roll font list. Renumerate font list.
-                      && (keybd_test_pressed(vkey::f11) || keybd_test_pressed(vkey::f12))
-                      && fcache.families.size())
+                      && (keybd_test_pressed(vkey::f11) || keybd_test_pressed(vkey::f12)))
                 {
-                    auto& families = fcache.families;
-                    if (keybd_test_pressed(vkey::f12))
-                    {
-                        families.push_back(std::move(families.front()));
-                        families.pop_front();
-                    }
-                    else
-                    {
-                        families.push_front(std::move(families.back()));
-                        families.pop_back();
-                    }
-                    set_font_list(families);
-                    //print_font_list(true);
+                    RollFontList(keybd_test_pressed(vkey::f11) ? feed::rev : feed::fwd);
                 }
             }
         }
@@ -4170,8 +4204,6 @@ namespace netxs::gui
         window(auto&& ...Args)
             : winbase{ Args... }
         { }
-        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
-        //void layer_delete(layer& /*s*/) {}
         bool keybd_test_pressed(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x80);*/ }
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
@@ -4179,32 +4211,33 @@ namespace netxs::gui
         bool keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) { return true; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
+        void keybd_send_block(view /*block*/) {}
         void keybd_sync_layout() {}
         void keybd_sync_state(si32 /*virtcod*/) {}
+        bool layer_create(layer& /*s*/, winbase* /*host_ptr*/ = nullptr, twod /*win_coord*/ = {}, twod /*grid_size*/ = {}, dent /*border_dent*/ = {}, twod /*cell_size*/ = {}) { return true; }
         void layer_move_all() {}
         void layer_present(layer& /*s*/) {}
+        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
+        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
+        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
         void window_sync_taskbar(si32 /*new_state*/) {}
         rect window_get_fs_area(rect window_area) { return window_area; }
         void window_send_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
         void window_post_command(arch /*target*/, si32 /*command*/, arch /*lParam*/ = {}) {}
-        void window_make_foreground() {}
-        twod mouse_get_pos() { return twod{}; }
-        void mouse_capture(si32 /*captured_by*/) {}
-        void mouse_release(si32 /*released_by*/) {}
-        void mouse_catch_outside() {}
         cont window_recv_command(arch /*lParam*/) { return cont{}; }
+        void window_make_foreground() {}
         void window_make_focused() {}
         void window_make_exposed() {}
         void window_message_pump() {}
         void window_initilize() {}
         void window_shutdown() {}
         void window_cleanup() {}
-        void sync_os_settings() {}
-        void layer_timer_start(layer& /*s*/, span /*elapse*/, ui32 /*eventid*/) {}
-        void layer_timer_stop(layer& /*s*/, ui32 /*eventid*/) {}
-        bits layer_get_bits(layer& /*s*/, bool /*zeroize*/ = faux) { return bits{}; }
         void window_set_title(view /*utf8*/) {}
-        void keybd_send_block(view /*block*/) {}
+        twod mouse_get_pos() { return twod{}; }
+        void mouse_capture(si32 /*captured_by*/) {}
+        void mouse_release(si32 /*released_by*/) {}
+        void mouse_catch_outside() {}
+        void sync_os_settings() {}
     };
 }
 
