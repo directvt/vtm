@@ -739,27 +739,9 @@ namespace netxs::app::vtm
             keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
             keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
-            keybd.proc("TryQuit",         [&](hids& gear){ try_quit(gear); });
+            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
+            keybd.load<tier::preview>(config, "/config/desktop/hotkeys/key");
 
-            auto keybinds = config.list("/config/desktop/hotkeys/key");
-            for (auto keybind_ptr : keybinds)
-            {
-                auto& keybind = *keybind_ptr;
-                if (!keybind.fake)
-                {
-                    auto chord = keybind.take_value();
-                    if (chord.size())
-                    {
-                        auto action = keybind.take("action", ""s);
-                        auto data = keybind.take("data", ""s);
-                             if (action == "bind" ) keybd. bind<tier::preview>(chord, data);
-                        else if (action == "drop" ) keybd. drop<tier::preview>(chord);
-                        else if (action == "reset") keybd.reset<tier::preview>(chord, data);
-                        else if (action == "rekey") keybd.rekey<tier::preview>(chord, data);
-                        else log("%%Unknown action: '%%'", prompt::gate, ansi::err(action));
-                    }
-                }
-            }
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;

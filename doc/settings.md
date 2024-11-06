@@ -287,6 +287,87 @@ The following configuration items produce the same final result:
 <item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
+### Key bindings
+
+In vtm there are several levels of key combination processing. Each level has its own set of key bindings. Keys processed at the previous level usually do not get to the next level.
+
+Level                  | Config section               | Description
+-----------------------|------------------------------|------------
+Native GUI window      | `<config/gui/hotkeys/>`      | Native GUI window management key bindings.
+Desktop environment    | `<config/desktop/hotkeys/>`  | Taskbar and window management key bindings.
+Builtin terminal       | `<config/term/hotkeys/>`     | Terminal emulator specific key bindings.
+Application `app_name` | `<config/app_name/hotkeys/>` | Application specific key bindings.
+
+#### Syntax
+
+The syntax for defining key combination bindings is:
+
+```xml
+<key="Key+Chord" action="NameOfAction"/>
+```
+
+Tag      | Value
+---------|--------
+`key`    | The text string containing the key combination.
+`action` | The action name.
+
+The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.
+
+#### Interpretation
+
+Configuration record                       | Interpretation
+-------------------------------------------|-----------------
+`<key="Key+Chord" action=NameOfAction/>`   | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
+`<key="Key+Chord" action="NameOfAction"/>` | Append existing bindings with the directly specified command "NameOfAction".
+`<key="Key+Chord" action=""/>`             | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key="Key+Chord" action=Drop/>`           | Suppress the key combination "Key+Chord".
+`<key=""          action="NameOfAction"/>` | Do nothing.
+
+### Available actions
+
+Action                         | Default key combination  | Level               | Description
+-------------------------------|--------------------------|---------------------|------------
+`IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
+`DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
+`ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
+`ToggleFullscreenMode`         | `Alt+Enter`              | Native GUI window   | Toggle fullscreen mode.
+`ToggleAntialiasingMode`       | `Ctrl+CapsLock`          | Native GUI window   | Toggle text antialiasing mode.
+`CloseGuiWindow`               | `Home+End`, `End+Home`   | Native GUI window   | Close GUI window.
+`RollFontsForward`             | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list forward.
+`RollFontsBackward`            | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list backward.
+`FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop environment | Switch focus to the next desktop window.
+`FocusNextWindow`              | `Ctrl+PageDown`          | Desktop environment | Switch focus to the previous desktop window.
+`Disconnect`                   | `Shift+F7`               | Desktop environment | Disconnect from the desktop.
+`TryToQuit`                    | `F10`                    | Desktop environment | Shut down the desktop server if no applications are running.
+`TerminalFindNext`             | `Alt+RightArrow`         | Builtin terminal    | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalFindPrev`             | `Alt+LeftArrow`          | Builtin terminal    | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalViewportOnePageUp`    | `Shift+Ctrl+PageUp`      | Builtin terminal    | Scroll one page up.
+`TerminalViewportOnePageDown`  | `Shift+Ctrl+PageDown`    | Builtin terminal    | Scroll one page down.
+`TerminalViewportOnePageLeft`  | `Shift+Alt+LeftArrow`    | Builtin terminal    | Scroll one page to the left.
+`TerminalViewportOnePageRight` | `Shift+Alt+RightArrow`   | Builtin terminal    | Scroll one page to the right.
+`TerminalViewportOneCharUp`    | `Shift+Ctrl+UpArrow`     | Builtin terminal    | Scroll one line up.
+`TerminalViewportOneCharDown`  | `Shift+Ctrl+DownArrow`   | Builtin terminal    | Scroll one line down.
+`TerminalViewportOneCharLeft`  | `Shift+Ctrl+LeftArrow`   | Builtin terminal    | Scroll one cell to the left.
+`TerminalViewportOneCharRight` | `Shift+Ctrl+RightArrow`  | Builtin terminal    | Scroll one cell to the right.
+`TerminalViewportTop`          | `Shift+Ctrl+Home`        | Builtin terminal    | Scroll to the scrollback top.
+`TerminalViewportEnd`          | `Shift+Ctrl+End`         | Builtin terminal    | Scroll to the scrollback bottom (reset viewport position).
+`TerminalViewportCopy`         |                          | Builtin terminal    | Сopy viewport to clipboard.
+`TerminalClipboardPaste`       |                          | Builtin terminal    | Paste from clipboard.
+`TerminalClipboardWipe`        |                          | Builtin terminal    | Reset clipboard.
+`TerminalUndo`                 |                          | Builtin terminal    | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+`TerminalRedo`                 |                          | Builtin terminal    | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+`TerminalToggleCwdSync`        |                          | Builtin terminal    | Toggle the current working directory sync mode.
+`TerminalToggleWrapMode`       |                          | Builtin terminal    | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+`TerminalToggleSelectionMode`  |                          | Builtin terminal    | Toggle between linear and rectangular selection form.
+`TerminalToggleFullscreen`     |                          | Builtin terminal    | Toggle fullscreen mode.
+`TerminalToggleStdioLog`       |                          | Builtin terminal    | Stdin/stdout log toggle.
+`TerminalQuit`                 |                          | Builtin terminal    | Terminate runnning console apps and close terminal.
+`TerminalRestart`              |                          | Builtin terminal    | Terminate runnning console apps and restart current session.
+`TerminalSwitchCopyMode`       |                          | Builtin terminal    | Switch terminal text selection copy mode.
+`TerminalSelectionCopy`        |                          | Builtin terminal    | Сopy selection to clipboard.
+`TerminalSelectionCancel`      | `Esc`                    | Builtin terminal    | Deselect a selection.
+`TerminalSelectionOneShot`     |                          | Builtin terminal    | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+
 ### DirectVT configuration payload received from the parent process
 
 The value of the `cfg` menu item attribute (or a whole `<config>` subsection) will be passed to the child dtvt-aware application on launch.  
@@ -349,6 +430,17 @@ Notes
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
         </fonts>
+        <hotkeys key*>
+            <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
+            <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
+            <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
+            <key="Home+End"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
+            <key="End+Home"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
+            <key="Ctrl+Shift+F11"     action=RollFontsForward/>        <!-- Roll font list forward. -->
+            <key="Ctrl+Shift+F12"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+        </hotkeys>
     </gui>
     <cursor>
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
@@ -470,10 +562,6 @@ Notes
                         <selection>
                             <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
-                        <hotkeys>
-                            <key="Alt+RightArrow" action="TerminalFindNext()"/>
-                            <key="Alt+LeftArrow"  action="TerminalFindPrev()"/>
-                        </hotkeys>
                     </term>
                 </config>
             </item>
@@ -489,7 +577,7 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item label="<" action="TerminalFindPrev">  <!-- type=Command is a default item's attribute. -->
+                            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                                 <notes>
                                     " Previous match                                  \n"
@@ -499,7 +587,7 @@ Notes
                                     "   Left+RightClick to clear clipboard            "
                                 </notes>
                             </item>
-                            <item label=">" action="TerminalFindNext">
+                            <item label=">" action=TerminalFindNext>
                                 <label="\e[38:2:0:255:0m>\e[m"/>
                                 <notes>
                                     " Next match                                     \n"
@@ -509,14 +597,14 @@ Notes
                                     "   Left+RightClick to clear clipboard           "
                                 </notes>
                             </item>
-                            <item label="Wrap" type="Option" action="TerminalWrapMode" data="off">
+                            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
                                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                                 <notes>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </notes>
                             </item>
-                            <item label="Selection" notes=" Text selection mode " type="Option" action="TerminalSelectionMode" data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="Selection" notes=" Text selection mode " type="Option" action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                                 <label data="rich">
@@ -533,7 +621,7 @@ Notes
                                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                             </item>
-                            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action="TerminalOutput" data="\e[!p"/>
+                            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
                         </menu>
                     </term>
                 </config>
@@ -558,14 +646,14 @@ Notes
             </colors>
         </taskbar>
         <panel>  <!-- Desktop info panel. -->
-            <env=""/>  <!-- Environment block. -->
-            <cmd=""/>  <!-- Command-line to activate. -->
-            <cwd=""/>  <!-- Working directory. -->
+            <env=""/>    <!-- Environment block. -->
+            <cmd=""/>    <!-- Command-line to activate. -->
+            <cwd=""/>    <!-- Working directory. -->
             <height=1/>  <!-- Desktop space reserved on top. -->
         </panel>
         <background>  <!-- Desktop background. -->
             <color fgc=whitedk bgc=0x80000000/>  <!-- Desktop background color. -->
-            <tile=""/>  <!-- Truecolor ANSI-art with gradients can be used here. -->
+            <tile=""/>                           <!-- Truecolor ANSI-art with gradients can be used here. -->
         </background>
         <shadow enabled=0>  <!-- Desktop window shadows (TUI mode). -->
             <blur=3/>         <!-- Blur radius (in cells). Default is "3". -->
@@ -574,10 +662,10 @@ Notes
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
         <hotkeys key*>
-            <key="Ctrl+PgUp" action="FocusPrevWindow()"/>
-            <key="Ctrl+PgDn" action="FocusNextWindow()"/>
-            <key="Shift+F7"  action="Disconnect()"/>
-            <key="F10"       action="TryQuit()"/>
+            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
         </hotkeys>
     </desktop>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
@@ -627,7 +715,7 @@ Notes
         <menu item*>
             <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
             <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
-            <item label="<" action="TerminalFindPrev">  <!-- type=Command is a default item's attribute. -->
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                                  \n"
@@ -637,7 +725,7 @@ Notes
                     "   Left+RightClick to clear clipboard            "
                 </notes>
             </item>
-            <item label=">" action="TerminalFindNext">
+            <item label=">" action=TerminalFindNext>
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                                     \n"
@@ -647,14 +735,14 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
-            <item label="Wrap" type="Option" action="TerminalWrapMode" data="off">
+            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </notes>
             </item>
-            <item label="Selection" notes=" Text selection mode " type="Option" action="TerminalSelectionMode" data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="Selection" notes=" Text selection mode " type="Option" action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                 <label data="rich">
@@ -671,15 +759,15 @@ Notes
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="Sync" notes=" CWD sync is off " type="Option" action="TerminalCwdSync" data="off">
+            <item label="Sync" notes=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
                 <label="\e[38:2:0:255:0mSync\e[m" notes=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
             </item>
-            <item label="Log" notes=" Console logging is off " type="Option" action="TerminalStdioLog" data="off">
+            <item label="Log" notes=" Console logging is off " type="Option" action=TerminalStdioLog data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
-            <item label="Clear" notes=" Clear TTY viewport "                  action="TerminalOutput" data="\e[2J"/>
-            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action="TerminalOutput" data="\e[!p"/>
-            <!-- <item label="Hello, World!" notes=" Simulate keypress "       action="TerminalSendKey" data="Hello World!"/> -->
+            <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
+            <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+            <!-- <item label="Hello, World!" notes=" Simulate keypress "       action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -691,6 +779,36 @@ Notes
                                 close:   Always close.
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
+        <hotkeys key*>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+            <key="Alt+RightArrow"        action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
+            <key="Shift+Ctrl+PageDown"   action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
+            <key="Shift+Alt+LeftArrow"   action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
+            <key="Shift+Alt+RightArrow"  action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"    action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
+            <key="Shift+Ctrl+DownArrow"  action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
+            <key="Shift+Ctrl+LeftArrow"  action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow" action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"       action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"        action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key=""                      action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                      action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
+            <key=""                      action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
+            <key=""                      action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                      action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                      action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. -->
+            <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
+            <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
+            <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                      action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection copy mode. -->
+            <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
+            <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
+            <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+        </hotkeys>
     </term>
     <defapp>
         <menu>

@@ -221,7 +221,7 @@ namespace netxs::app::terminal
                 X(TerminalSelectionCopy     ) /* */ \
                 X(TerminalSelectionMode     ) /* */ \
                 X(TerminalSelectionRect     ) /* Linear/Rectangular */ \
-                X(TerminalSelectionClear    ) /* */ \
+                X(TerminalSelectionCancel   ) /* */ \
                 X(TerminalSelectionOneShot  ) /* One-shot toggle to copy text while mouse tracking is active */ \
                 X(TerminalViewportPageUp    ) /* */ \
                 X(TerminalViewportPageDown  ) /* */ \
@@ -427,7 +427,7 @@ namespace netxs::app::terminal
                         _update_to(boss, item, selbox);
                     };
                 }
-                static void TerminalSelectionClear(ui::item& boss, menu::item& item)
+                static void TerminalSelectionCancel(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {

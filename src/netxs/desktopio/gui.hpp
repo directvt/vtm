@@ -1539,6 +1539,9 @@ namespace netxs::gui
             static constexpr auto end      = 0x23; // VK_END;
             static constexpr auto home     = 0x24; // VK_HOME;
 
+            static constexpr auto f11      = 0x7A; // VK_F11;
+            static constexpr auto f12      = 0x7B; // VK_F12;
+
             static constexpr auto key_0    = '0'; // VK_0;
 
             static constexpr auto numlock  = 0x90; // VK_NUMLOCK;
@@ -2942,7 +2945,7 @@ namespace netxs::gui
         {
             auto keystat = input::key::released;
             auto virtcod = 0;
-            if (keybd_read_input(keystat, virtcod)) return;
+            if (!keybd_read_input(keystat, virtcod)) return;
             if (keystat)
             {
                 //todo key
@@ -2998,21 +3001,25 @@ namespace netxs::gui
                         window_shutdown();
                     });
                 }
+                else if (keybd_test_pressed(vkey::control) && keybd_test_pressed(vkey::shift) // Roll font list. Renumerate font list.
+                      && (keybd_test_pressed(vkey::f11) || keybd_test_pressed(vkey::f12))
+                      && fcache.families.size())
+                {
+                    auto& families = fcache.families;
+                    if (keybd_test_pressed(vkey::f12))
+                    {
+                        families.push_back(std::move(families.front()));
+                        families.pop_front();
+                    }
+                    else
+                    {
+                        families.push_front(std::move(families.back()));
+                        families.pop_back();
+                    }
+                    set_font_list(families);
+                    //print_font_list(true);
+                }
             }
-            //else if (keystat == input::key::released && fcache.families.size()) // Renumerate font list.
-            //{
-            //    auto flen = fcache.families.size();
-            //    auto index = virtcod == 0x30 ? fcache.families.size() - 1 : virtcod - 0x30;
-            //    if (index > 0 && index < flen)
-            //    {
-            //        auto& flist = fcache.families;
-            //        auto iter = flist.begin();
-            //        std::advance(iter, index);
-            //        flist.splice(flist.begin(), flist, iter, std::next(iter)); // Move it to the begining of the list.
-            //        set_font_list(flist);
-            //        print_font_list(true);
-            //    }
-            //}
         }
         arch run_command(arch command, arch lParam)
         {
