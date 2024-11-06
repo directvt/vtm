@@ -323,7 +323,7 @@ Configuration record                       | Interpretation
 `<key="Key+Chord" action=Drop/>`           | Suppress the key combination "Key+Chord".
 `<key=""          action="NameOfAction"/>` | Do nothing.
 
-### Available actions
+#### Available actions
 
 Action                         | Default key combination  | Level               | Description
 -------------------------------|--------------------------|---------------------|------------

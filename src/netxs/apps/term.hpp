@@ -733,11 +733,11 @@ namespace netxs::app::terminal
         };
         boss.LISTEN(tier::anycast, terminal::events::search::forward, gear)
         {
-            boss.search(gear, feed::fwd);
+            boss.selection_search(gear, feed::fwd);
         };
         boss.LISTEN(tier::anycast, terminal::events::search::reverse, gear)
         {
-            boss.search(gear, feed::rev);
+            boss.selection_search(gear, feed::rev);
         };
         boss.LISTEN(tier::anycast, terminal::events::data::paste, gear)
         {

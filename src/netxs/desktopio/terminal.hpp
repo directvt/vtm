@@ -90,8 +90,6 @@ namespace netxs::ui
                     undo,
                     redo,
                     deselect,
-                    look_fwd,
-                    look_rev,
                 };
             };
             struct cursor // See pro::caret.
@@ -7398,10 +7396,6 @@ namespace netxs::ui
                 selection_moveto(delta);
             }
         }
-        void search(hids& gear, feed dir)
-        {
-            selection_search(gear, dir);
-        }
         void set_color(cell brush)
         {
             auto& console = *target;
@@ -7496,8 +7490,6 @@ namespace netxs::ui
                 case commands::ui::undo:         ipccon.undo(true);                   break;
                 case commands::ui::redo:         ipccon.undo(faux);                   break;
                 case commands::ui::deselect:     selection_cancel();                  break;
-                case commands::ui::look_fwd:     console.selection_search(feed::fwd); break;
-                case commands::ui::look_rev:     console.selection_search(feed::rev); break;
                 default: break;
             }
             if (cmd != commands::ui::togglesel && !console.selection_active())
@@ -7725,8 +7717,8 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            chords.proc("TerminalFindPrev",                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::look_rev); });
-            chords.proc("TerminalFindNext",                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::look_fwd); });
+            chords.proc("TerminalFindPrev",                 [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::rev); });
+            chords.proc("TerminalFindNext",                 [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::fwd); });
             chords.proc("TerminalViewportOnePageLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); });
             chords.proc("TerminalViewportOnePageRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); });
             chords.proc("TerminalViewportOneCharLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); });
