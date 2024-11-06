@@ -122,7 +122,7 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log("%%Unknown hex color format: { %value% }, expected #rrggbbaa or #rrggbb color hex value", prompt::xml, value);
+            //log("%%Unknown hex color format: { %value% }, expected #rrggbbaa or #rrggbb color hex value", prompt::xml, value);
         }
         else if (shadow.starts_with("0x")) // hex: 0xaarrggbb
         {
@@ -143,7 +143,7 @@ namespace netxs::xml
                 result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 return result;
             }
-            else log("%%Unknown hex color format: { %value% }, expected 0xaarrggbb or 0xrrggbb color hex value", prompt::xml, value);
+            //log("%%Unknown hex color format: { %value% }, expected 0xaarrggbb or 0xrrggbb color hex value", prompt::xml, value);
         }
         else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
         {
@@ -165,7 +165,7 @@ namespace netxs::xml
                     }
                 }
             }
-            log("%%Unknown hex color format: { %value% }, expected 000,000,000,000 decimal (r,g,b,a) color value", prompt::xml, value);
+            //log("%%Unknown hex color format: { %value% }, expected 000,000,000,000 decimal (r,g,b,a) color value", prompt::xml, value);
         }
         else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
@@ -174,7 +174,7 @@ namespace netxs::xml
                 result = argb::vt256[c.value()];
                 return result;
             }
-            else log("%%Unknown ANSI 256-color value format: { %value% }, expected 0-255 decimal value", prompt::xml, value);
+            //log("%%Unknown ANSI 256-color value format: { %value% }, expected 0-255 decimal value", prompt::xml, value);
         }
         return std::nullopt;
     }

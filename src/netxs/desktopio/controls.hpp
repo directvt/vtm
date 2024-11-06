@@ -1827,26 +1827,47 @@ namespace netxs::ui
             std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_preview;
             std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
-            std::vector<sptr> chord_handlers;
 
+            auto _get_chords(qiew chord_str)
+            {
+                auto chords = input::key::kmap::chord_list(chord_str);
+                if (chords.size())
+                {
+                    return std::optional{ chords };
+                }
+                else
+                {
+                    log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
+                    return std::optional<decltype(chords)>{};
+                }
+            }
             template<si32 Tier = tier::release>
             auto _set(qiew chord_str, sptr handler_ptr)
             {
                 auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
-                auto chords = input::key::kmap::chord_list(chord_str);
-                if (chords.size())
+                if (auto chords = _get_chords(chord_str))
                 {
-                    for (auto& chord : chords)
+                    for (auto& chord : chords.value())
                     {
                         handlers[chord].push_back(handler_ptr);
                     }
                     return true;
                 }
-                else
+                else return faux;
+            }
+            template<si32 Tier = tier::release>
+            auto _reset(qiew chord_str)
+            {
+                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                if (auto chords = _get_chords(chord_str))
                 {
-                    log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
-                    return faux;
+                    for (auto& chord : chords.value())
+                    {
+                        handlers[chord].clear();
+                    }
+                    return true;
                 }
+                else return faux;
             }
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
@@ -1892,36 +1913,49 @@ namespace netxs::ui
                         if (!gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
                     }
                 };
+                proc("Drop", [](hids& gear){ gear.set_handled(); });
             }
 
-            auto proc(qiew name, func proc)
+            void proc(qiew name, func proc)
             {
                 api_map[name] = ptr::shared(std::move(proc));
             }
-            //template<class ...Args>
-            //auto bind(qiew chord_str, func handler, Args&&... chords_handlers)
-            //{
-            //    auto handler_ptr = ptr::shared(std::move(handler));
-            //    if (_set(chord_str, handler_ptr)) chord_handlers.push_back(handler_ptr);
-            //    if constexpr (sizeof...(Args)) bind(std::forward<Args>(chords_handlers)...);
-            //}
             template<si32 Tier = tier::release>
             auto bind(qiew chord_str, qiew proc_name)
             {
-                if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                if (!chord_str) return;
+                if (proc_name)
                 {
-                    if (_set<Tier>(chord_str, iter->second))
+                    if (auto iter = api_map.find(proc_name); iter != api_map.end())
                     {
-                        //chord_handlers.push_back(iter->second);
+                        _set<Tier>(chord_str, iter->second);
                     }
+                    else log("%%Action '%proc%' not found", prompt::user, proc_name);
                 }
-                else log("%%Function '%proc%' not found", prompt::user, proc_name);
+                else
+                {
+                    _reset<Tier>(chord_str);
+                }
             }
-            auto reset()
+            auto wipe()
             {
-                chord_handlers.clear();
                 handlers_release.clear();
                 handlers_preview.clear();
+            }
+            template<si32 Tier = tier::release>
+            auto load(xmls& config, qiew path)
+            {
+                auto keybinds = config.list(path);
+                for (auto keybind_ptr : keybinds)
+                {
+                    auto& keybind = *keybind_ptr;
+                    if (!keybind.fake)
+                    {
+                        auto chord = keybind.take_value();
+                        auto action = keybind.take("action", ""s);
+                        bind<Tier>(chord, action);
+                    }
+                }
             }
         };
 

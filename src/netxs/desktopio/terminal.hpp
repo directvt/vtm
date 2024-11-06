@@ -7737,7 +7737,7 @@ namespace netxs::ui
             chords.proc("TerminalViewportOnePageDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); });
             chords.proc("TerminalViewportTop",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
             chords.proc("TerminalViewportEnd",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-            chords.proc("TerminalSelectionClear",           [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
+            chords.proc("TerminalSelectionCancel",          [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
             chords.proc("TerminalToggleCwdSync",            [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
             chords.proc("TerminalToggleWrapMode",           [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
             chords.proc("TerminalQuit",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
@@ -7753,24 +7753,7 @@ namespace netxs::ui
             chords.proc("TerminalSelectionOneShot",         [&](hids& gear){ gear.set_handled(); set_oneshot(mime::textonly);       });
             chords.proc("TerminalViewportCopy",             [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
             chords.proc("TerminalToggleStdioLog",           [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
-
-            auto keybinds = xml_config.list("/config/term/hotkeys/key");
-            for (auto keybind_ptr : keybinds)
-            {
-                auto& keybind = *keybind_ptr;
-                if (!keybind.fake)
-                {
-                    auto chord = keybind.take_value();
-                    if (chord.size())
-                    {
-                        auto action = keybind.take("action", ""s);
-                        if (action.size())
-                        {
-                            chords.bind(chord, action);
-                        }
-                    }
-                }
-            }
+            chords.load<tier::release>(xml_config, "/config/term/hotkeys/key");
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {

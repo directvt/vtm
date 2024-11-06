@@ -739,25 +739,9 @@ namespace netxs::app::vtm
             keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
             keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
-            keybd.proc("TryQuit",         [&](hids& gear){ try_quit(gear); });
+            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
+            keybd.load<tier::preview>(config, "/config/desktop/hotkeys/key");
 
-            auto keybinds = config.list("/config/desktop/hotkeys/key");
-            for (auto keybind_ptr : keybinds)
-            {
-                auto& keybind = *keybind_ptr;
-                if (!keybind.fake)
-                {
-                    auto chord = keybind.take_value();
-                    if (chord.size())
-                    {
-                        auto action = keybind.take("action", ""s);
-                        if (action.size())
-                        {
-                            keybd.bind<tier::preview>(chord, action);
-                        }
-                    }
-                }
-            }
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;

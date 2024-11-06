@@ -1270,7 +1270,7 @@ namespace netxs::ui
             LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
             {
                 //todo unify
-                //todo key
+                //todo key action="DebugOverlayToggle"
                 if (gear.keybd::cluster == props.debug_toggle)
                 {
                     debug ? debug.stop()
