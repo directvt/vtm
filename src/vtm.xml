@@ -37,9 +37,9 @@ R"==(<!-- Ordered list of paths to settings files. -->
             <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
             <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
             <key="Home+End"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="End+Home"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="Ctrl+Shift+F11"     action=RollFontsForward/>        <!-- Roll font list forward. -->
-            <key="Ctrl+Shift+F12"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="End+Home"           action=CloseGuiWindow/>
+            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>        <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"     action=RollFontsForward/>       <!-- Roll font list forward. -->
         </hotkeys>
     </gui>
     <cursor>

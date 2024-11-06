@@ -333,8 +333,8 @@ Action                         | Default key combination  | Level               
 `ToggleFullscreenMode`         | `Alt+Enter`              | Native GUI window   | Toggle fullscreen mode.
 `ToggleAntialiasingMode`       | `Ctrl+CapsLock`          | Native GUI window   | Toggle text antialiasing mode.
 `CloseGuiWindow`               | `Home+End`, `End+Home`   | Native GUI window   | Close GUI window.
-`RollFontsForward`             | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list forward.
-`RollFontsBackward`            | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list backward.
+`RollFontsBackward`            | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list backward.
+`RollFontsForward`             | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list forward.
 `FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop environment | Switch focus to the next desktop window.
 `FocusNextWindow`              | `Ctrl+PageDown`          | Desktop environment | Switch focus to the previous desktop window.
 `Disconnect`                   | `Shift+F7`               | Desktop environment | Disconnect from the desktop.
@@ -437,9 +437,9 @@ Notes
             <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
             <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
             <key="Home+End"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="End+Home"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="Ctrl+Shift+F11"     action=RollFontsForward/>        <!-- Roll font list forward. -->
-            <key="Ctrl+Shift+F12"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="End+Home"           action=CloseGuiWindow/>
+            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"     action=RollFontsForward/>        <!-- Roll font list forward. -->
         </hotkeys>
     </gui>
     <cursor>
