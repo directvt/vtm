@@ -1640,22 +1640,23 @@ namespace netxs::gui
 
             //todo use gear.m_sys
             input::sysmouse m = {}; // evnt: .
-            input::syskeybd k = {}; // evnt: .
             input::sysfocus f = {}; // evnt: .
             input::syswinsz w = {}; // evnt: .
             input::sysclose c = {}; // evnt: .
             netxs::sptr<input::hids> gears; // evnt: .
 
-            auto keybd(auto&& data, auto proc)
+            auto keybd(hids& gear, auto proc)
             {
                 if (alive)
                 {
                     auto lock = s11n::syskeybd.freeze();
-                    lock.thing.set(data);
+                    lock.thing.set(gear);
                     lock.thing.sendfx([&](auto block)
                     {
-                        intio.send(block);
-                        proc(block);
+                        if (proc(block))
+                        {
+                            intio.send(block);
+                        }
                     });
                 }
             };
@@ -1902,7 +1903,6 @@ namespace netxs::gui
             {
                 auto& gear = *gears;
                 m.gear_id = gear.id;
-                k.gear_id = gear.id;
                 f.gear_id = gear.id;
                 w.gear_id = gear.id;
                 m.enabled = input::hids::stat::ok;
@@ -1996,6 +1996,8 @@ namespace netxs::gui
             wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
             wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
             wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
+            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
+            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator");
             for (auto& [chord, action] : hotkeys) wkeybd.bind<tier::preview>(chord, action);
         }
 
@@ -2011,7 +2013,7 @@ namespace netxs::gui
         virtual void keybd_sync_layout() = 0;
         virtual void keybd_read_vkstat() = 0;
         virtual void keybd_wipe_vkstat() = 0;
-        virtual bool keybd_read_input(si32& keystat, si32& virtcod) = 0;
+        virtual bool keybd_read_input() = 0;
         virtual void keybd_send_block(view block) = 0;
         virtual bool keybd_read_toggled(si32 virtcod) = 0;
         virtual bool keybd_test_toggled(si32 virtcod) = 0;
@@ -2827,14 +2829,16 @@ namespace netxs::gui
                 }
             }
         }
-        void stream_keybd(auto& k)
+        void stream_keybd(hids& gear)
         {
-            stream.keybd(k, [&](view block)
+            gear.handled = faux;
+            stream.keybd(gear, [&](view block)
             {
                 if (mfocus.active())
                 {
-                    keybd_send_block(block);
+                    keybd_send_block(block); // Send multifocus events.
                 }
+                return wkeybd.filter<tier::preview>(gear);
             });
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
@@ -2917,41 +2921,42 @@ namespace netxs::gui
                 }
             }
             auto changed = std::exchange(keymod, state) != keymod || synth;
-            if (changed || stream.k.ctlstat != keymod)
+            auto& gear = *stream.gears;
+            if (changed || gear.ctlstat != keymod)
             {
-                stream.gears->ctlstat = keymod;
-                stream.k.ctlstat = keymod;
+                gear.ctlstat = keymod;
                 stream.m.ctlstat = keymod;
                 stream.m.timecod = datetime::now();
                 stream.m.changed++;
                 stream.mouse(stream.m); // Fire mouse event to update kb modifiers.
             }
-            stream.k.extflag = extflag;
-            stream.k.virtcod = virtcod;
-            stream.k.scancod = scancod;
+            gear.payload = input::keybd::type::keypress;
+            gear.extflag = extflag;
+            gear.virtcod = virtcod;
+            gear.scancod = scancod;
             auto keycode = input::key::xlat(virtcod, scancod, cs);
-            if ((stream.k.keystat == input::key::released || keycode != stream.k.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
-            stream.k.keystat = keystat;
-            stream.k.keycode = keycode;
-            stream.k.cluster = cluster;
+            if ((gear.keystat == input::key::released || keycode != gear.keycode) && keystat == input::key::repeated) keystat = input::key::pressed; // LeftMod+RightMod press is treated by the OS as a repeated LeftMod.
+            gear.keystat = keystat;
+            gear.keycode = keycode;
+            gear.cluster = cluster;
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lwin     || virtcod == vkey::rwin);
             //print_vkstat("keybd_send_state");
             if (changed || (!repeat_ctrl && (scancod != 0 || !cluster.empty()))) // We don't send repeated modifiers.
             {
-                synth ? chords.build(stream.k)
-                      : chords.build(stream.k, [&](auto index){ return !keybd_test_pressed(index); });
-                stream_keybd(stream.k);
+                synth ? chords.build(gear)
+                      : chords.build(gear, [&](auto index){ return !keybd_test_pressed(index); });
+                stream_keybd(gear);
             }
         }
         void keybd_send_input(view utf8, byte payload_type)
         {
-            stream.k.payload = payload_type;
-            stream.k.cluster = utf8;
-            chords.reset(stream.k);
-            stream_keybd(stream.k);
-            stream.k.payload = input::keybd::type::keypress;
+            auto& gear = *stream.gears;
+            gear.payload = payload_type;
+            gear.cluster = utf8;
+            chords.reset(gear);
+            stream_keybd(gear);
         }
         void IncreaseCellHeight(fp32 dir)
         {
@@ -3003,46 +3008,6 @@ namespace netxs::gui
             }
             set_font_list(families);
         }
-        void keybd_press()
-        {
-            auto keystat = input::key::released;
-            auto virtcod = 0;
-            if (!keybd_read_input(keystat, virtcod)) return;
-            if (keystat)
-            {
-                if (keybd_test_pressed(vkey::capslock) && (keybd_test_pressed(vkey::up) || keybd_test_pressed(vkey::down))) // Change cell height by CapsLock+Up/DownArrow.
-                {
-                    IncreaseCellHeight(keybd_test_pressed(vkey::up) ? 1.f : -1.f);
-                }
-            }
-            else // if (keystat == input::key::released)
-            {
-                if (virtcod == vkey::control)
-                {
-                    whlacc = {};
-                }
-            }
-            if (keystat == input::key::pressed)
-            {
-                if (keybd_test_pressed(vkey::alt) && keybd_test_pressed(vkey::enter)) // Toggle maximized mode by Alt+Enter.
-                {
-                    ToggleFullscreenMode();
-                }
-                else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::control)) // Toggle antialiasing mode by Ctrl+CapsLock.
-                {
-                    ToggleAntialiasingMode();
-                }
-                else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::key_0)) // Reset cell scaling.
-                {
-                    ResetCellHeight();
-                }
-                else if (keybd_test_pressed(vkey::control) && keybd_test_pressed(vkey::shift) // Roll font list. Renumerate font list.
-                      && (keybd_test_pressed(vkey::f11) || keybd_test_pressed(vkey::f12)))
-                {
-                    RollFontList(keybd_test_pressed(vkey::f11) ? feed::rev : feed::fwd);
-                }
-            }
-        }
         arch run_command(arch command, arch lParam)
         {
             if constexpr (debug_foci) log("command: ", ipc::str(command));
@@ -3087,12 +3052,18 @@ namespace netxs::gui
                 {
                     auto input_data = qiew{ (char*)data.ptr, data.len };
                     auto keybd = input::syskeybd{};
+                    if (stream.gears)
                     if (keybd.load(input_data))
                     {
+                        auto& gear = *stream.gears;
                         keymod = keybd.ctlstat;
                         stream.m.ctlstat = keymod;
-                        keybd.syncto(stream.k);
-                        stream.keybd(stream.k);
+                        keybd.syncto(gear);
+                        gear.gear_id = gear.bell::id; // Restore gear id.
+                        if (wkeybd.filter<tier::preview>(gear))
+                        {
+                            stream.keybd(gear);
+                        }
                     }
                 }
                 else command = 0;
@@ -3797,7 +3768,7 @@ namespace netxs::gui
         //todo static
         bool keybd_read_pressed(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x8000); }
         bool keybd_read_toggled(si32 virtcod) { return !!(::GetAsyncKeyState(virtcod) & 0x0001); }
-        bool keybd_read_input(si32& keystat, si32& virtcod)
+        bool keybd_read_input()
         {
             union key_state_t
             {
@@ -3814,11 +3785,11 @@ namespace netxs::gui
             };
             auto param = key_state_t{ .token = (ui32)winmsg.lParam };
             if (param.v.state == 2/*unknown*/) return faux;
-            virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
+            auto virtcod = std::clamp((si32)winmsg.wParam, 0, 255);
             // When RightMod is pressed while the LeftMod is pressed it is treated as repeating.
-            keystat = param.v.state == 0 ? input::key::pressed
-                    : param.v.state == 1 ? input::key::repeated
-                    /*param.v.state ==3*/: input::key::released;
+            auto keystat = param.v.state == 0 ? input::key::pressed
+                         : param.v.state == 1 ? input::key::repeated
+                         /*param.v.state ==3*/: input::key::released;
             auto extflag = param.v.extended;
             auto scancod = param.v.scancode;
             auto keytype = 0;
@@ -3882,7 +3853,7 @@ namespace netxs::gui
                 if (mfocus.wheel && (winmsg.message == WM_KEYDOWN    || winmsg.message == WM_KEYUP || // Ignore all kb events in unfocused state.
                                      winmsg.message == WM_SYSKEYDOWN || winmsg.message == WM_SYSKEYUP))
                 {
-                    keybd_press();
+                    keybd_read_input();
                     sys_command(syscmd::update);
                 }
                 else
@@ -4196,7 +4167,7 @@ namespace netxs::gui
         bool keybd_test_toggled(si32 /*virtcod*/) { return true; /*!!(vkstat[virtcod] & 0x01);*/ }
         bool keybd_read_pressed(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x8000);*/ }
         bool keybd_read_toggled(si32 /*virtcod*/) { return true; /*!!(::GetAsyncKeyState(virtcod) & 0x0001);*/ }
-        bool keybd_read_input(si32& /*keystat*/, si32& /*virtcod*/) { return true; }
+        bool keybd_read_input() { return true; }
         void keybd_wipe_vkstat() {}
         void keybd_read_vkstat() {}
         void keybd_send_block(view /*block*/) {}

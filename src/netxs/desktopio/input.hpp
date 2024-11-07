@@ -535,7 +535,7 @@ namespace netxs::input
             cmap pushed{}; // kmap: Pushed key map.
             bool keyout{}; // kmap: Some key has left the key chord.
 
-            void reset(syskeybd& k)
+            void reset(auto& k)
             {
                 k.vkchord.clear();
                 k.scchord.clear();
@@ -571,7 +571,7 @@ namespace netxs::input
                 chchord += cluster;
             }
             template<class P = noop>
-            void build(syskeybd& k, P test_key_released = {})
+            void build(auto& k, P test_key_released = {})
             {
                 if (k.keystat != input::key::repeated)
                 {
@@ -1597,6 +1597,7 @@ namespace netxs::input
             mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
+            keybd::gear_id = bell::id;
             bell::signal(tier::general, events::device::user::login, user_index);
         }
         virtual ~hids()

@@ -1882,7 +1882,7 @@ namespace netxs::ui
                         auto proc_ptr = proc_wptr.lock();
                         if (proc_ptr)
                         {
-                            (*proc_ptr)(gear);
+                            if (!gear.handled) (*proc_ptr)(gear);
                         }
                         return !proc_ptr;
                     });
@@ -1917,6 +1917,17 @@ namespace netxs::ui
                 proc("DropIfRepeats", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
+            template<si32 Tier = tier::release>
+            auto filter(hids& gear)
+            {
+                if (gear.payload == input::keybd::type::keypress)
+                {
+                    if (!gear.handled) _dispatch<Tier>(gear, gear.vkchord);
+                    if (!gear.handled) _dispatch<Tier>(gear, gear.chchord);
+                    if (!gear.handled) _dispatch<Tier>(gear, gear.scchord);
+                }
+                return !gear.handled;
+            }
             void proc(qiew name, func proc)
             {
                 api_map[name] = ptr::shared(std::move(proc));
