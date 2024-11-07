@@ -7719,14 +7719,14 @@ namespace netxs::ui
 
             chords.proc("TerminalFindPrev",                 [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::rev); });
             chords.proc("TerminalFindNext",                 [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::fwd); });
-            chords.proc("TerminalViewportOnePageLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = dot_10  }); });
-            chords.proc("TerminalViewportOnePageRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 }); });
+            chords.proc("TerminalViewportOnePageLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = { 1, 0 }}); });
+            chords.proc("TerminalViewportOnePageRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::x, { .vector = {-1, 0 }}); });
             chords.proc("TerminalViewportOneCharLeft",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 1, 0 }}); });
             chords.proc("TerminalViewportOneCharRight",     [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-1, 0 }}); });
             chords.proc("TerminalViewportOneCharUp",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 1 }}); });
             chords.proc("TerminalViewportOneCharDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-1 }}); });
-            chords.proc("TerminalViewportOnePageUp",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = dot_01  }); });
-            chords.proc("TerminalViewportOnePageDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 }); });
+            chords.proc("TerminalViewportOnePageUp",        [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
+            chords.proc("TerminalViewportOnePageDown",      [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
             chords.proc("TerminalViewportTop",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
             chords.proc("TerminalViewportEnd",              [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
             chords.proc("TerminalSelectionCancel",          [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
