@@ -751,7 +751,7 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 auto& scroll_inst = *scroll;
                 auto esc_pressed = ptr::shared(faux);
-                auto& keybd = boss.plugins<pro::keybd>();
+                auto& keybd = boss.template plugins<pro::keybd>();
                 keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
                 {
                     if (!gear.is_exclusive() && *esc_pressed)
