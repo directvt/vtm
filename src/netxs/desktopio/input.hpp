@@ -532,21 +532,21 @@ namespace netxs::input
 
             using cmap = std::map<si32, chord_item_t>; // std::unordered_map doesn't sort items.
 
-            cmap keymap{}; // kmap: .
+            cmap pushed{}; // kmap: Pushed key map.
             bool keyout{}; // kmap: Some key has left the key chord.
 
-            void reset(syskeybd& k)
+            void reset(auto& k)
             {
                 k.vkchord.clear();
                 k.scchord.clear();
                 k.chchord.clear();
-                keymap.clear();
+                pushed.clear();
                 keyout = {};
             }
             auto exist(si32 keyid)
             {
-                auto iter = keymap.find(keyid);
-                return iter != keymap.end();
+                auto iter = pushed.find(keyid);
+                return iter != pushed.end();
             }
             // Build key chords.
             // key chord is a set of 16-bit words: 0x000a 0x000b ... 0xffff 0xa 0xfe0e
@@ -571,14 +571,14 @@ namespace netxs::input
                 chchord += cluster;
             }
             template<class P = noop>
-            void build(syskeybd& k, P test_key_released = {})
+            void build(auto& k, P test_key_released = {})
             {
                 if (k.keystat != input::key::repeated)
                 {
                     //log("key=%% pressed=%%", input::key::map::data(k.keycode).name, k.keystat);
                     if (k.keystat == input::key::released)
                     {
-                        keymap.erase(k.keycode);
+                        pushed.erase(k.keycode);
                     }
                     k.vkchord.clear();
                     k.scchord.clear();
@@ -589,7 +589,7 @@ namespace netxs::input
                     {
                         keyout = k.keystat == input::key::released;
                         //log(" erasing %%", k.keystat == input::key::released ? "key::released" : k.keystat == input::key::pressed ? "key::pressed" : "key::repeated");
-                        std::erase_if(keymap, [&](auto& rec)
+                        std::erase_if(pushed, [&](auto& rec)
                         {
                             auto& [keyid, val] = rec;
                             //log("\tcheck keyid=%%", input::key::map::data(keyid).name);
@@ -617,7 +617,7 @@ namespace netxs::input
                     }
                     if (k.keystat == input::key::pressed)
                     {
-                        auto& key = keymap[k.keycode];
+                        auto& key = pushed[k.keycode];
                         key.scode = k.scancod | (k.extflag ? 0x100 : 0); // Store the scan code of a pressed key.
                         key.index = k.virtcod; // Store the virtual code to check later that it is still pressed.
                         key.stamp = datetime::now();
@@ -1597,6 +1597,7 @@ namespace netxs::input
             mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
+            keybd::gear_id = bell::id;
             bell::signal(tier::general, events::device::user::login, user_index);
         }
         virtual ~hids()
@@ -1964,10 +1965,14 @@ namespace netxs::input
             if (m_sav.changed != m_sys.changed) m_sav = m_sys;
             return !alive;
         }
+        auto is_exclusive()
+        {
+            return !ptr::is_empty(exclusive_wptr);
+        }
         void fire_keybd()
         {
             alive = true;
-            if (!ptr::is_empty(exclusive_wptr))
+            if (is_exclusive())
             if (auto target = exclusive_wptr.lock())
             {
                 target->bell::signal(tier::preview, hids::events::keybd::key::post, *this);

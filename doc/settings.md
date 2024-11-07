@@ -295,7 +295,6 @@ Level                  | Config section               | Description
 -----------------------|------------------------------|------------
 Native GUI window      | `<config/gui/hotkeys/>`      | Native GUI window management key bindings.
 Desktop environment    | `<config/desktop/hotkeys/>`  | Taskbar and window management key bindings.
-Builtin terminal       | `<config/term/hotkeys/>`     | Terminal emulator specific key bindings.
 Application `app_name` | `<config/app_name/hotkeys/>` | Application specific key bindings.
 
 #### Syntax
@@ -320,53 +319,53 @@ Configuration record                       | Interpretation
 `<key="Key+Chord" action=NameOfAction/>`   | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
 `<key="Key+Chord" action="NameOfAction"/>` | Append existing bindings with the directly specified command "NameOfAction".
 `<key="Key+Chord" action=""/>`             | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key="Key+Chord" action=Drop/>`           | Suppress the key combination "Key+Chord".
 `<key=""          action="NameOfAction"/>` | Do nothing.
 
-### Available actions
+#### Available actions
 
-Action                         | Default key combination  | Level               | Description
+Action                         | Default key combination  | Available at level  | Description
 -------------------------------|--------------------------|---------------------|------------
+`Drop`                         |                          | All levels          | Drop all events for the specified key combination. No further processing.
+`DropIfRepeats`                |                          | All levels          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
 `ToggleFullscreenMode`         | `Alt+Enter`              | Native GUI window   | Toggle fullscreen mode.
 `ToggleAntialiasingMode`       | `Ctrl+CapsLock`          | Native GUI window   | Toggle text antialiasing mode.
-`CloseGuiWindow`               | `Home+End`, `End+Home`   | Native GUI window   | Close GUI window.
-`RollFontsForward`             | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list forward.
-`RollFontsBackward`            | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list backward.
-`FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop environment | Switch focus to the next desktop window.
-`FocusNextWindow`              | `Ctrl+PageDown`          | Desktop environment | Switch focus to the previous desktop window.
-`Disconnect`                   | `Shift+F7`               | Desktop environment | Disconnect from the desktop.
-`TryToQuit`                    | `F10`                    | Desktop environment | Shut down the desktop server if no applications are running.
-`TerminalFindNext`             | `Alt+RightArrow`         | Builtin terminal    | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalFindPrev`             | `Alt+LeftArrow`          | Builtin terminal    | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalViewportOnePageUp`    | `Shift+Ctrl+PageUp`      | Builtin terminal    | Scroll one page up.
-`TerminalViewportOnePageDown`  | `Shift+Ctrl+PageDown`    | Builtin terminal    | Scroll one page down.
-`TerminalViewportOnePageLeft`  | `Shift+Alt+LeftArrow`    | Builtin terminal    | Scroll one page to the left.
-`TerminalViewportOnePageRight` | `Shift+Alt+RightArrow`   | Builtin terminal    | Scroll one page to the right.
-`TerminalViewportOneCharUp`    | `Shift+Ctrl+UpArrow`     | Builtin terminal    | Scroll one line up.
-`TerminalViewportOneCharDown`  | `Shift+Ctrl+DownArrow`   | Builtin terminal    | Scroll one line down.
-`TerminalViewportOneCharLeft`  | `Shift+Ctrl+LeftArrow`   | Builtin terminal    | Scroll one cell to the left.
-`TerminalViewportOneCharRight` | `Shift+Ctrl+RightArrow`  | Builtin terminal    | Scroll one cell to the right.
-`TerminalViewportTop`          | `Shift+Ctrl+Home`        | Builtin terminal    | Scroll to the scrollback top.
-`TerminalViewportEnd`          | `Shift+Ctrl+End`         | Builtin terminal    | Scroll to the scrollback bottom (reset viewport position).
-`TerminalViewportCopy`         |                          | Builtin terminal    | Сopy viewport to clipboard.
-`TerminalClipboardPaste`       |                          | Builtin terminal    | Paste from clipboard.
-`TerminalClipboardWipe`        |                          | Builtin terminal    | Reset clipboard.
-`TerminalUndo`                 |                          | Builtin terminal    | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-`TerminalRedo`                 |                          | Builtin terminal    | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-`TerminalToggleCwdSync`        |                          | Builtin terminal    | Toggle the current working directory sync mode.
-`TerminalToggleWrapMode`       |                          | Builtin terminal    | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-`TerminalToggleSelectionMode`  |                          | Builtin terminal    | Toggle between linear and rectangular selection form.
-`TerminalToggleFullscreen`     |                          | Builtin terminal    | Toggle fullscreen mode.
-`TerminalToggleStdioLog`       |                          | Builtin terminal    | Stdin/stdout log toggle.
-`TerminalQuit`                 |                          | Builtin terminal    | Terminate runnning console apps and close terminal.
-`TerminalRestart`              |                          | Builtin terminal    | Terminate runnning console apps and restart current session.
-`TerminalSwitchCopyMode`       |                          | Builtin terminal    | Switch terminal text selection copy mode.
-`TerminalSelectionCopy`        |                          | Builtin terminal    | Сopy selection to clipboard.
-`TerminalSelectionCancel`      | `Esc`                    | Builtin terminal    | Deselect a selection.
-`TerminalSelectionOneShot`     |                          | Builtin terminal    | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+`RollFontsBackward`            | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list backward.
+`RollFontsForward`             | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list forward.
+`FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop             | Switch focus to the next desktop window.
+`FocusNextWindow`              | `Ctrl+PageDown`          | Desktop             | Switch focus to the previous desktop window.
+`Disconnect`                   | `Shift+F7`               | Desktop             | Disconnect from the desktop.
+`TryToQuit`                    | `F10`                    | Desktop             | Shut down the desktop server if no applications are running.
+`TerminalFindNext`             | `Alt+RightArrow`         | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalFindPrev`             | `Alt+LeftArrow`          | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalViewportOnePageUp`    | `Shift+Ctrl+PageUp`      | Application         | Scroll one page up.
+`TerminalViewportOnePageDown`  | `Shift+Ctrl+PageDown`    | Application         | Scroll one page down.
+`TerminalViewportOnePageLeft`  | `Shift+Alt+LeftArrow`    | Application         | Scroll one page to the left.
+`TerminalViewportOnePageRight` | `Shift+Alt+RightArrow`   | Application         | Scroll one page to the right.
+`TerminalViewportOneCharUp`    | `Shift+Ctrl+UpArrow`     | Application         | Scroll one line up.
+`TerminalViewportOneCharDown`  | `Shift+Ctrl+DownArrow`   | Application         | Scroll one line down.
+`TerminalViewportOneCharLeft`  | `Shift+Ctrl+LeftArrow`   | Application         | Scroll one cell to the left.
+`TerminalViewportOneCharRight` | `Shift+Ctrl+RightArrow`  | Application         | Scroll one cell to the right.
+`TerminalViewportTop`          | `Shift+Ctrl+Home`        | Application         | Scroll to the scrollback top.
+`TerminalViewportEnd`          | `Shift+Ctrl+End`         | Application         | Scroll to the scrollback bottom (reset viewport position).
+`TerminalViewportCopy`         |                          | Application         | Сopy viewport to clipboard.
+`TerminalClipboardPaste`       |                          | Application         | Paste from clipboard.
+`TerminalClipboardWipe`        |                          | Application         | Reset clipboard.
+`TerminalUndo`                 |                          | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+`TerminalRedo`                 |                          | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+`TerminalToggleCwdSync`        |                          | Application         | Toggle the current working directory sync mode.
+`TerminalToggleWrapMode`       |                          | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+`TerminalToggleSelectionMode`  |                          | Application         | Toggle between linear and rectangular selection form.
+`TerminalToggleFullscreen`     |                          | Application         | Toggle fullscreen mode.
+`TerminalToggleStdioLog`       |                          | Application         | Stdin/stdout log toggle.
+`TerminalQuit`                 |                          | Application         | Terminate runnning console apps and close terminal.
+`TerminalRestart`              |                          | Application         | Terminate runnning console apps and restart current session.
+`TerminalSwitchCopyMode`       |                          | Application         | Switch terminal text selection copy mode.
+`TerminalSelectionCopy`        |                          | Application         | Сopy selection to clipboard.
+`TerminalSelectionCancel`      | `Esc`                    | Application         | Deselect a selection.
+`TerminalSelectionOneShot`     |                          | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -417,7 +416,7 @@ Notes
 <file="/path/to/override_defaults.xml"/>  <!-- Reference to the base configuration. -->
 <config>
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
-        <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
@@ -433,13 +432,16 @@ Notes
         <hotkeys key*>
             <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
+            <key="Ctrl+Key0"          action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
             <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Alt+Enter"          action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
             <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            <key="Ctrl+CapsLock"      action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
             <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Home+End"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="End+Home"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="Ctrl+Shift+F11"     action=RollFontsForward/>        <!-- Roll font list forward. -->
-            <key="Ctrl+Shift+F12"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F11"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
+            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
+            <key="Ctrl+Shift+F12"     action=RollFontsForward/>        <!-- Roll font list forward. -->
         </hotkeys>
     </gui>
     <cursor>
@@ -790,7 +792,9 @@ Notes
             <key="Shift+Ctrl+DownArrow"  action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
             <key="Shift+Ctrl+LeftArrow"  action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
             <key="Shift+Ctrl+RightArrow" action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"       action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback top. -->
             <key="Shift+Ctrl+Home"       action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"        action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
             <key="Shift+Ctrl+End"        action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
             <key=""                      action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                      action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->

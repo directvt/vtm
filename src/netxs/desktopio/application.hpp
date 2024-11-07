@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.39";
+    static const auto version = "v0.9.99.40";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -609,6 +609,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
+        std::list<std::pair<text, text>> hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -627,6 +628,17 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(f->take_value());
         }
+        auto keybinds = config.list("/config/gui/hotkeys/key");
+        for (auto keybind_ptr : keybinds)
+        {
+            auto& keybind = *keybind_ptr;
+            if (!keybind.fake)
+            {
+                auto chord = keybind.take_value();
+                auto action = keybind.take("action", ""s);
+                gui_config.hotkeys.push_back({ chord, action });
+            }
+        }
         return gui_config;
     }
     void splice(xipc client, gui_config_t& gc)
@@ -638,7 +650,7 @@ namespace netxs::app::shared
             auto connect = [&]
             {
                 auto event_domain = netxs::events::auth{};
-                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking);
+                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21, gc.hotkeys);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)
