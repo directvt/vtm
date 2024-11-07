@@ -332,7 +332,6 @@ Action                         | Default key combination  | Level               
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
 `ToggleFullscreenMode`         | `Alt+Enter`              | Native GUI window   | Toggle fullscreen mode.
 `ToggleAntialiasingMode`       | `Ctrl+CapsLock`          | Native GUI window   | Toggle text antialiasing mode.
-`CloseGuiWindow`               | `Home+End`, `End+Home`   | Native GUI window   | Close GUI window.
 `RollFontsBackward`            | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list backward.
 `RollFontsForward`             | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list forward.
 `FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop environment | Switch focus to the next desktop window.
@@ -367,6 +366,8 @@ Action                         | Default key combination  | Level               
 `TerminalSelectionCopy`        |                          | Builtin terminal    | Сopy selection to clipboard.
 `TerminalSelectionCancel`      | `Esc`                    | Builtin terminal    | Deselect a selection.
 `TerminalSelectionOneShot`     |                          | Builtin terminal    | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+`Drop`                         |                          | All levels          | Drop the key press.
+`DropIfRepeats`                |                          | All levels          | Drop the key press if it is repeating. This binding should be specified before the main action for the key combination.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -417,7 +418,7 @@ Notes
 <file="/path/to/override_defaults.xml"/>  <!-- Reference to the base configuration. -->
 <config>
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
-        <antialiasing=off/>   <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
+        <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
@@ -433,12 +434,15 @@ Notes
         <hotkeys key*>
             <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
+            <key="Ctrl+Key0"          action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
             <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Alt+Enter"          action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
             <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            <key="Ctrl+CapsLock"      action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
             <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Home+End"           action=CloseGuiWindow/>          <!-- Close GUI window. -->
-            <key="End+Home"           action=CloseGuiWindow/>
+            <key="Ctrl+Shift+F11"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
             <key="Ctrl+Shift+F11"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
             <key="Ctrl+Shift+F12"     action=RollFontsForward/>        <!-- Roll font list forward. -->
         </hotkeys>
     </gui>
@@ -790,7 +794,9 @@ Notes
             <key="Shift+Ctrl+DownArrow"  action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
             <key="Shift+Ctrl+LeftArrow"  action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
             <key="Shift+Ctrl+RightArrow" action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"       action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback top. -->
             <key="Shift+Ctrl+Home"       action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"        action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
             <key="Shift+Ctrl+End"        action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
             <key=""                      action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                      action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->

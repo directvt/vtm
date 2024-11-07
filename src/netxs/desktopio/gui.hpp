@@ -1991,12 +1991,11 @@ namespace netxs::gui
         {
             wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
             wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
-            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ResetCellHeight();        });
-            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ToggleFullscreenMode();   });
-            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) ToggleAntialiasingMode(); });
-            wkeybd.proc("CloseGuiWindow"        , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) CloseGuiWindow();         });
-            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) RollFontList(feed::rev);  });
-            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); if (gear.keystat != input::key::repeated) RollFontList(feed::fwd);  });
+            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
+            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
+            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
+            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
+            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
             for (auto& [chord, action] : hotkeys) wkeybd.bind<tier::preview>(chord, action);
         }
 
@@ -2988,13 +2987,6 @@ namespace netxs::gui
                 set_aa_mode(!gcache.aamode);
             });
         }
-        void CloseGuiWindow()
-        {
-            bell::enqueue(This(), [&](auto& /*boss*/)
-            {
-                window_shutdown();
-            });
-        }
         void RollFontList(feed dir)
         {
             if (fcache.families.empty()) return;
@@ -3043,10 +3035,6 @@ namespace netxs::gui
                 else if (keybd_test_pressed(vkey::capslock) && keybd_test_pressed(vkey::key_0)) // Reset cell scaling.
                 {
                     ResetCellHeight();
-                }
-                else if (keybd_test_pressed(vkey::home) && keybd_test_pressed(vkey::end)) // Shutdown by Home+End.
-                {
-                    CloseGuiWindow();
                 }
                 else if (keybd_test_pressed(vkey::control) && keybd_test_pressed(vkey::shift) // Roll font list. Renumerate font list.
                       && (keybd_test_pressed(vkey::f11) || keybd_test_pressed(vkey::f12)))

@@ -1913,7 +1913,8 @@ namespace netxs::ui
                         if (!gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
                     }
                 };
-                proc("Drop", [](hids& gear){ gear.set_handled(); });
+                proc("Drop",          [](hids& gear){ gear.set_handled(); });
+                proc("DropIfRepeats", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
             void proc(qiew name, func proc)
