@@ -650,18 +650,7 @@ namespace netxs::input
                 }
                 return crop;
             }
-            static auto get_key_event_by_chord(qiew chord)
-            {
-                //todo implement
-                chord.clear();
-                auto k = syskeybd{};
-                k.keystat = 0 ? input::key::pressed : input::key::released;
-                k.virtcod = {};
-                k.scancod = {};
-                k.keycode = {};
-                k.cluster = {};
-                return k;
-            }
+            static constexpr auto any_key = qiew{ "\0"sv };
             static auto chord_list(qiew chord)
             {
                 struct key_t
@@ -676,6 +665,11 @@ namespace netxs::input
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
+                if (utf::to_low(chord) == "any")
+                {
+                    crop.push_back(any_key);
+                    return crop;
+                }
                 auto take = [](qiew& chord)
                 {
                     auto k = key_t{};
@@ -1749,11 +1743,6 @@ namespace netxs::input
         }
 
         auto meta(si32 ctl_key = -1) { return hids::ctlstat & ctl_key; }
-        auto chord(si32 k, si32 mods = {})
-        {
-            if (mods) return k == keybd::keycode && meta(mods) && !meta(~mods & hids::anyMod);
-            else      return k == keybd::keycode && !meta(hids::anyMod);
-        }
 
         // hids: Stop handeling this event.
         void dismiss(bool set_nodbl = faux)

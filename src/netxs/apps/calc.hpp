@@ -339,7 +339,6 @@ namespace netxs::app::calc
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      //boss.keybd.accept(true);
                       boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                       {
                           boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);

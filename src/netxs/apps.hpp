@@ -75,7 +75,6 @@ namespace netxs::app::shared
                                ->active()
                                ->invoke([](auto& boss)
                                 {
-                                    //boss.keybd.accept(true);
                                     closing_by_gesture(boss);
                                     closing_on_quit(boss);
                                 })
@@ -104,7 +103,6 @@ namespace netxs::app::shared
                   ->active(colors)
                   ->invoke([&](auto& boss)
                   {
-                        //boss.keybd.accept(true);
                         closing_by_gesture(boss);
                         closing_on_quit(boss);
                   });
@@ -119,7 +117,6 @@ namespace netxs::app::shared
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
                   {
-                      //boss.keybd.accept(true);
                       closing_by_gesture(boss);
                       closing_on_quit(boss);
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
@@ -243,7 +240,6 @@ namespace netxs::app::shared
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {
-                        //boss.keybd.accept(true);
                         closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -515,6 +511,7 @@ namespace netxs::app::shared
                 .add(app::shared::repository);
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->plugin<pro::keybd>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
@@ -524,15 +521,16 @@ namespace netxs::app::shared
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
-                    {
-                        auto window_ptr = boss.base::riseup(tier::request, e2::form::prop::window::instance);
-                        //todo too hacky
-                        if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
-                        {
-                            form_ptr->template plugins<pro::title>().live = faux;
-                        }
-                    };
+                    //todo Should the title of the info page be hidden?
+                    //boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
+                    //{
+                    //    auto window_ptr = boss.base::riseup(tier::request, e2::form::prop::window::instance);
+                    //    //todo too hacky
+                    //    if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
+                    //    {
+                    //        form_ptr->template plugins<pro::title>().live = faux;
+                    //    }
+                    //};
                 });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
@@ -687,7 +685,7 @@ namespace netxs::app::shared
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;;
-            auto update = [pressed, released](auto& boss, hids& gear, bool is_key_event)
+            auto update_ptr = ptr::shared([pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
                 //    input::key::map::data(gear.keycode).name,
@@ -728,7 +726,7 @@ namespace netxs::app::shared
                         rec_ptr->upload(*iter++, -1);
                     }
                 }
-            };
+            });
             for (auto& item : body)
             {
                 auto stats = items->subset.size() < 3;
@@ -743,34 +741,57 @@ namespace netxs::app::shared
             }
             items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update_ptr))
                 {
-                    update(boss, gear, faux);
+                    (*update_ptr)(boss, gear, faux);
                 };
             });
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
+                auto& scroll_inst = *scroll;
                 auto esc_pressed = ptr::shared(faux);
-                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update, esc_pressed)) //todo MS VS2019 can't capture static 'auto update =...'.
+                auto& keybd = boss.template plugins<pro::keybd>();
+                keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
                 {
-                    auto changed = faux;
-                    //todo key
-                    if (gear.chord(input::key::Esc))
+                    if (!gear.is_exclusive() && *esc_pressed)
                     {
-                        if (gear.keystat == input::key::released && gear.vkchord.size())
-                        {
-                            boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                            gear.set_handled(true);
-                            return;
-                        }
-                        if (!std::exchange(*esc_pressed, gear.vkchord.size())) changed = true;
+                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                        gear.set_handled(true);
                     }
-                    else if (std::exchange(*esc_pressed, faux)) changed = true;
-                    if (changed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
-                    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                    gear.set_handled(true);
-                };
+                });
+                keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+                {
+                    if (std::exchange(*esc_pressed, true) != *esc_pressed)
+                    {
+                        boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
+                    }
+                });
+                keybd.proc("UpdateChordPreview", [&, esc_pressed, update_ptr](hids& gear)
+                {
+                    if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
+                    if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
+                });
+                keybd.template bind<tier::preview>( "Esc", "DropIfRepeats");
+                keybd.template bind<tier::release>( "Esc", "WindowClosePreview");
+                keybd.template bind<tier::preview>("-Esc", "WindowClose");
+                keybd.template bind<tier::release>( "Any", "UpdateChordPreview");
+                keybd.proc("ScrollPageUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); } });
+                keybd.proc("ScrollPageDown" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); } });
+                keybd.proc("ScrollLineUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); } });
+                keybd.proc("ScrollLineDown" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); } });
+                keybd.proc("ScrollCharLeft" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); } });
+                keybd.proc("ScrollCharRight", [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); } });
+                keybd.proc("ScrollTop"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_top::y); } });
+                keybd.proc("ScrollEnd"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_end::y); } });
+                keybd.bind("PageUp"    , "ScrollPageUp"   );
+                keybd.bind("PageDown"  , "ScrollPageDown" );
+                keybd.bind("UpArrow"   , "ScrollLineUp"   );
+                keybd.bind("DownArrow" , "ScrollLineDown" );
+                keybd.bind("LeftArrow" , "ScrollCharLeft" );
+                keybd.bind("RightArrow", "ScrollCharRight");
+                keybd.bind("Home"      , "ScrollTop"      );
+                keybd.bind("End"       , "ScrollEnd"      );
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

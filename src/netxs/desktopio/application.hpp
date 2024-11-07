@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.40";
+    static const auto version = "v0.9.99.41";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -417,7 +417,6 @@ namespace netxs::app::shared
                 ->plugin<pro::acryl>()
                 ->invoke([&](auto& boss)
                 {
-                    //boss.keybd.accept(true);
                     closing_on_quit(boss);
                     closing_by_gesture(boss);
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
