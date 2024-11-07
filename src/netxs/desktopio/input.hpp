@@ -1965,10 +1965,14 @@ namespace netxs::input
             if (m_sav.changed != m_sys.changed) m_sav = m_sys;
             return !alive;
         }
+        auto is_exclusive()
+        {
+            return !ptr::is_empty(exclusive_wptr);
+        }
         void fire_keybd()
         {
             alive = true;
-            if (!ptr::is_empty(exclusive_wptr))
+            if (is_exclusive())
             if (auto target = exclusive_wptr.lock())
             {
                 target->bell::signal(tier::preview, hids::events::keybd::key::post, *this);

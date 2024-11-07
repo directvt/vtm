@@ -1807,14 +1807,21 @@ namespace netxs::gui
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
+                if (item.solo < 0) // Exclusive keyboard mode: -1: set, -2: reset.
                 {
-                    auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
+                    gears->set_exclusive(item.solo == -1 ? owner.This() : netxs::sptr<base>{}); // Exclusive mode will be reset automatically when focus is changed.
                 }
-                else owner.window_post_command(ipc::take_focus);
-                if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                else
                 {
-                    owner.window_post_command(ipc::solo_focus);
+                    if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
+                    {
+                        auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
+                    }
+                    else owner.window_post_command(ipc::take_focus);
+                    if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                    {
+                        owner.window_post_command(ipc::solo_focus);
+                    }
                 }
             }
             void handle(s11n::xs::syskeybd         lock)
@@ -2838,7 +2845,7 @@ namespace netxs::gui
                 {
                     keybd_send_block(block); // Send multifocus events.
                 }
-                return wkeybd.filter<tier::preview>(gear);
+                return gear.is_exclusive() || wkeybd.filter<tier::preview>(gear);
             });
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
@@ -3060,7 +3067,7 @@ namespace netxs::gui
                         stream.m.ctlstat = keymod;
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
-                        if (wkeybd.filter<tier::preview>(gear))
+                        if (gear.is_exclusive() || wkeybd.filter<tier::preview>(gear))
                         {
                             stream.keybd(gear);
                         }
