@@ -415,6 +415,7 @@ R"==(
             <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
             <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
             <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
             <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
             <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->

@@ -359,6 +359,7 @@ Action                         | Default key combination  | Available at level  
 `TerminalToggleWrapMode`       |                          | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
 `TerminalToggleSelectionMode`  |                          | Application         | Toggle between linear and rectangular selection form.
 `TerminalToggleFullscreen`     |                          | Application         | Toggle fullscreen mode.
+`TerminalToggleMaximize`       |                          | Application         | Toggle between maximized and normal window size.
 `TerminalToggleStdioLog`       |                          | Application         | Stdin/stdout log toggle.
 `TerminalQuit`                 |                          | Application         | Terminate runnning console apps and close terminal.
 `TerminalRestart`              |                          | Application         | Terminate runnning console apps and restart current session.
@@ -805,6 +806,7 @@ Notes
             <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
             <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
             <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
             <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
             <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->

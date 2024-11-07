@@ -191,6 +191,7 @@ TerminalToggleCwdSync        | x                  |                             
 TerminalToggleWrapMode       | x                  |                              | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean.
 TerminalToggleSelectionMode  | x                  |                              | Toggle between linear(0) and rectangular(1) selection form.
 TerminalToggleFullscreen     | x                  |                              | Toggle fullscreen mode.
+TerminalToggleMaximize       | x                  |                              | Toggle between maximized and normal window size.
 TerminalToggleStdioLog       | x                  |                              | Stdin/stdout log toggle.
 TerminalQuit                 |                    |                              | Terminate runnning console apps and close terminal.
 TerminalRestart              |                    |                              | Terminate runnning console apps and restart current session.
@@ -331,6 +332,7 @@ TerminalSelectionOneShot     |                    |                             
             <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
             <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
             <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
             <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
             <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
