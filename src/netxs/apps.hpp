@@ -772,10 +772,10 @@ namespace netxs::app::shared
                     if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.bind<tier::preview>( "Esc", "DropIfRepeats");
-                keybd.bind<tier::release>( "Esc", "WindowClosePreview");
-                keybd.bind<tier::preview>("-Esc", "WindowClose");
-                keybd.bind<tier::release>( "Any", "UpdateChordPreview");
+                keybd.template bind<tier::preview>( "Esc", "DropIfRepeats");
+                keybd.template bind<tier::release>( "Esc", "WindowClosePreview");
+                keybd.template bind<tier::preview>("-Esc", "WindowClose");
+                keybd.template bind<tier::release>( "Any", "UpdateChordPreview");
                 keybd.proc("ScrollPageUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); } });
                 keybd.proc("ScrollPageDown" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); } });
                 keybd.proc("ScrollLineUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); } });
