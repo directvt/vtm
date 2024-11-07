@@ -1743,11 +1743,6 @@ namespace netxs::input
         }
 
         auto meta(si32 ctl_key = -1) { return hids::ctlstat & ctl_key; }
-        auto chord(si32 k, si32 mods = {})
-        {
-            if (mods) return k == keybd::keycode && meta(mods) && !meta(~mods & hids::anyMod);
-            else      return k == keybd::keycode && !meta(hids::anyMod);
-        }
 
         // hids: Stop handeling this event.
         void dismiss(bool set_nodbl = faux)
