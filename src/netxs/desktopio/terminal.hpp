@@ -7746,6 +7746,7 @@ namespace netxs::ui
             chords.proc("TerminalSelectionOneShot",         [&](hids& gear){ gear.set_handled(); set_oneshot(mime::textonly);       });
             chords.proc("TerminalViewportCopy",             [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
             chords.proc("TerminalToggleStdioLog",           [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
+            chords.proc("ToggleExclusiveKeybd",             [&](hids& gear){ if (!gear.is_exclusive()) gear.set_exclusive(This()); else gear.set_exclusive(); });
             chords.load<tier::release>(xml_config, "/config/term/hotkeys/key");
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
