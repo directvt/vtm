@@ -345,7 +345,7 @@ Action                         | Default key combination  | Available at level  
 -------------------------------|--------------------------|---------------------|------------
 `Drop`                         |                          | All levels          | Drop all events for the specified key combination. No further processing.
 `DropIfRepeats`                |                          | All levels          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels.
+`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels. Exclusive keyboard mode is automatically disabled when refocusing.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
