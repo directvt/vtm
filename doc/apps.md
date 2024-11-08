@@ -124,7 +124,8 @@ TerminalOutput               | x               | Direct output the `data=` value
 TerminalSendKey              | x               | Simulating keypresses using the `data=` string.
 TerminalQuit                 |                 | Terminate runnning console apps and close terminal.
 TerminalRestart              |                 | Terminate runnning console apps and restart current session.
-TerminalFullscreen           |                 | Toggle fullscreen mode.
+TerminalToggleFullscreen     |                 | Toggle fullscreen mode.
+TerminalToggleMaximize       |                 | Toggle between maximized and normal window size.
 TerminalUndo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardPaste       |                 | Paste from clipboard.
@@ -280,7 +281,7 @@ TerminalSelectionOneShot     |                    |                             
             <item label="Undo" type="Command" action=TerminalUndo/>
             <item label="Redo" type="Command" action=TerminalRedo/>
             <item label="Quit" type="Command" action=TerminalQuit/>
-            <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
+            <item label="Fullscreen" type="Command" action=TerminalToggleFullscreen/>
 
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" notes=" test " type="Repeat" action=TerminalOutput data="pressed ">
