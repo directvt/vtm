@@ -1730,9 +1730,11 @@ namespace netxs::ansi
             data(n * wdt, proto_cells);
             proto_cells.clear();
         }
-        void reset(cell c)
+        void reset(cell c = {})
         {
             brush.reset(c);
+            style.rst();
+            state.rst();
             proto_count = 0;
             proto_cells.clear();
         }
