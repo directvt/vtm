@@ -24,15 +24,19 @@
 </thead>
 <tbody>
   <tr>
-    <th>F10</th>
+    <th>Ctrl-Alt ²</th>
+    <td colspan="9">Toggle exclusive keyboard mode</td>
+  </tr>
+  <tr>
+    <th>F10 ²</th>
     <td colspan="9">Disconnect all users and shutdown if there are no apps running</td>
   </tr>
   <tr>
-    <th>Shift+F7</th>
+    <th>Shift+F7 ²</th>
     <td colspan="9">Leave current session</td>
   </tr>
   <tr>
-    <th>Ctrl+PgUp/PgDn</th>
+    <th>Ctrl+PageUp/PageDown ²</th>
     <td colspan="9">Switch focus between running apps</td>
   </tr>
   <tr>
@@ -162,19 +166,19 @@
 </thead>
 <tbody>
   <tr>
-    <th>Alt+Enter</th>
+    <th>Alt+Enter ²</th>
     <td colspan="3">Toggle fullscreen mode</td>
   </tr>
   <tr>
-    <th>Ctrl+CapsLock</th>
+    <th>Ctrl+CapsLock ²</th>
     <td colspan="3">Toggle antialiasing mode</td>
   </tr>
   <tr>
-    <th>CapsLock+Up/DownArrow</th>
+    <th>CapsLock+UpArrow/DownArrow ²</th>
     <td colspan="3">Scale cell size</td>
   </tr>
   <tr>
-    <th>CapsLock+0</th>
+    <th>CapsLock+0 ²</th>
     <td colspan="3">Reset cell size</td>
   </tr>
   <tr>
@@ -188,10 +192,6 @@
   <tr>
     <th>DoubleLeftClick</th>
     <td colspan="3">Toggle fullscreen mode (if unhandled)</td>
-  </tr>
-  <tr>
-    <th>Home+End</th>
-    <td colspan="3">Close GUI window</td>
   </tr>
   <tr>
     <th>AnyDrag<br>Left+RightDrag</th>
@@ -214,4 +214,5 @@
 </tbody>
 </table>
 
-¹ — In fullscreen mode, the GUI window reserves a 1px high area at the top for forwarding mouse events.
+¹ — In fullscreen mode, the GUI window reserves a 1px high area at the top for forwarding mouse events.  
+² — Key bindings can be customized using the settings.

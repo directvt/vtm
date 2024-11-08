@@ -7734,7 +7734,8 @@ namespace netxs::ui
             chords.proc("TerminalToggleWrapMode",           [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
             chords.proc("TerminalQuit",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc("TerminalRestart",                  [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
-            chords.proc("TerminalToggleFullscreen",         [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); });
+            chords.proc("TerminalToggleFullscreen",         [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
+            chords.proc("TerminalToggleMaximize",           [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
             chords.proc("TerminalUndo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc("TerminalRedo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
             chords.proc("TerminalClipboardPaste",           [&](hids& gear){ gear.set_handled(); paste(gear);                       });
@@ -7745,6 +7746,7 @@ namespace netxs::ui
             chords.proc("TerminalSelectionOneShot",         [&](hids& gear){ gear.set_handled(); set_oneshot(mime::textonly);       });
             chords.proc("TerminalViewportCopy",             [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
             chords.proc("TerminalToggleStdioLog",           [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
+            chords.proc("ToggleExclusiveKeybd",             [&](hids& gear){ if (!gear.is_exclusive()) gear.set_exclusive(This()); else gear.set_exclusive(); });
             chords.load<tier::release>(xml_config, "/config/term/hotkeys/key");
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.

@@ -235,7 +235,7 @@ namespace netxs::app::shared
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  //->plugin<pro::track>()
+                  ->plugin<pro::keybd>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -257,6 +257,11 @@ namespace netxs::app::shared
                         auto sb = layers->attach(ui::fork::ctor());
                         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                         auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            window->invoke([&](auto& boss)
+            {
+                auto& keybd = boss.template plugins<pro::keybd>();
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+            });
             return window;
         };
 
@@ -544,7 +549,7 @@ namespace netxs::app::shared
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
                 [window, c1](auto& boss, auto& /*item*/)
                 {
-                    boss.shader(cell::shaders::color(c1), e2::form::state::keybd::command::close, window);
+                    boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();
@@ -749,49 +754,13 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
-                auto& scroll_inst = *scroll;
-                auto esc_pressed = ptr::shared(faux);
                 auto& keybd = boss.template plugins<pro::keybd>();
-                keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear)
                 {
-                    if (!gear.is_exclusive() && *esc_pressed)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                        gear.set_handled(true);
-                    }
-                });
-                keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
-                {
-                    if (std::exchange(*esc_pressed, true) != *esc_pressed)
-                    {
-                        boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
-                    }
-                });
-                keybd.proc("UpdateChordPreview", [&, esc_pressed, update_ptr](hids& gear)
-                {
-                    if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::release, e2::form::state::keybd::command::close, *esc_pressed);
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.template bind<tier::preview>( "Esc", "DropIfRepeats");
-                keybd.template bind<tier::release>( "Esc", "WindowClosePreview");
-                keybd.template bind<tier::preview>("-Esc", "WindowClose");
                 keybd.template bind<tier::release>( "Any", "UpdateChordPreview");
-                keybd.proc("ScrollPageUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); } });
-                keybd.proc("ScrollPageDown" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); } });
-                keybd.proc("ScrollLineUp"   , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); } });
-                keybd.proc("ScrollLineDown" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); } });
-                keybd.proc("ScrollCharLeft" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); } });
-                keybd.proc("ScrollCharRight", [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); } });
-                keybd.proc("ScrollTop"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_top::y); } });
-                keybd.proc("ScrollEnd"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_end::y); } });
-                keybd.bind("PageUp"    , "ScrollPageUp"   );
-                keybd.bind("PageDown"  , "ScrollPageDown" );
-                keybd.bind("UpArrow"   , "ScrollLineUp"   );
-                keybd.bind("DownArrow" , "ScrollLineDown" );
-                keybd.bind("LeftArrow" , "ScrollCharLeft" );
-                keybd.bind("RightArrow", "ScrollCharRight");
-                keybd.bind("Home"      , "ScrollTop"      );
-                keybd.bind("End"       , "ScrollEnd"      );
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

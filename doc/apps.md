@@ -124,7 +124,8 @@ TerminalOutput               | x               | Direct output the `data=` value
 TerminalSendKey              | x               | Simulating keypresses using the `data=` string.
 TerminalQuit                 |                 | Terminate runnning console apps and close terminal.
 TerminalRestart              |                 | Terminate runnning console apps and restart current session.
-TerminalFullscreen           |                 | Toggle fullscreen mode.
+TerminalToggleFullscreen     |                 | Toggle fullscreen mode.
+TerminalToggleMaximize       |                 | Toggle between maximized and normal window size.
 TerminalUndo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardPaste       |                 | Paste from clipboard.
@@ -170,6 +171,9 @@ The list of hotkey actions is slightly different from the list of window menu ac
 
 Value                        | Unique for hotkeys | Default Hotkey               | Description
 -----------------------------|--------------------|------------------------------|------------
+Drop                         |                    |                              | Drop all events for the specified key combination. No further processing.
+DropIfRepeats                |                    |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+ToggleExclusiveKeybd         | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels.
 TerminalFindNext             |                    | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 TerminalFindPrev             |                    | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 TerminalViewportOnePageUp    | x                  | `Shift+Ctrl+PageUp`          | Scroll one page up.
@@ -188,16 +192,17 @@ TerminalClipboardWipe        |                    |                             
 TerminalUndo                 |                    |                              | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                    |                              | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalToggleCwdSync        | x                  |                              | Toggle the current working directory sync mode.
-TerminalToggleWrapMode       | x                  |                              | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean.
-TerminalToggleSelectionMode  | x                  |                              | Toggle between linear(0) and rectangular(1) selection form.
+TerminalToggleWrapMode       | x                  |                              | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+TerminalToggleSelectionMode  | x                  |                              | Toggle between linear and rectangular selection form.
 TerminalToggleFullscreen     | x                  |                              | Toggle fullscreen mode.
+TerminalToggleMaximize       | x                  |                              | Toggle between maximized and normal window size.
 TerminalToggleStdioLog       | x                  |                              | Stdin/stdout log toggle.
 TerminalQuit                 |                    |                              | Terminate runnning console apps and close terminal.
 TerminalRestart              |                    |                              | Terminate runnning console apps and restart current session.
-TerminalSwitchCopyMode       | x                  |                              | Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'.
+TerminalSwitchCopyMode       | x                  |                              | Switch terminal text selection mode.
 TerminalSelectionCopy        |                    |                              | Сopy selection to clipboard.
 TerminalSelectionCancel      |                    | `Esc`                        | Deselect a selection.
-TerminalSelectionOneShot     |                    |                              | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
+TerminalSelectionOneShot     |                    |                              | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 
 #### Terminal configuration example
 ```xml
@@ -279,7 +284,7 @@ TerminalSelectionOneShot     |                    |                             
             <item label="Undo" type="Command" action=TerminalUndo/>
             <item label="Redo" type="Command" action=TerminalRedo/>
             <item label="Quit" type="Command" action=TerminalQuit/>
-            <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
+            <item label="Fullscreen" type="Command" action=TerminalToggleFullscreen/>
 
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" notes=" test " type="Repeat" action=TerminalOutput data="pressed ">
@@ -331,6 +336,7 @@ TerminalSelectionOneShot     |                    |                             
             <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
             <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
             <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                      action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
             <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
             <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
@@ -338,6 +344,8 @@ TerminalSelectionOneShot     |                    |                             
             <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
             <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Alt-Ctrl. -->
         </hotkeys>
     </term>
 </config>

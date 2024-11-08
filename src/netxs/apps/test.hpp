@@ -600,7 +600,7 @@ namespace netxs::app::test
             auto topic = get_text();
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                //->plugin<pro::track>()
+                ->plugin<pro::keybd>()
                 //->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->invoke([](auto& boss)
@@ -655,7 +655,11 @@ namespace netxs::app::test
                     b.grad(argb{ 0xFF00FFFF }, argb{ 0x40FFFFFF });
                     b[{5, 0}].alpha(0);
                     b[{5, 1}].alpha(0);
-
+            window->invoke([&](auto& boss)
+            {
+                auto& keybd = boss.template plugins<pro::keybd>();
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+            });
             return window;
         };
     }

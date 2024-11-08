@@ -80,7 +80,7 @@ namespace netxs::app::desk
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0)
                 ->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
-                ->shader<e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
+                ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
                 ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->invoke([&](auto& boss)
@@ -550,7 +550,7 @@ namespace netxs::app::desk
             {
                 auto appid = "info"s;
                 auto label = "Info"s;
-                auto title = ansi::jet(bias::right).add(label);
+                auto title = ansi::add(label);
                 auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }, usrcfg))
                 {

@@ -333,7 +333,7 @@ namespace netxs::app::calc
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
-                  //->plugin<pro::track>()
+                  ->plugin<pro::keybd>()
                   ->shader(c3, e2::form::state::keybd::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
@@ -424,6 +424,11 @@ namespace netxs::app::calc
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
                                                    ->limits({ 1,1 }, { 1,1 });
                     layers->attach(app::shared::scroll_bars(scroll));
+            window->invoke([&](auto& boss)
+            {
+                auto& keybd = boss.template plugins<pro::keybd>();
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+            });
             return window;
         };
     }

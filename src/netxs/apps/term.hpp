@@ -206,7 +206,8 @@ namespace netxs::app::terminal
                 X(Noop                      ) /* */ \
                 X(TerminalQuit              ) /* */ \
                 X(TerminalCwdSync           ) /* */ \
-                X(TerminalFullscreen        ) /* */ \
+                X(TerminalToggleFullscreen  ) /* */ \
+                X(TerminalToggleMaximize    ) /* */ \
                 X(TerminalRestart           ) /* */ \
                 X(TerminalSendKey           ) /* */ \
                 X(TerminalWrapMode          ) /* */ \
@@ -342,11 +343,18 @@ namespace netxs::app::terminal
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
                     });
                 }
-                static void TerminalFullscreen(ui::item& boss, menu::item& item)
+                static void TerminalToggleFullscreen(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                    });
+                }
+                static void TerminalToggleMaximize(ui::item& boss, menu::item& item)
+                {
+                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
+                    {
+                        boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     });
                 }
                 static void TerminalRestart(ui::item& boss, menu::item& item)

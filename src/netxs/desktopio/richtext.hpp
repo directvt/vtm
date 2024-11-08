@@ -2034,7 +2034,7 @@ namespace netxs::ui
         // page: Clear the list of paragraphs.
         page& clear(bool preserve_state = faux)
         {
-            if (!preserve_state) parser::brush.reset();
+            if (!preserve_state) parser::reset();
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
