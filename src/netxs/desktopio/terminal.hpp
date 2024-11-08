@@ -7734,8 +7734,8 @@ namespace netxs::ui
             chords.proc("TerminalToggleWrapMode",           [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
             chords.proc("TerminalQuit",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc("TerminalRestart",                  [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
-            chords.proc("TerminalToggleFullscreen",         [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); });
-            chords.proc("TerminalToggleMaximize",           [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear); });
+            chords.proc("TerminalToggleFullscreen",         [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
+            chords.proc("TerminalToggleMaximize",           [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
             chords.proc("TerminalUndo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc("TerminalRedo",                     [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
             chords.proc("TerminalClipboardPaste",           [&](hids& gear){ gear.set_handled(); paste(gear);                       });

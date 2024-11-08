@@ -550,7 +550,7 @@ namespace netxs::app::desk
             {
                 auto appid = "info"s;
                 auto label = "Info"s;
-                auto title = ansi::jet(bias::right).add(label);
+                auto title = ansi::add(label);
                 auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }, usrcfg))
                 {

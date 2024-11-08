@@ -1279,6 +1279,14 @@ namespace netxs::ui
                 //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
                 return gear_id_list;
             }
+            // pro::focus: Defocus all gears except specified.
+            static auto one(sptr item_ptr, id_t gear_id)
+            {
+                auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                std::erase_if(gear_id_list, [&](auto& id){ return gear_id == id; });
+                pro::focus::off(item_ptr, gear_id_list);
+                //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
+            }
             static auto get(sptr item_ptr, bool remove_default = faux)
             {
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
