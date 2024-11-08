@@ -784,8 +784,8 @@ namespace netxs::app::shared
                 keybd.proc("ScrollCharRight" , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); } });
                 keybd.proc("ScrollTop"       , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_top::y); } });
                 keybd.proc("ScrollEnd"       , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::signal(tier::preview, e2::form::upon::scroll::to_end::y); } });
-                keybd.proc("ToogleMaximize"  , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }}); // Refocus-related operations require execution outside of keyboard events.
-                keybd.proc("ToogleFullscreen", [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }});
+                keybd.proc("ToggleMaximize"  , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }}); // Refocus-related operations require execution outside of keyboard events.
+                keybd.proc("ToggleFullscreen", [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }});
                 keybd.bind("PageUp"    , "ScrollPageUp"    );
                 keybd.bind("PageDown"  , "ScrollPageDown"  );
                 keybd.bind("UpArrow"   , "ScrollLineUp"    );
@@ -797,9 +797,10 @@ namespace netxs::app::shared
                 keybd.bind("End"       , "DropIfRepeats"   );
                 keybd.bind("End"       , "ScrollEnd"       );
                 keybd.bind("F11"       , "DropIfRepeats"   );
-                keybd.bind("F11"       , "ToogleMaximize"  );
+                keybd.bind("F11"       , "ToggleMaximize"  );
                 keybd.bind("F12"       , "DropIfRepeats"   );
-                keybd.bind("F12"       , "ToogleFullscreen");
+                keybd.bind("F12"       , "ToggleFullscreen");
+                //keybd.bind("Ctrl-Alt"  , "ToggleExclusiveKeybd");
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })
