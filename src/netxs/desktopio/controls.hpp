@@ -2412,7 +2412,7 @@ namespace netxs::ui
             return backup;
         }
         // form: Fill object region using parametrized fx.
-        template<auto RenderOrder = e2::render::background::any, auto Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
+        template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
         auto shader(Fx&& fx, Event sync = {}, sptr source_ptr = {})
         {
             static constexpr auto is_cell = std::is_same_v<cell, std::decay_t<Fx>>;
