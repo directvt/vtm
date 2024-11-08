@@ -110,6 +110,58 @@ namespace netxs::app::shared
             }
         }
     };
+    const auto base_kb_navigation = [](ui::pro::keybd& keybd, netxs::sptr<base> scroll, base& boss)
+    {
+        auto& scroll_inst = *scroll;
+        auto esc_pressed = ptr::shared(faux);
+        keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+        {
+            if (!gear.is_exclusive() && *esc_pressed)
+            {
+                boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                gear.set_handled(true);
+            }
+        });
+        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+        {
+            if (std::exchange(*esc_pressed, true) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
+        });
+        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
+        {
+            if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
+        });
+        keybd.template bind<tier::preview>( "Esc", "DropIfRepeats");
+        keybd.template bind<tier::release>( "Esc", "WindowClosePreview");
+        keybd.template bind<tier::preview>("-Esc", "WindowClose");
+        keybd.template bind<tier::release>( "Any", "CancelWindowClose");
+        keybd.proc("ScrollPageUp"        , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); } });
+        keybd.proc("ScrollPageDown"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); } });
+        keybd.proc("ScrollLineUp"        , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); } });
+        keybd.proc("ScrollLineDown"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); } });
+        keybd.proc("ScrollCharLeft"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); } });
+        keybd.proc("ScrollCharRight"     , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); } });
+        keybd.proc("ScrollTop"           , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); } });
+        keybd.proc("ScrollEnd"           , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); } });
+        keybd.proc("ToggleMaximize"      , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }}); // Refocus-related operations require execution outside of keyboard events.
+        keybd.proc("ToggleFullscreen"    , [&](hids& gear){ if (!gear.is_exclusive()) { scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }});
+        keybd.proc("ToggleExclusiveKeybd", [&](hids& gear){ if (!gear.is_exclusive()) gear.set_exclusive(boss.This()); else gear.set_exclusive(); });
+        keybd.bind("PageUp"    , "ScrollPageUp"        );
+        keybd.bind("PageDown"  , "ScrollPageDown"      );
+        keybd.bind("UpArrow"   , "ScrollLineUp"        );
+        keybd.bind("DownArrow" , "ScrollLineDown"      );
+        keybd.bind("LeftArrow" , "ScrollCharLeft"      );
+        keybd.bind("RightArrow", "ScrollCharRight"     );
+        keybd.bind("Home"      , "DropIfRepeats"       );
+        keybd.bind("Home"      , "ScrollTop"           );
+        keybd.bind("End"       , "DropIfRepeats"       );
+        keybd.bind("End"       , "ScrollEnd"           );
+        keybd.bind("F11"       , "DropIfRepeats"       );
+        keybd.bind("F11"       , "ToggleMaximize"      );
+        keybd.bind("F12"       , "DropIfRepeats"       );
+        keybd.bind("F12"       , "ToggleFullscreen"    );
+        keybd.bind("Ctrl-Alt"  , "ToggleExclusiveKeybd");
+        keybd.bind("Alt-Ctrl"  , "ToggleExclusiveKeybd");
+    };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
@@ -281,8 +333,9 @@ namespace netxs::app::shared
                         };
                     }},
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
-                    [](auto& boss, auto& /*item*/)
+                    [c1](auto& boss, auto& /*item*/)
                     {
+                        boss.shader<e2::render::background::any, tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
                             auto backup = boss.This();

@@ -87,7 +87,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  //->plugin<pro::track>()
+                  ->plugin<pro::keybd>()
                   ->shader(c3, e2::form::state::keybd::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
@@ -126,6 +126,11 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                                                 ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                     .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));
+            window->invoke([&](auto& boss)
+            {
+                auto& keybd = boss.template plugins<pro::keybd>();
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+            });
             return window;
         };
     }

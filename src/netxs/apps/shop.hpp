@@ -195,7 +195,7 @@ namespace netxs::app::shop
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60000000)
-                  //->plugin<pro::track>()
+                  ->plugin<pro::keybd>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -231,6 +231,11 @@ namespace netxs::app::shop
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
+            window->invoke([&](auto& boss)
+            {
+                auto& keybd = boss.template plugins<pro::keybd>();
+                app::shared::base_kb_navigation(keybd, scroll, boss);
+            });
             return window;
         };
     };
