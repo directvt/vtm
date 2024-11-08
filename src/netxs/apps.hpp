@@ -549,7 +549,7 @@ namespace netxs::app::shared
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
                 [window, c1](auto& boss, auto& /*item*/)
                 {
-                    boss.shader<e2::render::background::any, tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
+                    boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();

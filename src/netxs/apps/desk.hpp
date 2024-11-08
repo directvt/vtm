@@ -80,7 +80,7 @@ namespace netxs::app::desk
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0)
                 ->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
-                ->shader<e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
+                ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
                 ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->invoke([&](auto& boss)
