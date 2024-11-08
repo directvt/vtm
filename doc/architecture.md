@@ -37,13 +37,13 @@ graph TB
     subgraph IE10[Generic Text Console 1]
         subgraph IE1[Input]
             direction LR
-            C1[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
+            C1[keybd, mouse, focus<br>winsize, clipboard,<br>os signals]
         end
         subgraph OU1[Output]
-            TC1[scrollback\nbuffer]
+            TC1[scrollback<br>buffer]
         end
         subgraph CS1[Desktop Client 1]
-            VTM1[vtm\nprocess 1]
+            VTM1[vtm<br>process 1]
         end
         C1 --> CS1
         TC1 --- CS1
@@ -52,13 +52,13 @@ graph TB
     subgraph IE20[Generic Text Console 2]
         subgraph IE2[Input]
             direction LR
-            C2[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
+            C2[keybd, mouse, focus<br>winsize, clipboard,<br>os signals]
         end
         subgraph OU2[Output]
-            TC2[scrollback\nbuffer]
+            TC2[scrollback<br>buffer]
         end
         subgraph CS2[Desktop Client 2]
-            VTM2[vtm\nprocess 2]
+            VTM2[vtm<br>process 2]
         end
         C2 --> CS2
         TC2 --- CS2
@@ -67,43 +67,43 @@ graph TB
     subgraph IE30[Generic Text Console 3]
         subgraph IE3[Input]
             direction LR
-            C3[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
+            C3[keybd, mouse, focus<br>winsize, clipboard,<br>os signals]
         end
         subgraph OU3[Output]
-            TC3[scrollback\nbuffer]
+            TC3[scrollback<br>buffer]
         end
         subgraph CS3[DirectVT Gateway]
-            VTM3[vtm\nprocess 3]
+            VTM3[vtm<br>process 3]
         end
         C3 --> CS3
         TC3 --- CS3
     end
     subgraph APP0x[Standalone DirectVT-aware Application]
-        APP01[DirectVT App4\napp: process 9]
+        APP01[DirectVT App4<br>app: process 9]
     end
-    CS3 <-->|DirectVT I/O\nsend: Events\nrecv: Render| APP01
+    CS3 <-->|DirectVT I/O<br>send: Events<br>recv: Render| APP01
 
     subgraph NP[Connection Point]
-        TS["system-wide\nnamed pipe"]
+        TS["system-wide<br>named pipe"]
     end
 
     subgraph SS[Desktop Server]
-        VTMs[vtm\nprocess 0]
+        VTMs[vtm<br>process 0]
         subgraph SE[Desktop Session]
             subgraph APPx[running application windows]
                 subgraph APP1[DirectVT Gateway]
-                    eAPP1[DirectVT App1\napp: process 4]
+                    eAPP1[DirectVT App1<br>app: process 4]
                 end
                 subgraph APP2[DirectVT Gateway]
-                    eAPP2["App2 (Teletype+App2)\nvtm: process 5\napp: process 6"]
+                    eAPP2["App2 (Teletype+App2)<br>vtm: process 5<br>app: process 6"]
                 end
                 subgraph APP3[DirectVT Gateway]
-                    eAPP3["App3 (Terminal+App3)\nvtm: process 7\napp: process 8"]
+                    eAPP3["App3 (Terminal+App3)<br>vtm: process 7<br>app: process 8"]
                 end
             end
             subgraph APPu[connected users]
-                USR1["Desktop Client 1\nViewport\nTaskbar"]
-                USR2["Desktop Client 2\nViewport\nTaskbar"]
+                USR1["Desktop Client 1<br>Viewport<br>Taskbar"]
+                USR2["Desktop Client 2<br>Viewport<br>Taskbar"]
             end
             USR1 --->|keyboard focus| APP1
             USR2 --->|keyboard focus| APP2
@@ -112,8 +112,8 @@ graph TB
         VTMs === SE
     end
 
-    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| TS
-    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| TS
+    CS1 <-->|DirectVT I/O<br>send: Events<br>recv: Render| TS
+    CS2 <-->|DirectVT I/O<br>send: Events<br>recv: Render| TS
     TS === VTMs
 ```
 

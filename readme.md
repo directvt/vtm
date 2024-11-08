@@ -11,7 +11,7 @@ vtm is a text-based desktop environment.
 # Supported platforms
 
 - Windows
-  - Windows 8.1 or later
+  - Windows 8.1 and later
 - Unix
   - Linux
   - macOS
