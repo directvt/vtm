@@ -475,3 +475,11 @@ echo "vtm.selected(Term)" | vtm
 # Run window with terminals
 echo "vtm.run(id=Tile)" | vtm
 ```
+
+# Desktop Live Panel
+
+- [Desktop Live Panel](panel.md)
+
+# Desktop objects and built-in applications
+
+- [Desktop objects and built-in applications](apps.md)

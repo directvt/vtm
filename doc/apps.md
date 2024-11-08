@@ -17,41 +17,30 @@
 
 ### Features
 
-- UTF-8 Everywhere
-- TrueColor aware
-- Horizontal scrolling
-- Infinite* scrollback (40k lines by default, * `< max_int32`)
-- Scrollback buffer searching and matching
-- Line-based/rect-block text selection:
-  - Ctrl: Extend selection.
-  - Alt/Option: Change selection mode (line/block).
-  - Double left click: Select a word.
-  - Triple left click: Select paragraph.
-  - Quadruple left click: Select the entire scrollback buffer or semantic block (when using OSC 133).
-  - Quintuple left click: Select the entire scrollback buffer.
-- Widely used clipboard formats support:
+- Horizontal scrolling.
+- Configurable scrollback buffer size (40k lines by default, limited by `max_int32` and system RAM).
+- Scrollback buffer lookup.
+- Linear/box text selection:
+  - Extending selection with `Ctrl` key pressed.
+  - Changing selection mode (linear/box) with `Alt` key pressed.
+  - Selecting a word/paragraph/entire scrollback buffer or a semantic block (when using OSC 133) by Double/Triple/Quadruple/Quintuple left clicking.
+- Multiple clipboard formats support:
   - Plain text
   - RTF
   - HTML
   - ANSI/VT
   - Protected (Windows only: `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`)
-- [VT-100 terminal emulation](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) compatible (pass vttest 1 and 2 sections)
 - Built-in Windows Console API server:
-  - Legacy Win32 Console API support
-  - No Windows Console Host (conhost.exe) dependency
-  - Fullduplex pass-through VT input/output
-  - OEM/National, UTF-8 and UTF-16 encoding, even in cmd.exe
-  - Enforced ENABLE_WINDOW_INPUT mode  
+  - Legacy Win32 Console API support.
+  - No Windows Console Host (conhost.exe) dependency.
+  - Fullduplex pass-through VT input/output.
+  - OEM/National, UTF-8 and UTF-16 encoding support.
+  - Enforced ENABLE_WINDOW_INPUT mode.  
     Note: In fact it is a viewport resize event reporting. Viewport dimensions is always equal to the win32 console buffer dimensions.
-  - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes
-  - Disabled ENABLE_QUICK_EDIT_MODE mode
-  - Per process instance (not per process name) cmd.exe input history, aka "line input"/"cooked read"
-  - Disabled DOSKEY functionality (cmd.exe's F7 input history popups too)  
-    Note: Sharing the input history as well as a bunch of command aliases among processes (which could have different elevation levels) is a huge security threat. So DOSKEY functionality is absolutely incompatible with any sort of sudo-like commands/applications.
-- Outside terminal viewport mouse tracking (See #62 for details)
-- Stdin/stdout parser log on demand
-- Configurable at startup via `settings.xml`
-- Configurable in runtime using VT-sequences
+  - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes.
+  - Disabled ENABLE_QUICK_EDIT_MODE mode.
+  - Per process (not per process name) Windows Command Prompt (cmd.exe) input history, aka "line input"/"cooked read".
+- Stdin/stdout logging.
 
 ### Custom SGR attributes
 
