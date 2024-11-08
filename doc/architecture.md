@@ -117,8 +117,7 @@ graph TB
     TS === VTMs
 ```
 
-- vtm is a text-based desktop environment that comes with a single executable.
-- Due to the fact that a typical desktop environment is a dynamic long-living construct of interacting processes, vtm has a number of mutually exclusive runtime modes to parallelize this functionality by launching multiple interacting vtm processes.
+- Vtm is a text-based desktop environment that comes with a single executable.
 - Due to the fact that a typical desktop environment is a dynamic, long-lived construct of interacting processes, vtm has a number of runtime modes for running multiple vtm processes in parallel to form the environment.
 - Each desktop session is a vtm process running in `Desktop Server` mode.
 - Desktop environment users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
@@ -131,8 +130,8 @@ graph TB
 - Sessions with different ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary TUI mode called `DirectVT`.
 - All running applications are connected to the desktop environment using `DirectVT Gateway` windows as DirectVT endpoints.
-  - DirectVT-aware applications are connected directly to the environment and can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
-  - To run non-DirectVT applications, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
+  - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
+  - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
 - The desktop environment server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop environment server as a script command flow.
 
@@ -140,10 +139,10 @@ graph TB
 
 Runtime mode    | TUI mode                 | Environment role
 ----------------|--------------------------|------------------
-Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
-Desktop Client  | auto detected            | Desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Applet  | auto detected            | A desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to place a heavy (complex) desktop object in a separate process in order to optimize desktop resource consumption.
+Desktop Client  | auto detected            | A desktop client running in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirection.
+Desktop Monitor | n/a<br>command line only | A desktop log monitor which outputs desktop session logs and relays script commands to the desktop server via piped redirection.
 
 The runtime mode can be selected using command-line options. By default, `Desktop Client` mode will be used, with `Desktop Server` implicitly running in parallel if it is not running.
 
@@ -160,11 +159,11 @@ DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT
 
 ## TUI modes
 
-An instance of the vtm process in `Desktop Client` or `Desktop Applet` mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`(`dtvt`) mode.
+A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two TUI modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
 
 ### DirectVT mode
 
-In DirectVT TUI mode, the vtm process, communicating with the desktop server, multiplexes the following data channels:
+In DirectVT TUI mode, vtm process multiplexes the following data channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
@@ -179,7 +178,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 #### Input
 
-In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
+In ANSI/VT TUI mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
@@ -225,9 +224,9 @@ In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources
 
 #### Output
 
-Console UI applications running as external processes are instantly rendered into their host `DirectVT Gateways ` windows running directly in the desktop server address space.
+Console UI applications running as external processes are instantly rendered into their host `DirectVT Gateways` windows running directly in the desktop server address space.
 
-The desktop server receives and caches the window rasters and sends the corresponding projection rendering to desktop clients at each internal timer tick.
+The desktop server receives and caches window bitmaps and sends incremental changes to desktop clients every tick of an internal timer.
 
 The binary render stream received from the desktop server to output is converted by the desktop client to the format suitable for the console being used to output. The console type is detected at the desktop client startup and can be one of the following:
 - XTerm-compatible terminal with truecolor support
@@ -241,11 +240,11 @@ The desktop client outputs the received render to the hosting console only when 
 
  Term               | Description
 --------------------|---------------
-`colored character` | A character depicted with rendition attributes such as background and foreground color.
+`colored character` | A character depicted with rendition attributes such as background and foreground colors.
 `text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
 `text cell`         | A text console cell containing a colored monospaced character or its fragment.
 `bitmap`            | A rectangular block of text cells.
-`canvas`            | A rectangular buffer for text cells output.
+`canvas`            | A rectangular buffer for bitmap output.
 
 Internally the desktop is represented by the parent-child object tree with a single root object that maintains a desktop-wide configuration, a list of connected users, and a list of running windows. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
@@ -264,8 +263,8 @@ Desktop object                          | Description
 Teletype Console<br>`teletype`          | A solid rectangular truecolor text canvas depicting a freely scrollable buffer of the text runs generated by an xterm-compatible parser from the standard output of an attached CUI application. It can be a very heavy object due to maintaining a scrollback buffer of arbitrary length. Not used directly in the desktop process's address space.
 Terminal Console<br>`terminal`          | A derivative of `Teletype Console` with additional UI controls.
 DirectVT Gateway<br>`dtvt`              | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
-Teletype Console dtvt‑bridge<br>`vtty`  | A `DirectVT Gateway` hosting an external standalone `Teletype Console` applet. It is designed to run a heavy `Teletype Console` object in the external process's address space to optimize desktop resource consumption.
-Terminal Console dtvt‑bridge<br>`term`  | A `DirectVT Gateway` hosting an external standalone `Terminal Console` applet. It is designed to run a heavy `Terminal Console` object in the external process's address space to optimize desktop resource consumption.
+Teletype Console dtvt‑bridge<br>`vtty`  | A `DirectVT Gateway` hosting an external standalone `Teletype Console` applet. It is designed to run heavy `Teletype Console` objects as external processes to optimize desktop resource consumption.
+Terminal Console dtvt‑bridge<br>`term`  | A `DirectVT Gateway` hosting an external standalone `Terminal Console` applet. It is designed to run heavy `Terminal Console` objects as external processes to optimize desktop resource consumption.
 DirectVT Gateway with TTY<br>`dtty`     | A derivative of `DirectVT Gateway` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT stream to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
 Tiling Window Manager<br>`tile`         | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
 Desktop Region Marker<br>`site`         | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
@@ -418,11 +417,9 @@ The following examples assume that vtm is installed on both the local and remote
 
 ## Standard I/O stream monitoring
 
-vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+Vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
 Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Desktop Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
-
-Important: Be careful with enabling the `Logs` switch when working with sensitive information, since all IO events, including keypresses, are logged in this mode.
 
 ## Desktop taskbar customization
 
@@ -457,7 +454,7 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 </config>
 ```
 
-The taskbar menu of the running desktop can be configured using shell piped redirection by sending script commands to the running vtm desktop:
+Additionally, the taskbar menu of the running desktop can be configured using shell piped redirection by sending script commands to the running vtm desktop:
 ```
 # Delete existing menu items
 echo "vtm.del()" | vtm
