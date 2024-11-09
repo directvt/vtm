@@ -7805,23 +7805,6 @@ namespace netxs::ui
                 switch (gear.payload)
                 {
                     case keybd::type::keypress:
-                        if (io_log)
-                        {
-                            log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name), gear.keystat == input::key::pressed ? " pressed" : gear.keystat == input::key::repeated ? "repeated" : " released");
-                            if (gear.vkchord.size() && gear.keystat != input::key::repeated)
-                            {
-                                auto vkchord =     input::key::kmap::to_string(gear.vkchord, faux);
-                                auto scchord =     input::key::kmap::to_string(gear.scchord, faux);
-                                auto chchord =     input::key::kmap::to_string(gear.chchord, faux);
-                                auto gen_vkchord = input::key::kmap::to_string(gear.vkchord, true);
-                                auto gen_chchord = input::key::kmap::to_string(gear.chchord, true);
-                                log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                                    "\n     Virtual keys: ", vkchord.size() ? "\"" + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "\"  \"" + vkchord) + "\"" : "<na>",
-                                    "\n Grapheme cluster: ", chchord.size() ? "\"" + (chchord == gen_chchord ? chchord : gen_chchord + "\"  \"" + chchord) + "\"" : "<na>",
-                                    "\n        Scancodes: ", scchord.size() ? "\"" + scchord + "\"" : "<na>",
-                                    "\n");
-                            }
-                        }
                         if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (config.resetonkey && gear.doinput())
                         {

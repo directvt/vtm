@@ -141,7 +141,7 @@ namespace netxs::app::tile
                 client->clear();
                 depth = 0;
                 boss.diveup([&]{ depth++; });
-                if constexpr (debugmode) log(prompt::tile, "Start depth %%", depth);
+                if constexpr (debugmode) log("%%Start depth %%", prompt::tile, depth);
             };
         }
     };

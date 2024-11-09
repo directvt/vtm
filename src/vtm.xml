@@ -33,8 +33,8 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <hotkeys key*>
             <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+Key0"          action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
-            <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Ctrl+0"             action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
+            <key="Ctrl+0"             action=ResetCellHeight/>         <!-- Reset text cell height. -->
             <key="Alt+Enter"          action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
             <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
             <key="Ctrl+CapsLock"      action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->

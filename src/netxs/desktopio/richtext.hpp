@@ -1457,15 +1457,13 @@ namespace netxs::ui
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
-        void   ease()   { brush.nil(); lyric->each([&](auto& c){ c.clr(brush); });  } // para: Reset color for all text.
-        void   link(id_t id)         { lyric->each([&](auto& c){ c.link(id);   });  } // para: Set object ID for each cell.
+        void   ease()        { lyric->each([&](auto& c){ c.clr({});  });  } // para: Reset color for all text.
+        void   link(id_t id) { lyric->each([&](auto& c){ c.link(id); });  } // para: Set object ID for each cell.
+        template<bool ResetStyle = faux>
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            parser::reset(c);
+            parser::reset<ResetStyle>(c);
             caret = 0;
-            //todo revise
-            //style.rst();
-            //proto.clear();
             locus.kill();
             lyric->kill();
         }
@@ -2041,7 +2039,7 @@ namespace netxs::ui
             index = 0;
             auto& item = **layer;
             item.id(index);
-            item.wipe(parser::brush);
+            item.wipe<true>(parser::brush);
             reindex();
             return *this;
         }
