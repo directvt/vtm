@@ -724,7 +724,6 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::robot robot{*this }; // gate: Animation controller.
-        pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.

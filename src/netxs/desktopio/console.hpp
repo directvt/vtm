@@ -234,8 +234,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::syskeybd    lock)
             {
-                auto& keybd = lock.thing;
-                notify(e2::conio::keybd, keybd);
+                auto& item = lock.thing;
+                notify(e2::conio::keybd, item);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -439,7 +439,6 @@ namespace netxs::ui
             cell tooltip_colors; // conf: Tooltip rendering colors.
             bool tooltip_enabled; // conf: Enable tooltips.
             bool debug_overlay; // conf: Enable to show debug overlay.
-            text debug_toggle; // conf: Debug toggle shortcut.
             bool show_regions; // conf: Highlight region ownership.
             bool simple; // conf: .
             svga vtmode; // conf: .
@@ -459,7 +458,6 @@ namespace netxs::ui
                 tooltip_timeout   = config.take("/config/tooltips/timeout"         , span{ 2000ms });
                 tooltip_enabled   = config.take("/config/tooltips/enabled"         , true);
                 debug_overlay     = config.take("/config/debug/overlay"            , faux);
-                debug_toggle      = config.take("/config/debug/toggle"             , "🐞"s);
                 show_regions      = config.take("/config/debug/regions"            , faux);
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 5);
             }
@@ -859,6 +857,7 @@ namespace netxs::ui
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
         debug_t    debug; // gate: Statistics monitor.
+        pro::keybd keybd; // gate: Keyboard controller.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -1124,6 +1123,7 @@ namespace netxs::ui
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
               debug{*this },
+              keybd{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -1134,6 +1134,8 @@ namespace netxs::ui
             //todo revise
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
+            keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            keybd.load<tier::preview>(config, "/config/debug/hotkeys/key");
 
             base::root(true);
             base::limits(dot_11);
@@ -1283,16 +1285,6 @@ namespace netxs::ui
             {
                 //todo hids
                 //proc(input.gear);
-            };
-            LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
-            {
-                //todo unify
-                //todo key action="DebugOverlayToggle"
-                if (gear.keybd::cluster == props.debug_toggle)
-                {
-                    debug ? debug.stop()
-                          : debug.start();
-                }
             };
             LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
             {

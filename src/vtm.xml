@@ -58,9 +58,12 @@ R"==(<!-- Ordered list of paths to settings files. -->
     </tooltips>
     <debug>
         <logs=off/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
-        <overlay=off/>  <!-- Show debug info overlay. -->
-        <toggle="🐞"/>  <!-- Shortcut to toggle debug info overlay/regions. -->
+        <overlay=off/>  <!-- Show debug overlay. -->
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
+        <hotkeys key*>
+            <key="Space-Backspace" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (Reverse release order). -->
+        </hotkeys>
     </debug>
     <clipboard>
         <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
