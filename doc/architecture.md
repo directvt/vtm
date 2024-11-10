@@ -1,6 +1,6 @@
 # Text-based Desktop Environment Architecture
 
-- [UI Concept](#ui-concept)
+- [UI concept](#ui-concept)
 - [Process model](#process-model)
 - [Runtime modes](#runtimemodes)
 - [Desktop applets](#desktopapplets)
@@ -31,7 +31,7 @@
 - [Desktop Live Panel](panel.md)
 - [Desktop objects and built-in applications](apps.md)
 
-## UI Concept
+## UI concept
 
 ```mermaid
 graph TB
