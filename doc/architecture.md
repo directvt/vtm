@@ -177,7 +177,7 @@ graph TB
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different ids can coexist independently.
-- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary TUI mode called `DirectVT`.
+- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible IO mode called `ANSI/VT`, vtm supports an additional message-based binary IO mode called `DirectVT`.
 - All running applications are connected to the desktop environment using `DirectVT Gateway` windows as DirectVT endpoints.
   - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
@@ -206,13 +206,13 @@ Terminal Console           | `term` | CUI applications.
 DirectVT Gateway           | `dtvt` | DirectVT-aware applications.
 DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT flow to standard IO streams and require user input via platform's TTY.
 
-## TUI modes
+## IO modes
 
-A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two TUI modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
+A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can operate in one of two IO modes: either `ANSI/VT` mode or `DirectVT`(`dtvt`) mode.
 
 ### DirectVT mode
 
-In DirectVT TUI mode, vtm process multiplexes the following data channels:
+In DirectVT IO mode, vtm process multiplexes the following data channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
@@ -227,7 +227,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 #### Input
 
-In ANSI/VT TUI mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
+In ANSI/VT IO mode, vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
