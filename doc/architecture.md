@@ -168,10 +168,9 @@ graph TB
     TS === VTMs
 ```
 
-- Vtm is a text-based desktop environment that comes with a single executable.
-- Due to the fact that a typical desktop environment is a dynamic, long-lived construct of interacting processes, vtm has a number of runtime modes for running multiple vtm processes in parallel to form the environment.
-- Each desktop session is a vtm process running in `Desktop Server` mode.
-- Desktop environment users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
+- Vtm is a text-based application that comes with a single executable and has a number of runtime modes for running multiple instances in parallel to form the desktop environment.
+- A vtm process running in `Desktop Server` mode creates a desktop session.
+- Desktop users connect to an existing desktop session through an additional vtm process running in `Desktop Client` mode.
 - The desktop session has a unique id coined from the platform-specific creator UID unless explicitly specified.
 - Only the session creator or elevated user can access the session.
 - The regular user and the elevated user are different independent users despite having the same username.
@@ -180,11 +179,11 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible IO mode called `ANSI/VT`, vtm supports an additional message-based binary IO mode called `DirectVT`.
-- All running applications are connected to the desktop environment using `DirectVT Gateway` windows as DirectVT endpoints.
+- A typical console application integrates into the desktop using the `DirectV Gateway` window as the DirectVT connection endpoint.
   - A DirectVT-aware application directly connected to the environment can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
   - To run a non-DirectVT application, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console` or `Terminal Console` applet as a DirectVT bridge to the desktop environment.
-- The desktop environment server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
-- In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop environment server as a script command flow.
+- The desktop server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
+- In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop server as a script command flow.
 
 ### Runtime modes
 
