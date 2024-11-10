@@ -724,7 +724,6 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::robot robot{*this }; // gate: Animation controller.
-        pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.
@@ -740,7 +739,7 @@ namespace netxs::app::vtm
             keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
-            keybd.load<tier::preview>(config, "/config/desktop/hotkeys/key");
+            keybd.load<tier::preview>(config, "/config/hotkeys/desktop/key");
 
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {

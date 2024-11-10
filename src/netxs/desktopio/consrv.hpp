@@ -1371,6 +1371,23 @@ struct impl : consrv
                             }
                         }
                     }
+                    else if (rec.EventType == MENU_EVENT) //todo implement
+                    {
+                        if (rec.Event.MenuEvent.dwCommandId == (nt::console::event::custom | nt::console::event::paste_begin))
+                        {
+                            wcpair = {};
+                            cooked.ctrl = 0;
+                            //clip = true;
+                            //cooked.ustr += ansi::paste_begin;
+                        }
+                        else if (rec.Event.MenuEvent.dwCommandId == (nt::console::event::custom | nt::console::event::paste_end))
+                        {
+                            wcpair = {};
+                            done = true; // Update terminal viewport.
+                            //clip = faux;
+                            //cooked.ustr += ansi::paste_end;
+                        }
+                    }
                     //else if (nums && v == VK_MENU) // Alt is released after num digits input.
                     //{
                     //    server.inpenc->decode(nums, buff);

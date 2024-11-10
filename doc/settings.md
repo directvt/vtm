@@ -289,13 +289,14 @@ The following configuration items produce the same final result:
 
 ### Key bindings
 
-In vtm there are several levels of key combination processing. Each level has its own set of key bindings. Keys processed at the previous level usually do not get to the next level.
+In vtm there are several layers of key combination processing. Each layer has its own set of key bindings. Keys processed at the previous layer usually do not get to the next one.
 
-Level                  | Config section               | Description
+Layer                  | Config section               | Description
 -----------------------|------------------------------|------------
-Native GUI window      | `<config/gui/hotkeys/>`      | Native GUI window management key bindings.
-Desktop environment    | `<config/desktop/hotkeys/>`  | Taskbar and window management key bindings.
-Application `app_name` | `<config/app_name/hotkeys/>` | Application specific key bindings.
+Native GUI window      | `<config/hotkeys/gui/>`      | Native GUI window layer key bindings.
+TUI matrix             | `<config/hotkeys/tui/>`      | TUI matrix layer key bindings.
+Desktop environment    | `<config/hotkeys/desktop/>`  | Desktop layer key bindings (taskbar and window management).
+Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bindings.
 
 #### Syntax
 
@@ -341,11 +342,12 @@ Configuration record                       | Interpretation
 
 #### Available actions
 
-Action                         | Default key combination  | Available at level  | Description
+Action                         | Default key combination  | Available at layer  | Description
 -------------------------------|--------------------------|---------------------|------------
-`Drop`                         |                          | All levels          | Drop all events for the specified key combination. No further processing.
-`DropIfRepeats`                |                          | All levels          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels. Exclusive keyboard mode is automatically disabled when refocusing.
+`Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
+`DropIfRepeats`                |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
+`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher layers. Exclusive keyboard mode is automatically disabled when refocusing.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
@@ -449,20 +451,6 @@ Notes
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
         </fonts>
-        <hotkeys key*>
-            <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
-            <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+Key0"          action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
-            <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            <key="Alt+Enter"          action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
-            <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            <key="Ctrl+CapsLock"      action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
-            <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Ctrl+Shift+F11"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
-            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            <key="Ctrl+Shift+F12"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
-            <key="Ctrl+Shift+F12"     action=RollFontsForward/>        <!-- Roll font list forward. -->
-        </hotkeys>
     </gui>
     <cursor>
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
@@ -477,8 +465,7 @@ Notes
     </tooltips>
     <debug>
         <logs=off/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
-        <overlay=off/>  <!-- Show debug info overlay. -->
-        <toggle="🐞"/>  <!-- Shortcut to toggle debug info overlay/regions. -->
+        <overlay=off/>  <!-- Show debug overlay. -->
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
     </debug>
     <clipboard>
@@ -683,12 +670,6 @@ Notes
             <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
-        <hotkeys key*>
-            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-        </hotkeys>
     </desktop>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
@@ -801,7 +782,40 @@ Notes
                                 close:   Always close.
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
-        <hotkeys key*>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+    </term>
+    <defapp>
+        <menu>
+            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
+        </menu>
+    </defapp>
+    <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+        <gui key*>  <!-- Native GUI window layer key bindings. -->
+            <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
+            <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
+            <key="Ctrl+0"                action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
+            <key="Ctrl+0"                action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Alt+Enter"             action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
+            <key="Alt+Enter"             action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            <key="Ctrl+CapsLock"         action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
+            <key="Ctrl+CapsLock"         action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
+            <key="Ctrl+Shift+F11"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
+            <key="Ctrl+Shift+F11"        action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
+            <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
+        </gui>
+        <tui key*>  <!-- TUI matrix layer key bindings. -->
+            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (Reverse release order). -->
+        </tui>
+        <desktop key*>  <!-- Desktop layer key bindings. -->
+            <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown"         action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"              action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10"                   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
+        </desktop>
+        <term key*>  <!-- Application specific layer key bindings. -->
             <key="Alt+RightArrow"        action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
@@ -833,15 +847,9 @@ Notes
             <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
             <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. -->
+            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. In exclusive mode, all keyboard events are ignored by higher levels. -->
             <key="Alt-Ctrl"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Alt-Ctrl. -->
-        </hotkeys>
-    </term>
-    <defapp>
-        <menu>
-            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
-        </menu>
-    </defapp>
+        </term>
+    </hotkeys>
 </config>
 ```

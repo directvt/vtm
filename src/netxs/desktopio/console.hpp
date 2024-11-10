@@ -150,11 +150,13 @@ namespace netxs::ui
                 auto& focus = lock.thing;
                 auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
                 if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
-                owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
-                    auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
-                    boss.bell::signal(tier::release, deed, seed);
-                });
+                    owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
+                    {
+                        auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
+                        boss.bell::signal(tier::release, deed, seed);
+                    });
+                }
             }
             void handle(s11n::xs::req_input_fields lock)
             {
@@ -232,8 +234,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::syskeybd    lock)
             {
-                auto& keybd = lock.thing;
-                notify(e2::conio::keybd, keybd);
+                auto& item = lock.thing;
+                notify(e2::conio::keybd, item);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -437,7 +439,6 @@ namespace netxs::ui
             cell tooltip_colors; // conf: Tooltip rendering colors.
             bool tooltip_enabled; // conf: Enable tooltips.
             bool debug_overlay; // conf: Enable to show debug overlay.
-            text debug_toggle; // conf: Debug toggle shortcut.
             bool show_regions; // conf: Highlight region ownership.
             bool simple; // conf: .
             svga vtmode; // conf: .
@@ -457,7 +458,6 @@ namespace netxs::ui
                 tooltip_timeout   = config.take("/config/tooltips/timeout"         , span{ 2000ms });
                 tooltip_enabled   = config.take("/config/tooltips/enabled"         , true);
                 debug_overlay     = config.take("/config/debug/overlay"            , faux);
-                debug_toggle      = config.take("/config/debug/toggle"             , "🐞"s);
                 show_regions      = config.take("/config/debug/regions"            , faux);
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 5);
             }
@@ -622,7 +622,7 @@ namespace netxs::ui
             X(win_size     , "win size"         ) \
             X(key_code     , "key virt"         ) \
             X(key_scancode , "key scan"         ) \
-            X(key_character, "key data"         ) \
+            X(key_chord    , "key chord"        ) \
             X(key_state    , "key state"        ) \
             X(key_payload  , "key type"         ) \
             X(ctrl_state   , "controls"         ) \
@@ -742,7 +742,7 @@ namespace netxs::ui
                 stress = cell{}.fgc(whitelt);
                 alerts = cell{}.fgc(argb{ 0xFF'ff'd0'd0 });
 
-                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev).mgl(4);
+                status.style.wrp(wrap::off).jet(bias::left).rlf(feed::rev).mgl(4);
                 status.current().locus.cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
@@ -815,17 +815,32 @@ namespace netxs::ui
                                                             : k.payload == keybd::type::imeanons ? "IME composition"
                                                             : k.payload == keybd::type::imeinput ? "IME input"
                                                             : k.payload == keybd::type::kblayout ? "keyboard layout" : "unknown payload";
-                    if (k.cluster.length())
+                    if (k.vkchord.length())
                     {
                         auto t = text{};
-                        for (byte c : k.cluster)
+                        if (k.vkchord.size() && k.keystat != input::key::repeated)
                         {
-                                 if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
-                            else if (c == 0x7F) t += "\\x7F";
-                            else if (c == 0x20) t += "\\x20";
-                            else                t.push_back(c);
+                            auto vkchord =     input::key::kmap::to_string(k.vkchord, faux);
+                            auto scchord =     input::key::kmap::to_string(k.scchord, faux);
+                            auto chchord =     input::key::kmap::to_string(k.chchord, faux);
+                            auto gen_vkchord = input::key::kmap::to_string(k.vkchord, true);
+                            auto gen_chchord = input::key::kmap::to_string(k.chchord, true);
+                            //log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
+                            if (vkchord.size()) t += (t.size() ? "  " : "") + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "  " + vkchord);
+                            if (chchord.size()) t += (t.size() ? "  " : "") + (chchord == gen_chchord ? chchord : gen_chchord + "  " + chchord);
+                            if (scchord.size()) t += (t.size() ? "  " : "") + scchord;
                         }
-                        status[prop::key_character].set(stress) = t;
+                        else if (k.cluster.length()) //todo revise
+                        {
+                            for (byte c : k.cluster)
+                            {
+                                     if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
+                                else if (c == 0x7F) t += "\\x7F";
+                                else if (c == 0x20) t += "\\x20";
+                                else                t.push_back(c);
+                            }
+                        }
+                        if (t.size()) status[prop::key_chord].set(stress) = t;
                     }
                 };
                 boss.LISTEN(tier::release, e2::conio::error, error, tokens)
@@ -842,6 +857,7 @@ namespace netxs::ui
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
         debug_t    debug; // gate: Statistics monitor.
+        pro::keybd keybd; // gate: Keyboard controller.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -1107,6 +1123,7 @@ namespace netxs::ui
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
               debug{*this },
+              keybd{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -1117,6 +1134,8 @@ namespace netxs::ui
             //todo revise
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
+            keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
 
             base::root(true);
             base::limits(dot_11);
@@ -1266,16 +1285,6 @@ namespace netxs::ui
             {
                 //todo hids
                 //proc(input.gear);
-            };
-            LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
-            {
-                //todo unify
-                //todo key action="DebugOverlayToggle"
-                if (gear.keybd::cluster == props.debug_toggle)
-                {
-                    debug ? debug.stop()
-                          : debug.start();
-                }
             };
             LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
             {
