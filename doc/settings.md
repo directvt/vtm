@@ -289,13 +289,14 @@ The following configuration items produce the same final result:
 
 ### Key bindings
 
-In vtm there are several levels of key combination processing. Each level has its own set of key bindings. Keys processed at the previous level usually do not get to the next level.
+In vtm there are several layers of key combination processing. Each layer has its own set of key bindings. Keys processed at the previous layer usually do not get to the next one.
 
-Level                  | Config section               | Description
+Layer                  | Config section               | Description
 -----------------------|------------------------------|------------
-Native GUI window      | `<config/gui/hotkeys/>`      | Native GUI window management key bindings.
-Desktop environment    | `<config/desktop/hotkeys/>`  | Taskbar and window management key bindings.
-Application `app_name` | `<config/app_name/hotkeys/>` | Application specific key bindings.
+Native GUI window      | `<config/hotkeys/gui/>`      | Native GUI window layer key bindings.
+TUI matrix             | `<config/hotkeys/tui/>`      | TUI matrix layer key bindings.
+Desktop environment    | `<config/hotkeys/desktop/>`  | Desktop layer key bindings (taskbar and window management).
+Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bindings.
 
 #### Syntax
 
@@ -341,11 +342,12 @@ Configuration record                       | Interpretation
 
 #### Available actions
 
-Action                         | Default key combination  | Available at level  | Description
+Action                         | Default key combination  | Available at layer  | Description
 -------------------------------|--------------------------|---------------------|------------
-`Drop`                         |                          | All levels          | Drop all events for the specified key combination. No further processing.
-`DropIfRepeats`                |                          | All levels          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels. Exclusive keyboard mode is automatically disabled when refocusing.
+`Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
+`DropIfRepeats`                |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
+`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher layers. Exclusive keyboard mode is automatically disabled when refocusing.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.

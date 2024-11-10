@@ -1135,7 +1135,7 @@ namespace netxs::ui
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
             keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.load<tier::preview>(config, "/config/debug/hotkeys/key");
+            keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
 
             base::root(true);
             base::limits(dot_11);

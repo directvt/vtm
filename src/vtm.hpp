@@ -739,7 +739,7 @@ namespace netxs::app::vtm
             keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
-            keybd.load<tier::preview>(config, "/config/desktop/hotkeys/key");
+            keybd.load<tier::preview>(config, "/config/hotkeys/desktop/key");
 
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
