@@ -37,7 +37,7 @@
 graph TB
   subgraph GUI[Native GUI Window]
     subgraph TUI[TUI Matrix]
-      subgraph DESK[Desktop UI]
+      subgraph DESK[Desktop]
         direction LR
         subgraph APP1[Application]
           direction LR
@@ -52,7 +52,7 @@ graph TB
   end
   subgraph GUI2[Generic Text Console]
     subgraph TUI2[TUI Matrix]
-      subgraph DESK2[Desktop UI]
+      subgraph DESK2[Desktop]
         direction LR
         subgraph APP21[Application]
           direction LR
@@ -75,9 +75,7 @@ graph TB
   end
 ```
 
-In vtm, the entire user interface is represented by a mosaic of identically sized text cells, forming a TUI matrix. The resulting TUI matrix is ​​then rendered either into its own GUI window or into a compatible text console. Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
-
-The desktop and applications in vtm are completely abstracted from the graphical interface and do not depend on it.
+In vtm, the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​rendered either into its own GUI window or into a compatible text console. Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
 
 ## Process model
 
