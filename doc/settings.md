@@ -345,7 +345,7 @@ Configuration record                       | Interpretation
 Action                         | Default key combination  | Available at layer  | Description
 -------------------------------|--------------------------|---------------------|------------
 `Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
-`DropIfRepeats`                |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`DropAutoRepeat`               |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
 `ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher layers. Exclusive keyboard mode is automatically disabled when refocusing.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
@@ -793,15 +793,15 @@ Notes
         <gui key*>  <!-- Native GUI window layer key bindings. -->
             <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+0"                action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
+            <key="Ctrl+0"                action=DropAutoRepeat/>          <!-- Don't repeat the Reset text cell height. -->
             <key="Ctrl+0"                action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            <key="Alt+Enter"             action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
+            <key="Alt+Enter"             action=DropAutoRepeat/>          <!-- Don't repeat the Toggle fullscreen mode. -->
             <key="Alt+Enter"             action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            <key="Ctrl+CapsLock"         action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
+            <key="Ctrl+CapsLock"         action=DropAutoRepeat/>          <!-- Don't repeat the Toggle text antialiasing mode. -->
             <key="Ctrl+CapsLock"         action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Ctrl+Shift+F11"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
+            <key="Ctrl+Shift+F11"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list backward. -->
             <key="Ctrl+Shift+F11"        action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            <key="Ctrl+Shift+F12"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
+            <key="Ctrl+Shift+F12"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list forward. -->
             <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. -->
@@ -826,9 +826,9 @@ Notes
             <key="Shift+Ctrl+DownArrow"  action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
             <key="Shift+Ctrl+LeftArrow"  action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
             <key="Shift+Ctrl+RightArrow" action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"       action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+Home"       action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback top. -->
             <key="Shift+Ctrl+Home"       action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"        action=DropIfRepeats/>                     <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
+            <key="Shift+Ctrl+End"        action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
             <key="Shift+Ctrl+End"        action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
             <key=""                      action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                      action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->

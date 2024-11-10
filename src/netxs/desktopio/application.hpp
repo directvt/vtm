@@ -130,7 +130,7 @@ namespace netxs::app::shared
         {
             if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
         });
-        keybd.template bind<tier::preview>( "Esc", "DropIfRepeats");
+        keybd.template bind<tier::preview>( "Esc", "DropAutoRepeat");
         keybd.template bind<tier::release>( "Esc", "WindowClosePreview");
         keybd.template bind<tier::preview>("-Esc", "WindowClose");
         keybd.template bind<tier::release>( "Any", "CancelWindowClose");
@@ -151,13 +151,13 @@ namespace netxs::app::shared
         keybd.bind("DownArrow" , "ScrollLineDown"      );
         keybd.bind("LeftArrow" , "ScrollCharLeft"      );
         keybd.bind("RightArrow", "ScrollCharRight"     );
-        keybd.bind("Home"      , "DropIfRepeats"       );
+        keybd.bind("Home"      , "DropAutoRepeat"      );
         keybd.bind("Home"      , "ScrollTop"           );
-        keybd.bind("End"       , "DropIfRepeats"       );
+        keybd.bind("End"       , "DropAutoRepeat"      );
         keybd.bind("End"       , "ScrollEnd"           );
-        keybd.bind("F11"       , "DropIfRepeats"       );
+        keybd.bind("F11"       , "DropAutoRepeat"      );
         keybd.bind("F11"       , "ToggleMaximize"      );
-        keybd.bind("F12"       , "DropIfRepeats"       );
+        keybd.bind("F12"       , "DropAutoRepeat"      );
         keybd.bind("F12"       , "ToggleFullscreen"    );
         keybd.bind("Ctrl-Alt"  , "ToggleExclusiveKeybd");
         keybd.bind("Alt-Ctrl"  , "ToggleExclusiveKeybd");

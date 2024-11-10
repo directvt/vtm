@@ -161,7 +161,7 @@ The list of hotkey actions is slightly different from the list of window menu ac
 Value                        | Unique for hotkeys | Default Hotkey               | Description
 -----------------------------|--------------------|------------------------------|------------
 Drop                         |                    |                              | Drop all events for the specified key combination. No further processing.
-DropIfRepeats                |                    |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+DropAutoRepeat               |                    |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 ToggleExclusiveKeybd         | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels.
 TerminalFindNext             |                    | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 TerminalFindPrev             |                    | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.

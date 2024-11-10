@@ -1921,8 +1921,8 @@ namespace netxs::ui
                         if (!gear.handled) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
                     }
                 };
-                proc("Drop",          [](hids& gear){ gear.set_handled(); });
-                proc("DropIfRepeats", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
+                proc("Drop",           [](hids& gear){ gear.set_handled(); });
+                proc("DropAutoRepeat", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
             template<si32 Tier = tier::release>

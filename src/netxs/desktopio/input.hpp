@@ -1447,6 +1447,7 @@ namespace netxs::input
             NumLock  = 1 << 12, // ⇭ Num Lock
             CapsLock = 1 << 13, // ⇪ Caps Lock
             ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
+            HkeyMode = 1 << 28, // Alternate hotkey mode
             AltGr    = LAlt   | LCtrl,
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,
@@ -1732,7 +1733,7 @@ namespace netxs::input
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
-            hids::ctlstat = new_ctlstate;
+            keybd::ctlstat = new_ctlstate;
             mouse::coord = new_coord;
             mouse::click = new_click;
             mouse::whlfp = new_whlfp;
@@ -1743,7 +1744,7 @@ namespace netxs::input
             mouse::load_button_state(new_button_state);
         }
 
-        auto meta(si32 ctl_key = -1) { return hids::ctlstat & ctl_key; }
+        auto meta(si32 ctl_key = -1) { return keybd::ctlstat & ctl_key; }
 
         // hids: Stop handeling this event.
         void dismiss(bool set_nodbl = faux)
@@ -1776,7 +1777,7 @@ namespace netxs::input
             }
             #endif
             disabled = faux;
-            hids::ctlstat = m.ctlstat;
+            keybd::ctlstat = m.ctlstat;
             mouse::update(m, idmap);
         }
         void take(syskeybd& k)
@@ -1990,7 +1991,7 @@ namespace netxs::input
 
             if (keystat != input::key::released)
             {
-                auto s = hids::ctlstat;
+                auto s = keybd::ctlstat;
                 auto v = keybd::keycode & -2; // Generic keys only
                 auto c = keybd::cluster.empty() ? 0 : keybd::cluster.front();
 
