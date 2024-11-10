@@ -4,7 +4,7 @@
 - [Process model](#process-model)
 - [Runtime modes](#runtimemodes)
 - [Desktop applets](#desktopapplets)
-- [TUI modes](#tui-modes)
+- [IO modes](#io-modes)
   - [DirectVT mode](#directvt-mode)
   - [ANSI/VT mode](#ansivt-mode)
     - [Input](#input)
@@ -186,7 +186,7 @@ graph TB
 
 ### Runtime modes
 
-Runtime mode    | TUI mode                 | Environment role
+Runtime mode    | IO mode                  | Environment role
 ----------------|--------------------------|------------------
 Desktop Applet  | auto detected            | A desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to place a heavy (complex) desktop object in a separate process in order to optimize desktop resource consumption.
 Desktop Client  | auto detected            | A desktop client running in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
@@ -357,7 +357,7 @@ Do not confuse the `Desktop Applet` names with the desktop object names, even th
 
 In general, the local and remote platforms may be different.
 
-When the DirectVT mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary endianness-aware form.
+When the DirectVT IO mode is used, all keyboard, mouse and other input events are transmitted between hosts in a binary endianness-aware form.
 
 The following examples assume that vtm is installed on both the local and remote sides.
 
@@ -377,7 +377,7 @@ The following examples assume that vtm is installed on both the local and remote
     vtm ssh user@server vtm </path/to/console/app...>
     ```
 
-### Run remote vtm desktop in DirectVT mode over SSH
+### Run remote vtm desktop in DirectVT IO mode over SSH
 
 - Remote side
     - Run SSH-server if it is not running.
@@ -394,7 +394,7 @@ The following examples assume that vtm is installed on both the local and remote
     # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
     ```
 
-### Run remote vtm desktop in ANSI/VT mode over SSH
+### Run remote vtm desktop in ANSI/VT IO mode over SSH
 
 - Remote side
     - Run SSH-server if it is not running.
@@ -410,7 +410,7 @@ The following examples assume that vtm is installed on both the local and remote
     # The ssh's `ssh -t ...` option is required to allocate TTY on remote host.
     ```
 
-### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT IO mode using `netcat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
     - Run command:
@@ -428,7 +428,7 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `ncat` is installed.
     ```
 
-### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT IO mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
     - Install `inetd`.
@@ -480,9 +480,9 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
             <!-- <item*/> --> <!-- Clear default item list -->
             <item splitter label="Remote Access"/>
 
-            <item id="Run remote vtm desktop in DirectVT mode over SSH" type=dtty cmd="ssh user@server vtm"/>
-            <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
-            <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
+            <item id="Run remote vtm desktop in DirectVT IO mode over SSH" type=dtty cmd="ssh user@server vtm"/>
+            <item id="Run console app in remote terminal over SSH"         type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
+            <item id="Run console app remotely over SSH w/o extra UI"      type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
 
             <item splitter label="Another Examples"/>
 
