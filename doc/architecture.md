@@ -77,7 +77,7 @@ graph TB
 
 Vtm is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​just rendered either into its own GUI window or into a compatible text console.
 
-It can run indefinitely nested, forming a text-based desktop environment.
+It can wrap any console application and be nested indefinitely, forming a text-based desktop environment.
 
 <sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
