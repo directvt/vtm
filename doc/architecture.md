@@ -1,6 +1,6 @@
 # Text-based Desktop Environment Architecture
 
-- [UI concept](#ui-concept)
+- [UI Concept](#ui-concept)
 - [Process model](#process-model)
 - [Runtime modes](#runtimemodes)
 - [Desktop applets](#desktopapplets)
@@ -31,7 +31,7 @@
 - [Desktop Live Panel](panel.md)
 - [Desktop objects and built-in applications](apps.md)
 
-## UI concept
+## UI Concept
 
 ```mermaid
 graph TB
@@ -75,7 +75,11 @@ graph TB
   end
 ```
 
-In vtm, the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​rendered either into its own GUI window or into a compatible text console. Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
+Vtm is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​just rendered either into its own GUI window or into a compatible text console.
+
+It can run indefinitely nested, forming a text-based desktop environment.
+
+<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
 ## Process model
 
