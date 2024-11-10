@@ -18,7 +18,8 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in a slightly modified XML-like format which allows to store hierarchical list of key=value pairs.
+The settings are stored in a slightly modified XML-like format which allows to store hierarchical list of key=value pairs.  
+See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
 There are two default settings locations that can be overridden:
 ```xml
@@ -34,7 +35,7 @@ The process of loading settings consists of the following steps:
 - Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
 
 The file list is built in the following order from the following sources:
-- The settings file list from the hardcoded configuration containing a list of two files (see [/src/vtm.xml](../src/vtm.xml) for reference):
+- The settings file list from the hardcoded configuration containing a list of two files:
   ```xml
   <file*/>  <!-- Clear previously defined sources. Start a new list. -->
   <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
