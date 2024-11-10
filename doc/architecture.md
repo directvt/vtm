@@ -1,6 +1,6 @@
 # Text-based Desktop Environment Architecture
 
-- [UI concept](#ui-concept)
+- [UI Concept](#ui-concept)
 - [Process model](#process-model)
 - [Runtime modes](#runtimemodes)
 - [Desktop applets](#desktopapplets)
@@ -31,19 +31,19 @@
 - [Desktop Live Panel](panel.md)
 - [Desktop objects and built-in applications](apps.md)
 
-## UI concept
+## UI Concept
 
 ```mermaid
 graph TB
   subgraph GUI[Native GUI Window]
     subgraph TUI[TUI Matrix]
-      subgraph DESK[Desktop UI]
+      subgraph DESK[Desktop]
         direction LR
-        subgraph APP1[Desktop Application]
+        subgraph APP1[Application]
           direction LR
           App1[Application UI]
         end
-        subgraph APP2[Desktop Application]
+        subgraph APP2[Application]
           direction LR
           App2[Application UI]
         end
@@ -52,13 +52,13 @@ graph TB
   end
   subgraph GUI2[Generic Text Console]
     subgraph TUI2[TUI Matrix]
-      subgraph DESK2[Desktop UI]
+      subgraph DESK2[Desktop]
         direction LR
-        subgraph APP21[Desktop Application]
+        subgraph APP21[Application]
           direction LR
           App21[Application UI]
         end
-        subgraph APP22[Desktop Application]
+        subgraph APP22[Application]
           direction LR
           App22[Application UI]
         end
@@ -67,7 +67,7 @@ graph TB
   end
   subgraph GUI3[Native GUI Window]
     subgraph TUI3[TUI Matrix]
-      subgraph APP33[Standalone Application]
+      subgraph APP33[Application]
         direction LR
         App33[Application UI]
       end
@@ -75,9 +75,11 @@ graph TB
   end
 ```
 
-In vtm, the entire user interface is represented by a mosaic of identically sized text cells, forming a TUI matrix. The resulting TUI matrix is ​​then rendered either into its own GUI window or into a compatible text console. Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
+Vtm is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​just rendered either into its own GUI window or into a compatible text console.
 
-The desktop and applications in vtm are completely abstracted from the graphical interface and do not depend on it.
+It can run indefinitely nested, forming a text-based desktop environment.
+
+<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
 ## Process model
 
@@ -193,7 +195,7 @@ Desktop Client  | auto detected            | A desktop client running in its o
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
 Desktop Monitor | n/a<br>command line only | A desktop log monitor which outputs desktop session logs and relays script commands to the desktop server via piped redirection.
 
-The runtime mode can be selected using command-line options. By default, `Desktop Client` mode will be used, with `Desktop Server` implicitly running in parallel if it is not running.
+The runtime mode can be selected using command-line options. By default, `Desktop Client` mode will be used, and `Desktop Server` will be started in parallel if it is not running.
 
 ### Desktop applets
 
@@ -212,14 +214,14 @@ A vtm process instance running in `Desktop Client` or `Desktop Applet` mode can 
 
 ### DirectVT mode
 
-In DirectVT IO mode, vtm process multiplexes the following data channels:
-- Keyboard event channel
-- Mouse event channel
-- Focus event channel
-- Window size event channel
-- Clipboard event channel
-- Render output channel
-- Shutdown event channel
+In DirectVT IO mode, vtm process multiplexes the following events:
+- Keyboard
+- Mouse
+- Focus
+- Window size
+- Clipboard
+- Rendering
+- Process lifetime control
 
 The DirectVT stream can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
@@ -239,9 +241,9 @@ In ANSI/VT IO mode, vtm process parses input from multiple standard sources, and
     - All incoming text flow that does not fall into the above categories is clusterized, forming a key pressed stream forwarded to the keyboard event channel.
 - Operating system signals
     - SIGWINCH events are forwarded to the window size event channel.
-    - SIGINT events are forwarded to the shutdown event channel to perform graceful exit.
-    - SIGHUP events are forwarded to the shutdown event channel to perform graceful exit.
-    - SIGTERM events are forwarded to the shutdown event channel to perform graceful exit.
+    - SIGINT events are forwarded to the process lifetime control channel to perform graceful exit.
+    - SIGHUP events are forwarded to the process lifetime control channel to perform graceful exit.
+    - SIGTERM events are forwarded to the process lifetime control channel to perform graceful exit.
 - PS/2 Mouse device (Linux VGA Console only)
     - `/dev/input/mice`: Received ImPS/2 mouse protocol events are decoded and forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
@@ -267,13 +269,13 @@ In ANSI/VT IO mode, vtm process parses input from multiple standard sources, and
 - Operating system signals
     - CTRL_C_EVENT events are form the `Ctrl+C` key pressed event stream forwarded to the keyboard event channel.
     - CTRL_BREAK_EVENT events are form the `Ctrl+Break` key pressed event stream forwarded to the keyboard event channel.
-    - CTRL_CLOSE_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
-    - CTRL_LOGOFF_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
-    - CTRL_SHUTDOWN_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
+    - CTRL_CLOSE_EVENT event is forwarded to the process lifetime control channel to perform graceful exit.
+    - CTRL_LOGOFF_EVENT event is forwarded to the process lifetime control channel to perform graceful exit.
+    - CTRL_SHUTDOWN_EVENT event is forwarded to the process lifetime control channel to perform graceful exit.
 
 #### Output
 
-Console UI applications running as external processes are instantly rendered into their host `DirectVT Gateways` windows running directly in the desktop server address space.
+CUI applications running as external processes are instantly rendered into their host `DirectVT Gateways` windows running directly in the desktop server address space.
 
 The desktop server receives and caches window bitmaps and sends incremental changes to desktop clients every tick of an internal timer.
 
