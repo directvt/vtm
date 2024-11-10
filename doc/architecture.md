@@ -39,11 +39,11 @@ graph TB
     subgraph TUI[TUI Matrix]
       subgraph DESK[Desktop UI]
         direction LR
-        subgraph APP1[Desktop Application]
+        subgraph APP1[Application]
           direction LR
           App1[Application UI]
         end
-        subgraph APP2[Desktop Application]
+        subgraph APP2[Application]
           direction LR
           App2[Application UI]
         end
@@ -54,11 +54,11 @@ graph TB
     subgraph TUI2[TUI Matrix]
       subgraph DESK2[Desktop UI]
         direction LR
-        subgraph APP21[Desktop Application]
+        subgraph APP21[Application]
           direction LR
           App21[Application UI]
         end
-        subgraph APP22[Desktop Application]
+        subgraph APP22[Application]
           direction LR
           App22[Application UI]
         end
@@ -67,7 +67,7 @@ graph TB
   end
   subgraph GUI3[Native GUI Window]
     subgraph TUI3[TUI Matrix]
-      subgraph APP33[Standalone Application]
+      subgraph APP33[Application]
         direction LR
         App33[Application UI]
       end
