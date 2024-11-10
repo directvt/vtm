@@ -64,7 +64,7 @@ It can run indefinitely nested, forming a text-based desktop environment.
 
 [Tested Terminals](https://github.com/directvt/vtm/discussions/72)
 
-Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
+<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
 
 # Binary downloads
 
