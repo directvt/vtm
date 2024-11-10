@@ -1145,7 +1145,7 @@ namespace netxs::ui
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
-                    pro::focus::set(target, gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
+                    pro::focus::set(target, gear.id, pro::focus::solo::off, true);
                 }
                 oneoff_focus.reset();
             };

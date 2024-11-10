@@ -813,7 +813,6 @@ namespace netxs::input
     {
         id_t   id{}; // foci: Gear id.
         si32 solo{}; // foci: Exclusive focus request.
-        bool flip{}; // foci: Toggle focus request.
         bool skip{}; // foci: Ignore focusable object, just activate it.
         sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.

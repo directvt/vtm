@@ -1247,15 +1247,14 @@ namespace netxs::ui
         public:
             enum class mode { hub, focusable, focused, active };
             enum class solo { off, on, mix };
-            enum class flip { off = faux, on = true };
             friend auto operator == (si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
-            static void set(sptr item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
+            static void set(sptr item_ptr, T&& gear_id, solo s, bool skip = faux)
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip });
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = id, .solo = (si32)s, .skip = skip });
                     //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1308,7 +1307,7 @@ namespace netxs::ui
                 {
                     auto seed = parent->base::riseup(tier::release, hids::events::keybd::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
-                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
+                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off);
                 }
             }
             static auto test(base& item, input::hids& gear)
@@ -1327,7 +1326,7 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo, (m))
                     {
-                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off, m == mode::active ? true : faux);
+                        pro::focus::set(boss.This(), id_t{}, solo::off, m == mode::active ? true : faux);
                     };
                 }
                 boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
@@ -1342,8 +1341,12 @@ namespace netxs::ui
                 // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
-                    if (gear.meta(hids::anyCtrl)) pro::focus::set(boss.This(), gear.id, solo::off, flip::on );
-                    else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
+                    if (gear.meta(hids::anyCtrl))
+                    {
+                        if (pro::focus::test(boss, gear)) pro::focus::off(boss.This(), gear.id);
+                        else                              pro::focus::set(boss.This(), gear.id, solo::off);
+                    }
+                    else pro::focus::set(boss.This(), gear.id, solo::on);
                     gear.dismiss();
                 };
                 // Subscribe on keybd events.
@@ -1477,12 +1480,6 @@ namespace netxs::ui
                     {
                         if (route.active)
                         {
-                            if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
-                            {
-                                if (focusable) route.focused = faux;
-                                boss.bell::signal(tier::preview, hids::events::keybd::focus::off, seed);
-                                return;
-                            }
                             if (seed.solo != solo::on) // Group focus.
                             {
                                 route.focused = focusable;

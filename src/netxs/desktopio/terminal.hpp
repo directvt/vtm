@@ -338,7 +338,7 @@ namespace netxs::ui
                     auto gear_test = owner.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
-                        pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                        pro::focus::set(owner.This(), gear.id, pro::focus::solo::off);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -348,8 +348,8 @@ namespace netxs::ui
                     auto gear_test = owner.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
-                        pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                        : pro::focus::solo::on, pro::focus::flip::on);
+                        if (pro::focus::test(owner, gear)) pro::focus::off(owner.This(), gear.id);
+                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off : pro::focus::solo::on);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -7134,7 +7134,7 @@ namespace netxs::ui
             auto data = get_clipboard_text(gear);
             if (data.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
                 _paste(data);
                 return true;
             }
@@ -7142,9 +7142,8 @@ namespace netxs::ui
         }
         auto _copy(hids& gear, text const& data)
         {
-            auto form = selmod == mime::disabled ? mime::textonly
-                                                 : selmod;
-            pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+            auto form = selmod == mime::disabled ? mime::textonly : selmod;
+            pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
             gear.set_clipboard(target->panel, data, form);
         }
         auto copy(hids& gear)
@@ -7187,7 +7186,7 @@ namespace netxs::ui
             auto gear_test = base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
             if (!gear_test.second) // Set exclusive focus on right click.
             {
-                pro::focus::set(This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                pro::focus::set(This(), gear.id, pro::focus::solo::on);
             }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
@@ -7209,7 +7208,7 @@ namespace netxs::ui
             }
             if (utf8.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
                 follow[axis::X] = true;
                 if (bpmode)
                 {
