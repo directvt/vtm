@@ -1,5 +1,6 @@
 # Text-based Desktop Environment Architecture
 
+- [UI Concept](#ui-concept)
 - [Process model](#process-model)
 - [Runtime modes](#runtimemodes)
 - [Desktop applets](#desktopapplets)
@@ -29,6 +30,54 @@
 - [Desktop taskbar customization](#desktop-taskbar-customization)
 - [Desktop Live Panel](panel.md)
 - [Desktop objects and built-in applications](apps.md)
+
+## UI Concept
+
+```mermaid
+graph TB
+  subgraph GUI[Native GUI Window]
+    subgraph TUI[TUI Matrix]
+      subgraph DESK[Desktop UI]
+        direction LR
+        subgraph APP1[Desktop Application]
+          direction LR
+          App1[Application UI]
+        end
+        subgraph APP2[Desktop Application]
+          direction LR
+          App2[Application UI]
+        end
+      end
+    end
+  end
+  subgraph GUI2[Generic Text Console]
+    subgraph TUI2[TUI Matrix]
+      subgraph DESK2[Desktop UI]
+        direction LR
+        subgraph APP21[Desktop Application]
+          direction LR
+          App21[Application UI]
+        end
+        subgraph APP22[Desktop Application]
+          direction LR
+          App22[Application UI]
+        end
+      end
+    end
+  end
+  subgraph GUI3[Native GUI Window]
+    subgraph TUI3[TUI Matrix]
+      subgraph APP33[Standalone Application]
+        direction LR
+        App33[Application UI]
+      end
+    end
+  end
+```
+
+In vtm, the entire user interface is represented by a mosaic of identically sized text cells, forming a TUI matrix. The resulting TUI matrix is ​​then rendered either into its own GUI window or into a compatible text console. Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.
+
+The desktop and applications in vtm are completely abstracted from the graphical interface and do not depend on it.
 
 ## Process model
 
