@@ -451,20 +451,6 @@ Notes
             <font="NSimSun"/>
             <font="Noto Sans Devanagari"/>
         </fonts>
-        <hotkeys key*>
-            <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
-            <key="CapsLock+DownArrow" action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+Key0"          action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
-            <key="Ctrl+Key0"          action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            <key="Alt+Enter"          action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
-            <key="Alt+Enter"          action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            <key="Ctrl+CapsLock"      action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
-            <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Ctrl+Shift+F11"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
-            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            <key="Ctrl+Shift+F12"     action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
-            <key="Ctrl+Shift+F12"     action=RollFontsForward/>        <!-- Roll font list forward. -->
-        </hotkeys>
     </gui>
     <cursor>
         <style="bar"/>  <!-- Cursor style: "bar" | "block" | "underline" ( |  █  _ ). -->
@@ -481,10 +467,6 @@ Notes
         <logs=off/>     <!-- Enable logging. Use the Logs or vtm monitor mode (vtm -m) to see the log output. -->
         <overlay=off/>  <!-- Show debug overlay. -->
         <regions=0/>    <!-- Highlight UI objects boundaries. -->
-        <hotkeys key*>
-            <key="Space-Backspace" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (Reverse release order). -->
-        </hotkeys>
     </debug>
     <clipboard>
         <preview enabled=no size=80x25>  <!-- Not implemented for GUI mode. -->
@@ -688,12 +670,6 @@ Notes
             <opacity=105.5/>  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is "105.5". -->
             <offset=2,1/>     <!-- 2D offset relative to the window (in cells). Default is "2,1". -->
         </shadow>
-        <hotkeys key*>
-            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-        </hotkeys>
     </desktop>
     <term>  <!-- Base settings for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <sendinput=""/>  <!-- Send input on startup. E.g. sendinput="echo \"test\"\n" -->
@@ -806,7 +782,40 @@ Notes
                                 close:   Always close.
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
-        <hotkeys key*>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+    </term>
+    <defapp>
+        <menu>
+            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
+            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
+        </menu>
+    </defapp>
+    <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+        <gui key*>  <!-- Native GUI window layer key bindings. -->
+            <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
+            <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
+            <key="Ctrl+0"                action=DropIfRepeats/>           <!-- Don't repeat the Reset text cell height. -->
+            <key="Ctrl+0"                action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            <key="Alt+Enter"             action=DropIfRepeats/>           <!-- Don't repeat the Toggle fullscreen mode. -->
+            <key="Alt+Enter"             action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            <key="Ctrl+CapsLock"         action=DropIfRepeats/>           <!-- Don't repeat the Toggle text antialiasing mode. -->
+            <key="Ctrl+CapsLock"         action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
+            <key="Ctrl+Shift+F11"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list backward. -->
+            <key="Ctrl+Shift+F11"        action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            <key="Ctrl+Shift+F12"        action=DropIfRepeats/>           <!-- Don't repeat the Roll font list forward. -->
+            <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
+        </gui>
+        <tui key*>  <!-- TUI matrix layer key bindings. -->
+            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (Reverse release order). -->
+        </tui>
+        <desktop key*>  <!-- Desktop layer key bindings. -->
+            <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown"         action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"              action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10"                   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
+        </desktop>
+        <term key*>  <!-- Application specific layer key bindings. -->
             <key="Alt+RightArrow"        action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
@@ -838,15 +847,9 @@ Notes
             <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
             <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. -->
+            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. In exclusive mode, all keyboard events are ignored by higher levels. -->
             <key="Alt-Ctrl"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Alt-Ctrl. -->
-        </hotkeys>
-    </term>
-    <defapp>
-        <menu>
-            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
-        </menu>
-    </defapp>
+        </term>
+    </hotkeys>
 </config>
 ```
