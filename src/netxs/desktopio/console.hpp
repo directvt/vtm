@@ -1135,6 +1135,7 @@ namespace netxs::ui
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
             keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            keybd.proc("ToggleHotkeyMode",   [&](hids& gear){ gear.set_handled(); gear.set_hotkey_mode(gear.meta(hids::HotkeyMode) ? 0 : hids::HotkeyMode); });
             keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
 
             base::root(true);
@@ -1201,6 +1202,12 @@ namespace netxs::ui
                 }
                 //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
             };
+            LISTEN(tier::preview, hids::events::keybd::mode, gear, tokens)
+            {
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                if (!gear_ptr) return;
+                conio.hotkey_mode.send(canal, ext_gear_id, gear.meta(hids::HotkeyMode));
+            };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
             {
                 if (direct)
@@ -1238,15 +1245,9 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, hids::events::keybd::focus::exclusive, seed) // Request exclusive mode.
-                {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
-                    if (!gear_ptr) return;
-                    conio.focus_set.send(canal, ext_gear_id, seed.item ? -1 : -2); // -1: set, -2: reset.
-                };
                 LISTEN(tier::release, hids::events::keybd::key::any, gear) // Return back unhandled keybd events.
                 {
-                    if (gear && !gear.handled && ptr::is_empty(gear.exclusive_wptr)) // Do not return events in exclusive mode.
+                    if (gear && !gear.handled)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                         if (gear_ptr)

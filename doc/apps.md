@@ -160,9 +160,9 @@ The list of hotkey actions is slightly different from the list of window menu ac
 
 Value                        | Unique for hotkeys | Default Hotkey               | Description
 -----------------------------|--------------------|------------------------------|------------
-Drop                         |                    |                              | Drop all events for the specified key combination. No further processing.
-DropAutoRepeat               |                    |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-ToggleExclusiveKeybd         | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher levels.
+Drop                         | x                  |                              | Drop all events for the specified key combination. No further processing.
+DropAutoRepeat               | x                  |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+ToggleHotkeyMode             | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle hotkey mode between mode=0 (deafult) and mode=1.
 TerminalFindNext             |                    | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 TerminalFindPrev             |                    | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 TerminalViewportOnePageUp    | x                  | `Shift+Ctrl+PageUp`          | Scroll one page up.
@@ -303,11 +303,23 @@ TerminalSelectionOneShot     |                    |                             
                 </notes>
             </item>
         </menu>
-        <hotkeys key*>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
+    </term>
+    <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
+        <tui key*>  <!-- TUI matrix layer key bindings. The mode=0 is implicitly used by default. -->
+            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
+            <key="Ctrl-Alt"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Ctrl-Alt" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Alt-Ctrl (reversed releasing). -->
+        </tui>
+        <term key*>
             <key="Alt+RightArrow"        action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
             <key="Shift+Ctrl+PageDown"   action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
+            <key="Ctrl+PageUp"   mode=1  action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
+            <key="Ctrl+PageDown" mode=1  action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
             <key="Shift+Alt+LeftArrow"   action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
             <key="Shift+Alt+RightArrow"  action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
             <key="Shift+Ctrl+UpArrow"    action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
@@ -333,10 +345,8 @@ TerminalSelectionOneShot     |                    |                             
             <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
             <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
-            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Alt-Ctrl. -->
-        </hotkeys>
-    </term>
+        </term>
+    </hotkeys>
 </config>
 ```
 

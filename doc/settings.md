@@ -303,13 +303,14 @@ Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bi
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord" action="NameOfAction"/>
+<key="Key+Chord" action="NameOfAction" mode=N/> <!-- mode=0 can be omitted.  -->
 ```
 
 Tag      | Value
 ---------|--------
 `key`    | The text string containing the key combination.
 `action` | The action name.
+`mode`   | Hotkey mode for which mapping is being done (mode=0 by default). Either `mode=0` or `mode=1` are allowed.
 
 The following joiners are allowed for combining keys:
 
@@ -333,12 +334,13 @@ The required key combination sequence can be generated on the Info page, accessi
 
 #### Interpretation
 
-Configuration record                       | Interpretation
--------------------------------------------|-----------------
-`<key="Key+Chord" action=NameOfAction/>`   | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
-`<key="Key+Chord" action="NameOfAction"/>` | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action=""/>`             | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key=""          action="NameOfAction"/>` | Do nothing.
+Configuration record                              | Interpretation
+--------------------------------------------------|-----------------
+`<key="Key+Chord" action=NameOfAction/>`          | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
+`<key="Key+Chord" action="NameOfAction"/>`        | Append existing bindings with the directly specified command "NameOfAction".
+`<key="Key+Chord" action="NameOfAction" mode=1/>` | Append existing bindings for mode=1.
+`<key="Key+Chord" action=""/>`                    | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key=""          action="NameOfAction"/>`        | Do nothing.
 
 #### Available actions
 
@@ -347,7 +349,7 @@ Action                         | Default key combination  | Available at layer  
 `Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
 `DropAutoRepeat`               |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
-`ToggleExclusiveKeybd`         | `Ctrl-Alt`, `Alt-Ctrl`   | Application         | Toggle exclusive keyboard mode. In exclusive mode, all keyboard events are ignored by higher layers. Exclusive keyboard mode is automatically disabled when refocusing.
+`ToggleHotkeyMode`             | `Ctrl-Alt`, `Alt-Ctrl`   | TUI matrix          | Toggle hotkey mode between mode=0 (deafult) and mode=1.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
@@ -790,7 +792,7 @@ Notes
         </menu>
     </defapp>
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
-        <gui key*>  <!-- Native GUI window layer key bindings. -->
+        <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
             <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
             <key="Ctrl+0"                action=DropAutoRepeat/>          <!-- Don't repeat the Reset text cell height. -->
@@ -804,9 +806,13 @@ Notes
             <key="Ctrl+Shift+F12"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list forward. -->
             <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
         </gui>
-        <tui key*>  <!-- TUI matrix layer key bindings. -->
+        <tui key*>  <!-- TUI matrix layer key bindings. The mode=0 is implicitly used by default. -->
             <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (Reverse release order). -->
+            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
+            <key="Ctrl-Alt"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Ctrl-Alt" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Alt-Ctrl (reversed releasing). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
@@ -820,6 +826,8 @@ Notes
             <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
             <key="Shift+Ctrl+PageDown"   action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
+            <key="Ctrl+PageUp"   mode=1  action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
+            <key="Ctrl+PageDown" mode=1  action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
             <key="Shift+Alt+LeftArrow"   action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
             <key="Shift+Alt+RightArrow"  action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
             <key="Shift+Ctrl+UpArrow"    action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
@@ -847,8 +855,6 @@ Notes
             <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
             <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key="Ctrl-Alt"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt. In exclusive mode, all keyboard events are ignored by higher levels. -->
-            <key="Alt-Ctrl"              action=ToggleExclusiveKeybd/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Alt-Ctrl. -->
         </term>
     </hotkeys>
 </config>

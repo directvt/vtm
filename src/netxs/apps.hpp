@@ -615,31 +615,22 @@ namespace netxs::app::shared
                 ->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
-            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
+            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Alternate keyboard mode:")->setpad({ 2, 1, 0, 0 }));
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    auto state_ptr = ptr::shared(faux);
-                    auto& state = *state_ptr;
-                    auto& window_inst = *window;
-                    window->LISTEN(tier::release, hids::events::keybd::focus::exclusive, seed, boss.tracker, (state_ptr))
+                    window->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, boss.tracker)
                     {
-                        state = !!seed.item;
                         boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    window->LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, boss.tracker) // Call gear's subscription
-                    {
-                        if (state) window_inst.bell::signal(tier::preview, hids::events::keybd::focus::exclusive, {}); // to reset exclusive mode.
-                    };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        state ? gear.set_exclusive()
-                              : gear.set_exclusive(window_inst.This());
+                        gear.set_hotkey_mode(gear.meta(hids::HotkeyMode) ? 0 : hids::HotkeyMode);
                         gear.dismiss_dblclick();
                     };
                 });
@@ -760,7 +751,8 @@ namespace netxs::app::shared
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.template bind<tier::release>( "Any", "UpdateChordPreview");
+                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", 0);
+                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", 1);
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

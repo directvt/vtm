@@ -34,19 +34,10 @@ namespace netxs::events::userland
                     EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
                     EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
                 };
-                //SUBSET_XS( keybd )
-                //{
-                //    EVENT_XS( got , input::hids ),
-                //    EVENT_XS( lost, input::hids ),
-                //};
-                //SUBSET_XS( focus )
-                //{
-                //    EVENT_XS( got , input::hids ),
-                //    EVENT_XS( lost, input::hids ),
-                //};
             };
             SUBSET_XS( keybd )
             {
+                EVENT_XS( mode   , input::hids ),
                 GROUP_XS( key    , input::hids ),
                 GROUP_XS( control, input::hids ),
                 GROUP_XS( state  , input::hids ),
@@ -56,6 +47,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( post, input::hids ),
                 };
+                //todo revise
                 SUBSET_XS( control )
                 {
                     GROUP_XS( up  , input::hids ),
@@ -80,6 +72,7 @@ namespace netxs::events::userland
                         EVENT_XS( shift_left , input::hids ),
                     };
                 };
+                //todo revise
                 SUBSET_XS( state )
                 {
                     GROUP_XS( on , input::hids ),
@@ -110,7 +103,6 @@ namespace netxs::events::userland
                     EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                     EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
                     EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
-                    EVENT_XS( exclusive, input::foci ), // preview/release: Request exclusive keyboard mode.
                     GROUP_XS( bus, input::foci ),
 
                     SUBSET_XS( bus )
@@ -1436,25 +1428,25 @@ namespace netxs::input
 
         enum modifiers
         {
-            LCtrl    = 1 <<  0, // Left  ⌃ Ctrl
-            RCtrl    = 1 <<  1, // Right ⌃ Ctrl
-            LAlt     = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt     = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
-            LShift   = 1 <<  4, // Left  ⇧ Shift
-            RShift   = 1 <<  5, // Right ⇧ Shift
-            LWin     = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            RWin     = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            NumLock  = 1 << 12, // ⇭ Num Lock
-            CapsLock = 1 << 13, // ⇪ Caps Lock
-            ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
-            HkeyMode = 1 << 28, // Alternate hotkey mode
-            AltGr    = LAlt   | LCtrl,
-            anyCtrl  = LCtrl  | RCtrl,
-            anyAlt   = LAlt   | RAlt,
-            anyShift = LShift | RShift,
-            anyAltGr = anyAlt | anyCtrl,
-            anyWin   = LWin   | RWin,
-            anyMod   = anyAlt | anyCtrl | anyShift | anyWin,
+            LCtrl      = 1 <<  0, // Left  ⌃ Ctrl
+            RCtrl      = 1 <<  1, // Right ⌃ Ctrl
+            LAlt       = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
+            RAlt       = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
+            LShift     = 1 <<  4, // Left  ⇧ Shift
+            RShift     = 1 <<  5, // Right ⇧ Shift
+            LWin       = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            RWin       = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            NumLock    = 1 << 12, // ⇭ Num Lock
+            CapsLock   = 1 << 13, // ⇪ Caps Lock
+            ScrlLock   = 1 << 14, // ⇳ Scroll Lock (⤓)
+            HotkeyMode = 1 << 28, // Alternate hotkey mode
+            AltGr      = LAlt   | LCtrl,
+            anyCtrl    = LCtrl  | RCtrl,
+            anyAlt     = LAlt   | RAlt,
+            anyShift   = LShift | RShift,
+            anyAltGr   = anyAlt | anyCtrl,
+            anyWin     = LWin   | RWin,
+            anyMod     = anyAlt | anyCtrl | anyShift | anyWin,
         };
 
         static auto build_alone_key()
@@ -1574,9 +1566,6 @@ namespace netxs::input
         id_t user_index; // hids: User/Device image/icon index.
         kmap other_key; // hids: Dynamic key-vt mapping.
 
-        wptr exclusive_wptr; // hids: Exclusive keyboard owner.
-        hook exclusive_memo; // hids: Exclusive keyboard owner reset.
-
         template<class T>
         hids(auth& indexer, T& props, base& owner, core const& idmap)
             : bell{ indexer },
@@ -1608,27 +1597,6 @@ namespace netxs::input
         operator bool () const
         {
             return alive;
-        }
-
-        void set_exclusive(sptr kb_owner = {})
-        {
-            //todo make it crossprocess
-            auto prev = exclusive_wptr.lock();
-            if (kb_owner != prev)
-            {
-                exclusive_wptr = kb_owner;
-                exclusive_memo.reset();
-                if (prev) prev->bell::signal(tier::release, hids::events::keybd::focus::exclusive, {}); // Trigger to reset exclusive mode.
-                if (kb_owner)
-                {
-                    kb_owner->bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Notify requestee.
-                    kb_owner->LISTEN(tier::preview, hids::events::keybd::focus::exclusive, seed, exclusive_memo) // Reset exclusive mode on requestee focus change (requestee calls signal(tier::preview, hids::events::keybd::focus::exclusive)).
-                    {
-                        set_exclusive();
-                    };
-                }
-                owner.bell::signal(tier::release, hids::events::keybd::focus::exclusive, { .id = bell::id, .item = kb_owner }); // Forward outside (crossprocess).
-            }
         }
 
         auto tooltip_enabled(time const& now)
@@ -1759,6 +1727,13 @@ namespace netxs::input
         void set_handled(bool b = true)
         {
             handled = b;
+        }
+        void set_hotkey_mode(si32 mode)
+        {
+            auto temp = keybd::ctlstat;
+            netxs::set_flag<hids::HotkeyMode>(keybd::ctlstat, mode);
+            owner.bell::signal(tier::preview, hids::events::keybd::mode, *this);
+            keybd::ctlstat = temp;
         }
 
         void take(sysmouse& m)
@@ -1956,19 +1931,9 @@ namespace netxs::input
             if (m_sav.changed != m_sys.changed) m_sav = m_sys;
             return !alive;
         }
-        auto is_exclusive()
-        {
-            return !ptr::is_empty(exclusive_wptr);
-        }
         void fire_keybd()
         {
             alive = true;
-            if (is_exclusive())
-            if (auto target = exclusive_wptr.lock())
-            {
-                target->bell::signal(tier::preview, hids::events::keybd::key::post, *this);
-                return;
-            }
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_focus()

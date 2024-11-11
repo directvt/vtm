@@ -1350,10 +1350,22 @@ namespace netxs::ui
                     gear.dismiss();
                 };
                 // Subscribe on keybd events.
+                auto hotkey_mode_ptr = ptr::shared(0);
+                auto& hotkey_mode = *hotkey_mode_ptr;
+                boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo, (hotkey_mode_ptr))
+                {
+                    m = hotkey_mode;
+                };
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
+                    if (gear.payload == input::keybd::type::keypress
+                     && std::exchange(hotkey_mode, gear.meta(hids::HotkeyMode)) != hotkey_mode) // Notify if hotkey mode has changed.
+                    {
+                        auto m = hotkey_mode >> 28; //std::countr_zero(hids::HotkeyMode); //todo MSVC doesn't get it
+                        boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                    }
                     auto& route = get_route(gear.id);
                     if (route.active)
                     {
@@ -1830,8 +1842,8 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_preview;
-            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_release;
+            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_preview;
+            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
 
             auto _get_chords(qiew chord_str)
@@ -1848,9 +1860,11 @@ namespace netxs::ui
                 }
             }
             template<si32 Tier = tier::release>
-            auto _set(qiew chord_str, sptr handler_ptr)
+            auto _set(qiew chord_str, sptr handler_ptr, si32 mode)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                //todo unify
+                auto hmode = mode ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1862,9 +1876,10 @@ namespace netxs::ui
                 else return faux;
             }
             template<si32 Tier = tier::release>
-            auto _reset(qiew chord_str)
+            auto _reset(qiew chord_str, si32 mode)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                auto hmode = mode ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1878,7 +1893,8 @@ namespace netxs::ui
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                auto hmode = gear.meta(hids::HotkeyMode) ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
@@ -1941,26 +1957,21 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew proc_name)
+            auto bind(qiew chord_str, qiew proc_name, si32 mode = 0)
             {
                 if (!chord_str) return;
                 if (proc_name)
                 {
                     if (auto iter = api_map.find(proc_name); iter != api_map.end())
                     {
-                        _set<Tier>(chord_str, iter->second);
+                        _set<Tier>(chord_str, iter->second, mode);
                     }
                     else log("%%Action '%proc%' not found", prompt::user, proc_name);
                 }
                 else
                 {
-                    _reset<Tier>(chord_str);
+                    _reset<Tier>(chord_str, mode);
                 }
-            }
-            auto wipe()
-            {
-                handlers_release.clear();
-                handlers_preview.clear();
             }
             template<si32 Tier = tier::release>
             auto load(xmls& config, qiew path)
@@ -1973,7 +1984,8 @@ namespace netxs::ui
                     {
                         auto chord = keybind.take_value();
                         auto action = keybind.take("action", ""s);
-                        bind<Tier>(chord, action);
+                        auto mode = keybind.take("mode", 0);
+                        bind<Tier>(chord, action, mode);
                     }
                 }
             }
