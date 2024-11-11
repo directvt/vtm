@@ -2856,7 +2856,7 @@ namespace netxs::gui
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
-            if (auto hotkey_mode_changed = virtcod == 0 && (keymod ^ hotkey) & input::hids::HotkeyMode) // Send empty key to update hotkey mode state.
+            if (virtcod == 0 && (keymod ^ hotkey) & input::hids::HotkeyMode) // Send empty key to update hotkey mode state if it is changed.
             {
                 auto& gear = *stream.gears;
                 netxs::set_flag<input::hids::HotkeyMode>(keymod, hotkey);
