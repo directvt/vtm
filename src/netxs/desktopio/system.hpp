@@ -4840,6 +4840,8 @@ namespace netxs::os
         {
             struct adapter : s11n
             {
+                si32 hotkey = 0;
+
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
@@ -4906,6 +4908,29 @@ namespace netxs::os
                 void handle(s11n::xs::clipdata_request lock)
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
+                }
+                void handle(s11n::xs::hotkey_mode      lock)
+                {
+                    auto& k = lock.thing;
+                    hotkey = k.mode;
+                    auto item = s11n::syskeybd.freeze();
+                    netxs::set_flag<input::hids::HotkeyMode>(item.thing.ctlstat, hotkey);
+                    auto temp = input::syskeybd{}; //todo same code in gui.hpp:2860
+                    std::swap(temp.vkchord, item.thing.vkchord);
+                    std::swap(temp.scchord, item.thing.scchord);
+                    std::swap(temp.chchord, item.thing.chchord);
+                    std::swap(temp.cluster, item.thing.cluster);
+                    std::swap(temp.keystat, item.thing.keystat);
+                    item.thing.virtcod = 0;
+                    item.thing.scancod = 0;
+                    item.thing.keycode = 0;
+                    item.thing.payload = input::keybd::type::keypress;
+                    item.thing.sendby<faux, faux>(dtvt::client);
+                    std::swap(temp.vkchord, item.thing.vkchord);
+                    std::swap(temp.scchord, item.thing.scchord);
+                    std::swap(temp.chchord, item.thing.chchord);
+                    std::swap(temp.cluster, item.thing.cluster);
+                    std::swap(temp.keystat, item.thing.keystat);
                 }
 
                 adapter()
@@ -6047,8 +6072,22 @@ namespace netxs::os
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            auto keybd = [&](auto& data){ if (alive)                proxy.syskeybd.send(intio, data); };
-            auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
+            auto keybd = [&](auto& data)
+            {
+                if (alive)
+                {
+                    netxs::set_flag<input::hids::HotkeyMode>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey mode.
+                    proxy.syskeybd.send(intio, data);
+                }
+            };
+            auto mouse = [&](auto& data)
+            {
+                if (alive)
+                {
+                    netxs::set_flag<input::hids::HotkeyMode>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey mode.
+                    proxy.sysmouse.send(intio, data);
+                }
+            };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto focus = [&](auto& data){ if (alive)                proxy.sysfocus.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };

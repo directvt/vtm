@@ -1807,21 +1807,24 @@ namespace netxs::gui
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                if (item.solo < 0) // Exclusive keyboard mode: -1: set, -2: reset.
+                if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
                 {
-                    gears->set_exclusive(item.solo == -1 ? owner.This() : netxs::sptr<base>{}); // Exclusive mode will be reset automatically when focus is changed.
+                    auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
                 }
-                else
+                else owner.window_post_command(ipc::take_focus);
+                if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
                 {
-                    if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
-                    {
-                        auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
-                    }
-                    else owner.window_post_command(ipc::take_focus);
-                    if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
-                    {
-                        owner.window_post_command(ipc::solo_focus);
-                    }
+                    owner.window_post_command(ipc::solo_focus);
+                }
+            }
+            void handle(s11n::xs::hotkey_mode      lock)
+            {
+                auto& k = lock.thing;
+                auto guard = owner.sync();
+                if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
+                {
+                    owner.hotkey = k.mode;
+                    owner.window_post_command(ipc::sync_state);
                 }
             }
             void handle(s11n::xs::syskeybd         lock)
@@ -1964,6 +1967,7 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         evnt  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
+        si32  hotkey; // winbase: Alternate hotkey mode.
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::pair<text, text>>& hotkeys)
             : base{ indexer },
@@ -1994,7 +1998,8 @@ namespace netxs::gui
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
-              stream{ *this, *os::dtvt::client }
+              stream{ *this, *os::dtvt::client },
+              hotkey{ 0 }
         {
             wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
             wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
@@ -2004,7 +2009,8 @@ namespace netxs::gui
             wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
             wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
-            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator");
+            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 0);
+            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 1);
             for (auto& [chord, action] : hotkeys) wkeybd.bind<tier::preview>(chord, action);
         }
 
@@ -2845,12 +2851,36 @@ namespace netxs::gui
                 {
                     keybd_send_block(block); // Send multifocus events.
                 }
-                return gear.is_exclusive() || wkeybd.filter<tier::preview>(gear);
+                return wkeybd.filter<tier::preview>(gear);
             });
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
-            auto state  = 0;
+            if (virtcod == 0 && (keymod ^ hotkey) & input::hids::HotkeyMode) // Send empty key to update hotkey mode state if it is changed.
+            {
+                auto& gear = *stream.gears;
+                netxs::set_flag<input::hids::HotkeyMode>(keymod, hotkey);
+                netxs::set_flag<input::hids::HotkeyMode>(gear.ctlstat, hotkey);
+                auto temp = syskeybd{}; //todo same code in system.hpp:4918
+                std::swap(temp.vkchord, gear.vkchord);
+                std::swap(temp.scchord, gear.scchord);
+                std::swap(temp.chchord, gear.chchord);
+                std::swap(temp.cluster, gear.cluster);
+                std::swap(temp.keystat, gear.keystat);
+                gear.virtcod = 0;
+                gear.scancod = 0;
+                gear.keycode = 0;
+                gear.payload = input::keybd::type::keypress;
+                stream_keybd(gear);
+                std::swap(temp.vkchord, gear.vkchord);
+                std::swap(temp.scchord, gear.scchord);
+                std::swap(temp.chchord, gear.chchord);
+                std::swap(temp.cluster, gear.cluster);
+                std::swap(temp.keystat, gear.keystat);
+                return;
+            }
+
+            auto state = hotkey;
             auto cs = 0;
             if (extflag) cs |= input::key::ExtendedKey;
             if (synth)
@@ -3067,7 +3097,7 @@ namespace netxs::gui
                         stream.m.ctlstat = keymod;
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
-                        if (gear.is_exclusive() || wkeybd.filter<tier::preview>(gear))
+                        if (wkeybd.filter<tier::preview>(gear))
                         {
                             stream.keybd(gear);
                         }

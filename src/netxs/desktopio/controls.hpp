@@ -1247,15 +1247,14 @@ namespace netxs::ui
         public:
             enum class mode { hub, focusable, focused, active };
             enum class solo { off, on, mix };
-            enum class flip { off = faux, on = true };
             friend auto operator == (si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
-            static void set(sptr item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
+            static void set(sptr item_ptr, T&& gear_id, solo s, bool skip = faux)
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip });
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = id, .solo = (si32)s, .skip = skip });
                     //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1308,7 +1307,7 @@ namespace netxs::ui
                 {
                     auto seed = parent->base::riseup(tier::release, hids::events::keybd::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
-                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
+                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off);
                 }
             }
             static auto test(base& item, input::hids& gear)
@@ -1327,7 +1326,7 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo, (m))
                     {
-                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off, m == mode::active ? true : faux);
+                        pro::focus::set(boss.This(), id_t{}, solo::off, m == mode::active ? true : faux);
                     };
                 }
                 boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
@@ -1342,15 +1341,31 @@ namespace netxs::ui
                 // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
-                    if (gear.meta(hids::anyCtrl)) pro::focus::set(boss.This(), gear.id, solo::off, flip::on );
-                    else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
+                    if (gear.meta(hids::anyCtrl))
+                    {
+                        if (pro::focus::test(boss, gear)) pro::focus::off(boss.This(), gear.id);
+                        else                              pro::focus::set(boss.This(), gear.id, solo::off);
+                    }
+                    else pro::focus::set(boss.This(), gear.id, solo::on);
                     gear.dismiss();
                 };
                 // Subscribe on keybd events.
+                auto hotkey_mode_ptr = ptr::shared(0);
+                auto& hotkey_mode = *hotkey_mode_ptr;
+                boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo, (hotkey_mode_ptr))
+                {
+                    m = hotkey_mode;
+                };
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
+                    if (gear.payload == input::keybd::type::keypress
+                     && std::exchange(hotkey_mode, gear.meta(hids::HotkeyMode)) != hotkey_mode) // Notify if hotkey mode has changed.
+                    {
+                        auto m = hotkey_mode >> 28; //std::countr_zero(hids::HotkeyMode); //todo MSVC doesn't get it
+                        boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                    }
                     auto& route = get_route(gear.id);
                     if (route.active)
                     {
@@ -1477,12 +1492,6 @@ namespace netxs::ui
                     {
                         if (route.active)
                         {
-                            if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
-                            {
-                                if (focusable) route.focused = faux;
-                                boss.bell::signal(tier::preview, hids::events::keybd::focus::off, seed);
-                                return;
-                            }
                             if (seed.solo != solo::on) // Group focus.
                             {
                                 route.focused = focusable;
@@ -1833,8 +1842,8 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_preview;
-            std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal> handlers_release;
+            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_preview;
+            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
 
             auto _get_chords(qiew chord_str)
@@ -1851,9 +1860,11 @@ namespace netxs::ui
                 }
             }
             template<si32 Tier = tier::release>
-            auto _set(qiew chord_str, sptr handler_ptr)
+            auto _set(qiew chord_str, sptr handler_ptr, si32 mode)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                //todo unify
+                auto hmode = mode ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1865,9 +1876,10 @@ namespace netxs::ui
                 else return faux;
             }
             template<si32 Tier = tier::release>
-            auto _reset(qiew chord_str)
+            auto _reset(qiew chord_str, si32 mode)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                auto hmode = mode ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1881,7 +1893,8 @@ namespace netxs::ui
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
             {
-                auto& handlers = Tier == tier::release ? handlers_release : handlers_preview;
+                auto hmode = gear.meta(hids::HotkeyMode) ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
@@ -1924,8 +1937,8 @@ namespace netxs::ui
                         if (!gear.handled) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
                     }
                 };
-                proc("Drop",          [](hids& gear){ gear.set_handled(); });
-                proc("DropIfRepeats", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
+                proc("Drop",           [](hids& gear){ gear.set_handled(); });
+                proc("DropAutoRepeat", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
             template<si32 Tier = tier::release>
@@ -1944,26 +1957,21 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew proc_name)
+            auto bind(qiew chord_str, qiew proc_name, si32 mode = 0)
             {
                 if (!chord_str) return;
                 if (proc_name)
                 {
                     if (auto iter = api_map.find(proc_name); iter != api_map.end())
                     {
-                        _set<Tier>(chord_str, iter->second);
+                        _set<Tier>(chord_str, iter->second, mode);
                     }
                     else log("%%Action '%proc%' not found", prompt::user, proc_name);
                 }
                 else
                 {
-                    _reset<Tier>(chord_str);
+                    _reset<Tier>(chord_str, mode);
                 }
-            }
-            auto wipe()
-            {
-                handlers_release.clear();
-                handlers_preview.clear();
             }
             template<si32 Tier = tier::release>
             auto load(xmls& config, qiew path)
@@ -1976,7 +1984,8 @@ namespace netxs::ui
                     {
                         auto chord = keybind.take_value();
                         auto action = keybind.take("action", ""s);
-                        bind<Tier>(chord, action);
+                        auto mode = keybind.take("mode", 0);
+                        bind<Tier>(chord, action, mode);
                     }
                 }
             }

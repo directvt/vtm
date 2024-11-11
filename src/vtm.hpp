@@ -175,7 +175,7 @@ namespace netxs::app::vtm
 
                 window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.base::This());
                 window_ptr->bell::signal(tier::anycast, vtm::events::attached, boss.base::This());
-                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
+                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, true); // Refocus.
             }
             void unbind(type restore = type::full)
             {
@@ -213,7 +213,7 @@ namespace netxs::app::vtm
                     }
                 }
                 what.applet.reset();
-                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
+                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, true); // Refocus.
             }
         };
 
@@ -337,7 +337,7 @@ namespace netxs::app::vtm
                     auto coord = gear.coord + area.coor;
                     if (!area.hittest(coord))
                     {
-                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on);
                         appear(coord);
                     }
                     gear.dismiss();
@@ -752,7 +752,7 @@ namespace netxs::app::vtm
                     if (true /*...*/) //todo lookup taskbar kb shortcuts
                     {
                         //...
-                        //pro::focus::set(applet, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        //pro::focus::set(applet, gear.id, pro::focus::solo::on);
                         
                     }
                     else
@@ -891,7 +891,7 @@ namespace netxs::app::vtm
                 auto& window = *window_ptr;
                 window.bell::signal(tier::release, e2::form::layout::selected, gear);
                 if (!maximized) jump_to(window);
-                pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                pro::focus::set(window_ptr, gear.id, pro::focus::solo::on);
             }
             //gear.dismiss();
             this->bell::expire(tier::preview); //todo temp
@@ -1296,8 +1296,7 @@ namespace netxs::app::vtm
                         if (boss.hidden) // Restore if it is hidden.
                         {
                             boss.hidden = faux;
-                            pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                    : pro::focus::solo::on, pro::focus::flip::off, true);
+                            pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off : pro::focus::solo::on, true);
                         }
                         else // Hide if visible and refocus.
                         {
@@ -1327,7 +1326,7 @@ namespace netxs::app::vtm
                                     while (window != This && ((gearid && gearid != gear.owner.id) || (hidden == true || !viewport.hittest(window->center()))));
                                     if (window != This)
                                     {
-                                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                        pro::focus::set(window, gear.id, pro::focus::solo::on);
                                         This.reset();
                                     }
                                 }
@@ -1366,11 +1365,11 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
-                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on);
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
                     {
-                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on);
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
@@ -1413,7 +1412,7 @@ namespace netxs::app::vtm
                         what.applet = window_ptr;
                         boss.bell::enqueue(boss.This(), [&](auto& /*boss*/)
                         {
-                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus to demultifocus.
+                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, true); // Refocus to demultifocus.
                         });
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
@@ -1466,7 +1465,7 @@ namespace netxs::app::vtm
                         else
                         {
                             boss.base::riseup(tier::preview, e2::form::layout::expose); // Multiple windows coubld be maximized at the same time.
-                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true);
+                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, true);
                             auto owner_id = gear.owner.id;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
@@ -1930,7 +1929,7 @@ namespace netxs::app::vtm
                     what.square.size = winsize ? winsize : viewport.size * 3 / 4;
                     if (auto window = create(what))
                     {
-                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(window, gear.id, pro::focus::solo::on);
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                         else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
@@ -1944,7 +1943,7 @@ namespace netxs::app::vtm
                     what.square.size = winsize;
                     if (auto window = create(what))
                     {
-                        pro::focus::set(window, id_t{}, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(window, id_t{}, pro::focus::solo::on);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -1970,7 +1969,7 @@ namespace netxs::app::vtm
                         //{
                         //    log(prompt::hall, "Objects count: ", items.size());
                         //};
-                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        pro::focus::set(window, gear.id, pro::focus::solo::on);
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                         auto& cfg = dbase.menu[what.menuid];
                              if (cfg.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
@@ -2141,8 +2140,7 @@ namespace netxs::app::vtm
             auto count = 0;
             for (auto& window_ptr : foci)
             {
-                pro::focus::set(window_ptr, id_t{}, count++ ? pro::focus::solo::off // Reset all foci on the first item.
-                                                            : pro::focus::solo::on, pro::focus::flip::off);
+                pro::focus::set(window_ptr, id_t{}, count++ ? pro::focus::solo::off : pro::focus::solo::on); // Reset all foci on the first item.
             }
             if constexpr (debugmode)
             {
@@ -2228,7 +2226,7 @@ namespace netxs::app::vtm
                         {
                             auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
                             if (owner_id && owner_id != gear_ptr->owner.id) continue;
-                            pro::focus::set(last_ptr, gear_id, pro::focus::solo::off, pro::focus::flip::off);
+                            pro::focus::set(last_ptr, gear_id, pro::focus::solo::off);
                         }
                     }
                 }

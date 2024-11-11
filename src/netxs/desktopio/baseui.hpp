@@ -451,6 +451,7 @@ namespace netxs::events::userland
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
+                        EVENT_XS( hotkey  , si32               ), // release: Hotkeymode.
                         GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
                         GROUP_XS( command , si32               ), // release: Hotkey command preview.
 
