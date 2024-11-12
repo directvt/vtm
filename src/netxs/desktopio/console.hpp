@@ -855,7 +855,6 @@ namespace netxs::ui
         sptr       applet; // gate: Standalone application.
         subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
-        hook       oneoff_focus; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -1127,15 +1126,6 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
-            {
-                //if (auto target = local ? applet : base::parent())
-                if (auto target = nexthop.lock())
-                {
-                    pro::focus::set(target, gear.id, pro::focus::solo::off, true);
-                }
-                oneoff_focus.reset();
-            };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)

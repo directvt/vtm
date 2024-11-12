@@ -7,8 +7,6 @@
 
 namespace netxs::events::userland
 {
-    //using proc_fx = std::function<void(ui::base&)>;
-
     struct hids
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
