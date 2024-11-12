@@ -45,13 +45,10 @@ namespace netxs::ui
                     {
                         del(gear);
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, token)
+                    boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, token)
                     {
-                        add(gear);
-                    };
-                    boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, token)
-                    {
-                        dec(gear);
+                             if (gear.cause == hids::events::mouse::hover::enter.id) add(gear);
+                        else if (gear.cause == hids::events::mouse::hover::leave.id) dec(gear);
                     };
                 }
                 template<bool ConstWarn = true>
@@ -1707,39 +1704,39 @@ namespace netxs::ui
                         boss.bell::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
                     }
                 };
-                // pro::mouse: Notify form::state::active when the number of clients is positive.
-                boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, memo)
+                // pro::mouse: Notify about change in number of mouse hovering clients.
+                boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, memo)
                 {
-                    if (!full++)
+                    if (gear.cause == hids::events::mouse::hover::enter.id) // Notify when the number of clients is positive.
                     {
-                        soul = boss.This();
-                    }
-                    if (gear.direct<true>(boss.bell::id) || omni)
-                    {
-                        if (!rent++)
+                        if (!full++)
                         {
-                            boss.bell::signal(tier::release, e2::form::state::mouse, rent);
+                            soul = boss.This();
                         }
-                        boss.bell::signal(tier::release, e2::form::state::hover, rent);
-                    }
-                    //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
-                };
-                // pro::mouse: Notify form::state::active when the number of clients is zero.
-                boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, memo)
-                {
-                    if (gear.direct<faux>(boss.bell::id) || omni)
-                    {
-                        if (!--rent)
+                        if (gear.direct<true>(boss.bell::id) || omni)
                         {
-                            boss.bell::signal(tier::release, e2::form::state::mouse, rent);
+                            if (!rent++)
+                            {
+                                boss.bell::signal(tier::release, e2::form::state::mouse, rent);
+                            }
+                            boss.bell::signal(tier::release, e2::form::state::hover, rent);
                         }
-                        boss.bell::signal(tier::release, e2::form::state::hover, rent);
                     }
-                    //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
-                    if (!--full)
+                    else if (gear.cause == hids::events::mouse::hover::leave.id) // Notify when the number of clients is zero.
                     {
-                        soul->base::strike();
-                        soul.reset();
+                        if (gear.direct<faux>(boss.bell::id) || omni)
+                        {
+                            if (!--rent)
+                            {
+                                boss.bell::signal(tier::release, e2::form::state::mouse, rent);
+                            }
+                            boss.bell::signal(tier::release, e2::form::state::hover, rent);
+                        }
+                        if (!--full)
+                        {
+                            soul->base::strike();
+                            soul.reset();
+                        }
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)

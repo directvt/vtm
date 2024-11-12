@@ -146,19 +146,22 @@ namespace netxs::ui
                     recalc();
                     boss.deface();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, memo)
                 {
-                    items.add(gear);
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, memo)
-                {
-                    auto& item = items.take(gear);
-                    if (item.region.size)
+                    if (gear.cause == hids::events::mouse::hover::enter.id)
                     {
-                        item.inside = faux;
+                        items.add(gear);
                     }
-                    else items.del(gear);
-                    recalc();
+                    else if (gear.cause == hids::events::mouse::hover::leave.id)
+                    {
+                        auto& item = items.take(gear);
+                        if (item.region.size)
+                        {
+                            item.inside = faux;
+                        }
+                        else items.del(gear);
+                        recalc();
+                    }
                 };
                 engage<hids::buttons::left>();
             }
