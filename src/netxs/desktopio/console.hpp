@@ -1168,7 +1168,7 @@ namespace netxs::ui
                 }
                 //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
             };
-            LISTEN(tier::preview, hids::events::keybd::mode, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                 if (!gear_ptr) return;

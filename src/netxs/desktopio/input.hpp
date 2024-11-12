@@ -37,11 +37,8 @@ namespace netxs::events::userland
             };
             SUBSET_XS( keybd )
             {
-                EVENT_XS( mode   , input::hids ),
-                GROUP_XS( key    , input::hids ),
-                GROUP_XS( control, input::hids ),
-                GROUP_XS( state  , input::hids ),
-                GROUP_XS( focus  , input::hids ),
+                EVENT_XS( scheme, input::hids ),
+                GROUP_XS( key   , input::hids ),
 
                 SUBSET_XS( key )
                 {
@@ -1671,7 +1668,7 @@ namespace netxs::input
         {
             auto temp = keybd::ctlstat;
             netxs::set_flag<hids::HotkeyScheme>(keybd::ctlstat, s);
-            owner.bell::signal(tier::preview, hids::events::keybd::mode, *this);
+            owner.bell::signal(tier::preview, hids::events::keybd::scheme, *this);
             keybd::ctlstat = temp;
         }
 
