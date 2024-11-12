@@ -863,7 +863,7 @@ namespace netxs::directvt
                                         (fp2d, click))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
-        STRUCT_macro(hotkey_mode,       (id_t, gear_id) (si32, mode))
+        STRUCT_macro(hotkey_scheme,     (id_t, gear_id) (si32, index))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
@@ -877,7 +877,7 @@ namespace netxs::directvt
         STRUCT_macro(minimize,          (id_t, gear_id))
         //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
-        STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
+        STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause)) // cause: it is a events::subindex
         STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
@@ -1415,7 +1415,7 @@ namespace netxs::directvt
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
-            X(hotkey_mode      ) /* Request hotkey mode to set.                   */\
+            X(hotkey_scheme    ) /* Request hotkey scheme to set.                 */\
             X(fullscrn         ) /* Notify/Request to fullscreen.                 */\
             X(maximize         ) /* Request to maximize window.                   */\
             X(header           ) /* Set window title.                             */\

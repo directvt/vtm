@@ -1135,7 +1135,7 @@ namespace netxs::ui
             //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
             keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.proc("ToggleHotkeyMode",   [&](hids& gear){ gear.set_handled(); gear.set_hotkey_mode(gear.meta(hids::HotkeyMode) ? 0 : hids::HotkeyMode); });
+            keybd.proc("ToggleHotkeyScheme", [&](hids& gear){ gear.set_handled(); gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme); });
             keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
 
             base::root(true);
@@ -1159,26 +1159,6 @@ namespace netxs::ui
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            if (!direct)
-            {
-                LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
-                {
-                    //if (auto target = local ? applet : base::parent())
-                    if (auto target = nexthop.lock())
-                    {
-                        auto seed = target->bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = gear.id });
-                    }
-                };
-                LISTEN(tier::release, hids::events::focus::off, gear)
-                {
-                    //if (auto target = local ? applet : base::parent())
-                    if (auto target = nexthop.lock())
-                    {
-                        auto seed = target->bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = gear.id });
-                    }
-                };
-            }
-
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
                 //todo use input::forward<focus>
@@ -1206,58 +1186,32 @@ namespace netxs::ui
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                 if (!gear_ptr) return;
-                conio.hotkey_mode.send(canal, ext_gear_id, gear.meta(hids::HotkeyMode));
+                conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
             {
-                if (direct)
-                {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
-                    if (!gear_ptr) return;
-                    conio.focus_cut.send(canal, ext_gear_id);
-                }
-                else
-                {
-                    //todo revise see preview::focus::set
-                    ////if (auto target = local ? applet : base::parent())
-                    if (auto target = base::parent())
-                    //if (auto target = nexthop.lock())
-                    {
-                        target->bell::signal(tier::release, hids::events::keybd::focus::bus::off, seed);
-                    }
-                }
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
+                if (!gear_ptr) return;
+                conio.focus_cut.send(canal, ext_gear_id);
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed, tokens)
             {
-                if (direct)
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
+                if (!gear_ptr) return;
+                conio.focus_set.send(canal, ext_gear_id, seed.solo);
+            };
+            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Forward unhandled events outside. Return back unhandled keybd events.
+            {
+                if (gear && !gear.handled)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
-                    if (!gear_ptr) return;
-                    conio.focus_set.send(canal, ext_gear_id, seed.solo);
-                }
-                else
-                {
-                    if (seed.item)
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr)
                     {
-                        seed.item->bell::signal(tier::release, hids::events::keybd::focus::bus::on, seed);
+                        gear.gear_id = ext_gear_id;
+                        conio.syskeybd.send(canal, gear);
                     }
                 }
             };
-            if (direct) // Forward unhandled events outside.
-            {
-                LISTEN(tier::release, hids::events::keybd::key::any, gear) // Return back unhandled keybd events.
-                {
-                    if (gear && !gear.handled)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr)
-                        {
-                            gear.gear_id = ext_gear_id;
-                            conio.syskeybd.send(canal, gear);
-                        }
-                    }
-                };
-            }
 
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
@@ -1503,10 +1457,7 @@ namespace netxs::ui
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
-            if (direct)
-            {
-                conio.sysstart.send(canal);
-            }
+            conio.sysstart.send(canal);
         }
         // gate: .
         void inform(rect new_area) override

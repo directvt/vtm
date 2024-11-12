@@ -1199,6 +1199,7 @@ namespace netxs::ui
             bool focusable; // focus: Boss could be a focus endpoint.
             bool scope; // focus: Cutoff threshold for focus branch.
             umap gears; // focus: Registered gears.
+            si32 hotkey_scheme; // focus: .
 
             void signal_state()
             {
@@ -1242,6 +1243,11 @@ namespace netxs::ui
                 auto iter = gears.find(gear_id);
                 if (iter == gears.end()) iter = add_route(gear_id);
                 return iter->second;
+            }
+            void hotkey_scheme_notify()
+            {
+                auto m = hotkey_scheme >> 28; //std::countr_zero(hids::HotkeyScheme); //todo MSVC doesn't get it
+                boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
             }
 
         public:
@@ -1329,6 +1335,10 @@ namespace netxs::ui
                         pro::focus::set(boss.This(), id_t{}, solo::off, m == mode::active ? true : faux);
                     };
                 }
+                boss.LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, memo)
+                {
+                    owner_ptr = boss.This();
+                };
                 boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
                 {
                     state = faux;
@@ -1350,21 +1360,18 @@ namespace netxs::ui
                     gear.dismiss();
                 };
                 // Subscribe on keybd events.
-                auto hotkey_mode_ptr = ptr::shared(0);
-                auto& hotkey_mode = *hotkey_mode_ptr;
-                boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo, (hotkey_mode_ptr))
+                boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo)
                 {
-                    m = hotkey_mode;
+                    m = hotkey_scheme;
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     if (gear.payload == input::keybd::type::keypress
-                     && std::exchange(hotkey_mode, gear.meta(hids::HotkeyMode)) != hotkey_mode) // Notify if hotkey mode has changed.
+                     && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
                     {
-                        auto m = hotkey_mode >> 28; //std::countr_zero(hids::HotkeyMode); //todo MSVC doesn't get it
-                        boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                        hotkey_scheme_notify();
                     }
                     auto& route = get_route(gear.id);
                     if (route.active)
@@ -1410,7 +1417,15 @@ namespace netxs::ui
                         route.active = true;
                         if (seed.id) boss.bell::signal(tier::release, e2::form::state::keybd::focus::on, seed.id);
                     }
-                    if (seed.id != id_t{}) signal_state();
+                    if (seed.id != id_t{})
+                    {
+                        signal_state();
+                        if (auto gear_ptr = boss.bell::getref<hids>(seed.id)) // Notify about current gear hotkey scheme.
+                        {
+                            hotkey_scheme = gear_ptr->meta(hids::HotkeyScheme);
+                            hotkey_scheme_notify();
+                        }
+                    }
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
@@ -1860,11 +1875,11 @@ namespace netxs::ui
                 }
             }
             template<si32 Tier = tier::release>
-            auto _set(qiew chord_str, sptr handler_ptr, si32 mode)
+            auto _set(qiew chord_str, sptr handler_ptr, si32 scheme)
             {
                 //todo unify
-                auto hmode = mode ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
+                auto hscheme = scheme ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1876,10 +1891,10 @@ namespace netxs::ui
                 else return faux;
             }
             template<si32 Tier = tier::release>
-            auto _reset(qiew chord_str, si32 mode)
+            auto _reset(qiew chord_str, si32 scheme)
             {
-                auto hmode = mode ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
+                auto hscheme = scheme ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
                 if (auto chords = _get_chords(chord_str))
                 {
                     for (auto& chord : chords.value())
@@ -1893,8 +1908,8 @@ namespace netxs::ui
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
             {
-                auto hmode = gear.meta(hids::HotkeyMode) ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hmode] : handlers_preview[hmode];
+                auto hscheme = gear.meta(hids::HotkeyScheme) ? 1 : 0;
+                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
@@ -1957,20 +1972,20 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew proc_name, si32 mode = 0)
+            auto bind(qiew chord_str, qiew proc_name, si32 scheme = 0)
             {
                 if (!chord_str) return;
                 if (proc_name)
                 {
                     if (auto iter = api_map.find(proc_name); iter != api_map.end())
                     {
-                        _set<Tier>(chord_str, iter->second, mode);
+                        _set<Tier>(chord_str, iter->second, scheme);
                     }
                     else log("%%Action '%proc%' not found", prompt::user, proc_name);
                 }
                 else
                 {
-                    _reset<Tier>(chord_str, mode);
+                    _reset<Tier>(chord_str, scheme);
                 }
             }
             template<si32 Tier = tier::release>
@@ -1984,8 +1999,8 @@ namespace netxs::ui
                     {
                         auto chord = keybind.take_value();
                         auto action = keybind.take("action", ""s);
-                        auto mode = keybind.take("mode", 0);
-                        bind<Tier>(chord, action, mode);
+                        auto scheme = keybind.take("scheme", 0);
+                        bind<Tier>(chord, action, scheme);
                     }
                 }
             }

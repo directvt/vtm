@@ -304,14 +304,14 @@ Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bi
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord" action="NameOfAction" mode=N/> <!-- mode=0 can be omitted.  -->
+<key="Key+Chord" action="NameOfAction" scheme=N/> <!-- scheme=0 can be omitted.  -->
 ```
 
 Tag      | Value
 ---------|--------
 `key`    | The text string containing the key combination.
 `action` | The action name.
-`mode`   | Hotkey mode for which mapping is being done (mode=0 by default). Either `mode=0` or `mode=1` are allowed.
+`scheme` | Hotkey scheme for which mapping is being done (0 by default). Either `0` or `1` are allowed.
 
 The following joiners are allowed for combining keys:
 
@@ -335,13 +335,13 @@ The required key combination sequence can be generated on the Info page, accessi
 
 #### Interpretation
 
-Configuration record                              | Interpretation
---------------------------------------------------|-----------------
-`<key="Key+Chord" action=NameOfAction/>`          | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
-`<key="Key+Chord" action="NameOfAction"/>`        | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action="NameOfAction" mode=1/>` | Append existing bindings for mode=1.
-`<key="Key+Chord" action=""/>`                    | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key=""          action="NameOfAction"/>`        | Do nothing.
+Configuration record                                | Interpretation
+----------------------------------------------------|-----------------
+`<key="Key+Chord" action=NameOfAction/>`            | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
+`<key="Key+Chord" action="NameOfAction"/>`          | Append existing bindings with the directly specified command "NameOfAction".
+`<key="Key+Chord" action="NameOfAction" scheme=1/>` | Append existing bindings for scheme=1.
+`<key="Key+Chord" action=""/>`                      | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key=""          action="NameOfAction"/>`          | Do nothing.
 
 #### Available actions
 
@@ -350,7 +350,7 @@ Action                         | Default key combination  | Available at layer  
 `Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
 `DropAutoRepeat`               |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
-`ToggleHotkeyMode`             | `Ctrl-Alt`, `Alt-Ctrl`   | TUI matrix          | Toggle hotkey mode between mode=0 (deafult) and mode=1.
+`ToggleHotkeyScheme`           | `Ctrl-Alt`, `Alt-Ctrl`   | TUI matrix          | Toggle hotkey scheme between scheme=0 (default) and scheme=1.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
@@ -741,6 +741,16 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
+            <item type="Command" action=ToggleHotkeyScheme>
+                <label=" Undef " data="undef"/>
+                <label=" Keys0 " data="off"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+                <notes>
+                    " Toggle hotkey scheme                          \n"
+                    "   Alternative hotkey scheme allows keystrokes \n"
+                    "   to be passed through without processing     "
+                </notes>
+            </item>
             <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -807,13 +817,13 @@ Notes
             <key="Ctrl+Shift+F12"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list forward. -->
             <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
         </gui>
-        <tui key*>  <!-- TUI matrix layer key bindings. The mode=0 is implicitly used by default. -->
+        <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
             <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
             <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
-            <key="Ctrl-Alt"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=1 by pressing and releasing Alt-Ctrl (reversed releasing). -->
-            <key="Ctrl-Alt" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl" mode=1       action=ToggleHotkeyMode/>    <!-- Toggle hotkey mode to mode=0 (default) by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Ctrl-Alt"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to 1 by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to 1 by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Ctrl-Alt" scheme=1     action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to 0 (default) by pressing and releasing Ctrl-Alt. -->
+            <key="Alt-Ctrl" scheme=1     action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to 0 (default) by pressing and releasing Alt-Ctrl (reversed releasing). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
@@ -823,39 +833,39 @@ Notes
             <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
-            <key="Alt+RightArrow"        action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"         action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"     action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Shift+Ctrl+PageDown"   action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Ctrl+PageUp"   mode=1  action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Ctrl+PageDown" mode=1  action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Shift+Alt+LeftArrow"   action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+RightArrow"  action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"    action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+DownArrow"  action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
-            <key="Shift+Ctrl+LeftArrow"  action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow" action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"       action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+Home"       action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"        action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
-            <key="Shift+Ctrl+End"        action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
-            <key=""                      action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
-            <key=""                      action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
-            <key=""                      action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
-            <key=""                      action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                      action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                      action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. -->
-            <key=""                      action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""                      action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
-            <key=""                      action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
-            <key=""                      action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
-            <key=""                      action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
-            <key=""                      action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
-            <key=""                      action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                      action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection copy mode. -->
-            <key=""                      action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
-            <key="Esc"                   action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
-            <key=""                      action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+            <key="Alt+RightArrow"         action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"          action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"      action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
+            <key="Shift+Ctrl+PageDown"    action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
+            <key="Ctrl+PageUp"   scheme=1 action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
+            <key="Ctrl+PageDown" scheme=1 action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
+            <key="Shift+Alt+LeftArrow"    action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
+            <key="Shift+Alt+RightArrow"   action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"     action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
+            <key="Shift+Ctrl+DownArrow"   action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
+            <key="Shift+Ctrl+LeftArrow"   action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"  action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
+            <key="Shift+Ctrl+Home"        action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+Home"        action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
+            <key="Shift+Ctrl+End"         action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
+            <key="Shift+Ctrl+End"         action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key=""                       action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                       action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
+            <key=""                       action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
+            <key=""                       action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                       action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                       action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. -->
+            <key=""                       action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""                       action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
+            <key=""                       action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                       action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
+            <key=""                       action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                       action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
+            <key=""                       action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                       action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection copy mode. -->
+            <key=""                       action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
+            <key="Esc"                    action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
+            <key=""                       action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         </term>
     </hotkeys>
 </config>

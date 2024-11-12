@@ -109,8 +109,13 @@ namespace netxs::events::userland
                 SUBSET_XS( plugins )
                 {
                     EVENT_XS( align, bool ), // release: enable/disable align plugin.
+                    GROUP_XS( focus, ui::sptr ), // request: pro::focus owner.
                     GROUP_XS( sizer, dent ), // configure sizer.
 
+                    SUBSET_XS( focus )
+                    {
+                        EVENT_XS( owner, ui::sptr ), // request: pro::focus owner.
+                    };
                     SUBSET_XS( sizer )
                     {
                         EVENT_XS( inner, dent ), // release: set inner size; request: request unner size.
@@ -451,7 +456,7 @@ namespace netxs::events::userland
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
-                        EVENT_XS( hotkey  , si32               ), // release: Hotkeymode.
+                        EVENT_XS( hotkey  , si32               ), // release: Hotkey scheme index.
                         GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
                         GROUP_XS( command , si32               ), // release: Hotkey command preview.
 

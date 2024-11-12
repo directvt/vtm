@@ -36,7 +36,6 @@ namespace netxs::app::vtm
         static constexpr auto wincoor  = "wincoor";
         static constexpr auto winform  = "winform";
         static constexpr auto focused  = "focused";
-        static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
         static constexpr auto env      = "env";
         static constexpr auto cwd      = "cwd";
@@ -862,7 +861,7 @@ namespace netxs::app::vtm
         }
         void focus_next_window(hids& gear, feed forward)
         {
-            auto down = forward == feed::fwd;//gear.keycode == input::key::PageDown;
+            auto down = forward == feed::fwd;
             if (align.what.applet)
             {
                 align.unbind();
@@ -1549,7 +1548,6 @@ namespace netxs::app::vtm
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
             conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
             conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::win::options);
-            conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
             conf_rec.appcfg.cfg = item.take(attr::cfg,      ""s);
             conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
@@ -1929,7 +1927,7 @@ namespace netxs::app::vtm
                     what.square.size = winsize ? winsize : viewport.size * 3 / 4;
                     if (auto window = create(what))
                     {
-                        pro::focus::set(window, gear.id, pro::focus::solo::on);
+                        pro::focus::set(window, gear.id, pro::focus::solo::on); // pro::focus notify pro::focus owners.
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                         else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
