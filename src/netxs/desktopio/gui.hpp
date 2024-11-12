@@ -1640,7 +1640,6 @@ namespace netxs::gui
 
             //todo use gear.m_sys
             input::sysmouse m = {}; // evnt: .
-            input::sysfocus f = {}; // evnt: .
             input::syswinsz w = {}; // evnt: .
             input::sysclose c = {}; // evnt: .
             netxs::sptr<input::hids> gears; // evnt: .
@@ -1817,13 +1816,13 @@ namespace netxs::gui
                     owner.window_post_command(ipc::solo_focus);
                 }
             }
-            void handle(s11n::xs::hotkey_mode      lock)
+            void handle(s11n::xs::hotkey_scheme    lock)
             {
                 auto& k = lock.thing;
                 auto guard = owner.sync();
                 if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                 {
-                    owner.hotkey = k.mode;
+                    owner.hotkey = k.index;
                     owner.window_post_command(ipc::sync_state);
                 }
             }
@@ -1913,7 +1912,6 @@ namespace netxs::gui
             {
                 auto& gear = *gears;
                 m.gear_id = gear.id;
-                f.gear_id = gear.id;
                 w.gear_id = gear.id;
                 m.enabled = input::hids::stat::ok;
                 m.coordxy = { si16min, si16min };
@@ -1967,9 +1965,9 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         evnt  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
-        si32  hotkey; // winbase: Alternate hotkey mode.
+        si32  hotkey; // winbase: Alternate hotkey scheme.
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::pair<text, text>>& hotkeys)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::tuple<text, text, si32>>& hotkeys)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this },
@@ -2011,7 +2009,7 @@ namespace netxs::gui
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
             wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 0);
             wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 1);
-            for (auto& [chord, action] : hotkeys) wkeybd.bind<tier::preview>(chord, action);
+            for (auto& [chord, action, scheme] : hotkeys) wkeybd.bind<tier::preview>(chord, action, scheme);
         }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -2856,11 +2854,11 @@ namespace netxs::gui
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
-            if (virtcod == 0 && (keymod ^ hotkey) & input::hids::HotkeyMode) // Send empty key to update hotkey mode state if it is changed.
+            if (virtcod == 0 && (keymod ^ hotkey) & input::hids::HotkeyScheme) // Send empty key to update hotkey scheme state if it is changed.
             {
                 auto& gear = *stream.gears;
-                netxs::set_flag<input::hids::HotkeyMode>(keymod, hotkey);
-                netxs::set_flag<input::hids::HotkeyMode>(gear.ctlstat, hotkey);
+                netxs::set_flag<input::hids::HotkeyScheme>(keymod, hotkey);
+                netxs::set_flag<input::hids::HotkeyScheme>(gear.ctlstat, hotkey);
                 auto temp = syskeybd{}; //todo same code in system.hpp:4918
                 std::swap(temp.vkchord, gear.vkchord);
                 std::swap(temp.scchord, gear.scchord);
@@ -3293,6 +3291,11 @@ namespace netxs::gui
                         seed.guid = os::process::id.second;
                     }
                     stream.focusbus.send(stream.intio, seed.id, seed.guid, netxs::events::subindex(deed));
+                    if (deed == hids::events::keybd::focus::bus::on.id && hotkey) //todo same code in syste.hpp:
+                    {
+                        keymod &= ~input::hids::HotkeyScheme; // Trigger to send a hotkey scheme packet.
+                        window_post_command(ipc::sync_state);
+                    }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
                 {

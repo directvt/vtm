@@ -126,7 +126,7 @@ namespace netxs::app::terminal
             if (item.brand == menu::item::Repeat)
             {
                 auto& tick = boss.plugins<pro::timer>();
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::left, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::left, gear, -, (proc))
                 {
                     if (item.views.size())
                     {
@@ -178,7 +178,7 @@ namespace netxs::app::terminal
             }
             else
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (proc))
                 {
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)
@@ -204,6 +204,7 @@ namespace netxs::app::terminal
 
             #define proc_list \
                 X(Noop                      ) /* */ \
+                X(ToggleHotkeyScheme        ) /* */ \
                 X(TerminalQuit              ) /* */ \
                 X(TerminalCwdSync           ) /* */ \
                 X(TerminalToggleFullscreen  ) /* */ \
@@ -274,6 +275,25 @@ namespace netxs::app::terminal
                 using release = terminal::events::release;
 
                 static void Noop(ui::item& /*boss*/, menu::item& /*item*/) { }
+                static void ToggleHotkeyScheme(ui::item& boss, menu::item& item)
+                {
+                    item.reindex([](auto& utf8){ auto v = xml::take<bool>(utf8); return v ? v.value() + 1 : 0; });
+                    _submit<true>(boss, item, [](auto& /*boss*/, auto& /*item*/, auto& gear)
+                    {
+                        gear.set_handled();
+                        gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme);
+                    });
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
+                    {
+                        if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
+                        {
+                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*hook_ptr))
+                            {
+                                _update_to(boss, item, state + 1);
+                            };
+                        }
+                    };
+                }
                 static void TerminalWrapMode(ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value() ? wrap::on : wrap::off; });
@@ -635,7 +655,6 @@ namespace netxs::app::terminal
                 item.brand = data.take(menu::attr::brand, menu::item::Command, brand_options);
                 defs.notes = data.take(menu::attr::notes, ""s);
                 defs.param = data.take(menu::attr::param, ""s);
-                defs.onkey = data.take(menu::attr::onkey, ""s);
                 item.alive = route != func::Noop && item.brand != menu::item::Splitter;
                 for (auto label : data.list(menu::attr::label))
                 {
@@ -644,7 +663,6 @@ namespace netxs::app::terminal
                         .label = label->take_value(),
                         .notes = label->take(menu::attr::notes, defs.notes),
                         .param = label->take(menu::attr::param, defs.param),
-                        .onkey = label->take(menu::attr::onkey, defs.onkey),
                     });
                 }
                 if (item.views.empty()) continue; // Menu item without label.

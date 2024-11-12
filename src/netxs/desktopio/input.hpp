@@ -1428,25 +1428,25 @@ namespace netxs::input
 
         enum modifiers
         {
-            LCtrl      = 1 <<  0, // Left  ⌃ Ctrl
-            RCtrl      = 1 <<  1, // Right ⌃ Ctrl
-            LAlt       = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt       = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
-            LShift     = 1 <<  4, // Left  ⇧ Shift
-            RShift     = 1 <<  5, // Right ⇧ Shift
-            LWin       = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            RWin       = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            NumLock    = 1 << 12, // ⇭ Num Lock
-            CapsLock   = 1 << 13, // ⇪ Caps Lock
-            ScrlLock   = 1 << 14, // ⇳ Scroll Lock (⤓)
-            HotkeyMode = 1 << 28, // Alternate hotkey mode
-            AltGr      = LAlt   | LCtrl,
-            anyCtrl    = LCtrl  | RCtrl,
-            anyAlt     = LAlt   | RAlt,
-            anyShift   = LShift | RShift,
-            anyAltGr   = anyAlt | anyCtrl,
-            anyWin     = LWin   | RWin,
-            anyMod     = anyAlt | anyCtrl | anyShift | anyWin,
+            LCtrl        = 1 <<  0, // Left  ⌃ Ctrl
+            RCtrl        = 1 <<  1, // Right ⌃ Ctrl
+            LAlt         = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
+            RAlt         = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
+            LShift       = 1 <<  4, // Left  ⇧ Shift
+            RShift       = 1 <<  5, // Right ⇧ Shift
+            LWin         = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            RWin         = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            NumLock      = 1 << 12, // ⇭ Num Lock
+            CapsLock     = 1 << 13, // ⇪ Caps Lock
+            ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
+            HotkeyScheme = 1 << 28, // Hotkey scheme
+            AltGr        = LAlt   | LCtrl,
+            anyCtrl      = LCtrl  | RCtrl,
+            anyAlt       = LAlt   | RAlt,
+            anyShift     = LShift | RShift,
+            anyAltGr     = anyAlt | anyCtrl,
+            anyWin       = LWin   | RWin,
+            anyMod       = anyAlt | anyCtrl | anyShift | anyWin,
         };
 
         static auto build_alone_key()
@@ -1728,10 +1728,10 @@ namespace netxs::input
         {
             handled = b;
         }
-        void set_hotkey_mode(si32 mode)
+        void set_hotkey_scheme(si32 s)
         {
             auto temp = keybd::ctlstat;
-            netxs::set_flag<hids::HotkeyMode>(keybd::ctlstat, mode);
+            netxs::set_flag<hids::HotkeyScheme>(keybd::ctlstat, s);
             owner.bell::signal(tier::preview, hids::events::keybd::mode, *this);
             keybd::ctlstat = temp;
         }

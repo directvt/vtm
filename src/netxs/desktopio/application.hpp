@@ -196,7 +196,6 @@ namespace netxs::app::shared
             static constexpr auto notes = "notes";
             static constexpr auto route = "action";
             static constexpr auto param = "data";
-            static constexpr auto onkey = "hotkey";
         }
         namespace type
         {
@@ -664,7 +663,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        std::list<std::pair<text, text>> hotkeys;
+        std::list<std::tuple<text, text, si32>> hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -691,7 +690,8 @@ namespace netxs::app::shared
             {
                 auto chord = keybind.take_value();
                 auto action = keybind.take("action", ""s);
-                gui_config.hotkeys.push_back({ chord, action });
+                auto scheme = keybind.take("scheme", 0);
+                gui_config.hotkeys.push_back({ chord, action, scheme });
             }
         }
         return gui_config;

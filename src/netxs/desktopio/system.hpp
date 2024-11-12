@@ -4841,6 +4841,7 @@ namespace netxs::os
             struct adapter : s11n
             {
                 si32 hotkey = 0;
+                id_t gear_id = 1;
 
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
@@ -4903,28 +4904,49 @@ namespace netxs::os
                     else                             item.set();
                     os::clipboard::set(item);
                     auto crop = utf::trunc(item.utf8, dtvt::gridsz.y / 2); // Trim preview before sending.
-                    s11n::sysboard.send(dtvt::client, id_t{}, item.size, crop.str(), item.form);
+                    s11n::sysboard.send(dtvt::client, gear_id, item.size, crop.str(), item.form);
                 }
                 void handle(s11n::xs::clipdata_request lock)
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
                 }
-                void handle(s11n::xs::hotkey_mode      lock)
+                void handle(s11n::xs::focus_set        lock)
+                {
+                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::on.id);
+                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
+                    if (hotkey)
+                    {
+                        sync_hotkey_scheme();
+                    }
+                }
+                void handle(s11n::xs::focus_cut        lock)
+                {
+                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::off.id);
+                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
+                }
+                void handle(s11n::xs::hotkey_scheme    lock)
                 {
                     auto& k = lock.thing;
-                    hotkey = k.mode;
+                    hotkey = k.index;
+                    sync_hotkey_scheme();
+                }
+                // adapter: Send an empty hotkey scheme packet.
+                void sync_hotkey_scheme()
+                {
                     auto item = s11n::syskeybd.freeze();
-                    netxs::set_flag<input::hids::HotkeyMode>(item.thing.ctlstat, hotkey);
+                    netxs::set_flag<input::hids::HotkeyScheme>(item.thing.ctlstat, hotkey);
                     auto temp = input::syskeybd{}; //todo same code in gui.hpp:2860
                     std::swap(temp.vkchord, item.thing.vkchord);
                     std::swap(temp.scchord, item.thing.scchord);
                     std::swap(temp.chchord, item.thing.chchord);
                     std::swap(temp.cluster, item.thing.cluster);
                     std::swap(temp.keystat, item.thing.keystat);
+                    item.thing.gear_id = gear_id;
                     item.thing.virtcod = 0;
                     item.thing.scancod = 0;
                     item.thing.keycode = 0;
                     item.thing.payload = input::keybd::type::keypress;
+                    item.thing.set();
                     item.thing.sendby<faux, faux>(dtvt::client);
                     std::swap(temp.vkchord, item.thing.vkchord);
                     std::swap(temp.scchord, item.thing.scchord);
@@ -5001,19 +5023,21 @@ namespace netxs::os
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
+            auto gear_id = id_t{ 1 }; // Non-zero id.
             auto p_txtdata = text{};
             auto chords = input::key::kmap{};
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
-            auto f = input::sysfocus{};
             auto c = input::sysclose{};
             auto w = input::syswinsz{};
             m.enabled = input::hids::stat::ok;
             m.coordxy = { si16min, si16min };
             c.fast = true;
-            f.state = true;
             w.winsize = os::dtvt::gridsz;
-            focus(f);
+            k.gear_id = gear_id;
+            m.gear_id = gear_id;
+            w.gear_id = gear_id;
+            focus(alive);
 
             #if defined(_WIN32)
 
@@ -5256,9 +5280,9 @@ namespace netxs::os
                         else if (r.EventType == FOCUS_EVENT)
                         {
                             chords.reset(k);
-                            f.state = r.Event.FocusEvent.bSetFocus;
-                            focus(f);
-                            if (!f.state) kbmod = {}; // To keep the modifiers from sticking.
+                            auto state = !!r.Event.FocusEvent.bSetFocus;
+                            focus(state);
+                            if (!state) kbmod = {}; // To keep the modifiers from sticking.
                         }
                     }
                 }
@@ -5796,8 +5820,8 @@ namespace netxs::os
                             }
                             else if (t == type::focus)
                             {
-                                f.state = s.back() == 'I';
-                                focus(f);
+                                auto state = s.back() == 'I';
+                                focus(state);
                             }
                             else if (t == type::style)
                             {
@@ -6076,7 +6100,7 @@ namespace netxs::os
             {
                 if (alive)
                 {
-                    netxs::set_flag<input::hids::HotkeyMode>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey mode.
+                    netxs::set_flag<input::hids::HotkeyScheme>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey scheme.
                     proxy.syskeybd.send(intio, data);
                 }
             };
@@ -6084,12 +6108,18 @@ namespace netxs::os
             {
                 if (alive)
                 {
-                    netxs::set_flag<input::hids::HotkeyMode>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey mode.
+                    netxs::set_flag<input::hids::HotkeyScheme>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey scheme.
                     proxy.sysmouse.send(intio, data);
                 }
             };
+            auto focus = [&](auto state)
+            {
+                if (!alive) return;
+                auto cause = state ? input::hids::events::keybd::focus::bus::on.id
+                                   : input::hids::events::keybd::focus::bus::off.id;
+                proxy.focusbus.send(intio, proxy.gear_id, time{}, netxs::events::subindex(cause));
+            };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
-            auto focus = [&](auto& data){ if (alive)                proxy.sysfocus.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, close, noop{}); }};
             auto clips = std::thread{ [&]{ clipbd(alarm); } };
@@ -6302,7 +6332,7 @@ namespace netxs::os
                         auto guard = std::lock_guard{ mutex };
                         panel = data.winsize;
                     };
-                    auto focus = [&](auto& /*data*/){ if (!alive) return;/*if (data.state) log<faux>('-');*/ };
+                    auto focus = [&](auto& /*data*/){ if (!alive) return;/*if (data) log<faux>('-');*/ };
                     auto close = [&](auto& /*data*/)
                     {
                         if (alive.exchange(faux))

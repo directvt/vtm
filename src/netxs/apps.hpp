@@ -615,7 +615,7 @@ namespace netxs::app::shared
                 ->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
-            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Alternate keyboard mode:")->setpad({ 2, 1, 0, 0 }));
+            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Alternate hotkey scheme:")->setpad({ 2, 1, 0, 0 }));
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
@@ -628,9 +628,21 @@ namespace netxs::app::shared
                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
+                    {
+                        if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
+                        {
+                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*hook_ptr))
+                            {
+                                boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
+                                               : ansi::bgc(reddk).fgx(0)        .add("█off "));
+                                boss.base::reflow();
+                            };
+                        }
+                    };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        gear.set_hotkey_mode(gear.meta(hids::HotkeyMode) ? 0 : hids::HotkeyMode);
+                        gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme);
                         gear.dismiss_dblclick();
                     };
                 });

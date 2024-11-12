@@ -23,7 +23,6 @@ namespace netxs::app::desk
         twod  wincoor{};
         si32  winform{};
         bool splitter{};
-        text   hotkey{};
         eccc   appcfg{};
         text     type{};
         bool   folded{};
