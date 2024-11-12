@@ -47,52 +47,6 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( post, input::hids ),
                 };
-                //todo revise
-                SUBSET_XS( control )
-                {
-                    GROUP_XS( up  , input::hids ),
-                    GROUP_XS( down, input::hids ),
-
-                    SUBSET_XS( up )
-                    {
-                        EVENT_XS( alt_right  , input::hids ),
-                        EVENT_XS( alt_left   , input::hids ),
-                        EVENT_XS( ctrl_right , input::hids ),
-                        EVENT_XS( ctrl_left  , input::hids ),
-                        EVENT_XS( shift_right, input::hids ),
-                        EVENT_XS( shift_left , input::hids ),
-                    };
-                    SUBSET_XS( down )
-                    {
-                        EVENT_XS( alt_right  , input::hids ),
-                        EVENT_XS( alt_left   , input::hids ),
-                        EVENT_XS( ctrl_right , input::hids ),
-                        EVENT_XS( ctrl_left  , input::hids ),
-                        EVENT_XS( shift_right, input::hids ),
-                        EVENT_XS( shift_left , input::hids ),
-                    };
-                };
-                //todo revise
-                SUBSET_XS( state )
-                {
-                    GROUP_XS( on , input::hids ),
-                    GROUP_XS( off, input::hids ),
-
-                    SUBSET_XS( on )
-                    {
-                        EVENT_XS( numlock   , input::hids ),
-                        EVENT_XS( capslock  , input::hids ),
-                        EVENT_XS( scrolllock, input::hids ),
-                        EVENT_XS( insert    , input::hids ),
-                    };
-                    SUBSET_XS( off )
-                    {
-                        EVENT_XS( numlock   , input::hids ),
-                        EVENT_XS( capslock  , input::hids ),
-                        EVENT_XS( scrolllock, input::hids ),
-                        EVENT_XS( insert    , input::hids ),
-                    };
-                };
             };
             SUBSET_XS( mouse )
             {
