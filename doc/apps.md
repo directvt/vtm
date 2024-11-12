@@ -216,6 +216,16 @@ TerminalSelectionOneShot     |                    |                             
                     "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
+            <item type="Command" action=ToggleHotkeyScheme>
+                <label=" Undef " data="undef"/>
+                <label=" Keys0 " data="off"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+                <notes>
+                    " Toggle hotkey scheme                          \n"
+                    "   Alternative hotkey scheme allows keystrokes \n"
+                    "   to be passed through without processing     "
+                </notes>
+            </item>
             <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
