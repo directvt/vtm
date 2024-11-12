@@ -52,7 +52,7 @@ namespace netxs::events
         return level;
     }
     // events: Return event level mask by its ID. Find the log base 2**block.
-    static constexpr inline hint level_mask(hint event, int level = 0)
+    static constexpr inline hint level_mask(hint event, si32 level = 0)
     {
         while (event >>= block) { level += block; }
         return (1 << level) - 1;
@@ -100,7 +100,6 @@ namespace netxs::events
 
     struct bell;
     using ftor = std::function<bool(sptr<bell>)>;
-
 
     struct handler
     {
@@ -433,9 +432,6 @@ namespace netxs::events
             };
         };
     }
-
-    static auto saveme_queue = std::vector<void*>{};
-    static auto saveme_mutex = std::mutex{};
 
     // events: Event x-mitter.
     struct bell
