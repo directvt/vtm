@@ -873,7 +873,7 @@ namespace netxs::app::terminal
             //->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>()
-            ->shader(gradient, e2::form::state::keybd::focus::count);
+            ->shader(gradient, e2::form::state::focus::count);
 
         auto object = window->attach(ui::fork::ctor(axis::Y));
         auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y))

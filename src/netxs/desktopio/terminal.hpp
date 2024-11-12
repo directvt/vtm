@@ -408,7 +408,7 @@ namespace netxs::ui
                 : owner{ owner },
                   encod{ prot::w32 }
             {
-                owner.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, token)
+                owner.LISTEN(tier::release, e2::form::state::focus::count, count, token)
                 {
                     auto focused = !!count;
                     if (std::exchange(state, focused) != state)

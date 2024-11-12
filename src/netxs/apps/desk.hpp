@@ -195,7 +195,7 @@ namespace netxs::app::desk
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::keybd::focus::count, data_src);
+                ->shader(cF, e2::form::state::focus::count, data_src);
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 ->shader(c1, e2::form::state::hover)
@@ -663,7 +663,7 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
-                //->shader(c3, e2::form::state::keybd::focus::count)
+                //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->active()
                 ->invoke([&](auto& boss)

@@ -438,16 +438,22 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
-                    EVENT_XS( hover    , si32     ), // notify the object how many mouse cursors are hovering, si32 - number of cursors.
-                    //EVENT_XS( params   , ui::para ), // notify the object has changed title params.
-                    EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
-                    EVENT_XS( highlight, bool     ),
-                    EVENT_XS( visible  , bool     ),
-                    EVENT_XS( maximized, id_t     ),
-                    EVENT_XS( disabled , bool     ),
-                    GROUP_XS( keybd    , bool     ),
+                    EVENT_XS( mouse    , si32       ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
+                    EVENT_XS( hover    , si32       ), // notify the object how many mouse cursors are hovering, si32 - number of cursors.
+                    EVENT_XS( color    , ui::tone   ), // notify the object has changed tone, preview to set.
+                    EVENT_XS( highlight, bool       ),
+                    EVENT_XS( visible  , bool       ),
+                    EVENT_XS( maximized, id_t       ),
+                    EVENT_XS( disabled , bool       ),
+                    GROUP_XS( focus    , const id_t ),
+                    GROUP_XS( keybd    , bool       ),
 
+                    SUBSET_XS( focus )
+                    {
+                        EVENT_XS( on   , const id_t ),
+                        EVENT_XS( off  , const id_t ),
+                        EVENT_XS( count, si32       ), // notify the object has changed a keyboard foci count.
+                    };
                     SUBSET_XS( keybd )
                     {
                         EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
@@ -455,15 +461,8 @@ namespace netxs::events::userland
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
                         EVENT_XS( hotkey  , si32               ), // release: Hotkey scheme index.
-                        GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
                         GROUP_XS( command , si32               ), // release: Hotkey command preview.
 
-                        SUBSET_XS( focus )
-                        {
-                            EVENT_XS( on    , const id_t ),
-                            EVENT_XS( off   , const id_t ),
-                            EVENT_XS( count , si32       ),
-                        };
                         SUBSET_XS( command )
                         {
                             EVENT_XS( close, si32 ), // release: Hotkey close command preview.

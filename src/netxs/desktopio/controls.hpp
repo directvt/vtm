@@ -651,7 +651,7 @@ namespace netxs::ui
                    step{ freq },
                    mark{ default_color }
             {
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, conf)
+                boss.LISTEN(tier::release, e2::form::state::focus::count, count, conf)
                 {
                     unfocused = !count;
                 };
@@ -1038,7 +1038,7 @@ namespace netxs::ui
                         canvas.bump(saved_context);
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, memo)
+                boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, memo)
                 {
                     if (!gear_id) return;
                     auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
@@ -1052,7 +1052,7 @@ namespace netxs::ui
                         rebuild();
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, memo)
+                boss.LISTEN(tier::release, e2::form::state::focus::off, gear_id, memo)
                 {
                     if (!gear_id) return;
                     auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
@@ -1205,7 +1205,7 @@ namespace netxs::ui
                 {
                     if (gear_id != id_t{} && route.active) ++count;
                 }
-                boss.bell::signal(tier::release, e2::form::state::keybd::focus::count, count);
+                boss.bell::signal(tier::release, e2::form::state::focus::count, count);
             }
             auto add_route(id_t gear_id, chain cfg = { .active = faux, .focused = faux })
             {
@@ -1225,7 +1225,7 @@ namespace netxs::ui
                             {
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
-                                boss.bell::signal(tier::release, e2::form::state::keybd::focus::off, gear.id);
+                                boss.bell::signal(tier::release, e2::form::state::focus::off, gear.id);
                                 signal_state();
                             }
                             boss.bell::signal(tier::release, hids::events::die, gear);
@@ -1406,13 +1406,13 @@ namespace netxs::ui
                         }
                         auto& route = get_route(seed.id);
                         route.active = true;
-                        if (seed.id) boss.bell::signal(tier::release, e2::form::state::keybd::focus::on, seed.id);
+                        if (seed.id) boss.bell::signal(tier::release, e2::form::state::focus::on, seed.id);
                     }
                     else
                     {
                         auto& route = iter->second;
                         route.active = true;
-                        if (seed.id) boss.bell::signal(tier::release, e2::form::state::keybd::focus::on, seed.id);
+                        if (seed.id) boss.bell::signal(tier::release, e2::form::state::focus::on, seed.id);
                     }
                     if (seed.id != id_t{})
                     {
@@ -1430,7 +1430,7 @@ namespace netxs::ui
                     if (seed.id != id_t{})
                     {
                         route.active = faux;
-                        boss.bell::signal(tier::release, e2::form::state::keybd::focus::off, seed.id);
+                        boss.bell::signal(tier::release, e2::form::state::focus::off, seed.id);
                         signal_state();
                     }
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
@@ -1581,7 +1581,7 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
                     }
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::focus::count, count, memo)
+                boss.LISTEN(tier::request, e2::form::state::focus::count, count, memo)
                 {
                     //todo revise: same as e2::form::state::keybd::check
                     count = 0;

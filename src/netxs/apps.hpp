@@ -338,7 +338,7 @@ namespace netxs::app::shared
                             gear.dismiss(true);
                         }
                     };
-                    parent.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, boss.relyon)
+                    parent.LISTEN(tier::release, e2::form::state::focus::on, gear_id, boss.relyon)
                     {
                         if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
                         {
@@ -744,7 +744,7 @@ namespace netxs::app::shared
                     ->active()
                     ->template plugin<pro::focus>()
                     ->template plugin<pro::grade>();
-                    //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
+                    //->shader(cell::shaders::color(c3), e2::form::state::focus::count);
                 if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);
             }
             items->invoke([&](auto& boss)

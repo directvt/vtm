@@ -90,7 +90,7 @@ namespace netxs::app::tile
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
                         ->active(cE)
-                        ->shader(cF, e2::form::state::keybd::focus::count, data_src_sptr)
+                        ->shader(cF, e2::form::state::focus::count, data_src_sptr)
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
@@ -355,7 +355,7 @@ namespace netxs::app::tile
                                 ->isroot(true)
                                 ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                                 ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                                ->shader(c3, e2::form::state::keybd::focus::count)
+                                ->shader(c3, e2::form::state::focus::count)
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
@@ -437,7 +437,7 @@ namespace netxs::app::tile
                 ->active(window_clr)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
-                ->shader(c3, e2::form::state::keybd::focus::count)
+                ->shader(c3, e2::form::state::focus::count)
                 ->invoke([&](auto& boss)
                 {
                     anycasting(boss);

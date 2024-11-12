@@ -337,7 +337,7 @@ namespace netxs::app::calc
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
                   ->plugin<pro::keybd>()
-                  ->shader(c3, e2::form::state::keybd::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)

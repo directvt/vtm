@@ -88,7 +88,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::keybd>()
-                  ->shader(c3, e2::form::state::keybd::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
