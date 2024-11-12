@@ -360,8 +360,8 @@ namespace netxs::app::calc
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
                                         ->limits({ -1,-1 },{ 136,102 });
-                    auto func_body_pad = all_stat->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
-                        auto func_body = func_body_pad->attach(ui::fork::ctor(axis::Y));
+                        auto func_body = all_stat->attach(slot::_1, ui::fork::ctor(axis::Y))
+                            ->setpad({ 1,1 });
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())

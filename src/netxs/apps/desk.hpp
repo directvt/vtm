@@ -801,8 +801,9 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     };
                 });
-            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 1 + tall, 1 + tall, tall, tall })->alignment({ snap::head, snap::center }));
-            auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
+            auto disconnect = disconnect_park->attach(ui::item::ctor("× Disconnect"))
+                ->setpad({ 1 + tall, 1 + tall, tall, tall })
+                ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
                 ->shader(c1, e2::form::state::hover)
@@ -815,8 +816,9 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     };
                 });
-            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 1 + tall, 1 + tall, tall, tall })->alignment({ snap::tail, snap::center }));
-            auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
+            auto shutdown = shutdown_park->attach(ui::item::ctor("× Shutdown"))
+                ->setpad({ 1 + tall, 1 + tall, tall, tall })
+                ->alignment({ snap::tail, snap::center });
             return window;
         };
     }

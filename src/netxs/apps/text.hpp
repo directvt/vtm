@@ -105,26 +105,24 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, 0xA0'00'1a'5f);
+                ->colors(whitelt, 0xA0'00'1a'5f);
                 config.cd("/config/defapp");
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
-                        auto layers = fields->attach(ui::cake::ctor());
-                            auto scroll = layers->attach(ui::rail::ctor())
-                                                ->active()
-                                                ->limits({ 4,3 }, { -1,-1 });
-                                auto edit_box = scroll->attach(ui::post::ctor(true))
-                                                      ->plugin<pro::caret>(true, faux, twod{ 25,1 })
-                                                      ->colors(blackdk, whitelt)
-                                                      ->upload(ansi::wrp(wrap::on).mgl(1).mgr(1)
-                                                      .add(topic3)
-                                                      .fgc(highlight_color.bgc())
-                                                      .wrp(wrap::off).add("From Wikipedia, the free encyclopedia"));
+                    auto layers = body_area->attach(slot::_1, ui::cake::ctor())
+                        ->setpad({ 1, 1 });
+                        auto scroll = layers->attach(ui::rail::ctor())
+                            ->active()
+                            ->limits({ 4, 3 }, { -1, -1 });
+                            auto edit_box = scroll->attach(ui::post::ctor(true))
+                                ->plugin<pro::caret>(true, faux, twod{ 25, 1 })
+                                ->colors(blackdk, whitelt)
+                                ->upload(ansi::wrp(wrap::on).mgl(1).mgr(1).add(topic3).fgc(highlight_color.bgc())
+                                    .wrp(wrap::off).add("From Wikipedia, the free encyclopedia"));
                     auto status_line = body_area->attach(slot::_2, ui::post::ctor())
-                                                ->limits({ 1,1 }, { -1,1 })
-                                                ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
-                                                    .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
+                        ->limits({ 1, 1 }, { -1, 1 })
+                        ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                            .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {
