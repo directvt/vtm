@@ -4910,7 +4910,7 @@ namespace netxs::os
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
                 }
-                void handle(s11n::xs::focus_set        lock)
+                void handle(s11n::xs::focus_set      /*lock*/)
                 {
                     auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::on.id);
                     s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
@@ -4919,7 +4919,7 @@ namespace netxs::os
                         sync_hotkey_scheme();
                     }
                 }
-                void handle(s11n::xs::focus_cut        lock)
+                void handle(s11n::xs::focus_cut      /*lock*/)
                 {
                     auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::off.id);
                     s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
