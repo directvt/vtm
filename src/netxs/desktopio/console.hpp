@@ -148,12 +148,12 @@ namespace netxs::ui
             void handle(s11n::xs::focusbus    lock)
             {
                 auto& focus = lock.thing;
-                auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
-                if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
+                auto deed = netxs::events::makeid(hids::events::focus::bus::any.id, focus.cause);
+                if (focus.guid != ui::console::id.second || deed != hids::events::focus::bus::copy.id) // To avoid focus tree infinite looping.
                 {
                     owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                     {
-                        auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
+                        auto seed = hids::events::focus::bus::on.param({ .id = d.gear_id });
                         boss.bell::signal(tier::release, deed, seed);
                     });
                 }
@@ -186,11 +186,6 @@ namespace netxs::ui
                     auto msg = utf::concat(prompt::repl, ansi::err("Not implemented: "), ansi::clr(yellowlt, utf::trim(cmd, "\r\n")));
                     s11n::logs.send(canal, ui32{}, datetime::now(), msg);
                 }
-            }
-            void handle(s11n::xs::sysfocus    lock)
-            {
-                auto& focus = lock.thing;
-                notify(e2::conio::focus, focus);
             }
             void handle(s11n::xs::syswinsz    lock)
             {
@@ -578,10 +573,6 @@ namespace netxs::ui
                 {
                     forward(k);
                 };
-                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
-                {
-                    forward(f);
-                };
                 boss.LISTEN(tier::release, e2::conio::board, c, memo)
                 {
                     forward(c);
@@ -763,11 +754,6 @@ namespace netxs::ui
                     boss.base::strike();
                 };
                 boss.bell::signal(tier::general, e2::config::fps, e2::config::fps.param(-1));
-                boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
-                {
-                    update(f.state);
-                    boss.base::strike();
-                };
                 boss.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
                     update(new_area.size);
@@ -1159,7 +1145,7 @@ namespace netxs::ui
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
+            LISTEN(tier::release, hids::events::focus::bus::any, seed, tokens)
             {
                 //todo use input::forward<focus>
                 if (seed.id != id_t{}) // Translate only the real foreign gear id.
@@ -1188,13 +1174,13 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
             };
-            LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::cut, seed, tokens)
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
                 if (!gear_ptr) return;
                 conio.focus_cut.send(canal, ext_gear_id);
             };
-            LISTEN(tier::preview, hids::events::keybd::focus::set, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::set, seed, tokens)
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
                 if (!gear_ptr) return;

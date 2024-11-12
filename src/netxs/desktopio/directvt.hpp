@@ -883,7 +883,6 @@ namespace netxs::directvt
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
-        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
@@ -1431,7 +1430,6 @@ namespace netxs::directvt
             X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
             X(logs             ) /* Debug logs.                                   */\
             X(fatal            ) /* Fatal error message.                          */\
-            X(sysfocus         ) /* System focus state.                           */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
             X(sysstart         ) /* System start event.                           */\

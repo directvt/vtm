@@ -8025,7 +8025,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::cut, { .id = k.gear_id, .item = owner.This() });
+                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .id = k.gear_id, .item = owner.This() });
                     }
                 }
             }
@@ -8038,7 +8038,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
                     }
                 }
             }
@@ -8407,7 +8407,7 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
+            LISTEN(tier::release, hids::events::focus::bus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
                 if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.

@@ -4912,7 +4912,7 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::focus_set      /*lock*/)
                 {
-                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::on.id);
+                    auto cause = netxs::events::subindex(input::hids::events::focus::bus::on.id);
                     s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
                     if (hotkey)
                     {
@@ -4921,7 +4921,7 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::focus_cut      /*lock*/)
                 {
-                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::off.id);
+                    auto cause = netxs::events::subindex(input::hids::events::focus::bus::off.id);
                     s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
                 }
                 void handle(s11n::xs::hotkey_scheme    lock)
@@ -6115,8 +6115,8 @@ namespace netxs::os
             auto focus = [&](auto state)
             {
                 if (!alive) return;
-                auto cause = state ? input::hids::events::keybd::focus::bus::on.id
-                                   : input::hids::events::keybd::focus::bus::off.id;
+                auto cause = state ? input::hids::events::focus::bus::on.id
+                                   : input::hids::events::focus::bus::off.id;
                 proxy.focusbus.send(intio, proxy.gear_id, time{}, netxs::events::subindex(cause));
             };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };

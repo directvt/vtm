@@ -1494,7 +1494,7 @@ namespace netxs::app::vtm
                                     boss.bell::signal(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
-                            boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
+                            boss.LISTEN(tier::preview, hids::events::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
                             {
                                 if (auto gear_ptr = boss.bell::template getref<hids>(seed.id)) //todo Apple clang requires template.
                                 {
@@ -1993,34 +1993,34 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::keybd::focus::cut, seed)
+            LISTEN(tier::preview, hids::events::focus::cut, seed)
             {
                 //todo revise: dtvt-app focus state can be wrong when user reconnects
                 //if (seed.id == id_t{})
                 //{
-                //    this->bell::signal(tier::release, hids::events::keybd::focus::bus::off, seed);
+                //    this->bell::signal(tier::release, hids::events::focus::bus::off, seed);
                 //}
                 //else
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     //seed.item = this->This();
-                    gear.owner.bell::signal(tier::preview, hids::events::keybd::focus::cut, seed);
+                    gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
                 }
             };
-            LISTEN(tier::preview, hids::events::keybd::focus::set, seed)
+            LISTEN(tier::preview, hids::events::focus::set, seed)
             {
                 //todo revise
                 //if (seed.id == id_t{})
                 //{
-                //    this->bell::signal(tier::release, hids::events::keybd::focus::bus::on, seed);
+                //    this->bell::signal(tier::release, hids::events::focus::bus::on, seed);
                 //}
                 //else
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     seed.item = this->This();
-                    gear.owner.bell::signal(tier::preview, hids::events::keybd::focus::set, seed);
+                    gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
                 }
             };
             LISTEN(tier::release, scripting::events::invoke, script)

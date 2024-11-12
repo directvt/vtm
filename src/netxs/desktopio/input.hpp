@@ -19,7 +19,7 @@ namespace netxs::events::userland
             EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
-            GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
+            GROUP_XS( focus  , input::foci ), // Focus related events.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
 
@@ -91,25 +91,6 @@ namespace netxs::events::userland
                         EVENT_XS( capslock  , input::hids ),
                         EVENT_XS( scrolllock, input::hids ),
                         EVENT_XS( insert    , input::hids ),
-                    };
-                };
-                SUBSET_XS( focus )
-                {
-                    //EVENT_XS( tie , proc_fx ),
-                    //EVENT_XS( die , input::foci ),
-                    EVENT_XS( set, input::foci ),
-                    EVENT_XS( get, input::foci ),
-                    EVENT_XS( off, input::foci ),
-                    EVENT_XS( cut, input::foci ), // Cut mono focus branch.
-                    EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
-                    EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
-                    GROUP_XS( bus, input::foci ),
-
-                    SUBSET_XS( bus )
-                    {
-                        EVENT_XS( on  , input::foci ),
-                        EVENT_XS( off , input::foci ),
-                        EVENT_XS( copy, input::foci ), // Copy default focus branch.
                     };
                 };
             };
@@ -236,8 +217,20 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::hids ), // release: Set keybd focus.
-                EVENT_XS( off, input::hids ), // release: Off keybd focus.
+                EVENT_XS( set, input::foci ),
+                EVENT_XS( get, input::foci ),
+                EVENT_XS( off, input::foci ),
+                EVENT_XS( cut, input::foci ), // Cut mono focus branch.
+                EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
+                GROUP_XS( bus, input::foci ),
+
+                SUBSET_XS( bus )
+                {
+                    EVENT_XS( on  , input::foci ),
+                    EVENT_XS( off , input::foci ),
+                    EVENT_XS( copy, input::foci ), // Copy default focus branch.
+                };
             };
             SUBSET_XS( device )
             {
@@ -1273,14 +1266,6 @@ namespace netxs::input
         };
 
         bool state = {};
-
-        void update(sysfocus& f)
-        {
-            state = f.state;
-            fire_focus();
-        }
-
-        virtual void fire_focus() = 0;
     };
 
     // input: Clipboard tracker.
@@ -1771,11 +1756,6 @@ namespace netxs::input
                 keybd::update(k);
             }
         }
-        void take(sysfocus& f)
-        {
-            tooltip_stop = true;
-            focus::update(f);
-        }
         auto take(sysboard& b)
         {
             board::update(b);
@@ -1935,14 +1915,6 @@ namespace netxs::input
         {
             alive = true;
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
-        }
-        void fire_focus()
-        {
-            alive = true;
-            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
-            //todo focus<->seed
-            if (focus::state) owner.bell::signal(tier::release, hids::events::focus::set, *this);
-            else              owner.bell::signal(tier::release, hids::events::focus::off, *this);
         }
         void fire_board()
         {

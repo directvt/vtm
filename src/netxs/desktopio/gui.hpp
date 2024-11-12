@@ -1801,14 +1801,14 @@ namespace netxs::gui
             {
                 auto& item = lock.thing;
                 // We are the focus tree endpoint. Signal back the focus set up.
-                auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = item.gear_id });
+                auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .id = item.gear_id });
             }
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
                 if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
                 {
-                    auto seed = owner.bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
+                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
                 }
                 else owner.window_post_command(ipc::take_focus);
                 if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
@@ -3110,7 +3110,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, hids::events::keybd::focus::bus::on, { .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() });
+                        auto seed = bell::signal(tier::release, hids::events::focus::bus::on, { .id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3124,7 +3124,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, hids::events::keybd::focus::bus::off, { .id = stream.gears->id });
+                        auto seed = bell::signal(tier::release, hids::events::focus::bus::off, { .id = stream.gears->id });
                     });
                 }
             }
@@ -3283,7 +3283,7 @@ namespace netxs::gui
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 };
-                LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
+                LISTEN(tier::release, hids::events::focus::bus::any, seed)
                 {
                     auto deed = this->bell::protos(tier::release);
                     if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
@@ -3291,7 +3291,7 @@ namespace netxs::gui
                         seed.guid = os::process::id.second;
                     }
                     stream.focusbus.send(stream.intio, seed.id, seed.guid, netxs::events::subindex(deed));
-                    if (deed == hids::events::keybd::focus::bus::on.id && hotkey) //todo same code in syste.hpp:
+                    if (deed == hids::events::focus::bus::on.id && hotkey) //todo same code in syste.hpp:
                     {
                         keymod &= ~input::hids::HotkeyScheme; // Trigger to send a hotkey scheme packet.
                         window_post_command(ipc::sync_state);
