@@ -7104,7 +7104,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+            gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
             {
@@ -7377,7 +7377,7 @@ namespace netxs::ui
             }
             else
             {
-                gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+                gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
                 auto& data = gear.board::cargo;
                 if (data.utf8.size())
                 {
@@ -8134,7 +8134,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+                        gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {

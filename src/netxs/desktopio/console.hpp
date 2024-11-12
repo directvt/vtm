@@ -1310,7 +1310,7 @@ namespace netxs::ui
                 auto window_id = id_t{};
                 conio.header.send(canal, window_id, newheader);
             };
-            LISTEN(tier::release, hids::events::clipbrd, from_gear, tokens)
+            LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
@@ -1319,7 +1319,7 @@ namespace netxs::ui
                 auto& data = gear.board::cargo;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
-            LISTEN(tier::request, hids::events::clipbrd, from_gear, tokens)
+            LISTEN(tier::request, hids::events::clipboard, from_gear, tokens)
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;

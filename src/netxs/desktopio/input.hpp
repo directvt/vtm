@@ -13,15 +13,15 @@ namespace netxs::events::userland
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
         {
-            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
-            EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
-            EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
-            EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
-            GROUP_XS( keybd  , input::hids ),
-            GROUP_XS( mouse  , input::hids ),
-            GROUP_XS( focus  , input::foci ), // Focus related events.
-            GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
-            GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
+            EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
+            EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
+            EVENT_XS( spawn    , input::hids ), // release::global: Notify about the mouse controller is appear.
+            EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
+            GROUP_XS( keybd    , input::hids ),
+            GROUP_XS( mouse    , input::hids ),
+            GROUP_XS( focus    , input::foci ), // Focus related events.
+            GROUP_XS( notify   , input::hids ), // Form events that should be propagated down to the visual branch.
+            GROUP_XS( device   , input::hids ), // Primary device event group for forwarding purposes.
 
             SUBSET_XS( notify )
             {
@@ -1918,7 +1918,7 @@ namespace netxs::input
         }
         void fire_board()
         {
-            owner.bell::signal(tier::release, hids::events::clipbrd, *this);
+            owner.bell::signal(tier::release, hids::events::clipboard, *this);
             mouse::delta.set(); // Update time stamp.
         }
         text interpret(bool decckm)
