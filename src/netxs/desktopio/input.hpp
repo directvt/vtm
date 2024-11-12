@@ -15,26 +15,12 @@ namespace netxs::events::userland
         {
             EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
-            EVENT_XS( spawn    , input::hids ), // release::global: Notify about the mouse controller is appear.
             EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd    , input::hids ),
             GROUP_XS( mouse    , input::hids ),
             GROUP_XS( focus    , input::foci ), // Focus related events.
-            GROUP_XS( notify   , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( device   , input::hids ), // Primary device event group for forwarding purposes.
 
-            SUBSET_XS( notify )
-            {
-                GROUP_XS( mouse, input::hids ),
-                //GROUP_XS( keybd, input::hids ),
-                //GROUP_XS( focus, input::hids ),
-
-                SUBSET_XS( mouse )
-                {
-                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
-                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
-                };
-            };
             SUBSET_XS( keybd )
             {
                 EVENT_XS( scheme, input::hids ),
@@ -47,11 +33,16 @@ namespace netxs::events::userland
             };
             SUBSET_XS( mouse )
             {
-                EVENT_XS( move   , input::hids ),
-                EVENT_XS( focus  , input::hids ),
-                GROUP_XS( button , input::hids ),
-                GROUP_XS( scroll , input::hids ),
+                EVENT_XS( move  , input::hids ),
+                GROUP_XS( hover , input::hids ),
+                GROUP_XS( scroll, input::hids ),
+                GROUP_XS( button, input::hids ),
 
+                SUBSET_XS( hover )
+                {
+                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
+                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
+                };
                 SUBSET_XS( scroll )
                 {
                     EVENT_XS( act, input::hids ),
@@ -185,7 +176,6 @@ namespace netxs::events::userland
             };
             SUBSET_XS( device )
             {
-                //EVENT_XS( keybd, input::hids ), // release: Primary keybd event for forwarding purposes.
                 GROUP_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
                 GROUP_XS( user , id_t        ), // Device properties.
 
@@ -1736,12 +1726,13 @@ namespace netxs::input
         {
             if (last_id)
             {
-                if (auto last = bell::getref(last_id))
+                if (auto last = bell::getref<base>(last_id))
                 {
-                    auto saved_start = mouse::start;
-                    mouse::start = start_id;
-                    last->bell::signal(tier::release, events::notify::mouse::leave, *this);
+                    auto saved_start = std::exchange(mouse::start, start_id);
+                    auto saved_cause = std::exchange(mouse::cause, events::mouse::hover::leave.id);
+                    last->base::signal(tier::release, mouse::cause, *this);
                     mouse::start = saved_start;
+                    mouse::cause = saved_cause;
                 }
                 else
                 {
@@ -1760,16 +1751,16 @@ namespace netxs::input
                     tooltip_data.clear();
                     tooltip_stop = true;
                 }
-
+                tooltip_set = faux;
                 // Firing the leave event right after the enter allows us
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
-                auto start_l = mouse::start;
-                mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                tooltip_set = faux;
-                boss.bell::signal(tier::release, events::notify::mouse::enter, *this);
-                mouse_leave(mouse::hover, start_l);
+                auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                auto saved_cause = std::exchange(mouse::cause, events::mouse::hover::enter.id);
+                boss.base::signal(tier::release, mouse::cause, *this);
+                mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
+                mouse::cause = saved_cause;
             }
         }
         void deactivate()

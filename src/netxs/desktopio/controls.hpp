@@ -45,11 +45,11 @@ namespace netxs::ui
                     {
                         del(gear);
                     };
-                    boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, token)
+                    boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, token)
                     {
                         add(gear);
                     };
-                    boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, token)
+                    boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, token)
                     {
                         dec(gear);
                     };
@@ -1680,16 +1680,6 @@ namespace netxs::ui
                         });
                     }
                 };
-                //todo should we replace it with base::riseup(forced)?
-                // pro::mouse: Propagate form events down to the visual branch. Executed last.
-                boss.LISTEN(tier::release, hids::events::notify::any, gear)
-                {
-                    if (auto parent_ptr = boss.parent())
-                    if (auto deed = boss.bell::protos(tier::release))
-                    {
-                        parent_ptr->bell::signal(tier::release, deed, gear);
-                    }
-                };
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, hids::events::mouse::any, gear, memo)
                 {
@@ -1718,7 +1708,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, memo)
                 {
                     if (!full++)
                     {
@@ -1735,7 +1725,7 @@ namespace netxs::ui
                     //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, memo)
                 {
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
@@ -2371,7 +2361,7 @@ namespace netxs::ui
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.l == si32max))
+                boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, memo, (wrap, full = wrap.l == si32max))
                 {
                     if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))

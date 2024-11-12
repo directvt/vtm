@@ -146,11 +146,11 @@ namespace netxs::ui
                     recalc();
                     boss.deface();
                 };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::enter, gear, memo)
                 {
                     items.add(gear);
                 };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::leave, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)

@@ -8401,7 +8401,7 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, hids::events::notify::mouse::leave, gear)
+            LISTEN(tier::release, hids::events::mouse::hover::leave, gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
