@@ -391,9 +391,9 @@ namespace netxs::events
     #define GET_END1_XS(a, b, c, d, e, last, ...) last
     #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type& param) mutable
+    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ]([[maybe_unused]] typename decltype( event )::type& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
