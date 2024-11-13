@@ -1439,9 +1439,9 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, hids::events::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
                 {
-                    auto seed_copy = seed;
-                    boss.bell::signal(tier::preview, hids::events::focus::bus::copy, seed_copy);
-                    if (!seed_copy.id) return; // Focus copying is interrupted.
+                    //auto seed_copy = seed;
+                    //boss.bell::signal(tier::preview, hids::events::focus::bus::copy, seed_copy); // Why? To check if we are maximized by another gear.
+                    //if (!seed_copy.id) return; // Focus copying is interrupted.
 
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
@@ -1497,7 +1497,7 @@ namespace netxs::ui
                 // all tier::release going to inside
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
-                    auto focus_leaf = !seed.item; // No focused item. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner).
+                    auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto focusable = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
                     if (!focusable && focus_leaf && seed.nondefault_gear()) // Copy the default up-route for the focus hub.
                     {
