@@ -1800,15 +1800,15 @@ namespace netxs::gui
             void handle(s11n::xs::focus_cut        lock)
             {
                 auto& item = lock.thing;
-                // We are the focus tree endpoint. Signal back the focus set up.
-                auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .id = item.gear_id });
+                // We are the focus tree endpoint.
+                auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .id = item.gear_id, .guid = os::process::id.second/*don't send it back*/ });
             }
             void handle(s11n::xs::focus_set        lock)
             {
                 auto& item = lock.thing;
-                if (owner.mfocus.focused()) // We are the focus tree endpoint. Signal back the focus set up.
+                if (owner.mfocus.focused()) // We are the focus tree endpoint.
                 {
-                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This() });
+                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .id = item.gear_id, .solo = item.solo, .item = owner.This(), .guid = os::process::id.second/*don't send it back*/ });
                 }
                 else owner.window_post_command(ipc::take_focus);
                 if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
@@ -3287,11 +3287,10 @@ namespace netxs::gui
                 LISTEN(tier::release, hids::events::focus::bus::any, seed)
                 {
                     auto deed = this->bell::protos(tier::release);
-                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    if (seed.guid != os::process::id.second) // Don't send it back inside if we just received it.
                     {
-                        seed.guid = os::process::id.second;
+                        stream.focusbus.send(stream.intio, seed.id, seed.guid, netxs::events::subindex(deed));
                     }
-                    stream.focusbus.send(stream.intio, seed.id, seed.guid, netxs::events::subindex(deed));
                     if (deed == hids::events::focus::bus::on.id && hotkey) //todo same code in syste.hpp:
                     {
                         keymod &= ~input::hids::HotkeyScheme; // Trigger to send a hotkey scheme packet.

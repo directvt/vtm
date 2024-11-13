@@ -4912,8 +4912,6 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::focus_set      /*lock*/)
                 {
-                    auto cause = netxs::events::subindex(input::hids::events::focus::bus::on.id);
-                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
                     if (hotkey)
                     {
                         sync_hotkey_scheme();
@@ -4921,8 +4919,7 @@ namespace netxs::os
                 }
                 void handle(s11n::xs::focus_cut      /*lock*/)
                 {
-                    auto cause = netxs::events::subindex(input::hids::events::focus::bus::off.id);
-                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
+                    // do nothing.
                 }
                 void handle(s11n::xs::hotkey_scheme    lock)
                 {

@@ -8025,7 +8025,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .id = k.gear_id, .item = owner.This() });
+                        parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .id = k.gear_id, .item = owner.This() });
                     }
                 }
             }
@@ -8038,7 +8038,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
                     }
                 }
             }

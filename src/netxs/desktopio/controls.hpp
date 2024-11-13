@@ -1246,6 +1246,29 @@ namespace netxs::ui
                 auto m = hotkey_scheme >> 28; //std::countr_zero(hids::HotkeyScheme); //todo MSVC doesn't get it
                 boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
             }
+            void notify_set_focus(auto& route, auto& seed)
+            {
+                route.active = true;
+                if (seed.nondefault_gear())
+                {
+                    boss.bell::signal(tier::release, e2::form::state::focus::on, seed.id);
+                    signal_state();
+                    if (auto gear_ptr = boss.bell::getref<hids>(seed.id)) // Notify about current gear hotkey scheme.
+                    {
+                        hotkey_scheme = gear_ptr->meta(hids::HotkeyScheme);
+                        hotkey_scheme_notify();
+                    }
+                }
+            }
+            void notify_off_focus(auto& route, auto& seed)
+            {
+                if (seed.nondefault_gear())
+                {
+                    route.active = faux;
+                    boss.bell::signal(tier::release, e2::form::state::focus::off, seed.id);
+                    signal_state();
+                }
+            }
 
         public:
             enum class mode { hub, focusable, focused, active };
@@ -1322,7 +1345,7 @@ namespace netxs::ui
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
                 : skill{ boss },
-                  focusable{ m != mode::hub && m != mode::active },
+                  focusable{ m == mode::focused || m == mode::focusable },
                   scope{ cut_scope }
             {
                 if (m == mode::focused || m == mode::active) // Pave default focus path at startup.
@@ -1402,53 +1425,26 @@ namespace netxs::ui
                     auto iter = gears.find(seed.id);
                     if (iter == gears.end()) // No route to inside.
                     {
-                        if (!focusable && seed.nondefault_gear()) // Restore dtvt focus after reconnection.
+                        auto allow_focusize = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
+                        if (!allow_focusize && seed.nondefault_gear()) // Restore dtvt focus after reconnection.
                         {
                             // Try to use default branch if it is.
                             //todo
-                            // auto def_route = gears.find(id_t{}); // Check if the default route is present.
-                            // if (def_route != gears.end()) iter = add_route(seed.id, def_route->second);
-                            // else                          iter = add_route(seed.id);
-                            boss.bell::signal(tier::release, hids::events::focus::bus::copy, seed);
-                            iter = gears.find(seed.id);
-                            if (iter == gears.end()) iter = add_route(seed.id);
+                            auto def_route = gears.find(id_t{}); // Check if the default route is present.
+                            if (def_route != gears.end()) iter = add_route(seed.id, def_route->second);
+                            else                          iter = add_route(seed.id);
                         }
                         else iter = add_route(seed.id);
                     }
                     auto& route = iter->second;
-                    route.active = true;
-                    if (seed.nondefault_gear())
-                    {
-                        boss.bell::signal(tier::release, e2::form::state::focus::on, seed.id);
-                        signal_state();
-                        if (auto gear_ptr = boss.bell::getref<hids>(seed.id)) // Notify about current gear hotkey scheme.
-                        {
-                            hotkey_scheme = gear_ptr->meta(hids::HotkeyScheme);
-                            hotkey_scheme_notify();
-                        }
-                    }
+                    notify_set_focus(route, seed);
                 };
                 //todo use tier::release, hids::events::focus::off
                 boss.LISTEN(tier::release, hids::events::focus::bus::off, seed, memo)
                 {
                     auto& route = get_route(seed.id);
-                    if (seed.nondefault_gear())
-                    {
-                        route.active = faux;
-                        boss.bell::signal(tier::release, e2::form::state::focus::off, seed.id);
-                        signal_state();
-                    }
+                    notify_off_focus(route, seed);
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
-                };
-                boss.LISTEN(tier::release, hids::events::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
-                {
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
-                    if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
-                    {
-                        auto def_route = gears.find(id_t{}); // Check if the default route is present.
-                        if (def_route != gears.end()) add_route(seed.id, def_route->second);
-                        else                          add_route(seed.id);
-                    }
                 };
                 // pro::focus: Replace next hop object "seed.what" with "seed.item".
                 boss.LISTEN(tier::release, hids::events::focus::hop, seed, memo)
@@ -1477,6 +1473,7 @@ namespace netxs::ui
                         }
                         else
                         {
+                            notify_off_focus(route, seed);
                             if (auto parent_ptr = boss.parent())
                             {
                                 seed.item = boss.This();
@@ -1498,12 +1495,6 @@ namespace netxs::ui
                 {
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto allow_focusize = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
-                    if (!allow_focusize && focus_leaf && seed.nondefault_gear()) // Copy the default up-route for the focus hub.
-                    {
-                        //todo use tier::release, hids::events::focus::set
-                        boss.bell::signal(tier::release, hids::events::focus::bus::copy, seed);
-                    }
-
                     auto& route = get_route(seed.id);
                     if (focus_leaf)
                     {
@@ -1520,6 +1511,15 @@ namespace netxs::ui
                                 route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
                                 route.next.clear();
                             }
+                        }
+                        else
+                        {
+                            if (!allow_focusize && seed.nondefault_gear()) // Copy the default up-route for the focus hub.
+                            {
+                                //todo use tier::release, hids::events::focus::set
+                                boss.bell::signal(tier::release, hids::events::focus::bus::on, seed);
+                            }
+                            else notify_set_focus(route, seed);
                         }
                         route.focused = allow_focusize;
                     }
@@ -1543,11 +1543,12 @@ namespace netxs::ui
                             }
                             if (route.active) // Finish if the branch is active.
                             {
-                                seed.item->bell::signal(tier::release, hids::events::focus::bus::on, seed);
+                                //seed.item->bell::signal(tier::release, hids::events::focus::bus::on, seed);
                                 // break riseup
                                 return;
                             }
                         }
+                        notify_set_focus(route, seed);
                     }
 
                     if (seed.nondefault_gear() || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window). See pro::focus ctor.
