@@ -41,13 +41,9 @@ namespace netxs::app::textancy
         {
             return ansi::wrp(wrap::off).mgr(0).bld(true).cap(caption).erl().und(unln::none).eol().mgr(1).unc(0).wrp(wrap::on);
         };
-        auto topic3_chars = R"( 
-There are important differences between plain text (created and edited by text editors) and rich text (such as that created by word processors or desktop publishing software).
-
-Plain text exclusively consists of character representation. Each character is represented by a fixed-length sequence of one, two, or four bytes, or as a variable-length sequence of one to four bytes, in accordance to specific character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or Unicode. These conventions define many printable characters, but also non-printing characters that control the flow of the text, such as space, line break, and page break. Plain text contains no other information about the text itself, not even the character encoding convention employed. Plain text is stored in text files, although text files do not exclusively store plain text. In the early days of computers, plain text was displayed using a monospace font, such that horizontal alignment and columnar formatting were sometimes done using hitespace characters. For compatibility reasons, this tradition has not changed.
-
-)"
-"\033[38:2:109:231:237m""R"
+        auto topic3_chars = 
+"\nThere are important differences between \033[22mplain text\033[1m (created and edited by text editors) and "
+"\033[38:2:109:231:237m""r"
 "\033[38:2:109:237:186m""i"
 "\033[38:2:60:255:60m"  "c"
 "\033[38:2:189:255:53m" "h"
@@ -56,11 +52,11 @@ Plain text exclusively consists of character representation. Each character is r
 "\033[38:2:255:189:79m" "e"
 "\033[38:2:255:114:94m" "x"
 "\033[38:2:255:60:157m" "t"
-"\033[38:2:255:49:214m" "," "\033[39m"
-" on the other hand, may contain metadata, character formatting data (e.g. typeface, size, \033[22mweight\033[1m and \033[22;3mstyle\033[23;1m), paragraph formatting data (e.g. indentation, alignment, letter and word distribution, and space between lines or other paragraphs), and page specification data (e.g. size, margin and reading direction). Rich text can be very complex. Rich text can be saved in binary format (e.g. DOC), text files adhering to a markup language (e.g. RTF or HTML), or in a hybrid form of both (e.g. Office Open XML)."
-R"(
-
-Text editors are intended to open and save text files containing either plain text or anything that can be interpreted as plain text, including the markup for rich text or the markup for something else (e.g. SVG).
+"\033[38:2:255:49:214m" " " "\033[39m"
+"(such as that created by word processors or desktop publishing software).\n\n"
+"Plain text exclusively consists of character representation. Each character is represented by a fixed-length sequence of one, two, or four bytes, or as a variable-length sequence of one to four bytes, in accordance to specific character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or Unicode. These conventions define many printable characters, but also non-printing characters that control the flow of the text, such as space, line break, and page break. Plain text contains no other information about the text itself, not even the character encoding convention employed. Plain text is stored in text files, although text files do not exclusively store plain text. In the early days of computers, plain text was displayed using a monospace font, such that horizontal alignment and columnar formatting were sometimes done using hitespace characters. For compatibility reasons, this tradition has not changed.\n\n"
+"Rich text, on the other hand, may contain metadata, character formatting data (e.g. typeface, size, \033[22mweight\033[1m and \033[22;3mstyle\033[23;1m), paragraph formatting data (e.g. indentation, alignment, letter and word distribution, and space between lines or other paragraphs), and page specification data (e.g. size, margin and reading direction). Rich text can be very complex. Rich text can be saved in binary format (e.g. DOC), text files adhering to a markup language (e.g. RTF or HTML), or in a hybrid form of both (e.g. Office Open XML).\n\n"
+R"(Text editors are intended to open and save text files containing either plain text or anything that can be interpreted as plain text, including the markup for rich text or the markup for something else (e.g. SVG).
 
 History
 
