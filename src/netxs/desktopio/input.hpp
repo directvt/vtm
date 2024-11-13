@@ -742,6 +742,11 @@ namespace netxs::input
         sptr item{}; // foci: Next focused item.
         ui32 deep{}; // foci: Counter for debug.
         time guid{}; // foci: Originating environment ID.
+
+        auto nondefault_gear() const
+        {
+            return id != id_t{};
+        }
     };
 
     // input: Mouse tracker.
