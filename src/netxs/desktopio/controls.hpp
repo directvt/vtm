@@ -1439,10 +1439,6 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, hids::events::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
                 {
-                    //auto seed_copy = seed;
-                    //boss.bell::signal(tier::preview, hids::events::focus::bus::copy, seed_copy); // Why? To check if we are maximized by another gear.
-                    //if (!seed_copy.id) return; // Focus copying is interrupted.
-
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
                     {
