@@ -145,6 +145,7 @@ namespace netxs::ui
                     boss.bell::signal(Tier, E::id, d);
                 });
             }
+            //todo replace to xs::focus (set/off)
             void handle(s11n::xs::focusbus    lock)
             {
                 auto& focus = lock.thing;
@@ -1126,18 +1127,9 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
-            {
-                if (gear)
-                //if (auto target = local ? applet : base::parent())
-                if (auto target = nexthop.lock())
-                {
-                    target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
-                }
-            };
+            //todo replace to tier::release hids::events::focus::any (set/off)
             LISTEN(tier::release, hids::events::focus::bus::any, seed, tokens)
             {
-                //todo use input::forward<focus>
                 if (seed.id != id_t{}) // Translate only the real foreign gear id.
                 {
                     auto gear_it = input.gears.find(seed.id);
@@ -1150,19 +1142,10 @@ namespace netxs::ui
                 }
 
                 auto deed = this->bell::protos(tier::release);
-                //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
-                //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
                     target->bell::signal(tier::release, deed, seed);
                 }
-                //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
-            };
-            LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
-            {
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                if (!gear_ptr) return;
-                conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
             };
             LISTEN(tier::preview, hids::events::focus::cut, seed, tokens)
             {
@@ -1176,7 +1159,21 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 conio.focus_set.send(canal, ext_gear_id, seed.solo);
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Forward unhandled events outside. Return back unhandled keybd events.
+            LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
+            {
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                if (!gear_ptr) return;
+                conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
+            };
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
+            {
+                if (gear)
+                if (auto target = nexthop.lock())
+                {
+                    target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
+                }
+            };
+            LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens) // Forward unhandled events outside. Return back unhandled keybd events.
             {
                 if (gear && !gear.handled)
                 {
@@ -1259,11 +1256,6 @@ namespace netxs::ui
             {
                 conio.disconnect();
             };
-            //LISTEN(tier::general, e2::conio::logs, utf8, tokens)
-            //{
-            //    //todo application internal log output
-            //    //conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
-            //};
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
             {
                 if (props.debug_overlay) debug.start();

@@ -740,25 +740,9 @@ namespace netxs::app::vtm
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
             keybd.load<tier::preview>(config, "/config/hotkeys/desktop/key");
 
-            LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
+            LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
             {
                 nexthop = world_ptr;
-            };
-            LISTEN(tier::release, hids::events::keybd::key::post, gear, tokens)
-            {
-                if (gear)
-                {
-                    if (true /*...*/) //todo lookup taskbar kb shortcuts
-                    {
-                        //...
-                        //pro::focus::set(applet, gear.id, pro::focus::solo::on);
-                        
-                    }
-                    else
-                    {
-                        //...
-                    }
-                }
             };
             LISTEN(tier::release, e2::form::layout::jumpto, window, tokens)
             {
@@ -1993,14 +1977,8 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::focus::cut, seed)
+            LISTEN(tier::preview, hids::events::focus::cut, seed) // Forward focus event to the gate for sending to outside.
             {
-                //todo revise: dtvt-app focus state can be wrong when user reconnects
-                //if (seed.id == id_t{})
-                //{
-                //    this->bell::signal(tier::release, hids::events::focus::bus::off, seed);
-                //}
-                //else
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
@@ -2008,14 +1986,8 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
                 }
             };
-            LISTEN(tier::preview, hids::events::focus::set, seed)
+            LISTEN(tier::preview, hids::events::focus::set, seed) // Forward focus event to the gate for sending to outside.
             {
-                //todo revise
-                //if (seed.id == id_t{})
-                //{
-                //    this->bell::signal(tier::release, hids::events::focus::bus::on, seed);
-                //}
-                //else
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
