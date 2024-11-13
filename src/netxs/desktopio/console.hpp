@@ -1185,7 +1185,6 @@ namespace netxs::ui
                     }
                 }
             };
-
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");

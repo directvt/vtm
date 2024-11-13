@@ -1478,7 +1478,7 @@ namespace netxs::app::vtm
                                     boss.bell::signal(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
-                            boss.LISTEN(tier::preview, hids::events::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
+                            boss.LISTEN(tier::preview, hids::events::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus when window is maximized (the only one gear can focus a maximized window).
                             {
                                 if (auto gear_ptr = boss.bell::template getref<hids>(seed.id)) //todo Apple clang requires template.
                                 {

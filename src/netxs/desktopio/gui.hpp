@@ -3283,6 +3283,7 @@ namespace netxs::gui
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 };
+                //todo replace it with tier::release hids::events::focus::any (set/off)
                 LISTEN(tier::release, hids::events::focus::bus::any, seed)
                 {
                     auto deed = this->bell::protos(tier::release);

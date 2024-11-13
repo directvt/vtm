@@ -1167,9 +1167,9 @@ namespace netxs::ui
         class focus
             : public skill
         {
-            struct chain
+            struct route_t
             {
-                bool            active{};  // focus: The chain is under the focus.
+                bool            active{};  // focus: The route is under the focus.
                 bool            focused{}; // focus: The endpoint is focused .
                 hook            token;     // focus: Cleanup token.
                 std::list<wptr> next;      // focus: Focus branch next hop list.
@@ -1188,7 +1188,7 @@ namespace netxs::ui
                 }
             };
 
-            using umap = std::unordered_map<id_t, chain>; // Each gear has its own focus tree.
+            using umap = std::unordered_map<id_t, route_t>; // Each gear has its own focus tree.
             using skill::boss,
                   skill::memo;
 
@@ -1207,9 +1207,9 @@ namespace netxs::ui
                 }
                 boss.bell::signal(tier::release, e2::form::state::focus::count, count);
             }
-            auto add_route(id_t gear_id, chain cfg = { .active = faux, .focused = faux })
+            auto add_route(id_t gear_id, route_t new_route = { .active = faux, .focused = faux })
             {
-                auto iter = gears.emplace(gear_id, std::move(cfg)).first;
+                auto iter = gears.emplace(gear_id, std::move(new_route)).first;
                 if (gear_id != id_t{})
                 {
                     auto& route = iter->second;
@@ -1345,7 +1345,7 @@ namespace netxs::ui
                         if (state) return;
                     }
                 };
-                // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
+                // pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
                     if (gear.meta(hids::anyCtrl))
@@ -1356,11 +1356,11 @@ namespace netxs::ui
                     else pro::focus::set(boss.This(), gear.id, solo::on);
                     gear.dismiss();
                 };
-                // Subscribe on keybd events.
                 boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo)
                 {
                     m = hotkey_scheme;
                 };
+                // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
@@ -1385,7 +1385,8 @@ namespace netxs::ui
                         if (accum) boss.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                     }
                 };
-                // Subscribe on focus chain events.
+                // pro::focus: Subscribe on focus chain events.
+                //todo replace it with tier::release hids::events::focus::any (set/off)
                 boss.LISTEN(tier::release, hids::events::focus::bus::any, seed, memo) // Forward the bus event up.
                 {
                     auto& route = get_route(seed.id);
@@ -1394,6 +1395,7 @@ namespace netxs::ui
                     route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, deed, seed); });
                     //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------");
                 };
+                //todo replace it with tier::release hids::events::focus::any (set/off)
                 boss.LISTEN(tier::release, hids::events::focus::bus::on, seed, memo)
                 {
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
@@ -1449,7 +1451,7 @@ namespace netxs::ui
                         else                          add_route(seed.id);
                     }
                 };
-                // Replace next hop object "seed.what" with "seed.item".
+                // pro::focus: Replace next hop object "seed.what" with "seed.item".
                 boss.LISTEN(tier::release, hids::events::focus::hop, seed, memo)
                 {
                     for (auto& [gear_id, route] : gears)
@@ -1463,7 +1465,7 @@ namespace netxs::ui
                         }
                     }
                 };
-                // Truncate the maximum path without branches.
+                // pro::focus: Truncate the maximum path without branches.
                 boss.LISTEN(tier::preview, hids::events::focus::cut, seed, memo)
                 {
                     auto& route = get_route(seed.id);
@@ -1490,7 +1492,9 @@ namespace netxs::ui
                         boss.expire(tier::preview);
                     }
                 };
-                // Subscribe on focus offers. Build a focus tree.
+                // pro::focus: Subscribe on focus offers. Build a focus tree.
+                // all tier::preview going to outside
+                // all tier::release going to inside
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
                     auto focusable = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
@@ -1500,16 +1504,17 @@ namespace netxs::ui
                     }
 
                     auto& route = get_route(seed.id);
-                    if (!seed.item) // No focused item. We are the first.
+                    if (!seed.item) // No focused item. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner).
                     {
                         if (route.active)
                         {
-                            if (seed.solo != solo::on) // Group focus.
+                            if (seed.solo != solo::on) // Group focus.  seed.solo == solo::off || seed.solo == solo::mix
                             {
                                 route.focused = focusable;
+                                // break riseup
                                 return;
                             }
-                            if (focusable)
+                            if (focusable) // seed.solo == solo::on, drop all active branches. The boss is the focus leaf.
                             {
                                 route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
                                 route.next.clear();
@@ -1517,11 +1522,11 @@ namespace netxs::ui
                         }
                         route.focused = focusable;
                     }
-                    else // Build focus tree.
+                    else // Build focus tree (we are in the middle of the focus tree).
                     {
                         if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
                         {
-                            if (route.active)
+                            if (route.active) // seed.solo == solo::on, off group focus, remove all but seed.item.
                             {
                                 route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
                             }
@@ -1531,21 +1536,29 @@ namespace netxs::ui
                         else // Group focus.
                         {
                             auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                            if (iter == route.next.end()) route.next.push_back(seed.item);
-                            if (route.active)
+                            if (iter == route.next.end())
+                            {
+                                route.next.push_back(seed.item);
+                            }
+                            if (route.active) // Finish if the branch is active.
                             {
                                 seed.item->bell::signal(tier::release, hids::events::focus::bus::on, seed);
+                                // break riseup
                                 return;
                             }
                         }
                     }
 
                     if (seed.id || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window). See pro::focus ctor.
-                    if (auto parent = boss.parent())
                     {
-                        seed.item = boss.This();
-                        parent->base::riseup(tier::preview, hids::events::focus::set, seed);
+                        if (auto parent = boss.parent())
+                        {
+                            // riseup
+                            seed.item = boss.This();
+                            parent->base::riseup(tier::preview, hids::events::focus::set, seed);
+                        }
                     }
+                    // else break riseup
                 };
                 boss.LISTEN(tier::preview, hids::events::focus::off, seed, memo)
                 {

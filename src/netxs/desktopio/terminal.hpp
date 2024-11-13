@@ -8407,10 +8407,11 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
+            //todo replace it with tier::release hids::events::focus::any (set/off)
             LISTEN(tier::release, hids::events::focus::bus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                if (seed.guid == decltype(seed.guid){})
                 {
                     seed.guid = os::process::id.second;
                 }
