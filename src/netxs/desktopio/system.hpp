@@ -4910,16 +4910,13 @@ namespace netxs::os
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
                 }
-                void handle(s11n::xs::focus_set      /*lock*/)
+                void handle(s11n::xs::sysfocus         lock)
                 {
-                    if (hotkey)
+                    auto& item = lock.thing;
+                    if (item.state && hotkey)
                     {
                         sync_hotkey_scheme();
                     }
-                }
-                void handle(s11n::xs::focus_cut      /*lock*/)
-                {
-                    // do nothing.
                 }
                 void handle(s11n::xs::hotkey_scheme    lock)
                 {
@@ -6112,7 +6109,7 @@ namespace netxs::os
             auto focus = [&](auto state)
             {
                 if (!alive) return;
-                proxy.sysfocus.send(intio, proxy.gear_id, state);
+                proxy.sysfocus.send(intio, proxy.gear_id, state, 0);
             };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };

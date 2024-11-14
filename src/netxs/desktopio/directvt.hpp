@@ -861,8 +861,6 @@ namespace netxs::directvt
                                         (si32, whlsi)
                                         (bool, hzwhl)
                                         (fp2d, click))
-        STRUCT_macro(focus_cut,         (id_t, gear_id))
-        STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(hotkey_scheme,     (id_t, gear_id) (si32, index))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
@@ -883,7 +881,7 @@ namespace netxs::directvt
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
-        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state))
+        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, solo))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag)  // syskeybd: Win32 extflag.
@@ -1412,8 +1410,6 @@ namespace netxs::directvt
             X(mouse_event      ) /* Mouse events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(focus_cut        ) /* Request to focus cut.                         */\
-            X(focus_set        ) /* Request to focus set.                         */\
             X(hotkey_scheme    ) /* Request hotkey scheme to set.                 */\
             X(fullscrn         ) /* Notify/Request to fullscreen.                 */\
             X(maximize         ) /* Request to maximize window.                   */\

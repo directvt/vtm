@@ -66,11 +66,7 @@ namespace netxs::scripting
             {
                 //...
             }
-            void handle(s11n::xs::focus_cut         /*lock*/)
-            {
-                //...
-            }
-            void handle(s11n::xs::focus_set         /*lock*/)
+            void handle(s11n::xs::sysfocus          /*lock*/)
             {
                 //...
             }

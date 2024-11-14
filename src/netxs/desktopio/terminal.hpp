@@ -8016,27 +8016,22 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(s11n::xs::focus_cut           lock)
+            void handle(s11n::xs::sysfocus            lock)
             {
-                auto& k = lock.thing;
                 if (owner.active)
                 {
                     auto guard = owner.sync();
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = k.gear_id, .item = owner.This() });
-                    }
-                }
-            }
-            void handle(s11n::xs::focus_set           lock)
-            {
-                auto& k = lock.thing;
-                if (owner.active)
-                {
-                    auto guard = owner.sync();
-                    if (auto parent_ptr = owner.base::parent())
-                    {
-                        parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        auto& f = lock.thing;
+                        if (f.state)
+                        {
+                            parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                        }
+                        else
+                        {
+                            parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                        }
                     }
                 }
             }
@@ -8410,7 +8405,7 @@ namespace netxs::ui
             {
                 auto deed = this->bell::protos(tier::release);
                 auto state = deed == hids::events::focus::bus::on.id;
-                stream.sysfocus.send(*this, seed.gear_id, state);
+                stream.sysfocus.send(*this, seed.gear_id, state, seed.solo);
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {

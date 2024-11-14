@@ -1797,23 +1797,25 @@ namespace netxs::gui
                 //    owner.base::riseup(tier::preview, e2::form::layout::expose);
                 //});
             }
-            void handle(s11n::xs::focus_cut        lock)
+            void handle(s11n::xs::sysfocus         lock)
             {
                 auto& item = lock.thing;
-                // We are the focus tree endpoint.
-                auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .gear_id = item.gear_id, .guid = os::process::id.second/*don't send it back*/ });
-            }
-            void handle(s11n::xs::focus_set        lock)
-            {
-                auto& item = lock.thing;
-                if (owner.mfocus.focused()) // We are the focus tree endpoint.
+                if (item.state)
                 {
-                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = item.gear_id, .solo = item.solo, .item = owner.This(), .guid = os::process::id.second/*don't send it back*/ });
+                    if (owner.mfocus.focused()) // We are the focus tree endpoint.
+                    {
+                        auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = item.gear_id, .solo = item.solo, .item = owner.This(), .guid = os::process::id.second/*don't send it back*/ });
+                    }
+                    else owner.window_post_command(ipc::take_focus);
+                    if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                    {
+                        owner.window_post_command(ipc::solo_focus);
+                    }
                 }
-                else owner.window_post_command(ipc::take_focus);
-                if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                else
                 {
-                    owner.window_post_command(ipc::solo_focus);
+                    // We are the focus tree endpoint.
+                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .gear_id = item.gear_id, .guid = os::process::id.second/*don't send it back*/ });
                 }
             }
             void handle(s11n::xs::hotkey_scheme    lock)
@@ -3290,7 +3292,7 @@ namespace netxs::gui
                     auto state = deed == hids::events::focus::bus::on.id;
                     if (seed.guid != os::process::id.second) // Don't send it back to inside if we just received it.
                     {
-                        stream.sysfocus.send(stream.intio, seed.gear_id, state);
+                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.solo);
                     }
                     if (state && hotkey)
                     {
