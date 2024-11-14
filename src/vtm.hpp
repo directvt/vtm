@@ -1966,20 +1966,37 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, hids::events::focus::cut, seed) // Forward focus event to the gate for sending to outside.
             {
-                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                if (seed.nondefault_gear())
                 {
-                    auto& gear = *gear_ptr;
-                    //seed.item = this->This();
-                    gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
+                    if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        //seed.item = this->This();
+                        gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
+                    }
                 }
+                //else
+                //{
+                //    gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
+                //}
             };
             LISTEN(tier::preview, hids::events::focus::set, seed) // Forward focus event to the gate for sending to outside.
             {
-                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                if (seed.nondefault_gear())
                 {
-                    auto& gear = *gear_ptr;
-                    seed.item = this->This();
-                    gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
+                    if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        seed.item = this->This();
+                        gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
+                    }
+                }
+                else
+                {
+                    for (auto& u : users.items)
+                    {
+                        u->object->bell::signal(tier::preview, hids::events::focus::set, seed);
+                    }
                 }
             };
             LISTEN(tier::release, scripting::events::invoke, script)

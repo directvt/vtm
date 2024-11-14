@@ -526,16 +526,6 @@ namespace netxs::app::shared
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                     };
-                    //todo Should the title of the info page be hidden?
-                    //boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
-                    //{
-                    //    auto window_ptr = boss.base::riseup(tier::request, e2::form::prop::window::instance);
-                    //    //todo too hacky
-                    //    if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
-                    //    {
-                    //        form_ptr->template plugins<pro::title>().live = faux;
-                    //    }
-                    //};
                 });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
@@ -612,7 +602,7 @@ namespace netxs::app::shared
             auto chord_block = title_grid_state->attach(ui::grid::ctor())
                 ->setpad({ 4, 5, 0, 1})
                 ->active()
-                ->template plugin<pro::focus>()
+                //->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
             auto state_label = state_block->attach(slot::_1, ui::item::ctor("Alternate hotkey scheme:")->setpad({ 2, 1, 0, 0 }));
@@ -622,17 +612,12 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    window->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, boss.tracker)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (subs_ptr = ptr::shared<subs>()))
                     {
-                        boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
-                                       : ansi::bgc(reddk).fgx(0)        .add("█off "));
-                        boss.base::reflow();
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
-                    {
+                        subs_ptr->clear();
                         if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                         {
-                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*hook_ptr))
+                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*subs_ptr))
                             {
                                 boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
                                                : ansi::bgc(reddk).fgx(0)        .add("█off "));
@@ -742,7 +727,7 @@ namespace netxs::app::shared
                     ->setpad({ 2, 2, 0, 2 })
                     ->upload(item, stats ? -1 : 0)
                     ->active()
-                    ->template plugin<pro::focus>()
+                    //->template plugin<pro::focus>()
                     ->template plugin<pro::grade>();
                     //->shader(cell::shaders::color(c3), e2::form::state::focus::count);
                 if (stats) block->shader(cell::shaders::xlight, e2::form::state::hover);

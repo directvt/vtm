@@ -877,26 +877,26 @@ namespace netxs::directvt
         STRUCT_macro(minimize,          (id_t, gear_id))
         //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
-        STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause)) // cause: it is a events::subindex
         STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
+        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
-                                        (bool, extflag) //todo deprecated
+                                        (bool, extflag)  // syskeybd: Win32 extflag.
                                         (byte, payload)  // syskeybd: Payload type.
-                                        (si32, virtcod) //todo deprecated
+                                        (si32, virtcod)  // syskeybd: Key virtual code.
                                         (si32, scancod)  // syskeybd: Scancode.
                                         (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)  // syskeybd: Key id.
-                                        (text, vkchord)  // sysmouse: Key virtcode chord.
-                                        (text, scchord) // sysmouse: Key scancode chord.
-                                        (text, chchord)) // sysmouse: Key virtcode+cluster chord.
+                                        (text, vkchord)  // sysmouse: Key virtcode-based chord.
+                                        (text, scchord)  // sysmouse: Key scancode-based chord.
+                                        (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
@@ -1432,13 +1432,13 @@ namespace netxs::directvt
             X(fatal            ) /* Fatal error message.                          */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
+            X(sysfocus         ) /* System focus device.                          */\
             X(sysstart         ) /* System start event.                           */\
             X(sysclose         ) /* System close event.                           */\
             X(syswinsz         ) /* Console window resize.                        */\
             X(sysboard         ) /* Clipboard preview.                            */\
             X(clipdata         ) /* Clipboard raw data.                           */\
             X(clipdata_request ) /* Request clipboard data.                       */\
-            X(focusbus         ) /* Focus bus events.                             */\
             X(mousebar         ) /* Show mouse cursor.                            */\
             X(request_gc       ) /* Unknown gc token list.                        */\
             X(unknown_gc       ) /* Unknown gc token.                             */\

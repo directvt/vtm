@@ -735,9 +735,9 @@ namespace netxs::input
 
     struct foci
     {
-        id_t   id{}; // foci: Gear id.
+        id_t gear_id{}; // foci: Gear id.
         si32 solo{}; // foci: Exclusive focus request.
-        bool skip{}; // foci: Ignore focusable object, just activate it.
+        bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.
         ui32 deep{}; // foci: Counter for debug.
@@ -745,7 +745,7 @@ namespace netxs::input
 
         auto nondefault_gear() const
         {
-            return id != id_t{};
+            return gear_id != id_t{};
         }
     };
 
@@ -1210,6 +1210,14 @@ namespace netxs::input
         };
 
         bool state = {};
+
+        void update(sysfocus& f)
+        {
+            state = f.state;
+            fire_focus();
+        }
+
+        virtual void fire_focus() = 0;
     };
 
     // input: Clipboard tracker.
@@ -1665,6 +1673,10 @@ namespace netxs::input
             keybd::ctlstat = temp;
         }
 
+        void take(sysfocus& f)
+        {
+            focus::update(f);
+        }
         void take(sysmouse& m)
         {
             #if defined(DEBUG)
@@ -1865,6 +1877,11 @@ namespace netxs::input
         {
             owner.bell::signal(tier::release, hids::events::clipboard, *this);
             mouse::delta.set(); // Update time stamp.
+        }
+        void fire_focus()
+        {
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = id })
+                         : owner.bell::signal(tier::release, hids::events::focus::bus::off, { .gear_id = id });
         }
         text interpret(bool decckm)
         {

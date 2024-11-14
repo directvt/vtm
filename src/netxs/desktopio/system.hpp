@@ -6112,9 +6112,7 @@ namespace netxs::os
             auto focus = [&](auto state)
             {
                 if (!alive) return;
-                auto cause = state ? input::hids::events::focus::bus::on.id
-                                   : input::hids::events::focus::bus::off.id;
-                proxy.focusbus.send(intio, proxy.gear_id, time{}, netxs::events::subindex(cause));
+                proxy.sysfocus.send(intio, proxy.gear_id, state);
             };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };

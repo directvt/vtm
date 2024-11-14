@@ -8022,10 +8022,9 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .id = k.gear_id, .item = owner.This() });
+                        parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = k.gear_id, .item = owner.This() });
                     }
                 }
             }
@@ -8035,10 +8034,9 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = k.gear_id, .solo = k.solo, .item = owner.This() });
                     }
                 }
             }
@@ -8411,11 +8409,8 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::focus::bus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                if (seed.guid == decltype(seed.guid){})
-                {
-                    seed.guid = os::process::id.second;
-                }
-                stream.focusbus.send(*this, seed.id, seed.guid, netxs::events::subindex(deed));
+                auto state = deed == hids::events::focus::bus::on.id;
+                stream.sysfocus.send(*this, seed.gear_id, state);
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {

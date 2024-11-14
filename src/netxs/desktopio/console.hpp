@@ -145,20 +145,6 @@ namespace netxs::ui
                     boss.bell::signal(Tier, E::id, d);
                 });
             }
-            //todo replace to xs::focus (set/off)
-            void handle(s11n::xs::focusbus    lock)
-            {
-                auto& focus = lock.thing;
-                auto deed = netxs::events::makeid(hids::events::focus::bus::any.id, focus.cause);
-                if (focus.guid != ui::console::id.second || deed != hids::events::focus::bus::copy.id) // To avoid focus tree infinite looping.
-                {
-                    owner.bell::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
-                    {
-                        auto seed = hids::events::focus::bus::on.param({ .id = d.gear_id });
-                        boss.bell::signal(tier::release, deed, seed);
-                    });
-                }
-            }
             void handle(s11n::xs::req_input_fields lock)
             {
                 owner.bell::enqueue(owner.This(), [&, item = lock.thing](auto& /*boss*/) mutable
@@ -232,6 +218,11 @@ namespace netxs::ui
             {
                 auto& item = lock.thing;
                 notify(e2::conio::keybd, item);
+            }
+            void handle(s11n::xs::sysfocus    lock)
+            {
+                auto& item = lock.thing;
+                notify(e2::conio::focus, item);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -574,6 +565,10 @@ namespace netxs::ui
                 {
                     forward(k);
                 };
+                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
+                {
+                    forward(f);
+                };
                 boss.LISTEN(tier::release, e2::conio::board, c, memo)
                 {
                     forward(c);
@@ -788,9 +783,14 @@ namespace netxs::ui
                     status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
                 };
+                boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
+                {
+                    shadow();
+                    status[prop::focused].set(stress) = f.state ? "focused  " : "unfocused";
+                };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
                 {
-                    static constexpr auto kstate = std::to_array({ "idle", "pressed", "repeated" });
+                    static constexpr auto kstate = std::to_array({ "idle    ", "pressed ", "repeated" });
                     shadow();
                     status[prop::last_event   ].set(stress) = "keybd";
                     status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
@@ -1130,15 +1130,15 @@ namespace netxs::ui
             //todo replace to tier::release hids::events::focus::any (set/off)
             LISTEN(tier::release, hids::events::focus::bus::any, seed, tokens)
             {
-                if (seed.id != id_t{}) // Translate only the real foreign gear id.
+                if (seed.nondefault_gear()) // Translate only the real foreign gear id.
                 {
-                    auto gear_it = input.gears.find(seed.id);
+                    auto gear_it = input.gears.find(seed.gear_id);
                     if (gear_it == input.gears.end())
                     {
-                        gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, *this, input.xmap)).first;
+                        gear_it = input.gears.emplace(seed.gear_id, bell::create<hids>(props, *this, input.xmap)).first;
                     }
                     auto& [_id, gear_ptr] = *gear_it;
-                    seed.id = gear_ptr->id;
+                    seed.gear_id = gear_ptr->id;
                 }
 
                 auto deed = this->bell::protos(tier::release);
@@ -1149,15 +1149,29 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, hids::events::focus::cut, seed, tokens)
             {
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
-                if (!gear_ptr) return;
-                conio.focus_cut.send(canal, ext_gear_id);
+                if (seed.nondefault_gear())
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
+                    if (gear_ptr)
+                    {
+                        conio.focus_cut.send(canal, ext_gear_id);
+                    }
+                }
             };
             LISTEN(tier::preview, hids::events::focus::set, seed, tokens)
             {
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
-                if (!gear_ptr) return;
-                conio.focus_set.send(canal, ext_gear_id, seed.solo);
+                if (seed.nondefault_gear())
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
+                    if (gear_ptr)
+                    {
+                        conio.focus_set.send(canal, ext_gear_id, seed.solo);
+                    }
+                }
+                else
+                {
+                    conio.focus_set.send(canal, seed.gear_id, seed.solo);
+                }
             };
             LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
             {
