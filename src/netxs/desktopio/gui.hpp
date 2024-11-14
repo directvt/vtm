@@ -1799,23 +1799,25 @@ namespace netxs::gui
             }
             void handle(s11n::xs::sysfocus         lock)
             {
-                auto& item = lock.thing;
-                if (item.state)
+                auto guard = owner.sync(); // Guard the owner.This() call.
+                auto& f = lock.thing;
+                if (f.state)
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = item.gear_id, .solo = item.solo, .item = owner.This(), .guid = os::process::id.second/*don't send it back*/ });
+                        //todo pro::focus::set();
+                        owner.base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
                     }
                     else owner.window_post_command(ipc::take_focus);
-                    if (item.solo == ui::pro::focus::solo::on) // Set solo focus.
+                    if (f.solo == ui::pro::focus::solo::on) // Set solo focus.
                     {
                         owner.window_post_command(ipc::solo_focus);
                     }
                 }
                 else
                 {
-                    // We are the focus tree endpoint.
-                    auto seed = owner.bell::signal(tier::release, hids::events::focus::bus::off, { .gear_id = item.gear_id, .guid = os::process::id.second/*don't send it back*/ });
+                    //todo pro::focus::off();
+                    owner.base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
                 }
             }
             void handle(s11n::xs::hotkey_scheme    lock)

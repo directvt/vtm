@@ -1271,8 +1271,19 @@ namespace netxs::ui
             }
 
         public:
-            enum class mode { hub, focusable, focused, active };
-            enum class solo { off, on, mix };
+            enum class mode
+            {
+                focusable, // Object can be focused and active, it is unfocused by default. It cuts the  focus tree when focus is set on it.
+                focused,   // Object can be focused and active, it is focused by default. It cuts the  focus tree when focus is set on it.
+                hub,       // Object can't be focused, only active, it is inactive by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
+                active,    // Object can't be focused, only active, it is active by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
+            };
+            enum class solo
+            {
+                off, // Allow group focus.
+                on,  // Set unique focus.
+                mix, //todo define (used by Tile).
+            };
             friend auto operator == (si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
@@ -1526,7 +1537,15 @@ namespace netxs::ui
                     }
                     else // Build focus tree (we are in the middle of the focus tree).
                     {
-                        if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
+                        if (seed.item == boss.This()) // seed.item is the process edge (gui or dtvt-object).
+                        {
+                            if (route.active) // Finish if the branch is active.
+                            {
+                                // break riseup
+                                return;
+                            }
+                        }
+                        else if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
                         {
                             if (route.active) // seed.solo == solo::on, off group focus, remove all but seed.item.
                             {

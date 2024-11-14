@@ -790,7 +790,7 @@ namespace netxs::app::terminal
     {
         auto window_clr = skin::color(tone::window_clr);
         auto window = ui::cake::ctor()
-            ->plugin<pro::focus>(pro::focus::mode::active)
+            ->plugin<pro::focus>(pro::focus::mode::hub)
             ->invoke([&](auto& boss)
             {
                 closing_on_quit(boss);

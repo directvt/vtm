@@ -8020,18 +8020,17 @@ namespace netxs::ui
             {
                 if (owner.active)
                 {
-                    auto guard = owner.sync();
-                    if (auto parent_ptr = owner.base::parent())
+                    auto guard = owner.sync(); // Guard the owner.This() call.
+                    auto& f = lock.thing;
+                    if (f.state)
                     {
-                        auto& f = lock.thing;
-                        if (f.state)
-                        {
-                            parent_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
-                        }
-                        else
-                        {
-                            parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
-                        }
+                        //todo pro::focus::set();
+                        owner.base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                    }
+                    else
+                    {
+                        //todo pro::focus::off();
+                        owner.base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
                     }
                 }
             }
