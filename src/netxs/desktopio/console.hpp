@@ -830,12 +830,6 @@ namespace netxs::ui
                         if (t.size()) status[prop::key_chord].set(stress) = t;
                     }
                 };
-                boss.LISTEN(tier::release, e2::conio::error, error, tokens)
-                {
-                    shadow();
-                    status[prop::last_event].set(stress) = "error";
-                    throw;
-                };
             }
         };
 
@@ -1127,26 +1121,6 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            //todo replace to tier::release hids::events::focus::any (set/off)
-            LISTEN(tier::release, hids::events::focus::bus::any, seed, tokens)
-            {
-                if (seed.nondefault_gear()) // Translate only the real foreign gear id.
-                {
-                    auto gear_it = input.gears.find(seed.gear_id);
-                    if (gear_it == input.gears.end())
-                    {
-                        gear_it = input.gears.emplace(seed.gear_id, bell::create<hids>(props, *this, input.xmap)).first;
-                    }
-                    auto& [_id, gear_ptr] = *gear_it;
-                    seed.gear_id = gear_ptr->id;
-                }
-
-                auto deed = this->bell::protos(tier::release);
-                if (auto target = nexthop.lock())
-                {
-                    target->bell::signal(tier::release, deed, seed);
-                }
-            };
             LISTEN(tier::preview, hids::events::focus::cut, seed, tokens)
             {
                 if (seed.nondefault_gear())
@@ -1168,10 +1142,6 @@ namespace netxs::ui
                         conio.focus_set.send(canal, ext_gear_id, seed.solo);
                     }
                 }
-                else
-                {
-                    conio.focus_set.send(canal, seed.gear_id, seed.solo);
-                }
             };
             LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
             {
@@ -1187,7 +1157,7 @@ namespace netxs::ui
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens) // Forward unhandled events outside. Return back unhandled keybd events.
+            LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (gear && !gear.handled)
                 {
@@ -1246,11 +1216,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
-            };
-            LISTEN(tier::release, e2::conio::error, errcode, tokens)
-            {
-                log(prompt::gate, "Console error: ", errcode);
-                conio.disconnect();
             };
             LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
             {

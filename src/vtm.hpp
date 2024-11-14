@@ -1842,10 +1842,6 @@ namespace netxs::app::vtm
             {
                 if (items) item = items.back();
             };
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
-            {
-                hall::focus = gear.id;
-            };
             LISTEN(tier::request, desk::events::exec, appspec)
             {
                 static auto offset = dot_00;
@@ -1957,14 +1953,18 @@ namespace netxs::app::vtm
                 slot->bell::signal(tier::anycast, e2::form::upon::started);
                 what.applet = slot;
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb event.
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
+            {
+                hall::focus = gear.id;
+            };
+            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
             {
                 if (gear && !gear.handled)
                 {
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::focus::cut, seed) // Forward focus event to the gate for sending to outside.
+            LISTEN(tier::preview, hids::events::focus::cut, seed) // Forward the focus event to the gate for sending it to the outside.
             {
                 if (seed.nondefault_gear())
                 {
@@ -1975,12 +1975,8 @@ namespace netxs::app::vtm
                         gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
                     }
                 }
-                //else
-                //{
-                //    gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
-                //}
             };
-            LISTEN(tier::preview, hids::events::focus::set, seed) // Forward focus event to the gate for sending to outside.
+            LISTEN(tier::preview, hids::events::focus::set, seed) // Forward the focus event to the gate for sending it to the outside.
             {
                 if (seed.nondefault_gear())
                 {
@@ -1989,13 +1985,6 @@ namespace netxs::app::vtm
                         auto& gear = *gear_ptr;
                         seed.item = this->This();
                         gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
-                    }
-                }
-                else
-                {
-                    for (auto& u : users.items)
-                    {
-                        u->object->bell::signal(tier::preview, hids::events::focus::set, seed);
                     }
                 }
             };
