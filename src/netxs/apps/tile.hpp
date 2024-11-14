@@ -278,7 +278,7 @@ namespace netxs::app::tile
                                 {
                                     auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
                                     world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
-                                    pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, true); // Refocus.
+                                    pro::focus::set(what.applet, gear_id_list, solo::off, true); // Refocus.
                                     master.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 }
 
@@ -292,11 +292,11 @@ namespace netxs::app::tile
                         };
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                         {
-                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on);
+                            pro::focus::set(boss.This(), gear.id, solo::on);
                         };
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
                         {
-                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on);
+                            pro::focus::set(boss.This(), gear.id, solo::on);
                         };
                         boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                         {
@@ -483,7 +483,7 @@ namespace netxs::app::tile
                             if (ratio == min_ratio)
                             {
                                 node->set_ratio(saved_ratio);
-                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off : pro::focus::solo::on, true);
+                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
                             }
                             else
                             {
@@ -524,7 +524,7 @@ namespace netxs::app::tile
                             auto app = app_window(what);
                             boss.attach(app);
                             app->bell::signal(tier::anycast, e2::form::upon::started);
-                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::mix, true);
+                            pro::focus::set(what.applet, gear_id_list, solo::mix, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
@@ -542,7 +542,7 @@ namespace netxs::app::tile
                                 boss.attach(item_ptr);
                             }
                             else item_ptr = boss.This();
-                            pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off);
+                            pro::focus::set(boss.back(), gear_id_list, solo::off);
                         }
                         else
                         {
@@ -563,7 +563,7 @@ namespace netxs::app::tile
                                 {
                                     auto gear_id_list = pro::focus::get(boss.This());
                                     item_ptr = boss.pop_back();
-                                    pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off);
+                                    pro::focus::set(boss.back(), gear_id_list, solo::off);
                                 }
                                 else
                                 {
@@ -590,7 +590,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto item_ptr = boss.back();
-                        if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off);
+                        if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, solo::off);
                         else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
@@ -621,7 +621,7 @@ namespace netxs::app::tile
                                 };
                                 auto just_copy = fullscreen_item;
                                 boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
-                                pro::focus::set(just_copy, gear_id_list, pro::focus::solo::off); // Handover all foci.
+                                pro::focus::set(just_copy, gear_id_list, solo::off); // Handover all foci.
                                 boss.base::reflow();
                             }
                         }
@@ -649,8 +649,8 @@ namespace netxs::app::tile
                             auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
                             auto slot_2 = newnode->attach(slot::_2, empty_2);
                             boss.attach(newnode);
-                            pro::focus::set(slot_1->back(), gear_id, pro::focus::solo::off); // Handover all foci.
-                            pro::focus::set(slot_2->back(), gear_id, pro::focus::solo::off);
+                            pro::focus::set(slot_1->back(), gear_id, solo::off); // Handover all foci.
+                            pro::focus::set(slot_2->back(), gear_id, solo::off);
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -673,7 +673,7 @@ namespace netxs::app::tile
                             {
                                 auto gear_id_list = pro::focus::get(boss.This());
                                 auto deleted_item = boss.pop_back(); // Throw away.
-                                pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off);
+                                pro::focus::set(boss.back(), gear_id_list, solo::off);
                             }
                             else if (boss.count() == 1) // Remove empty slot, reorganize.
                             {
@@ -717,7 +717,7 @@ namespace netxs::app::tile
                         {
                             gear_id_list.push_back(gear.id);
                         }
-                        pro::focus::set(app, gear_id_list, pro::focus::solo::off);
+                        pro::focus::set(app, gear_id_list, solo::off);
                     };
                     boss.LISTEN(tier::release, events::backup, empty_slot_list)
                     {
@@ -963,8 +963,8 @@ namespace netxs::app::tile
                             auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
                             auto item_ptr = boss.pop_back();
                             item_ptr->bell::signal(tier::release, e2::form::size::restore, item_ptr);
-                            pro::focus::set(boss.back(), foci_list, pro::focus::solo::off, true); // Restore saved foci.
-                            pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off); // Apply item's foci.
+                            pro::focus::set(boss.back(), foci_list, solo::off, true); // Restore saved foci.
+                            pro::focus::set(item_ptr, gear_id_list, solo::off); // Apply item's foci.
                             foci_list.clear();
                         }
 

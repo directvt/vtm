@@ -1278,31 +1278,24 @@ namespace netxs::ui
                 hub,       // Object can't be focused, only active, it is inactive by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
                 active,    // Object can't be focused, only active, it is active by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
             };
-            enum class solo
-            {
-                off, // Allow group focus.
-                on,  // Set unique focus.
-                mix, //todo define (used by Tile).
-            };
-            friend auto operator == (si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
-            static void set(sptr item_ptr, T&& gear_id, solo s, bool just_activate_only = faux) // just_activate_only means don't focus just activate only.
+            static void set(sptr item_ptr, T&& gear_id, si32 focus_type, bool just_activate_only = faux, sptr item = {}) // just_activate_only means don't focus just activate only; item - is a non-zero initiator if it is on a process boundary (dtvt or gui).
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .solo = (si32)s, .just_activate_only = just_activate_only });
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only, .item = item });
                     //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.gear_id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
             template<class T>
-            static void off(sptr item_ptr, T&& gear_id)
+            static void off(sptr item_ptr, T&& gear_id, sptr item = {})
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id });
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id, .item = item }); // item - is a non-zero initiator if it is on a process boundary (dtvt or gui).
                     //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.gear_id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1344,7 +1337,7 @@ namespace netxs::ui
                 {
                     auto seed = parent->base::riseup(tier::release, hids::events::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
-                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off);
+                    pro::focus::set(dst_ptr, gear_id_list, solo::off);
                 }
             }
             static auto test(base& item, input::hids& gear)
@@ -1512,13 +1505,13 @@ namespace netxs::ui
                     {
                         if (route.active)
                         {
-                            if (seed.solo != solo::on) // Group focus.  seed.solo == solo::off || seed.solo == solo::mix
+                            if (seed.focus_type != solo::on) // Group focus.  focus_type == solo::off || focus_type == solo::mix
                             {
                                 route.focused = allow_focusize;
                                 // break riseup
                                 return;
                             }
-                            if (allow_focusize) // seed.solo == solo::on, drop all active branches. The boss is the focus leaf.
+                            if (allow_focusize) // focus_type == solo::on, drop all active branches. The boss is the focus leaf.
                             {
                                 route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
                                 route.next.clear();
@@ -1545,9 +1538,9 @@ namespace netxs::ui
                                 return;
                             }
                         }
-                        else if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
+                        else if (seed.focus_type == solo::on || (seed.focus_type == solo::mix && !route.active))
                         {
-                            if (route.active) // seed.solo == solo::on, off group focus, remove all but seed.item.
+                            if (route.active) // focus_type == solo::on, off group focus, remove all but seed.item.
                             {
                                 route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
                             }

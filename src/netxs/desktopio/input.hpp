@@ -736,7 +736,7 @@ namespace netxs::input
     struct foci
     {
         id_t gear_id{}; // foci: Gear id.
-        si32 solo{}; // foci: Exclusive focus request.
+        si32 focus_type{}; // foci: Exclusive focus request.
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.

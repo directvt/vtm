@@ -130,7 +130,7 @@ namespace netxs::app::desk
                                 {
                                     window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on);
+                                else pro::focus::set(data_src, gear.id, solo::on);
                             }
                             else // Jump to window.
                             {
@@ -158,7 +158,7 @@ namespace netxs::app::desk
                                     {
                                         window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                     }
-                                    pro::focus::set(data_src, gear.id, pro::focus::solo::off);
+                                    pro::focus::set(data_src, gear.id, solo::off);
                                 }
                                 gear.dismiss(true); // Suppress double click.
                             }
@@ -173,7 +173,7 @@ namespace netxs::app::desk
                                 {
                                     window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on);
+                                else pro::focus::set(data_src, gear.id, solo::on);
                                 gear.dismiss();
                             }
                         }
@@ -420,7 +420,7 @@ namespace netxs::app::desk
                         boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
                         {
                             auto deed = boss.bell::protos(tier::release);
-                                 if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off);
+                                 if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);
                             else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
                         };
                     });

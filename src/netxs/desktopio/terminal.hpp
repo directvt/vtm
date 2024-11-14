@@ -338,7 +338,7 @@ namespace netxs::ui
                     auto gear_test = owner.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
-                        pro::focus::set(owner.This(), gear.id, pro::focus::solo::off);
+                        pro::focus::set(owner.This(), gear.id, solo::off);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -349,7 +349,7 @@ namespace netxs::ui
                     if (gear_test.second == 0)
                     {
                         if (pro::focus::test(owner, gear)) pro::focus::off(owner.This(), gear.id);
-                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off : pro::focus::solo::on);
+                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -7134,7 +7134,7 @@ namespace netxs::ui
             auto data = get_clipboard_text(gear);
             if (data.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+                pro::focus::set(this->This(), gear.id, solo::off);
                 _paste(data);
                 return true;
             }
@@ -7143,7 +7143,7 @@ namespace netxs::ui
         auto _copy(hids& gear, text const& data)
         {
             auto form = selmod == mime::disabled ? mime::textonly : selmod;
-            pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+            pro::focus::set(this->This(), gear.id, solo::off);
             gear.set_clipboard(target->panel, data, form);
         }
         auto copy(hids& gear)
@@ -7186,7 +7186,7 @@ namespace netxs::ui
             auto gear_test = base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
             if (!gear_test.second) // Set exclusive focus on right click.
             {
-                pro::focus::set(This(), gear.id, pro::focus::solo::on);
+                pro::focus::set(This(), gear.id, solo::on);
             }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
@@ -7208,7 +7208,7 @@ namespace netxs::ui
             }
             if (utf8.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+                pro::focus::set(this->This(), gear.id, solo::off);
                 follow[axis::X] = true;
                 if (bpmode)
                 {
@@ -8021,16 +8021,15 @@ namespace netxs::ui
                 if (owner.active)
                 {
                     auto guard = owner.sync(); // Guard the owner.This() call.
+                    auto owner_ptr = owner.This();
                     auto& f = lock.thing;
                     if (f.state)
                     {
-                        //todo pro::focus::set();
-                        owner.base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux, owner_ptr);
                     }
                     else
                     {
-                        //todo pro::focus::off();
-                        owner.base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                        pro::focus::off(owner_ptr, f.gear_id, owner_ptr);
                     }
                 }
             }
@@ -8404,7 +8403,7 @@ namespace netxs::ui
             {
                 auto deed = this->bell::protos(tier::release);
                 auto state = deed == hids::events::focus::bus::on.id;
-                stream.sysfocus.send(*this, seed.gear_id, state, seed.solo);
+                stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {

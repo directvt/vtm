@@ -419,7 +419,7 @@ namespace netxs::app::shared
                     };
                 });
             term->attach(app::shared::scroll_bars(scrl));
-            dtvt->plugin<pro::focus>(pro::focus::mode::focusable)
+            dtvt->plugin<pro::focus>()
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {

@@ -1590,7 +1590,7 @@ namespace netxs::gui
                 if (!wheel && buson && owner) target_list = std::vector<ui32>(group.begin(), group.end());
                 return target_list;
             }
-            auto solo(ui32 local_target)
+            auto set_solo(ui32 local_target)
             {
                 auto lock = std::lock_guard{ mutex };
                 auto copy = std::vector<ui32>(group.size());
@@ -1800,24 +1800,23 @@ namespace netxs::gui
             void handle(s11n::xs::sysfocus         lock)
             {
                 auto guard = owner.sync(); // Guard the owner.This() call.
+                auto owner_ptr = owner.This();
                 auto& f = lock.thing;
                 if (f.state)
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        //todo pro::focus::set();
-                        owner.base::riseup(tier::preview, hids::events::focus::set, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux, owner_ptr);
                     }
                     else owner.window_post_command(ipc::take_focus);
-                    if (f.solo == ui::pro::focus::solo::on) // Set solo focus.
+                    if (f.focus_type == solo::on) // Set solo focus.
                     {
-                        owner.window_post_command(ipc::solo_focus);
+                        owner.window_post_command(ipc::solo_focus); // Request to drop all parallel foci.
                     }
                 }
                 else
                 {
-                    //todo pro::focus::off();
-                    owner.base::riseup(tier::preview, hids::events::focus::cut, { .gear_id = f.gear_id, .solo = f.solo, .item = owner.This() });
+                    pro::focus::off(owner_ptr, f.gear_id, owner_ptr);
                 }
             }
             void handle(s11n::xs::hotkey_scheme    lock)
@@ -3114,7 +3113,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = stream.gears->id, .solo = (si32)ui::pro::focus::solo::on, .item = This() });
+                        auto seed = bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = stream.gears->id, .focus_type = solo::on, .item = This() });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3135,7 +3134,7 @@ namespace netxs::gui
             else if (command == ipc::solo_focus)
             {
                 auto local_target = (ui32)master.hWnd;
-                auto target_list = mfocus.solo(local_target);
+                auto target_list = mfocus.set_solo(local_target);
                 for (auto target : target_list) window_send_command(target, ipc::drop_focus);
             }
             else if (command == ipc::sync_state)
@@ -3294,7 +3293,7 @@ namespace netxs::gui
                     auto state = deed == hids::events::focus::bus::on.id;
                     if (seed.guid != os::process::id.second) // Don't send it back to inside if we just received it.
                     {
-                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.solo);
+                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type);
                     }
                     if (state && hotkey)
                     {

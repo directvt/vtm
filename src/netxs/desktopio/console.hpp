@@ -1128,7 +1128,7 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
-                        conio.sysfocus.send(canal, ext_gear_id, faux, seed.solo);
+                        conio.sysfocus.send(canal, ext_gear_id, faux, seed.focus_type);
                     }
                 }
             };
@@ -1139,7 +1139,7 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
-                        conio.sysfocus.send(canal, ext_gear_id, true, seed.solo);
+                        conio.sysfocus.send(canal, ext_gear_id, true, seed.focus_type);
                     }
                 }
             };
