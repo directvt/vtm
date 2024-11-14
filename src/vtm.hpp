@@ -1964,7 +1964,7 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::preview, hids::events::focus::cut, seed) // Forward the focus event to the gate for sending it to the outside.
+            LISTEN(tier::preview, hids::events::focus::off, seed) // Forward the focus event to the gate for sending it to the outside.
             {
                 if (seed.nondefault_gear())
                 {
@@ -1972,7 +1972,7 @@ namespace netxs::app::vtm
                     {
                         auto& gear = *gear_ptr;
                         //seed.item = this->This();
-                        gear.owner.bell::signal(tier::preview, hids::events::focus::cut, seed);
+                        gear.owner.bell::signal(tier::preview, hids::events::focus::off, seed);
                     }
                 }
             };

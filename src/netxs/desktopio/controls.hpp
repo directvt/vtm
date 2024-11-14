@@ -1444,13 +1444,6 @@ namespace netxs::ui
                     auto& route = iter->second;
                     notify_set_focus(route, seed);
                 };
-                //todo use tier::release, hids::events::focus::off
-                boss.LISTEN(tier::release, hids::events::focus::bus::off, seed, memo)
-                {
-                    auto& route = get_route(seed.gear_id);
-                    notify_off_focus(route, seed);
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.gear_id, " hub:", boss.id);
-                };
                 // pro::focus: Replace next hop object "seed.what" with "seed.item".
                 boss.LISTEN(tier::release, hids::events::focus::hop, seed, memo)
                 {
@@ -1463,34 +1456,6 @@ namespace netxs::ui
                                 next_wptr = seed.item;
                             }
                         }
-                    }
-                };
-                // pro::focus: Truncate the maximum path without branches.
-                boss.LISTEN(tier::preview, hids::events::focus::cut, seed, memo)
-                {
-                    auto& route = get_route(seed.gear_id);
-                    auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                    if (iter != route.next.end())
-                    {
-                        if (scope || route.next.size() != 1) // The root of the branch.
-                        {
-                            route.next.erase(iter);
-                        }
-                        else
-                        {
-                            notify_off_focus(route, seed);
-                            if (auto parent_ptr = boss.parent())
-                            {
-                                seed.item = boss.This();
-                                parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, seed);
-                            }
-                            return;
-                        }
-                    }
-                    if (seed.item)
-                    {
-                        seed.item->bell::signal(tier::release, hids::events::focus::bus::off, seed);
-                        boss.expire(tier::preview);
                     }
                 };
                 // pro::focus: Subscribe on focus offers. Build a focus tree.
@@ -1575,25 +1540,75 @@ namespace netxs::ui
                     }
                     // else break riseup
                 };
+                //todo use tier::release, hids::events::focus::off
+                boss.LISTEN(tier::release, hids::events::focus::bus::off, seed, memo)
+                {
+                    auto& route = get_route(seed.gear_id);
+                    notify_off_focus(route, seed);
+                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.gear_id, " hub:", boss.id);
+                };
+                // pro::focus: Truncate the maximum path without branches.
                 boss.LISTEN(tier::preview, hids::events::focus::off, seed, memo)
                 {
                     auto& route = get_route(seed.gear_id);
-                    if (route.active)
+                    auto boss_ptr = boss.This();
+                    if (seed.item == boss_ptr)
                     {
-                        route.focused = faux;
-                        if (auto parent_ptr = boss.parent())
+                        if (route.active)
                         {
-                            auto temp = seed.item;
-                            seed.item = boss.This();
-                            parent_ptr->base::riseup(tier::preview, hids::events::focus::cut, seed);
-                            seed.item = temp;
+                            route.focused = faux;
+                            notify_off_focus(route, seed);
+                            if (auto parent_ptr = boss.parent())
+                            {
+                                seed.item = boss_ptr;
+                                parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                            }
+                        }
+                    }
+                    else if (seed.item)
+                    {
+                        auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
+                        if (iter != route.next.end())
+                        {
+                            if (scope || route.next.size() != 1) // The root of the branch.
+                            {
+                                route.next.erase(iter);
+                            }
+                            else
+                            {
+                                notify_off_focus(route, seed);
+                                if (auto parent_ptr = boss.parent())
+                                {
+                                    seed.item = boss_ptr;
+                                    parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                                }
+                                return;
+                            }
+                        }
+                        seed.item->bell::signal(tier::release, hids::events::focus::bus::off, seed);
+                        boss.expire(tier::preview); //todo Why?
+                    }
+                    else
+                    {
+                        if (route.active)
+                        {
+                            route.focused = faux;
+                            if (auto parent_ptr = boss.parent())
+                            {
+                                auto temp = seed.item;
+                                seed.item = boss.This();
+                                parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                                seed.item = temp;
+                            }
                         }
                     }
                 };
                 boss.LISTEN(tier::preview, hids::events::focus::get, seed, memo)
                 {
+                    auto saved_item = std::exchange(seed.item, sptr{});
                     boss.bell::signal(tier::preview, hids::events::focus::off, seed);
                     gears.erase(seed.gear_id);
+                    seed.item = saved_item;
                 };
                 boss.LISTEN(tier::preview, hids::events::focus::dry, seed, memo)
                 {

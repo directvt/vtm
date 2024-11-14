@@ -160,7 +160,6 @@ namespace netxs::events::userland
                 EVENT_XS( set, input::foci ),
                 EVENT_XS( get, input::foci ),
                 EVENT_XS( off, input::foci ),
-                EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                 EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
                 GROUP_XS( bus, input::foci ),

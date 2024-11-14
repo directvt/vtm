@@ -1121,25 +1121,16 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            LISTEN(tier::preview, hids::events::focus::cut, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::any, seed, tokens)
             {
                 if (seed.nondefault_gear())
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
-                        conio.sysfocus.send(canal, ext_gear_id, faux, seed.focus_type);
-                    }
-                }
-            };
-            LISTEN(tier::preview, hids::events::focus::set, seed, tokens)
-            {
-                if (seed.nondefault_gear())
-                {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
-                    if (gear_ptr)
-                    {
-                        conio.sysfocus.send(canal, ext_gear_id, true, seed.focus_type);
+                        auto deed = bell::protos(tier::preview);
+                        auto state = deed == hids::events::focus::set.id;
+                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type);
                     }
                 }
             };
