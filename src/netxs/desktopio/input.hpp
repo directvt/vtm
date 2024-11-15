@@ -158,10 +158,10 @@ namespace netxs::events::userland
             SUBSET_XS( focus )
             {
                 EVENT_XS( set, input::foci ),
-                EVENT_XS( get, input::foci ),
                 EVENT_XS( off, input::foci ),
-                EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
-                EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
+                EVENT_XS( get, input::foci ), // request: To unfocus and delete route.
+                EVENT_XS( dry, input::foci ), // request: To remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // request: To change next hop destination. args: seed.what => seed.item.
                 GROUP_XS( bus, input::foci ),
 
                 SUBSET_XS( bus )
@@ -1879,8 +1879,8 @@ namespace netxs::input
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, hids::events::focus::bus::on, { .gear_id = id })
-                         : owner.bell::signal(tier::release, hids::events::focus::bus::off, { .gear_id = id });
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id })
+                         : owner.bell::signal(tier::release, hids::events::focus::off, { .gear_id = id });
         }
         text interpret(bool decckm)
         {

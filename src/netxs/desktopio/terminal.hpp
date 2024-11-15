@@ -8399,10 +8399,10 @@ namespace netxs::ui
                 stream.sysmouse.send(*this, gear.m_sys);
             };
             //todo replace it with tier::release hids::events::focus::any (set/off)
-            LISTEN(tier::release, hids::events::focus::bus::any, seed)
+            LISTEN(tier::release, hids::events::focus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                auto state = deed == hids::events::focus::bus::on.id;
+                auto state = deed == hids::events::focus::set.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)

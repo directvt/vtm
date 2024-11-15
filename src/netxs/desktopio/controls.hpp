@@ -457,11 +457,11 @@ namespace netxs::ui
                   alive{ true }
             {
                 // Keybd focus.
-                //boss.LISTEN(tier::release, hids::events::focus::bus::on, seed, memo)
+                //boss.LISTEN(tier::release, hids::events::focus::set, seed, memo)
                 //{
                 //    add_keybd(seed.gear_id);
                 //};
-                //boss.LISTEN(tier::release, hids::events::focus::bus::off, seed, memo)
+                //boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
                 //{
                 //    del_keybd(seed.gear_id);
                 //};
@@ -1322,13 +1322,12 @@ namespace netxs::ui
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 for (auto next_id : gear_id_list)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::get, { .gear_id = next_id });
-                    //if constexpr (debugmode) log(prompt::foci, "Focus get gear:", seed.gear_id, " item:", item_ptr->id);
+                    item_ptr->base::riseup(tier::request, hids::events::focus::get, { .gear_id = next_id });
                 }
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
                 {
-                    auto seed = parent->base::riseup(tier::preview, hids::events::focus::dry, { .item = item_ptr });
+                    parent->base::riseup(tier::request, hids::events::focus::dry, { .item = item_ptr });
                 }
                 return gear_id_list;
             }
@@ -1336,7 +1335,7 @@ namespace netxs::ui
             {
                 if (auto parent = src_ptr->parent())
                 {
-                    auto seed = parent->base::riseup(tier::release, hids::events::focus::hop, { .what = src_ptr, .item = dst_ptr });
+                    parent->base::riseup(tier::request, hids::events::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
                     pro::focus::set(dst_ptr, gear_id_list, solo::off);
                 }
@@ -1414,8 +1413,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::focus: Subscribe on focus chain events.
-                //todo replace it with tier::release hids::events::focus::any (set/off)
-                boss.LISTEN(tier::release, hids::events::focus::bus::any, seed, memo) // Forward the bus event up.
+                boss.LISTEN(tier::release, hids::events::focus::any, seed, memo) // Forward the bus event up.
                 {
                     auto& route = get_route(seed.gear_id);
                     auto deed = boss.bell::protos(tier::release);
@@ -1423,8 +1421,7 @@ namespace netxs::ui
                     route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, deed, seed); });
                     //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------");
                 };
-                //todo replace it with tier::release hids::events::focus::set
-                boss.LISTEN(tier::release, hids::events::focus::bus::on, seed, memo)
+                boss.LISTEN(tier::release, hids::events::focus::set, seed, memo)
                 {
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.gear_id, " hub:", boss.id, " gears.size:", gears.size());
                     auto iter = gears.find(seed.gear_id);
@@ -1445,7 +1442,7 @@ namespace netxs::ui
                     notify_set_focus(route, seed);
                 };
                 // pro::focus: Replace next hop object "seed.what" with "seed.item".
-                boss.LISTEN(tier::release, hids::events::focus::hop, seed, memo)
+                boss.LISTEN(tier::request, hids::events::focus::hop, seed, memo)
                 {
                     for (auto& [gear_id, route] : gears)
                     {
@@ -1478,7 +1475,7 @@ namespace netxs::ui
                             }
                             if (allow_focusize) // focus_type == solo::on, drop all active branches. The boss is the focus leaf.
                             {
-                                route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
+                                route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::off, seed); });
                                 route.next.clear();
                             }
                         }
@@ -1486,8 +1483,7 @@ namespace netxs::ui
                         {
                             if (!allow_focusize && seed.nondefault_gear()) // Copy the default up-route for the focus hub.
                             {
-                                //todo use tier::release, hids::events::focus::set
-                                boss.bell::signal(tier::release, hids::events::focus::bus::on, seed);
+                                boss.bell::signal(tier::release, hids::events::focus::set, seed);
                             }
                             else notify_set_focus(route, seed);
                         }
@@ -1507,7 +1503,7 @@ namespace netxs::ui
                         {
                             if (route.active) // focus_type == solo::on, off group focus, remove all but seed.item.
                             {
-                                route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->bell::signal(tier::release, hids::events::focus::bus::off, seed); });
+                                route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->bell::signal(tier::release, hids::events::focus::off, seed); });
                             }
                             route.next.clear();
                             route.next.push_back(seed.item);
@@ -1521,7 +1517,7 @@ namespace netxs::ui
                             }
                             if (route.active) // Finish if the branch is active.
                             {
-                                //seed.item->bell::signal(tier::release, hids::events::focus::bus::on, seed);
+                                //seed.item->bell::signal(tier::release, hids::events::focus::set, seed);
                                 // break riseup
                                 return;
                             }
@@ -1540,8 +1536,7 @@ namespace netxs::ui
                     }
                     // else break riseup
                 };
-                //todo use tier::release, hids::events::focus::off
-                boss.LISTEN(tier::release, hids::events::focus::bus::off, seed, memo)
+                boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
                 {
                     auto& route = get_route(seed.gear_id);
                     notify_off_focus(route, seed);
@@ -1585,7 +1580,7 @@ namespace netxs::ui
                                 return;
                             }
                         }
-                        seed.item->bell::signal(tier::release, hids::events::focus::bus::off, seed);
+                        seed.item->bell::signal(tier::release, hids::events::focus::off, seed);
                         boss.expire(tier::preview); //todo Why?
                     }
                     else
@@ -1603,14 +1598,12 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.LISTEN(tier::preview, hids::events::focus::get, seed, memo)
+                boss.LISTEN(tier::request, hids::events::focus::get, seed, memo)
                 {
-                    auto saved_item = std::exchange(seed.item, sptr{});
                     boss.bell::signal(tier::preview, hids::events::focus::off, seed);
                     gears.erase(seed.gear_id);
-                    seed.item = saved_item;
                 };
-                boss.LISTEN(tier::preview, hids::events::focus::dry, seed, memo)
+                boss.LISTEN(tier::request, hids::events::focus::dry, seed, memo)
                 {
                     for (auto& [gear_id, route] : gears)
                     {
