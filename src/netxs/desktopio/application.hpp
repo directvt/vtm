@@ -193,7 +193,7 @@ namespace netxs::app::shared
         {
             static constexpr auto brand = "type";
             static constexpr auto label = "label";
-            static constexpr auto notes = "notes";
+            static constexpr auto tooltip = "tooltip";
             static constexpr auto route = "action";
             static constexpr auto param = "data";
         }
@@ -218,7 +218,7 @@ namespace netxs::app::shared
             struct look
             {
                 text label{};
-                text notes{};
+                text tooltip{};
                 text param{};
                 text onkey{};
                 si32 value{};
@@ -278,7 +278,7 @@ namespace netxs::app::shared
                 auto& setup = std::get<1>(config);
                 auto& alive = props.alive;
                 auto& label = props.views.front().label;
-                auto& notes = props.views.front().notes;
+                auto& tooltip = props.views.front().tooltip;
                 auto& hover = props.views.front().hover;
                 auto button = ui::item::ctor(label)->drawdots();
                 button->active(); // Always active for tooltips.
@@ -287,7 +287,7 @@ namespace netxs::app::shared
                     if (hover.clr()) button->shader(hover                , e2::form::state::hover);
                     else             button->shader(cell::shaders::xlight, e2::form::state::hover);
                 }
-                button->template plugin<pro::notes>(notes)
+                button->template plugin<pro::notes>(tooltip)
                     ->setpad({ 2, 2, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
@@ -316,7 +316,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .tooltip = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -325,7 +325,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize " }}},//, .hover = c6 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .tooltip = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -334,7 +334,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close ", .hover = c1 }}},
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
@@ -443,11 +443,11 @@ namespace netxs::app::shared
             //auto c3 = highlight_color;
             auto items = list
             {
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .tooltip = " File menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .tooltip = " Edit menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .tooltip = " View menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .tooltip = " Data menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .tooltip = " Help menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
             };
             auto [menu, cover, menu_data] = create(config, items);
             return menu;

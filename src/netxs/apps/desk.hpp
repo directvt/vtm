@@ -16,7 +16,7 @@ namespace netxs::app::desk
         bool   hidden{}; // Hide existing item on taskbar.
         bool    fixed{}; // Item can't be updated by the new instance (see desk::events::exec).
         text    label{};
-        text    notes{};
+        text  tooltip{};
         text    title{};
         text   footer{};
         twod  winsize{};
@@ -90,14 +90,14 @@ namespace netxs::app::desk
                         auto owner_id = boss.base::riseup(tier::request, events::ui::id);
                         auto disabled = gear_id && gear_id != owner_id;
                         boss.bell::signal(tier::release, e2::form::state::disabled, disabled);
-                        auto& notes = boss.template plugins<pro::notes>();
-                        notes.update(disabled ? " Window is locked by another user "
-                                              : " Application window:                   \n"
-                                                "   LeftClick to set exclusive focus    \n"
-                                                "   Ctrl+LeftClick to set group focus   \n"
-                                                "   DoubleLeftClick to go to the window \n"
-                                                "   Alt+DblLeftClick to pull the window \n"
-                                                "   LeftDrag to move desktop viewport   ");
+                        auto& tooltip = boss.template plugins<pro::notes>();
+                        tooltip.update(disabled ? " Window is locked by another user "
+                                                : " Application window:                   \n"
+                                                  "   LeftClick to set exclusive focus    \n"
+                                                  "   Ctrl+LeftClick to set group focus   \n"
+                                                  "   DoubleLeftClick to go to the window \n"
+                                                  "   Alt+DblLeftClick to pull the window \n"
+                                                  "   LeftDrag to move desktop viewport   ");
                         return disabled;
                     };
                     auto gear_id = data_src->bell::signal(tier::request, e2::form::state::maximized);
@@ -291,7 +291,7 @@ namespace netxs::app::desk
                 }
                 auto& conf = conf_it->second;
                 auto& obj_desc = conf.label;
-                auto& obj_note = conf.notes;
+                auto& obj_note = conf.tooltip;
                 if (conf.splitter)
                 {
                     auto item_area = apps->attach(ui::item::ctor(obj_desc))

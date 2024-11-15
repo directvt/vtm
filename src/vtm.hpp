@@ -29,7 +29,7 @@ namespace netxs::app::vtm
         static constexpr auto alias    = "alias";
         static constexpr auto hidden   = "hidden";
         static constexpr auto label    = "label";
-        static constexpr auto notes    = "notes";
+        static constexpr auto tooltip  = "tooltip";
         static constexpr auto title    = "title";
         static constexpr auto footer   = "footer";
         static constexpr auto winsize  = "winsize";
@@ -725,12 +725,12 @@ namespace netxs::app::vtm
         pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
-        pro::notes notes; // gate: Tooltips for user.
-        fp2d drag_origin{}; // gate: Drag origin.
+        pro::notes tooltip; // gate: Tooltips for user.
+        fp2d       drag_origin{}; // gate: Drag origin.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
-              notes{*this, ansi::add(prompt::gate, props.title) }
+              tooltip{*this, ansi::add(prompt::gate, props.title) }
         {
             //todo local=>nexthop
             local = faux;
@@ -1319,8 +1319,8 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::form::prop::ui::header, title)
                     {
-                        auto tooltip = " " + title + " ";
-                        boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip);
+                        auto tooltip_body = " " + title + " ";
+                        boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
@@ -1513,7 +1513,7 @@ namespace netxs::app::vtm
             conf_rec.label      = item.take(attr::label,    fallback.label   );
             if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
             conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
-            conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
+            conf_rec.tooltip    = item.take(attr::tooltip,  fallback.tooltip );
             conf_rec.title      = item.take(attr::title,    fallback.title   );
             conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
@@ -1664,7 +1664,7 @@ namespace netxs::app::vtm
                        : appspec.label.empty() ? appspec.title : ""s;
             if (appspec.title.empty()) appspec.title = title;
             if (appspec.label.empty()) appspec.label = title;
-            if (appspec.notes.empty()) appspec.notes = appspec.menuid;
+            if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
@@ -1678,7 +1678,7 @@ namespace netxs::app::vtm
             appspec.appcfg.cmd = args;
             appspec.title = args;
             appspec.label = args;
-            appspec.notes = args;
+            appspec.tooltip = args;
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
@@ -1722,7 +1722,7 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.title,      "$0", current_module_file);
                 utf::replace_all(conf_rec.footer,     "$0", current_module_file);
                 utf::replace_all(conf_rec.label,      "$0", current_module_file);
-                utf::replace_all(conf_rec.notes,      "$0", current_module_file);
+                utf::replace_all(conf_rec.tooltip,    "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
