@@ -1193,10 +1193,10 @@ namespace netxs::ui
                   skill::memo;
 
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
-            bool focusable; // focus: Boss could be a focus endpoint.
             bool scope; // focus: Cutoff threshold for focus branch.
             umap gears; // focus: Registered gears.
             si32 hotkey_scheme; // focus: .
+            si32 node_type; // focus: .
 
             void signal_state()
             {
@@ -1271,31 +1271,32 @@ namespace netxs::ui
             }
 
         public:
-            enum class mode
+            struct mode
             {
-                focusable, // Object can be focused and active, it is unfocused by default. It cuts the  focus tree when focus is set on it.
-                focused,   // Object can be focused and active, it is focused by default. It cuts the  focus tree when focus is set on it.
-                hub,       // Object can't be focused, only active, it is inactive by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
-                active,    // Object can't be focused, only active, it is active by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
+                static constexpr auto focusable = 0; // Object can be focused and active, it is unfocused by default. It cuts the  focus tree when focus is set on it.
+                static constexpr auto focused   = 1; // Object can be focused and active, it is focused by default. It cuts the  focus tree when focus is set on it.
+                static constexpr auto hub       = 2; // Object can't be focused, only active, it is inactive by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
+                static constexpr auto active    = 3; // Object can't be focused, only active, it is active by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
+                static constexpr auto relay     = 4; // Object is on the process/event domain boundary and can't be focused (gui and ui::dtvt).
             };
 
             template<class T>
-            static void set(sptr item_ptr, T&& gear_id, si32 focus_type, bool just_activate_only = faux, sptr item = {}) // just_activate_only means don't focus just activate only; item - is a non-zero initiator if it is on a process boundary (dtvt or gui).
+            static void set(sptr item_ptr, T&& gear_id, si32 focus_type, bool just_activate_only = faux) // just_activate_only means don't focus just activate only.
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only, .item = item });
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
                     //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.gear_id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
             template<class T>
-            static void off(sptr item_ptr, T&& gear_id, sptr item = {})
+            static void off(sptr item_ptr, T&& gear_id)
             {
                 auto fire = [&](auto id)
                 {
-                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id, .item = item }); // item - is a non-zero initiator if it is on a process boundary (dtvt or gui).
+                    auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id });
                     //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.gear_id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1347,17 +1348,16 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
+            focus(base& boss, si32 focus_mode = mode::hub, bool cut_scope = faux)
                 : skill{ boss },
-                  focusable{ m == mode::focused || m == mode::focusable },
-                  scope{ cut_scope }
+                  scope{ cut_scope },
+                  node_type{ focus_mode }
             {
-                if (m == mode::focused || m == mode::active) // Pave default focus path at startup.
+                if (node_type == mode::focused || node_type == mode::active) // Pave default focus path at startup.
                 {
-                    auto just_activate = m == mode::active ? true : faux;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo, (just_activate))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
                     {
-                        pro::focus::set(boss.This(), id_t{}, solo::off, just_activate);
+                        pro::focus::set(boss.This(), id_t{}, solo::off);
                     };
                 }
                 boss.LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, memo)
@@ -1430,7 +1430,7 @@ namespace netxs::ui
                     auto iter = gears.find(seed.gear_id);
                     if (iter == gears.end()) // No route to inside.
                     {
-                        auto allow_focusize = seed.just_activate_only ? faux : this->focusable; // Ignore focusablity if it is requested.
+                        auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
                         if (!allow_focusize && seed.nondefault_gear()) // Restore dtvt focus after reconnection.
                         {
                             // Try to use default branch if it is.
@@ -1464,7 +1464,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
-                    auto allow_focusize = seed.just_activate_only ? faux : this->focusable; // Ignore focusablity if it is requested.
+                    auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
                     auto& route = get_route(seed.gear_id);
                     if (focus_leaf)
                     {
@@ -1495,7 +1495,7 @@ namespace netxs::ui
                     }
                     else // Build focus tree (we are in the middle of the focus tree).
                     {
-                        if (seed.item == boss.This()) // seed.item is the process edge (gui or dtvt-object).
+                        if (node_type == mode::relay)
                         {
                             if (route.active) // Finish if the branch is active.
                             {
@@ -1552,7 +1552,7 @@ namespace netxs::ui
                 {
                     auto& route = get_route(seed.gear_id);
                     auto boss_ptr = boss.This();
-                    if (seed.item == boss_ptr)
+                    if (node_type == mode::relay)
                     {
                         if (route.active)
                         {

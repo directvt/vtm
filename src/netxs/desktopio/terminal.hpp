@@ -8025,11 +8025,11 @@ namespace netxs::ui
                     auto& f = lock.thing;
                     if (f.state)
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux, owner_ptr);
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux);
                     }
                     else
                     {
-                        pro::focus::off(owner_ptr, f.gear_id, owner_ptr);
+                        pro::focus::off(owner_ptr, f.gear_id);
                     }
                 }
             }

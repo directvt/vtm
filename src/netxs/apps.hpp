@@ -353,7 +353,7 @@ namespace netxs::app::shared
         auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::active)
+                ->plugin<pro::focus>(pro::focus::mode::relay)
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
@@ -419,7 +419,7 @@ namespace netxs::app::shared
                     };
                 });
             term->attach(app::shared::scroll_bars(scrl));
-            dtvt->plugin<pro::focus>()
+            dtvt->plugin<pro::focus>(pro::focus::mode::relay)
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {

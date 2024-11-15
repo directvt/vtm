@@ -1806,7 +1806,7 @@ namespace netxs::gui
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux, owner_ptr);
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux);
                     }
                     else owner.window_post_command(ipc::take_focus);
                     if (f.focus_type == solo::on) // Set solo focus.
@@ -1816,7 +1816,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    pro::focus::off(owner_ptr, f.gear_id, owner_ptr);
+                    pro::focus::off(owner_ptr, f.gear_id);
                 }
             }
             void handle(s11n::xs::hotkey_scheme    lock)
@@ -1973,7 +1973,7 @@ namespace netxs::gui
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::tuple<text, text, si32>>& hotkeys)
             : base{ indexer },
               titles{ *this, "", "", faux },
-              wfocus{ *this },
+              wfocus{ *this, ui::pro::focus::mode::relay },
               wkeybd{ *this },
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },

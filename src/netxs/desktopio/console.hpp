@@ -1424,8 +1424,8 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
-        host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
-            :  focus{ *this, m, faux },
+        host(xipc server, xmls config, si32 focus_type = pro::focus::mode::hub)
+            :  focus{ *this, focus_type, faux },
               quartz{ *this },
               config{ config },
               active{ true }
