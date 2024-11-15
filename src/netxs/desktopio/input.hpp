@@ -17,7 +17,7 @@ namespace netxs::events::userland
             GROUP_XS( keybd    , input::hids ),
             GROUP_XS( mouse    , input::hids ),
             GROUP_XS( focus    , input::foci ), // Focus related events.
-            GROUP_XS( device   , input::hids ), // Primary device event group for forwarding purposes.
+            GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
 
             SUBSET_XS( keybd )
             {
@@ -157,23 +157,15 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::foci ),
-                EVENT_XS( off, input::foci ),
-                EVENT_XS( get, input::foci ), // request: To unfocus and delete route.
+                EVENT_XS( set, input::foci ), // release: set focus toward inside; preview: set focus toward outside.
+                EVENT_XS( off, input::foci ), // release: reset focus toward inside; preview: reset focus toward outside.
+                EVENT_XS( get, input::foci ), // request: To unfocus and delete focus route.
                 EVENT_XS( dry, input::foci ), // request: To remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // request: To change next hop destination. args: seed.what => seed.item.
-                GROUP_XS( bus, input::foci ),
-
-                SUBSET_XS( bus )
-                {
-                    EVENT_XS( on  , input::foci ),
-                    EVENT_XS( off , input::foci ),
-                    EVENT_XS( copy, input::foci ), // Copy default focus branch.
-                };
             };
             SUBSET_XS( device )
             {
-                GROUP_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
+                GROUP_XS( mouse, input::hids ), // release: Primary mouse event for fast forwarding.
                 GROUP_XS( user , id_t        ), // Device properties.
 
                 SUBSET_XS( mouse )

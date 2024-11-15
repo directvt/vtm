@@ -1134,6 +1134,14 @@ namespace netxs::ui
                     }
                 }
             };
+            LISTEN(tier::release, hids::events::focus::any, seed, tokens)
+            {
+                if (auto target = nexthop.lock())
+                {
+                    auto deed = bell::protos(tier::release);
+                    target->bell::signal(tier::release, deed, seed);
+                }
+            };
             LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
