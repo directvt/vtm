@@ -838,6 +838,8 @@ namespace netxs::ui
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
         debug_t    debug; // gate: Statistics monitor.
+        //todo
+        //pro::focus focus; // gate: Focus controller.
         pro::keybd keybd; // gate: Keyboard controller.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
@@ -1103,6 +1105,7 @@ namespace netxs::ui
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
               debug{*this },
+              //focus{*this },
               keybd{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
@@ -1111,9 +1114,6 @@ namespace netxs::ui
               yield{ faux },
               fullscreen{ faux }
         {
-            //todo revise
-            //auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
-            config.set("/config/simple", faux);
             keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
             keybd.proc("ToggleHotkeyScheme", [&](hids& gear){ gear.set_handled(); gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme); });
             keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
@@ -1148,8 +1148,25 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
             };
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
+            //todo mimic pro::focus
+            //if (standalone)
             {
+                LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, tokens)
+                {
+                    owner_ptr = This();
+                };
+            }
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens, (hotkey = 0)) // Start of kb event propagation.
+            {
+                //if (standalone)
+                {
+                    //todo mimic pro::focus
+                    auto m = gear.meta(hids::HotkeyScheme) >> 28; //std::countr_zero(hids::HotkeyScheme); //todo MSVC doesn't get it
+                    if (std::exchange(hotkey, m) != hotkey)
+                    {
+                        bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                    }
+                }
                 if (gear)
                 if (auto target = nexthop.lock())
                 {
@@ -1314,7 +1331,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct /*&& !simple  todo: revise*/) // Forward unhandled events outside.
+            if (direct) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {

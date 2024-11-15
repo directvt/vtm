@@ -731,7 +731,7 @@ namespace netxs::app::shared
             app::shared::splice(client, gui_config);
         }};
         auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
-        auto appcfg = eccc{ .cmd = cmd, .cfg = os::dtvt::active ? ""s : "<config simple=1/>"s };
+        auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         config_lock.unlock();
         domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
