@@ -1871,7 +1871,7 @@ namespace netxs::input
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id })
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id, .just_activate_only = true })
                          : owner.bell::signal(tier::release, hids::events::focus::off, { .gear_id = id });
         }
         text interpret(bool decckm)

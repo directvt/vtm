@@ -3313,6 +3313,7 @@ namespace netxs::gui
                 {
                     update_footer();
                 };
+                bell::signal(tier::anycast, e2::form::upon::started, This());
             }
             auto winio = std::thread{[&]
             {

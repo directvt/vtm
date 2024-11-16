@@ -1120,6 +1120,7 @@ namespace netxs::ui
 
             base::root(true);
             base::limits(dot_11);
+            { log("gate id=", id); }
 
             LISTEN(tier::preview, hids::events::focus::any, seed, tokens)
             {
@@ -1136,8 +1137,10 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::focus::any, seed, tokens)
             {
+                { log("gate receive focus event gate.id=%% gear_id=%%", id, seed.gear_id); }
                 if (auto target = nexthop.lock())
                 {
+                    { log("\tpass it to the target with id=%%", target->id); }
                     auto deed = bell::protos(tier::release);
                     target->bell::signal(tier::release, deed, seed);
                 }
@@ -1458,6 +1461,7 @@ namespace netxs::ui
             using namespace std::chrono;
             auto& canal = *server;
 
+            { log("host id=", id); }
             auto& g = skin::globals();
             g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
             g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });

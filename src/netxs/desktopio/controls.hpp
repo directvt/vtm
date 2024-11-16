@@ -1007,11 +1007,38 @@ namespace netxs::ui
                 foot_text = foots;
                 head_page = head_text;
                 foot_page = foot_text;
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
+                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo, (subs_ptr = ptr::shared<subs>()))
                 {
                     if (head_live) header(head_text);
                     if (foot_live) footer(foot_text);
-                    //footer(ansi::jet(bias::right).add("test\nmultiline\nfooter"));
+                    subs_ptr->clear();
+                    if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
+                    {
+                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::on, gear_id, *subs_ptr)
+                        {
+                            if (!gear_id) return;
+                            auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                            if (iter == user_icon.end())
+                            if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                            {
+                                auto index = gear_ptr->user_index;
+                                auto color = argb::vt256[4 + index % (256 - 4)];
+                                auto image = ansi::fgc(color).add("\0▀"sv);
+                                user_icon.push_front({ gear_id, image });
+                                rebuild();
+                            }
+                        };
+                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::off, gear_id, *subs_ptr)
+                        {
+                            if (!gear_id) return;
+                            auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                            if (iter != user_icon.end())
+                            {
+                                user_icon.erase(iter);
+                                rebuild();
+                            }
+                        };
+                    }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
@@ -1036,30 +1063,6 @@ namespace netxs::ui
                             canvas.output(foot_page, cell::shaders::contrast);
                         }
                         canvas.bump(saved_context);
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::focus::on, gear_id, memo)
-                {
-                    if (!gear_id) return;
-                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                    if (iter == user_icon.end())
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
-                    {
-                        auto index = gear_ptr->user_index;
-                        auto color = argb::vt256[4 + index % (256 - 4)];
-                        auto image = ansi::fgc(color).add("\0▀"sv);
-                        user_icon.push_front({ gear_id, image });
-                        rebuild();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::focus::off, gear_id, memo)
-                {
-                    if (!gear_id) return;
-                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                    if (iter != user_icon.end())
-                    {
-                        user_icon.erase(iter);
-                        rebuild();
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
@@ -1352,7 +1355,7 @@ namespace netxs::ui
                   scope{ cut_scope },
                   node_type{ focus_mode }
             {
-                if (node_type == mode::focused || node_type == mode::active) // Pave default focus path at startup.
+                if (node_type == mode::focused || node_type == mode::active || node_type == mode::relay) // Pave default focus path at startup.
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
                     {
@@ -1390,6 +1393,7 @@ namespace netxs::ui
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
+                    { log("key for boss.id=", boss.id); }
                     //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     if (gear.payload == input::keybd::type::keypress
@@ -1456,10 +1460,14 @@ namespace netxs::ui
                     }
                 };
                 // pro::focus: Subscribe on focus offers. Build a focus tree.
-                // all tier::preview going to outside
-                // all tier::release going to inside
+                // all tier::previews going to outside
+                // all tier::releases going to inside
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
+                    if (!seed.nondefault_gear())
+                    {
+                        { log("item %%, boss %% def_gear", seed.item ? seed.item->id : 0, boss.id); }
+                    }
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
                     auto& route = get_route(seed.gear_id);
