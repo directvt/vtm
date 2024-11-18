@@ -1298,6 +1298,7 @@ namespace netxs::ui
             template<class T>
             static void set(sptr item_ptr, T&& gear_id, si32 focus_type, bool just_activate_only = faux) // just_activate_only means don't focus just activate only.
             {
+                auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
                     auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
@@ -1317,6 +1318,7 @@ namespace netxs::ui
             template<class T>
             static void off(sptr item_ptr, T&& gear_id)
             {
+                auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
                     auto seed = item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id });
@@ -1335,6 +1337,7 @@ namespace netxs::ui
             }
             static auto off(sptr item_ptr)
             {
+                auto lock = item_ptr->bell::sync();
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 pro::focus::off(item_ptr, gear_id_list);
                 return gear_id_list;
@@ -1342,12 +1345,14 @@ namespace netxs::ui
             // pro::focus: Defocus all gears except specified.
             static auto one(sptr item_ptr, id_t gear_id)
             {
+                auto lock = item_ptr->bell::sync();
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 std::erase_if(gear_id_list, [&](auto& id){ return gear_id == id; });
                 pro::focus::off(item_ptr, gear_id_list);
             }
             static auto get(sptr item_ptr, bool remove_default = faux)
             {
+                auto lock = item_ptr->bell::sync();
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 for (auto next_id : gear_id_list)
                 {
@@ -1362,6 +1367,7 @@ namespace netxs::ui
             }
             static auto pass(sptr src_ptr, sptr dst_ptr)
             {
+                auto lock = src_ptr->bell::sync();
                 if (auto parent = src_ptr->parent())
                 {
                     parent->base::riseup(tier::request, hids::events::focus::hop, { .what = src_ptr, .item = dst_ptr });
@@ -1431,7 +1437,6 @@ namespace netxs::ui
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
-                    { log("key for boss.id=", boss.id); }
                     if (!gear) return;
                     if (gear.payload == input::keybd::type::keypress
                      && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
@@ -1474,6 +1479,7 @@ namespace netxs::ui
                             if (def_route != gears.end()) // Try to use default branch if it is.
                             {
                                 iter = add_route(seed.gear_id, def_route->second);
+                                gears.erase(def_route);
                             }
                             else
                             {
@@ -1509,10 +1515,6 @@ namespace netxs::ui
                 // pro::focus: Subscribe on focus offers. Build a focus tree.
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
-                    if (!seed.nondefault_gear())
-                    {
-                        { log("item %%, boss %% def_gear", seed.item ? seed.item->id : 0, boss.id); }
-                    }
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
                     //todo check if focus was set already solo or group
@@ -1563,7 +1565,6 @@ namespace netxs::ui
                             }
                             if (route.active) // Finish if the branch is active.
                             {
-                                // break riseup
                                 return;
                             }
                         }
@@ -1574,12 +1575,10 @@ namespace netxs::ui
                     {
                         if (auto parent = boss.parent())
                         {
-                            // riseup
                             seed.item = boss.This();
                             parent->base::riseup(tier::preview, hids::events::focus::set, seed);
                         }
                     }
-                    // else break riseup
                 };
                 boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
                 {

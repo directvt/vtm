@@ -357,7 +357,6 @@ namespace netxs::app::shared
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
-                    { log("dtvt id=", boss.id); }
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (appcfg))
                     {
                         if (root) // root is empty when d_n_d.

@@ -1242,7 +1242,6 @@ namespace netxs::app::vtm
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
-                    { log("window id=", boss.id); }
                     boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
