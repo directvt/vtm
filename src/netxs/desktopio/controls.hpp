@@ -1479,21 +1479,21 @@ namespace netxs::ui
                             if (def_route != gears.end()) // Try to use default branch if it is.
                             {
                                 iter = add_route(seed.gear_id, def_route->second);
-                                gears.erase(def_route);
+                                // The default route is required to activate the next generations of gears.
                             }
                             else
                             {
-                                iter = add_route(seed.gear_id);
+                                auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
+                                iter = add_route(seed.gear_id, { .focused = allow_focusize });
                             }
                         }
                         else
                         {
-                            iter = add_route(seed.gear_id);
+                            auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
+                            iter = add_route(seed.gear_id, { .focused = allow_focusize });
                         }
                     }
                     auto& route = iter->second;
-                    auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
-                    route.focused = allow_focusize;
                     notify_set_focus(route, seed);
                 };
                 // pro::focus: Replace next hop object "seed.what" with "seed.item".
@@ -1516,11 +1516,10 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
-                    auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
-                    //todo check if focus was set already solo or group
                     if (focus_leaf)
                     {
-                        if (!allow_focusize && seed.nondefault_gear())
+                        auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
+                        if (!allow_focusize && seed.nondefault_gear() && node_type != mode::relay/*block downstream for relays*/)
                         {
                             boss.bell::signal(tier::release, hids::events::focus::set, seed); // Turn on a default downstream branch.
                         }
