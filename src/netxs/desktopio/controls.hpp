@@ -1587,6 +1587,7 @@ namespace netxs::ui
                 // pro::focus: Truncate the maximum path without branches.
                 boss.LISTEN(tier::preview, hids::events::focus::off, seed, memo)
                 {
+                    auto focus_leaf = !seed.item; // No unfocused item yet. We are in the the first riseup iteration (pro::focus::off just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto& route = get_route(seed.gear_id);
                     auto boss_ptr = boss.This();
                     if (node_type == mode::relay)
@@ -1602,7 +1603,7 @@ namespace netxs::ui
                             }
                         }
                     }
-                    else if (seed.item)
+                    else if (!focus_leaf)
                     {
                         auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                         if (iter != route.next.end())
@@ -1625,11 +1626,12 @@ namespace netxs::ui
                         seed.item->bell::signal(tier::release, hids::events::focus::off, seed);
                         boss.expire(tier::preview); //todo Why?
                     }
-                    else
+                    else // if (focus_leaf)
                     {
                         if (route.active)
                         {
                             route.focused = faux;
+                            notify_off_focus(route, seed);
                             if (auto parent_ptr = boss.parent())
                             {
                                 auto temp = seed.item;
