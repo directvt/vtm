@@ -33,7 +33,7 @@ namespace netxs::xml
     template<>
     auto take<bool>(qiew utf8) -> std::optional<bool>
     {
-        auto value = utf::to_low(utf8.str());
+        auto value = utf::to_lower(utf8.str());
         if (value.starts_with("undef")) return std::nullopt; // Use default.
         if (value.empty() || value == "1"
                           || value == "on"
@@ -99,7 +99,7 @@ namespace netxs::xml
             else if (c >= 'a' && c <= 'f') return (byte)(c - 'a' + 10);
             else                           return (byte)(0);
         };
-        auto value = utf::to_low(utf8.str());
+        auto value = utf::to_lower(utf8.str());
         auto result = argb{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");

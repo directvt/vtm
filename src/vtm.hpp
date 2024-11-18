@@ -1524,7 +1524,7 @@ namespace netxs::app::vtm
             conf_rec.appcfg.cfg = item.take(attr::cfg,      ""s);
             conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
             conf_rec.type       = item.take(attr::type,     fallback.type    );
-            utf::to_low(conf_rec.type);
+            utf::to_lower(conf_rec.type);
             auto envar          = item.list(attr::env);
             if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
             else for (auto& v : envar)

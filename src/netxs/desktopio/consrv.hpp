@@ -548,13 +548,13 @@ struct impl : consrv
 
         auto& ref_history(text& exe)
         {
-            return inputs[utf::to_low(exe)];
+            return inputs[utf::to_lower(exe)];
         }
         auto get_history(text& exe)
         {
             auto lock = std::lock_guard{ locker };
             auto crop = text{};
-            auto iter = inputs.find(utf::to_low(exe));
+            auto iter = inputs.find(utf::to_lower(exe));
             if (iter != inputs.end())
             {
                 auto& recs = iter->second;
@@ -569,7 +569,7 @@ struct impl : consrv
         void off_history(text& exe)
         {
             auto lock = std::lock_guard{ locker };
-            auto iter = inputs.find(utf::to_low(exe));
+            auto iter = inputs.find(utf::to_lower(exe));
             if (iter != inputs.end()) inputs.erase(iter);
         }
         void add_alias(text& exe, text& src, text& dst)
@@ -577,8 +577,8 @@ struct impl : consrv
             auto lock = std::lock_guard{ locker };
             if (exe.size() && src.size())
             {
-                utf::to_low(exe);
-                utf::to_low(src);
+                utf::to_lower(exe);
+                utf::to_lower(src);
                 if (dst.size())
                 {
                     macros[exe][src] = dst;
@@ -606,8 +606,8 @@ struct impl : consrv
             auto crop = text{};
             if (exe.size() && src.size())
             {
-                utf::to_low(exe);
-                utf::to_low(src);
+                utf::to_lower(exe);
+                utf::to_lower(src);
                 if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
                 {
                     auto& src_map = exe_iter->second;
@@ -634,7 +634,7 @@ struct impl : consrv
         {
             auto lock = std::lock_guard{ locker };
             auto crop = text{};
-            utf::to_low(exe);
+            utf::to_lower(exe);
             if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
             {
                 auto& src_map = exe_iter->second;
@@ -659,14 +659,20 @@ struct impl : consrv
              && shadow.back() != '\t')
             {
                 auto prefix = shadow.substr(0, 3).str();
-                utf::to_low(prefix);
+                utf::to_lower(prefix);
                 if (prefix != cd_prefix) return;
                 auto crop = shadow.substr(cd_prefix.size());
                 auto path = crop;
                 utf::trim_front(path, " \t\r\n");
                 if (path && path.front() != '/')
                 {
-                    line = cd_forced + crop.str();
+                    auto utf8 = path.str();
+                    auto i =  utf8[0] == '"' ? 1 : 0;
+                    if (utf8.size() > 1 + i && utf8[1 + i] == ':')
+                    {
+                        utf8[i] = utf::to_upper(utf8[i]); // Make drive letter upper case.
+                    }
+                    line = cd_forced + utf8;
                 }
             }
         }
@@ -674,7 +680,7 @@ struct impl : consrv
         {
             if (macros.empty() || line.empty()) return;
 
-            utf::to_low(exe);
+            utf::to_lower(exe);
             auto exe_iter = macros.find(exe);
             if (exe_iter == macros.end()) return;
 
@@ -683,7 +689,7 @@ struct impl : consrv
 
             auto rest = qiew{ line };
             auto crop = utf::take_front<faux>(rest, " \r\n");
-            auto iter = src_map.find(utf::to_low(crop));
+            auto iter = src_map.find(utf::to_lower(crop));
             if (iter == src_map.end()) return;
 
             auto tail = utf::trim_back(rest, "\r\n");
@@ -696,7 +702,7 @@ struct impl : consrv
                 if (data.size() >= 2)
                 {
                     auto s = utf::pop_front(data, 2);
-                    auto c = utf::to_low(s.back());
+                    auto c = utf::to_lower(s.back());
                     if (c >= '1' && c <= '9')
                     {
                         auto n = static_cast<ui32>(c - '1');
@@ -720,7 +726,7 @@ struct impl : consrv
         auto off_aliases(text& exe)
         {
             auto lock = std::lock_guard{ locker };
-            utf::to_low(exe);
+            utf::to_lower(exe);
             if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
             {
                 macros.erase(exe_iter);
@@ -4902,7 +4908,7 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto [exe] = take_text(packet);
-        utf::to_low(exe);
+        utf::to_lower(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tlimit: ", packet.input.count);

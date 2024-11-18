@@ -522,7 +522,7 @@ namespace netxs::os
                 auto cmd_shim = args.size() && [&]
                 {
                     auto cmd = args.front();
-                    utf::to_low(cmd);
+                    utf::to_lower(cmd);
                     return cmd == "cmd"
                         || cmd == "cmd.exe"
                         || cmd.ends_with("\\cmd")
@@ -1205,7 +1205,7 @@ namespace netxs::os
                 os::close(token);
                 if (rc && name.size())
                 {
-                    auto user_name = utf::to_low(utf::to_utf(name + L'@' + domain));
+                    auto user_name = utf::to_lower(utf::to_utf(name + L'@' + domain));
                     auto user_id = sid.empty() ? "unknown"s : sid;
                     return std::pair{ user_name, user_id };
                 }

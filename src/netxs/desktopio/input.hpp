@@ -422,14 +422,14 @@ namespace netxs::input
         static const auto specific_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { utf::to_low(#Name), KeyId },
+                { utf::to_lower(#Name), KeyId },
                 key_list
             #undef X
         };
         static const auto generic_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { utf::to_low(GenericName), KeyId & -2 },
+                { utf::to_lower(GenericName), KeyId & -2 },
                 key_list
             #undef X
         };
@@ -582,7 +582,7 @@ namespace netxs::input
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
-                if (utf::to_low(chord) == "any")
+                if (utf::to_lower(chord) == "any")
                 {
                     crop.push_back(any_key);
                     return crop;
@@ -632,7 +632,7 @@ namespace netxs::input
                     }
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
-                        auto name = utf::to_low(key_name);
+                        auto name = utf::to_lower(key_name);
                         auto iter = input::key::generic_names.find(name);
                         if (iter == input::key::generic_names.end()) // Is specific.
                         {

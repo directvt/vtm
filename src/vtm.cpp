@@ -334,7 +334,7 @@ int main(int argc, char* argv[])
         auto shadow = params;
         auto apname = view{};
         auto aptype = text{};
-        utf::to_low(shadow);
+        utf::to_lower(shadow);
              if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;  }
         else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;  }
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
