@@ -38,8 +38,8 @@ namespace netxs::events::userland
 
                 SUBSET_XS( hover )
                 {
-                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
-                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
+                    EVENT_XS( enter, input::hids ), // Inform the form about the mouse hover.
+                    EVENT_XS( leave, input::hids ), // Inform the form about leaving the mouse.
                 };
                 SUBSET_XS( scroll )
                 {
@@ -157,11 +157,11 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::foci ), // release: set focus toward inside; preview: set focus toward outside.
-                EVENT_XS( off, input::foci ), // release: reset focus toward inside; preview: reset focus toward outside.
-                EVENT_XS( get, input::foci ), // request: To unfocus and delete focus route.
-                EVENT_XS( dry, input::foci ), // request: To remove the reference to the specified applet.
-                EVENT_XS( hop, input::foci ), // request: To change next hop destination. args: seed.what => seed.item.
+                EVENT_XS( set, input::foci ), // release: Set focus toward inside; preview: set focus toward outside.
+                EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
+                EVENT_XS( get, input::foci ), // request: Unfocus and delete focus route.
+                EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // request: Change next hop destination. args: seed.what => seed.item.
             };
             SUBSET_XS( device )
             {

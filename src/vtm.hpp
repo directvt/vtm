@@ -55,11 +55,11 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra::slot1 )
         {
-            EVENT_XS( newapp  , link ), // request: create new object using specified meniid.
-            EVENT_XS( apptype , link ), // request: ask app type.
-            EVENT_XS( handoff , link ), // general: attach spcified intance and return sptr.
-            EVENT_XS( attached, sptr ), // anycast: inform that the object tree is attached to the world.
-            GROUP_XS( d_n_d   , sptr ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+            EVENT_XS( newapp  , link ), // request: Create new object using specified meniid.
+            EVENT_XS( apptype , link ), // request: Ask app type.
+            EVENT_XS( handoff , link ), // general: Attach spcified intance and return sptr.
+            EVENT_XS( attached, sptr ), // anycast: Inform that the object tree is attached to the world.
+            GROUP_XS( d_n_d   , sptr ), // Drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
             GROUP_XS( gate    , sptr ),
 
             SUBSET_XS(d_n_d)
