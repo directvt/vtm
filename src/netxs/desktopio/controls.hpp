@@ -1442,7 +1442,6 @@ namespace netxs::ui
                         hotkey_scheme_notify();
                     }
                     auto& route = get_route(gear.id);
-                    log("preview key for boss.id=%% gear.id=%%, gear.cluster=%% route.active=%%", boss.id, gear.id, gear.cluster, (int)route.active);
                     if (route.active)
                     {
                         auto alive = gear.alive;
@@ -1456,7 +1455,6 @@ namespace netxs::ui
                         gear.alive = accum;
                         if (accum)
                         {
-                            log("\trelease key for boss.id=%% gear.id=%%, gear.cluster%%", boss.id, gear.id, gear.cluster);
                             boss.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                         }
                     }
