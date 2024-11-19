@@ -1970,7 +1970,6 @@ namespace netxs::app::vtm
                     if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        //seed.item = this->This();
                         gear.owner.bell::signal(tier::preview, hids::events::focus::off, seed);
                     }
                 }

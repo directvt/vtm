@@ -1230,10 +1230,9 @@ namespace netxs::ui
                         auto iter = gears.find(gear.id);
                         if (iter != gears.end())
                         {
-                            //todo replace/drop prev default focus
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
-                            if (route.active) // Make the active branch the default.
+                            if (route.active) // Make the active branch default.
                             {
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
