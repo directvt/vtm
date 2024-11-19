@@ -1437,12 +1437,12 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     if (!gear) return;
-                    if (gear.payload == input::keybd::type::keypress
-                     && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
+                    if (gear.payload == input::keybd::type::keypress && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
                     {
                         hotkey_scheme_notify();
                     }
                     auto& route = get_route(gear.id);
+                    log("preview key for boss.id=%% gear.id=%%, gear.cluster=%% route.active=%%", boss.id, gear.id, gear.cluster, (int)route.active);
                     if (route.active)
                     {
                         auto alive = gear.alive;
@@ -1456,6 +1456,7 @@ namespace netxs::ui
                         gear.alive = accum;
                         if (accum)
                         {
+                            log("\trelease key for boss.id=%% gear.id=%%, gear.cluster%%", boss.id, gear.id, gear.cluster);
                             boss.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                         }
                     }
@@ -1522,10 +1523,10 @@ namespace netxs::ui
                         {
                             boss.bell::signal(tier::release, hids::events::focus::set, seed); // Turn on a default downstream branch.
                         }
-                        else if (allow_focusize)
+                        else
                         {
                             auto& route = get_route(seed.gear_id);
-                            if  (route.active && seed.focus_type == solo::on) // Cut a downstream focus branch.
+                            if (allow_focusize && route.active && seed.focus_type == solo::on) // Cut a downstream focus branch.
                             {
                                 route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::off, seed); });
                                 route.next.clear();
