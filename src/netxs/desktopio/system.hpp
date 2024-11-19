@@ -522,7 +522,7 @@ namespace netxs::os
                 auto cmd_shim = args.size() && [&]
                 {
                     auto cmd = args.front();
-                    utf::to_low(cmd);
+                    utf::to_lower(cmd);
                     return cmd == "cmd"
                         || cmd == "cmd.exe"
                         || cmd.ends_with("\\cmd")
@@ -1205,7 +1205,7 @@ namespace netxs::os
                 os::close(token);
                 if (rc && name.size())
                 {
-                    auto user_name = utf::to_low(utf::to_utf(name + L'@' + domain));
+                    auto user_name = utf::to_lower(utf::to_utf(name + L'@' + domain));
                     auto user_id = sid.empty() ? "unknown"s : sid;
                     return std::pair{ user_name, user_id };
                 }
@@ -1965,7 +1965,7 @@ namespace netxs::os
                 auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
-                #if defined(__BSD__)
+                #if defined(__BSD__) || defined(__ANDROID__)
                 auto uname = ::getlogin(); // username associated with a session, even if it has no controlling terminal.
                 #else
                 auto uname = ::cuserid(nullptr);
@@ -3316,7 +3316,7 @@ namespace netxs::os
                 #elif defined(__linux__)
 
                     auto cred = ucred{};
-                    #ifdef __ANDROID__
+                    #if defined(__ANDROID__)
                         auto size = socklen_t{ sizeof(cred) };
                     #else
                         auto size = unsigned{ sizeof(cred) };
@@ -4910,19 +4910,13 @@ namespace netxs::os
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
                 }
-                void handle(s11n::xs::focus_set      /*lock*/)
+                void handle(s11n::xs::sysfocus         lock)
                 {
-                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::on.id);
-                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
-                    if (hotkey)
+                    auto& item = lock.thing;
+                    if (item.state && hotkey)
                     {
                         sync_hotkey_scheme();
                     }
-                }
-                void handle(s11n::xs::focus_cut      /*lock*/)
-                {
-                    auto cause = netxs::events::subindex(input::hids::events::keybd::focus::bus::off.id);
-                    s11n::focusbus.send(dtvt::client, gear_id, time{}, cause);
                 }
                 void handle(s11n::xs::hotkey_scheme    lock)
                 {
@@ -6115,9 +6109,7 @@ namespace netxs::os
             auto focus = [&](auto state)
             {
                 if (!alive) return;
-                auto cause = state ? input::hids::events::keybd::focus::bus::on.id
-                                   : input::hids::events::keybd::focus::bus::off.id;
-                proxy.focusbus.send(intio, proxy.gear_id, time{}, netxs::events::subindex(cause));
+                proxy.sysfocus.send(intio, proxy.gear_id, state, 0);
             };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };

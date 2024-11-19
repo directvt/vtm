@@ -146,19 +146,22 @@ namespace netxs::ui
                     recalc();
                     boss.deface();
                 };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, memo)
                 {
-                    items.add(gear);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
-                {
-                    auto& item = items.take(gear);
-                    if (item.region.size)
+                    if (gear.cause == hids::events::mouse::hover::enter.id)
                     {
-                        item.inside = faux;
+                        items.add(gear);
                     }
-                    else items.del(gear);
-                    recalc();
+                    else if (gear.cause == hids::events::mouse::hover::leave.id)
+                    {
+                        auto& item = items.take(gear);
+                        if (item.region.size)
+                        {
+                            item.inside = faux;
+                        }
+                        else items.del(gear);
+                        recalc();
+                    }
                 };
                 engage<hids::buttons::left>();
             }
@@ -334,7 +337,7 @@ namespace netxs::app::calc
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
                   ->plugin<pro::keybd>()
-                  ->shader(c3, e2::form::state::keybd::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
@@ -357,8 +360,8 @@ namespace netxs::app::calc
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
                                         ->limits({ -1,-1 },{ 136,102 });
-                    auto func_body_pad = all_stat->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
-                        auto func_body = func_body_pad->attach(ui::fork::ctor(axis::Y));
+                        auto func_body = all_stat->attach(slot::_1, ui::fork::ctor(axis::Y))
+                            ->setpad({ 1,1 });
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())

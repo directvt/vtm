@@ -7,119 +7,40 @@
 
 namespace netxs::events::userland
 {
-    //using proc_fx = std::function<void(ui::base&)>;
-
     struct hids
     {
         EVENTPACK( hids, netxs::events::userland::root::hids )
         {
-            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
-            EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
-            EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
-            EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
-            GROUP_XS( keybd  , input::hids ),
-            GROUP_XS( mouse  , input::hids ),
-            GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
-            GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
-            GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
+            EVENT_XS( die      , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
+            EVENT_XS( halt     , input::hids ), // release::global: Notify about the mouse controller is outside.
+            EVENT_XS( clipboard, input::hids ), // release/request: Set/get clipboard data.
+            GROUP_XS( keybd    , input::hids ),
+            GROUP_XS( mouse    , input::hids ),
+            GROUP_XS( focus    , input::foci ), // Focus related events.
+            GROUP_XS( device   , input::hids ), // Primary device event group for fast forwarding.
 
-            SUBSET_XS( notify )
-            {
-                GROUP_XS( mouse, input::hids ),
-                //GROUP_XS( keybd, input::hids ),
-                //GROUP_XS( focus, input::hids ),
-
-                SUBSET_XS( mouse )
-                {
-                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
-                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
-                };
-            };
             SUBSET_XS( keybd )
             {
-                EVENT_XS( mode   , input::hids ),
-                GROUP_XS( key    , input::hids ),
-                GROUP_XS( control, input::hids ),
-                GROUP_XS( state  , input::hids ),
-                GROUP_XS( focus  , input::hids ),
+                EVENT_XS( scheme, input::hids ),
+                GROUP_XS( key   , input::hids ),
 
                 SUBSET_XS( key )
                 {
                     EVENT_XS( post, input::hids ),
                 };
-                //todo revise
-                SUBSET_XS( control )
-                {
-                    GROUP_XS( up  , input::hids ),
-                    GROUP_XS( down, input::hids ),
-
-                    SUBSET_XS( up )
-                    {
-                        EVENT_XS( alt_right  , input::hids ),
-                        EVENT_XS( alt_left   , input::hids ),
-                        EVENT_XS( ctrl_right , input::hids ),
-                        EVENT_XS( ctrl_left  , input::hids ),
-                        EVENT_XS( shift_right, input::hids ),
-                        EVENT_XS( shift_left , input::hids ),
-                    };
-                    SUBSET_XS( down )
-                    {
-                        EVENT_XS( alt_right  , input::hids ),
-                        EVENT_XS( alt_left   , input::hids ),
-                        EVENT_XS( ctrl_right , input::hids ),
-                        EVENT_XS( ctrl_left  , input::hids ),
-                        EVENT_XS( shift_right, input::hids ),
-                        EVENT_XS( shift_left , input::hids ),
-                    };
-                };
-                //todo revise
-                SUBSET_XS( state )
-                {
-                    GROUP_XS( on , input::hids ),
-                    GROUP_XS( off, input::hids ),
-
-                    SUBSET_XS( on )
-                    {
-                        EVENT_XS( numlock   , input::hids ),
-                        EVENT_XS( capslock  , input::hids ),
-                        EVENT_XS( scrolllock, input::hids ),
-                        EVENT_XS( insert    , input::hids ),
-                    };
-                    SUBSET_XS( off )
-                    {
-                        EVENT_XS( numlock   , input::hids ),
-                        EVENT_XS( capslock  , input::hids ),
-                        EVENT_XS( scrolllock, input::hids ),
-                        EVENT_XS( insert    , input::hids ),
-                    };
-                };
-                SUBSET_XS( focus )
-                {
-                    //EVENT_XS( tie , proc_fx ),
-                    //EVENT_XS( die , input::foci ),
-                    EVENT_XS( set, input::foci ),
-                    EVENT_XS( get, input::foci ),
-                    EVENT_XS( off, input::foci ),
-                    EVENT_XS( cut, input::foci ), // Cut mono focus branch.
-                    EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
-                    EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
-                    GROUP_XS( bus, input::foci ),
-
-                    SUBSET_XS( bus )
-                    {
-                        EVENT_XS( on  , input::foci ),
-                        EVENT_XS( off , input::foci ),
-                        EVENT_XS( copy, input::foci ), // Copy default focus branch.
-                    };
-                };
             };
             SUBSET_XS( mouse )
             {
-                EVENT_XS( move   , input::hids ),
-                EVENT_XS( focus  , input::hids ),
-                GROUP_XS( button , input::hids ),
-                GROUP_XS( scroll , input::hids ),
+                EVENT_XS( move  , input::hids ),
+                GROUP_XS( hover , input::hids ),
+                GROUP_XS( scroll, input::hids ),
+                GROUP_XS( button, input::hids ),
 
+                SUBSET_XS( hover )
+                {
+                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
+                    EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
+                };
                 SUBSET_XS( scroll )
                 {
                     EVENT_XS( act, input::hids ),
@@ -236,13 +157,15 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::hids ), // release: Set keybd focus.
-                EVENT_XS( off, input::hids ), // release: Off keybd focus.
+                EVENT_XS( set, input::foci ), // release: set focus toward inside; preview: set focus toward outside.
+                EVENT_XS( off, input::foci ), // release: reset focus toward inside; preview: reset focus toward outside.
+                EVENT_XS( get, input::foci ), // request: To unfocus and delete focus route.
+                EVENT_XS( dry, input::foci ), // request: To remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // request: To change next hop destination. args: seed.what => seed.item.
             };
             SUBSET_XS( device )
             {
-                //EVENT_XS( keybd, input::hids ), // release: Primary keybd event for forwarding purposes.
-                GROUP_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
+                GROUP_XS( mouse, input::hids ), // release: Primary mouse event for fast forwarding.
                 GROUP_XS( user , id_t        ), // Device properties.
 
                 SUBSET_XS( mouse )
@@ -499,14 +422,14 @@ namespace netxs::input
         static const auto specific_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { utf::to_low(#Name), KeyId },
+                { utf::to_lower(#Name), KeyId },
                 key_list
             #undef X
         };
         static const auto generic_names = std::unordered_map<text, si32, qiew::hash, qiew::equal>
         {
             #define X(KeyId, Index, Vkey, Scan, CtrlState, Mask, Input, Name, GenericName) \
-                { utf::to_low(GenericName), KeyId & -2 },
+                { utf::to_lower(GenericName), KeyId & -2 },
                 key_list
             #undef X
         };
@@ -659,7 +582,7 @@ namespace netxs::input
                 };
                 auto keys = std::vector<key_t>{};
                 auto crop = std::vector<text>{};
-                if (utf::to_low(chord) == "any")
+                if (utf::to_lower(chord) == "any")
                 {
                     crop.push_back(any_key);
                     return crop;
@@ -709,7 +632,7 @@ namespace netxs::input
                     }
                     else if (auto key_name = qiew{ utf::get_word(chord, "+- ") })
                     {
-                        auto name = utf::to_low(key_name);
+                        auto name = utf::to_lower(key_name);
                         auto iter = input::key::generic_names.find(name);
                         if (iter == input::key::generic_names.end()) // Is specific.
                         {
@@ -803,13 +726,16 @@ namespace netxs::input
 
     struct foci
     {
-        id_t   id{}; // foci: Gear id.
-        si32 solo{}; // foci: Exclusive focus request.
-        bool skip{}; // foci: Ignore focusable object, just activate it.
+        id_t gear_id{}; // foci: Gear id.
+        si32 focus_type{}; // foci: Exclusive focus request.
+        bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.
-        ui32 deep{}; // foci: Counter for debug.
-        time guid{}; // foci: Originating environment ID.
+
+        auto nondefault_gear() const
+        {
+            return gear_id != id_t{};
+        }
     };
 
     // input: Mouse tracker.
@@ -1732,10 +1658,14 @@ namespace netxs::input
         {
             auto temp = keybd::ctlstat;
             netxs::set_flag<hids::HotkeyScheme>(keybd::ctlstat, s);
-            owner.bell::signal(tier::preview, hids::events::keybd::mode, *this);
+            owner.bell::signal(tier::preview, hids::events::keybd::scheme, *this);
             keybd::ctlstat = temp;
         }
 
+        void take(sysfocus& f)
+        {
+            focus::update(f);
+        }
         void take(sysmouse& m)
         {
             #if defined(DEBUG)
@@ -1771,11 +1701,6 @@ namespace netxs::input
                 keybd::update(k);
             }
         }
-        void take(sysfocus& f)
-        {
-            tooltip_stop = true;
-            focus::update(f);
-        }
         auto take(sysboard& b)
         {
             board::update(b);
@@ -1805,12 +1730,13 @@ namespace netxs::input
         {
             if (last_id)
             {
-                if (auto last = bell::getref(last_id))
+                if (auto last = bell::getref<base>(last_id))
                 {
-                    auto saved_start = mouse::start;
-                    mouse::start = start_id;
-                    last->bell::signal(tier::release, events::notify::mouse::leave, *this);
+                    auto saved_start = std::exchange(mouse::start, start_id);
+                    auto saved_cause = std::exchange(mouse::cause, events::mouse::hover::leave.id);
+                    last->base::signal(tier::release, mouse::cause, *this);
                     mouse::start = saved_start;
+                    mouse::cause = saved_cause;
                 }
                 else
                 {
@@ -1829,16 +1755,16 @@ namespace netxs::input
                     tooltip_data.clear();
                     tooltip_stop = true;
                 }
-
+                tooltip_set = faux;
                 // Firing the leave event right after the enter allows us
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
-                auto start_l = mouse::start;
-                mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                tooltip_set = faux;
-                boss.bell::signal(tier::release, events::notify::mouse::enter, *this);
-                mouse_leave(mouse::hover, start_l);
+                auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                auto saved_cause = std::exchange(mouse::cause, events::mouse::hover::enter.id);
+                boss.base::signal(tier::release, mouse::cause, *this);
+                mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
+                mouse::cause = saved_cause;
             }
         }
         void deactivate()
@@ -1936,18 +1862,15 @@ namespace netxs::input
             alive = true;
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
-        void fire_focus()
-        {
-            alive = true;
-            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
-            //todo focus<->seed
-            if (focus::state) owner.bell::signal(tier::release, hids::events::focus::set, *this);
-            else              owner.bell::signal(tier::release, hids::events::focus::off, *this);
-        }
         void fire_board()
         {
-            owner.bell::signal(tier::release, hids::events::clipbrd, *this);
+            owner.bell::signal(tier::release, hids::events::clipboard, *this);
             mouse::delta.set(); // Update time stamp.
+        }
+        void fire_focus()
+        {
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id, .just_activate_only = true })
+                         : owner.bell::signal(tier::release, hids::events::focus::off, { .gear_id = id });
         }
         text interpret(bool decckm)
         {

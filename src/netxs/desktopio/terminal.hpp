@@ -338,7 +338,7 @@ namespace netxs::ui
                     auto gear_test = owner.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                     if (gear_test.second == 0)
                     {
-                        pro::focus::set(owner.This(), gear.id, pro::focus::solo::off);
+                        pro::focus::set(owner.This(), gear.id, solo::off);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -349,7 +349,7 @@ namespace netxs::ui
                     if (gear_test.second == 0)
                     {
                         if (pro::focus::test(owner, gear)) pro::focus::off(owner.This(), gear.id);
-                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off : pro::focus::solo::on);
+                        else                               pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on);
                     }
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 }
@@ -408,7 +408,7 @@ namespace netxs::ui
                 : owner{ owner },
                   encod{ prot::w32 }
             {
-                owner.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, token)
+                owner.LISTEN(tier::release, e2::form::state::focus::count, count, token)
                 {
                     auto focused = !!count;
                     if (std::exchange(state, focused) != state)
@@ -7104,7 +7104,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+            gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
             {
@@ -7134,7 +7134,7 @@ namespace netxs::ui
             auto data = get_clipboard_text(gear);
             if (data.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+                pro::focus::set(this->This(), gear.id, solo::off);
                 _paste(data);
                 return true;
             }
@@ -7143,7 +7143,7 @@ namespace netxs::ui
         auto _copy(hids& gear, text const& data)
         {
             auto form = selmod == mime::disabled ? mime::textonly : selmod;
-            pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+            pro::focus::set(this->This(), gear.id, solo::off);
             gear.set_clipboard(target->panel, data, form);
         }
         auto copy(hids& gear)
@@ -7186,7 +7186,7 @@ namespace netxs::ui
             auto gear_test = base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
             if (!gear_test.second) // Set exclusive focus on right click.
             {
-                pro::focus::set(This(), gear.id, pro::focus::solo::on);
+                pro::focus::set(This(), gear.id, solo::on);
             }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
@@ -7208,7 +7208,7 @@ namespace netxs::ui
             }
             if (utf8.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off);
+                pro::focus::set(this->This(), gear.id, solo::off);
                 follow[axis::X] = true;
                 if (bpmode)
                 {
@@ -7377,7 +7377,7 @@ namespace netxs::ui
             }
             else
             {
-                gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+                gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
                 auto& data = gear.board::cargo;
                 if (data.utf8.size())
                 {
@@ -8016,29 +8016,20 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(s11n::xs::focus_cut           lock)
+            void handle(s11n::xs::sysfocus            lock)
             {
-                auto& k = lock.thing;
                 if (owner.active)
                 {
-                    auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    auto guard = owner.sync(); // Guard the owner.This() call.
+                    auto owner_ptr = owner.This();
+                    auto& f = lock.thing;
+                    if (f.state)
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::cut, { .id = k.gear_id, .item = owner.This() });
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux);
                     }
-                }
-            }
-            void handle(s11n::xs::focus_set           lock)
-            {
-                auto& k = lock.thing;
-                if (owner.active)
-                {
-                    auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    else
                     {
-                        auto seed = parent_ptr->base::riseup(tier::preview, hids::events::keybd::focus::set, { .id = k.gear_id, .solo = k.solo, .item = owner.This() });
+                        pro::focus::off(owner_ptr, f.gear_id);
                     }
                 }
             }
@@ -8134,7 +8125,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.base::riseup(tier::request, hids::events::clipbrd, gear);
+                        gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {
@@ -8401,20 +8392,18 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, hids::events::notify::mouse::leave, gear)
+            LISTEN(tier::release, hids::events::mouse::hover::leave, gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed)
+            //todo replace it with tier::release hids::events::focus::any (set/off)
+            LISTEN(tier::release, hids::events::focus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
-                {
-                    seed.guid = os::process::id.second;
-                }
-                stream.focusbus.send(*this, seed.id, seed.guid, netxs::events::subindex(deed));
+                auto state = deed == hids::events::focus::set.id;
+                stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear)
             {

@@ -112,6 +112,14 @@ namespace netxs
         Y_only = 1 << 1,
         all    = X_only | Y_only,
     };
+
+    struct solo
+    {
+        static constexpr auto off = 0; // Allow group focus.
+        static constexpr auto on  = 1; // Set unique focus.
+        static constexpr auto mix = 2; //todo define (used by Tile).
+    };
+
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
     template<class T>

@@ -16,7 +16,7 @@ namespace netxs::app::desk
         bool   hidden{}; // Hide existing item on taskbar.
         bool    fixed{}; // Item can't be updated by the new instance (see desk::events::exec).
         text    label{};
-        text    notes{};
+        text  tooltip{};
         text    title{};
         text   footer{};
         twod  winsize{};
@@ -90,14 +90,14 @@ namespace netxs::app::desk
                         auto owner_id = boss.base::riseup(tier::request, events::ui::id);
                         auto disabled = gear_id && gear_id != owner_id;
                         boss.bell::signal(tier::release, e2::form::state::disabled, disabled);
-                        auto& notes = boss.template plugins<pro::notes>();
-                        notes.update(disabled ? " Window is locked by another user "
-                                              : " Application window:                   \n"
-                                                "   LeftClick to set exclusive focus    \n"
-                                                "   Ctrl+LeftClick to set group focus   \n"
-                                                "   DoubleLeftClick to go to the window \n"
-                                                "   Alt+DblLeftClick to pull the window \n"
-                                                "   LeftDrag to move desktop viewport   ");
+                        auto& tooltip = boss.template plugins<pro::notes>();
+                        tooltip.update(disabled ? " Window is locked by another user "
+                                                : " Application window:                   \n"
+                                                  "   LeftClick to set exclusive focus    \n"
+                                                  "   Ctrl+LeftClick to set group focus   \n"
+                                                  "   DoubleLeftClick to go to the window \n"
+                                                  "   Alt+DblLeftClick to pull the window \n"
+                                                  "   LeftDrag to move desktop viewport   ");
                         return disabled;
                     };
                     auto gear_id = data_src->bell::signal(tier::request, e2::form::state::maximized);
@@ -130,7 +130,7 @@ namespace netxs::app::desk
                                 {
                                     window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on);
+                                else pro::focus::set(data_src, gear.id, solo::on);
                             }
                             else // Jump to window.
                             {
@@ -158,7 +158,7 @@ namespace netxs::app::desk
                                     {
                                         window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                     }
-                                    pro::focus::set(data_src, gear.id, pro::focus::solo::off);
+                                    pro::focus::set(data_src, gear.id, solo::off);
                                 }
                                 gear.dismiss(true); // Suppress double click.
                             }
@@ -173,7 +173,7 @@ namespace netxs::app::desk
                                 {
                                     window.bell::signal(tier::release, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on);
+                                else pro::focus::set(data_src, gear.id, solo::on);
                                 gear.dismiss();
                             }
                         }
@@ -195,7 +195,7 @@ namespace netxs::app::desk
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::keybd::focus::count, data_src);
+                ->shader(cF, e2::form::state::focus::count, data_src);
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
                 ->shader(c1, e2::form::state::hover)
@@ -291,7 +291,7 @@ namespace netxs::app::desk
                 }
                 auto& conf = conf_it->second;
                 auto& obj_desc = conf.label;
-                auto& obj_note = conf.notes;
+                auto& obj_note = conf.tooltip;
                 if (conf.splitter)
                 {
                     auto item_area = apps->attach(ui::item::ctor(obj_desc))
@@ -420,7 +420,7 @@ namespace netxs::app::desk
                         boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
                         {
                             auto deed = boss.bell::protos(tier::release);
-                                 if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off);
+                                 if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);
                             else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
                         };
                     });
@@ -605,10 +605,10 @@ namespace netxs::app::desk
                         owner_id = parent.id;
                     };
                     auto oneshot = ptr::shared(hook{});
-                    parent.LISTEN(tier::release, hids::events::focus::any, gear, *oneshot, (oneshot, usrcfg))
+                    parent.LISTEN(tier::release, hids::events::focus::any, seed, *oneshot, (oneshot, usrcfg))
                     {
                         usrcfg.win = {};
-                        usrcfg.hid = gear.id;
+                        usrcfg.hid = seed.gear_id;
                         boss.base::riseup(tier::release, scripting::events::invoke, usrcfg);
                         oneshot->reset();
                     };
@@ -663,7 +663,7 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
-                //->shader(c3, e2::form::state::keybd::focus::count)
+                //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->active()
                 ->invoke([&](auto& boss)
@@ -801,8 +801,9 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     };
                 });
-            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 1 + tall, 1 + tall, tall, tall })->alignment({ snap::head, snap::center }));
-            auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
+            auto disconnect = disconnect_park->attach(ui::item::ctor("× Disconnect"))
+                ->setpad({ 1 + tall, 1 + tall, tall, tall })
+                ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
                 ->shader(c1, e2::form::state::hover)
@@ -815,8 +816,9 @@ namespace netxs::app::desk
                         gear.dismiss(true);
                     };
                 });
-            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 1 + tall, 1 + tall, tall, tall })->alignment({ snap::tail, snap::center }));
-            auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
+            auto shutdown = shutdown_park->attach(ui::item::ctor("× Shutdown"))
+                ->setpad({ 1 + tall, 1 + tall, tall, tall })
+                ->alignment({ snap::tail, snap::center });
             return window;
         };
     }

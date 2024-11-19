@@ -39,16 +39,24 @@ namespace netxs::app::textancy
         constexpr auto vss = utf::matrix::vss<Args...>;
         auto header = [](auto caption)
         {
-            return ansi::wrp(wrap::off).mgr(3).bld(true).cap(caption).erl().und(unln::none).eol().mgr(1).unc(0).wrp(wrap::on);
+            return ansi::wrp(wrap::off).mgr(0).bld(true).cap(caption).erl().und(unln::none).eol().mgr(1).unc(0).wrp(wrap::on);
         };
-        auto topic3_chars = R"( 
-There are important differences between plain text (created and edited by text editors) and rich text (such as that created by word processors or desktop publishing software).
-
-Plain text exclusively consists of character representation. Each character is represented by a fixed-length sequence of one, two, or four bytes, or as a variable-length sequence of one to four bytes, in accordance to specific character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or Unicode. These conventions define many printable characters, but also non-printing characters that control the flow of the text, such as space, line break, and page break. Plain text contains no other information about the text itself, not even the character encoding convention employed. Plain text is stored in text files, although text files do not exclusively store plain text. In the early days of computers, plain text was displayed using a monospace font, such that horizontal alignment and columnar formatting were sometimes done using hitespace characters. For compatibility reasons, this tradition has not changed.
-
-Rich text, on the other hand, may contain metadata, character formatting data (e.g. typeface, size, weight and style), paragraph formatting data (e.g. indentation, alignment, letter and word distribution, and space between lines or other paragraphs), and page specification data (e.g. size, margin and reading direction). Rich text can be very complex. Rich text can be saved in binary format (e.g. DOC), text files adhering to a markup language (e.g. RTF or HTML), or in a hybrid form of both (e.g. Office Open XML).
-
-Text editors are intended to open and save text files containing either plain text or anything that can be interpreted as plain text, including the markup for rich text or the markup for something else (e.g. SVG).
+        auto topic3_chars = 
+"\nThere are important differences between \033[22mplain text\033[1m (created and edited by text editors) and "
+"\033[38:2:109:231:237m""r"
+"\033[38:2:109:237:186m""i"
+"\033[38:2:60:255:60m"  "c"
+"\033[38:2:189:255:53m" "h"
+"\033[38:2:189:255:53m" " "
+"\033[38:2:255:255:49m" "t"
+"\033[38:2:255:189:79m" "e"
+"\033[38:2:255:114:94m" "x"
+"\033[38:2:255:60:157m" "t"
+"\033[38:2:255:49:214m" " " "\033[39m"
+"(such as that created by word processors or desktop publishing software).\n\n"
+"Plain text exclusively consists of character representation. Each character is represented by a fixed-length sequence of one, two, or four bytes, or as a variable-length sequence of one to four bytes, in accordance to specific character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or Unicode. These conventions define many printable characters, but also non-printing characters that control the flow of the text, such as space, line break, and page break. Plain text contains no other information about the text itself, not even the character encoding convention employed. Plain text is stored in text files, although text files do not exclusively store plain text. In the early days of computers, plain text was displayed using a monospace font, such that horizontal alignment and columnar formatting were sometimes done using hitespace characters. For compatibility reasons, this tradition has not changed.\n\n"
+"Rich text, on the other hand, may contain metadata, character formatting data (e.g. typeface, size, \033[22mweight\033[1m and \033[22;3mstyle\033[23;1m), paragraph formatting data (e.g. indentation, alignment, letter and word distribution, and space between lines or other paragraphs), and page specification data (e.g. size, margin and reading direction). Rich text can be very complex. Rich text can be saved in binary format (e.g. DOC), text files adhering to a markup language (e.g. RTF or HTML), or in a hybrid form of both (e.g. Office Open XML).\n\n"
+R"(Text editors are intended to open and save text files containing either plain text or anything that can be interpreted as plain text, including the markup for rich text or the markup for something else (e.g. SVG).
 
 History
 
@@ -86,9 +94,9 @@ displaying the requested definition in a popup window or temporary buffer. Some 
             auto c3 = highlight_color;
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>(pro::focus::mode::focused)
+            window->plugin<pro::focus>(pro::focus::mode::hub)
                   ->plugin<pro::keybd>()
-                  ->shader(c3, e2::form::state::keybd::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
@@ -105,26 +113,25 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, 0xA0'00'1a'5f);
+                ->colors(whitelt, 0xA0'00'1a'5f);
                 config.cd("/config/defapp");
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
-                        auto layers = fields->attach(ui::cake::ctor());
-                            auto scroll = layers->attach(ui::rail::ctor())
-                                                ->active()
-                                                ->limits({ 4,3 }, { -1,-1 });
-                                auto edit_box = scroll->attach(ui::post::ctor(true))
-                                                      ->plugin<pro::caret>(true, faux, twod{ 25,1 })
-                                                      ->colors(blackdk, whitelt)
-                                                      ->upload(ansi::wrp(wrap::on).mgl(1).mgr(1)
-                                                      .add(topic3)
-                                                      .fgc(highlight_color.bgc())
-                                                      .wrp(wrap::off).add("From Wikipedia, the free encyclopedia"));
+                    auto layers = body_area->attach(slot::_1, ui::cake::ctor())
+                        ->setpad({}, { 1, 1 });
+                        auto scroll = layers->attach(ui::rail::ctor())
+                            ->active()
+                            ->limits({ 4, 3 }, { -1, -1 });
+                            auto edit_box = scroll->attach(ui::post::ctor(true))
+                                ->plugin<pro::focus>(pro::focus::mode::focused)
+                                ->plugin<pro::caret>(true, text_cursor::I_bar, twod{ 6, 3 })
+                                ->colors(blackdk, whitelt)
+                                ->upload(ansi::wrp(wrap::on).mgl(1).mgr(1).add(topic3).fgc(highlight_color.bgc())
+                                    .wrp(wrap::off).add("From Wikipedia, the free encyclopedia."));
                     auto status_line = body_area->attach(slot::_2, ui::post::ctor())
-                                                ->limits({ 1,1 }, { -1,1 })
-                                                ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
-                                                    .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
+                        ->limits({ 1, 1 }, { -1, 1 })
+                        ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                            .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {

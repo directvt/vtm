@@ -1896,31 +1896,35 @@ namespace netxs::utf
         auto test = utf8.find('\033');
         return test == text::npos;
     }
-    auto to_low(char c)
+    auto to_lower(char c)
     {
         return c >= 'A' && c <= 'Z' ? (char)(c + ('a' - 'A')) : c;
     }
-    auto& to_low(text& utf8, size_t size = text::npos)
+    auto to_upper(char c)
+    {
+        return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c;
+    }
+    auto& to_lower(text& utf8, size_t size = text::npos)
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](auto c){ return to_low(c); });
+        std::transform(head, tail, head, [](auto c){ return to_lower(c); });
         return utf8;
     }
-    auto to_low(text&& utf8)
+    auto to_lower(text&& utf8)
     {
-        return to_low(utf8);
+        return to_lower(utf8);
     }
-    auto& to_up(text& utf8, size_t size = text::npos)
+    auto& to_upper(text& utf8, size_t size = text::npos)
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](char c){ return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c; });
+        std::transform(head, tail, head, [](char c){ return to_upper(c); });
         return utf8;
     }
-    auto to_up(text&& utf8)
+    auto to_upper(text&& utf8)
     {
-        return to_up(utf8);
+        return to_upper(utf8);
     }
     template<class W, class P>
     void for_each(text& utf8, W const& what, P proc)

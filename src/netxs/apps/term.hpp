@@ -106,13 +106,13 @@ namespace netxs::app::terminal
         {
             auto& look = item.views[item.taken];
             boss.bell::signal(tier::release, e2::data::utf8,              look.label);
-            boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, look.notes);
+            boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, look.tooltip);
             boss.reflow();
         }
         auto _update_gear(ui::item& boss, menu::item& item, hids& gear)
         {
             auto& look = item.views[item.taken];
-            gear.set_tooltip(look.notes, true);
+            gear.set_tooltip(look.tooltip, true);
             _update(boss, item);
         }
         auto _update_to(ui::item& boss, menu::item& item, si32 i)
@@ -653,7 +653,7 @@ namespace netxs::app::terminal
                 auto& data = *data_ptr;
                 auto route = data.take(menu::attr::route, func::Noop,          route_options);
                 item.brand = data.take(menu::attr::brand, menu::item::Command, brand_options);
-                defs.notes = data.take(menu::attr::notes, ""s);
+                defs.tooltip = data.take(menu::attr::tooltip, ""s);
                 defs.param = data.take(menu::attr::param, ""s);
                 item.alive = route != func::Noop && item.brand != menu::item::Splitter;
                 for (auto label : data.list(menu::attr::label))
@@ -661,7 +661,7 @@ namespace netxs::app::terminal
                     item.views.push_back(
                     {
                         .label = label->take_value(),
-                        .notes = label->take(menu::attr::notes, defs.notes),
+                        .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
                         .param = label->take(menu::attr::param, defs.param),
                     });
                 }
@@ -790,7 +790,7 @@ namespace netxs::app::terminal
     {
         auto window_clr = skin::color(tone::window_clr);
         auto window = ui::cake::ctor()
-            ->plugin<pro::focus>(pro::focus::mode::active)
+            ->plugin<pro::focus>()
             ->invoke([&](auto& boss)
             {
                 closing_on_quit(boss);
@@ -869,11 +869,11 @@ namespace netxs::app::terminal
         };
 
         auto window = ui::cake::ctor();
-        window->plugin<pro::focus>(pro::focus::mode::hub)
+        window->plugin<pro::focus>()
             //->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>()
-            ->shader(gradient, e2::form::state::keybd::focus::count);
+            ->shader(gradient, e2::form::state::focus::count);
 
         auto object = window->attach(ui::fork::ctor(axis::Y));
         auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y))

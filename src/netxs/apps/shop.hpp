@@ -226,7 +226,7 @@ namespace netxs::app::shop
                                                               ->plugin<pro::focus>()
                                                               ->plugin<pro::grade>()
                                                               ->shader(cell::shaders::xlight, e2::form::state::hover)
-                                                              ->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
+                                                              ->shader(cell::shaders::color(c3), e2::form::state::focus::count);
                         items->attach(ui::post::ctor())
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();

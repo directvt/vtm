@@ -52,7 +52,7 @@ namespace netxs::events
         return level;
     }
     // events: Return event level mask by its ID. Find the log base 2**block.
-    static constexpr inline hint level_mask(hint event, int level = 0)
+    static constexpr inline hint level_mask(hint event, si32 level = 0)
     {
         while (event >>= block) { level += block; }
         return (1 << level) - 1;
@@ -100,7 +100,6 @@ namespace netxs::events
 
     struct bell;
     using ftor = std::function<bool(sptr<bell>)>;
-
 
     struct handler
     {
@@ -392,9 +391,9 @@ namespace netxs::events
     #define GET_END1_XS(a, b, c, d, e, last, ...) last
     #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                     ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ] ([[maybe_unused]] typename decltype( event )::type& param) mutable
+    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ]([[maybe_unused]] typename decltype( event )::type& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
@@ -433,9 +432,6 @@ namespace netxs::events
             };
         };
     }
-
-    static auto saveme_queue = std::vector<void*>{};
-    static auto saveme_mutex = std::mutex{};
 
     // events: Event x-mitter.
     struct bell

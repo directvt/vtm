@@ -18,6 +18,8 @@ jobs:
         exclude:
           - os: windows-latest
             cpu: x86
+          - os: windows-latest
+            cpu: arm
         include:
           - os: macos-latest
             platform: macos
