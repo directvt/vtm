@@ -1230,10 +1230,9 @@ namespace netxs::ui
                         auto iter = gears.find(gear.id);
                         if (iter != gears.end())
                         {
-                            //todo replace/drop prev default focus
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
-                            if (route.active) // Make the active branch the default.
+                            if (route.active) // Make the active branch default.
                             {
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
@@ -1438,8 +1437,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     if (!gear) return;
-                    if (gear.payload == input::keybd::type::keypress
-                     && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
+                    if (gear.payload == input::keybd::type::keypress && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
                     {
                         hotkey_scheme_notify();
                     }
@@ -1523,10 +1521,10 @@ namespace netxs::ui
                         {
                             boss.bell::signal(tier::release, hids::events::focus::set, seed); // Turn on a default downstream branch.
                         }
-                        else if (allow_focusize)
+                        else
                         {
                             auto& route = get_route(seed.gear_id);
-                            if  (route.active && seed.focus_type == solo::on) // Cut a downstream focus branch.
+                            if (allow_focusize && route.active && seed.focus_type == solo::on) // Cut a downstream focus branch.
                             {
                                 route.foreach([&](auto& nexthop){ nexthop->bell::signal(tier::release, hids::events::focus::off, seed); });
                                 route.next.clear();

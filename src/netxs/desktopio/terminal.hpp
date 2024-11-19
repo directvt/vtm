@@ -8025,7 +8025,7 @@ namespace netxs::ui
                     auto& f = lock.thing;
                     if (f.state)
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux);
+                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type);
                     }
                     else
                     {

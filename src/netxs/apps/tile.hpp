@@ -23,9 +23,9 @@ namespace netxs::events::userland
             {
                 EVENT_XS( create  , input::hids ),
                 EVENT_XS( close   , input::hids ),
-                EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
+                EVENT_XS( toggle  , input::hids ), // Toggle window size: maximize/restore.
                 EVENT_XS( swap    , input::hids ),
-                EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
+                EVENT_XS( rotate  , input::hids ), // Change nested objects order. See tilimg manager (ui::fork).
                 EVENT_XS( equalize, input::hids ),
                 EVENT_XS( select  , input::hids ),
                 GROUP_XS( split   , input::hids ),
