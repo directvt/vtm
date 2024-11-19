@@ -22,7 +22,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft
     # /utf-8   All literals in our source code are in UTF-8 format.
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /bigobj /utf-8 /Zc:preprocessor")
     set (WIN32_RESOURCES ".resources/images/vtm.rc")
-elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
+else ()
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
     # Static linkage
     #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
