@@ -17,7 +17,7 @@ jobs:
         cpu: [ x64, x86, arm64, arm ]
         exclude:
           - os: windows-latest
-            cpu: [ x86, arm ]
+            cpu: x86, arm
         include:
           - os: macos-latest
             platform: macos
