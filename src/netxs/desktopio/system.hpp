@@ -1965,7 +1965,7 @@ namespace netxs::os
                 auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
-                #if defined(__BSD__)
+                #if defined(__BSD__) || defined(__ANDROID__)
                 auto uname = ::getlogin(); // username associated with a session, even if it has no controlling terminal.
                 #else
                 auto uname = ::cuserid(nullptr);
@@ -3316,7 +3316,7 @@ namespace netxs::os
                 #elif defined(__linux__)
 
                     auto cred = ucred{};
-                    #ifdef __ANDROID__
+                    #if defined(__ANDROID__)
                         auto size = socklen_t{ sizeof(cred) };
                     #else
                         auto size = unsigned{ sizeof(cred) };
