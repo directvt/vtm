@@ -1778,7 +1778,7 @@ namespace netxs::ui
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.LISTEN(tier::release, hids::events::mouse::any, gear, memo)
                 {
-                    if (gear && !gear.captured() || (gear.cause == hids::events::mouse::hover::enter.id || gear.cause == hids::events::mouse::hover::leave.id))
+                    if ((gear && !gear.captured()) || gear.cause == hids::events::mouse::hover::enter.id || gear.cause == hids::events::mouse::hover::leave.id)
                     {
                         auto& offset = boss.base::coor();
                         gear.pass(tier::release, boss.parent(), offset);
