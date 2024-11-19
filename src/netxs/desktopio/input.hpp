@@ -731,8 +731,6 @@ namespace netxs::input
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.
-        ui32 deep{}; // foci: Counter for debug.
-        time guid{}; // foci: Originating environment ID.
 
         auto nondefault_gear() const
         {

@@ -1393,10 +1393,7 @@ namespace netxs::app::vtm
                         pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
                         auto what = what_copy;
                         what.applet = window_ptr;
-                        boss.bell::enqueue(boss.This(), [&](auto& /*boss*/)
-                        {
-                            pro::focus::set(boss.This(), gear.id, solo::on, true); // Refocus to demultifocus.
-                        });
+                        pro::focus::set(boss.This(), gear.id, solo::on, true); // Refocus to demultifocus.
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
