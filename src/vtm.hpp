@@ -2179,7 +2179,7 @@ namespace netxs::app::vtm
             {
                 inst.bell::signal(tier::release, e2::form::upon::vtree::detached, This());
             }
-            if (items.size()) // Pass focus to the top most object.
+            if (items.size() && !block/*don't refocus on user disconnect*/) // Pass focus to the top most object.
             {
                 auto last_ptr = items.back();
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);

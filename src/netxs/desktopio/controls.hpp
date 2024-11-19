@@ -1570,7 +1570,7 @@ namespace netxs::ui
                         notify_set_focus(route, seed);
                     }
 
-                    if (seed.nondefault_gear() || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window). See pro::focus ctor.
+                    if (seed.nondefault_gear() || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window) - Don't keep default routes in ui::hall. See pro::focus ctor.
                     {
                         if (auto parent = boss.parent())
                         {
