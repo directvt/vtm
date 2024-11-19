@@ -667,8 +667,8 @@ struct impl : consrv
                 if (path && path.front() != '/')
                 {
                     auto utf8 = path.str();
-                    auto i =  utf8[0] == '"' ? 1 : 0;
-                    if (utf8.size() > 1 + i && utf8[1 + i] == ':')
+                    auto i =  utf8[0] == '"' ? 1u : 0u;
+                    if (utf8.size() > 1u + i && utf8[1 + i] == ':')
                     {
                         utf8[i] = utf::to_upper(utf8[i]); // Make drive letter upper case.
                     }
