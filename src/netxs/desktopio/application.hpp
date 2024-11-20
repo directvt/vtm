@@ -163,7 +163,6 @@ namespace netxs::app::shared
             keybd.bind("F12"       , "ToggleFullscreen", mode);
         };
         binding(0);
-        binding(1);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
