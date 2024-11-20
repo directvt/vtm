@@ -662,7 +662,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        std::list<std::tuple<text, text, si32>> hotkeys;
+        std::list<std::tuple<text, std::vector<text>, si32>> hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -685,13 +685,16 @@ namespace netxs::app::shared
         for (auto keybind_ptr : keybinds)
         {
             auto& keybind = *keybind_ptr;
-            if (!keybind.fake)
+            auto chord = keybind.take_value();
+            auto scheme = keybind.take("scheme", 0); //todo use text instead of si32 as a scheme identifier
+            auto action = keybind.take("action", ""s);
+            auto action_list = std::vector<text>{};
+            auto action_ptr_list = keybind.list("action");
+            for (auto action_ptr : action_ptr_list)
             {
-                auto chord = keybind.take_value();
-                auto action = keybind.take("action", ""s);
-                auto scheme = keybind.take("scheme", 0);
-                gui_config.hotkeys.push_back({ chord, action, scheme });
+                action_list.push_back(action_ptr->take_value());
             }
+            gui_config.hotkeys.push_back({ chord, action_list, scheme });
         }
         return gui_config;
     }

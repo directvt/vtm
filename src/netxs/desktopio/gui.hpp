@@ -1970,7 +1970,7 @@ namespace netxs::gui
         kmap  chords; // winbase: Pressed key table (key chord).
         si32  hotkey; // winbase: Alternate hotkey scheme.
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::tuple<text, text, si32>>& hotkeys)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::tuple<text, std::vector<text>, si32>>& hotkeys)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
@@ -2012,7 +2012,7 @@ namespace netxs::gui
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
             wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 0);
             wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", 1);
-            for (auto& [chord, action, scheme] : hotkeys) wkeybd.bind<tier::preview>(chord, action, scheme);
+            for (auto& [chord, action_list, scheme] : hotkeys) wkeybd.bind<tier::preview>(chord, action_list, scheme);
         }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
