@@ -861,7 +861,7 @@ namespace netxs::directvt
                                         (si32, whlsi)
                                         (bool, hzwhl)
                                         (fp2d, click))
-        STRUCT_macro(hotkey_scheme,     (id_t, gear_id) (si32, index))
+        STRUCT_macro(hotkey_scheme,     (id_t, gear_id) (text, hscheme))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
@@ -894,7 +894,8 @@ namespace netxs::directvt
                                         (si32, keycode)  // syskeybd: Key id.
                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                         (text, scchord)  // sysmouse: Key scancode-based chord.
-                                        (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
+                                        (text, chchord)  // sysmouse: Key virtcode+cluster-based chord.
+                                        (text, hscheme)) // sysmouse: Current hotkey scheme.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (si32, enabled)  // sysmouse: Mouse device health status.

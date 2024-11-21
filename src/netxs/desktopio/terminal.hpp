@@ -8041,7 +8041,7 @@ namespace netxs::ui
                     auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     {
-                        gear_ptr->set_hotkey_scheme(k.index);
+                        gear_ptr->set_hotkey_scheme(k.hscheme);
                     }
                 }
             }

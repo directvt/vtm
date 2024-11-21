@@ -281,15 +281,25 @@ namespace netxs::app::terminal
                     _submit<true>(boss, item, [](auto& /*boss*/, auto& /*item*/, auto& gear)
                     {
                         gear.set_handled();
-                        gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme);
+                        //todo unify
+                        if (gear.hscheme != ""sv)
+                        {
+                            gear.set_hotkey_scheme("");
+                        }
+                        else
+                        {
+                            gear.set_hotkey_scheme("1");
+                        }
                     });
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
                     {
                         if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                         {
-                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*hook_ptr))
+                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::scheme, hscheme, (*hook_ptr))
                             {
-                                _update_to(boss, item, state + 1);
+                                //todo unify
+                                auto s = hscheme.empty() ? 1 : 2;
+                                _update_to(boss, item, s);
                             };
                         }
                     };

@@ -162,7 +162,7 @@ namespace netxs::app::shared
             keybd.bind("F12"       , "DropAutoRepeat"  , mode);
             keybd.bind("F12"       , "ToggleFullscreen", mode);
         };
-        binding(0);
+        binding(""s);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
@@ -662,7 +662,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        std::list<std::tuple<text, std::vector<text>, si32>> hotkeys;
+        std::list<std::tuple<text, std::vector<text>, text>> hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -686,8 +686,7 @@ namespace netxs::app::shared
         {
             auto& keybind = *keybind_ptr;
             auto chord = keybind.take_value();
-            auto scheme = keybind.take("scheme", 0); //todo use text instead of si32 as a scheme identifier
-            auto action = keybind.take("action", ""s);
+            auto scheme = keybind.take("scheme", ""s); //todo use text instead of si32 as a scheme identifier
             auto action_list = std::vector<text>{};
             auto action_ptr_list = keybind.list("action");
             for (auto action_ptr : action_ptr_list)

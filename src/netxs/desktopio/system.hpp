@@ -4840,7 +4840,7 @@ namespace netxs::os
         {
             struct adapter : s11n
             {
-                si32 hotkey = 0;
+                text hscheme;
                 id_t gear_id = 1;
 
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
@@ -4913,7 +4913,7 @@ namespace netxs::os
                 void handle(s11n::xs::sysfocus         lock)
                 {
                     auto& item = lock.thing;
-                    if (item.state && hotkey)
+                    if (item.state)
                     {
                         sync_hotkey_scheme();
                     }
@@ -4921,14 +4921,13 @@ namespace netxs::os
                 void handle(s11n::xs::hotkey_scheme    lock)
                 {
                     auto& k = lock.thing;
-                    hotkey = k.index;
+                    hscheme = k.hscheme;
                     sync_hotkey_scheme();
                 }
                 // adapter: Send an empty hotkey scheme packet.
                 void sync_hotkey_scheme()
                 {
                     auto item = s11n::syskeybd.freeze();
-                    netxs::set_flag<input::hids::HotkeyScheme>(item.thing.ctlstat, hotkey);
                     auto temp = input::syskeybd{}; //todo same code in gui.hpp:2860
                     std::swap(temp.vkchord, item.thing.vkchord);
                     std::swap(temp.scchord, item.thing.scchord);
@@ -4936,6 +4935,7 @@ namespace netxs::os
                     std::swap(temp.cluster, item.thing.cluster);
                     std::swap(temp.keystat, item.thing.keystat);
                     item.thing.gear_id = gear_id;
+                    item.thing.hscheme = hscheme;
                     item.thing.virtcod = 0;
                     item.thing.scancod = 0;
                     item.thing.keycode = 0;
@@ -6094,23 +6094,12 @@ namespace netxs::os
             {
                 if (alive)
                 {
-                    netxs::set_flag<input::hids::HotkeyScheme>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey scheme.
+                    data.hscheme = proxy.hscheme; // Inject current hotkey scheme.
                     proxy.syskeybd.send(intio, data);
                 }
             };
-            auto mouse = [&](auto& data)
-            {
-                if (alive)
-                {
-                    netxs::set_flag<input::hids::HotkeyScheme>(data.ctlstat, proxy.hotkey); // Inject alternate hotkey scheme.
-                    proxy.sysmouse.send(intio, data);
-                }
-            };
-            auto focus = [&](auto state)
-            {
-                if (!alive) return;
-                proxy.sysfocus.send(intio, proxy.gear_id, state, 0);
-            };
+            auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
+            auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, close, noop{}); }};

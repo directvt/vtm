@@ -1115,7 +1115,19 @@ namespace netxs::ui
               fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.proc("ToggleHotkeyScheme", [&](hids& gear){ gear.set_handled(); gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme); });
+            keybd.proc("ToggleHotkeyScheme", [&](hids& gear)
+            {
+                gear.set_handled();
+                //todo unify
+                if (gear.hscheme != ""sv)
+                {
+                    gear.set_hotkey_scheme("");
+                }
+                else
+                {
+                    gear.set_hotkey_scheme("1");
+                }
+            });
             keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
 
             base::root(true);
@@ -1146,7 +1158,7 @@ namespace netxs::ui
             {
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                 if (!gear_ptr) return;
-                conio.hotkey_scheme.send(canal, ext_gear_id, gear.meta(hids::HotkeyScheme));
+                conio.hotkey_scheme.send(canal, ext_gear_id, gear.hscheme);
             };
             //todo mimic pro::focus
             //if (standalone)
@@ -1156,15 +1168,15 @@ namespace netxs::ui
                     owner_ptr = This();
                 };
             }
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens, (hotkey = 0)) // Start of kb event propagation.
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens, (hscheme = text{})) // Start of kb event propagation.
             {
                 //if (standalone)
                 {
                     //todo mimic pro::focus
-                    auto m = gear.meta(hids::HotkeyScheme) >> 28; //std::countr_zero(hids::HotkeyScheme); //todo MSVC doesn't get it
-                    if (std::exchange(hotkey, m) != hotkey)
+                    if (hscheme != gear.hscheme)
                     {
-                        bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                        hscheme = gear.hscheme;
+                        bell::signal(tier::release, e2::form::state::keybd::scheme, hscheme);
                     }
                 }
                 if (gear)
