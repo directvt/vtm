@@ -757,8 +757,8 @@ namespace netxs::app::shared
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", "");
-                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", "1");
+                keybd.template bind<tier::release>( "Any", "",  "UpdateChordPreview");
+                keybd.template bind<tier::release>( "Any", "1", "UpdateChordPreview");
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

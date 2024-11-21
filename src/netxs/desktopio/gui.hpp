@@ -1971,7 +1971,7 @@ namespace netxs::gui
         text  scheme; // winbase: Current hotkey scheme.
         bool  drykey; // winbase: Hotkey scheme should be sent as soon as possible.
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, std::list<std::tuple<text, std::vector<text>, text>>& hotkeys)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, input::key::keybind_list_t& hotkeys)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
@@ -2011,11 +2011,12 @@ namespace netxs::gui
             wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
             wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
-            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", "");
-            wkeybd.bind<tier::preview>("-Ctrl", "_ResetWheelAccumulator", "1");
-            for (auto& [chord, action_list, hotkey_scheme] : hotkeys)
+            //todo use scheme="*"
+            wkeybd.bind<tier::preview>("-Ctrl", "" , "_ResetWheelAccumulator");
+            wkeybd.bind<tier::preview>("-Ctrl", "1", "_ResetWheelAccumulator");
+            for (auto& r : hotkeys)
             {
-                wkeybd.bind<tier::preview>(chord, action_list, hotkey_scheme);
+                wkeybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
             }
         }
 

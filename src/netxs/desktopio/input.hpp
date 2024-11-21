@@ -703,6 +703,14 @@ namespace netxs::input
             }
         };
 
+        struct keybind_t
+        {
+            text chord;
+            text scheme;
+            std::vector<text> actions;
+        };
+        using keybind_list_t = std::vector<keybind_t>;
+
         template<class ...Args>
         auto xlat(Args&&... args)
         {

@@ -141,28 +141,28 @@ namespace netxs::app::shared
         //todo use sptr for gear when enqueueing (dangling reference)
         keybd.proc("ToggleMaximize"  , [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
         keybd.proc("ToggleFullscreen", [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
-        auto binding = [&](auto mode)
+        auto binding = [&](qiew scheme)
         {
-            keybd.template bind<tier::preview>( "Esc", "DropAutoRepeat"    , mode);
-            keybd.template bind<tier::release>( "Esc", "WindowClosePreview", mode);
-            keybd.template bind<tier::preview>("-Esc", "WindowClose"       , mode);
-            keybd.template bind<tier::release>( "Any", "CancelWindowClose" , mode);
-            keybd.bind("PageUp"    , "ScrollPageUp"    , mode);
-            keybd.bind("PageDown"  , "ScrollPageDown"  , mode);
-            keybd.bind("UpArrow"   , "ScrollLineUp"    , mode);
-            keybd.bind("DownArrow" , "ScrollLineDown"  , mode);
-            keybd.bind("LeftArrow" , "ScrollCharLeft"  , mode);
-            keybd.bind("RightArrow", "ScrollCharRight" , mode);
-            keybd.bind("Home"      , "DropAutoRepeat"  , mode);
-            keybd.bind("Home"      , "ScrollTop"       , mode);
-            keybd.bind("End"       , "DropAutoRepeat"  , mode);
-            keybd.bind("End"       , "ScrollEnd"       , mode);
-            keybd.bind("F11"       , "DropAutoRepeat"  , mode);
-            keybd.bind("F11"       , "ToggleMaximize"  , mode);
-            keybd.bind("F12"       , "DropAutoRepeat"  , mode);
-            keybd.bind("F12"       , "ToggleFullscreen", mode);
+            keybd.template bind<tier::preview>( "Esc", scheme, "DropAutoRepeat"    );
+            keybd.template bind<tier::release>( "Esc", scheme, "WindowClosePreview");
+            keybd.template bind<tier::preview>("-Esc", scheme, "WindowClose"       );
+            keybd.template bind<tier::release>( "Any", scheme, "CancelWindowClose" );
+            keybd.bind("PageUp"    , scheme, "ScrollPageUp"    );
+            keybd.bind("PageDown"  , scheme, "ScrollPageDown"  );
+            keybd.bind("UpArrow"   , scheme, "ScrollLineUp"    );
+            keybd.bind("DownArrow" , scheme, "ScrollLineDown"  );
+            keybd.bind("LeftArrow" , scheme, "ScrollCharLeft"  );
+            keybd.bind("RightArrow", scheme, "ScrollCharRight" );
+            keybd.bind("Home"      , scheme, "DropAutoRepeat"  );
+            keybd.bind("Home"      , scheme, "ScrollTop"       );
+            keybd.bind("End"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("End"       , scheme, "ScrollEnd"       );
+            keybd.bind("F11"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("F11"       , scheme, "ToggleMaximize"  );
+            keybd.bind("F12"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("F12"       , scheme, "ToggleFullscreen");
         };
-        binding(""s);
+        binding("");
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
@@ -662,7 +662,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        std::list<std::tuple<text, std::vector<text>, text>> hotkeys;
+        input::key::keybind_list_t hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -681,20 +681,7 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(f->take_value());
         }
-        auto keybinds = config.list("/config/hotkeys/gui/key");
-        for (auto keybind_ptr : keybinds)
-        {
-            auto& keybind = *keybind_ptr;
-            auto chord = keybind.take_value();
-            auto scheme = keybind.take("scheme", ""s); //todo use text instead of si32 as a scheme identifier
-            auto action_list = std::vector<text>{};
-            auto action_ptr_list = keybind.list("action");
-            for (auto action_ptr : action_ptr_list)
-            {
-                action_list.push_back(action_ptr->take_value());
-            }
-            gui_config.hotkeys.push_back({ chord, action_list, scheme });
-        }
+        gui_config.hotkeys = ui::pro::keybd::load(config, "gui");
         return gui_config;
     }
     void splice(xipc client, gui_config_t& gc)

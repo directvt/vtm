@@ -7746,7 +7746,11 @@ namespace netxs::ui
             chords.proc("TerminalSelectionOneShot",     [&](hids& gear){ gear.set_handled(); set_oneshot(mime::textonly);       });
             chords.proc("TerminalViewportCopy",         [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
             chords.proc("TerminalToggleStdioLog",       [&](hids& gear){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
-            chords.load<tier::release>(xml_config, "/config/hotkeys/term/key");
+            auto bindings = chords.load(xml_config, "term");
+            for (auto& r : bindings)
+            {
+                chords.bind<tier::release>(r.chord, r.scheme, r.actions);
+            }
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {

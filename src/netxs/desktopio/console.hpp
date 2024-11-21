@@ -1128,7 +1128,11 @@ namespace netxs::ui
                     gear.set_hotkey_scheme("1");
                 }
             });
-            keybd.load<tier::preview>(config, "/config/hotkeys/tui/key");
+            auto bindings = keybd.load(config, "tui");
+            for (auto& r : bindings)
+            {
+                keybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
+            }
 
             base::root(true);
             base::limits(dot_11);

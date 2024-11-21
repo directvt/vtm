@@ -2040,7 +2040,7 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, auto&& proc_names, qiew scheme = {})
+            auto bind(qiew chord_str, qiew scheme, auto&& proc_names)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
@@ -2074,23 +2074,27 @@ namespace netxs::ui
                     }
                 }
             }
-            template<si32 Tier = tier::release>
-            auto load(xmls& config, qiew path)
+            static auto load(xmls& config, qiew section)
             {
-                auto keybinds = config.list(path);
-                for (auto keybind_ptr : keybinds)
+                auto bindings = input::key::keybind_list_t{};
+                if (section)
                 {
-                    auto& keybind = *keybind_ptr;
-                    auto chord = keybind.take_value();
-                    auto scheme = keybind.take("scheme", ""s);
-                    auto action_list = std::vector<text>{};
-                    auto action_ptr_list = keybind.list("action");
-                    for (auto action_ptr : action_ptr_list)
+                    auto path = "/config/hotkeys/" + section.str() + "/key";
+                    auto keybinds = config.list(path);
+                    for (auto keybind_ptr : keybinds)
                     {
-                        action_list.push_back(action_ptr->take_value());
+                        auto& keybind = *keybind_ptr;
+                        auto chord = keybind.take_value();
+                        auto scheme = keybind.take("scheme", ""s);
+                        auto action_ptr_list = keybind.list("action");
+                        auto& rec = bindings.emplace_back(chord, scheme);
+                        for (auto action_ptr : action_ptr_list)
+                        {
+                            rec.actions.push_back(action_ptr->take_value());
+                        }
                     }
-                    bind<Tier>(chord, action_list, scheme);
                 }
+                return bindings;
             }
         };
 
