@@ -389,16 +389,26 @@ R"==(
         <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
             <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+0"                action=DropAutoRepeat/>          <!-- Don't repeat the Reset text cell height. -->
-            <key="Ctrl+0"                action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            <key="Alt+Enter"             action=DropAutoRepeat/>          <!-- Don't repeat the Toggle fullscreen mode. -->
-            <key="Alt+Enter"             action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            <key="Ctrl+CapsLock"         action=DropAutoRepeat/>          <!-- Don't repeat the Toggle text antialiasing mode. -->
-            <key="Ctrl+CapsLock"         action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Ctrl+Shift+F11"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list backward. -->
-            <key="Ctrl+Shift+F11"        action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            <key="Ctrl+Shift+F12"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list forward. -->
-            <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
+            <key="Ctrl+0">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Reset text cell height. -->
+                <action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            </key>
+            <key="Alt+Enter">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle fullscreen mode. -->
+                <action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            </key>
+            <key="Ctrl+CapsLock">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle text antialiasing mode. -->
+                <action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
+            </key>
+            <key="Ctrl+Shift+F11">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list backward. -->
+                <action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            </key>
+            <key="Ctrl+Shift+F12">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list forward. -->
+                <action=RollFontsForward/>        <!-- Roll font list forward. -->
+            </key>
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
             <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
@@ -428,10 +438,14 @@ R"==(
             <key="Shift+Ctrl+DownArrow"   action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
             <key="Shift+Ctrl+LeftArrow"   action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
             <key="Shift+Ctrl+RightArrow"  action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"        action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+Home"        action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"         action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
-            <key="Shift+Ctrl+End"         action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key="Shift+Ctrl+Home">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the Scroll to the scrollback top. -->
+                <action=TerminalViewportTop/>  <!-- Scroll to the scrollback top. -->
+            </key>
+            <key="Shift+Ctrl+End">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
+                <action=TerminalViewportEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            </key>
             <key=""                       action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                       action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
             <key=""                       action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->

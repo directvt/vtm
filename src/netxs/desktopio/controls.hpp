@@ -1950,35 +1950,25 @@ namespace netxs::ui
                 }
             }
             template<si32 Tier = tier::release>
-            auto _set(qiew chord_str, sptr handler_ptr, si32 scheme)
+            auto _set(auto& chords, sptr handler_ptr, si32 scheme)
             {
                 //todo unify
                 auto hscheme = scheme ? 1 : 0;
                 auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
-                if (auto chords = _get_chords(chord_str))
+                for (auto& chord : chords)
                 {
-                    for (auto& chord : chords.value())
-                    {
-                        handlers[chord].push_back(handler_ptr);
-                    }
-                    return true;
+                    handlers[chord].push_back(handler_ptr);
                 }
-                else return faux;
             }
             template<si32 Tier = tier::release>
-            auto _reset(qiew chord_str, si32 scheme)
+            auto _reset(auto& chords, si32 scheme)
             {
                 auto hscheme = scheme ? 1 : 0;
                 auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
-                if (auto chords = _get_chords(chord_str))
+                for (auto& chord : chords)
                 {
-                    for (auto& chord : chords.value())
-                    {
-                        handlers[chord].clear();
-                    }
-                    return true;
+                    handlers[chord].clear();
                 }
-                else return faux;
             }
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
@@ -2054,20 +2044,38 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew proc_name, si32 scheme = 0)
+            auto bind(qiew chord_str, auto&& proc_names, si32 scheme = 0)
             {
                 if (!chord_str) return;
-                if (proc_name)
+                if (auto chord_list = _get_chords(chord_str))
                 {
-                    if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                    auto& chords = chord_list.value();
+                    auto set = [&](qiew proc_name)
                     {
-                        _set<Tier>(chord_str, iter->second, scheme);
+                        if (proc_name)
+                        {
+                            if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                            {
+                                _set<Tier>(chords, iter->second, scheme);
+                            }
+                            else log("%%Action '%proc%' not found", prompt::user, proc_name);
+                        }
+                        else
+                        {
+                            _reset<Tier>(chords, scheme);
+                        }
+                    };
+                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a string.
+                    {
+                        set(proc_names);
                     }
-                    else log("%%Action '%proc%' not found", prompt::user, proc_name);
-                }
-                else
-                {
-                    _reset<Tier>(chord_str, scheme);
+                    else
+                    {
+                        for (auto& proc_name : proc_names)
+                        {
+                            set(proc_name);
+                        }
+                    }
                 }
             }
             template<si32 Tier = tier::release>
@@ -2077,13 +2085,15 @@ namespace netxs::ui
                 for (auto keybind_ptr : keybinds)
                 {
                     auto& keybind = *keybind_ptr;
-                    if (!keybind.fake)
+                    auto chord = keybind.take_value();
+                    auto scheme = keybind.take("scheme", 0); //todo use text instead of si32 as a scheme identifier
+                    auto action_list = std::vector<text>{};
+                    auto action_ptr_list = keybind.list("action");
+                    for (auto action_ptr : action_ptr_list)
                     {
-                        auto chord = keybind.take_value();
-                        auto action = keybind.take("action", ""s);
-                        auto scheme = keybind.take("scheme", 0);
-                        bind<Tier>(chord, action, scheme);
+                        action_list.push_back(action_ptr->take_value());
                     }
+                    bind<Tier>(chord, action_list, scheme);
                 }
             }
         };

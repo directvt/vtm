@@ -1403,7 +1403,50 @@ namespace netxs::ui
                                                     len.y * len.x);
             while (dst != end) *dst++ = blank;
         }
-
+        //todo make it 2D
+        // rich: Pop glyph matrix.
+        auto pop_cluster()
+        {
+            auto cluster = netxs::text{};
+            auto size = (si32)core::canvas.size();
+            if (size)
+            {
+                auto& back = canvas.back();
+                auto [w, h, x, y] = back.whxy();
+                if constexpr (debugmode) log("\tw=%%, h=%%, x=%%, y=%%", w, h, x, y);
+                if (w && x == w && size >= w)
+                {
+                    auto current_x = w - 1;
+                    auto head = canvas.rbegin() + 1;
+                    auto tail = head + current_x;
+                    while (head != tail)
+                    {
+                        auto& c = *head;
+                        if (!c.same_txt(back) || !c.like(back))
+                        {
+                            break;
+                        }
+                        auto [cw, ch, cx, cy] = c.whxy();
+                        if constexpr (debugmode) log("\t\tcurrent_x=%%, cw=%%, ch=%%, cx=%%, cy=%%", current_x, cw, ch, cx, cy);
+                        if (cw != w || ch != h || cy != y || cx != current_x)
+                        {
+                            break;
+                        }
+                        head++;
+                        current_x--;
+                    }
+                    if (head == tail)
+                    {
+                        cluster = back.txt();
+                        if (cluster.size())
+                        {
+                            core::crop(size - w);
+                        }
+                    }
+                }
+            }
+            return cluster;
+        }
         //todo unify
         auto& at(si32 p) const
         {
@@ -1439,7 +1482,27 @@ namespace netxs::ui
         para(id_t id, auto utf8)      { brush.link(id); ansi::parse(utf8, this);               }
         para(auto utf8)               {                 ansi::parse(utf8, this);               }
         auto& operator  = (auto utf8) { wipe(brush);    ansi::parse(utf8, this); return *this; }
-        auto& operator += (auto utf8) {                 ansi::parse(utf8, this); return *this; }
+        auto& operator += (auto utf8)
+        {
+            if (parser::defer && caret && caret == length())
+            {
+                if constexpr (debugmode) log("try to reassemble cluster=", lyric->back().txt());
+                auto last_cluster = lyric->pop_cluster();
+                if (caret != length())
+                {
+                    caret = length();
+                    auto reassembled_cluster = text{};
+                    reassembled_cluster.reserve(last_cluster.length() + utf8.length());
+                    reassembled_cluster += last_cluster;
+                    reassembled_cluster += utf8;
+                    ansi::parse(reassembled_cluster, this);
+                    if constexpr (debugmode) log("\treassembled_cluster=", utf::buffer_to_hex(reassembled_cluster, true));
+                    return *this;
+                }
+            }
+            ansi::parse(utf8, this);
+            return *this;
+        }
 
         operator writ const& () const { return locus; }
 
@@ -1452,7 +1515,7 @@ namespace netxs::ui
             return shadow().substr(start, width);
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
-        auto length() const { return lyric->size().x; } // para: Return printable length.
+        si32 length() const { return lyric->size().x; } // para: Return printable length. //todo Apple clang doesn't get auto return.
         auto  empty() const { return !length();       } // para: Return true if empty.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
@@ -1460,7 +1523,7 @@ namespace netxs::ui
         void   ease()        { lyric->each([&](auto& c){ c.clr({});  });  } // para: Reset color for all text.
         void   link(id_t id) { lyric->each([&](auto& c){ c.link(id); });  } // para: Set object ID for each cell.
         template<bool ResetStyle = faux>
-        void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
+        void wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             parser::reset<ResetStyle>(c);
             caret = 0;
