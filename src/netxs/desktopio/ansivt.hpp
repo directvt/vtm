@@ -1419,16 +1419,19 @@ namespace netxs::ansi
         {
             auto s = [&](auto const& traits, qiew utf8)
             {
+                client->defer = faux;
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
                 return utf8;
             };
             auto y = [&](auto const& cluster)
             {
                 client->post(cluster);
+                client->defer = true;
             };
             auto a = [&](view plain)
             {
                 client->ascii(plain);
+                client->defer = true;
             };
             utf::decode(s, y, a, utf8, client->decsg);
             client->flush();
@@ -1694,6 +1697,7 @@ namespace netxs::ansi
         deco state{}; // parser: Parser style last state.
         mark brush{}; // parser: Parser brush.
         si32 decsg{}; // parser: DEC Special Graphics Mode.
+        bool defer{}; // parser: The last character was a cluster that could continue to grow.
 
     private:
         core::body proto_cells{}; // parser: Proto lyric.
@@ -1741,6 +1745,7 @@ namespace netxs::ansi
             }
             proto_count = 0;
             proto_cells.clear();
+            defer = faux;
         }
         auto empty() const
         {
