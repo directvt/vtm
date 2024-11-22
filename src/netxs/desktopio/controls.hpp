@@ -1936,7 +1936,7 @@ namespace netxs::ui
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             subs tokens;
 
-            auto _get_chords(qiew chord_str)
+            auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
                 auto chords = input::key::kmap::chord_list(chord_str);
                 if (chords.size())
@@ -1948,6 +1948,30 @@ namespace netxs::ui
                     log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
                     return std::optional<decltype(chords)>{};
                 }
+            }
+            auto _get_chords(qiew chord_list_str)
+            {
+                auto chord_qiew_list = utf::split<true>(chord_list_str, " | ");
+                if (chord_qiew_list.size())
+                {
+                    auto head = chord_qiew_list.begin();
+                    auto tail = chord_qiew_list.end();
+                    if (auto first_chord_list = _get_chord_list(*head++))
+                    {
+                        auto chords = first_chord_list.value();
+                        while (head != tail)
+                        {
+                            auto chord_qiew = *head++;
+                            if (auto next_chord_list = _get_chord_list(chord_qiew))
+                            {
+                                auto& c = next_chord_list.value();
+                                chords.insert(chords.end(), c.begin(), c.end());
+                            }
+                        }
+                        return std::optional{ chords };
+                    }
+                }
+                return _get_chord_list();
             }
             template<si32 Tier = tier::release>
             auto _set(auto& chords, sptr handler_ptr, qiew scheme)

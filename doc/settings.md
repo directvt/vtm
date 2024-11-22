@@ -304,14 +304,19 @@ Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bi
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord" action="NameOfAction" scheme=N/> <!-- scheme=0 can be omitted.  -->
+<key="Key+Chord | ... | Another+Key+Chord" scheme="scheme_name"> <!-- scheme="" can be omitted.  -->
+    <action="NameOfAction1" arg="argument" ... arg="argument"/>
+    ...
+    <action="NameOfActionN" arg="argument" ... arg="argument"/>
+</key>
 ```
 
 Tag      | Value
 ---------|--------
-`key`    | The text string containing the key combination.
+`key`    | The text string containing the key combinations.
+`scheme` | Hotkey scheme name for which mapping is being done (empty string by default).
 `action` | The action name.
-`scheme` | Hotkey scheme for which mapping is being done (0 by default). Either `0` or `1` are allowed.
+`arg`    | The arguments passed to the action.
 
 The following joiners are allowed for combining keys:
 
@@ -319,6 +324,7 @@ Joiner | Meaning
 -------|--------
 `+`    | The subsequent key is in pressed state.
 `-`    | The subsequent key is in released state. This joiner is allowed for the last key only.
+` | `  | The separator for key combinations in a list (vertical bar surrounded by spaces).
 
 Key combinations can be of the following types:
 
@@ -335,13 +341,13 @@ The required key combination sequence can be generated on the Info page, accessi
 
 #### Interpretation
 
-Configuration record                                | Interpretation
-----------------------------------------------------|-----------------
-`<key="Key+Chord" action=NameOfAction/>`            | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
-`<key="Key+Chord" action="NameOfAction"/>`          | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action="NameOfAction" scheme=1/>` | Append existing bindings for scheme=1.
-`<key="Key+Chord" action=""/>`                      | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key=""          action="NameOfAction"/>`          | Do nothing.
+Configuration record                                  | Interpretation
+------------------------------------------------------|-----------------
+`<key="Key+Chord" action=NameOfAction/>`              | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
+`<key="Key+Chord" action="NameOfAction"/>`            | Append existing bindings with the directly specified command "NameOfAction".
+`<key="Key+Chord" action="NameOfAction" scheme="1"/>` | Append existing bindings for scheme="1".
+`<key="Key+Chord" action=""/>`                        | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key=""          action="NameOfAction"/>`            | Do nothing.
 
 #### Available actions
 
@@ -350,7 +356,7 @@ Action                         | Default key combination  | Available at layer  
 `Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
 `DropAutoRepeat`               |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
-`ToggleHotkeyScheme`           | `Ctrl-Alt`, `Alt-Ctrl`   | TUI matrix          | Toggle hotkey scheme between default and `"1"`.
+`ToggleHotkeyScheme`           | `Ctrl-Alt | Alt-Ctrl`    | TUI matrix          | Toggle hotkey scheme between default and `"1"`.
 `IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
 `DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
 `ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
@@ -818,12 +824,13 @@ Notes
             <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
-            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
-            <key="Ctrl-Alt"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Alt-Ctrl (reversed releasing). -->
-            <key="Ctrl-Alt" scheme="1"   action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl" scheme="1"   action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to default by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="">
+                <action=ToggleHotkeyScheme arg="1"/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1">
+                <action=ToggleHotkeyScheme arg=""/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->

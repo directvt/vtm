@@ -160,7 +160,7 @@ Value                        | Unique for hotkeys | Default Hotkey              
 -----------------------------|--------------------|------------------------------|------------
 Drop                         | x                  |                              | Drop all events for the specified key combination. No further processing.
 DropAutoRepeat               | x                  |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-ToggleHotkeyScheme           | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle hotkey scheme between default and `"1"`.
+ToggleHotkeyScheme           | x                  | `Ctrl-Alt | Alt-Ctrl`        | Toggle hotkey scheme between default and `"1"`.
 TerminalFindNext             |                    | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 TerminalFindPrev             |                    | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 TerminalViewportOnePageUp    | x                  | `Shift+Ctrl+PageUp`          | Scroll one page up.
@@ -314,12 +314,13 @@ TerminalSelectionOneShot     |                    |                             
     </term>
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
-            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
-            <key="Ctrl-Alt"              action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to "1" by pressing and releasing Alt-Ctrl (reversed releasing). -->
-            <key="Ctrl-Alt" scheme="1"   action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl" scheme="1"   action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to default by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="">
+                <action=ToggleHotkeyScheme arg="1"/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1">
+                <action=ToggleHotkeyScheme arg=""/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
         </tui>
         <term key*>
             <key="Alt+RightArrow"           action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->

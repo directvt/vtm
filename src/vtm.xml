@@ -411,12 +411,13 @@ R"==(
             </key>
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
-            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
-            <key="Ctrl-Alt"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Alt-Ctrl (reversed releasing). -->
-            <key="Ctrl-Alt" scheme="1"   action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl" scheme="1"   action=ToggleHotkeyScheme/>  <!-- Toggle hotkey scheme to default by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="">
+                <action=ToggleHotkeyScheme arg="1"/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1">
+                <action=ToggleHotkeyScheme arg=""/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            </key>
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
