@@ -2115,7 +2115,8 @@ namespace netxs::ui
                         auto chord = keybind_ptr->take_value();
                         auto scheme = keybind_ptr->take("scheme", ""s);
                         auto action_ptr_list = keybind_ptr->list("action");
-                        auto& rec = bindings.emplace_back(chord, scheme);
+                        bindings.push_back({ .chord = chord, .scheme = scheme });
+                        auto& rec = bindings.back();
                         if constexpr (debugmode) log("chord=%% scheme=%%", chord, scheme);
                         for (auto action_ptr : action_ptr_list)
                         {
