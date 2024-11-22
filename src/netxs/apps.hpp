@@ -753,7 +753,7 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 auto& keybd = boss.template plugins<pro::keybd>();
                 app::shared::base_kb_navigation(keybd, scroll, boss);
-                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear)
+                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear, txts&)
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });

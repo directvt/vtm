@@ -1114,8 +1114,8 @@ namespace netxs::ui
               yield{ faux },
               fullscreen{ faux }
         {
-            keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.proc("ToggleHotkeyScheme", [&](hids& gear)
+            keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            keybd.proc("ToggleHotkeyScheme", [&](hids& gear, txts&)
             {
                 gear.set_handled();
                 //todo unify

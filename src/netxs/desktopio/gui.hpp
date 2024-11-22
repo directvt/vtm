@@ -2003,14 +2003,14 @@ namespace netxs::gui
               stream{ *this, *os::dtvt::client },
               drykey{ faux }
         {
-            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
-            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
-            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
-            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
-            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
-            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
-            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
-            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
+            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(1.f); });
+            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(-1.f);});
+            wkeybd.proc("ResetCellHeight"       , [&](hids& gear, txts&){ gear.set_handled(); ResetCellHeight();        });
+            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear, txts&){ gear.set_handled(); ToggleFullscreenMode();   });
+            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear, txts&){ gear.set_handled(); ToggleAntialiasingMode(); });
+            wkeybd.proc("RollFontsBackward"     , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::rev);  });
+            wkeybd.proc("RollFontsForward"      , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::fwd);  });
+            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/, txts&){ whlacc = {}; });
             //todo use scheme="*"
             wkeybd.bind<tier::preview>("-Ctrl", "" , "_ResetWheelAccumulator");
             wkeybd.bind<tier::preview>("-Ctrl", "1", "_ResetWheelAccumulator");

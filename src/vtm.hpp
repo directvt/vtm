@@ -734,10 +734,10 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
-            keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
-            keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
-            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
+            keybd.proc("FocusPrevWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::rev); });
+            keybd.proc("FocusNextWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::fwd); });
+            keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
+            keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
             auto bindings = keybd.load(config, "desktop");
             for (auto& r : bindings)
             {

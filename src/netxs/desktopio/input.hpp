@@ -705,9 +705,14 @@ namespace netxs::input
 
         struct keybind_t
         {
+            struct action_t
+            {
+                text action;
+                txts args;
+            };
             text chord;
             text scheme;
-            std::vector<text> actions;
+            std::vector<action_t> actions;
         };
         using keybind_list_t = std::vector<keybind_t>;
 

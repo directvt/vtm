@@ -114,7 +114,7 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll;
         auto esc_pressed = ptr::shared(faux);
-        keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+        keybd.proc("WindowClose", [&, esc_pressed](hids& gear, txts&)
         {
             if (*esc_pressed)
             {
@@ -122,25 +122,25 @@ namespace netxs::app::shared
                 gear.set_handled(true);
             }
         });
-        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, true) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
         });
-        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
+        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
         });
-        keybd.proc("ScrollPageUp"    , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
-        keybd.proc("ScrollPageDown"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
-        keybd.proc("ScrollLineUp"    , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
-        keybd.proc("ScrollLineDown"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
-        keybd.proc("ScrollCharLeft"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
-        keybd.proc("ScrollCharRight" , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
-        keybd.proc("ScrollTop"       , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-        keybd.proc("ScrollEnd"       , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
+        keybd.proc("ScrollPageUp"    , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
+        keybd.proc("ScrollPageDown"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
+        keybd.proc("ScrollLineUp"    , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
+        keybd.proc("ScrollLineDown"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
+        keybd.proc("ScrollCharLeft"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
+        keybd.proc("ScrollCharRight" , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
+        keybd.proc("ScrollTop"       , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
+        keybd.proc("ScrollEnd"       , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
         //todo use sptr for gear when enqueueing (dangling reference)
-        keybd.proc("ToggleMaximize"  , [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        keybd.proc("ToggleFullscreen", [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
+        keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
+        keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
         auto binding = [&](qiew scheme)
         {
             keybd.template bind<tier::preview>( "Esc", scheme, "DropAutoRepeat"    );

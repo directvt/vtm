@@ -1925,14 +1925,14 @@ namespace netxs::ui
         class keybd
             : public skill
         {
-            using func = std::function<void(hids&)>;
+            using func = std::function<void(hids&, txts&)>;
             using wptr = netxs::wptr<func>;
             using sptr = netxs::sptr<func>;
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>> handlers_preview;
-            std::unordered_map<text, std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>> handlers_release;
+            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, txts>>, qiew::hash, qiew::equal>> handlers_preview;
+            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, txts>>, qiew::hash, qiew::equal>> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             subs tokens;
 
@@ -1974,12 +1974,12 @@ namespace netxs::ui
                 return _get_chord_list();
             }
             template<si32 Tier = tier::release>
-            auto _set(auto& chords, sptr handler_ptr, qiew scheme)
+            auto _set(auto& chords, sptr handler_ptr, qiew scheme, txts& args)
             {
                 auto& handlers = Tier == tier::release ? handlers_release[scheme] : handlers_preview[scheme];
                 for (auto& chord : chords)
                 {
-                    handlers[chord].push_back(handler_ptr);
+                    handlers[chord].emplace_back(handler_ptr, std::move(args));
                 }
             }
             template<si32 Tier = tier::release>
@@ -1999,12 +1999,14 @@ namespace netxs::ui
                 if (iter != handlers.end())
                 {
                     auto& procs = iter->second;
-                    std::erase_if(procs, [&](auto& proc_wptr)
+                    std::erase_if(procs, [&](auto& rec)
                     {
+                        auto& proc_wptr = rec.first;
+                        auto& args = rec.second;
                         auto proc_ptr = proc_wptr.lock();
                         if (proc_ptr)
                         {
-                            if (!gear.handled) (*proc_ptr)(gear);
+                            if (!gear.handled) (*proc_ptr)(gear, args);
                         }
                         return !proc_ptr;
                     });
@@ -2044,8 +2046,8 @@ namespace netxs::ui
                         };
                     }
                 };
-                proc("Drop",           [](hids& gear){ gear.set_handled(); });
-                proc("DropAutoRepeat", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
+                proc("Drop",           [](hids& gear, txts&){ gear.set_handled(); });
+                proc("DropAutoRepeat", [](hids& gear, txts&){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
             template<si32 Tier = tier::release>
@@ -2070,13 +2072,14 @@ namespace netxs::ui
                 if (auto chord_list = _get_chords(chord_str))
                 {
                     auto& chords = chord_list.value();
-                    auto set = [&](qiew proc_name)
+                    auto set = [&](qiew proc_name, txts& args)
                     {
                         if (proc_name)
                         {
                             if (auto iter = api_map.find(proc_name); iter != api_map.end())
                             {
-                                _set<Tier>(chords, iter->second, scheme);
+                                auto handle_ptr = iter->second;
+                                _set<Tier>(chords, handle_ptr, scheme, args);
                             }
                             else log("%%Action '%proc%' not found", prompt::user, proc_name);
                         }
@@ -2085,15 +2088,16 @@ namespace netxs::ui
                             _reset<Tier>(chords, scheme);
                         }
                     };
-                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a string.
+                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a plain string.
                     {
-                        set(proc_names);
+                        auto args = txts{};
+                        set(proc_names, args);
                     }
                     else
                     {
                         for (auto& proc_name : proc_names)
                         {
-                            set(proc_name);
+                            set(proc_name.action, proc_name.args);
                         }
                     }
                 }
@@ -2107,14 +2111,22 @@ namespace netxs::ui
                     auto keybinds = config.list(path);
                     for (auto keybind_ptr : keybinds)
                     {
-                        auto& keybind = *keybind_ptr;
-                        auto chord = keybind.take_value();
-                        auto scheme = keybind.take("scheme", ""s);
-                        auto action_ptr_list = keybind.list("action");
+                        auto chord = keybind_ptr->take_value();
+                        auto scheme = keybind_ptr->take("scheme", ""s);
+                        auto action_ptr_list = keybind_ptr->list("action");
                         auto& rec = bindings.emplace_back(chord, scheme);
+                        if constexpr (debugmode) log("chord=", chord);
                         for (auto action_ptr : action_ptr_list)
                         {
-                            rec.actions.push_back(action_ptr->take_value());
+                            rec.actions.push_back({ .action = action_ptr->take_value() });
+                            auto& action = rec.actions.back();
+                            if constexpr (debugmode) log("  action=", action.action);
+                            auto arg_ptr_list = action_ptr->list("arg");
+                            for (auto arg_ptr : arg_ptr_list)
+                            {
+                                action.args.push_back(arg_ptr->take_value());
+                                if constexpr (debugmode) log("    arg=", action.args.back());
+                            }
                         }
                     }
                 }
