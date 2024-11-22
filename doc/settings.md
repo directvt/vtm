@@ -305,9 +305,9 @@ The syntax for defining key combination bindings is:
 
 ```xml
 <key="Key+Chord | ... | Another+Key+Chord" scheme="scheme_name"> <!-- scheme="" can be omitted.  -->
-    <action="NameOfAction1" arg="argument" ... arg="argument"/>
+    <action="NameOfAction1" data="argument" ... data="argument"/>
     ...
-    <action="NameOfActionN" arg="argument" ... arg="argument"/>
+    <action="NameOfActionN" data="argument" ... data="argument"/>
 </key>
 ```
 
@@ -351,52 +351,46 @@ Configuration record                                  | Interpretation
 
 #### Available actions
 
-Action                         | Default key combination  | Available at layer  | Description
--------------------------------|--------------------------|---------------------|------------
-`Drop`                         |                          | All layers          | Drop all events for the specified key combination. No further processing.
-`DropAutoRepeat`               |                          | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`ToggleDebugOverlay`           |                          | TUI matrix          | Toggle debug overlay.
-`ToggleHotkeyScheme`           | `Ctrl-Alt | Alt-Ctrl`    | TUI matrix          | Toggle hotkey scheme between default and `"1"`.
-`IncreaseCellHeight`           | `CapsLock+UpArrow`       | Native GUI window   | Increase the text cell height by one pixel.
-`DecreaseCellHeight`           | `CapsLock+DownArrow`     | Native GUI window   | Decrease the text cell height by one pixel.
-`ResetCellHeight`              | `Ctrl+Key0`              | Native GUI window   | Reset text cell height.
-`ToggleFullscreenMode`         | `Alt+Enter`              | Native GUI window   | Toggle fullscreen mode.
-`ToggleAntialiasingMode`       | `Ctrl+CapsLock`          | Native GUI window   | Toggle text antialiasing mode.
-`RollFontsBackward`            | `Ctrl+Shift+F11`         | Native GUI window   | Roll font list backward.
-`RollFontsForward`             | `Ctrl+Shift+F12`         | Native GUI window   | Roll font list forward.
-`FocusPrevWindow`              | `Ctrl+PageUp`            | Desktop             | Switch focus to the next desktop window.
-`FocusNextWindow`              | `Ctrl+PageDown`          | Desktop             | Switch focus to the previous desktop window.
-`Disconnect`                   | `Shift+F7`               | Desktop             | Disconnect from the desktop.
-`TryToQuit`                    | `F10`                    | Desktop             | Shut down the desktop server if no applications are running.
-`TerminalFindNext`             | `Alt+RightArrow`         | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalFindPrev`             | `Alt+LeftArrow`          | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalViewportOnePageUp`    | `Shift+Ctrl+PageUp`      | Application         | Scroll one page up.
-`TerminalViewportOnePageDown`  | `Shift+Ctrl+PageDown`    | Application         | Scroll one page down.
-`TerminalViewportOnePageLeft`  | `Shift+Alt+LeftArrow`    | Application         | Scroll one page to the left.
-`TerminalViewportOnePageRight` | `Shift+Alt+RightArrow`   | Application         | Scroll one page to the right.
-`TerminalViewportOneCharUp`    | `Shift+Ctrl+UpArrow`     | Application         | Scroll one line up.
-`TerminalViewportOneCharDown`  | `Shift+Ctrl+DownArrow`   | Application         | Scroll one line down.
-`TerminalViewportOneCharLeft`  | `Shift+Ctrl+LeftArrow`   | Application         | Scroll one cell to the left.
-`TerminalViewportOneCharRight` | `Shift+Ctrl+RightArrow`  | Application         | Scroll one cell to the right.
-`TerminalViewportTop`          | `Shift+Ctrl+Home`        | Application         | Scroll to the scrollback top.
-`TerminalViewportEnd`          | `Shift+Ctrl+End`         | Application         | Scroll to the scrollback bottom (reset viewport position).
-`TerminalViewportCopy`         |                          | Application         | Сopy viewport to clipboard.
-`TerminalClipboardPaste`       |                          | Application         | Paste from clipboard.
-`TerminalClipboardWipe`        |                          | Application         | Reset clipboard.
-`TerminalUndo`                 |                          | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-`TerminalRedo`                 |                          | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-`TerminalToggleCwdSync`        |                          | Application         | Toggle the current working directory sync mode.
-`TerminalToggleWrapMode`       |                          | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-`TerminalToggleSelectionMode`  |                          | Application         | Toggle between linear and rectangular selection form.
-`TerminalToggleFullscreen`     |                          | Application         | Toggle fullscreen mode.
-`TerminalToggleMaximize`       |                          | Application         | Toggle between maximized and normal window size.
-`TerminalToggleStdioLog`       |                          | Application         | Stdin/stdout log toggle.
-`TerminalQuit`                 |                          | Application         | Terminate runnning console apps and close terminal.
-`TerminalRestart`              |                          | Application         | Terminate runnning console apps and restart current session.
-`TerminalSwitchCopyMode`       |                          | Application         | Switch terminal text selection copy mode.
-`TerminalSelectionCopy`        |                          | Application         | Сopy selection to clipboard.
-`TerminalSelectionCancel`      | `Esc`                    | Application         | Deselect a selection.
-`TerminalSelectionOneShot`     |                          | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+Action                         | Arguments (`data=`) | Available at layer  | Description
+-------------------------------|---------------------|---------------------|------------
+`Drop`                         |                     | All layers          | Drop all events for the specified key combination. No further processing.
+`DropAutoRepeat`               |                     | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`ToggleDebugOverlay`           |                     | TUI matrix          | Toggle debug overlay.
+`SwitchHotkeyScheme`           | _Scheme name_       | TUI matrix          | Switch the hotkey scheme to the specified one.
+`IncreaseCellHeight`           |                     | Native GUI window   | Increase the text cell height by one pixel.
+`DecreaseCellHeight`           |                     | Native GUI window   | Decrease the text cell height by one pixel.
+`ResetCellHeight`              |                     | Native GUI window   | Reset text cell height.
+`ToggleFullscreenMode`         |                     | Native GUI window   | Toggle fullscreen mode.
+`ToggleAntialiasingMode`       |                     | Native GUI window   | Toggle text antialiasing mode.
+`RollFontsBackward`            |                     | Native GUI window   | Roll font list backward.
+`RollFontsForward`             |                     | Native GUI window   | Roll font list forward.
+`FocusPrevWindow`              |                     | Desktop             | Switch focus to the next desktop window.
+`FocusNextWindow`              |                     | Desktop             | Switch focus to the previous desktop window.
+`Disconnect`                   |                     | Desktop             | Disconnect from the desktop.
+`TryToQuit`                    |                     | Desktop             | Shut down the desktop server if no applications are running.
+`TerminalFindNext`             |                     | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalFindPrev`             |                     | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalScrollViewportByPage` | _`IntX, IntY`_      | Application         | Scroll viewport by _`IntX, IntY`_ pages.
+`TerminalScrollViewportByCell` | _`IntX, IntY`_      | Application         | Scroll viewport by _`IntX, IntY`_ cells.
+`TerminalScrollViewportToTop`  |                     | Application         | Scroll viewport to the scrollback top.
+`TerminalScrollViewportToEnd`  |                     | Application         | Scroll viewport to the scrollback bottom (reset viewport position).
+`TerminalViewportCopy`         |                     | Application         | Сopy viewport to clipboard.
+`TerminalClipboardPaste`       |                     | Application         | Paste from clipboard.
+`TerminalClipboardWipe`        |                     | Application         | Reset clipboard.
+`TerminalUndo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+`TerminalRedo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+`TerminalToggleCwdSync`        |                     | Application         | Toggle the current working directory sync mode.
+`TerminalToggleWrapMode`       |                     | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+`TerminalToggleSelectionMode`  |                     | Application         | Toggle between linear and rectangular selection form.
+`TerminalToggleFullscreen`     |                     | Application         | Toggle fullscreen mode.
+`TerminalToggleMaximize`       |                     | Application         | Toggle between maximized and normal window size.
+`TerminalToggleStdioLog`       |                     | Application         | Stdin/stdout log toggle.
+`TerminalQuit`                 |                     | Application         | Terminate runnning console apps and close terminal.
+`TerminalRestart`              |                     | Application         | Terminate runnning console apps and restart current session.
+`TerminalSwitchCopyMode`       |                     | Application         | Switch terminal text selection copy mode.
+`TerminalSelectionCopy`        |                     | Application         | Сopy selection to clipboard.
+`TerminalSelectionCancel`      |                     | Application         | Deselect a selection.
+`TerminalSelectionOneShot`     |                     | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -747,10 +741,9 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Command" action=ToggleHotkeyScheme>
-                <label=" Undef " data="undef"/>
-                <label=" Keys0 " data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+            <item type="Command" action=SwitchHotkeyScheme>
+                <label=" Keys0 " data=""/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
                 <tooltip>
                     " Toggle hotkey scheme                          \n"
                     "   Alternative hotkey scheme allows keystrokes \n"
@@ -812,25 +805,31 @@ Notes
         <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
             <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+0"                action=DropAutoRepeat/>          <!-- Don't repeat the Reset text cell height. -->
-            <key="Ctrl+0"                action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            <key="Alt+Enter"             action=DropAutoRepeat/>          <!-- Don't repeat the Toggle fullscreen mode. -->
-            <key="Alt+Enter"             action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            <key="Ctrl+CapsLock"         action=DropAutoRepeat/>          <!-- Don't repeat the Toggle text antialiasing mode. -->
-            <key="Ctrl+CapsLock"         action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            <key="Ctrl+Shift+F11"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list backward. -->
-            <key="Ctrl+Shift+F11"        action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            <key="Ctrl+Shift+F12"        action=DropAutoRepeat/>          <!-- Don't repeat the Roll font list forward. -->
-            <key="Ctrl+Shift+F12"        action=RollFontsForward/>        <!-- Roll font list forward. -->
+            <key="Ctrl+0">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Reset text cell height. -->
+                <action=ResetCellHeight/>         <!-- Reset text cell height. -->
+            </key>
+            <key="Alt+Enter">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle fullscreen mode. -->
+                <action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
+            </key>
+            <key="Ctrl+CapsLock">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle text antialiasing mode. -->
+                <action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
+            </key>
+            <key="Ctrl+Shift+F11">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list backward. -->
+                <action=RollFontsBackward/>       <!-- Roll font list backward. -->
+            </key>
+            <key="Ctrl+Shift+F12">
+                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list forward. -->
+                <action=RollFontsForward/>        <!-- Roll font list forward. -->
+            </key>
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="">
-                <action=ToggleHotkeyScheme arg="1"/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            </key>
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="1">
-                <action=ToggleHotkeyScheme arg=""/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            </key>
+            <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
@@ -840,22 +839,26 @@ Notes
             <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
-            <key="Alt+RightArrow"           action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"            action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"        action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Shift+Ctrl+PageDown"      action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Ctrl+PageUp"   scheme="1" action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Ctrl+PageDown" scheme="1" action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Shift+Alt+LeftArrow"      action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+RightArrow"     action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"       action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+DownArrow"     action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
-            <key="Shift+Ctrl+LeftArrow"     action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"    action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"          action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+Home"          action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"           action=DropAutoRepeat/>                    <!-- Don't repeat the Scroll to the scrollback bottom (reset viewport position). -->
-            <key="Shift+Ctrl+End"           action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            <key="Alt+RightArrow"           action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"            action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Ctrl+PageUp"   scheme="1"><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Ctrl+PageDown" scheme="1"><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
+            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
+            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
+            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
+            <key="Shift+Ctrl+Home">
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
+                <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
+            </key>
+            <key="Shift+Ctrl+End">
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
+                <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            </key>
             <key=""                         action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                         action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
             <key=""                         action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->

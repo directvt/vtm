@@ -322,10 +322,8 @@ R"==(
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Command" action=ToggleHotkeyScheme>
-                <label=" Undef " data="undef"/>
-                <label=" Keys0 " data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+            <item type="Option" action=SwitchHotkeyScheme label=" Keys0 " data="">
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
                 <tooltip>
                     " Toggle hotkey scheme                          \n"
                     "   Alternative hotkey scheme allows keystrokes \n"
@@ -412,40 +410,35 @@ R"==(
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="">
-                <action=ToggleHotkeyScheme arg="1"/>  <!-- Toggle hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            </key>
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="1">
-                <action=ToggleHotkeyScheme arg=""/>  <!-- Toggle hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            </key>
+            <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown"         action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"              action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"                   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
+            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
-            <key="Alt+RightArrow"           action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"            action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"        action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Shift+Ctrl+PageDown"      action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Ctrl+PageUp"   scheme="1" action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Ctrl+PageDown" scheme="1" action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Shift+Alt+LeftArrow"      action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+RightArrow"     action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"       action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+DownArrow"     action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
-            <key="Shift+Ctrl+LeftArrow"     action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"    action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
+            <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Ctrl+PageUp"   scheme="1"><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Ctrl+PageDown" scheme="1"><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
+            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
+            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
+            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
             <key="Shift+Ctrl+Home">
-                <action=DropAutoRepeat/>       <!-- Don't autorepeat the Scroll to the scrollback top. -->
-                <action=TerminalViewportTop/>  <!-- Scroll to the scrollback top. -->
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
+                <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
             </key>
             <key="Shift+Ctrl+End">
-                <action=DropAutoRepeat/>       <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
-                <action=TerminalViewportEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
+                <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
             <key=""                         action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
             <key=""                         action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->

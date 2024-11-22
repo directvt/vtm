@@ -194,7 +194,7 @@ namespace netxs::app::shared
             static constexpr auto label = "label";
             static constexpr auto tooltip = "tooltip";
             static constexpr auto route = "action";
-            static constexpr auto param = "data";
+            static constexpr auto data = "data";
         }
         namespace type
         {
@@ -218,36 +218,50 @@ namespace netxs::app::shared
             {
                 text label{};
                 text tooltip{};
-                text param{};
-                text onkey{};
+                text data{};
                 si32 value{};
                 cell hover{};
                 cell focus{};
             };
 
-            using imap = std::unordered_map<si32, si32>;
+            using umap = std::unordered_map<ui64, si32>;
             using list = std::vector<look>;
 
             type brand{};
             bool alive{};
-            si32 taken{};
+            si32 taken{}; // Active label index.
             list views{};
-            imap index{};
+            umap index{};
 
-            void select(si32 i)
+            void select(ui64 i)
             {
                 auto iter = index.find(i);
                 taken = iter == index.end() ? 0 : iter->second;
             }
-            template<class P>
+            template<class Type = si32, class P>
             void reindex(P take)
             {
-                auto count = static_cast<si32>(views.size());
+                auto count = (si32)(views.size());
                 for (auto i = 0; i < count; i++)
                 {
                     auto& l = views[i];
-                    l.value = static_cast<si32>(take(l.param));
-                    index[l.value] = i;
+                    auto hash = ui64{};
+                    if constexpr (std::is_same_v<Type, twod>)
+                    {
+                        auto twod_value = take(l.data);
+                        hash = (ui64)((twod_value.y << 32) | twod_value.x);
+                    }
+                    else if constexpr (std::is_same_v<Type, text>)
+                    {
+                        auto text_value = take(l.data);
+                        hash = (ui64)(qiew::hash{}(text_value));
+                    }
+                    else
+                    {
+                        l.value = (si32)(take(l.data));
+                        hash = (ui64)(l.value);
+                    }
+                    index[hash] = i;
                 }
             }
         };

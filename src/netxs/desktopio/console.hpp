@@ -1115,18 +1115,11 @@ namespace netxs::ui
               fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.proc("ToggleHotkeyScheme", [&](hids& gear, txts&)
+            keybd.proc("SwitchHotkeyScheme", [&](hids& gear, txts& args)
             {
                 gear.set_handled();
-                //todo unify
-                if (gear.hscheme != ""sv)
-                {
-                    gear.set_hotkey_scheme("");
-                }
-                else
-                {
-                    gear.set_hotkey_scheme("1");
-                }
+                if (args.empty()) gear.set_hotkey_scheme("");
+                else              gear.set_hotkey_scheme(args.front());
             });
             auto bindings = keybd.load(config, "tui");
             for (auto& r : bindings)

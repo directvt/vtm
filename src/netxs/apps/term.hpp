@@ -115,10 +115,14 @@ namespace netxs::app::terminal
             gear.set_tooltip(look.tooltip, true);
             _update(boss, item);
         }
-        auto _update_to(ui::item& boss, menu::item& item, si32 i)
+        auto _update_to(ui::item& boss, menu::item& item, ui64 i)
         {
             item.select(i);
             _update(boss, item);
+        }
+        auto _update_to(ui::item& boss, menu::item& item, text utf8)
+        {
+            _update_to(boss, item, qiew::hash{}(utf8));
         }
         template<bool AutoUpdate = faux, class P>
         auto _submit(ui::item& boss, menu::item& item, P proc)
@@ -203,57 +207,51 @@ namespace netxs::app::terminal
                 { menu::type::Repeat,   menu::item::Repeat   }};
 
             #define proc_list \
-                X(Noop                      ) /* */ \
-                X(ToggleHotkeyScheme        ) /* */ \
-                X(TerminalQuit              ) /* */ \
-                X(TerminalCwdSync           ) /* */ \
-                X(TerminalToggleFullscreen  ) /* */ \
-                X(TerminalToggleMaximize    ) /* */ \
-                X(TerminalRestart           ) /* */ \
-                X(TerminalSendKey           ) /* */ \
-                X(TerminalWrapMode          ) /* */ \
-                X(TerminalAlignMode         ) /* */ \
-                X(TerminalOutput            ) /* */ \
-                X(TerminalFindNext          ) /* */ \
-                X(TerminalFindPrev          ) /* */ \
-                X(TerminalUndo              ) /* Undo/Redo for cooked read on win32 */ \
-                X(TerminalRedo              ) /* */ \
-                X(TerminalClipboardPaste    ) /* */ \
-                X(TerminalClipboardWipe     ) /* */ \
-                X(TerminalSelectionCopy     ) /* */ \
-                X(TerminalSelectionMode     ) /* */ \
-                X(TerminalSelectionRect     ) /* Linear/Rectangular */ \
-                X(TerminalSelectionCancel   ) /* */ \
-                X(TerminalSelectionOneShot  ) /* One-shot toggle to copy text while mouse tracking is active */ \
-                X(TerminalViewportPageUp    ) /* */ \
-                X(TerminalViewportPageDown  ) /* */ \
-                X(TerminalViewportLineUp    ) /* */ \
-                X(TerminalViewportLineDown  ) /* */ \
-                X(TerminalViewportPageLeft  ) /* */ \
-                X(TerminalViewportPageRight ) /* */ \
-                X(TerminalViewportCharLeft  ) /* */ \
-                X(TerminalViewportCharRight ) /* */ \
-                X(TerminalViewportTop       ) /* */ \
-                X(TerminalViewportEnd       ) /* */ \
-                X(TerminalViewportCopy      ) /* */ \
-                X(TerminalStdioLog          ) /* */ \
-                X(TerminalLogStart          ) /* */ \
-                X(TerminalLogPause          ) /* */ \
-                X(TerminalLogStop           ) /* */ \
-                X(TerminalLogAbort          ) /* */ \
-                X(TerminalLogRestart        ) /* */ \
-                X(TerminalVideoRecStart     ) /* */ \
-                X(TerminalVideoRecStop      ) /* */ \
-                X(TerminalVideoRecPause     ) /* */ \
-                X(TerminalVideoRecAbort     ) /* */ \
-                X(TerminalVideoRecRestart   ) /* */ \
-                X(TerminalVideoPlay         ) /* */ \
-                X(TerminalVideoPause        ) /* */ \
-                X(TerminalVideoStop         ) /* */ \
-                X(TerminalVideoForward      ) /* */ \
-                X(TerminalVideoBackward     ) /* */ \
-                X(TerminalVideoHome         ) /* */ \
-                X(TerminalVideoEnd          ) /* */
+                X(Noop                        ) /* */ \
+                X(SwitchHotkeyScheme          ) /* */ \
+                X(TerminalQuit                ) /* */ \
+                X(TerminalCwdSync             ) /* */ \
+                X(TerminalToggleFullscreen    ) /* */ \
+                X(TerminalToggleMaximize      ) /* */ \
+                X(TerminalRestart             ) /* */ \
+                X(TerminalSendKey             ) /* */ \
+                X(TerminalWrapMode            ) /* */ \
+                X(TerminalAlignMode           ) /* */ \
+                X(TerminalOutput              ) /* */ \
+                X(TerminalFindNext            ) /* */ \
+                X(TerminalFindPrev            ) /* */ \
+                X(TerminalUndo                ) /* Undo/Redo for cooked read on win32 */ \
+                X(TerminalRedo                ) /* */ \
+                X(TerminalClipboardPaste      ) /* */ \
+                X(TerminalClipboardWipe       ) /* */ \
+                X(TerminalSelectionCopy       ) /* */ \
+                X(TerminalSelectionMode       ) /* */ \
+                X(TerminalSelectionRect       ) /* Linear/Rectangular */ \
+                X(TerminalSelectionCancel     ) /* */ \
+                X(TerminalSelectionOneShot    ) /* One-shot toggle to copy text while mouse tracking is active */ \
+                X(TerminalScrollViewportByPage) /* */ \
+                X(TerminalScrollViewportByCell) /* */ \
+                X(TerminalScrollViewportToTop ) /* */ \
+                X(TerminalScrollViewportToEnd ) /* */ \
+                X(TerminalViewportCopy        ) /* */ \
+                X(TerminalStdioLog            ) /* */ \
+                X(TerminalLogStart            ) /* */ \
+                X(TerminalLogPause            ) /* */ \
+                X(TerminalLogStop             ) /* */ \
+                X(TerminalLogAbort            ) /* */ \
+                X(TerminalLogRestart          ) /* */ \
+                X(TerminalVideoRecStart       ) /* */ \
+                X(TerminalVideoRecStop        ) /* */ \
+                X(TerminalVideoRecPause       ) /* */ \
+                X(TerminalVideoRecAbort       ) /* */ \
+                X(TerminalVideoRecRestart     ) /* */ \
+                X(TerminalVideoPlay           ) /* */ \
+                X(TerminalVideoPause          ) /* */ \
+                X(TerminalVideoStop           ) /* */ \
+                X(TerminalVideoForward        ) /* */ \
+                X(TerminalVideoBackward       ) /* */ \
+                X(TerminalVideoHome           ) /* */ \
+                X(TerminalVideoEnd            ) /* */
 
             enum func
             {
@@ -275,21 +273,13 @@ namespace netxs::app::terminal
                 using release = terminal::events::release;
 
                 static void Noop(ui::item& /*boss*/, menu::item& /*item*/) { }
-                static void ToggleHotkeyScheme(ui::item& boss, menu::item& item)
+                static void SwitchHotkeyScheme(ui::item& boss, menu::item& item)
                 {
-                    item.reindex([](auto& utf8){ auto v = xml::take<bool>(utf8); return v ? v.value() + 1 : 0; });
-                    _submit<true>(boss, item, [](auto& /*boss*/, auto& /*item*/, auto& gear)
+                    item.reindex<text>([](auto& utf8){ return xml::take_or<text>(utf8, ""s); });
+                    _submit<true>(boss, item, [](auto& /*boss*/, auto& item, auto& gear)
                     {
                         gear.set_handled();
-                        //todo unify
-                        if (gear.hscheme != ""sv)
-                        {
-                            gear.set_hotkey_scheme("");
-                        }
-                        else
-                        {
-                            gear.set_hotkey_scheme("1");
-                        }
+                        gear.set_hotkey_scheme(item.views[item.taken].data);
                     });
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
                     {
@@ -297,9 +287,7 @@ namespace netxs::app::terminal
                         {
                             focusable_parent->LISTEN(tier::release, e2::form::state::keybd::scheme, hscheme, (*hook_ptr))
                             {
-                                //todo unify
-                                auto s = hscheme.empty() ? 1 : 2;
-                                _update_to(boss, item, s);
+                                _update_to(boss, item, hscheme);
                             };
                         }
                     };
@@ -356,14 +344,14 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].param });
+                        boss.bell::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].data });
                     });
                 }
                 static void TerminalSendKey(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].param });
+                        boss.bell::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].data });
                     });
                 }
                 static void TerminalQuit(ui::item& boss, menu::item& item)
@@ -479,78 +467,34 @@ namespace netxs::app::terminal
                         boss.bell::signal(tier::anycast, terminal::events::data::prnscrn, gear);
                     });
                 }
-                static void TerminalViewportPageUp(ui::item& boss, menu::item& item)
+                static void TerminalScrollViewportByPage(ui::item& boss, menu::item& item)
                 {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::y, { .vector = dot_01 });
-                    });
-                }
-                static void TerminalViewportPageDown(ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::y, { .vector = -dot_01 });
-                    });
-                }
-                static void TerminalViewportLineUp(ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::y, { .vector = { 0, std::abs(item.views[item.taken].value) }});
+                        auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
+                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::v, { .vector = delta });
                     });
                 }
-                static void TerminalViewportLineDown(ui::item& boss, menu::item& item)
+                static void TerminalScrollViewportByCell(ui::item& boss, menu::item& item)
                 {
-                    item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::y, { .vector = { 0, -std::abs(item.views[item.taken].value) }});
+                        auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
+                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::v, { .vector = delta });
                     });
                 }
-                static void TerminalViewportTop(ui::item& boss, menu::item& item)
+                static void TerminalScrollViewportToTop(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_top::y);
                     });
                 }
-                static void TerminalViewportEnd(ui::item& boss, menu::item& item)
+                static void TerminalScrollViewportToEnd(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_end::y);
-                    });
-                }
-                static void TerminalViewportPageLeft(ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::x, { .vector = dot_10 });
-                    });
-                }
-                static void TerminalViewportPageRight(ui::item& boss, menu::item& item)
-                {
-                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::x, { .vector = -dot_10 });
-                    });
-                }
-                static void TerminalViewportCharLeft(ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::x, { .vector = { std::abs(item.views[item.taken].value), 0 }});
-                    });
-                }
-                static void TerminalViewportCharRight(ui::item& boss, menu::item& item)
-                {
-                    item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
-                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::x, { .vector = { -std::abs(item.views[item.taken].value), 0 }});
                     });
                 }
                 static void TerminalStdioLog(ui::item& boss, menu::item& item)
@@ -664,7 +608,7 @@ namespace netxs::app::terminal
                 auto route = data.take(menu::attr::route, func::Noop,          route_options);
                 item.brand = data.take(menu::attr::brand, menu::item::Command, brand_options);
                 defs.tooltip = data.take(menu::attr::tooltip, ""s);
-                defs.param = data.take(menu::attr::param, ""s);
+                defs.data = data.take(menu::attr::data, ""s);
                 item.alive = route != func::Noop && item.brand != menu::item::Splitter;
                 for (auto label : data.list(menu::attr::label))
                 {
@@ -672,7 +616,7 @@ namespace netxs::app::terminal
                     {
                         .label = label->take_value(),
                         .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
-                        .param = label->take(menu::attr::param, defs.param),
+                        .data = label->take(menu::attr::data, defs.data),
                     });
                 }
                 if (item.views.empty()) continue; // Menu item without label.

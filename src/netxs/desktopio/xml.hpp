@@ -178,6 +178,18 @@ namespace netxs::xml
         }
         return std::nullopt;
     }
+    template<class T>
+    auto take_or(qiew utf8, T fallback)
+    {
+        if (auto v = take<T>(utf8))
+        {
+            return v.value();
+        }
+        else
+        {
+            return fallback;
+        }
+    }
 
     struct document
     {
@@ -542,8 +554,7 @@ namespace netxs::xml
                     if (item_set.size()) // Take the first item only.
                     {
                         auto crop = item_set.front()->take_value();
-                        if (auto result = xml::take<T>(crop)) return result.value();
-                        else                                  return fallback;
+                        return xml::take_or<T>(crop, fallback);
                     }
                 }
                 if (auto defs_ptr = defs.lock()) return defs_ptr->take(attr, fallback);
