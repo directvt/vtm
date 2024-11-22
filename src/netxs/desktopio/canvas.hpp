@@ -2716,6 +2716,12 @@ namespace netxs
             canvas.resize(new_size_x, c);
             digest++;
         }
+        auto crop(si32 at, si32 length) const // core: Return 1D fragment.
+        {
+            auto fragment = core{ span{ canvas.begin() + at, canvas.begin() + at + length }, twod{ length, 1 } };
+            fragment.marker = marker;
+            return fragment;
+        }
         void push(cell const& c) // core: Push cell back.
         {
             crop(region.size.x + 1, c);

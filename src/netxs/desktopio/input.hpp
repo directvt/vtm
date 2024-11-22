@@ -703,6 +703,19 @@ namespace netxs::input
             }
         };
 
+        struct keybind_t
+        {
+            struct action_t
+            {
+                text action;
+                txts args;
+            };
+            text chord;
+            text scheme;
+            std::vector<action_t> actions;
+        };
+        using keybind_list_t = std::vector<keybind_t>;
+
         template<class ...Args>
         auto xlat(Args&&... args)
         {
@@ -1171,6 +1184,7 @@ namespace netxs::input
         text vkchord{};
         text scchord{};
         text chchord{};
+        text hscheme{};
 
         auto doinput()
         {
@@ -1365,7 +1379,6 @@ namespace netxs::input
             NumLock      = 1 << 12, // ⇭ Num Lock
             CapsLock     = 1 << 13, // ⇪ Caps Lock
             ScrlLock     = 1 << 14, // ⇳ Scroll Lock (⤓)
-            HotkeyScheme = 1 << 28, // Hotkey scheme
             AltGr        = LAlt   | LCtrl,
             anyCtrl      = LCtrl  | RCtrl,
             anyAlt       = LAlt   | RAlt,
@@ -1654,12 +1667,10 @@ namespace netxs::input
         {
             handled = b;
         }
-        void set_hotkey_scheme(si32 s)
+        void set_hotkey_scheme(qiew scheme)
         {
-            auto temp = keybd::ctlstat;
-            netxs::set_flag<hids::HotkeyScheme>(keybd::ctlstat, s);
+            keybd::hscheme = scheme;
             owner.bell::signal(tier::preview, hids::events::keybd::scheme, *this);
-            keybd::ctlstat = temp;
         }
 
         void take(sysfocus& f)

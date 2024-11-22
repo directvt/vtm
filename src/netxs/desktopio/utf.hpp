@@ -27,6 +27,7 @@ namespace netxs
     using wchr = wchar_t;
     using flux = std::stringstream;
     using utfx = uint32_t;
+    using txts = std::vector<text>;
     using namespace std::literals;
 
     static constexpr auto whitespaces = " \n\r\t"sv;

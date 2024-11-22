@@ -617,17 +617,26 @@ namespace netxs::app::shared
                         subs_ptr->clear();
                         if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                         {
-                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::hotkey, state, (*subs_ptr))
+                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::scheme, hscheme, (*subs_ptr))
                             {
-                                boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
-                                               : ansi::bgc(reddk).fgx(0)        .add("█off "));
+                                //todo unify
+                                boss.set(hscheme.size() ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
+                                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
                                 boss.base::reflow();
                             };
                         }
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        gear.set_hotkey_scheme(gear.meta(hids::HotkeyScheme) ? 0 : hids::HotkeyScheme);
+                        //todo unify
+                        if (gear.hscheme != ""sv)
+                        {
+                            gear.set_hotkey_scheme("");
+                        }
+                        else
+                        {
+                            gear.set_hotkey_scheme("1");
+                        }
                         gear.dismiss_dblclick();
                     };
                 });
@@ -744,12 +753,12 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 auto& keybd = boss.template plugins<pro::keybd>();
                 app::shared::base_kb_navigation(keybd, scroll, boss);
-                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear)
+                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear, txts&)
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", 0);
-                keybd.template bind<tier::release>( "Any", "UpdateChordPreview", 1);
+                keybd.template bind<tier::release>( "Any", "",  "UpdateChordPreview");
+                keybd.template bind<tier::release>( "Any", "1", "UpdateChordPreview");
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

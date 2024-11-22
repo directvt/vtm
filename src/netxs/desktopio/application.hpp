@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.48";
+    static const auto version = "v0.9.99.49";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -114,7 +114,7 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll;
         auto esc_pressed = ptr::shared(faux);
-        keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+        keybd.proc("WindowClose", [&, esc_pressed](hids& gear, txts&)
         {
             if (*esc_pressed)
             {
@@ -122,47 +122,47 @@ namespace netxs::app::shared
                 gear.set_handled(true);
             }
         });
-        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, true) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
         });
-        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
+        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, faux) != *esc_pressed) boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
         });
-        keybd.proc("ScrollPageUp"    , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
-        keybd.proc("ScrollPageDown"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
-        keybd.proc("ScrollLineUp"    , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
-        keybd.proc("ScrollLineDown"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
-        keybd.proc("ScrollCharLeft"  , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
-        keybd.proc("ScrollCharRight" , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
-        keybd.proc("ScrollTop"       , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-        keybd.proc("ScrollEnd"       , [&](hids& /*gear*/){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
+        keybd.proc("ScrollPageUp"    , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
+        keybd.proc("ScrollPageDown"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
+        keybd.proc("ScrollLineUp"    , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
+        keybd.proc("ScrollLineDown"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
+        keybd.proc("ScrollCharLeft"  , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
+        keybd.proc("ScrollCharRight" , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
+        keybd.proc("ScrollTop"       , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
+        keybd.proc("ScrollEnd"       , [&](hids& /*gear*/, txts&){ scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
         //todo use sptr for gear when enqueueing (dangling reference)
-        keybd.proc("ToggleMaximize"  , [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        keybd.proc("ToggleFullscreen", [&](hids& gear){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
-        auto binding = [&](auto mode)
+        keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
+        keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
+        auto binding = [&](qiew scheme)
         {
-            keybd.template bind<tier::preview>( "Esc", "DropAutoRepeat"    , mode);
-            keybd.template bind<tier::release>( "Esc", "WindowClosePreview", mode);
-            keybd.template bind<tier::preview>("-Esc", "WindowClose"       , mode);
-            keybd.template bind<tier::release>( "Any", "CancelWindowClose" , mode);
-            keybd.bind("PageUp"    , "ScrollPageUp"    , mode);
-            keybd.bind("PageDown"  , "ScrollPageDown"  , mode);
-            keybd.bind("UpArrow"   , "ScrollLineUp"    , mode);
-            keybd.bind("DownArrow" , "ScrollLineDown"  , mode);
-            keybd.bind("LeftArrow" , "ScrollCharLeft"  , mode);
-            keybd.bind("RightArrow", "ScrollCharRight" , mode);
-            keybd.bind("Home"      , "DropAutoRepeat"  , mode);
-            keybd.bind("Home"      , "ScrollTop"       , mode);
-            keybd.bind("End"       , "DropAutoRepeat"  , mode);
-            keybd.bind("End"       , "ScrollEnd"       , mode);
-            keybd.bind("F11"       , "DropAutoRepeat"  , mode);
-            keybd.bind("F11"       , "ToggleMaximize"  , mode);
-            keybd.bind("F12"       , "DropAutoRepeat"  , mode);
-            keybd.bind("F12"       , "ToggleFullscreen", mode);
+            keybd.template bind<tier::preview>( "Esc", scheme, "DropAutoRepeat"    );
+            keybd.template bind<tier::release>( "Esc", scheme, "WindowClosePreview");
+            keybd.template bind<tier::preview>("-Esc", scheme, "WindowClose"       );
+            keybd.template bind<tier::release>( "Any", scheme, "CancelWindowClose" );
+            keybd.bind("PageUp"    , scheme, "ScrollPageUp"    );
+            keybd.bind("PageDown"  , scheme, "ScrollPageDown"  );
+            keybd.bind("UpArrow"   , scheme, "ScrollLineUp"    );
+            keybd.bind("DownArrow" , scheme, "ScrollLineDown"  );
+            keybd.bind("LeftArrow" , scheme, "ScrollCharLeft"  );
+            keybd.bind("RightArrow", scheme, "ScrollCharRight" );
+            keybd.bind("Home"      , scheme, "DropAutoRepeat"  );
+            keybd.bind("Home"      , scheme, "ScrollTop"       );
+            keybd.bind("End"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("End"       , scheme, "ScrollEnd"       );
+            keybd.bind("F11"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("F11"       , scheme, "ToggleMaximize"  );
+            keybd.bind("F12"       , scheme, "DropAutoRepeat"  );
+            keybd.bind("F12"       , scheme, "ToggleFullscreen");
         };
-        binding(0);
+        binding("");
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
@@ -194,7 +194,7 @@ namespace netxs::app::shared
             static constexpr auto label = "label";
             static constexpr auto tooltip = "tooltip";
             static constexpr auto route = "action";
-            static constexpr auto param = "data";
+            static constexpr auto data = "data";
         }
         namespace type
         {
@@ -218,36 +218,50 @@ namespace netxs::app::shared
             {
                 text label{};
                 text tooltip{};
-                text param{};
-                text onkey{};
+                text data{};
                 si32 value{};
                 cell hover{};
                 cell focus{};
             };
 
-            using imap = std::unordered_map<si32, si32>;
+            using umap = std::unordered_map<ui64, si32>;
             using list = std::vector<look>;
 
             type brand{};
             bool alive{};
-            si32 taken{};
+            si32 taken{}; // Active label index.
             list views{};
-            imap index{};
+            umap index{};
 
-            void select(si32 i)
+            void select(ui64 i)
             {
                 auto iter = index.find(i);
                 taken = iter == index.end() ? 0 : iter->second;
             }
-            template<class P>
+            template<class Type = si32, class P>
             void reindex(P take)
             {
-                auto count = static_cast<si32>(views.size());
+                auto count = (si32)(views.size());
                 for (auto i = 0; i < count; i++)
                 {
                     auto& l = views[i];
-                    l.value = static_cast<si32>(take(l.param));
-                    index[l.value] = i;
+                    auto hash = ui64{};
+                    if constexpr (std::is_same_v<Type, twod>)
+                    {
+                        auto twod_value = take(l.data);
+                        hash = (ui64)((twod_value.y << 32) | twod_value.x);
+                    }
+                    else if constexpr (std::is_same_v<Type, text>)
+                    {
+                        auto text_value = take(l.data);
+                        hash = (ui64)(qiew::hash{}(text_value));
+                    }
+                    else
+                    {
+                        l.value = (si32)(take(l.data));
+                        hash = (ui64)(l.value);
+                    }
+                    index[hash] = i;
                 }
             }
         };
@@ -662,7 +676,7 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        std::list<std::tuple<text, std::vector<text>, si32>> hotkeys;
+        input::key::keybind_list_t hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -681,21 +695,7 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(f->take_value());
         }
-        auto keybinds = config.list("/config/hotkeys/gui/key");
-        for (auto keybind_ptr : keybinds)
-        {
-            auto& keybind = *keybind_ptr;
-            auto chord = keybind.take_value();
-            auto scheme = keybind.take("scheme", 0); //todo use text instead of si32 as a scheme identifier
-            auto action = keybind.take("action", ""s);
-            auto action_list = std::vector<text>{};
-            auto action_ptr_list = keybind.list("action");
-            for (auto action_ptr : action_ptr_list)
-            {
-                action_list.push_back(action_ptr->take_value());
-            }
-            gui_config.hotkeys.push_back({ chord, action_list, scheme });
-        }
+        gui_config.hotkeys = ui::pro::keybd::load(config, "gui");
         return gui_config;
     }
     void splice(xipc client, gui_config_t& gc)

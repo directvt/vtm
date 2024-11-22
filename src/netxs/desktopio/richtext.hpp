@@ -559,6 +559,11 @@ namespace netxs::ui
         auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
+        auto take_piece(si32 at, si32 width = netxs::si32max) const
+        {
+            if (width == netxs::si32max) width = length() - at;
+            return rich{ core::crop(at, width) };
+        }
         auto empty()
         {
             return canvas.empty();
@@ -1705,30 +1710,31 @@ namespace netxs::ui
             caret_check();
             if (caret != length())
             {
+                auto& line = content();
+                auto left = line.take_piece(0, caret);
+                auto right = line.take_piece(caret);
+                std::swap(left, line);
+                parser::defer = true;
+                auto prev_caret = caret;
+                operator+=(utf8);
+                caret = line.length();
                 if (inserting)
                 {
-                    auto coor = caret;
-                    auto size = length();
-                    caret = size;
-                    operator+=(utf8);
-                    auto& line = content();
-                    auto  grow = length() - size;
-                    line.scroll(coor, size - coor, grow);
-                    caret = coor + grow;
+                    line.rich::insert(caret, right);
                 }
                 else
                 {
-                    operator+=(utf8);
-                    auto size = length();
-                    if (caret < size)
+                    auto delta = caret - prev_caret;
+                    if (delta < right.length())
                     {
-                        auto [w, h, x, y] = at(caret).whxy();
+                        auto [w, h, x, y] = right.begin(delta)->whxy();
                         if (w != 1 && x != 1) // Broken cluster.
                         {
-                            auto& line = content();
-                            size--;
-                            line.scroll(caret, 1, size - caret);
-                            line.crop(size);
+                            delta++;
+                        }
+                        if (delta < right.length())
+                        {
+                            line.rich::insert(caret, right.take_piece(delta));
                         }
                     }
                 }

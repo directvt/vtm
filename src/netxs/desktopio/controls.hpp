@@ -1204,7 +1204,7 @@ namespace netxs::ui
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
             bool scope; // focus: Cutoff threshold for focus branch.
             umap gears; // focus: Registered gears.
-            si32 hotkey_scheme; // focus: .
+            text hotkey_scheme; // focus: Current hotkey scheme.
             si32 node_type; // focus: .
 
             void signal_state()
@@ -1257,8 +1257,7 @@ namespace netxs::ui
             }
             void hotkey_scheme_notify()
             {
-                auto m = hotkey_scheme >> 28; //std::countr_zero(hids::HotkeyScheme); //todo MSVC doesn't get it
-                boss.bell::signal(tier::release, e2::form::state::keybd::hotkey, m);
+                boss.bell::signal(tier::release, e2::form::state::keybd::scheme, hotkey_scheme);
             }
             void notify_set_focus(auto& route, auto& seed)
             {
@@ -1269,7 +1268,7 @@ namespace netxs::ui
                     signal_state();
                     if (auto gear_ptr = boss.bell::getref<hids>(seed.gear_id)) // Notify about current gear hotkey scheme.
                     {
-                        hotkey_scheme = gear_ptr->meta(hids::HotkeyScheme);
+                        hotkey_scheme = gear_ptr->hscheme;
                         hotkey_scheme_notify();
                     }
                 }
@@ -1429,16 +1428,17 @@ namespace netxs::ui
                     }
                     gear.dismiss();
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::hotkey, m, memo)
+                boss.LISTEN(tier::request, e2::form::state::keybd::scheme, scheme, memo)
                 {
-                    m = hotkey_scheme;
+                    scheme = hotkey_scheme;
                 };
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     if (!gear) return;
-                    if (gear.payload == input::keybd::type::keypress && std::exchange(hotkey_scheme, gear.meta(hids::HotkeyScheme)) != hotkey_scheme) // Notify if hotkey scheme has changed.
+                    if (gear.payload == input::keybd::type::keypress && hotkey_scheme != gear.hscheme) // Notify if hotkey scheme has changed.
                     {
+                        hotkey_scheme = gear.hscheme;
                         hotkey_scheme_notify();
                     }
                     auto& route = get_route(gear.id);
@@ -1925,18 +1925,18 @@ namespace netxs::ui
         class keybd
             : public skill
         {
-            using func = std::function<void(hids&)>;
+            using func = std::function<void(hids&, txts&)>;
             using wptr = netxs::wptr<func>;
             using sptr = netxs::sptr<func>;
             using skill::boss,
                   skill::memo;
 
-            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_preview;
-            std::array<std::unordered_map<text, std::list<wptr>, qiew::hash, qiew::equal>, 2> handlers_release;
+            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, netxs::sptr<txts>>>, qiew::hash, qiew::equal>> handlers_preview;
+            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, netxs::sptr<txts>>>, qiew::hash, qiew::equal>> handlers_release;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             subs tokens;
 
-            auto _get_chords(qiew chord_str)
+            auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
                 auto chords = input::key::kmap::chord_list(chord_str);
                 if (chords.size())
@@ -1949,22 +1949,43 @@ namespace netxs::ui
                     return std::optional<decltype(chords)>{};
                 }
             }
-            template<si32 Tier = tier::release>
-            auto _set(auto& chords, sptr handler_ptr, si32 scheme)
+            auto _get_chords(qiew chord_list_str)
             {
-                //todo unify
-                auto hscheme = scheme ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
+                auto chord_qiew_list = utf::split<true>(chord_list_str, " | ");
+                if (chord_qiew_list.size())
+                {
+                    auto head = chord_qiew_list.begin();
+                    auto tail = chord_qiew_list.end();
+                    if (auto first_chord_list = _get_chord_list(*head++))
+                    {
+                        auto chords = first_chord_list.value();
+                        while (head != tail)
+                        {
+                            auto chord_qiew = *head++;
+                            if (auto next_chord_list = _get_chord_list(chord_qiew))
+                            {
+                                auto& c = next_chord_list.value();
+                                chords.insert(chords.end(), c.begin(), c.end());
+                            }
+                        }
+                        return std::optional{ chords };
+                    }
+                }
+                return _get_chord_list();
+            }
+            template<si32 Tier = tier::release>
+            auto _set(auto& chords, sptr handler_ptr, qiew scheme, auto args_ptr)
+            {
+                auto& handlers = Tier == tier::release ? handlers_release[scheme] : handlers_preview[scheme];
                 for (auto& chord : chords)
                 {
-                    handlers[chord].push_back(handler_ptr);
+                    handlers[chord].emplace_back(handler_ptr, args_ptr);
                 }
             }
             template<si32 Tier = tier::release>
-            auto _reset(auto& chords, si32 scheme)
+            auto _reset(auto& chords, qiew scheme)
             {
-                auto hscheme = scheme ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
+                auto& handlers = Tier == tier::release ? handlers_release[scheme] : handlers_preview[scheme];
                 for (auto& chord : chords)
                 {
                     handlers[chord].clear();
@@ -1973,18 +1994,19 @@ namespace netxs::ui
             template<si32 Tier = tier::release>
             void _dispatch(hids& gear, qiew chord)
             {
-                auto hscheme = gear.meta(hids::HotkeyScheme) ? 1 : 0;
-                auto& handlers = Tier == tier::release ? handlers_release[hscheme] : handlers_preview[hscheme];
+                auto& handlers = Tier == tier::release ? handlers_release[gear.hscheme] : handlers_preview[gear.hscheme];
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
                     auto& procs = iter->second;
-                    std::erase_if(procs, [&](auto& proc_wptr)
+                    std::erase_if(procs, [&](auto& rec)
                     {
+                        auto& proc_wptr = rec.first;
+                        auto& args_ptr = rec.second;
                         auto proc_ptr = proc_wptr.lock();
                         if (proc_ptr)
                         {
-                            if (!gear.handled) (*proc_ptr)(gear);
+                            if (!gear.handled) (*proc_ptr)(gear, *args_ptr);
                         }
                         return !proc_ptr;
                     });
@@ -2024,8 +2046,8 @@ namespace netxs::ui
                         };
                     }
                 };
-                proc("Drop",           [](hids& gear){ gear.set_handled(); });
-                proc("DropAutoRepeat", [](hids& gear){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
+                proc("Drop",           [](hids& gear, txts&){ gear.set_handled(); });
+                proc("DropAutoRepeat", [](hids& gear, txts&){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 
             template<si32 Tier = tier::release>
@@ -2044,19 +2066,20 @@ namespace netxs::ui
                 api_map[name] = ptr::shared(std::move(proc));
             }
             template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, auto&& proc_names, si32 scheme = 0)
+            auto bind(qiew chord_str, qiew scheme, auto&& proc_names)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
                 {
                     auto& chords = chord_list.value();
-                    auto set = [&](qiew proc_name)
+                    auto set = [&](qiew proc_name, auto args_ptr)
                     {
                         if (proc_name)
                         {
                             if (auto iter = api_map.find(proc_name); iter != api_map.end())
                             {
-                                _set<Tier>(chords, iter->second, scheme);
+                                auto handle_ptr = iter->second;
+                                _set<Tier>(chords, handle_ptr, scheme, args_ptr);
                             }
                             else log("%%Action '%proc%' not found", prompt::user, proc_name);
                         }
@@ -2065,36 +2088,51 @@ namespace netxs::ui
                             _reset<Tier>(chords, scheme);
                         }
                     };
-                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a string.
+                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a plain string.
                     {
-                        set(proc_names);
+                        auto args_ptr = ptr::shared(txts{});
+                        set(proc_names, args_ptr);
                     }
                     else
                     {
                         for (auto& proc_name : proc_names)
                         {
-                            set(proc_name);
+                            auto args_ptr = ptr::shared(std::move(proc_name.args));
+                            set(proc_name.action, args_ptr);
                         }
                     }
                 }
             }
-            template<si32 Tier = tier::release>
-            auto load(xmls& config, qiew path)
+            static auto load(xmls& config, qiew section)
             {
-                auto keybinds = config.list(path);
-                for (auto keybind_ptr : keybinds)
+                auto bindings = input::key::keybind_list_t{};
+                if (section)
                 {
-                    auto& keybind = *keybind_ptr;
-                    auto chord = keybind.take_value();
-                    auto scheme = keybind.take("scheme", 0); //todo use text instead of si32 as a scheme identifier
-                    auto action_list = std::vector<text>{};
-                    auto action_ptr_list = keybind.list("action");
-                    for (auto action_ptr : action_ptr_list)
+                    auto path = "/config/hotkeys/" + section.str() + "/key";
+                    auto keybinds = config.list(path);
+                    for (auto keybind_ptr : keybinds)
                     {
-                        action_list.push_back(action_ptr->take_value());
+                        auto chord = keybind_ptr->take_value();
+                        auto scheme = keybind_ptr->take("scheme", ""s);
+                        auto action_ptr_list = keybind_ptr->list("action");
+                        bindings.push_back({ .chord = chord, .scheme = scheme });
+                        auto& rec = bindings.back();
+                        if constexpr (debugmode) log("chord=%% scheme=%%", chord, scheme);
+                        for (auto action_ptr : action_ptr_list)
+                        {
+                            rec.actions.push_back({ .action = action_ptr->take_value() });
+                            auto& action = rec.actions.back();
+                            if constexpr (debugmode) log("  action=", action.action);
+                            auto arg_ptr_list = action_ptr->list("data");
+                            for (auto arg_ptr : arg_ptr_list)
+                            {
+                                action.args.push_back(arg_ptr->take_value());
+                                if constexpr (debugmode) log("    data=", action.args.back());
+                            }
+                        }
                     }
-                    bind<Tier>(chord, action_list, scheme);
                 }
+                return bindings;
             }
         };
 

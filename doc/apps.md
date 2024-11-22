@@ -96,100 +96,79 @@ Option    | Cyclically selects the next label in the list and exec the function 
 Command   | Exec the function specified by the `action=` with `data=` as its parameter.
 Repeat    | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
 
-#### Attribute `action=`
+#### Actions `action=`
 
 `*` - Not implemented.
 
-Value                        | Unique for menu | Description
------------------------------|-----------------|------------
-TerminalCwdSync              |                 | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
-TerminalWrapMode             | x               | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
-TerminalAlignMode            | x               | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
-TerminalFindNext             |                 | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-TerminalFindPrev             |                 | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-TerminalOutput               | x               | Direct output the `data=` value to the terminal scrollback.
-TerminalSendKey              | x               | Simulating keypresses using the `data=` string.
-TerminalQuit                 |                 | Terminate runnning console apps and close terminal.
-TerminalRestart              |                 | Terminate runnning console apps and restart current session.
-TerminalToggleFullscreen     |                 | Toggle fullscreen mode.
-TerminalToggleMaximize       |                 | Toggle between maximized and normal window size.
-TerminalUndo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-TerminalRedo                 |                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-TerminalClipboardPaste       |                 | Paste from clipboard.
-TerminalClipboardWipe        |                 | Reset clipboard.
-TerminalSelectionMode        | x               | Set terminal text selection mode.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-TerminalSelectionCopy        |                 | Сopy selection to clipboard.
-TerminalSelectionRect        | x               | Set linear(false) or rectangular(true) selection form using boolean value.
-TerminalSelectionCancel      |                 | Deselect a selection.
-TerminalSelectionOneShot     |                 | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.<br>The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
-TerminalViewportCopy         |                 | Сopy viewport to clipboard.
-TerminalViewportPageUp       | x               | Scroll one page up.
-TerminalViewportPageDown     | x               | Scroll one page down.
-TerminalViewportLineUp       | x               | Scroll N lines up.
-TerminalViewportLineDown     | x               | Scroll N lines down.
-TerminalViewportPageLeft     | x               | Scroll one page to the left.
-TerminalViewportPageRight    | x               | Scroll one page to the right.
-TerminalViewportColumnLeft   | x               | Scroll N cells to the left.
-TerminalViewportColumnRight  | x               | Scroll N cells to the right.
-TerminalViewportTop          |                 | Scroll to the scrollback top.
-TerminalViewportEnd          |                 | Scroll to the scrollback bottom (reset viewport position).
-TerminalStdioLog             |                 | Stdin/stdout log toggle.
-*TerminalLogStart            |                 | Start logging to file.
-*TerminalLogPause            |                 | Pause logging.
-*TerminalLogStop             |                 | Stop logging.
-*TerminalLogAbort            |                 | Abort logging.
-*TerminalLogRestart          |                 | Restart logging to file.
-*TerminalVideoRecStart       |                 | Start DirectVT(dtvt) video recording to file.
-*TerminalVideoRecStop        |                 | Stop dtvt-video recording.
-*TerminalVideoRecPause       |                 | Pause dtvt-video recording.
-*TerminalVideoRecAbort       |                 | Abort dtvt-video recording.
-*TerminalVideoRecRestart     |                 | Restart dtvt-video recording to file.
-*TerminalVideoPlay           |                 | Play dtvt-video from file.
-*TerminalVideoPause          |                 | Pause dtvt-video.
-*TerminalVideoStop           |                 | Stop dtvt-video.
-*TerminalVideoForward        |                 | Fast forward dtvt-video by N ms.
-*TerminalVideoBackward       |                 | Rewind dtvt-video by N ms.
-*TerminalVideoHome           |                 | Rewind dtvt-video to the beginning.
-*TerminalVideoEnd            |                 | Rewind dtvt-video to the end.
+Value                        | Arguments (`data=`)           | Description
+-----------------------------|-------------------------------|------------
+Drop                         |                               | Drop all events for the specified key combination. No further processing.
+DropAutoRepeat               |                               | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+SwitchHotkeyScheme           | _Scheme name_                 | Switch the hotkey scheme to the specified one.
+TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
+TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+TerminalAlignMode            | `left` \| `right` \| `center` | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
+TerminalFindNext             |                               | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+TerminalFindPrev             |                               | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+TerminalOutput               | _Text string_                 | Direct output the string to the terminal scrollback.
+TerminalSendKey              | _Text string_                 | Simulating keypresses using the specified string.
+TerminalQuit                 |                               | Terminate runnning console apps and close terminal.
+TerminalRestart              |                               | Terminate runnning console apps and restart current session.
+TerminalToggleFullscreen     |                               | Toggle fullscreen mode.
+TerminalToggleMaximize       |                               | Toggle between maximized and normal window size.
+TerminalUndo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+TerminalRedo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+TerminalClipboardPaste       |                               | Paste from clipboard.
+TerminalClipboardWipe        |                               | Reset clipboard.
+TerminalSelectionMode        | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Set terminal text selection mode.
+TerminalSelectionCopy        |                               | Сopy selection to clipboard.
+TerminalSelectionRect        | `on` \| `off`                 | Set linear(off) or rectangular(on) selection form using boolean value.
+TerminalSelectionCancel      |                               | Deselect a selection.
+TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+TerminalViewportCopy         |                               | Сopy viewport to clipboard.
+TerminalScrollViewportByPage | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ pages.
+TerminalScrollViewportByCell | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ cells.
+TerminalScrollViewportToTop  |                               | Scroll viewport to the scrollback top.
+TerminalScrollViewportToEnd  |                               | Scroll viewport to the scrollback bottom (reset viewport position).
+TerminalStdioLog             |                               | Stdin/stdout log toggle.
+*TerminalLogStart            |                               | Start logging to file.
+*TerminalLogPause            |                               | Pause logging.
+*TerminalLogStop             |                               | Stop logging.
+*TerminalLogAbort            |                               | Abort logging.
+*TerminalLogRestart          |                               | Restart logging to file.
+*TerminalVideoRecStart       |                               | Start DirectVT(dtvt) video recording to file.
+*TerminalVideoRecStop        |                               | Stop dtvt-video recording.
+*TerminalVideoRecPause       |                               | Pause dtvt-video recording.
+*TerminalVideoRecAbort       |                               | Abort dtvt-video recording.
+*TerminalVideoRecRestart     |                               | Restart dtvt-video recording to file.
+*TerminalVideoPlay           |                               | Play dtvt-video from file.
+*TerminalVideoPause          |                               | Pause dtvt-video.
+*TerminalVideoStop           |                               | Stop dtvt-video.
+*TerminalVideoForward        |                               | Fast forward dtvt-video by N ms.
+*TerminalVideoBackward       |                               | Rewind dtvt-video by N ms.
+*TerminalVideoHome           |                               | Rewind dtvt-video to the beginning.
+*TerminalVideoEnd            |                               | Rewind dtvt-video to the end.
 
-### Hotkeys
+### Default Hotkeys
 
-The list of hotkey actions is slightly different from the list of window menu actions.
+List of hotkeys defined in the default configuration.
 
-Value                        | Unique for hotkeys | Default Hotkey               | Description
------------------------------|--------------------|------------------------------|------------
-Drop                         | x                  |                              | Drop all events for the specified key combination. No further processing.
-DropAutoRepeat               | x                  |                              | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-ToggleHotkeyScheme           | x                  | `Ctrl-Alt`, `Alt-Ctrl`       | Toggle hotkey scheme between `0` (default) `1`.
-TerminalFindNext             |                    | `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-TerminalFindPrev             |                    | `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-TerminalViewportOnePageUp    | x                  | `Shift+Ctrl+PageUp`          | Scroll one page up.
-TerminalViewportOnePageDown  | x                  | `Shift+Ctrl+PageDown`        | Scroll one page down.
-TerminalViewportOnePageLeft  | x                  | `Shift+Alt+LeftArrow`        | Scroll one page to the left.
-TerminalViewportOnePageRight | x                  | `Shift+Alt+RightArrow`       | Scroll one page to the right.
-TerminalViewportOneCharUp    | x                  | `Shift+Ctrl+UpArrow`         | Scroll one line up.
-TerminalViewportOneCharDown  | x                  | `Shift+Ctrl+DownArrow`       | Scroll one line down.
-TerminalViewportOneCharLeft  | x                  | `Shift+Ctrl+LeftArrow`       | Scroll one cell to the left.
-TerminalViewportOneCharRight | x                  | `Shift+Ctrl+RightArrow`      | Scroll one cell to the right.
-TerminalViewportTop          |                    | `Shift+Ctrl+Home`            | Scroll to the scrollback top.
-TerminalViewportEnd          |                    | `Shift+Ctrl+End`             | Scroll to the scrollback bottom (reset viewport position).
-TerminalViewportCopy         |                    |                              | Сopy viewport to clipboard.
-TerminalClipboardPaste       |                    |                              | Paste from clipboard.
-TerminalClipboardWipe        |                    |                              | Reset clipboard.
-TerminalUndo                 |                    |                              | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-TerminalRedo                 |                    |                              | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-TerminalToggleCwdSync        | x                  |                              | Toggle the current working directory sync mode.
-TerminalToggleWrapMode       | x                  |                              | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-TerminalToggleSelectionMode  | x                  |                              | Toggle between linear and rectangular selection form.
-TerminalToggleFullscreen     | x                  |                              | Toggle fullscreen mode.
-TerminalToggleMaximize       | x                  |                              | Toggle between maximized and normal window size.
-TerminalToggleStdioLog       | x                  |                              | Stdin/stdout log toggle.
-TerminalQuit                 |                    |                              | Terminate runnning console apps and close terminal.
-TerminalRestart              |                    |                              | Terminate runnning console apps and restart current session.
-TerminalSwitchCopyMode       | x                  |                              | Switch terminal text selection mode.
-TerminalSelectionCopy        |                    |                              | Сopy selection to clipboard.
-TerminalSelectionCancel      |                    | `Esc`                        | Deselect a selection.
-TerminalSelectionOneShot     |                    |                              | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
+Hotkey                       | Description
+-----------------------------|------------
+`Ctrl-Alt | Alt-Ctrl`        | Toggle hotkey scheme between `Keys0` and `Keys1`.
+`Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+`Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+`Shift+Ctrl+PageUp`          | Scroll one page up.
+`Shift+Ctrl+PageDown`        | Scroll one page down.
+`Shift+Alt+LeftArrow`        | Scroll one page to the left.
+`Shift+Alt+RightArrow`       | Scroll one page to the right.
+`Shift+Ctrl+UpArrow`         | Scroll one line up.
+`Shift+Ctrl+DownArrow`       | Scroll one line down.
+`Shift+Ctrl+LeftArrow`       | Scroll one cell to the left.
+`Shift+Ctrl+RightArrow`      | Scroll one cell to the right.
+`Shift+Ctrl+Home`            | Scroll to the scrollback top.
+`Shift+Ctrl+End`             | Scroll to the scrollback bottom (reset viewport position).
+`Esc`                        | Deselect a selection.
 
 #### Terminal configuration example
 ```xml
@@ -216,10 +195,8 @@ TerminalSelectionOneShot     |                    |                             
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Command" action=ToggleHotkeyScheme>
-                <label=" Undef " data="undef"/>
-                <label=" Keys0 " data="off"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+            <item type="Option" action=SwitchHotkeyScheme label=" Keys0 " data="">
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
                 <tooltip>
                     " Toggle hotkey scheme                          \n"
                     "   Alternative hotkey scheme allows keystrokes \n"
@@ -257,18 +234,17 @@ TerminalSelectionOneShot     |                    |                             
             <item label="Clear" tooltip=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
             <item label="Restart" type="Command" action=TerminalRestart/>
-            <item label="Top" action=TerminalViewportTop/>
-            <item label="End" action=TerminalViewportEnd/>
+            <item label="Top" action=TerminalScrollViewportToTop/>
+            <item label="End" action=TerminalScrollViewportToEnd/>
 
-            <item label="PgLeft"    type="Repeat" action=TerminalViewportPageLeft/>
-            <item label="PgRight"   type="Repeat" action=TerminalViewportPageRight/>
-            <item label="CharLeft"  type="Repeat" action=TerminalViewportCharLeft/>
-            <item label="CharRight" type="Repeat" action=TerminalViewportCharRight/>
-
-            <item label="PgUp"   type="Repeat" action=TerminalViewportPageUp/>
-            <item label="PgDn"   type="Repeat" action=TerminalViewportPageDown/>
-            <item label="LineUp" type="Repeat" action=TerminalViewportLineUp/>
-            <item label="LineDn" type="Repeat" action=TerminalViewportLineDown/>
+            <item label="PgLeft"    type="Repeat" action=TerminalScrollViewportByPage data=" 1, 0"/>
+            <item label="PgRight"   type="Repeat" action=TerminalScrollViewportByPage data="-1, 0"/>
+            <item label="PgUp"      type="Repeat" action=TerminalScrollViewportByPage data=" 0, 1"/>
+            <item label="PgDn"      type="Repeat" action=TerminalScrollViewportByPage data=" 0,-1"/>
+            <item label="CharLeft"  type="Repeat" action=TerminalScrollViewportByCell data=" 1, 0"/>
+            <item label="CharRight" type="Repeat" action=TerminalScrollViewportByCell data="-1, 0"/>
+            <item label="LineUp"    type="Repeat" action=TerminalScrollViewportByCell data=" 0, 1"/>
+            <item label="LineDn"    type="Repeat" action=TerminalScrollViewportByCell data=" 0,-1"/>
 
             <item label="PrnScr" action=TerminalViewportCopy/>
             <item label="Deselect" action=TerminalSelectionCancel/>
@@ -314,45 +290,48 @@ TerminalSelectionOneShot     |                    |                             
     </term>
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
         <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
-            <key="Space-Backspace"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Backspace-Space"       action=ToggleDebugOverlay/>  <!-- Toggle debug overlay (reversed release order). -->
-            <key="Ctrl-Alt"              action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to 1 by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl"              action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to 1 by pressing and releasing Alt-Ctrl (reversed releasing). -->
-            <key="Ctrl-Alt" scheme=1     action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to 0 (default) by pressing and releasing Ctrl-Alt. -->
-            <key="Alt-Ctrl" scheme=1     action=ToggleHotkeyScheme/>    <!-- Toggle hotkey scheme to 0 (default) by pressing and releasing Alt-Ctrl (reversed releasing). -->
+            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <term key*>
-            <key="Alt+RightArrow"         action=TerminalFindNext/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"          action=TerminalFindPrev/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"      action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Shift+Ctrl+PageDown"    action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Ctrl+PageUp"   scheme=1 action=TerminalViewportOnePageUp/>         <!-- Scroll one page up. -->
-            <key="Ctrl+PageDown" scheme=1 action=TerminalViewportOnePageDown/>       <!-- Scroll one page down. -->
-            <key="Shift+Alt+LeftArrow"    action=TerminalViewportOnePageLeft/>       <!-- Scroll one page to the left. -->
-            <key="Shift+Alt+RightArrow"   action=TerminalViewportOnePageRight/>      <!-- Scroll one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"     action=TerminalViewportOneCharUp/>         <!-- Scroll one line up. -->
-            <key="Shift+Ctrl+DownArrow"   action=TerminalViewportOneCharDown/>       <!-- Scroll one line down. -->
-            <key="Shift+Ctrl+LeftArrow"   action=TerminalViewportOneCharLeft/>       <!-- Scroll one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"  action=TerminalViewportOneCharRight/>      <!-- Scroll one cell to the right. -->
-            <key="Shift+Ctrl+Home"        action=TerminalViewportTop/>               <!-- Scroll to the scrollback top. -->
-            <key="Shift+Ctrl+End"         action=TerminalViewportEnd/>               <!-- Scroll to the scrollback bottom (reset viewport position). -->
-            <key=""                       action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
-            <key=""                       action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
-            <key=""                       action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
-            <key=""                       action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                       action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                       action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
-            <key=""                       action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
-            <key=""                       action=TerminalToggleSelectionMode/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
-            <key=""                       action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
-            <key=""                       action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
-            <key=""                       action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
-            <key=""                       action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
-            <key=""                       action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                       action=TerminalSwitchCopyMode/>            <!-- Set terminal text selection mode. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
-            <key=""                       action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
-            <key="Esc"                    action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
-            <key=""                       action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. The argument can be the one of the following values 0:'none', 1:'text', 2:'ansi', 3:'rich', 4:'html', 5:'protected'. -->
+            <key="Alt+RightArrow"            action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"             action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Ctrl+PageUp"   scheme="1"><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Ctrl+PageDown" scheme="1"><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
+            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
+            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
+            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
+            <key="Shift+Ctrl+Home">
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
+                <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
+            </key>
+            <key="Shift+Ctrl+End">
+                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
+                <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
+            </key>
+            <key=""                          action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                          action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
+            <key=""                          action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
+            <key=""                          action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                          action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                          action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
+            <key=""                          action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
+            <key=""                          action=TerminalToggleSelectionMode/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
+            <key=""                          action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
+            <key=""                          action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
+            <key=""                          action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                          action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
+            <key=""                          action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                          action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection mode. -->
+            <key=""                          action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
+            <key="Esc"                       action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
+            <key=""                          action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         </term>
     </hotkeys>
 </config>

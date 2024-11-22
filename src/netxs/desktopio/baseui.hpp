@@ -433,7 +433,7 @@ namespace netxs::events::userland
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
-                        EVENT_XS( hotkey  , si32               ), // release: Hotkey scheme index.
+                        EVENT_XS( scheme  , text               ), // release: Hotkey scheme id.
                         GROUP_XS( command , si32               ), // release: Hotkey command preview.
 
                         SUBSET_XS( command )
