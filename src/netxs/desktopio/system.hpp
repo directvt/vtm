@@ -427,10 +427,10 @@ namespace netxs::os
             auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
             {
                 auto BytesReturned   = DWORD{};
-                auto lpInBuffer      = std::is_same_v<std::decay_t<I>, noop> ? nullptr : static_cast<void*>(&send);
-                auto nInBufferSize   = std::is_same_v<std::decay_t<I>, noop> ? 0       : static_cast<DWORD>(sizeof(send));
-                auto lpOutBuffer     = std::is_same_v<std::decay_t<O>, noop> ? nullptr : static_cast<void*>(&recv);
-                auto nOutBufferSize  = std::is_same_v<std::decay_t<O>, noop> ? 0       : static_cast<DWORD>(sizeof(recv));
+                auto lpInBuffer      = std::is_same_v<std::decay_t<I>, noop> ? nullptr : (void*)(&send);
+                auto nInBufferSize   = std::is_same_v<std::decay_t<I>, noop> ? 0       : (DWORD)(sizeof(send));
+                auto lpOutBuffer     = std::is_same_v<std::decay_t<O>, noop> ? nullptr : (void*)(&recv);
+                auto nOutBufferSize  = std::is_same_v<std::decay_t<O>, noop> ? 0       : (DWORD)(sizeof(recv));
                 auto lpBytesReturned = &BytesReturned;
                 auto ok = ::DeviceIoControl(hDevice,
                                             dwIoControlCode,
@@ -643,7 +643,7 @@ namespace netxs::os
                     }
                     if (c.inv()) std::swap(f, b);
                     if (c.und()) std::swap(f, b);  // Interferes with the menu scrollbar mimics.
-                    auto attr = static_cast<ui16>((b << 4) | f);
+                    auto attr = (ui16)((b << 4) | f);
                     // LEADING/TRAILINGs only for OEMs.
                     //if (c.und()) attr |= COMMON_LVB_UNDERSCORE;  // LVB attributes historically available only for DBCS code pages.
                     //if (c.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
@@ -2398,11 +2398,12 @@ namespace netxs::os
 
         auto getid()
         {
-            #if defined(_WIN32)
-                auto id = static_cast<ui32>(::GetCurrentProcessId());
-            #else
-                auto id = static_cast<ui32>(::getpid());
-            #endif
+            auto id = (ui32)
+                #if defined(_WIN32)
+                    ::GetCurrentProcessId();
+                #else
+                    ::getpid();
+                #endif
             ui::console::id = std::pair{ id, datetime::now() };
             return ui::console::id;
         }
@@ -2525,10 +2526,10 @@ namespace netxs::os
                 auto buffer = wide(MAX_PATH, '\0');
                 while (buffer.size() <= 32768)
                 {
-                    auto length = ::GetModuleFileNameExW(handle,         // hProcess
-                                                         NULL,           // hModule
-                                                         buffer.data(),  // lpFilename
-                                      static_cast<DWORD>(buffer.size()));// nSize
+                    auto length = ::GetModuleFileNameExW(handle,        // hProcess
+                                                         NULL,          // hModule
+                                                         buffer.data(), // lpFilename
+                                                  (DWORD)buffer.size());// nSize
                     if (length == 0) break;
                     if (buffer.size() > length + 1)
                     {

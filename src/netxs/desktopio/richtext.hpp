@@ -580,7 +580,7 @@ namespace netxs::ui
                 if (*next != blank) break;
                 tail = next;
             }
-            auto new_size = static_cast<si32>(tail - head);
+            auto new_size = (si32)(tail - head);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
@@ -2201,7 +2201,7 @@ namespace netxs::ui
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
-        auto  size()    const { return static_cast<si32>(batch.size()); }
+        auto  size()    const { return (si32)batch.size(); }
         // page: Estimated page size calculation (use fake printing for accurate calc).
         auto  limits() const
         {
@@ -2277,11 +2277,11 @@ namespace netxs::ui
                          if (c =='\\') { data.push_back('\\'); data.push_back('\\'); }
                     else if (c == '{') { data.push_back('\\'); data.push_back('{' ); }
                     else if (c == '}') { data.push_back('\\'); data.push_back('}' ); }
-                    else if (c < 0x80) { data.push_back(static_cast<char>(c)); }
+                    else if (c < 0x80) { data.push_back((char)c); }
                     else
                     {
                         data.push_back('\\'); data.push_back('u');
-                        data += std::to_string(static_cast<si16>(c));
+                        data += std::to_string((si16)c);
                         data.push_back('?');
                     }
                 }

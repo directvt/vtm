@@ -849,25 +849,25 @@ namespace netxs::utf
         {
             if (code <= 0x007f)
             {
-                push(static_cast<char>(code));
+                push((char)code);
             }
             else if (code <= 0x07ff)
             {
-                push(static_cast<char>(0xc0 | ((code >> 0x06) & 0x1f)));
-                push(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push((char)(0xc0 | ((code >> 0x06) & 0x1f)));
+                push((char)(0x80 | ( code          & 0x3f)));
             }
             else if (code <= 0xffff)
             {
-                push(static_cast<char>(0xe0 | ((code >> 0x0c) & 0x0f)));
-                push(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-                push(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push((char)(0xe0 | ((code >> 0x0c) & 0x0f)));
+                push((char)(0x80 | ((code >> 0x06) & 0x3f)));
+                push((char)(0x80 | ( code          & 0x3f)));
             }
             else
             {
-                push(static_cast<char>(0xf0 | ((code >> 0x12) & 0x07)));
-                push(static_cast<char>(0x80 | ((code >> 0x0c) & 0x3f)));
-                push(static_cast<char>(0x80 | ((code >> 0x06) & 0x3f)));
-                push(static_cast<char>(0x80 | ( code          & 0x3f)));
+                push((char)(0xf0 | ((code >> 0x12) & 0x07)));
+                push((char)(0x80 | ((code >> 0x0c) & 0x3f)));
+                push((char)(0x80 | ((code >> 0x06) & 0x3f)));
+                push((char)(0x80 | ( code          & 0x3f)));
             }
         }
         void _to_utf(text& utf8, utfx code)
@@ -1447,7 +1447,7 @@ namespace netxs::utf
                 if (++step == 4)
                 {
                     step = 0;
-                    for (auto& a : buff) a = static_cast<byte>(look.find(a));
+                    for (auto& a : buff) a = (byte)look.find(a);
                     data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
                     data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
                     data.push_back(((buff[2] & 0x03) << 6) +   buff[3]);
@@ -1458,7 +1458,7 @@ namespace netxs::utf
             {
                 auto temp = step;
                 while (temp < 4) buff[temp++] = 0;
-                for (auto& a : buff) a = static_cast<byte>(look.find(a));
+                for (auto& a : buff) a = (byte)look.find(a);
                 if (step > 1) data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
                 if (step > 2) data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
             }
@@ -1534,7 +1534,7 @@ namespace netxs::utf
             else                                   buff += cluster.text;
         };
         decode<faux>(s, y, a, utf8, mode);
-        return static_cast<si32>(buff.length() - init);
+        return (si32)(buff.length() - init);
     }
     // utf: Return a string without control chars (replace all ctrls with printables).
     template<bool Split = true, bool Multiline = true>
