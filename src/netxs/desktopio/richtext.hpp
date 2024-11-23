@@ -1491,7 +1491,7 @@ namespace netxs::ui
         {
             if (parser::defer && caret && caret == length())
             {
-                if constexpr (debugmode) log("try to reassemble cluster=", lyric->back().txt());
+                //if constexpr (debugmode) log("try to reassemble cluster=", lyric->back().txt());
                 auto last_cluster = lyric->pop_cluster();
                 if (caret != length())
                 {
@@ -1501,7 +1501,7 @@ namespace netxs::ui
                     reassembled_cluster += last_cluster;
                     reassembled_cluster += utf8;
                     ansi::parse(reassembled_cluster, this);
-                    if constexpr (debugmode) log("\treassembled_cluster=", utf::buffer_to_hex(reassembled_cluster, true));
+                    //if constexpr (debugmode) log("\treassembled_cluster=", utf::buffer_to_hex(reassembled_cluster, true));
                     return *this;
                 }
             }

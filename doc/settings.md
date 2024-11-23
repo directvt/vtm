@@ -353,8 +353,8 @@ Configuration record                                  | Interpretation
 
 Action                         | Arguments (`data=`) | Available at layer  | Description
 -------------------------------|---------------------|---------------------|------------
-`Drop`                         |                     | All layers          | Drop all events for the specified key combination. No further processing.
-`DropAutoRepeat`               |                     | All layers          | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`Noop`                         |                     | All layers          | Ignore all events for the specified key combination. No further processing.
+`DropAutoRepeat`               |                     | All layers          | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 `ToggleDebugOverlay`           |                     | TUI matrix          | Toggle debug overlay.
 `SwitchHotkeyScheme`           | _Scheme name_       | TUI matrix          | Switch the hotkey scheme to the specified one.
 `IncreaseCellHeight`           |                     | Native GUI window   | Increase the text cell height by one pixel.
@@ -375,22 +375,22 @@ Action                         | Arguments (`data=`) | Available at layer  | Des
 `TerminalScrollViewportToTop`  |                     | Application         | Scroll viewport to the scrollback top.
 `TerminalScrollViewportToEnd`  |                     | Application         | Scroll viewport to the scrollback bottom (reset viewport position).
 `TerminalViewportCopy`         |                     | Application         | Сopy viewport to clipboard.
+`TerminalClipboardCopy`        |                     | Application         | Сopy selection to clipboard.
 `TerminalClipboardPaste`       |                     | Application         | Paste from clipboard.
 `TerminalClipboardWipe`        |                     | Application         | Reset clipboard.
+`TerminalClipboardFormat`      |                     | Application         | Switch terminal text selection copy format.
 `TerminalUndo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 `TerminalRedo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-`TerminalToggleCwdSync`        |                     | Application         | Toggle the current working directory sync mode.
-`TerminalToggleWrapMode`       |                     | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-`TerminalToggleSelectionMode`  |                     | Application         | Toggle between linear and rectangular selection form.
-`TerminalToggleFullscreen`     |                     | Application         | Toggle fullscreen mode.
-`TerminalToggleMaximize`       |                     | Application         | Toggle between maximized and normal window size.
-`TerminalToggleStdioLog`       |                     | Application         | Stdin/stdout log toggle.
-`TerminalQuit`                 |                     | Application         | Terminate runnning console apps and close terminal.
-`TerminalRestart`              |                     | Application         | Terminate runnning console apps and restart current session.
-`TerminalSwitchCopyMode`       |                     | Application         | Switch terminal text selection copy mode.
-`TerminalSelectionCopy`        |                     | Application         | Сopy selection to clipboard.
+`TerminalCwdSync`              |                     | Application         | Toggle the current working directory sync mode.
+`TerminalWrapMode`             |                     | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+`TerminalFullscreen`           |                     | Application         | Toggle fullscreen mode.
+`TerminalMaximize`             |                     | Application         | Toggle between maximized and normal window size.
+`TerminalStdioLog`             | `on` \| `off`       | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
+`TerminalSelectionRect`        |                     | Application         | Toggle between linear and rectangular selection form.
 `TerminalSelectionCancel`      |                     | Application         | Deselect a selection.
 `TerminalSelectionOneShot`     |                     | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
+`TerminalRestart`              |                     | Application         | Terminate runnning console apps and restart current session.
+`TerminalQuit`                 |                     | Application         | Terminate runnning console apps and close terminal.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -616,7 +616,7 @@ Notes
                                     "   Applied to selection if it is "
                                 </tooltip>
                             </item>
-                            <item label="Selection" tooltip=" Text selection mode " type="Option" action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                                 <label data="rich">
@@ -757,7 +757,7 @@ Notes
                     "   Applied to selection if it is "
                 </tooltip>
             </item>
-            <item label="Selection" tooltip=" Text selection mode " type="Option" action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                 <label data="rich">
@@ -860,20 +860,20 @@ Notes
                 <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
             <key=""                         action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                         action=TerminalClipboardCopy/>             <!-- Сopy selection to clipboard. -->
             <key=""                         action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
             <key=""                         action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
+            <key=""                         action=TerminalClipboardFormat/>           <!-- Toggle terminal text selection copy format. -->
             <key=""                         action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
             <key=""                         action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                         action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. -->
-            <key=""                         action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""                         action=TerminalToggleSelectionMode/>       <!-- Toggle between linear and rectangular selection form. -->
-            <key=""                         action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
-            <key=""                         action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
-            <key=""                         action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                         action=TerminalCwdSync/>                   <!-- Toggle the current working directory sync mode. -->
+            <key=""                         action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""                         action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
+            <key=""                         action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
+            <key=""                         action=TerminalStdioLog/>                  <!-- Toggle stdin/stdout logging. -->
             <key=""                         action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                         action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                         action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection copy mode. -->
-            <key=""                         action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
+            <key=""                         action=TerminalSelectionRect/>             <!-- Toggle between linear and rectangular selection form. -->
             <key="Esc"                      action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                         action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         </term>

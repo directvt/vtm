@@ -7722,24 +7722,24 @@ namespace netxs::ui
             chords.proc("TerminalScrollViewportToEnd",  [&](hids& gear, txts&){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
             chords.proc("TerminalFindPrev",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::rev); });
             chords.proc("TerminalFindNext",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::fwd); });
-            chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
-            chords.proc("TerminalToggleCwdSync",        [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
-            chords.proc("TerminalToggleWrapMode",       [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
+            chords.proc("TerminalCwdSync",              [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
+            chords.proc("TerminalWrapMode",             [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
             chords.proc("TerminalQuit",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc("TerminalRestart",              [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
             //todo use wptr for gear when enqueueing
-            chords.proc("TerminalToggleFullscreen",     [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
-            chords.proc("TerminalToggleMaximize",       [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
+            chords.proc("TerminalFullscreen",           [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
+            chords.proc("TerminalMaximize",             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
             chords.proc("TerminalUndo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc("TerminalRedo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
+            chords.proc("TerminalClipboardCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
             chords.proc("TerminalClipboardPaste",       [&](hids& gear, txts&){ gear.set_handled(); paste(gear);                       });
             chords.proc("TerminalClipboardWipe",        [&](hids& gear, txts&){ gear.set_handled(); gear.clear_clipboard();            });
-            chords.proc("TerminalSwitchCopyMode",       [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglesel); });
-            chords.proc("TerminalSelectionCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
-            chords.proc("TerminalToggleSelectionMode",  [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::toggleselalt); });
-            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts&){ gear.set_handled(); set_oneshot(mime::textonly);       });
+            chords.proc("TerminalClipboardFormat",      [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglesel); });
             chords.proc("TerminalViewportCopy",         [&](hids& gear, txts&){ gear.set_handled(); prnscrn(gear);                     });
-            chords.proc("TerminalToggleStdioLog",       [&](hids& gear, txts&){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
+            chords.proc("TerminalSelectionRect",        [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::toggleselalt); });
+            chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
+            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts&){ gear.set_handled(); set_oneshot(mime::textonly);       });
+            chords.proc("TerminalStdioLog",             [&](hids& gear, txts& args){ gear.set_handled(); set_log(args.size() ? xml::take_or<bool>(args.front(), !io_log) : !io_log); ondata<true>();  });
             auto bindings = chords.load(xml_config, "term");
             for (auto& r : bindings)
             {

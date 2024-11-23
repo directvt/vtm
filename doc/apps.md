@@ -102,8 +102,8 @@ Repeat    | Selects the next label and exec the function specified by the `actio
 
 Value                        | Arguments (`data=`)           | Description
 -----------------------------|-------------------------------|------------
-Drop                         |                               | Drop all events for the specified key combination. No further processing.
-DropAutoRepeat               |                               | Drop `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+Noop                         |                               | Ignore all events for the specified key combination. No further processing.
+DropAutoRepeat               |                               | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 SwitchHotkeyScheme           | _Scheme name_                 | Switch the hotkey scheme to the specified one.
 TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
@@ -114,14 +114,14 @@ TerminalOutput               | _Text string_                 | Direct output the
 TerminalSendKey              | _Text string_                 | Simulating keypresses using the specified string.
 TerminalQuit                 |                               | Terminate runnning console apps and close terminal.
 TerminalRestart              |                               | Terminate runnning console apps and restart current session.
-TerminalToggleFullscreen     |                               | Toggle fullscreen mode.
-TerminalToggleMaximize       |                               | Toggle between maximized and normal window size.
+TerminalFullscreen           |                               | Toggle fullscreen mode.
+TerminalMaximize             |                               | Toggle between maximized and normal window size.
 TerminalUndo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+TerminalClipboardCopy        |                               | Сopy selection to clipboard.
 TerminalClipboardPaste       |                               | Paste from clipboard.
 TerminalClipboardWipe        |                               | Reset clipboard.
-TerminalSelectionMode        | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Set terminal text selection mode.
-TerminalSelectionCopy        |                               | Сopy selection to clipboard.
+TerminalClipboardFormat      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Set terminal text selection copy format.
 TerminalSelectionRect        | `on` \| `off`                 | Set linear(off) or rectangular(on) selection form using boolean value.
 TerminalSelectionCancel      |                               | Deselect a selection.
 TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
@@ -130,7 +130,7 @@ TerminalScrollViewportByPage | _`IntX, IntY`_                | Scroll viewport b
 TerminalScrollViewportByCell | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ cells.
 TerminalScrollViewportToTop  |                               | Scroll viewport to the scrollback top.
 TerminalScrollViewportToEnd  |                               | Scroll viewport to the scrollback bottom (reset viewport position).
-TerminalStdioLog             |                               | Stdin/stdout log toggle.
+TerminalStdioLog             | `on` \| `off`                 | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
 *TerminalLogStart            |                               | Start logging to file.
 *TerminalLogPause            |                               | Pause logging.
 *TerminalLogStop             |                               | Stop logging.
@@ -210,7 +210,15 @@ Hotkey                       | Description
                     " - applied to selection if it is "
                 </tooltip>
             </item>
-            <item label="Selection" tooltip=" Text selection mode " type="Option" action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item label="\e[38:2:0:255:0mLeft\e[m" type="Option" action=TerminalAlignMode data="left">
+                <label="\e[38:2:0:255:255mRight\e[m" data="right"/>
+                <label="\e[38:2:255:255:0mCenter\e[m" data="center"/>
+                <tooltip>
+                    " Align text lines left/right/center \n"
+                    " - applied to selection if it is    "
+                </tooltip>
+            </item>
+            <item label="Selection" tooltip=" Text selection mode " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                 <label data="rich">
@@ -252,12 +260,19 @@ Hotkey                       | Description
             <item label="Line" type="Option" action=TerminalSelectionRect data="false">
                 <label="Rect" data="true"/>
             </item>
-            <item label="Copy" type="Repeat" action=TerminalSelectionCopy/>
+            <item label="Copy" type="Repeat" action=TerminalClipboardCopy/>
             <item label="Paste" type="Repeat" action=TerminalClipboardPaste/>
+            <item label="Wipe" type="Repeat" action=TerminalClipboardWipe/>
             <item label="Undo" type="Command" action=TerminalUndo/>
             <item label="Redo" type="Command" action=TerminalRedo/>
             <item label="Quit" type="Command" action=TerminalQuit/>
-            <item label="Fullscreen" type="Command" action=TerminalToggleFullscreen/>
+            <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
+            <item label="Maximize" type="Command" action=TerminalMaximize/>
+            <item label="Noop" type="Command" action=Noop/>
+
+            <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
+                <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
+            </item>
 
             <item label="Hello, World!" tooltip=" Simulating keypresses " action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" tooltip=" test " type="Repeat" action=TerminalOutput data="pressed ">
@@ -316,20 +331,20 @@ Hotkey                       | Description
                 <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
             <key=""                          action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
+            <key=""                          action=TerminalClipboardCopy/>             <!-- Сopy selection to clipboard. -->
             <key=""                          action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
             <key=""                          action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
+            <key=""                          action=TerminalClipboardFormat/>           <!-- Switch terminal text selection copy format. -->
             <key=""                          action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
             <key=""                          action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                          action=TerminalToggleCwdSync/>             <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
-            <key=""                          action=TerminalToggleWrapMode/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
-            <key=""                          action=TerminalToggleSelectionMode/>       <!-- Toggle between linear(0) and rectangular(1) selection form. -->
-            <key=""                          action=TerminalToggleFullscreen/>          <!-- Toggle fullscreen mode. -->
-            <key=""                          action=TerminalToggleMaximize/>            <!-- Toggle between maximized and normal window size. -->
-            <key=""                          action=TerminalToggleStdioLog/>            <!-- Stdin/stdout log toggle. -->
+            <key=""                          action=TerminalCwdSync/>                   <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
+            <key=""                          action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
+            <key=""                          action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
+            <key=""                          action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
+            <key=""                          action=TerminalStdioLog/>                  <!-- Toggle stdin/stdout logging. -->
             <key=""                          action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                          action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                          action=TerminalSwitchCopyMode/>            <!-- Switch terminal text selection mode. -->
-            <key=""                          action=TerminalSelectionCopy/>             <!-- Сopy selection to clipboard. -->
+            <key=""                          action=TerminalSelectionRect/>             <!-- Toggle between linear(0) and rectangular(1) selection form. -->
             <key="Esc"                       action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                          action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         </term>
