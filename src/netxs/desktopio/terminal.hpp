@@ -83,6 +83,7 @@ namespace netxs::ui
                 {
                     center,
                     togglewrp,
+                    togglejet,
                     togglesel,
                     toggleselalt,
                     restart,
@@ -1140,7 +1141,7 @@ namespace netxs::ui
                 }
                 return delta;
             }
-            virtual void selection_setjet(bias /*align*/)
+            virtual void selection_setjet(bias /*align*/ = {})
             {
                 // Do nothing by default.
             }
@@ -1550,7 +1551,7 @@ namespace netxs::ui
             // bufferbase: Resize tabstop index.
             void resize_tabstops(si32 new_size, bool forced = faux)
             {
-                auto size = static_cast<si32>(stops.size());
+                auto size = (si32)stops.size();
                 if (!forced && new_size <= size) return;
 
                 auto last_stop = si32{};
@@ -1598,7 +1599,7 @@ namespace netxs::ui
                 auto& last = tail->first;
                 if (coord.x != last)
                 {
-                    auto size = static_cast<si32>(stops.size());
+                    auto size = (si32)stops.size();
                     auto base = last;
                     last = coord.x;
                     while (head != tail)
@@ -1626,7 +1627,7 @@ namespace netxs::ui
             // bufferbase: (see CSI 0 g) Remove tabstop at the current cursor posistion.
             void remove_tabstop()
             {
-                auto  size = static_cast<si32>(stops.size());
+                auto  size = (si32)stops.size();
                 if (coord.x <= 0 || coord.x >= size) return;
                 auto  head = stops.begin();
                 auto  tail = stops.begin() + coord.x;
@@ -1699,7 +1700,7 @@ namespace netxs::ui
     virtual void tab(si32 n)
             {
                 parser::flush();
-                auto size = static_cast<si32>(stops.size());
+                auto size = (si32)stops.size();
                 if (n > 0) while (n-- > 0) tab_impl<true>(size);
                 else       while (n++ < 0) tab_impl<faux>(size);
             }
@@ -2871,7 +2872,7 @@ namespace netxs::ui
                 {
                     //No need to disturb distant objects, it may already be in the swap.
                     auto total = length();
-                    return static_cast<si32>(total - 1 - (back().index - item_id)); // ring buffer size is never larger than max_int32.
+                    return (si32)(total - 1 - (back().index - item_id)); // ring buffer size is never larger than max_int32.
                 }
                 // buff: Return an iterator pointing to the item with the specified id.
                 auto iter_by_id(ui32 line_id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
@@ -3229,8 +3230,8 @@ namespace netxs::ui
                     if (batch.round && range1 < panel.y * 2)
                     {
                         lookup();
-                        auto count1 = static_cast<si32>(under.index - batch.ancid);
-                        auto count2 = static_cast<si32>(batch.ancid - front.index);
+                        auto count1 = (si32)(under.index - batch.ancid);
+                        auto count2 = (si32)(batch.ancid - front.index);
                         auto min_dy = std::min(count1, count2);
 
                         if (min_dy < approx_threshold) // Refine position to absolute value.
@@ -3268,7 +3269,7 @@ namespace netxs::ui
                         {
                             ui64 count1 = std::min(std::max(0, fresh_slide), batch.vsize);
                             ui64 count2 = batch.vsize;
-                            batch.ancid = front.index + static_cast<id_t>(netxs::divround(batch.size * count1, count2));
+                            batch.ancid = front.index + (id_t)netxs::divround(batch.size * count1, count2);
                             batch.ancdy = 0;
                             batch.slide = fresh_slide;
                             batch.round = batch.vsize != batch.size;
@@ -3340,17 +3341,17 @@ namespace netxs::ui
                 {
                     auto& front = batch.front();
                     auto& under = batch.back();
-                    auto range1 = static_cast<si32>(under.index - batch.ancid);
-                    auto range2 = static_cast<si32>(batch.ancid - front.index);
+                    auto range1 = (si32)(under.index - batch.ancid);
+                    auto range2 = (si32)(batch.ancid - front.index);
                     batch.round = faux;
                     if (range1 < batch.size)
                     {
                         if (approx_threshold < std::min(range1, range2))
                         {
                             auto& mapln = index.front();
-                            auto c1 = static_cast<ui64>(static_cast<si32>(mapln.index - front.index));
-                            auto c2 = static_cast<ui64>(range2);
-                            auto fresh_slide = static_cast<si32>(netxs::divround(batch.vsize * c2, c1));
+                            auto c1 = (ui64)(si32)(mapln.index - front.index);
+                            auto c2 = (ui64)range2;
+                            auto fresh_slide = (si32)netxs::divround(batch.vsize * c2, c1);
                             batch.slide = batch.ancdy + fresh_slide;
                             batch.round = batch.vsize != batch.size;
                         }
@@ -3811,7 +3812,7 @@ namespace netxs::ui
                     auto upto = index[limit - 1].index + 1;
                     auto base = batch.index_by_id(from);
                     auto head = batch.begin() + base;
-                    auto size = static_cast<si32>(upto - from);
+                    auto size = (si32)(upto - from);
                     auto tail = head + size;
                     auto area = block.area();
                     block.full(area);
@@ -4433,7 +4434,7 @@ namespace netxs::ui
                         {              // cursor overlaps some lines below and placed below the viewport.
                             curln.resize(batch.caret);
                             batch.recalc(curln);
-                            if (auto n = static_cast<si32>(batch.back().index - curid))
+                            if (auto n = (si32)(batch.back().index - curid))
                             {
                                 if constexpr (mixer) _merge(curln, oldsz, curid, n);
                                 assert(n > 0);
@@ -4510,7 +4511,7 @@ namespace netxs::ui
 
                                 batch.recalc(curln);
                                 auto w = curln.length();
-                                auto spoil = static_cast<si32>(mapln.index - curid);
+                                auto spoil = (si32)(mapln.index - curid);
                                 assert(spoil > 0);
 
                                 if constexpr (mixer) _merge(curln, oldsz, curid, spoil);
@@ -4989,7 +4990,7 @@ namespace netxs::ui
                         auto mdlid = index[mdl - 1].index + 1;
                         auto endid = index[end - 1].index + 1;
                         auto start = batch.index_by_id(topid);
-                        auto range = static_cast<si32>(mdlid - topid);
+                        auto range = (si32)(mdlid - topid);
                         auto floor = batch.index_by_id(endid) - range;
                         batch.remove(start, range);
 
@@ -5026,7 +5027,7 @@ namespace netxs::ui
                         auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
                                              : topid;
                         auto start = batch.index_by_id(topid);
-                        auto range = static_cast<si32>(endid - mdlid);
+                        auto range = (si32)(endid - mdlid);
                         auto floor = batch.index_by_id(endid) - range;
                         batch.remove(floor, range);
 
@@ -6075,7 +6076,7 @@ namespace netxs::ui
                 status.coor.x = 1 + std::abs(dnmid.coor.x - upmid.coor.x);
                 if (upmid.role != grip::idle)
                 {
-                    status.coor.y = 1 + std::abs(static_cast<si32>(dnmid.link - upmid.link));
+                    status.coor.y = 1 + std::abs((si32)(dnmid.link - upmid.link));
                     if (status.coor.y < approx_threshold)
                     {
                         auto [i_top, i_end, upcur, dncur] = selection_get_it();
@@ -6140,15 +6141,33 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Sel alignment for selected lines.
-            void selection_setjet(bias align) override
+            void selection_setjet(bias a = bias::none) override
             {
-                if (upmid.role == grip::idle) return;
-                selection_foreach([&](auto& curln)
+                //todo unify setwrp and setjet
+                if (selection_active())
                 {
-                    curln.style.jet(align);
-                    batch.recalc(curln);
-                });
-                resize_viewport(panel, true); // Recalc batch.basis.
+                    if (upmid.role == grip::idle) return;
+                    auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
+                    auto j = batch[i_top].style.jet();
+                    auto align = a != bias::none ? a
+                                                 : j == bias::left   ? bias::right
+                                                 : j == bias::right  ? bias::center
+                                                                     : bias::left;
+                    selection_foreach([&](auto& curln)
+                    {
+                        curln.style.jet(align);
+                        batch.recalc(curln);
+                    });
+                    resize_viewport(panel, true); // Recalc batch.basis.
+                }
+                else
+                {
+                    auto j = style.jet();
+                    style.jet(a != bias::none ? a
+                                              : j == bias::left   ? bias::right
+                                              : j == bias::right  ? bias::center
+                                                                  : bias::left);
+                }
             }
             // scroll_buf: Sel wrapping mode for selected lines.
             void selection_setwrp(wrap w = wrap::none) override
@@ -6243,7 +6262,7 @@ namespace netxs::ui
             // scroll_buf: Retrun distance between lines.
             auto selection_outrun(id_t id1, twod coor1, id_t id2, twod coor2)
             {
-                auto dir = static_cast<si32>(id2 - id1);
+                auto dir = (si32)(id2 - id1);
                 if (dir < 0)
                 {
                     std::swap(id1, id2);
@@ -7433,7 +7452,7 @@ namespace netxs::ui
             console.brush.reset(brush);
             bell::signal(tier::release, ui::term::events::colors::fg, fg);
         }
-        void set_wrapln(si32 wrapln)
+        void set_wrapln(si32 wrapln = {})
         {
             target->selection_setwrp((wrap)wrapln);
             if (!target->selection_active())
@@ -7442,15 +7461,11 @@ namespace netxs::ui
             }
             ondata<true>();
         }
-        void set_align(si32 align)
+        void set_align(si32 align = {})
         {
-            if (target->selection_active())
+            target->selection_setjet((bias)align);
+            if (!target->selection_active())
             {
-                target->selection_setjet((bias)align);
-            }
-            else
-            {
-                target->style.jet((bias)align);
                 follow[axis::Y] = true; // Reset viewport.
             }
             ondata<true>();
@@ -7482,6 +7497,7 @@ namespace netxs::ui
             switch (cmd)
             {
                 case commands::ui::togglewrp:    console.selection_setwrp();          break;
+                case commands::ui::togglejet:    console.selection_setjet();          break;
                 case commands::ui::togglesel:    selection_selmod();                  break;
                 case commands::ui::toggleselalt: selection_toggle_selalt();           break;
                 case commands::ui::restart:      restart();                           break;
@@ -7722,24 +7738,27 @@ namespace netxs::ui
             chords.proc("TerminalScrollViewportToEnd",  [&](hids& gear, txts&){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
             chords.proc("TerminalFindPrev",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::rev); });
             chords.proc("TerminalFindNext",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::fwd); });
-            chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
-            chords.proc("TerminalToggleCwdSync",        [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
-            chords.proc("TerminalToggleWrapMode",       [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
+            chords.proc("TerminalCwdSync",              [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
             chords.proc("TerminalQuit",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc("TerminalRestart",              [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
             //todo use wptr for gear when enqueueing
-            chords.proc("TerminalToggleFullscreen",     [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
-            chords.proc("TerminalToggleMaximize",       [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
+            chords.proc("TerminalFullscreen",           [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
+            chords.proc("TerminalMaximize",             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
             chords.proc("TerminalUndo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc("TerminalRedo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
+            chords.proc("TerminalClipboardCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
             chords.proc("TerminalClipboardPaste",       [&](hids& gear, txts&){ gear.set_handled(); paste(gear);                       });
             chords.proc("TerminalClipboardWipe",        [&](hids& gear, txts&){ gear.set_handled(); gear.clear_clipboard();            });
-            chords.proc("TerminalSwitchCopyMode",       [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglesel); });
-            chords.proc("TerminalSelectionCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
-            chords.proc("TerminalToggleSelectionMode",  [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::toggleselalt); });
-            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts&){ gear.set_handled(); set_oneshot(mime::textonly);       });
+            chords.proc("TerminalClipboardFormat",      [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglesel); else set_selmod((si32)netxs::get_or(xml::options::format, args.front(), mime::textonly)); });
             chords.proc("TerminalViewportCopy",         [&](hids& gear, txts&){ gear.set_handled(); prnscrn(gear);                     });
-            chords.proc("TerminalToggleStdioLog",       [&](hids& gear, txts&){ gear.set_handled(); set_log(!io_log); ondata<true>();  });
+            chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
+            chords.proc("TerminalSelectionRect",        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleselalt); else set_selalt(xml::take_or<bool>(args.front(), faux)); });
+            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) set_oneshot(mime::textonly); else set_oneshot(netxs::get_or(xml::options::format, args.front(), mime::textonly)); });
+            chords.proc("TerminalStdioLog",             [&](hids& gear, txts& args){ gear.set_handled(); set_log(args.size() ? xml::take_or<bool>(args.front(), !io_log) : !io_log); ondata<true>();  });
+            chords.proc("TerminalSendKey",              [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_out(args.front()); });
+            chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
+            chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
+            chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             auto bindings = chords.load(xml_config, "term");
             for (auto& r : bindings)
             {

@@ -2046,7 +2046,7 @@ namespace netxs::ui
                         };
                     }
                 };
-                proc("Drop",           [](hids& gear, txts&){ gear.set_handled(); });
+                proc("Noop",           [](hids& gear, txts&){ gear.set_handled(); });
                 proc("DropAutoRepeat", [](hids& gear, txts&){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
             }
 

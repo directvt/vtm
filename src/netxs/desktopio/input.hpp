@@ -228,13 +228,13 @@ namespace netxs::input
             }
 
             map(si32 vk, si32 sc, si32 cs)
-                : hash{ static_cast<sz_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
+                : hash{ (sz_t)(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
             { }
             map(si32 vk, si32 sc, si32 cs, si32 keymask, view keyname, view generic_keyname, si32 doinput, si32 id)
             {
                 mask(vk) = keymask;
                 data(id) = { .name = keyname, .generic = generic_keyname, .vkey = vk, .scan = sc, .edit = doinput };
-                hash = static_cast<sz_t>(keymask & (vk | (sc << 8) | (cs << 16)));
+                hash = (sz_t)(keymask & (vk | (sc << 8) | (cs << 16)));
             }
 
             bool operator == (map const& m) const = default;
@@ -956,7 +956,7 @@ namespace netxs::input
                 }
                 m_buttons[left ] = faux;
                 m_buttons[right] = faux;
-                m_sys.buttons = static_cast<si32>(m_buttons.to_ulong());
+                m_sys.buttons = (si32)m_buttons.to_ulong();
             }
 
             // Suppress left and right to avoid single button tracking (click, pull, etc)

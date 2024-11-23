@@ -442,7 +442,7 @@ struct impl : consrv
         ui32 length;
         ui32 offset;
 
-        auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
+        auto readoffset() const { return (ui32)(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
         auto sendoffset() const { return length; }
         template<class T>
         auto recv_data(fd_t condrv, T&& buffer)
@@ -705,7 +705,7 @@ struct impl : consrv
                     auto c = utf::to_lower(s.back());
                     if (c >= '1' && c <= '9')
                     {
-                        auto n = static_cast<ui32>(c - '1');
+                        auto n = (ui32)(c - '1');
                         if (args.size() > n) result += args[n];
                     }
                     else switch (c)
@@ -742,7 +742,7 @@ struct impl : consrv
         auto count()
         {
             auto lock = std::lock_guard{ locker };
-            return static_cast<ui32>(stream.size());
+            return (ui32)stream.size();
         }
         void abort(hndl* handle_ptr)
         {
@@ -2226,7 +2226,7 @@ struct impl : consrv
                 if (c == brgb) bgcx = m;
             }
         }
-        attr = static_cast<ui16>(fgcx + (bgcx << 4));
+        attr = (ui16)(fgcx + (bgcx << 4));
         if (brush.inv()) attr |= COMMON_LVB_REVERSE_VIDEO;
         if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
         if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
@@ -2653,7 +2653,7 @@ struct impl : consrv
         }
         auto count = avail / sizeof(ui32);
         auto recs = wrap<ui32>::cast(buffer, count);
-        packet.reply.count = static_cast<ui32>(joined.size());
+        packet.reply.count = (ui32)joined.size();
         log("\treply.count: ", packet.reply.count);
         if (count >= joined.size())
         {
@@ -2915,7 +2915,7 @@ struct impl : consrv
             log("\tread mode: raw ReadFile emulation");
             packet.input = { .EOFon = 1 };
         }
-        auto namesize = static_cast<ui32>(packet.input.execb * sizeof(wchr));
+        auto namesize = (ui32)(packet.input.execb * sizeof(wchr));
         if (!size_check(packet.echosz,  packet.input.affix)
          || !size_check(packet.echosz,  answer.sendoffset())) return;
         auto readstep = packet.echosz - answer.sendoffset();
@@ -3044,7 +3044,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto recs = take_buffer<INPUT_RECORD, feed::fwd>(packet);
         if (recs.size()) events.sendevents(recs, packet.input.utf16);
-        packet.reply.count = static_cast<ui32>(recs.size());
+        packet.reply.count = (ui32)recs.size();
         log("\twritten events count: ", packet.reply.count,
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
     }
@@ -3192,14 +3192,14 @@ struct impl : consrv
         {
             auto& screen = *uiterm.target;
             auto coord = std::clamp(twod{ packet.input.coorx, packet.input.coory }, dot_00, screen.panel - dot_11);
-            auto maxsz = static_cast<ui32>(screen.panel.x * (screen.panel.y - coord.y) - coord.x);
+            auto maxsz = (ui32)(screen.panel.x * (screen.panel.y - coord.y) - coord.x);
             auto saved = screen.coord;
             auto count = ui32{};
             screen.cup0(coord);
             if (packet.input.etype == type::attribute)
             {
                 auto recs = take_buffer<ui16, feed::fwd>(packet);
-                count = static_cast<ui32>(recs.size());
+                count = (ui32)recs.size();
                 if (count > maxsz) count = maxsz;
                 log(prompt, "WriteConsoleOutputAttribute",
                             "\n\tinput.coord: ", coord,
@@ -3252,7 +3252,7 @@ struct impl : consrv
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     auto& line = celler.content();
-                    count = static_cast<ui32>(line.length());
+                    count = (ui32)line.length();
                     if (count > maxsz)
                     {
                         count = maxsz;
@@ -3276,7 +3276,7 @@ struct impl : consrv
             if (packet.input.etype == type::attribute)
             {
                 auto recs = take_buffer<ui16, feed::fwd>(packet);
-                count = static_cast<ui32>(recs.size());
+                count = (ui32)recs.size();
                 log(prompt, "WriteConsoleOutputAttribute",
                             "\n\tinput.coord: ", coord,
                             "\n\tinput.count: ", count);
@@ -3289,7 +3289,7 @@ struct impl : consrv
                 if (packet.input.etype == type::ansiOEM)
                 {
                     auto recs = take_buffer<char, feed::fwd>(packet);
-                    count = static_cast<ui32>(recs.size());
+                    count = (ui32)recs.size();
                     if (outenc->codepage != CP_UTF8)
                     {
                         toUTF8.clear();
@@ -3304,7 +3304,7 @@ struct impl : consrv
                 else
                 {
                     auto recs = take_buffer<wchr, feed::fwd>(packet);
-                    count = static_cast<ui32>(recs.size());
+                    count = (ui32)recs.size();
                     toUTF8.clear();
                     utf::to_utf(recs, toUTF8);
                     log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
@@ -3703,7 +3703,7 @@ struct impl : consrv
             return;
         }
         auto recsz = packet.input.etype == type::ansiOEM ? sizeof(char) : sizeof(ui16);
-        auto count = static_cast<si32>(avail / recsz);
+        auto count = (si32)(avail / recsz);
 
         auto coor = twod{ packet.input.coorx, packet.input.coory };
         if constexpr (isreal())
@@ -4176,14 +4176,14 @@ struct impl : consrv
                 uiterm.ctrack.color[bgcx] = brgb;
                 rgbpalette         [bgcx] = argb::swap_rb(brgb); // conhost crashes if alpha non zero.
             }
-            packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
+            packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
             if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
             if (mark.und()) packet.reply.attributes |= COMMON_LVB_UNDERSCORE;
             if (mark.ovr()) packet.reply.attributes |= COMMON_LVB_GRID_HORIZONTAL;
         }
         else
         {
-            packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
+            packet.reply.attributes = (ui16)(fgcx + (bgcx << 4));
         }
         log("\treply.attributes: ", utf::to_hex_0x(packet.reply.attributes),
             "\n\treply.cursor_coor: ", caretpos,

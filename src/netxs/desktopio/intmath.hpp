@@ -1037,11 +1037,11 @@ namespace netxs
         using twod = T;
         using type = disintegrate<twod>;
 
-        auto gain = static_cast<ui16>( 0 );
-        auto   dx = static_cast<si32>( p1.x - p0.x );
-        auto   dy = static_cast<si32>( p1.y - p0.y );
-        auto   lx = static_cast<ui32>( std::abs(dx) );
-        auto   ly = static_cast<ui32>( std::abs(dy) );
+        auto gain = ui16{};
+        auto   dx = (si32)(p1.x - p0.x);
+        auto   dy = (si32)(p1.y - p0.y);
+        auto   lx = (ui32)std::abs(dx);
+        auto   ly = (ui32)std::abs(dy);
 
         rect = rect.normalize();
         auto& coor = rect.coor;

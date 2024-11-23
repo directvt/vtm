@@ -3022,8 +3022,8 @@ namespace netxs
         {
             assert(     canvas.size() <= si32max);
             assert(what.canvas.size() <= si32max);
-            auto full = static_cast<si32>(     canvas.size());
-            auto size = static_cast<si32>(what.canvas.size());
+            auto full = (si32)     canvas.size();
+            auto size = (si32)what.canvas.size();
             auto rest = full - from;
             auto look = [&](auto canvas_begin, auto canvas_end, auto what_begin)
             {
@@ -3049,7 +3049,7 @@ namespace netxs
 
                         if (init == stop)
                         {
-                            from = static_cast<si32>(std::distance(head, iter)) - 1;
+                            from = (si32)std::distance(head, iter) - 1;
                             return true;
                         }
                         else dest = base;
@@ -3079,7 +3079,7 @@ namespace netxs
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
             assert(canvas.size() <= si32max);
-            auto maxs = static_cast<si32>(canvas.size());
+            auto maxs = (si32)canvas.size();
             if (!maxs) return dot_00;
             offset = std::clamp(offset, 0, maxs - 1);
             auto sx = std::max(1, region.size.x);
@@ -3089,11 +3089,11 @@ namespace netxs
         {
             if (from > upto) std::swap(from, upto);
             assert(canvas.size() <= si32max);
-            auto maxs = static_cast<si32>(canvas.size());
+            auto maxs = (si32)canvas.size();
             from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
-            return core{ span{ canvas.begin() + from, static_cast<size_t>(size) }, { size, 1 }};
+            return core{ span{ canvas.begin() + from, (size_t)size }, { size, 1 }};
         }
         auto line(twod p1, twod p2) const // core: Get stripe.
         {

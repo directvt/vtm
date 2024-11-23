@@ -428,7 +428,7 @@ namespace netxs::directvt
             // stream: .
             auto length() const
             {
-                return static_cast<sz_t>(block.length());
+                return (sz_t)block.length();
             }
             // stream: .
             auto reset()
@@ -1019,7 +1019,7 @@ namespace netxs::directvt
                         if (bad)
                         {
                             if (sum) rep();
-                            auto offset = static_cast<sz_t>(src - beg);
+                            auto offset = (sz_t)(src - beg);
                             add(subtype::mov, offset);
                             bad = faux;
                         }

@@ -1268,24 +1268,24 @@ namespace netxs::ansi
                     ccc[ccc_cpy] = V{ F(py, q.subarg(0)); }; // fx_ccc_cpy
                     ccc[ccc_rst] = V{ F(zz, 0); }; // fx_ccc_rst
 
-                    ccc[ccc_mgn   ] = V{ p->style.mgn   (q   ); }; // fx_ccc_mgn
-                    ccc[ccc_mgl   ] = V{ p->style.mgl   (q.subarg(0)); }; // fx_ccc_mgl
-                    ccc[ccc_mgr   ] = V{ p->style.mgr   (q.subarg(0)); }; // fx_ccc_mgr
-                    ccc[ccc_mgt   ] = V{ p->style.mgt   (q.subarg(0)); }; // fx_ccc_mgt
-                    ccc[ccc_mgb   ] = V{ p->style.mgb   (q.subarg(0)); }; // fx_ccc_mgb
-                    ccc[ccc_tbs   ] = V{ p->style.tbs   (q.subarg(0)); }; // fx_ccc_tbs
-                    ccc[ccc_jet   ] = V{ p->style.jet   (static_cast<bias>(q.subarg(0))); }; // fx_ccc_jet
-                    ccc[ccc_wrp   ] = V{ p->style.wrp   (static_cast<wrap>(q.subarg(0))); }; // fx_ccc_wrp
-                    ccc[ccc_rtl   ] = V{ p->style.rtl(static_cast<rtol>(q.subarg(0)));
+                    ccc[ccc_mgn   ] = V{ p->style.mgn(q); }; // fx_ccc_mgn
+                    ccc[ccc_mgl   ] = V{ p->style.mgl(q.subarg(0)); }; // fx_ccc_mgl
+                    ccc[ccc_mgr   ] = V{ p->style.mgr(q.subarg(0)); }; // fx_ccc_mgr
+                    ccc[ccc_mgt   ] = V{ p->style.mgt(q.subarg(0)); }; // fx_ccc_mgt
+                    ccc[ccc_mgb   ] = V{ p->style.mgb(q.subarg(0)); }; // fx_ccc_mgb
+                    ccc[ccc_tbs   ] = V{ p->style.tbs(q.subarg(0)); }; // fx_ccc_tbs
+                    ccc[ccc_jet   ] = V{ p->style.jet((bias)q.subarg(0)); }; // fx_ccc_jet
+                    ccc[ccc_wrp   ] = V{ p->style.wrp((wrap)q.subarg(0)); }; // fx_ccc_wrp
+                    ccc[ccc_rtl   ] = V{ p->style.rtl((rtol)q.subarg(0));
                                          p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_rtl
-                    ccc[ccc_rlf   ] = V{ p->style.rlf   (static_cast<feed>(q.subarg(0))); }; // fx_ccc_rlf
-                    ccc[ccc_jet_or] = V{ p->style.jet_or(static_cast<bias>(q.subarg(0))); }; // fx_ccc_or_jet
-                    ccc[ccc_wrp_or] = V{ p->style.wrp_or(static_cast<wrap>(q.subarg(0))); }; // fx_ccc_or_wrp
-                    ccc[ccc_rtl_or] = V{ p->style.rtl_or(static_cast<rtol>(q.subarg(0))); 
+                    ccc[ccc_rlf   ] = V{ p->style.rlf((feed)q.subarg(0)); }; // fx_ccc_rlf
+                    ccc[ccc_jet_or] = V{ p->style.jet_or((bias)q.subarg(0)); }; // fx_ccc_or_jet
+                    ccc[ccc_wrp_or] = V{ p->style.wrp_or((wrap)q.subarg(0)); }; // fx_ccc_or_wrp
+                    ccc[ccc_rtl_or] = V{ p->style.rtl_or((rtol)q.subarg(0)); 
                                          p->brush.rtl(p->style.rtl() == rtol::rtl); }; // fx_ccc_or_rtl
-                    ccc[ccc_rlf_or] = V{ p->style.rlf_or(static_cast<feed>(q.subarg(0))); }; // fx_ccc_or_rlf
+                    ccc[ccc_rlf_or] = V{ p->style.rlf_or((feed)q.subarg(0)); }; // fx_ccc_or_rlf
 
-                    ccc[ccc_lnk   ] = V{ p->brush.link  (static_cast<id_t>(q.subarg(0))); }; // fx_ccc_lnk
+                    ccc[ccc_lnk   ] = V{ p->brush.link((id_t)q.subarg(0)); }; // fx_ccc_lnk
 
                     ccc[ccc_nop] = nullptr;
                     ccc[ccc_idx] = nullptr;

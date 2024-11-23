@@ -211,8 +211,8 @@ namespace netxs::app::terminal
                 X(SwitchHotkeyScheme          ) /* */ \
                 X(TerminalQuit                ) /* */ \
                 X(TerminalCwdSync             ) /* */ \
-                X(TerminalToggleFullscreen    ) /* */ \
-                X(TerminalToggleMaximize      ) /* */ \
+                X(TerminalFullscreen          ) /* */ \
+                X(TerminalMaximize            ) /* */ \
                 X(TerminalRestart             ) /* */ \
                 X(TerminalSendKey             ) /* */ \
                 X(TerminalWrapMode            ) /* */ \
@@ -222,10 +222,10 @@ namespace netxs::app::terminal
                 X(TerminalFindPrev            ) /* */ \
                 X(TerminalUndo                ) /* Undo/Redo for cooked read on win32 */ \
                 X(TerminalRedo                ) /* */ \
+                X(TerminalClipboardCopy       ) /* */ \
                 X(TerminalClipboardPaste      ) /* */ \
                 X(TerminalClipboardWipe       ) /* */ \
-                X(TerminalSelectionCopy       ) /* */ \
-                X(TerminalSelectionMode       ) /* */ \
+                X(TerminalClipboardFormat     ) /* */ \
                 X(TerminalSelectionRect       ) /* Linear/Rectangular */ \
                 X(TerminalSelectionCancel     ) /* */ \
                 X(TerminalSelectionOneShot    ) /* One-shot toggle to copy text while mouse tracking is active */ \
@@ -361,14 +361,14 @@ namespace netxs::app::terminal
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
                     });
                 }
-                static void TerminalToggleFullscreen(ui::item& boss, menu::item& item)
+                static void TerminalFullscreen(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     });
                 }
-                static void TerminalToggleMaximize(ui::item& boss, menu::item& item)
+                static void TerminalMaximize(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
@@ -410,14 +410,14 @@ namespace netxs::app::terminal
                         gear.clear_clipboard();
                     });
                 }
-                static void TerminalSelectionCopy(ui::item& boss, menu::item& item)
+                static void TerminalClipboardCopy(ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::copy, gear);
                     });
                 }
-                static void TerminalSelectionMode(ui::item& boss, menu::item& item)
+                static void TerminalClipboardFormat(ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)

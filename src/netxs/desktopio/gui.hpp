@@ -2491,6 +2491,7 @@ namespace netxs::gui
             auto prime_canvas = layer_get_bits(master);
             auto blink_canvas = layer_get_bits(blinky);
             auto origin = blink_canvas.coor();
+            //todo blinks.mask size is out of sync on intensive resize
             auto iter = blinks.mask.begin() + offset;
             auto p = rect{ origin + start, cellsz };
             auto m = origin + blink_canvas.size();

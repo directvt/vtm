@@ -657,13 +657,13 @@ namespace netxs
     static inline si32 getlen(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return p.x;
-        else                                   return static_cast<si32>(p);
+        else                                   return (si32)p;
     }
     // geometry: Extract 2D size.
     template<class T>
     static inline rect getvol(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
-        else                                   return { dot_00, { static_cast<si32>(p),  1 } };
+        else                                   return { dot_00, { (si32)p,  1 } };
     }
 }
