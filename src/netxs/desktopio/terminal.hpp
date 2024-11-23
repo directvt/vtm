@@ -83,6 +83,7 @@ namespace netxs::ui
                 {
                     center,
                     togglewrp,
+                    togglejet,
                     togglesel,
                     toggleselalt,
                     restart,
@@ -1140,7 +1141,7 @@ namespace netxs::ui
                 }
                 return delta;
             }
-            virtual void selection_setjet(bias /*align*/)
+            virtual void selection_setjet(bias /*align*/ = {})
             {
                 // Do nothing by default.
             }
@@ -6140,15 +6141,33 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Sel alignment for selected lines.
-            void selection_setjet(bias align) override
+            void selection_setjet(bias a = bias::none) override
             {
-                if (upmid.role == grip::idle) return;
-                selection_foreach([&](auto& curln)
+                //todo unify setwrp and setjet
+                if (selection_active())
                 {
-                    curln.style.jet(align);
-                    batch.recalc(curln);
-                });
-                resize_viewport(panel, true); // Recalc batch.basis.
+                    if (upmid.role == grip::idle) return;
+                    auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
+                    auto j = batch[i_top].style.jet();
+                    auto align = a != bias::none ? a
+                                                 : j == bias::left   ? bias::right
+                                                 : j == bias::right  ? bias::center
+                                                                     : bias::left;
+                    selection_foreach([&](auto& curln)
+                    {
+                        curln.style.jet(align);
+                        batch.recalc(curln);
+                    });
+                    resize_viewport(panel, true); // Recalc batch.basis.
+                }
+                else
+                {
+                    auto j = style.jet();
+                    style.jet(a != bias::none ? a
+                                              : j == bias::left   ? bias::right
+                                              : j == bias::right  ? bias::center
+                                                                  : bias::left);
+                }
             }
             // scroll_buf: Sel wrapping mode for selected lines.
             void selection_setwrp(wrap w = wrap::none) override
@@ -7433,7 +7452,7 @@ namespace netxs::ui
             console.brush.reset(brush);
             bell::signal(tier::release, ui::term::events::colors::fg, fg);
         }
-        void set_wrapln(si32 wrapln)
+        void set_wrapln(si32 wrapln = {})
         {
             target->selection_setwrp((wrap)wrapln);
             if (!target->selection_active())
@@ -7442,15 +7461,11 @@ namespace netxs::ui
             }
             ondata<true>();
         }
-        void set_align(si32 align)
+        void set_align(si32 align = {})
         {
-            if (target->selection_active())
+            target->selection_setjet((bias)align);
+            if (!target->selection_active())
             {
-                target->selection_setjet((bias)align);
-            }
-            else
-            {
-                target->style.jet((bias)align);
                 follow[axis::Y] = true; // Reset viewport.
             }
             ondata<true>();
@@ -7482,6 +7497,7 @@ namespace netxs::ui
             switch (cmd)
             {
                 case commands::ui::togglewrp:    console.selection_setwrp();          break;
+                case commands::ui::togglejet:    console.selection_setjet();          break;
                 case commands::ui::togglesel:    selection_selmod();                  break;
                 case commands::ui::toggleselalt: selection_toggle_selalt();           break;
                 case commands::ui::restart:      restart();                           break;
@@ -7723,7 +7739,6 @@ namespace netxs::ui
             chords.proc("TerminalFindPrev",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::rev); });
             chords.proc("TerminalFindNext",             [&](hids& gear, txts&){ gear.set_handled(); selection_search(gear, feed::fwd); });
             chords.proc("TerminalCwdSync",              [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
-            chords.proc("TerminalWrapMode",             [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglewrp); });
             chords.proc("TerminalQuit",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc("TerminalRestart",              [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
             //todo use wptr for gear when enqueueing
@@ -7742,7 +7757,8 @@ namespace netxs::ui
             chords.proc("TerminalStdioLog",             [&](hids& gear, txts& args){ gear.set_handled(); set_log(args.size() ? xml::take_or<bool>(args.front(), !io_log) : !io_log); ondata<true>();  });
             chords.proc("TerminalSendKey",              [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_out(args.front()); });
             chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
-            //chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); exec_cmd(commands::ui::togglealign); });
+            chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
+            chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             auto bindings = chords.load(xml_config, "term");
             for (auto& r : bindings)
             {
