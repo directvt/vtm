@@ -124,7 +124,7 @@ TerminalClipboardWipe        |                               | Reset clipboard.
 TerminalClipboardFormat      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Set terminal text selection copy format.
 TerminalSelectionRect        | `on` \| `off`                 | Set linear(off) or rectangular(on) selection form using boolean value.
 TerminalSelectionCancel      |                               | Deselect a selection.
-TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 TerminalViewportCopy         |                               | Сopy viewport to clipboard.
 TerminalScrollViewportByPage | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ pages.
 TerminalScrollViewportByCell | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ cells.

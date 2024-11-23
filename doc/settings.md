@@ -408,7 +408,7 @@ Action                         | Arguments (`data=`)                            
 `TerminalClipboardWipe`        |                                                        | Application         | Reset clipboard.
 `TerminalClipboardFormat`      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application | Switch terminal text selection copy format.
 `TerminalOutput`               | _Text string_                                          | Application         | Direct output the string to the terminal scrollback.
-`TerminalSendKey`              | _Text string_                                          | Application         | Simulating keypresses using the specified string.
+`TerminalSendKey`              | _Text string_                                          | Application         | Simulating key presses using the specified string.
 `TerminalUndo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 `TerminalRedo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 `TerminalCwdSync`              |                                                        | Application         | Toggle the current working directory sync mode.
@@ -419,7 +419,7 @@ Action                         | Arguments (`data=`)                            
 `TerminalStdioLog`             | `on` \| `off`                                          | Application         | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
 `TerminalSelectionRect`        | `on` \| `off`                                          | Application         | Toggle between linear and rectangular selection form.
 `TerminalSelectionCancel`      |                                                        | Application         | Deselect a selection.
-`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 `TerminalRestart`              |                                                        | Application         | Terminate runnning console apps and restart current session.
 `TerminalQuit`                 |                                                        | Application         | Terminate runnning console apps and close terminal.
 
