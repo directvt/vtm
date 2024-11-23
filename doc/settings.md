@@ -230,8 +230,34 @@ The following declarations have the same meaning:
         ...  <!-- Set of additional desktop settings. -->
     </desktop>
     <term ... >  <!-- Built-in terminal configuration section. -->
-    ...
+        ...
     </term>
+    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gui>  <!-- Native GUI window layer key bindings. -->
+            <key="Key+Chord">
+                <action="ActionName" data="parameter"/>
+            </key>
+            ...
+        </gui>
+        <tui>  <!-- TUI matrix layer key bindings. -->
+            <key="Key+Chord">
+                <action="ActionName" data="parameter"/>
+            </key>
+            ...
+        </tui>
+        <desktop>  <!-- Desktop layer key bindings. -->
+            <key="Key+Chord">
+                <action="ActionName" data="parameter"/>
+            </key>
+            ...
+        </desktop>
+        <term>  <!-- Application specific layer key bindings. -->
+            <key="Key+Chord">
+                <action="ActionName" data="parameter"/>
+            </key>
+            ...
+        </term>
+    </hotkeys>
 </config>
 ```
 
@@ -305,9 +331,9 @@ The syntax for defining key combination bindings is:
 
 ```xml
 <key="Key+Chord | ... | Another+Key+Chord" scheme="scheme_name"> <!-- scheme="" can be omitted.  -->
-    <action="NameOfAction1" data="argument" ... data="argument"/>
+    <action="NameOfAction1" data="argument"/>
     ...
-    <action="NameOfActionN" data="argument" ... data="argument"/>
+    <action="NameOfActionN" data="argument"/>
 </key>
 ```
 
@@ -316,7 +342,7 @@ Tag      | Value
 `key`    | The text string containing the key combinations.
 `scheme` | Hotkey scheme name for which mapping is being done (empty string by default).
 `action` | The action name.
-`arg`    | The arguments passed to the action.
+`data`   | The arguments passed to the action.
 
 The following joiners are allowed for combining keys:
 
@@ -324,7 +350,7 @@ Joiner | Meaning
 -------|--------
 `+`    | The subsequent key is in pressed state.
 `-`    | The subsequent key is in released state. This joiner is allowed for the last key only.
-` | `  | The separator for key combinations in a list (vertical bar surrounded by spaces).
+` \| ` | The separator for key combinations in a list (vertical bar surrounded by spaces).
 
 Key combinations can be of the following types:
 
@@ -341,56 +367,61 @@ The required key combination sequence can be generated on the Info page, accessi
 
 #### Interpretation
 
-Configuration record                                  | Interpretation
-------------------------------------------------------|-----------------
-`<key="Key+Chord" action=NameOfAction/>`              | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
-`<key="Key+Chord" action="NameOfAction"/>`            | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action="NameOfAction" scheme="1"/>` | Append existing bindings for scheme="1".
-`<key="Key+Chord" action=""/>`                        | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key=""          action="NameOfAction"/>`            | Do nothing.
+Configuration record                                           | Interpretation
+---------------------------------------------------------------|-----------------
+`<key="Key+Chord" action=NameOfAction/>`                       | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
+`<key="Key+Chord | Another+Chord" action=NameOfAction/>`       | Append existing bindings for `Key+Chord | Another+Chord`.
+`<key="Key+Chord" action="NameOfAction"/>`                     | Append existing bindings with the directly specified command "NameOfAction".
+`<key="Key+Chord" action="NameOfAction" scheme="1"/>`          | Append existing bindings for scheme="1".
+`<key="Key+Chord" action=""/>`                                 | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key="Key+Chord"><action="NameOfAction" data="param"/></key>` | Append existing bindings with the directly specified command "NameOfAction" with arguments "param".
+`<key=""          action="NameOfAction"/>`                     | Do nothing.
 
-#### Available actions
+#### Available actions (`action=`)
 
-Action                         | Arguments (`data=`) | Available at layer  | Description
--------------------------------|---------------------|---------------------|------------
-`Noop`                         |                     | All layers          | Ignore all events for the specified key combination. No further processing.
-`DropAutoRepeat`               |                     | All layers          | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`ToggleDebugOverlay`           |                     | TUI matrix          | Toggle debug overlay.
-`SwitchHotkeyScheme`           | _Scheme name_       | TUI matrix          | Switch the hotkey scheme to the specified one.
-`IncreaseCellHeight`           |                     | Native GUI window   | Increase the text cell height by one pixel.
-`DecreaseCellHeight`           |                     | Native GUI window   | Decrease the text cell height by one pixel.
-`ResetCellHeight`              |                     | Native GUI window   | Reset text cell height.
-`ToggleFullscreenMode`         |                     | Native GUI window   | Toggle fullscreen mode.
-`ToggleAntialiasingMode`       |                     | Native GUI window   | Toggle text antialiasing mode.
-`RollFontsBackward`            |                     | Native GUI window   | Roll font list backward.
-`RollFontsForward`             |                     | Native GUI window   | Roll font list forward.
-`FocusPrevWindow`              |                     | Desktop             | Switch focus to the next desktop window.
-`FocusNextWindow`              |                     | Desktop             | Switch focus to the previous desktop window.
-`Disconnect`                   |                     | Desktop             | Disconnect from the desktop.
-`TryToQuit`                    |                     | Desktop             | Shut down the desktop server if no applications are running.
-`TerminalFindNext`             |                     | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalFindPrev`             |                     | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalScrollViewportByPage` | _`IntX, IntY`_      | Application         | Scroll viewport by _`IntX, IntY`_ pages.
-`TerminalScrollViewportByCell` | _`IntX, IntY`_      | Application         | Scroll viewport by _`IntX, IntY`_ cells.
-`TerminalScrollViewportToTop`  |                     | Application         | Scroll viewport to the scrollback top.
-`TerminalScrollViewportToEnd`  |                     | Application         | Scroll viewport to the scrollback bottom (reset viewport position).
-`TerminalViewportCopy`         |                     | Application         | Сopy viewport to clipboard.
-`TerminalClipboardCopy`        |                     | Application         | Сopy selection to clipboard.
-`TerminalClipboardPaste`       |                     | Application         | Paste from clipboard.
-`TerminalClipboardWipe`        |                     | Application         | Reset clipboard.
-`TerminalClipboardFormat`      |                     | Application         | Switch terminal text selection copy format.
-`TerminalUndo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-`TerminalRedo`                 |                     | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-`TerminalCwdSync`              |                     | Application         | Toggle the current working directory sync mode.
-`TerminalWrapMode`             |                     | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-`TerminalFullscreen`           |                     | Application         | Toggle fullscreen mode.
-`TerminalMaximize`             |                     | Application         | Toggle between maximized and normal window size.
-`TerminalStdioLog`             | `on` \| `off`       | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
-`TerminalSelectionRect`        |                     | Application         | Toggle between linear and rectangular selection form.
-`TerminalSelectionCancel`      |                     | Application         | Deselect a selection.
-`TerminalSelectionOneShot`     |                     | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed.
-`TerminalRestart`              |                     | Application         | Terminate runnning console apps and restart current session.
-`TerminalQuit`                 |                     | Application         | Terminate runnning console apps and close terminal.
+Action                         | Arguments (`data=`)                                    | Available at layer  | Description
+-------------------------------|--------------------------------------------------------|---------------------|------------
+`Noop`                         |                                                        | All layers          | Ignore all events for the specified key combination. No further processing.
+`DropAutoRepeat`               |                                                        | All layers          | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
+`IncreaseCellHeight`           |                                                        | Native GUI window   | Increase the text cell height by one pixel.
+`DecreaseCellHeight`           |                                                        | Native GUI window   | Decrease the text cell height by one pixel.
+`ResetCellHeight`              |                                                        | Native GUI window   | Reset text cell height.
+`ToggleFullscreenMode`         |                                                        | Native GUI window   | Toggle fullscreen mode.
+`ToggleAntialiasingMode`       |                                                        | Native GUI window   | Toggle text antialiasing mode.
+`RollFontsBackward`            |                                                        | Native GUI window   | Roll font list backward.
+`RollFontsForward`             |                                                        | Native GUI window   | Roll font list forward.
+`ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
+`SwitchHotkeyScheme`           | _Scheme name_                                          | TUI matrix,<br>Window menu | Switch the hotkey scheme to the specified one.
+`FocusPrevWindow`              |                                                        | Desktop             | Switch focus to the next desktop window.
+`FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
+`Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
+`TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
+`TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalFindPrev`             |                                                        | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
+`TerminalScrollViewportByPage` | _`IntX, IntY`_                                         | Application         | Scroll viewport by _`IntX, IntY`_ pages.
+`TerminalScrollViewportByCell` | _`IntX, IntY`_                                         | Application         | Scroll viewport by _`IntX, IntY`_ cells.
+`TerminalScrollViewportToTop`  |                                                        | Application         | Scroll viewport to the scrollback top.
+`TerminalScrollViewportToEnd`  |                                                        | Application         | Scroll viewport to the scrollback bottom (reset viewport position).
+`TerminalViewportCopy`         |                                                        | Application         | Сopy viewport to clipboard.
+`TerminalClipboardCopy`        |                                                        | Application         | Сopy selection to clipboard.
+`TerminalClipboardPaste`       |                                                        | Application         | Paste from clipboard.
+`TerminalClipboardWipe`        |                                                        | Application         | Reset clipboard.
+`TerminalClipboardFormat`      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application | Switch terminal text selection copy format.
+`TerminalOutput`               | _Text string_                                          | Application         | Direct output the string to the terminal scrollback.
+`TerminalSendKey`              | _Text string_                                          | Application         | Simulating keypresses using the specified string.
+`TerminalUndo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
+`TerminalRedo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
+`TerminalCwdSync`              |                                                        | Application         | Toggle the current working directory sync mode.
+`TerminalWrapMode`             | `on` \| `off`                                          | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
+`TerminalAlignMode`            | `left` \| `right` \| `center`                          | Application         | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
+`TerminalFullscreen`           |                                                        | Application         | Toggle fullscreen mode.
+`TerminalMaximize`             |                                                        | Application         | Toggle between maximized and normal window size.
+`TerminalStdioLog`             | `on` \| `off`                                          | Application         | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
+`TerminalSelectionRect`        | `on` \| `off`                                          | Application         | Toggle between linear and rectangular selection form.
+`TerminalSelectionCancel`      |                                                        | Application         | Deselect a selection.
+`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+`TerminalRestart`              |                                                        | Application         | Terminate runnning console apps and restart current session.
+`TerminalQuit`                 |                                                        | Application         | Terminate runnning console apps and close terminal.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -826,7 +857,7 @@ Notes
                 <action=RollFontsForward/>        <!-- Roll font list forward. -->
             </key>
         </gui>
-        <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
+        <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->

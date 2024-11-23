@@ -304,7 +304,7 @@ Hotkey                       | Description
         </menu>
     </term>
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
-        <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
+        <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->

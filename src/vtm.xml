@@ -408,7 +408,7 @@ R"==(
                 <action=RollFontsForward/>        <!-- Roll font list forward. -->
             </key>
         </gui>
-        <tui key*>  <!-- TUI matrix layer key bindings. The scheme=0 is implicitly used by default. -->
+        <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
@@ -422,14 +422,14 @@ R"==(
         <term key*>  <!-- Application specific layer key bindings. -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
-            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
-            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
-            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
+            <key="Shift+Ctrl+PageUp"    ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Shift+Ctrl+PageDown"  ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Shift+Alt+LeftArrow"  ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
+            <key="Shift+Alt+RightArrow" ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"   ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
+            <key="Shift+Ctrl+DownArrow" ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
+            <key="Shift+Ctrl+LeftArrow" ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
             <key="Shift+Ctrl+Home">
                 <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
                 <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
