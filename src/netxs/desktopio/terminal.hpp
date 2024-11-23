@@ -7740,6 +7740,9 @@ namespace netxs::ui
             chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
             chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts&){ gear.set_handled(); set_oneshot(mime::textonly);       });
             chords.proc("TerminalStdioLog",             [&](hids& gear, txts& args){ gear.set_handled(); set_log(args.size() ? xml::take_or<bool>(args.front(), !io_log) : !io_log); ondata<true>();  });
+            chords.proc("TerminalSendKey",              [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_out(args.front()); });
+            chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
+            //chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); exec_cmd(commands::ui::togglealign); });
             auto bindings = chords.load(xml_config, "term");
             for (auto& r : bindings)
             {
