@@ -801,7 +801,7 @@ Notes
             <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
         </menu>
     </defapp>
-    <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.  -->
+    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
         <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
             <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
             <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
@@ -832,19 +832,16 @@ Notes
             <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"           action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown"         action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"              action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"                   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <!-- <key="Ctrl+N"    action="Start(\"Term\")"/> -->
+            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
-            <key="Alt+RightArrow"           action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"            action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+            <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
             <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Ctrl+PageUp"   scheme="1"><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Ctrl+PageDown" scheme="1"><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
             <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
             <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
             <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
@@ -859,23 +856,26 @@ Notes
                 <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
                 <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
-            <key=""                         action=TerminalViewportCopy/>              <!-- Сopy viewport to clipboard. -->
-            <key=""                         action=TerminalClipboardCopy/>             <!-- Сopy selection to clipboard. -->
-            <key=""                         action=TerminalClipboardPaste/>            <!-- Paste from clipboard. -->
-            <key=""                         action=TerminalClipboardWipe/>             <!-- Reset clipboard. -->
-            <key=""                         action=TerminalClipboardFormat/>           <!-- Toggle terminal text selection copy format. -->
-            <key=""                         action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                         action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                         action=TerminalCwdSync/>                   <!-- Toggle the current working directory sync mode. -->
-            <key=""                         action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""                         action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
-            <key=""                         action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
-            <key=""                         action=TerminalStdioLog/>                  <!-- Toggle stdin/stdout logging. -->
-            <key=""                         action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
-            <key=""                         action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                         action=TerminalSelectionRect/>             <!-- Toggle between linear and rectangular selection form. -->
-            <key="Esc"                      action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
-            <key=""                         action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+            <key="">        <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
+            <key="">        <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
+            <key=""         action=TerminalViewportCopy/>                  <!-- Сopy viewport to clipboard. -->
+            <key=""         action=TerminalClipboardCopy/>                 <!-- Сopy selection to clipboard. -->
+            <key=""         action=TerminalClipboardPaste/>                <!-- Paste from clipboard. -->
+            <key=""         action=TerminalClipboardWipe/>                 <!-- Reset clipboard. -->
+            <key=""         action=TerminalClipboardFormat/>               <!-- Toggle terminal text selection copy format. -->
+            <key=""         action=TerminalSelectionRect/>                 <!-- Toggle between linear and rectangular selection form. -->
+            <key="Esc"      action=TerminalSelectionCancel/>               <!-- Deselect a selection. -->
+            <key=""         action=TerminalSelectionOneShot/>              <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+            <key=""         action=TerminalUndo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""         action=TerminalRedo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""         action=TerminalCwdSync/>                       <!-- Toggle the current working directory sync mode. -->
+            <key=""         action=TerminalWrapMode/>                      <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""         action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+            <key=""         action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
+            <key=""         action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
+            <key=""         action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
+            <key=""         action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
+            <key=""         action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->
         </term>
     </hotkeys>
 </config>

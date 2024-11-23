@@ -7749,11 +7749,11 @@ namespace netxs::ui
             chords.proc("TerminalClipboardCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
             chords.proc("TerminalClipboardPaste",       [&](hids& gear, txts&){ gear.set_handled(); paste(gear);                       });
             chords.proc("TerminalClipboardWipe",        [&](hids& gear, txts&){ gear.set_handled(); gear.clear_clipboard();            });
-            chords.proc("TerminalClipboardFormat",      [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::togglesel); });
+            chords.proc("TerminalClipboardFormat",      [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglesel); else set_selmod((si32)netxs::get_or(xml::options::format, args.front(), mime::textonly)); });
             chords.proc("TerminalViewportCopy",         [&](hids& gear, txts&){ gear.set_handled(); prnscrn(gear);                     });
-            chords.proc("TerminalSelectionRect",        [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::toggleselalt); });
             chords.proc("TerminalSelectionCancel",      [&](hids& gear, txts&){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
-            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts&){ gear.set_handled(); set_oneshot(mime::textonly);       });
+            chords.proc("TerminalSelectionRect",        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleselalt); else set_selalt(xml::take_or<bool>(args.front(), faux)); });
+            chords.proc("TerminalSelectionOneShot",     [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) set_oneshot(mime::textonly); else set_oneshot(netxs::get_or(xml::options::format, args.front(), mime::textonly)); });
             chords.proc("TerminalStdioLog",             [&](hids& gear, txts& args){ gear.set_handled(); set_log(args.size() ? xml::take_or<bool>(args.front(), !io_log) : !io_log); ondata<true>();  });
             chords.proc("TerminalSendKey",              [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_out(args.front()); });
             chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
