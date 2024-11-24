@@ -869,7 +869,7 @@ Notes
             <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
             <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
             <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <key="Ctrl+Shift+N"  action=RunApplication/>   <!-- Run default application. -->
+            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
