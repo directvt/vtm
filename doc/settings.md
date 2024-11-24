@@ -774,8 +774,7 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Command" action=SwitchHotkeyScheme>
-                <label=" Keys0 " data=""/>
+            <item type="Option" action=SwitchHotkeyScheme label=" Keys0 " data="">
                 <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
                 <tooltip>
                     " Toggle hotkey scheme                          \n"
