@@ -41,12 +41,12 @@ Option                  | Description
 The plain xml-data could be specified in place of `<file>` in `--config <file>` option:
 - `command-line`:
   ```cmd
-  vtm -c "<config><term><scrollback size=1000000/></term></config>" -r term
+  vtm -c "<config><terminal><scrollback size=1000000/></terminal></config>" -r term
   ```
   or (using compact syntax)
 - `command-line`:
   ```cmd
-  vtm -c "<config/term/scrollback size=1000000/>" -r term
+  vtm -c "<config/terminal/scrollback size=1000000/>" -r term
   ```
 
 ### Desktop Applets

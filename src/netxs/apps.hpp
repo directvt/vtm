@@ -392,7 +392,7 @@ namespace netxs::app::shared
                 ->active(window_clr);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
-            auto defclr = config.take("/config/term/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
+            auto defclr = config.take("/config/terminal/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->colors(defclr.fgc(), defclr.bgc())

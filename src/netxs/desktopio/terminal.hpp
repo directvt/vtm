@@ -205,53 +205,53 @@ namespace netxs::ui
                      { "invert",  commands::fx::invert  },
                      { "reverse", commands::fx::reverse }};
 
-                send_input =             config.take("/config/term/sendinput",                 text{});
-                def_mxline = std::max(1, config.take("/config/term/scrollback/maxline",        si32{ 65535 }));
-                def_length = std::max(1, config.take("/config/term/scrollback/size",           si32{ 40000 }));
-                def_growdt = std::max(0, config.take("/config/term/scrollback/growstep",       si32{ 0 }    ));
-                def_growmx = std::max(0, config.take("/config/term/scrollback/growlimit",      si32{ 0 }    ));
+                send_input =             config.take("/config/terminal/sendinput",                 text{});
+                def_mxline = std::max(1, config.take("/config/terminal/scrollback/maxline",        si32{ 65535 }));
+                def_length = std::max(1, config.take("/config/terminal/scrollback/size",           si32{ 40000 }));
+                def_growdt = std::max(0, config.take("/config/terminal/scrollback/growstep",       si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("/config/terminal/scrollback/growlimit",      si32{ 0 }    ));
                 recalc_buffer_metrics(def_length, def_growdt, def_growmx);
-                def_wrpmod =             config.take("/config/term/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                resetonkey =             config.take("/config/term/scrollback/reset/onkey",     true);
-                resetonout =             config.take("/config/term/scrollback/reset/onoutput",  faux);
-                def_alt_on =             config.take("/config/term/scrollback/altscroll",       true);
-                def_lucent = std::max(0, config.take("/config/term/scrollback/oversize/opacity",si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("/config/term/scrollback/oversize",        si32{ 0 }    ));
-                def_tablen = std::max(1, config.take("/config/term/tablen",                     si32{ 8 }    ));
-                def_border = std::max(0, config.take("/config/term/border",                     si32{ 0 }    ));
-                def_selmod =             config.take("/config/term/selection/mode",             mime::textonly, xml::options::format);
-                def_selalt =             config.take("/config/term/selection/rect",             faux);
+                def_wrpmod =             config.take("/config/terminal/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("/config/terminal/scrollback/reset/onkey",     true);
+                resetonout =             config.take("/config/terminal/scrollback/reset/onoutput",  faux);
+                def_alt_on =             config.take("/config/terminal/scrollback/altscroll",       true);
+                def_lucent = std::max(0, config.take("/config/terminal/scrollback/oversize/opacity",si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
+                def_tablen = std::max(1, config.take("/config/terminal/tablen",                     si32{ 8 }    ));
+                def_border = std::max(0, config.take("/config/terminal/border",                     si32{ 0 }    ));
+                def_selmod =             config.take("/config/terminal/selection/mode",             mime::textonly, xml::options::format);
+                def_selalt =             config.take("/config/terminal/selection/rect",             faux);
                 def_cur_on =             config.take("/config/cursor/show",                     true);
                 def_cursor =             config.take("/config/cursor/style",                    text_cursor::I_bar, xml::options::cursor);
                 def_curclr =             config.take("/config/cursor/color",                    cell{});
                 def_period =             config.take("/config/cursor/blink",                    span{ skin::globals().blink_period });
                 def_io_log =             config.take("/config/debug/logs",        faux);
                 allow_logs =             true; // Disallowed for dtty.
-                def_atexit =             config.take("/config/term/atexit",                     commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("/config/term/colors/default/fgc",         argb{ whitelt });
-                def_bcolor =             config.take("/config/term/colors/default/bgc",         argb{ blackdk });
-                def_filler =             config.take("/config/term/colors/bground",             argb{ argb::default_color });
+                def_atexit =             config.take("/config/terminal/atexit",                     commands::atexit::smart, atexit_options);
+                def_fcolor =             config.take("/config/terminal/colors/default/fgc",         argb{ whitelt });
+                def_bcolor =             config.take("/config/terminal/colors/default/bgc",         argb{ blackdk });
+                def_filler =             config.take("/config/terminal/colors/bground",             argb{ argb::default_color });
 
-                def_safe_c =             config.take("/config/term/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_ansi_c =             config.take("/config/term/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_rich_c =             config.take("/config/term/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_html_c =             config.take("/config/term/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_text_c =             config.take("/config/term/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_none_c =             config.take("/config/term/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
-                def_find_c =             config.take("/config/term/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_safe_c =             config.take("/config/terminal/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_ansi_c =             config.take("/config/terminal/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_rich_c =             config.take("/config/terminal/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_html_c =             config.take("/config/terminal/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_text_c =             config.take("/config/terminal/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_none_c =             config.take("/config/terminal/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
+                def_find_c =             config.take("/config/terminal/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
 
-                def_safe_f =             config.take("/config/term/colors/selection/protected/fx", commands::fx::color,  fx_options);
-                def_ansi_f =             config.take("/config/term/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
-                def_rich_f =             config.take("/config/term/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
-                def_html_f =             config.take("/config/term/colors/selection/html/fx",      commands::fx::xlight, fx_options);
-                def_text_f =             config.take("/config/term/colors/selection/text/fx",      commands::fx::color,  fx_options);
-                def_none_f =             config.take("/config/term/colors/selection/none/fx",      commands::fx::color,  fx_options);
-                def_find_f =             config.take("/config/term/colors/match/fx",               commands::fx::color,  fx_options);
+                def_safe_f =             config.take("/config/terminal/colors/selection/protected/fx", commands::fx::color,  fx_options);
+                def_ansi_f =             config.take("/config/terminal/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
+                def_rich_f =             config.take("/config/terminal/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
+                def_html_f =             config.take("/config/terminal/colors/selection/html/fx",      commands::fx::xlight, fx_options);
+                def_text_f =             config.take("/config/terminal/colors/selection/text/fx",      commands::fx::color,  fx_options);
+                def_none_f =             config.take("/config/terminal/colors/selection/none/fx",      commands::fx::color,  fx_options);
+                def_find_f =             config.take("/config/terminal/colors/match/fx",               commands::fx::color,  fx_options);
 
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.take("/config/term/colors/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = config.take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
                 }
             }
         };
@@ -7760,7 +7760,7 @@ namespace netxs::ui
             chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
             chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
             chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
-            auto bindings = chords.load(xml_config, "term");
+            auto bindings = chords.load(xml_config, "terminal");
             for (auto& r : bindings)
             {
                 chords.bind<tier::release>(r.chord, r.scheme, r.actions);
