@@ -319,7 +319,6 @@ namespace netxs::app::desk
                         };
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux))
                         {
-                            static auto offset = dot_00; // static: Share initial offset between all instances.
                             if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
                             {
                                 if (gear.meta(hids::anyCtrl)) // Toggle group focus.
@@ -332,13 +331,7 @@ namespace netxs::app::desk
                                 return;
                             }
                             boss.bell::signal(tier::anycast, events::ui::selected, inst_id);
-                            auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
-                            offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
-                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32 + dot_11;
-                            gear.slot.size = viewport.size * 3 / 4;
-                            gear.slot_forced = faux;
-                            boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                            gear.dismiss(true);
+                            gear.owner.bell::signal(tier::preview, e2::form::proceed::createby, gear);
                         };
                     });
                 auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)

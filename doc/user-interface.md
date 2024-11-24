@@ -28,6 +28,10 @@
     <td colspan="9">Toggle alternate keyboard mode</td>
   </tr>
   <tr>
+    <th>Ctrl+Shift+N ¹</th>
+    <td colspan="9">Run app</td>
+  </tr>
+  <tr>
     <th>F10 ¹</th>
     <td colspan="9">Disconnect all users and shutdown if there are no apps running</td>
   </tr>
