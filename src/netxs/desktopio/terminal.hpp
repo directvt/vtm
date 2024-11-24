@@ -205,53 +205,53 @@ namespace netxs::ui
                      { "invert",  commands::fx::invert  },
                      { "reverse", commands::fx::reverse }};
 
-                send_input =             config.take("/config/term/sendinput",                 text{});
-                def_mxline = std::max(1, config.take("/config/term/scrollback/maxline",        si32{ 65535 }));
-                def_length = std::max(1, config.take("/config/term/scrollback/size",           si32{ 40000 }));
-                def_growdt = std::max(0, config.take("/config/term/scrollback/growstep",       si32{ 0 }    ));
-                def_growmx = std::max(0, config.take("/config/term/scrollback/growlimit",      si32{ 0 }    ));
+                send_input =             config.take("/config/terminal/sendinput",                 text{});
+                def_mxline = std::max(1, config.take("/config/terminal/scrollback/maxline",        si32{ 65535 }));
+                def_length = std::max(1, config.take("/config/terminal/scrollback/size",           si32{ 40000 }));
+                def_growdt = std::max(0, config.take("/config/terminal/scrollback/growstep",       si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("/config/terminal/scrollback/growlimit",      si32{ 0 }    ));
                 recalc_buffer_metrics(def_length, def_growdt, def_growmx);
-                def_wrpmod =             config.take("/config/term/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
-                resetonkey =             config.take("/config/term/scrollback/reset/onkey",     true);
-                resetonout =             config.take("/config/term/scrollback/reset/onoutput",  faux);
-                def_alt_on =             config.take("/config/term/scrollback/altscroll",       true);
-                def_lucent = std::max(0, config.take("/config/term/scrollback/oversize/opacity",si32{ 0xC0 } ));
-                def_margin = std::max(0, config.take("/config/term/scrollback/oversize",        si32{ 0 }    ));
-                def_tablen = std::max(1, config.take("/config/term/tablen",                     si32{ 8 }    ));
-                def_border = std::max(0, config.take("/config/term/border",                     si32{ 0 }    ));
-                def_selmod =             config.take("/config/term/selection/mode",             mime::textonly, xml::options::format);
-                def_selalt =             config.take("/config/term/selection/rect",             faux);
+                def_wrpmod =             config.take("/config/terminal/scrollback/wrap",            deco::defwrp == wrap::on) ? wrap::on : wrap::off;
+                resetonkey =             config.take("/config/terminal/scrollback/reset/onkey",     true);
+                resetonout =             config.take("/config/terminal/scrollback/reset/onoutput",  faux);
+                def_alt_on =             config.take("/config/terminal/scrollback/altscroll",       true);
+                def_lucent = std::max(0, config.take("/config/terminal/scrollback/oversize/opacity",si32{ 0xC0 } ));
+                def_margin = std::max(0, config.take("/config/terminal/scrollback/oversize",        si32{ 0 }    ));
+                def_tablen = std::max(1, config.take("/config/terminal/tablen",                     si32{ 8 }    ));
+                def_border = std::max(0, config.take("/config/terminal/border",                     si32{ 0 }    ));
+                def_selmod =             config.take("/config/terminal/selection/mode",             mime::textonly, xml::options::format);
+                def_selalt =             config.take("/config/terminal/selection/rect",             faux);
                 def_cur_on =             config.take("/config/cursor/show",                     true);
                 def_cursor =             config.take("/config/cursor/style",                    text_cursor::I_bar, xml::options::cursor);
                 def_curclr =             config.take("/config/cursor/color",                    cell{});
                 def_period =             config.take("/config/cursor/blink",                    span{ skin::globals().blink_period });
                 def_io_log =             config.take("/config/debug/logs",        faux);
                 allow_logs =             true; // Disallowed for dtty.
-                def_atexit =             config.take("/config/term/atexit",                     commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("/config/term/colors/default/fgc",         argb{ whitelt });
-                def_bcolor =             config.take("/config/term/colors/default/bgc",         argb{ blackdk });
-                def_filler =             config.take("/config/term/colors/bground",             argb{ argb::default_color });
+                def_atexit =             config.take("/config/terminal/atexit",                     commands::atexit::smart, atexit_options);
+                def_fcolor =             config.take("/config/terminal/colors/default/fgc",         argb{ whitelt });
+                def_bcolor =             config.take("/config/terminal/colors/default/bgc",         argb{ blackdk });
+                def_filler =             config.take("/config/terminal/colors/bground",             argb{ argb::default_color });
 
-                def_safe_c =             config.take("/config/term/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_ansi_c =             config.take("/config/term/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_rich_c =             config.take("/config/term/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_html_c =             config.take("/config/term/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_text_c =             config.take("/config/term/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
-                def_none_c =             config.take("/config/term/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
-                def_find_c =             config.take("/config/term/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
+                def_safe_c =             config.take("/config/terminal/colors/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_ansi_c =             config.take("/config/terminal/colors/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_rich_c =             config.take("/config/terminal/colors/selection/rich",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_html_c =             config.take("/config/terminal/colors/selection/html",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_text_c =             config.take("/config/terminal/colors/selection/text",      cell{}.bgc(bluelt)    .fgc(whitelt));
+                def_none_c =             config.take("/config/terminal/colors/selection/none",      cell{}.bgc(blacklt)   .fgc(whitedk));
+                def_find_c =             config.take("/config/terminal/colors/match",               cell{}.bgc(0xFF007F00).fgc(whitelt));
 
-                def_safe_f =             config.take("/config/term/colors/selection/protected/fx", commands::fx::color,  fx_options);
-                def_ansi_f =             config.take("/config/term/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
-                def_rich_f =             config.take("/config/term/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
-                def_html_f =             config.take("/config/term/colors/selection/html/fx",      commands::fx::xlight, fx_options);
-                def_text_f =             config.take("/config/term/colors/selection/text/fx",      commands::fx::color,  fx_options);
-                def_none_f =             config.take("/config/term/colors/selection/none/fx",      commands::fx::color,  fx_options);
-                def_find_f =             config.take("/config/term/colors/match/fx",               commands::fx::color,  fx_options);
+                def_safe_f =             config.take("/config/terminal/colors/selection/protected/fx", commands::fx::color,  fx_options);
+                def_ansi_f =             config.take("/config/terminal/colors/selection/ansi/fx",      commands::fx::xlight, fx_options);
+                def_rich_f =             config.take("/config/terminal/colors/selection/rich/fx",      commands::fx::xlight, fx_options);
+                def_html_f =             config.take("/config/terminal/colors/selection/html/fx",      commands::fx::xlight, fx_options);
+                def_text_f =             config.take("/config/terminal/colors/selection/text/fx",      commands::fx::color,  fx_options);
+                def_none_f =             config.take("/config/terminal/colors/selection/none/fx",      commands::fx::color,  fx_options);
+                def_find_f =             config.take("/config/terminal/colors/match/fx",               commands::fx::color,  fx_options);
 
                 std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
-                    def_colors[i] = config.take("/config/term/colors/color" + std::to_string(i), def_colors[i]);
+                    def_colors[i] = config.take("/config/terminal/colors/color" + std::to_string(i), def_colors[i]);
                 }
             }
         };
@@ -7760,7 +7760,7 @@ namespace netxs::ui
             chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
             chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
             chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
-            auto bindings = chords.load(xml_config, "term");
+            auto bindings = chords.load(xml_config, "terminal");
             for (auto& r : bindings)
             {
                 chords.bind<tier::release>(r.chord, r.scheme, r.actions);
@@ -7974,10 +7974,11 @@ namespace netxs::ui
             using input_fields_handler::handle;
 
             dtvt& owner; // evnt: Terminal object reference.
+            wptr  owner_wptr;
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
@@ -7985,15 +7986,14 @@ namespace netxs::ui
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
-                auto copy = lock.thing;
-                owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                owner.bell::enqueue(owner_wptr, [tooltips = lock.thing](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -8006,7 +8006,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fullscrn            lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8021,7 +8022,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::maximize            lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8036,11 +8038,12 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysfocus            lock)
             {
+                auto f = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync(); // Guard the owner.This() call.
                     auto owner_ptr = owner.This();
-                    auto& f = lock.thing;
                     if (f.state)
                     {
                         pro::focus::set(owner_ptr, f.gear_id, f.focus_type);
@@ -8053,7 +8056,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::hotkey_scheme       lock)
             {
-                auto& k = lock.thing;
+                auto k = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8065,7 +8069,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::syskeybd            lock)
             {
-                auto& k = lock.thing;
+                auto k = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8087,7 +8092,8 @@ namespace netxs::ui
             };
             void handle(s11n::xs::mouse_event         lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8105,8 +8111,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::minimize            lock)
             {
-                auto& m = lock.thing;
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, m = lock.thing](auto& /*boss*/)
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
@@ -8117,14 +8122,15 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 });
             }
             void handle(s11n::xs::clipdata            lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8136,7 +8142,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::clipdata_request    lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8157,23 +8164,22 @@ namespace netxs::ui
             }
             void handle(s11n::xs::header              lock)
             {
-                auto& h = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
             {
-                auto& f = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::header_request      lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     //todo use window_id
@@ -8184,7 +8190,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::footer_request      lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     //todo use window_id
@@ -8195,8 +8202,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::warping             lock)
             {
-                auto& w = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     owner.base::riseup(tier::preview, e2::form::layout::swarp, warp);
@@ -8204,7 +8210,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fps                 lock)
             {
-                owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
                     owner.bell::signal(tier::general, e2::config::fps, fps);
                 });
@@ -8215,27 +8221,29 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
                     owner.errmsg = owner.genmsg(utf8);
                     owner.deface();
                 });
             }
-            void handle(s11n::xs::sysclose          /*lock*/)
+            void handle(s11n::xs::sysclose            lock)
             {
+                lock.unlock();
+                auto guard = owner.sync();
                 owner.active.exchange(faux);
                 owner.stop(true);
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 });
@@ -8245,7 +8253,14 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
                   owner{ owner }
-            { }
+            {
+                auto oneshot = ptr::shared(hook{});
+                owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
+                {
+                    owner_wptr = owner.This();
+                    oneshot->reset();
+                };
+            }
         };
 
         struct msgs

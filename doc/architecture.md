@@ -512,8 +512,8 @@ echo "vtm.del()" | vtm
 ```
 # Add new menu items
 echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
-echo "vtm.set(id=White label='White Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><colors><default fgc=0xFF000000 bgc=0xFFffffff/></colors></term></config>')" | vtm
-echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
+echo "vtm.set(id=White label='White Terminal' type=dtvt cmd='vtm -r term' cfg='<config><terminal><colors><default fgc=0xFF000000 bgc=0xFFffffff/></colors></terminal></config>')" | vtm
+echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><terminal><scrollback size=500000/></terminal></config>')" | vtm
 echo "vtm.set(id=Tile label='Three Terminals' type=tile cmd='v(h(Term, White), Huge)')" | vtm
 echo "vtm.set(id=cmd label='Remote cmd over SSH' type=dtty cmd='ssh user@server vtm cmd')" | vtm
 ```

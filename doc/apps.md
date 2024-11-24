@@ -67,9 +67,9 @@ Note: It is possible to combine multiple command into a single sequence using a 
 
 ### Custom menu configuration
       
-Terminal window menu can be composed from scratch by specifying a list of menu items in the `<config/term/menu/>` configuration file section.
+Terminal window menu can be composed from scratch by specifying a list of menu items in the `<config/terminal/menu/>` configuration file section.
 
-### Attributes for the `<config/term/menu/item>` object
+### Attributes for the `<config/terminal/menu/item>` object
 
 Attribute  | Description
 -----------|------------
@@ -79,7 +79,7 @@ tooltip    | Tooltip text.
 action     | The function name which called on item activation. Inherited by the label attribute.
 data       | Textual parameter for function call. Inherited by the label attribute.
 
-### Attributes for the `<config/term/menu/item/label>` sub-object
+### Attributes for the `<config/terminal/menu/item/label>` sub-object
 
 Attribute        | Description
 -----------------|------------
@@ -105,7 +105,7 @@ Value                        | Arguments (`data=`)           | Description
 Noop                         |                               | Ignore all events for the specified key combination. No further processing.
 DropAutoRepeat               |                               | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 SwitchHotkeyScheme           | _`Scheme name`_               | Switch the hotkey scheme to the specified one.
-TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
+TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><terminal cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
 TerminalAlignMode            | `left` \| `right` \| `center` | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
 TerminalFindNext             |                               | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
@@ -174,7 +174,7 @@ Hotkey                       | Description
 #### Terminal configuration example
 ```xml
 <config>
-    <term>
+    <terminal>
         <menu item*>
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
@@ -304,14 +304,14 @@ Hotkey                       | Description
                 </tooltip>
             </item>
         </menu>
-    </term>
+    </terminal>
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
         <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
-        <term key*>
+        <terminal key*>
             <key="Alt+RightArrow"            action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"             action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
@@ -339,7 +339,7 @@ Hotkey                       | Description
             <key=""                          action=TerminalClipboardFormat/>           <!-- Switch terminal text selection copy format. -->
             <key=""                          action=TerminalUndo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
             <key=""                          action=TerminalRedo/>                      <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                          action=TerminalCwdSync/>                   <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
+            <key=""                          action=TerminalCwdSync/>                   <!-- Toggle the current working directory sync mode. The command to send for synchronization is configurable via the `<config><terminal cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. To enable OSC9;9 shell notifications: - Windows Command Prompt: `setx PROMPT $e]9;9;$P$e\$P$G` - PowerShell: `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }` - Bash: `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '` -->
             <key=""                          action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
             <key=""                          action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
             <key=""                          action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
@@ -350,7 +350,7 @@ Hotkey                       | Description
             <key=""                          action=TerminalSelectionRect/>             <!-- Toggle between linear(0) and rectangular(1) selection form. -->
             <key="Esc"                       action=TerminalSelectionCancel/>           <!-- Deselect a selection. -->
             <key=""                          action=TerminalSelectionOneShot/>          <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-        </term>
+        </terminal>
     </hotkeys>
 </config>
 ```
