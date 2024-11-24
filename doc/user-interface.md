@@ -24,8 +24,12 @@
 </thead>
 <tbody>
   <tr>
-    <th>Ctrl-Alt ¹</th>
+    <th>Ctrl-Alt ¹ (Alt+Shift+B on non-Windows platforms)</th>
     <td colspan="9">Toggle alternate keyboard mode</td>
+  </tr>
+  <tr>
+    <th>Alt+Shift+N ¹</th>
+    <td colspan="9">Run app</td>
   </tr>
   <tr>
     <th>F10 ¹</th>

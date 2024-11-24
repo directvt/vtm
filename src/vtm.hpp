@@ -505,7 +505,15 @@ namespace netxs::app::vtm
                         gear.slot = data.slot;
                         gear.slot.coor += boss.base::coor();
                         gear.slot_forced = true;
-                        boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
+                        if (gear.meta(hids::anyCtrl))
+                        {
+                            log(prompt::hall, "Area copied to clipboard ", gear.slot);
+                            gear.owner.bell::signal(tier::release, e2::command::printscreen, gear);
+                        }
+                        else
+                        {
+                            boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
+                        }
                     }
                     slots.erase(gear.id);
                     if (slots.empty()) cache = {};
@@ -738,12 +746,17 @@ namespace netxs::app::vtm
             keybd.proc("FocusNextWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
+            keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); });
             auto bindings = keybd.load(config, "desktop");
             for (auto& r : bindings)
             {
                 keybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
             }
 
+            LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
+            {
+                create_app(gear);
+            };
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
             {
                 nexthop = world_ptr;
@@ -830,6 +843,24 @@ namespace netxs::app::vtm
             };
         }
 
+        void create_app(hids& gear, qiew inst_id = {})
+        {
+            static auto offset = dot_00; // static: Share initial offset between all instances.
+            if (auto world_ptr = nexthop.lock())
+            {
+                if (inst_id)
+                {
+                    bell::signal(tier::release, e2::data::changed, inst_id); // Inform ui::desk about default has been changed.
+                }
+                auto current_viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
+                gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
+                gear.slot.size = current_viewport.size * 3 / 4;
+                gear.slot_forced = faux;
+                world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
+            }
+            gear.dismiss(true);
+        }
         void try_quit(hids& gear)
         {
             auto window_ptr = e2::form::layout::go::item.param();
@@ -1898,7 +1929,7 @@ namespace netxs::app::vtm
                         pro::focus::set(window, gear.id, solo::on); // Notify pro::focus owners.
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
+                        else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -1919,28 +1950,19 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 auto& gate = gear.owner;
-                auto location = gear.slot;
-                if (gear.meta(hids::anyCtrl))
+                auto what = link{ .square = gear.slot, .forced = gear.slot_forced };
+                gate.bell::signal(tier::request, e2::data::changed, what.menuid);
+                if (auto window = create(what))
                 {
-                    log(prompt::hall, "Area copied to clipboard ", location);
-                    gate.bell::signal(tier::release, e2::command::printscreen, gear);
-                }
-                else
-                {
-                    auto what = link{ .square = gear.slot, .forced = gear.slot_forced };
-                    gate.bell::signal(tier::request, e2::data::changed, what.menuid);
-                    if (auto window = create(what))
-                    {
-                        //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
-                        //{
-                        //    log(prompt::hall, "Objects count: ", items.size());
-                        //};
-                        pro::focus::set(window, gear.id, solo::on);
-                        window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                        auto& cfg = dbase.menu[what.menuid];
-                             if (cfg.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (cfg.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
-                    }
+                    //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
+                    //{
+                    //    log(prompt::hall, "Objects count: ", items.size());
+                    //};
+                    pro::focus::set(window, gear.id, solo::on);
+                    window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                    auto& cfg = dbase.menu[what.menuid];
+                         if (cfg.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    else if (cfg.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
                 }
             };
             LISTEN(tier::request, vtm::events::handoff, what)

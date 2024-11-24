@@ -104,18 +104,19 @@ Value                        | Arguments (`data=`)           | Description
 -----------------------------|-------------------------------|------------
 Noop                         |                               | Ignore all events for the specified key combination. No further processing.
 DropAutoRepeat               |                               | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-SwitchHotkeyScheme           | _Scheme name_                 | Switch the hotkey scheme to the specified one.
+SwitchHotkeyScheme           | _`Scheme name`_               | Switch the hotkey scheme to the specified one.
 TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><term cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
 TerminalAlignMode            | `left` \| `right` \| `center` | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
 TerminalFindNext             |                               | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 TerminalFindPrev             |                               | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-TerminalOutput               | _Text string_                 | Direct output the string to the terminal scrollback.
-TerminalSendKey              | _Text string_                 | Simulating keypresses using the specified string.
+TerminalOutput               | _`Text string`_               | Direct output the string to the terminal scrollback.
+TerminalSendKey              | _`Text string`_               | Simulating keypresses using the specified string.
 TerminalQuit                 |                               | Terminate runnning console apps and close terminal.
 TerminalRestart              |                               | Terminate runnning console apps and restart current session.
 TerminalFullscreen           |                               | Toggle fullscreen mode.
 TerminalMaximize             |                               | Toggle between maximized and normal window size.
+TerminalMinimize             |                               | Minimize window.
 TerminalUndo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardCopy        |                               | Сopy selection to clipboard.
@@ -124,7 +125,7 @@ TerminalClipboardWipe        |                               | Reset clipboard.
 TerminalClipboardFormat      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Set terminal text selection copy format.
 TerminalSelectionRect        | `on` \| `off`                 | Set linear(off) or rectangular(on) selection form using boolean value.
 TerminalSelectionCancel      |                               | Deselect a selection.
-TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+TerminalSelectionOneShot     | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 TerminalViewportCopy         |                               | Сopy viewport to clipboard.
 TerminalScrollViewportByPage | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ pages.
 TerminalScrollViewportByCell | _`IntX, IntY`_                | Scroll viewport by _`IntX, IntY`_ cells.
@@ -268,6 +269,7 @@ Hotkey                       | Description
             <item label="Quit" type="Command" action=TerminalQuit/>
             <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
             <item label="Maximize" type="Command" action=TerminalMaximize/>
+            <item label="Minimize" type="Command" action=TerminalMinimize/>
             <item label="Noop" type="Command" action=Noop/>
 
             <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
@@ -341,6 +343,7 @@ Hotkey                       | Description
             <key=""                          action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
             <key=""                          action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
             <key=""                          action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
+            <key=""                          action=TerminalMinimize/>                  <!-- Minimize window. -->
             <key=""                          action=TerminalStdioLog/>                  <!-- Toggle stdin/stdout logging. -->
             <key=""                          action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                          action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->

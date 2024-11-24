@@ -391,10 +391,11 @@ Action                         | Arguments (`data=`)                            
 `RollFontsBackward`            |                                                        | Native GUI window   | Roll font list backward.
 `RollFontsForward`             |                                                        | Native GUI window   | Roll font list forward.
 `ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
-`SwitchHotkeyScheme`           | _Scheme name_                                          | TUI matrix,<br>Window menu | Switch the hotkey scheme to the specified one.
+`SwitchHotkeyScheme`           | _`Scheme name`_                                        | TUI matrix,<br>Window menu | Switch the hotkey scheme to the specified one.
 `FocusPrevWindow`              |                                                        | Desktop             | Switch focus to the next desktop window.
 `FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
 `Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
+`RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
 `TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
 `TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 `TerminalFindPrev`             |                                                        | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
@@ -407,8 +408,8 @@ Action                         | Arguments (`data=`)                            
 `TerminalClipboardPaste`       |                                                        | Application         | Paste from clipboard.
 `TerminalClipboardWipe`        |                                                        | Application         | Reset clipboard.
 `TerminalClipboardFormat`      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application | Switch terminal text selection copy format.
-`TerminalOutput`               | _Text string_                                          | Application         | Direct output the string to the terminal scrollback.
-`TerminalSendKey`              | _Text string_                                          | Application         | Simulating keypresses using the specified string.
+`TerminalOutput`               | _`Text string`_                                        | Application         | Direct output the string to the terminal scrollback.
+`TerminalSendKey`              | _`Text string`_                                        | Application         | Simulating key presses using the specified string.
 `TerminalUndo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 `TerminalRedo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 `TerminalCwdSync`              |                                                        | Application         | Toggle the current working directory sync mode.
@@ -416,10 +417,11 @@ Action                         | Arguments (`data=`)                            
 `TerminalAlignMode`            | `left` \| `right` \| `center`                          | Application         | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
 `TerminalFullscreen`           |                                                        | Application         | Toggle fullscreen mode.
 `TerminalMaximize`             |                                                        | Application         | Toggle between maximized and normal window size.
+`TerminalMinimize`             |                                                        | Application         | Minimize window.
 `TerminalStdioLog`             | `on` \| `off`                                          | Application         | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
 `TerminalSelectionRect`        | `on` \| `off`                                          | Application         | Toggle between linear and rectangular selection form.
 `TerminalSelectionCancel`      |                                                        | Application         | Deselect a selection.
-`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed..
+`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
 `TerminalRestart`              |                                                        | Application         | Terminate runnning console apps and restart current session.
 `TerminalQuit`                 |                                                        | Application         | Terminate runnning console apps and close terminal.
 
@@ -867,6 +869,7 @@ Notes
             <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
             <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
             <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
         <term key*>  <!-- Application specific layer key bindings. -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
@@ -904,6 +907,7 @@ Notes
             <key=""         action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
             <key=""         action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
             <key=""         action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
+            <key=""         action=TerminalMinimize/>                      <!-- Minimize window. -->
             <key=""         action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
             <key=""         action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
             <key=""         action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->

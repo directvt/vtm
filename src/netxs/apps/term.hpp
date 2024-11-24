@@ -213,6 +213,7 @@ namespace netxs::app::terminal
                 X(TerminalCwdSync             ) /* */ \
                 X(TerminalFullscreen          ) /* */ \
                 X(TerminalMaximize            ) /* */ \
+                X(TerminalMinimize            ) /* */ \
                 X(TerminalRestart             ) /* */ \
                 X(TerminalSendKey             ) /* */ \
                 X(TerminalWrapMode            ) /* */ \
@@ -373,6 +374,13 @@ namespace netxs::app::terminal
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    });
+                }
+                static void TerminalMinimize(ui::item& boss, menu::item& item)
+                {
+                    _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
+                    {
+                        boss.base::riseup(tier::release, e2::form::size::minimize, gear);
                     });
                 }
                 static void TerminalRestart(ui::item& boss, menu::item& item)
