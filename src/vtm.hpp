@@ -1950,7 +1950,6 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 auto& gate = gear.owner;
-                auto location = gear.slot;
                 auto what = link{ .square = gear.slot, .forced = gear.slot_forced };
                 gate.bell::signal(tier::request, e2::data::changed, what.menuid);
                 if (auto window = create(what))
