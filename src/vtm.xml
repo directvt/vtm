@@ -354,9 +354,9 @@ R"==(
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
-                <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
-            </item>
+            <!-- <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off"> -->
+            <!--     <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/> -->
+            <!-- </item> -->
             <item label="Log" tooltip=" Console logging is off " type="Option" action=TerminalStdioLog data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" tooltip=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
