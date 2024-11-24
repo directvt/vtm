@@ -1418,7 +1418,7 @@ namespace netxs::ui
             {
                 auto& back = canvas.back();
                 auto [w, h, x, y] = back.whxy();
-                if constexpr (debugmode) log("\tw=%%, h=%%, x=%%, y=%%", w, h, x, y);
+                //if constexpr (debugmode) log("\tw=%%, h=%%, x=%%, y=%%", w, h, x, y);
                 if (w && x == w && size >= w)
                 {
                     auto current_x = w - 1;
@@ -1432,7 +1432,7 @@ namespace netxs::ui
                             break;
                         }
                         auto [cw, ch, cx, cy] = c.whxy();
-                        if constexpr (debugmode) log("\t\tcurrent_x=%%, cw=%%, ch=%%, cx=%%, cy=%%", current_x, cw, ch, cx, cy);
+                        //if constexpr (debugmode) log("\t\tcurrent_x=%%, cw=%%, ch=%%, cx=%%, cy=%%", current_x, cw, ch, cx, cy);
                         if (cw != w || ch != h || cy != y || cx != current_x)
                         {
                             break;

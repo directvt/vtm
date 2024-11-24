@@ -161,7 +161,6 @@ namespace netxs::events::userland
                 EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
                 EVENT_XS( get, input::foci ), // request: Unfocus and delete focus route.
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
-                EVENT_XS( hop, input::foci ), // request: Change next hop destination. args: seed.what => seed.item.
             };
             SUBSET_XS( device )
             {
@@ -742,7 +741,6 @@ namespace netxs::input
         id_t gear_id{}; // foci: Gear id.
         si32 focus_type{}; // foci: Exclusive focus request.
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
-        sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.
 
         auto nondefault_gear() const

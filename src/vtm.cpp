@@ -340,7 +340,6 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
         else if (shadow.starts_with(app::dtty::id))      { aptype = app::dtty::id;      apname = app::dtty::name;      }
         //todo undocumented
-        else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id;     apname = app::dtty::name;       }
         else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name;   }
         else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name;   }
         //#if defined(DEBUG)

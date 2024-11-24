@@ -1368,7 +1368,6 @@ namespace netxs::ui
                 auto lock = src_ptr->bell::sync();
                 if (auto parent = src_ptr->parent())
                 {
-                    parent->base::riseup(tier::request, hids::events::focus::hop, { .what = src_ptr, .item = dst_ptr });
                     auto gear_id_list = pro::focus::off(src_ptr);
                     pro::focus::set(dst_ptr, gear_id_list, solo::off);
                 }
@@ -1493,20 +1492,6 @@ namespace netxs::ui
                     }
                     auto& route = iter->second;
                     notify_set_focus(route, seed);
-                };
-                // pro::focus: Replace next hop object "seed.what" with "seed.item".
-                boss.LISTEN(tier::request, hids::events::focus::hop, seed, memo)
-                {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        for (auto& next_wptr : route.next)
-                        {
-                            if (next_wptr.lock() == seed.what)
-                            {
-                                next_wptr = seed.item;
-                            }
-                        }
-                    }
                 };
                 // all tier::previews going to outside (upstream)
                 // all tier::releases going to inside (downstream)
