@@ -7744,6 +7744,7 @@ namespace netxs::ui
             //todo use wptr for gear when enqueueing
             chords.proc("TerminalFullscreen",           [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
             chords.proc("TerminalMaximize",             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
+            chords.proc("TerminalMinimize",             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::release, e2::form::size::minimize, gear); }); });
             chords.proc("TerminalUndo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc("TerminalRedo",                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
             chords.proc("TerminalClipboardCopy",        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });

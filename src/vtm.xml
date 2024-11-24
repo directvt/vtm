@@ -455,6 +455,7 @@ R"==(
             <key=""         action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
             <key=""         action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
             <key=""         action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
+            <key=""         action=TerminalMinimize/>                      <!-- Minimize window. -->
             <key=""         action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
             <key=""         action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
             <key=""         action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->

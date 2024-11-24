@@ -116,6 +116,7 @@ TerminalQuit                 |                               | Terminate runnnin
 TerminalRestart              |                               | Terminate runnning console apps and restart current session.
 TerminalFullscreen           |                               | Toggle fullscreen mode.
 TerminalMaximize             |                               | Toggle between maximized and normal window size.
+TerminalMinimize             |                               | Minimize window.
 TerminalUndo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 |                               | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardCopy        |                               | Сopy selection to clipboard.
@@ -268,6 +269,7 @@ Hotkey                       | Description
             <item label="Quit" type="Command" action=TerminalQuit/>
             <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
             <item label="Maximize" type="Command" action=TerminalMaximize/>
+            <item label="Minimize" type="Command" action=TerminalMinimize/>
             <item label="Noop" type="Command" action=Noop/>
 
             <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
@@ -341,6 +343,7 @@ Hotkey                       | Description
             <key=""                          action=TerminalWrapMode/>                  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. The argument is boolean. -->
             <key=""                          action=TerminalFullscreen/>                <!-- Toggle fullscreen mode. -->
             <key=""                          action=TerminalMaximize/>                  <!-- Toggle between maximized and normal window size. -->
+            <key=""                          action=TerminalMinimize/>                  <!-- Minimize window. -->
             <key=""                          action=TerminalStdioLog/>                  <!-- Toggle stdin/stdout logging. -->
             <key=""                          action=TerminalQuit/>                      <!-- Terminate runnning console apps and close terminal. -->
             <key=""                          action=TerminalRestart/>                   <!-- Terminate runnning console apps and restart current session. -->

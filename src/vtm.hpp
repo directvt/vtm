@@ -1898,7 +1898,7 @@ namespace netxs::app::vtm
                         pro::focus::set(window, gear.id, solo::on); // Notify pro::focus owners.
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
+                        else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -1939,7 +1939,7 @@ namespace netxs::app::vtm
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                         auto& cfg = dbase.menu[what.menuid];
                              if (cfg.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (cfg.winform == shared::win::state::minimized) window->bell::signal(tier::preview, e2::form::size::minimize, gear);
+                        else if (cfg.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
                     }
                 }
             };

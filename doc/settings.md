@@ -416,6 +416,7 @@ Action                         | Arguments (`data=`)                            
 `TerminalAlignMode`            | `left` \| `right` \| `center`                          | Application         | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
 `TerminalFullscreen`           |                                                        | Application         | Toggle fullscreen mode.
 `TerminalMaximize`             |                                                        | Application         | Toggle between maximized and normal window size.
+`TerminalMinimize`             |                                                        | Application         | Minimize window.
 `TerminalStdioLog`             | `on` \| `off`                                          | Application         | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
 `TerminalSelectionRect`        | `on` \| `off`                                          | Application         | Toggle between linear and rectangular selection form.
 `TerminalSelectionCancel`      |                                                        | Application         | Deselect a selection.
@@ -904,6 +905,7 @@ Notes
             <key=""         action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
             <key=""         action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
             <key=""         action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
+            <key=""         action=TerminalMinimize/>                      <!-- Minimize window. -->
             <key=""         action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
             <key=""         action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
             <key=""         action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->
