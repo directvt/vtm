@@ -1761,7 +1761,7 @@ namespace netxs::gui
             {
                 auto copy = lock.thing;
                 //todo implement
-                //owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                //owner.bell::enqueue(owner_wptr, [tooltips = std::move(copy)](auto& boss) mutable
                 //{
                 //    for (auto& tooltip : tooltips)
                 //    {
@@ -1792,16 +1792,17 @@ namespace netxs::gui
             void handle(s11n::xs::expose         /*lock*/)
             {
                 owner.window_post_command(ipc::expose_win);
-                //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::layout::expose);
                 //});
             }
             void handle(s11n::xs::sysfocus         lock)
             {
+                auto f = lock.thing;
+                lock.unlock();
                 auto guard = owner.sync(); // Guard the owner.This() call.
                 auto owner_ptr = owner.This();
-                auto& f = lock.thing;
                 if (f.state)
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
@@ -1821,7 +1822,8 @@ namespace netxs::gui
             }
             void handle(s11n::xs::hotkey_scheme    lock)
             {
-                auto& k = lock.thing;
+                auto k = lock.thing;
+                lock.unlock();
                 auto guard = owner.sync();
                 if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                 {
@@ -1831,16 +1833,20 @@ namespace netxs::gui
             }
             void handle(s11n::xs::syskeybd         lock)
             {
+                auto keybd = lock.thing;
+                lock.unlock();
+                auto guard = owner.sync();
                 auto& gear = *gears;
-                auto& keybd = lock.thing;
                 gear.alive = true;
                 keybd.syncto(gear);
                 owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {
+                auto mouse = lock.thing;
+                lock.unlock();
+                auto guard = owner.sync();
                 auto& gear = *gears;
-                auto& mouse = lock.thing;
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
                 gear.replay(mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
@@ -1848,13 +1854,15 @@ namespace netxs::gui
             }
             void handle(s11n::xs::warping          lock)
             {
-                auto& warp = lock.thing;
+                auto warp = lock.thing;
+                lock.unlock();
+                auto guard = owner.sync();
                 owner.warp_window(warp.warpdata);
             }
             void handle(s11n::xs::fps            /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                //owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 //{
                 //    owner.bell::signal(tier::general, e2::config::fps, fps);
                 //});
@@ -1866,7 +1874,7 @@ namespace netxs::gui
             void handle(s11n::xs::fatal          /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                //owner.bell::enqueue(owner_wptr, [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 //{
                 //    owner.errmsg = owner.genmsg(utf8);
                 //    owner.deface();
@@ -1882,7 +1890,7 @@ namespace netxs::gui
             void handle(s11n::xs::sysstart       /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                //owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 //});
@@ -1890,7 +1898,7 @@ namespace netxs::gui
             void handle(s11n::xs::cwd            /*lock*/)
             {
                 //todo revise
-                //owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                //owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 //});

@@ -111,6 +111,7 @@ namespace netxs::ui
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
             flag  alive; // link: sysclose isn't sent.
+            wptr  owner_wptr; // link: .
 
             // link: Send data outside.
             void run()
@@ -134,20 +135,27 @@ namespace netxs::ui
                  canal{ canal },
                  owner{ owner },
                  alive{ true  }
-            { }
+            {
+                auto oneshot = ptr::shared(hook{});
+                owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
+                {
+                    owner_wptr = owner.This();
+                    oneshot->reset();
+                };
+            }
 
             // link: Send an event message to the link owner.
             template<class E, class T>
             void notify(E, T&& data, si32 Tier = tier::release)
             {
-                owner.bell::enqueue(owner.This(), [Tier, d = data](auto& boss) mutable
+                owner.bell::enqueue(owner_wptr, [Tier, d = data](auto& boss) mutable
                 {
                     boss.bell::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
             {
-                owner.bell::enqueue(owner.This(), [&, item = lock.thing](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, item = lock.thing](auto& /*boss*/) mutable
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);

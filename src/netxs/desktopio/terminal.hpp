@@ -7974,10 +7974,11 @@ namespace netxs::ui
             using input_fields_handler::handle;
 
             dtvt& owner; // evnt: Terminal object reference.
+            wptr  owner_wptr;
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
@@ -7985,15 +7986,14 @@ namespace netxs::ui
             void handle(s11n::xs::jgc_list            lock)
             {
                 s11n::receive_jgc(lock);
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/) mutable
                 {
                     owner.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
-                auto copy = lock.thing;
-                owner.bell::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                owner.bell::enqueue(owner_wptr, [tooltips = lock.thing](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -8006,7 +8006,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fullscrn            lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8021,7 +8022,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::maximize            lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8036,11 +8038,12 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysfocus            lock)
             {
+                auto f = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync(); // Guard the owner.This() call.
                     auto owner_ptr = owner.This();
-                    auto& f = lock.thing;
                     if (f.state)
                     {
                         pro::focus::set(owner_ptr, f.gear_id, f.focus_type);
@@ -8053,7 +8056,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::hotkey_scheme       lock)
             {
-                auto& k = lock.thing;
+                auto k = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8065,7 +8069,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::syskeybd            lock)
             {
-                auto& k = lock.thing;
+                auto k = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8087,7 +8092,8 @@ namespace netxs::ui
             };
             void handle(s11n::xs::mouse_event         lock)
             {
-                auto& m = lock.thing;
+                auto m = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8105,8 +8111,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::minimize            lock)
             {
-                auto& m = lock.thing;
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, m = lock.thing](auto& /*boss*/)
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
@@ -8117,14 +8122,15 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose            /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::layout::expose);
                 });
             }
             void handle(s11n::xs::clipdata            lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8136,7 +8142,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::clipdata_request    lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     auto guard = owner.sync();
@@ -8157,23 +8164,22 @@ namespace netxs::ui
             }
             void handle(s11n::xs::header              lock)
             {
-                auto& h = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, /*id = h.window_id,*/ header = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::footer              lock)
             {
-                auto& f = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, /*id = f.window_id,*/ footer = lock.thing.utf8](auto& /*boss*/) mutable
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::header_request      lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     //todo use window_id
@@ -8184,7 +8190,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::footer_request      lock)
             {
-                auto& c = lock.thing;
+                auto c = lock.thing;
+                lock.unlock();
                 if (owner.active)
                 {
                     //todo use window_id
@@ -8195,8 +8202,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::warping             lock)
             {
-                auto& w = lock.thing;
-                owner.bell::enqueue(owner.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, /*id = w.window_id,*/ warp = lock.thing.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     owner.base::riseup(tier::preview, e2::form::layout::swarp, warp);
@@ -8204,7 +8210,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fps                 lock)
             {
-                owner.bell::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
+                owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
                     owner.bell::signal(tier::general, e2::config::fps, fps);
                 });
@@ -8215,27 +8221,29 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                owner.bell::enqueue(owner.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
                     owner.errmsg = owner.genmsg(utf8);
                     owner.deface();
                 });
             }
-            void handle(s11n::xs::sysclose          /*lock*/)
+            void handle(s11n::xs::sysclose            lock)
             {
+                lock.unlock();
+                auto guard = owner.sync();
                 owner.active.exchange(faux);
                 owner.stop(true);
             }
             void handle(s11n::xs::sysstart          /*lock*/)
             {
-                owner.bell::enqueue(owner.This(), [&](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             void handle(s11n::xs::cwd                 lock)
             {
-                owner.bell::enqueue(owner.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 });
@@ -8245,7 +8253,14 @@ namespace netxs::ui
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
                   owner{ owner }
-            { }
+            {
+                auto oneshot = ptr::shared(hook{});
+                owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
+                {
+                    owner_wptr = owner.This();
+                    oneshot->reset();
+                };
+            }
         };
 
         struct msgs
