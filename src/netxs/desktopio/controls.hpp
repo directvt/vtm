@@ -1290,7 +1290,7 @@ namespace netxs::ui
                 static constexpr auto focused   = 1; // Object can be focused and active, it is focused by default. It cuts the  focus tree when focus is set on it.
                 static constexpr auto hub       = 2; // Object can't be focused, only active, it is inactive by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
                 static constexpr auto active    = 3; // Object can't be focused, only active, it is active by default. It doesn't cut the focus tree when focus is set on it, it just activate a whole branch.
-                static constexpr auto relay     = 4; // Object is on the process/event domain boundary and can't be focused (gui and ui::dtvt).
+                static constexpr auto relay     = 4; // Object is on the process/event domain boundary and can't be focused (gui and ui::dtvt). Always has default focus.
             };
 
             template<class T>
@@ -1363,15 +1363,6 @@ namespace netxs::ui
                 }
                 return gear_id_list;
             }
-            static auto pass(sptr src_ptr, sptr dst_ptr)
-            {
-                auto lock = src_ptr->bell::sync();
-                if (auto parent = src_ptr->parent())
-                {
-                    auto gear_id_list = pro::focus::off(src_ptr);
-                    pro::focus::set(dst_ptr, gear_id_list, solo::off);
-                }
-            }
             static auto test(base& item, input::hids& gear)
             {
                 auto gear_test = item.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
@@ -1379,11 +1370,12 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            focus(base& boss, si32 focus_mode = mode::hub, bool cut_scope = faux)
+            focus(base& boss, si32 focus_mode = mode::hub, bool cut_scope = faux, bool set_default_focus = true)
                 : skill{ boss },
                   scope{ cut_scope },
                   node_type{ focus_mode }
             {
+                if (set_default_focus)
                 if (node_type == mode::focused || node_type == mode::active || node_type == mode::relay) // Pave default focus path at startup.
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
@@ -1635,6 +1627,18 @@ namespace netxs::ui
                     for (auto& [gear_id, route] : gears)
                     {
                         route.next.remove_if([&](auto& next){ return next.lock() == seed.item; });
+                    }
+                };
+                // pro::focus: Switch all foci to the seed.item. It is used by dtty.
+                boss.LISTEN(tier::request, hids::events::focus::hop, seed, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        auto is_active = route.active && gear_id;
+                        if (is_active) boss.bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                        route.next.clear();
+                        route.next.push_back(seed.item);
+                        if (is_active) boss.bell::signal(tier::release, hids::events::focus::set, { .gear_id = gear_id, .just_activate_only = true });
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
@@ -2102,17 +2106,17 @@ namespace netxs::ui
                         auto action_ptr_list = keybind_ptr->list("action");
                         bindings.push_back({ .chord = chord, .scheme = scheme });
                         auto& rec = bindings.back();
-                        if constexpr (debugmode) log("chord=%% scheme=%%", chord, scheme);
+                        //if constexpr (debugmode) log("chord=%% scheme=%%", chord, scheme);
                         for (auto action_ptr : action_ptr_list)
                         {
                             rec.actions.push_back({ .action = action_ptr->take_value() });
                             auto& action = rec.actions.back();
-                            if constexpr (debugmode) log("  action=", action.action);
+                            //if constexpr (debugmode) log("  action=", action.action);
                             auto arg_ptr_list = action_ptr->list("data");
                             for (auto arg_ptr : arg_ptr_list)
                             {
                                 action.args.push_back(arg_ptr->take_value());
-                                if constexpr (debugmode) log("    data=", action.args.back());
+                                //if constexpr (debugmode) log("    data=", action.args.back());
                             }
                         }
                     }

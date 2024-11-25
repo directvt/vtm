@@ -388,12 +388,14 @@ namespace netxs::app::shared
             auto window = ui::veer::ctor()
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
-            auto term = ui::cake::ctor()
+            auto term_cake = ui::cake::ctor()
                 ->active(window_clr);
-            auto dtvt = ui::dtvt::ctor();
-            auto scrl = term->attach(ui::rail::ctor());
+            auto dtvt = ui::dtvt::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::relay, faux/*default: don't cut_scope*/, faux/*no default focus*/)
+                ->limits(dot_11);
+            auto scrl = term_cake->attach(ui::rail::ctor());
             auto defclr = config.take("/config/terminal/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
-            auto inst = scrl->attach(ui::term::ctor(config))
+            auto term = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->colors(defclr.fgc(), defclr.bgc())
                 ->invoke([&](auto& boss)
@@ -418,12 +420,10 @@ namespace netxs::app::shared
                         dtvt_inst.stop(fast, faux);
                     };
                 });
-            term->attach(app::shared::scroll_bars(scrl));
-            dtvt->plugin<pro::focus>(pro::focus::mode::relay)
-                ->limits(dot_11)
-                ->invoke([&](auto& boss)
+            term_cake->attach(app::shared::scroll_bars(scrl));
+            dtvt->invoke([&](auto& boss)
                 {
-                    auto& term_inst = *inst;
+                    auto& term_inst = *term;
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
                         boss.base::riseup(tier::release, e2::config::plugins::sizer::alive, state);
@@ -442,11 +442,11 @@ namespace netxs::app::shared
                     };
                 });
             window->branch(dtvt)
-                ->branch(term)
+                ->branch(term_cake)
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
-                    auto& term_inst = *inst;
+                    auto& term_inst = *term;
                     boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
                     {
                         if (root) // root is empty when d_n_d.
@@ -466,11 +466,8 @@ namespace netxs::app::shared
                     {
                         if (!!started == order)
                         {
-                            auto t = term_inst.This();
-                            auto d = dtvt_inst.This();
-                            if (order) pro::focus::pass(t, d);
-                            else       pro::focus::pass(d, t);
                             boss.roll();
+                            boss.bell::signal(tier::request, hids::events::focus::hop, { .item = boss.back() });
                             boss.back()->base::riseup(tier::preview, e2::form::prop::ui::footer);
                             boss.back()->reflow();
                             boss.back()->deface();

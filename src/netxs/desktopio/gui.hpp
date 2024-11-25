@@ -2765,9 +2765,8 @@ namespace netxs::gui
             {
                 if (changed)
                 {
-                    auto timecode = datetime::now();
                     stream.m.changed++;
-                    stream.m.timecod = timecode;
+                    stream.m.timecod = datetime::now();
                     stream.m.ctlstat = get_mods_state();
                     stream.mouse(stream.m);
                 }

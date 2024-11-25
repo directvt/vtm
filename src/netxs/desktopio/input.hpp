@@ -161,6 +161,7 @@ namespace netxs::events::userland
                 EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
                 EVENT_XS( get, input::foci ), // request: Unfocus and delete focus route.
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
             };
             SUBSET_XS( device )
             {
@@ -1176,9 +1177,6 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
-        ui64 vk_hash{};
-        ui64 sc_hash{};
-        ui64 ch_hash{};
         text vkchord{};
         text scchord{};
         text chchord{};
@@ -1663,7 +1661,16 @@ namespace netxs::input
         }
         void set_handled(bool b = true)
         {
-            handled = b;
+            if (keybd::keystat == input::key::released) // Don't stop the key release event, just break the chord processing.
+            {
+                keybd::vkchord.clear();
+                keybd::scchord.clear();
+                keybd::chchord.clear();
+            }
+            else
+            {
+                handled = b;
+            }
         }
         void set_hotkey_scheme(qiew scheme)
         {
