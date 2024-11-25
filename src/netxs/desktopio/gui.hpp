@@ -3797,7 +3797,7 @@ namespace netxs::gui
             {
                 //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
                 auto ok = ::UpdateLayeredWindowIndirect((HWND)s.hWnd, &update_info);
-                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+                if constexpr (debugmode) if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
             };
             //static auto clr = 0; clr++;
             for (auto r : s.sync)
