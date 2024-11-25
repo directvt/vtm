@@ -161,6 +161,7 @@ namespace netxs::events::userland
                 EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
                 EVENT_XS( get, input::foci ), // request: Unfocus and delete focus route.
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
+                EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
             };
             SUBSET_XS( device )
             {

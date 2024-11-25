@@ -8431,7 +8431,6 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            //todo replace it with tier::release hids::events::focus::any (set/off)
             LISTEN(tier::release, hids::events::focus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);

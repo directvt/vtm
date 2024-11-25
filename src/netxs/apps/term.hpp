@@ -767,7 +767,7 @@ namespace netxs::app::terminal
         auto scroll = layers->attach(ui::rail::ctor())
                             ->limits({ 10,1 }); // mc crashes when window is too small
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
-        auto inst = scroll->attach(ui::term::ctor(config))
+        auto term = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->colors(defclr.fgc(), defclr.bgc())
             ->invoke([&](auto& boss)
@@ -892,7 +892,7 @@ namespace netxs::app::terminal
             });
 
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
-        auto inst = scroll->attach(ui::term::ctor(config))
+        auto term = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
@@ -970,8 +970,8 @@ namespace netxs::app::terminal
             ->limits({ -1,1 }, { -1,1 })
             ->invoke([&](auto& boss)
             {
-                boss.color(boss.color().bgc(inst->color().bgc()));
-                inst->LISTEN(tier::release, e2::form::prop::filler, brush, -)
+                boss.color(boss.color().bgc(term->color().bgc()));
+                term->LISTEN(tier::release, e2::form::prop::filler, brush, -)
                 {
                     boss.color(boss.color().bgc(brush.bgc()));
                 };
@@ -990,7 +990,7 @@ namespace netxs::app::terminal
         cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             auto bar = cell{ "▀"sv }.link(slot1->id);
-            auto term_bgc_ptr = ptr::shared(inst->color().bgc());
+            auto term_bgc_ptr = ptr::shared(term->color().bgc());
             auto& term_bgc = *term_bgc_ptr;
             auto winsz = ptr::shared(dot_00);
             auto visible = ptr::shared(slot1->back() != boss.This());
@@ -1011,7 +1011,7 @@ namespace netxs::app::terminal
                 *winsz = new_area.size;
                 (*check_state)(boss);
             };
-            inst->LISTEN(tier::release, e2::form::prop::filler, clr, -, (term_bgc_ptr))
+            term->LISTEN(tier::release, e2::form::prop::filler, clr, -, (term_bgc_ptr))
             {
                 term_bgc = clr.bgc();
             };
@@ -1028,7 +1028,7 @@ namespace netxs::app::terminal
             };
         });
 
-        inst->attach_property(ui::term::events::colors::bg,      terminal::events::release::colors::bg)
+        term->attach_property(ui::term::events::colors::bg,      terminal::events::release::colors::bg)
             ->attach_property(ui::term::events::colors::fg,      terminal::events::release::colors::fg)
             ->attach_property(ui::term::events::selmod,          terminal::events::release::selection::mode)
             ->attach_property(ui::term::events::onesht,          terminal::events::release::selection::shot)
