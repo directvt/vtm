@@ -1177,9 +1177,6 @@ namespace netxs::input
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
-        ui64 vk_hash{};
-        ui64 sc_hash{};
-        ui64 ch_hash{};
         text vkchord{};
         text scchord{};
         text chchord{};
@@ -1664,7 +1661,16 @@ namespace netxs::input
         }
         void set_handled(bool b = true)
         {
-            handled = b;
+            if (keybd::keystat == input::key::released) // Don't stop the key release event, just break the chord processing.
+            {
+                keybd::vkchord.clear();
+                keybd::scchord.clear();
+                keybd::chchord.clear();
+            }
+            else
+            {
+                handled = b;
+            }
         }
         void set_hotkey_scheme(qiew scheme)
         {
