@@ -589,8 +589,11 @@ namespace netxs::ui
                     if (gear_id)
                     {
                         auto& gear = *gear_ptr;
-                        gear.fire_fast();
-                        gear.fire(event_id);
+                        if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
+                        {
+                            gear.fire_fast();
+                            gear.fire(event_id);
+                        }
                     }
                 }
             }
