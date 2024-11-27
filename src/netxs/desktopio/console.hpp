@@ -1126,16 +1126,10 @@ namespace netxs::ui
               fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            keybd.proc("SwitchHotkeyScheme", [&](hids& gear, txts& args)
-            {
-                gear.set_handled();
-                if (args.empty()) gear.set_hotkey_scheme("");
-                else              gear.set_hotkey_scheme(args.front());
-            });
             auto bindings = keybd.load(config, "tui");
             for (auto& r : bindings)
             {
-                keybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
+                keybd.bind(r.chord, r.actions, r.mode);
             }
 
             base::root(true);
@@ -1162,12 +1156,6 @@ namespace netxs::ui
                     target->bell::signal(tier::release, deed, seed);
                 }
             };
-            LISTEN(tier::preview, hids::events::keybd::scheme, gear, tokens)
-            {
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                if (!gear_ptr) return;
-                conio.hotkey_scheme.send(canal, ext_gear_id, gear.hscheme);
-            };
             //todo mimic pro::focus
             //if (standalone)
             {
@@ -1176,18 +1164,8 @@ namespace netxs::ui
                     owner_ptr = This();
                 };
             }
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens, (hscheme = text{})) // Start of kb event propagation.
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
             {
-                //if (standalone)
-                {
-                    //todo mimic pro::focus
-                    if (hscheme != gear.hscheme)
-                    {
-                        hscheme = gear.hscheme;
-                        bell::signal(tier::release, e2::form::state::keybd::scheme, hscheme);
-                    }
-                }
-                if (gear)
                 if (auto target = nexthop.lock())
                 {
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
@@ -1195,7 +1173,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
-                if (gear && !gear.handled)
+                if (!gear.handled)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr)

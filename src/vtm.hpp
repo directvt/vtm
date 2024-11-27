@@ -746,16 +746,17 @@ namespace netxs::app::vtm
             keybd.proc("FocusNextWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
-            keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); });
+            keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); gear.set_handled(); });
             auto bindings = keybd.load(config, "desktop");
             for (auto& r : bindings)
             {
-                keybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
+                keybd.bind(r.chord, r.actions, r.mode);
             }
 
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
             {
                 create_app(gear);
+                gear.dismiss(true);
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
             {
@@ -859,7 +860,6 @@ namespace netxs::app::vtm
                 gear.slot_forced = faux;
                 world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
             }
-            gear.dismiss(true);
         }
         void try_quit(hids& gear)
         {
@@ -869,14 +869,14 @@ namespace netxs::app::vtm
             {
                 this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
                 this->bell::expire(tier::preview);
-                gear.set_handled(true);
+                gear.set_handled();
             }
         }
         void disconnect(hids& gear)
         {
             gear.owner.bell::signal(tier::preview, e2::conio::quit);
             this->bell::expire(tier::preview);
-            gear.set_handled(true);
+            gear.set_handled();
         }
         void focus_next_window(hids& gear, feed forward)
         {
@@ -911,8 +911,6 @@ namespace netxs::app::vtm
                 if (!maximized) jump_to(window);
                 pro::focus::set(window_ptr, gear.id, solo::on);
             }
-            //gear.dismiss();
-            this->bell::expire(tier::preview); //todo temp
             gear.set_handled();
         }
         void move_viewport(twod newpos, rect viewport)
@@ -1983,7 +1981,7 @@ namespace netxs::app::vtm
             //todo mimic pro::focus
             LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
             {
-                if (gear && !gear.handled)
+                if (!gear.handled)
                 {
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }

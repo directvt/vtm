@@ -21,8 +21,7 @@ namespace netxs::events::userland
 
             SUBSET_XS( keybd )
             {
-                EVENT_XS( scheme, input::hids ),
-                GROUP_XS( key   , input::hids ),
+                GROUP_XS( key, input::hids ),
 
                 SUBSET_XS( key )
                 {
@@ -711,7 +710,7 @@ namespace netxs::input
                 txts args;
             };
             text chord;
-            text scheme;
+            bool mode{};
             std::vector<action_t> actions;
         };
         using keybind_list_t = std::vector<keybind_t>;
@@ -1174,13 +1173,13 @@ namespace netxs::input
         bool extflag{};
         si32 keystat{};
         bool handled{};
+        si32 touched{};
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
         text vkchord{};
         text scchord{};
         text chchord{};
-        text hscheme{};
 
         auto doinput()
         {
@@ -1659,23 +1658,9 @@ namespace netxs::input
         {
             nodbl = true;
         }
-        void set_handled(bool b = true)
+        void set_handled()
         {
-            if (keybd::keystat == input::key::released) // Don't stop the key release event, just break the chord processing.
-            {
-                keybd::vkchord.clear();
-                keybd::scchord.clear();
-                keybd::chchord.clear();
-            }
-            else
-            {
-                handled = b;
-            }
-        }
-        void set_hotkey_scheme(qiew scheme)
-        {
-            keybd::hscheme = scheme;
-            owner.bell::signal(tier::preview, hids::events::keybd::scheme, *this);
+            keybd::handled = true;
         }
 
         void take(sysfocus& f)
@@ -1875,7 +1860,6 @@ namespace netxs::input
         }
         void fire_keybd()
         {
-            alive = true;
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_board()

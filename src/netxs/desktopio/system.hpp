@@ -4841,7 +4841,6 @@ namespace netxs::os
         {
             struct adapter : s11n
             {
-                text hscheme;
                 id_t gear_id = 1;
 
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
@@ -4910,44 +4909,6 @@ namespace netxs::os
                 void handle(s11n::xs::clipdata_request lock)
                 {
                     s11n::recycle_cliprequest(dtvt::client, lock);
-                }
-                void handle(s11n::xs::sysfocus         lock)
-                {
-                    auto& item = lock.thing;
-                    if (item.state)
-                    {
-                        sync_hotkey_scheme();
-                    }
-                }
-                void handle(s11n::xs::hotkey_scheme    lock)
-                {
-                    auto& k = lock.thing;
-                    hscheme = k.hscheme;
-                    sync_hotkey_scheme();
-                }
-                // adapter: Send an empty hotkey scheme packet.
-                void sync_hotkey_scheme()
-                {
-                    auto item = s11n::syskeybd.freeze();
-                    auto temp = input::syskeybd{}; //todo same code in gui.hpp:2860
-                    std::swap(temp.vkchord, item.thing.vkchord);
-                    std::swap(temp.scchord, item.thing.scchord);
-                    std::swap(temp.chchord, item.thing.chchord);
-                    std::swap(temp.cluster, item.thing.cluster);
-                    std::swap(temp.keystat, item.thing.keystat);
-                    item.thing.gear_id = gear_id;
-                    item.thing.hscheme = hscheme;
-                    item.thing.virtcod = 0;
-                    item.thing.scancod = 0;
-                    item.thing.keycode = 0;
-                    item.thing.payload = input::keybd::type::keypress;
-                    item.thing.set();
-                    item.thing.sendby<faux, faux>(dtvt::client);
-                    std::swap(temp.vkchord, item.thing.vkchord);
-                    std::swap(temp.scchord, item.thing.scchord);
-                    std::swap(temp.chchord, item.thing.chchord);
-                    std::swap(temp.cluster, item.thing.cluster);
-                    std::swap(temp.keystat, item.thing.keystat);
                 }
 
                 adapter()
@@ -6091,14 +6052,7 @@ namespace netxs::os
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            auto keybd = [&](auto& data)
-            {
-                if (alive)
-                {
-                    data.hscheme = proxy.hscheme; // Inject current hotkey scheme.
-                    proxy.syskeybd.send(intio, data);
-                }
-            };
+            auto keybd = [&](auto& data){ if (alive)                proxy.syskeybd.send(intio, data); };
             auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
             auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };

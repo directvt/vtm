@@ -602,38 +602,20 @@ namespace netxs::app::shared
                 //->template plugin<pro::focus>()
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
-            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Alternate hotkey scheme:")->setpad({ 2, 1, 0, 0 }));
+            auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (subs_ptr = ptr::shared<subs>()))
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (state = faux))
                     {
-                        subs_ptr->clear();
-                        if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
-                        {
-                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::scheme, hscheme, (*subs_ptr))
-                            {
-                                //todo unify
-                                boss.set(hscheme.size() ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
-                                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
-                                boss.base::reflow();
-                            };
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        //todo unify
-                        if (gear.hscheme != ""sv)
-                        {
-                            gear.set_hotkey_scheme("");
-                        }
-                        else
-                        {
-                            gear.set_hotkey_scheme("1");
-                        }
+                        state = !state;
+                        boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
+                                       : ansi::bgc(reddk).fgx(0)        .add("█off "));
+                        //todo set Exclusive keyboard mode
+                        boss.base::reflow();
                         gear.dismiss_dblclick();
                     };
                 });
@@ -754,8 +736,7 @@ namespace netxs::app::shared
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                 });
-                keybd.template bind<tier::release>( "Any", "",  "UpdateChordPreview");
-                keybd.template bind<tier::release>( "Any", "1", "UpdateChordPreview");
+                keybd.bind( "Any", "UpdateChordPreview");
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

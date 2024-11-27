@@ -429,12 +429,12 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
-                        EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
-                        EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
-                        EVENT_XS( check   , bool               ), // anycast: Check any focus.
-                        EVENT_XS( scheme  , text               ), // release: Hotkey scheme id.
-                        GROUP_XS( command , si32               ), // release: Hotkey command preview.
+                        EVENT_XS( enlist   , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
+                        EVENT_XS( find     , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( next     , ui::focus_test_t   ), // request: Next hop count.
+                        EVENT_XS( check    , bool               ), // anycast: Check any focus.
+                        EVENT_XS( exclusive, bool               ), // release: Exclusive keyboard mode.
+                        GROUP_XS( command  , si32               ), // release: Hotkey command preview.
 
                         SUBSET_XS( command )
                         {
@@ -819,6 +819,7 @@ namespace netxs::ui
         //          base::raw_riseup(tier::preview, e2::form::prop::ui::header, txt);
         void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
+            //todo make it flat
             auto lock = bell::sync();
             bell::signal(Tier, event_id, param);
             if (forced)
