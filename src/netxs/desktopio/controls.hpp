@@ -2010,19 +2010,17 @@ namespace netxs::ui
                     }
                 };
                 proc("Noop",           [&](hids& gear, txts&){ gear.set_handled(); interrupt_key_proc = true; });
-                proc("DropAutoRepeat", [&](hids& gear, txts&){ if (gear.keystat == input::key::repeated) gear.set_handled(); interrupt_key_proc = true; });
+                proc("DropAutoRepeat", [&](hids& gear, txts&){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
             }
 
-            template<si32 Tier = tier::release>
             auto filter(hids& gear)
             {
                 if (gear.payload == input::keybd::type::keypress)
                 {
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.vkchord);
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.chchord);
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.scchord);
+                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.vkchord);
+                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.chchord);
+                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.scchord);
                 }
-                return !gear.handled;
             }
             void proc(qiew name, func proc)
             {

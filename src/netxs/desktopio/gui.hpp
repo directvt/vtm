@@ -1652,10 +1652,8 @@ namespace netxs::gui
                     lock.thing.set(gear);
                     lock.thing.sendfx([&](auto block)
                     {
-                        if (proc(block))
-                        {
-                            intio.send(block);
-                        }
+                        proc(block);
+                        intio.send(block);
                     });
                 }
             };
@@ -2844,13 +2842,13 @@ namespace netxs::gui
         {
             gear.handled = {};
             gear.touched = {};
+            wkeybd.filter(gear);
             stream.keybd(gear, [&](view block)
             {
                 if (mfocus.active())
                 {
                     keybd_send_block(block); // Send multifocus events.
                 }
-                return wkeybd.filter<tier::preview>(gear);
             });
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
@@ -3072,10 +3070,9 @@ namespace netxs::gui
                         stream.m.ctlstat = keymod;
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
-                        if (wkeybd.filter<tier::preview>(gear))
-                        {
-                            stream.keybd(gear);
-                        }
+                        gear.touched = {};
+                        wkeybd.filter(gear);
+                        stream.keybd(gear);
                     }
                 }
                 else command = 0;
