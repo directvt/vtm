@@ -4,7 +4,6 @@
 #pragma once
 
 #include "canvas.hpp"
-#include "quartz.hpp"
 
 namespace netxs::xml
 {

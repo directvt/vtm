@@ -1168,7 +1168,7 @@ namespace netxs::ui
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
+            LISTEN(tier::release, hids::events::keybd::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (!gear.handled)
                 {

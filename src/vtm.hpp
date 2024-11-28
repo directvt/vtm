@@ -1976,7 +1976,7 @@ namespace netxs::app::vtm
                 hall::focus = gear.id;
             };
             //todo mimic pro::focus
-            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
+            LISTEN(tier::release, hids::events::keybd::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
             {
                 if (!gear.handled)
                 {

@@ -44,7 +44,7 @@ namespace netxs::datetime
     // quartz: Return current moment.
     auto now()
     {
-        return std::chrono::steady_clock::now();
+        return std::chrono::steady_clock::now(); // Note: steady_clock does not contain the current time (it is a monotonic clock).
     }
     auto breakdown(span t)
     {
@@ -54,6 +54,16 @@ namespace netxs::datetime
         auto seconds      = datetime::round<ui32, std::chrono::     seconds>(t -= std::chrono::minutes{ minutes });
         auto milliseconds = datetime::round<ui32, std::chrono::milliseconds>(t -= std::chrono::seconds{ seconds });
         return std::tuple{ days, hours, minutes, seconds, milliseconds };
+    }
+    auto breakdown(time t)
+    {
+        auto d = t.time_since_epoch();
+        auto hours        = datetime::round<ui32, std::chrono::       hours>(d);
+        auto minutes      = datetime::round<ui32, std::chrono::     minutes>(d -= std::chrono::       hours{ hours        });
+        auto seconds      = datetime::round<ui32, std::chrono::     seconds>(d -= std::chrono::     minutes{ minutes      });
+        auto milliseconds = datetime::round<ui32, std::chrono::milliseconds>(d -= std::chrono::     seconds{ seconds      });
+        auto microseconds = datetime::round<ui32, std::chrono::microseconds>(d -= std::chrono::milliseconds{ milliseconds });
+        return std::tuple{ hours % 24, minutes, seconds, milliseconds, microseconds };
     }
     auto milliseconds(time t)
     {
