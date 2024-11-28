@@ -1425,12 +1425,11 @@ namespace netxs::ui
                         else if (node_type != mode::relay) // Send key::post event back.
                         {
                             auto parent_ptr = boss.This();
-                            do
+                            while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                             {
                                 parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
                                 parent_ptr = parent_ptr->parent();
                             }
-                            while (!gear.handled && parent_ptr);
                         }
                     }
                 };
@@ -1947,47 +1946,34 @@ namespace netxs::ui
                 }
                 return _get_chord_list();
             }
-            template<si32 Tier>
-            void _dispatch(hids& gear, qiew chord)
+            auto _proceed(hids& gear, auto iter)
+            {
+                auto& [procs, run_preview] = iter->second;
+                std::erase_if(procs, [&](auto& rec)
+                {
+                    auto& [proc_wptr, args_ptr] = rec;
+                    auto proc_ptr = proc_wptr.lock();
+                    if (proc_ptr)
+                    {
+                        if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
+                    }
+                    return !proc_ptr;
+                });
+                if (procs.empty()) handlers.erase(iter);
+            }
+            void _dispatch(hids& gear, bool preview_mode, qiew chord)
             {
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
-                    auto& [procs, preview] = iter->second;
-                    if constexpr (Tier == tier::preview)
+                    auto& [procs, run_preview] = iter->second;
+                    if (!preview_mode || run_preview)
                     {
-                        if (preview)
-                        {
-                            std::erase_if(procs, [&](auto& rec)
-                            {
-                                auto& [proc_wptr, args_ptr] = rec;
-                                auto proc_ptr = proc_wptr.lock();
-                                if (proc_ptr)
-                                {
-                                    if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
-                                }
-                                return !proc_ptr;
-                            });
-                            if (procs.empty()) handlers.erase(iter);
-                        }
-                        else
-                        {
-                            gear.touched = true;
-                        }
+                        _proceed(gear, iter);
                     }
                     else
                     {
-                        std::erase_if(procs, [&](auto& rec)
-                        {
-                            auto& [proc_wptr, args_ptr] = rec;
-                            auto proc_ptr = proc_wptr.lock();
-                            if (proc_ptr)
-                            {
-                                if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
-                            }
-                            return !proc_ptr;
-                        });
-                        if (procs.empty()) handlers.erase(iter);
+                        gear.touched = true;
                     }
                 }
             }
@@ -2006,7 +1992,7 @@ namespace netxs::ui
                     {
                         focusable_parent->LISTEN(tier::release, hids::events::die, gear, tokens)
                         {
-                            last_key[gear.id] = {};
+                            last_key.erase(gear.id);
                         };
                         focusable_parent->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
                         {
@@ -2017,10 +2003,10 @@ namespace netxs::ui
                                 if (gear.payload == input::keybd::type::keypress)
                                 {
                                     interrupt_key_proc = faux;
-                                    if (!gear.handled) _dispatch<tier::release>(gear, input::key::kmap::any_key);
-                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.vkchord);
-                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.chchord);
-                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.scchord);
+                                    if (!gear.handled) _dispatch(gear, faux, input::key::kmap::any_key);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.vkchord);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.chchord);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.scchord);
                                 }
                             }
                             else
@@ -2032,10 +2018,10 @@ namespace netxs::ui
                         {
                             if (gear.payload == input::keybd::type::keypress)
                             {
-                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
-                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
-                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
-                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
                             }
                         };
                     }
@@ -2048,9 +2034,9 @@ namespace netxs::ui
             {
                 if (gear.payload == input::keybd::type::keypress)
                 {
-                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
-                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
-                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
                 }
             }
             void proc(qiew name, func proc)
