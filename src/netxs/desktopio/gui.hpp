@@ -2839,6 +2839,7 @@ namespace netxs::gui
         {
             gear.handled = {};
             gear.touched = {};
+            gear.timecod = datetime::now();
             wkeybd.filter(gear);
             stream.keybd(gear, [&](view block)
             {

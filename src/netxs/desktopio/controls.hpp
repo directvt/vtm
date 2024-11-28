@@ -1908,6 +1908,7 @@ namespace netxs::ui
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             subs tokens;
             bool interrupt_key_proc;
+            std::unordered_map<id_t, time> last_key;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -1997,21 +1998,34 @@ namespace netxs::ui
                 : skill{ boss },
                   interrupt_key_proc{ faux }
             {
+
                 boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
                 {
                     tokens.clear();
                     if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                     {
+                        focusable_parent->LISTEN(tier::release, hids::events::die, gear, tokens)
+                        {
+                            last_key[gear.id] = {};
+                        };
                         focusable_parent->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
                         {
-                            //todo check digest
-                            if (gear.payload == input::keybd::type::keypress)
+                            auto& timecod = last_key[gear.id];
+                            if (gear.timecod > timecod)
                             {
-                                interrupt_key_proc = faux;
-                                if (!gear.handled) _dispatch<tier::release>(gear, input::key::kmap::any_key);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.vkchord);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.chchord);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.scchord);
+                                timecod = gear.timecod;
+                                if (gear.payload == input::keybd::type::keypress)
+                                {
+                                    interrupt_key_proc = faux;
+                                    if (!gear.handled) _dispatch<tier::release>(gear, input::key::kmap::any_key);
+                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.vkchord);
+                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.chchord);
+                                    if (!gear.handled) _dispatch<tier::release>(gear, gear.scchord);
+                                }
+                            }
+                            else
+                            {
+                                gear.set_handled();
                             }
                         };
                         focusable_parent->LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)

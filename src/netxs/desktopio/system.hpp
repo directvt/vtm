@@ -5083,7 +5083,6 @@ namespace netxs::os
                     if (count == 0) continue;
                     items.resize(count);
                     if (!::ReadConsoleInputW(os::stdin_fd, items.data(), count, &count)) break;
-                    auto timecode = datetime::now();
                     auto head = items.begin();
                     auto tail = items.end();
                     while (alive && head != tail)
@@ -5109,7 +5108,7 @@ namespace netxs::os
                                 m.hzwheel = faux;
                                 m.wheelfp = 0;
                                 m.wheelsi = 0;
-                                m.timecod = timecode;
+                                m.timecod = datetime::now();
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
@@ -5223,7 +5222,7 @@ namespace netxs::os
                             if (changed || wheeldt) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
-                                m.timecod = timecode;
+                                m.timecod = datetime::now();
                                 mouse(m);
                             }
                         }
@@ -6052,7 +6051,14 @@ namespace netxs::os
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            auto keybd = [&](auto& data){ if (alive)                proxy.syskeybd.send(intio, data); };
+            auto keybd = [&](auto& data)
+            {
+                if (alive)
+                {
+                    data.timecod = datetime::now();
+                    proxy.syskeybd.send(intio, data);
+                }
+            };
             auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
             auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };

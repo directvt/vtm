@@ -1168,6 +1168,7 @@ namespace netxs::input
 
         id_t gear_id{};
         si32 ctlstat{};
+        time timecod{};
         si32 keystat{};
         si32 virtcod{};
         si32 scancod{};
