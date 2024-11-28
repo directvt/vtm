@@ -1127,10 +1127,7 @@ namespace netxs::ui
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
             auto bindings = keybd.load(config, "tui");
-            for (auto& r : bindings)
-            {
-                keybd.bind(r.chord, r.actions, r.mode);
-            }
+            keybd.bind(bindings);
 
             base::root(true);
             base::limits(dot_11);

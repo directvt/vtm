@@ -1952,10 +1952,27 @@ namespace netxs::ui
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
-                    auto& [procs, raw_mode] = iter->second;
+                    auto& [procs, preview] = iter->second;
                     if constexpr (Tier == tier::preview)
                     {
-                        gear.touched = raw_mode ? 2 : 1;
+                        if (preview)
+                        {
+                            std::erase_if(procs, [&](auto& rec)
+                            {
+                                auto& [proc_wptr, args_ptr] = rec;
+                                auto proc_ptr = proc_wptr.lock();
+                                if (proc_ptr)
+                                {
+                                    if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
+                                }
+                                return !proc_ptr;
+                            });
+                            if (procs.empty()) handlers.erase(iter);
+                        }
+                        else
+                        {
+                            gear.touched = true;
+                        }
                     }
                     else
                     {
@@ -2001,10 +2018,10 @@ namespace netxs::ui
                         {
                             if (gear.payload == input::keybd::type::keypress)
                             {
-                                if (!gear.touched) _dispatch<tier::preview>(gear, gear.vkchord);
-                                if (!gear.touched) _dispatch<tier::preview>(gear, gear.chchord);
-                                if (!gear.touched) _dispatch<tier::preview>(gear, gear.scchord);
-                                if (!gear.touched) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
+                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
+                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
+                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
+                                if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
                             }
                         };
                     }
@@ -2017,16 +2034,16 @@ namespace netxs::ui
             {
                 if (gear.payload == input::keybd::type::keypress)
                 {
-                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.vkchord);
-                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.chchord);
-                    if (!gear.touched) _dispatch<tier::preview>(gear, gear.scchord);
+                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
+                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
+                    if (!gear.touched && !gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
                 }
             }
             void proc(qiew name, func proc)
             {
                 api_map[name] = ptr::shared(std::move(proc));
             }
-            auto bind(qiew chord_str, auto&& proc_names, bool raw_mode = faux)
+            auto bind(qiew chord_str, auto&& proc_names, bool preview = faux)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
@@ -2043,7 +2060,7 @@ namespace netxs::ui
                                 {
                                     auto& r = handlers[chord];
                                     r.first.emplace_back(handler_ptr, args_ptr);
-                                    r.second = raw_mode;
+                                    r.second = preview;
                                 }
                             }
                             else log("%%Action '%proc%' not found", prompt::user, proc_name);
@@ -2071,6 +2088,13 @@ namespace netxs::ui
                     }
                 }
             }
+            auto bind(auto& bindings)
+            {
+                for (auto& r : bindings)
+                {
+                    bind(r.chord, r.actions, r.preview);
+                }
+            }
             static auto load(xmls& config, qiew section)
             {
                 auto bindings = input::key::keybind_list_t{};
@@ -2081,11 +2105,11 @@ namespace netxs::ui
                     for (auto keybind_ptr : keybinds)
                     {
                         auto chord = keybind_ptr->take_value();
-                        auto chord_mode = keybind_ptr->take("raw", faux);
+                        auto preview = keybind_ptr->take("preview", faux);
                         auto action_ptr_list = keybind_ptr->list("action");
-                        bindings.push_back({ .chord = chord, .mode = chord_mode });
+                        bindings.push_back({ .chord = chord, .preview = preview });
                         auto& rec = bindings.back();
-                        if constexpr (debugmode) log("chord=%% raw=%%", chord, chord_mode);
+                        //if constexpr (debugmode) log("chord=%% preview=%%", chord, preview);
                         for (auto action_ptr : action_ptr_list)
                         {
                             rec.actions.push_back({ .action = action_ptr->take_value() });

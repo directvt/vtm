@@ -7774,10 +7774,7 @@ namespace netxs::ui
             chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             chords.proc("ExclusiveKeyboardMode",        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             auto bindings = chords.load(xml_config, "terminal");
-            for (auto& r : bindings)
-            {
-                chords.bind(r.chord, r.actions, r.mode);
-            }
+            chords.bind(bindings);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
@@ -7832,7 +7829,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
-                if (gear.touched > 0 && (!rawkbd || gear.touched == 2) && gear.keystat != input::key::released) return;
+                if (gear.touched && !rawkbd && gear.keystat != input::key::released) return;
                 switch (gear.payload)
                 {
                     case keybd::type::keypress:

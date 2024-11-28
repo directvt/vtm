@@ -890,7 +890,7 @@ namespace netxs::directvt
                                         (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
-                                        (si32, touched)  // syskeybd: Key event is touched.
+                                        (bool, touched)  // syskeybd: Key event is touched.
                                         (si32, keycode)  // syskeybd: Key id.
                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                         (text, scchord)  // sysmouse: Key scancode-based chord.

@@ -330,7 +330,7 @@ Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bi
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord | ... | Another+Key+Chord" [ raw="on | off" ]>
+<key="Key+Chord | ... | Another+Key+Chord" [ preview ]>
     <action="NameOfAction1" data="argument"/>
     ...
     <action="NameOfActionN" data="argument"/>
@@ -341,7 +341,7 @@ Tag      | Value
 ---------|--------
 `key`    | The text string containing the key combinations.
 `action` | The action name.
-`raw`    | Force hotkey action to be processed in exclusive keyboard mode. Default is `off`.
+`preview`| A Boolean value specifying that hotkey actions should be processed while traversing the focus tree until the target object is reached (ignoring keyboard exclusive mode). Default is `off`.
 `data`   | The arguments passed to the action.
 
 The following joiners are allowed for combining keys:
@@ -864,11 +864,11 @@ Notes
             <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
             <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
             <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
         <terminal key*>  <!-- Application specific layer key bindings. -->
-            <key="Ctrl-Alt | Alt-Ctrl" raw="on" action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->

@@ -2004,10 +2004,7 @@ namespace netxs::gui
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/, txts&){ whlacc = {}; });
             wkeybd.bind("-Ctrl", "_ResetWheelAccumulator");
             wkeybd.bind("-Ctrl", "_ResetWheelAccumulator");
-            for (auto& r : hotkeys)
-            {
-                wkeybd.bind(r.chord, r.actions, r.mode);
-            }
+            wkeybd.bind(hotkeys);
         }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;

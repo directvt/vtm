@@ -710,7 +710,7 @@ namespace netxs::input
                 txts args;
             };
             text chord;
-            bool mode{};
+            bool preview{};
             std::vector<action_t> actions;
         };
         using keybind_list_t = std::vector<keybind_t>;
@@ -1166,20 +1166,20 @@ namespace netxs::input
 
         si32 nullkey = key::Key2;
 
-        si32 ctlstat{};
         id_t gear_id{};
-        text cluster{};
-        byte payload{}; // keybd: Payload type.
-        bool extflag{};
+        si32 ctlstat{};
         si32 keystat{};
-        bool handled{};
-        si32 touched{};
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        bool extflag{};
+        bool handled{};
+        bool touched{};
+        text cluster{};
         text vkchord{};
         text scchord{};
         text chchord{};
+        byte payload{}; // keybd: Payload type.
 
         auto doinput()
         {

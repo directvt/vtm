@@ -748,10 +748,7 @@ namespace netxs::app::vtm
             keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
             keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); gear.set_handled(); });
             auto bindings = keybd.load(config, "desktop");
-            for (auto& r : bindings)
-            {
-                keybd.bind(r.chord, r.actions, r.mode);
-            }
+            keybd.bind(bindings);
 
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
             {
