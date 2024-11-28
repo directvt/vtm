@@ -2002,8 +2002,8 @@ namespace netxs::gui
             wkeybd.proc("RollFontsBackward"     , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::rev);  });
             wkeybd.proc("RollFontsForward"      , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::fwd);  });
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/, txts&){ whlacc = {}; });
-            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator");
-            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator");
+            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
+            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
             wkeybd.bind(hotkeys);
         }
 
