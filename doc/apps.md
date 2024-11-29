@@ -156,7 +156,7 @@ List of hotkeys defined in the default configuration.
 
 Hotkey                       | Description
 -----------------------------|------------
-`Ctrl-Alt | Alt-Ctrl`        | Win32: Toggle exclusive keyboard mode.
+`Ctrl-Alt \| Alt-Ctrl`       | Win32: Toggle exclusive keyboard mode.
 `Alt=Shift+B`                | Unix: Toggle exclusive keyboard mode.
 `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
