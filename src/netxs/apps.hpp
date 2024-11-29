@@ -603,19 +603,24 @@ namespace netxs::app::shared
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
             auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
+            auto rawkbd_ptr = ptr::shared(faux);
+            auto& rawkbd = *rawkbd_ptr;
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (state = faux))
+                    boss.LISTEN(tier::release, ui::term::events::rawkbd, state, -, (rawkbd_ptr))
                     {
-                        state = !state;
-                        boss.set(state ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
-                                       : ansi::bgc(reddk).fgx(0)        .add("█off "));
-                        //todo set Exclusive keyboard mode
+                        rawkbd = !rawkbd;
+                        boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
+                                        : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::release, ui::term::events::rawkbd);
                         gear.dismiss_dblclick();
                     };
                 });
@@ -730,13 +735,28 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
+                auto& state_inst = *state_state;
                 auto& keybd = boss.template plugins<pro::keybd>();
                 app::shared::base_kb_navigation(keybd, scroll, boss);
                 keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear, txts&)
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
+                    if (rawkbd) gear.set_handled();
                 });
-                keybd.bind( "Any", "UpdateChordPreview");
+                keybd.proc("ExclusiveKeyboardMode", [&, update_ptr](hids& gear, txts&)
+                {
+                    state_inst.bell::signal(tier::release, ui::term::events::rawkbd);
+                    if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
+                    gear.set_handled();
+                });
+                keybd.bind("Any", "UpdateChordPreview");
+                keybd.bind(
+                    #if defined(WIN32)
+                    "Ctrl-Alt | Alt-Ctrl"
+                    #else
+                    "Alt+Shift+B"
+                    #endif
+                    , "ExclusiveKeyboardMode", true);
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

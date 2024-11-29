@@ -122,20 +122,18 @@ namespace netxs::app::shared
                 gear.set_handled();
             }
         });
-        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& gear, txts&)
+        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, true) != *esc_pressed)
             {
                 boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
-                gear.set_handled();
             }
         });
-        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& gear, txts&)
+        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/, txts&)
         {
             if (std::exchange(*esc_pressed, faux) != *esc_pressed)
             {
                 boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
-                gear.set_handled(); 
             }
         });
         keybd.proc("ScrollPageUp"    , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
@@ -150,11 +148,10 @@ namespace netxs::app::shared
         keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
         keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
 
-        //todo revise (preview/release)
-        keybd.bind( "Esc", "DropAutoRepeat"    );
-        keybd.bind( "Esc", "WindowClosePreview");
-        keybd.bind("-Esc", "WindowClose"       );
-        keybd.bind( "Any", "CancelWindowClose" );
+        keybd.bind( "Esc", "DropAutoRepeat"    , true);
+        keybd.bind( "Esc", "WindowClosePreview", true);
+        keybd.bind("-Esc", "WindowClose"       , true);
+        keybd.bind( "Any", "CancelWindowClose" , true);
 
         keybd.bind("PageUp"    , "ScrollPageUp"    );
         keybd.bind("PageDown"  , "ScrollPageDown"  );
