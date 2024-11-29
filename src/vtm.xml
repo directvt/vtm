@@ -322,8 +322,8 @@ R"==(
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode label=" Keys0 " data="off">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="on"/>
+            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
