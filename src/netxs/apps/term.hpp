@@ -122,10 +122,6 @@ namespace netxs::app::terminal
             item.select(i);
             _update(boss, item);
         }
-        auto _update_to(ui::item& boss, menu::item& item, text utf8)
-        {
-            _update_to(boss, item, qiew::hash{}(utf8));
-        }
         template<bool AutoUpdate = faux, class P>
         auto _submit(ui::item& boss, menu::item& item, P proc)
         {
