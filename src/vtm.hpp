@@ -2025,7 +2025,7 @@ namespace netxs::app::vtm
                 auto& counter = switch_counter[gear_id];
                 auto deed = this->bell::protos(tier::request);
                 auto forward = deed == e2::form::layout::focus::next.id;
-                if (forward != counter > 0) counter = {}; // Reset if direction has changed.
+                if (forward != (counter > 0)) counter = {}; // Reset if direction has changed.
                 forward ? counter++ : counter--;
                 if (std::abs(counter) >= (si32)items.size())
                 {
