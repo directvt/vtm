@@ -1908,6 +1908,7 @@ namespace netxs::ui
             subs tokens;
             bool interrupt_key_proc;
             std::unordered_map<id_t, time> last_key;
+            si64 instance_id;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -1973,7 +1974,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        gear.touched = true;
+                        gear.touched = instance_id;
                     }
                 }
             }
@@ -1982,7 +1983,8 @@ namespace netxs::ui
             keybd(base&&) = delete;
             keybd(base& boss)
                 : skill{ boss },
-                  interrupt_key_proc{ faux }
+                  interrupt_key_proc{ faux },
+                  instance_id{ datetime::now().time_since_epoch().count() }
             {
 
                 boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
@@ -1996,6 +1998,7 @@ namespace netxs::ui
                         };
                         focusable_parent->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
                         {
+                            gear.shared_event = gear.touched && gear.touched != instance_id;
                             auto& timecod = last_key[gear.id];
                             if (gear.timecod > timecod)
                             {
@@ -2016,6 +2019,7 @@ namespace netxs::ui
                         };
                         focusable_parent->LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
                         {
+                            gear.shared_event = gear.touched && gear.touched != instance_id;
                             if (gear.payload == input::keybd::type::keypress)
                             {
                                 if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);

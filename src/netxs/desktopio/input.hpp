@@ -1175,7 +1175,7 @@ namespace netxs::input
         si32 keycode{};
         bool extflag{};
         bool handled{};
-        bool touched{};
+        si64 touched{};
         text cluster{};
         text vkchord{};
         text scchord{};
@@ -1500,6 +1500,8 @@ namespace netxs::input
 
         id_t user_index; // hids: User/Device image/icon index.
         kmap other_key; // hids: Dynamic key-vt mapping.
+
+        bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
 
         template<class T>
         hids(auth& indexer, T& props, base& owner, core const& idmap)

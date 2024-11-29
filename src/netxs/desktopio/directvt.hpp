@@ -891,7 +891,7 @@ namespace netxs::directvt
                                         (byte, payload)  // syskeybd: Payload type.
                                         (bool, extflag)  // syskeybd: Win32 extflag.
                                         (bool, handled)  // syskeybd: Key event is handled.
-                                        (bool, touched)  // syskeybd: Key event is touched.
+                                        (si64, touched)  // syskeybd: Key event is touched.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                         (text, scchord)  // sysmouse: Key scancode-based chord.

@@ -209,12 +209,18 @@ namespace netxs::events::userland
                     EVENT_XS( appear  , twod        ), // Fly to the specified coords.
                     EVENT_XS( swarp   , const dent  ), // preview: Do form swarping.
                     GROUP_XS( go      , ui::sptr    ), // preview: Do form swarping.
+                    GROUP_XS( focus   , id_t        ),
 
                     SUBSET_XS( go )
                     {
                         EVENT_XS( next , ui::sptr ), // request: Proceed request for available objects (next).
                         EVENT_XS( prev , ui::sptr ), // request: Proceed request for available objects (prev).
                         EVENT_XS( item , ui::sptr ), // request: Proceed request for available objects (current).
+                    };
+                    SUBSET_XS( focus )
+                    {
+                        EVENT_XS( next , id_t ), // request: Ask to switch focus to the next window.
+                        EVENT_XS( prev , id_t ), // request: Ask to switch focus to the prev window.
                     };
                 };
                 SUBSET_XS( upon )

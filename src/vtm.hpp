@@ -878,12 +878,19 @@ namespace netxs::app::vtm
         void focus_next_window(hids& gear, feed forward)
         {
             auto down = forward == feed::fwd;
+            if (gear.shared_event) // Give another process a chance to handle this event.
+            {
+                auto gear_id = gear.id;
+                down ? this->base::riseup(tier::request, e2::form::layout::focus::next, gear_id)
+                     : this->base::riseup(tier::request, e2::form::layout::focus::prev, gear_id);
+                if (!gear_id) return;
+            }
+
             if (align.what.applet)
             {
                 align.unbind();
             }
-            auto window_ptr = e2::form::layout::go::item.param();
-            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+            auto window_ptr = this->base::riseup(tier::request, e2::form::layout::go::item); // Take current window.
             if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
 
             auto current = window_ptr; 
@@ -1257,6 +1264,7 @@ namespace netxs::app::vtm
         pool async; // hall: Thread pool for parallel task execution.
         id_t focus; // hall: Last active gear id.
         text selected_item; // hall: Override default menu item (if not empty).
+        std::unordered_map<id_t, si32> switch_counter; // hall: Focus switch counter.
 
         static auto window(link& what)
         {
@@ -1865,9 +1873,9 @@ namespace netxs::app::vtm
                     prev = prev_ptr->object;
                 }
             };
-            LISTEN(tier::request, e2::form::layout::go::item, item)
+            LISTEN(tier::request, e2::form::layout::go::item, current_item)
             {
-                if (items) item = items.back();
+                if (items) current_item = items.back();
             };
             LISTEN(tier::request, desk::events::exec, appspec)
             {
@@ -2006,6 +2014,23 @@ namespace netxs::app::vtm
                         seed.item = this->This();
                         gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
                     }
+                }
+            };
+            LISTEN(tier::release, hids::events::focus::any, seed) // Reset the focus switch counter when it is focused from outside.
+            {
+                switch_counter[seed.gear_id] = {};
+            };
+            LISTEN(tier::request, e2::form::layout::focus::any, gear_id)
+            {
+                auto& counter = switch_counter[gear_id];
+                auto deed = this->bell::protos(tier::request);
+                auto forward = deed == e2::form::layout::focus::next.id;
+                if (forward != counter > 0) counter = {}; // Reset if direction has changed.
+                forward ? counter++ : counter--;
+                if (std::abs(counter) >= (si32)items.size())
+                {
+                    counter = {};
+                    gear_id = {};
                 }
             };
             LISTEN(tier::release, scripting::events::invoke, script)
