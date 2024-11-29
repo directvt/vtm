@@ -104,7 +104,7 @@ Value                        | Arguments (`data=`)           | Description
 -----------------------------|-------------------------------|------------
 Noop                         |                               | Ignore all events for the specified key combination. No further processing.
 DropAutoRepeat               |                               | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-SwitchHotkeyScheme           | _`Scheme name`_               | Switch the hotkey scheme to the specified one.
+ExclusiveKeyboardMode        |                               | Toggle exclusive keyboard mode.
 TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><terminal cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
 TerminalAlignMode            | `left` \| `right` \| `center` | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
@@ -156,7 +156,8 @@ List of hotkeys defined in the default configuration.
 
 Hotkey                       | Description
 -----------------------------|------------
-`Ctrl-Alt | Alt-Ctrl`        | Toggle hotkey scheme between `Keys0` and `Keys1`.
+`Ctrl-Alt \| Alt-Ctrl`       | Win32: Toggle exclusive keyboard mode.
+`Alt=Shift+B`                | Unix: Toggle exclusive keyboard mode.
 `Alt+RightArrow`             | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 `Alt+LeftArrow`              | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 `Shift+Ctrl+PageUp`          | Scroll one page up.
@@ -196,12 +197,12 @@ Hotkey                       | Description
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Option" action=SwitchHotkeyScheme label=" Keys0 " data="">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
+            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
                 <tooltip>
-                    " Toggle hotkey scheme                          \n"
-                    "   Alternative hotkey scheme allows keystrokes \n"
-                    "   to be passed through without processing     "
+                    " Toggle exclusive keyboard mode              \n"
+                    "   Exclusive keyboard mode allows keystrokes \n"
+                    "   to be passed through without processing   "
                 </tooltip>
             </item>
             <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
@@ -308,16 +309,13 @@ Hotkey                       | Description
     <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
         <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <terminal key*>
+            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Alt+RightArrow"            action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"             action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
             <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Ctrl+PageUp"   scheme="1"><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Ctrl+PageDown" scheme="1"><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
             <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
             <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
             <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->

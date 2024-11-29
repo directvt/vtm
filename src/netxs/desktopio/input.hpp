@@ -21,8 +21,7 @@ namespace netxs::events::userland
 
             SUBSET_XS( keybd )
             {
-                EVENT_XS( scheme, input::hids ),
-                GROUP_XS( key   , input::hids ),
+                GROUP_XS( key, input::hids ),
 
                 SUBSET_XS( key )
                 {
@@ -711,7 +710,7 @@ namespace netxs::input
                 txts args;
             };
             text chord;
-            text scheme;
+            bool preview{};
             std::vector<action_t> actions;
         };
         using keybind_list_t = std::vector<keybind_t>;
@@ -1167,20 +1166,21 @@ namespace netxs::input
 
         si32 nullkey = key::Key2;
 
-        si32 ctlstat{};
         id_t gear_id{};
-        text cluster{};
-        byte payload{}; // keybd: Payload type.
-        bool extflag{};
+        si32 ctlstat{};
+        time timecod{};
         si32 keystat{};
-        bool handled{};
         si32 virtcod{};
         si32 scancod{};
         si32 keycode{};
+        bool extflag{};
+        bool handled{};
+        si64 touched{};
+        text cluster{};
         text vkchord{};
         text scchord{};
         text chchord{};
-        text hscheme{};
+        byte payload{}; // keybd: Payload type.
 
         auto doinput()
         {
@@ -1501,6 +1501,8 @@ namespace netxs::input
         id_t user_index; // hids: User/Device image/icon index.
         kmap other_key; // hids: Dynamic key-vt mapping.
 
+        bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
+
         template<class T>
         hids(auth& indexer, T& props, base& owner, core const& idmap)
             : bell{ indexer },
@@ -1659,23 +1661,9 @@ namespace netxs::input
         {
             nodbl = true;
         }
-        void set_handled(bool b = true)
+        void set_handled()
         {
-            if (keybd::keystat == input::key::released) // Don't stop the key release event, just break the chord processing.
-            {
-                keybd::vkchord.clear();
-                keybd::scchord.clear();
-                keybd::chchord.clear();
-            }
-            else
-            {
-                handled = b;
-            }
-        }
-        void set_hotkey_scheme(qiew scheme)
-        {
-            keybd::hscheme = scheme;
-            owner.bell::signal(tier::preview, hids::events::keybd::scheme, *this);
+            keybd::handled = true;
         }
 
         void take(sysfocus& f)
@@ -1875,7 +1863,6 @@ namespace netxs::input
         }
         void fire_keybd()
         {
-            alive = true;
             owner.bell::signal(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_board()

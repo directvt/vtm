@@ -4,7 +4,6 @@
 #pragma once
 
 #include "canvas.hpp"
-#include "quartz.hpp"
 
 #include <mutex>
 #include <array>

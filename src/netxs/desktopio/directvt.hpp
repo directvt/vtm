@@ -861,7 +861,6 @@ namespace netxs::directvt
                                         (si32, whlsi)
                                         (bool, hzwhl)
                                         (fp2d, click))
-        STRUCT_macro(hotkey_scheme,     (id_t, gear_id) (text, hscheme))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
@@ -884,27 +883,28 @@ namespace netxs::directvt
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
-                                        (bool, extflag)  // syskeybd: Win32 extflag.
-                                        (byte, payload)  // syskeybd: Payload type.
+                                        (time, timecod)  // syskeybd: Event time code.
                                         (si32, virtcod)  // syskeybd: Key virtual code.
                                         (si32, scancod)  // syskeybd: Scancode.
                                         (si32, keystat)  // syskeybd: Key state: unknown, pressed, repeated, released.
-                                        (text, cluster)  // syskeybd: Generated string.
-                                        (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)  // syskeybd: Key id.
+                                        (byte, payload)  // syskeybd: Payload type.
+                                        (bool, extflag)  // syskeybd: Win32 extflag.
+                                        (bool, handled)  // syskeybd: Key event is handled.
+                                        (si64, touched)  // syskeybd: Key event is touched.
+                                        (text, cluster)  // syskeybd: Generated string.
                                         (text, vkchord)  // sysmouse: Key virtcode-based chord.
                                         (text, scchord)  // sysmouse: Key scancode-based chord.
-                                        (text, chchord)  // sysmouse: Key virtcode+cluster-based chord.
-                                        (text, hscheme)) // sysmouse: Current hotkey scheme.
+                                        (text, chchord)) // sysmouse: Key virtcode+cluster-based chord.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (si32, ctlstat)  // sysmouse: Keybd modifiers.
+                                        (time, timecod)  // sysmouse: Event time code.
                                         (si32, enabled)  // sysmouse: Mouse device health status.
                                         (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, hzwheel)  // sysmouse: If true: Horizontal scroll wheel. If faux: Vertical scroll wheel.
                                         (fp32, wheelfp)  // sysmouse: Scroll delta in floating units.
                                         (si32, wheelsi)  // sysmouse: Scroll delta in integer units.
                                         (fp2d, coordxy)  // sysmouse: Pixel-wise cursor coordinates.
-                                        (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
@@ -1411,7 +1411,6 @@ namespace netxs::directvt
             X(mouse_event      ) /* Mouse events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(hotkey_scheme    ) /* Request hotkey scheme to set.                 */\
             X(fullscrn         ) /* Notify/Request to fullscreen.                 */\
             X(maximize         ) /* Request to maximize window.                   */\
             X(header           ) /* Set window title.                             */\

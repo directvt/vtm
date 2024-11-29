@@ -330,7 +330,7 @@ Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bi
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord | ... | Another+Key+Chord" scheme="scheme_name"> <!-- scheme="" can be omitted.  -->
+<key="Key+Chord | ... | Another+Key+Chord" [ preview ]>
     <action="NameOfAction1" data="argument"/>
     ...
     <action="NameOfActionN" data="argument"/>
@@ -340,8 +340,8 @@ The syntax for defining key combination bindings is:
 Tag      | Value
 ---------|--------
 `key`    | The text string containing the key combinations.
-`scheme` | Hotkey scheme name for which mapping is being done (empty string by default).
 `action` | The action name.
+`preview`| A Boolean value specifying that hotkey actions should be processed while traversing the focus tree until the target object is reached (ignoring keyboard exclusive mode). Default is `off`.
 `data`   | The arguments passed to the action.
 
 The following joiners are allowed for combining keys:
@@ -372,7 +372,6 @@ Configuration record                                           | Interpretation
 `<key="Key+Chord" action=NameOfAction/>`                       | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
 `<key="Key+Chord | Another+Chord" action=NameOfAction/>`       | Append existing bindings for `Key+Chord | Another+Chord`.
 `<key="Key+Chord" action="NameOfAction"/>`                     | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action="NameOfAction" scheme="1"/>`          | Append existing bindings for scheme="1".
 `<key="Key+Chord" action=""/>`                                 | Remove all existing bindings for the specified key combination "Key+Chord".
 `<key="Key+Chord"><action="NameOfAction" data="param"/></key>` | Append existing bindings with the directly specified command "NameOfAction" with arguments "param".
 `<key=""          action="NameOfAction"/>`                     | Do nothing.
@@ -391,12 +390,12 @@ Action                         | Arguments (`data=`)                            
 `RollFontsBackward`            |                                                        | Native GUI window   | Roll font list backward.
 `RollFontsForward`             |                                                        | Native GUI window   | Roll font list forward.
 `ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
-`SwitchHotkeyScheme`           | _`Scheme name`_                                        | TUI matrix,<br>Window menu | Switch the hotkey scheme to the specified one.
 `FocusPrevWindow`              |                                                        | Desktop             | Switch focus to the next desktop window.
 `FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
 `Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
 `RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
 `TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
+`ExclusiveKeyboardMode`        | `on` \| `off`                                          | Application         | Toggle exclusive keyboard mode.
 `TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 `TerminalFindPrev`             |                                                        | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 `TerminalScrollViewportByPage` | _`IntX, IntY`_                                         | Application         | Scroll viewport by _`IntX, IntY`_ pages.
@@ -774,12 +773,12 @@ Notes
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
             </item>
-            <item type="Option" action=SwitchHotkeyScheme label=" Keys0 " data="">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Keys1 \e[m" data="1"/>
+            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
                 <tooltip>
-                    " Toggle hotkey scheme                          \n"
-                    "   Alternative hotkey scheme allows keystrokes \n"
-                    "   to be passed through without processing     "
+                    " Toggle exclusive keyboard mode              \n"
+                    "   Exclusive keyboard mode allows keystrokes \n"
+                    "   to be passed through without processing   "
                 </tooltip>
             </item>
             <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
@@ -860,17 +859,16 @@ Notes
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme=""><action=SwitchHotkeyScheme data="1"/></key>  <!-- Switch the hotkey scheme to "1" by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            <key="Ctrl-Alt | Alt-Ctrl" scheme="1"><action=SwitchHotkeyScheme data=""/></key>  <!-- Switch the hotkey scheme to default by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
             <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
             <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10"           action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
         <terminal key*>  <!-- Application specific layer key bindings. -->
+            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->

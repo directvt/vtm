@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "intmath.hpp"
+#include "quartz.hpp"
 #include "unidata.hpp"
 
 #include <string>
@@ -1954,6 +1954,15 @@ namespace netxs::utf
             else break;
         }
         return qiew{ utf8.substr(0, crop) };
+    }
+    auto& operator << (std::ostream& s, time const& o)
+    {
+        auto [hours, mins, secs, milli, micro] = datetime::breakdown(o);
+        return s << utf::adjust(std::to_string(hours), 2, '0', true) << ':'
+                 << utf::adjust(std::to_string(mins ), 2, '0', true) << ':'
+                 << utf::adjust(std::to_string(secs ), 2, '0', true) << '.'
+                 << utf::adjust(std::to_string(milli), 3, '0', true)
+                 << utf::adjust(std::to_string(micro), 3, '0', true);
     }
     void print2(auto& input, view& format)
     {

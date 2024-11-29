@@ -209,12 +209,18 @@ namespace netxs::events::userland
                     EVENT_XS( appear  , twod        ), // Fly to the specified coords.
                     EVENT_XS( swarp   , const dent  ), // preview: Do form swarping.
                     GROUP_XS( go      , ui::sptr    ), // preview: Do form swarping.
+                    GROUP_XS( focus   , id_t        ),
 
                     SUBSET_XS( go )
                     {
                         EVENT_XS( next , ui::sptr ), // request: Proceed request for available objects (next).
                         EVENT_XS( prev , ui::sptr ), // request: Proceed request for available objects (prev).
                         EVENT_XS( item , ui::sptr ), // request: Proceed request for available objects (current).
+                    };
+                    SUBSET_XS( focus )
+                    {
+                        EVENT_XS( next , id_t ), // request: Ask to switch focus to the next window.
+                        EVENT_XS( prev , id_t ), // request: Ask to switch focus to the prev window.
                     };
                 };
                 SUBSET_XS( upon )
@@ -429,12 +435,11 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
-                        EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
-                        EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
-                        EVENT_XS( check   , bool               ), // anycast: Check any focus.
-                        EVENT_XS( scheme  , text               ), // release: Hotkey scheme id.
-                        GROUP_XS( command , si32               ), // release: Hotkey command preview.
+                        EVENT_XS( enlist   , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
+                        EVENT_XS( find     , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( next     , ui::focus_test_t   ), // request: Next hop count.
+                        EVENT_XS( check    , bool               ), // anycast: Check any focus.
+                        GROUP_XS( command  , si32               ), // release: Hotkey command preview.
 
                         SUBSET_XS( command )
                         {
@@ -819,6 +824,7 @@ namespace netxs::ui
         //          base::raw_riseup(tier::preview, e2::form::prop::ui::header, txt);
         void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
+            //todo make it flat
             auto lock = bell::sync();
             bell::signal(Tier, event_id, param);
             if (forced)

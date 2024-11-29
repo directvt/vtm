@@ -1652,10 +1652,8 @@ namespace netxs::gui
                     lock.thing.set(gear);
                     lock.thing.sendfx([&](auto block)
                     {
-                        if (proc(block))
-                        {
-                            intio.send(block);
-                        }
+                        proc(block);
+                        intio.send(block);
                     });
                 }
             };
@@ -1820,24 +1818,12 @@ namespace netxs::gui
                     pro::focus::off(owner_ptr, f.gear_id);
                 }
             }
-            void handle(s11n::xs::hotkey_scheme    lock)
-            {
-                auto k = lock.thing;
-                lock.unlock();
-                auto guard = owner.sync();
-                if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
-                {
-                    owner.scheme = k.hscheme;
-                    owner.window_post_command(ipc::sync_state);
-                }
-            }
             void handle(s11n::xs::syskeybd         lock)
             {
                 auto keybd = lock.thing;
                 lock.unlock();
                 auto guard = owner.sync();
                 auto& gear = *gears;
-                gear.alive = true;
                 keybd.syncto(gear);
                 owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
             };
@@ -1976,8 +1962,6 @@ namespace netxs::gui
         regs  fields; // winbase: Text input field list.
         evnt  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
-        text  scheme; // winbase: Current hotkey scheme.
-        bool  drykey; // winbase: Hotkey scheme should be sent as soon as possible.
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, input::key::keybind_list_t& hotkeys)
             : base{ indexer },
@@ -2008,8 +1992,7 @@ namespace netxs::gui
               heldby{ 0x0 },
               whlacc{ 0.f },
               wdelta{ 24.f },
-              stream{ *this, *os::dtvt::client },
-              drykey{ faux }
+              stream{ *this, *os::dtvt::client }
         {
             wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(1.f); });
             wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(-1.f);});
@@ -2019,13 +2002,9 @@ namespace netxs::gui
             wkeybd.proc("RollFontsBackward"     , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::rev);  });
             wkeybd.proc("RollFontsForward"      , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::fwd);  });
             wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/, txts&){ whlacc = {}; });
-            //todo use scheme="*"
-            wkeybd.bind<tier::preview>("-Ctrl", "" , "_ResetWheelAccumulator");
-            wkeybd.bind<tier::preview>("-Ctrl", "1", "_ResetWheelAccumulator");
-            for (auto& r : hotkeys)
-            {
-                wkeybd.bind<tier::preview>(r.chord, r.scheme, r.actions);
-            }
+            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
+            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
+            wkeybd.bind(hotkeys);
         }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
@@ -2858,42 +2837,20 @@ namespace netxs::gui
         }
         void stream_keybd(hids& gear)
         {
-            gear.handled = faux;
+            gear.handled = {};
+            gear.touched = {};
+            gear.timecod = datetime::now();
+            wkeybd.filter(gear);
             stream.keybd(gear, [&](view block)
             {
                 if (mfocus.active())
                 {
                     keybd_send_block(block); // Send multifocus events.
                 }
-                return wkeybd.filter<tier::preview>(gear);
             });
         }
         void keybd_send_state(si32 virtcod = {}, si32 keystat = {}, si32 scancod = {}, bool extflag = {}, view cluster = {}, bool synth = faux)
         {
-            if (virtcod == 0 && drykey) // Send empty key to update hotkey scheme state if it is changed.
-            {
-                drykey = faux;
-                auto& gear = *stream.gears;
-                gear.hscheme = scheme;
-                auto temp = syskeybd{}; //todo same code in system.hpp:4918
-                std::swap(temp.vkchord, gear.vkchord);
-                std::swap(temp.scchord, gear.scchord);
-                std::swap(temp.chchord, gear.chchord);
-                std::swap(temp.cluster, gear.cluster);
-                std::swap(temp.keystat, gear.keystat);
-                gear.virtcod = 0;
-                gear.scancod = 0;
-                gear.keycode = 0;
-                gear.payload = input::keybd::type::keypress;
-                stream_keybd(gear);
-                std::swap(temp.vkchord, gear.vkchord);
-                std::swap(temp.scchord, gear.scchord);
-                std::swap(temp.chchord, gear.chchord);
-                std::swap(temp.cluster, gear.cluster);
-                std::swap(temp.keystat, gear.keystat);
-                return;
-            }
-
             auto state = 0;
             auto cs = 0;
             if (extflag) cs |= input::key::ExtendedKey;
@@ -2990,7 +2947,6 @@ namespace netxs::gui
             gear.keystat = keystat;
             gear.keycode = keycode;
             gear.cluster = cluster;
-            gear.hscheme = scheme;
             auto repeat_ctrl = keystat == input::key::repeated && (virtcod == vkey::shift    || virtcod == vkey::control || virtcod == vkey::alt
                                                                 || virtcod == vkey::capslock || virtcod == vkey::numlock || virtcod == vkey::scrllock
                                                                 || virtcod == vkey::lwin     || virtcod == vkey::rwin);
@@ -3112,10 +3068,9 @@ namespace netxs::gui
                         stream.m.ctlstat = keymod;
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
-                        if (wkeybd.filter<tier::preview>(gear))
-                        {
-                            stream.keybd(gear);
-                        }
+                        gear.touched = {};
+                        wkeybd.filter(gear);
+                        stream.keybd(gear);
                     }
                 }
                 else command = 0;
@@ -3305,11 +3260,6 @@ namespace netxs::gui
                     auto deed = this->bell::protos(tier::release);
                     auto state = deed == hids::events::focus::set.id;
                     stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type);
-                    if (state)
-                    {
-                        drykey = true; // Trigger to send a hotkey scheme packet.
-                        window_post_command(ipc::sync_state);
-                    }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
                 {
@@ -3797,7 +3747,7 @@ namespace netxs::gui
             {
                 //log("\t", rect{{ update_area.left, update_area.top }, { update_area.right - update_area. left, update_area.bottom - update_area.top }});
                 auto ok = ::UpdateLayeredWindowIndirect((HWND)s.hWnd, &update_info);
-                if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
+                if constexpr (debugmode) if (!ok) log("%%UpdateLayeredWindowIndirect call failed", prompt::gui);
             };
             //static auto clr = 0; clr++;
             for (auto r : s.sync)

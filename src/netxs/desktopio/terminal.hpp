@@ -15,6 +15,7 @@ namespace netxs::events::userland
             EVENT_XS( selmod, si32 ),
             EVENT_XS( onesht, si32 ),
             EVENT_XS( selalt, si32 ),
+            EVENT_XS( rawkbd, bool ),
             GROUP_XS( toggle, bool ),
             GROUP_XS( colors, argb ),
             GROUP_XS( layout, si32 ),
@@ -82,6 +83,7 @@ namespace netxs::ui
                 enum commands : si32
                 {
                     center,
+                    toggleraw,
                     togglewrp,
                     togglejet,
                     togglesel,
@@ -6527,6 +6529,7 @@ namespace netxs::ui
         eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
+        bool       rawkbd; // term: Exclusive keyboard access.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Place rectangle block to the scrollback buffer.
@@ -7452,6 +7455,12 @@ namespace netxs::ui
             console.brush.reset(brush);
             bell::signal(tier::release, ui::term::events::colors::fg, fg);
         }
+        void set_rawkbd(si32 state = {})
+        {
+            if (!state) rawkbd = !rawkbd;
+            else        rawkbd = state - 1;
+            bell::signal(tier::release, ui::term::events::rawkbd, rawkbd);
+        }
         void set_wrapln(si32 wrapln = {})
         {
             target->selection_setwrp((wrap)wrapln);
@@ -7496,6 +7505,7 @@ namespace netxs::ui
             auto& console = *target;
             switch (cmd)
             {
+                case commands::ui::toggleraw:    set_rawkbd();                        break;
                 case commands::ui::togglewrp:    console.selection_setwrp();          break;
                 case commands::ui::togglejet:    console.selection_setjet();          break;
                 case commands::ui::togglesel:    selection_selmod();                  break;
@@ -7711,7 +7721,8 @@ namespace netxs::ui
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
               kbmode{ prot::vt },
-              ime_on{  faux }
+              ime_on{  faux }, 
+              rawkbd{  faux }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
@@ -7725,6 +7736,7 @@ namespace netxs::ui
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::onesht,         [&](auto& v){ v = onesht; });
             publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });
+            publish_property(ui::term::events::rawkbd,         [&](auto& v){ v = rawkbd; });
             publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
             publish_property(ui::term::events::colors::fg,     [&](auto& v){ v = target->brush.fgc(); });
             publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = (si32)target->style.wrp(); });
@@ -7760,11 +7772,9 @@ namespace netxs::ui
             chords.proc("TerminalOutput",               [&](hids& gear, txts& args){ gear.set_handled(); if (args.size()) data_in(args.front()); });
             chords.proc("TerminalAlignMode",            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
             chords.proc("TerminalWrapMode",             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
+            chords.proc("ExclusiveKeyboardMode",        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             auto bindings = chords.load(xml_config, "terminal");
-            for (auto& r : bindings)
-            {
-                chords.bind<tier::release>(r.chord, r.scheme, r.actions);
-            }
+            chords.bind(bindings);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
@@ -7817,12 +7827,12 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear)
+            LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
+                if (gear.touched && !rawkbd && gear.keystat != input::key::released) return;
                 switch (gear.payload)
                 {
                     case keybd::type::keypress:
-                        if (gear.handled) break; // Don't pass registered keyboard shortcuts.
                         if (config.resetonkey && gear.doinput())
                         {
                             this->base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
@@ -7831,6 +7841,7 @@ namespace netxs::ui
                             follow[axis::Y] = true;
                         }
                         ipccon.keybd(gear, decckm, kbmode);
+                        if (!gear.touched || gear.keystat != input::key::released) gear.set_handled();
                         break;
                     case keybd::type::imeinput:
                     case keybd::type::keypaste:
@@ -8054,19 +8065,6 @@ namespace netxs::ui
                     }
                 }
             }
-            void handle(s11n::xs::hotkey_scheme       lock)
-            {
-                auto k = lock.thing;
-                lock.unlock();
-                if (owner.active)
-                {
-                    auto guard = owner.sync();
-                    if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
-                    {
-                        gear_ptr->set_hotkey_scheme(k.hscheme);
-                    }
-                }
-            }
             void handle(s11n::xs::syskeybd            lock)
             {
                 auto k = lock.thing;
@@ -8075,18 +8073,10 @@ namespace netxs::ui
                 {
                     auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        //todo should we use temp gear object here?
-                        gear.alive = true;
                         k.syncto(gear);
-                        do
-                        {
-                            parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
-                            parent_ptr = parent_ptr->parent();
-                        }
-                        while (gear && parent_ptr);
+                        owner.base::riseup(tier::release, hids::events::keybd::key::post, gear);
                     }
                 }
             };
@@ -8437,7 +8427,7 @@ namespace netxs::ui
                 auto state = deed == hids::events::focus::set.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
             };
-            LISTEN(tier::release, hids::events::keybd::key::any, gear)
+            LISTEN(tier::preview, hids::events::keybd::key::any, gear)
             {
                 gear.gear_id = gear.id;
                 stream.syskeybd.send(*this, gear);

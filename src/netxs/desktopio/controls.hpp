@@ -1204,7 +1204,6 @@ namespace netxs::ui
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
             bool scope; // focus: Cutoff threshold for focus branch.
             umap gears; // focus: Registered gears.
-            text hotkey_scheme; // focus: Current hotkey scheme.
             si32 node_type; // focus: .
 
             void signal_state()
@@ -1255,10 +1254,6 @@ namespace netxs::ui
                 }
                 return iter->second;
             }
-            void hotkey_scheme_notify()
-            {
-                boss.bell::signal(tier::release, e2::form::state::keybd::scheme, hotkey_scheme);
-            }
             void notify_set_focus(auto& route, auto& seed)
             {
                 route.active = true;
@@ -1266,11 +1261,6 @@ namespace netxs::ui
                 {
                     boss.bell::signal(tier::release, e2::form::state::focus::on, seed.gear_id);
                     signal_state();
-                    if (auto gear_ptr = boss.bell::getref<hids>(seed.gear_id)) // Notify about current gear hotkey scheme.
-                    {
-                        hotkey_scheme = gear_ptr->hscheme;
-                        hotkey_scheme_notify();
-                    }
                 }
             }
             void notify_off_focus(auto& route, auto& seed)
@@ -1419,34 +1409,27 @@ namespace netxs::ui
                     }
                     gear.dismiss();
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::scheme, scheme, memo)
-                {
-                    scheme = hotkey_scheme;
-                };
                 // pro::focus: Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
-                    if (!gear) return;
-                    if (gear.payload == input::keybd::type::keypress && hotkey_scheme != gear.hscheme) // Notify if hotkey scheme has changed.
-                    {
-                        hotkey_scheme = gear.hscheme;
-                        hotkey_scheme_notify();
-                    }
                     auto& route = get_route(gear.id);
                     if (route.active)
                     {
-                        auto alive = gear.alive;
-                        auto accum = alive;
-                        route.foreach([&](auto& nexthop)
+                        if (route.next.size())
                         {
-                            nexthop->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
-                            accum &= gear.alive;
-                            gear.alive = alive;
-                        });
-                        gear.alive = accum;
-                        if (accum)
+                            route.foreach([&](auto& nexthop)
+                            {
+                                nexthop->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
+                            });
+                        }
+                        else if (node_type != mode::relay) // Send key::post event back.
                         {
-                            boss.bell::signal(tier::release, hids::events::keybd::key::post, gear);
+                            auto parent_ptr = boss.This();
+                            while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
+                            {
+                                parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
+                                parent_ptr = parent_ptr->parent();
+                            }
                         }
                     }
                 };
@@ -1920,10 +1903,12 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, netxs::sptr<txts>>>, qiew::hash, qiew::equal>> handlers_preview;
-            std::unordered_map<text, std::unordered_map<text, std::list<std::pair<wptr, netxs::sptr<txts>>>, qiew::hash, qiew::equal>> handlers_release;
+            std::unordered_map<text, std::pair<std::list<std::pair<wptr, netxs::sptr<txts>>>, bool>, qiew::hash, qiew::equal> handlers;
             std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
             subs tokens;
+            bool interrupt_key_proc;
+            std::unordered_map<id_t, time> last_key;
+            si64 instance_id;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -1962,100 +1947,107 @@ namespace netxs::ui
                 }
                 return _get_chord_list();
             }
-            template<si32 Tier = tier::release>
-            auto _set(auto& chords, sptr handler_ptr, qiew scheme, auto args_ptr)
+            auto _proceed(hids& gear, auto iter)
             {
-                auto& handlers = Tier == tier::release ? handlers_release[scheme] : handlers_preview[scheme];
-                for (auto& chord : chords)
+                auto& [procs, run_preview] = iter->second;
+                std::erase_if(procs, [&](auto& rec)
                 {
-                    handlers[chord].emplace_back(handler_ptr, args_ptr);
-                }
+                    auto& [proc_wptr, args_ptr] = rec;
+                    auto proc_ptr = proc_wptr.lock();
+                    if (proc_ptr)
+                    {
+                        if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
+                    }
+                    return !proc_ptr;
+                });
+                if (procs.empty()) handlers.erase(iter);
             }
-            template<si32 Tier = tier::release>
-            auto _reset(auto& chords, qiew scheme)
+            void _dispatch(hids& gear, bool preview_mode, qiew chord)
             {
-                auto& handlers = Tier == tier::release ? handlers_release[scheme] : handlers_preview[scheme];
-                for (auto& chord : chords)
-                {
-                    handlers[chord].clear();
-                }
-            }
-            template<si32 Tier = tier::release>
-            void _dispatch(hids& gear, qiew chord)
-            {
-                auto& handlers = Tier == tier::release ? handlers_release[gear.hscheme] : handlers_preview[gear.hscheme];
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
-                    auto& procs = iter->second;
-                    std::erase_if(procs, [&](auto& rec)
+                    auto& [procs, run_preview] = iter->second;
+                    if (!preview_mode || run_preview)
                     {
-                        auto& proc_wptr = rec.first;
-                        auto& args_ptr = rec.second;
-                        auto proc_ptr = proc_wptr.lock();
-                        if (proc_ptr)
-                        {
-                            if (!gear.handled) (*proc_ptr)(gear, *args_ptr);
-                        }
-                        return !proc_ptr;
-                    });
-                    if (procs.empty()) handlers.erase(iter);
+                        _proceed(gear, iter);
+                    }
+                    else
+                    {
+                        gear.touched = instance_id;
+                    }
                 }
             }
 
         public:
             keybd(base&&) = delete;
             keybd(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  interrupt_key_proc{ faux },
+                  instance_id{ datetime::now().time_since_epoch().count() }
             {
+
                 boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
                 {
                     tokens.clear();
                     if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                     {
-                        focusable_parent->LISTEN(tier::release, hids::events::keybd::key::post, gear, tokens)
+                        focusable_parent->LISTEN(tier::release, hids::events::die, gear, tokens)
                         {
-                            if (gear.payload == input::keybd::type::keypress)
+                            last_key.erase(gear.id);
+                        };
+                        focusable_parent->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
+                        {
+                            gear.shared_event = gear.touched && gear.touched != instance_id;
+                            auto& timecod = last_key[gear.id];
+                            if (gear.timecod > timecod)
                             {
-                                if (!gear.handled) _dispatch<tier::release>(gear, input::key::kmap::any_key);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.vkchord);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.chchord);
-                                if (!gear.handled) _dispatch<tier::release>(gear, gear.scchord);
+                                timecod = gear.timecod;
+                                if (gear.payload == input::keybd::type::keypress)
+                                {
+                                    interrupt_key_proc = faux;
+                                    if (!gear.handled) _dispatch(gear, faux, input::key::kmap::any_key);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.vkchord);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.chchord);
+                                    if (!gear.handled) _dispatch(gear, faux, gear.scchord);
+                                }
+                            }
+                            else
+                            {
+                                gear.set_handled();
                             }
                         };
                         focusable_parent->LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
                         {
+                            gear.shared_event = gear.touched && gear.touched != instance_id;
                             if (gear.payload == input::keybd::type::keypress)
                             {
-                                if (!gear.handled) _dispatch<tier::preview>(gear, gear.vkchord);
-                                if (!gear.handled) _dispatch<tier::preview>(gear, gear.chchord);
-                                if (!gear.handled) _dispatch<tier::preview>(gear, gear.scchord);
-                                if (!gear.handled) _dispatch<tier::preview>(gear, input::key::kmap::any_key);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
+                                if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
                             }
                         };
                     }
                 };
-                proc("Noop",           [](hids& gear, txts&){ gear.set_handled(); });
-                proc("DropAutoRepeat", [](hids& gear, txts&){ if (gear.keystat == input::key::repeated) gear.set_handled(); });
+                proc("Noop",           [&](hids& gear, txts&){ gear.set_handled(); interrupt_key_proc = true; });
+                proc("DropAutoRepeat", [&](hids& gear, txts&){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
             }
 
-            template<si32 Tier = tier::release>
             auto filter(hids& gear)
             {
                 if (gear.payload == input::keybd::type::keypress)
                 {
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.vkchord);
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.chchord);
-                    if (!gear.handled) _dispatch<Tier>(gear, gear.scchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
+                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
                 }
-                return !gear.handled;
             }
             void proc(qiew name, func proc)
             {
                 api_map[name] = ptr::shared(std::move(proc));
             }
-            template<si32 Tier = tier::release>
-            auto bind(qiew chord_str, qiew scheme, auto&& proc_names)
+            auto bind(qiew chord_str, auto&& proc_names, bool preview = faux)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
@@ -2067,14 +2059,22 @@ namespace netxs::ui
                         {
                             if (auto iter = api_map.find(proc_name); iter != api_map.end())
                             {
-                                auto handle_ptr = iter->second;
-                                _set<Tier>(chords, handle_ptr, scheme, args_ptr);
+                                auto handler_ptr = iter->second;
+                                for (auto& chord : chords)
+                                {
+                                    auto& r = handlers[chord];
+                                    r.first.emplace_back(handler_ptr, args_ptr);
+                                    r.second = preview;
+                                }
                             }
                             else log("%%Action '%proc%' not found", prompt::user, proc_name);
                         }
                         else
                         {
-                            _reset<Tier>(chords, scheme);
+                            for (auto& chord : chords)
+                            {
+                                handlers.erase(chord);
+                            }
                         }
                     };
                     if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a plain string.
@@ -2092,6 +2092,13 @@ namespace netxs::ui
                     }
                 }
             }
+            auto bind(auto& bindings)
+            {
+                for (auto& r : bindings)
+                {
+                    bind(r.chord, r.actions, r.preview);
+                }
+            }
             static auto load(xmls& config, qiew section)
             {
                 auto bindings = input::key::keybind_list_t{};
@@ -2102,11 +2109,11 @@ namespace netxs::ui
                     for (auto keybind_ptr : keybinds)
                     {
                         auto chord = keybind_ptr->take_value();
-                        auto scheme = keybind_ptr->take("scheme", ""s);
+                        auto preview = keybind_ptr->take("preview", faux);
                         auto action_ptr_list = keybind_ptr->list("action");
-                        bindings.push_back({ .chord = chord, .scheme = scheme });
+                        bindings.push_back({ .chord = chord, .preview = preview });
                         auto& rec = bindings.back();
-                        //if constexpr (debugmode) log("chord=%% scheme=%%", chord, scheme);
+                        //if constexpr (debugmode) log("chord=%% preview=%%", chord, preview);
                         for (auto action_ptr : action_ptr_list)
                         {
                             rec.actions.push_back({ .action = action_ptr->take_value() });

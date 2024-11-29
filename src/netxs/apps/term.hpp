@@ -24,6 +24,7 @@ namespace netxs::events::userland
                 EVENT_XS( wrapln   , si32 ),
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
+                EVENT_XS( rawkbd   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
 
@@ -45,6 +46,7 @@ namespace netxs::events::userland
                 EVENT_XS( wrapln   , si32 ),
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
+                EVENT_XS( rawkbd   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
 
@@ -119,10 +121,6 @@ namespace netxs::app::terminal
         {
             item.select(i);
             _update(boss, item);
-        }
-        auto _update_to(ui::item& boss, menu::item& item, text utf8)
-        {
-            _update_to(boss, item, qiew::hash{}(utf8));
         }
         template<bool AutoUpdate = faux, class P>
         auto _submit(ui::item& boss, menu::item& item, P proc)
@@ -208,7 +206,7 @@ namespace netxs::app::terminal
 
             #define proc_list \
                 X(Noop                        ) /* */ \
-                X(SwitchHotkeyScheme          ) /* */ \
+                X(ExclusiveKeyboardMode       ) /* */ \
                 X(TerminalQuit                ) /* */ \
                 X(TerminalCwdSync             ) /* */ \
                 X(TerminalFullscreen          ) /* */ \
@@ -274,23 +272,16 @@ namespace netxs::app::terminal
                 using release = terminal::events::release;
 
                 static void Noop(ui::item& /*boss*/, menu::item& /*item*/) { }
-                static void SwitchHotkeyScheme(ui::item& boss, menu::item& item)
+                static void ExclusiveKeyboardMode(ui::item& boss, menu::item& item)
                 {
-                    item.reindex<text>([](auto& utf8){ return xml::take_or<text>(utf8, ""s); });
-                    _submit<true>(boss, item, [](auto& /*boss*/, auto& item, auto& gear)
+                    item.reindex([](auto& utf8){ return xml::take_or<bool>(utf8, faux); });
+                    _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        gear.set_handled();
-                        gear.set_hotkey_scheme(item.views[item.taken].data);
+                        boss.bell::signal(tier::anycast, preview::rawkbd, item.views[item.taken].value);
                     });
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (hook_ptr = ptr::shared<hook>()))
+                    boss.LISTEN(tier::anycast, release::rawkbd, state)
                     {
-                        if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
-                        {
-                            focusable_parent->LISTEN(tier::release, e2::form::state::keybd::scheme, hscheme, (*hook_ptr))
-                            {
-                                _update_to(boss, item, hscheme);
-                            };
-                        }
+                        _update_to(boss, item, state);
                     };
                 }
                 static void TerminalWrapMode(ui::item& boss, menu::item& item)
@@ -696,6 +687,10 @@ namespace netxs::app::terminal
         {
             boss.set_selalt(selbox);
         };
+        boss.LISTEN(tier::anycast, terminal::events::preview::rawkbd, rawkbd)
+        {
+            boss.set_rawkbd(rawkbd + 1);
+        };
         boss.LISTEN(tier::anycast, terminal::events::preview::wrapln, wrapln)
         {
             boss.set_wrapln(wrapln);
@@ -1033,6 +1028,7 @@ namespace netxs::app::terminal
             ->attach_property(ui::term::events::selmod,          terminal::events::release::selection::mode)
             ->attach_property(ui::term::events::onesht,          terminal::events::release::selection::shot)
             ->attach_property(ui::term::events::selalt,          terminal::events::release::selection::box)
+            ->attach_property(ui::term::events::rawkbd,          terminal::events::release::rawkbd)
             ->attach_property(ui::term::events::io_log,          terminal::events::release::io_log)
             ->attach_property(ui::term::events::layout::wrapln,  terminal::events::release::wrapln)
             ->attach_property(ui::term::events::layout::align,   terminal::events::release::align)
