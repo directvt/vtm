@@ -837,7 +837,7 @@ namespace netxs::app::tile
                     menu::list
                     {
                         { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .tooltip = " Launch application instances in active empty slots.     \n"
-                                                                                                                                     " The app to run can be set by RightClick on the taskbar. " }}},
+                                                                                                                               " The app to run can be set by RightClick on the taskbar. " }}},
                         [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
