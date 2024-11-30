@@ -530,10 +530,10 @@ namespace netxs::app::shared
             auto [menu_block, cover, menu_data] = menu::mini(faux, faux, 1,
             menu::list
             {
-                { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},
+                { menu::item{ menu::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},
                 [](auto& /*boss*/, auto& /*item*/)
                 { }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close ", .hover = c1 }}},
+                { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close ", .hover = c1 }}},
                 [window, c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());

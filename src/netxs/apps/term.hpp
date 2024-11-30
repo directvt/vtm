@@ -125,7 +125,7 @@ namespace netxs::app::terminal
         template<bool AutoUpdate = faux, class P>
         auto _submit(ui::item& boss, menu::item& item, P proc)
         {
-            if (item.brand == menu::item::Repeat)
+            if (item.type == menu::type::Repeat)
             {
                 auto& tick = boss.plugins<pro::timer>();
                 boss.LISTEN(tier::release, hids::events::mouse::button::down::left, gear, -, (proc))
@@ -185,7 +185,7 @@ namespace netxs::app::terminal
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)
                     {
-                        if (item.brand == menu::item::Option) _update_gear(boss, item, gear);
+                        if (item.type == menu::type::Option) _update_gear(boss, item, gear);
                     }
                     gear.nodbl = true;
                 };
@@ -198,81 +198,20 @@ namespace netxs::app::terminal
 
             auto menudata = config.list(attr::menuitems);
 
-            static auto brand_options = std::unordered_map<text, menu::item::type>
-               {{ menu::type::Splitter, menu::item::Splitter },
-                { menu::type::Command,  menu::item::Command  },
-                { menu::type::Option,   menu::item::Option   },
-                { menu::type::Repeat,   menu::item::Repeat   }};
+            static auto type_options = std::unordered_map<text, si32>
+               {{ "Splitter", menu::type::Splitter },
+                { "Command",  menu::type::Command  },
+                { "Option",   menu::type::Option   },
+                { "Repeat",   menu::type::Repeat   }};
 
-            #define proc_list \
-                X(Noop                        ) /* */ \
-                X(ExclusiveKeyboardMode       ) /* */ \
-                X(TerminalQuit                ) /* */ \
-                X(TerminalCwdSync             ) /* */ \
-                X(TerminalFullscreen          ) /* */ \
-                X(TerminalMaximize            ) /* */ \
-                X(TerminalMinimize            ) /* */ \
-                X(TerminalRestart             ) /* */ \
-                X(TerminalSendKey             ) /* */ \
-                X(TerminalWrapMode            ) /* */ \
-                X(TerminalAlignMode           ) /* */ \
-                X(TerminalOutput              ) /* */ \
-                X(TerminalFindNext            ) /* */ \
-                X(TerminalFindPrev            ) /* */ \
-                X(TerminalUndo                ) /* Undo/Redo for cooked read on win32 */ \
-                X(TerminalRedo                ) /* */ \
-                X(TerminalClipboardCopy       ) /* */ \
-                X(TerminalClipboardPaste      ) /* */ \
-                X(TerminalClipboardWipe       ) /* */ \
-                X(TerminalClipboardFormat     ) /* */ \
-                X(TerminalSelectionRect       ) /* Linear/Rectangular */ \
-                X(TerminalSelectionCancel     ) /* */ \
-                X(TerminalSelectionOneShot    ) /* One-shot toggle to copy text while mouse tracking is active */ \
-                X(TerminalScrollViewportByPage) /* */ \
-                X(TerminalScrollViewportByCell) /* */ \
-                X(TerminalScrollViewportToTop ) /* */ \
-                X(TerminalScrollViewportToEnd ) /* */ \
-                X(TerminalViewportCopy        ) /* */ \
-                X(TerminalStdioLog            ) /* */ \
-                X(TerminalLogStart            ) /* */ \
-                X(TerminalLogPause            ) /* */ \
-                X(TerminalLogStop             ) /* */ \
-                X(TerminalLogAbort            ) /* */ \
-                X(TerminalLogRestart          ) /* */ \
-                X(TerminalVideoRecStart       ) /* */ \
-                X(TerminalVideoRecStop        ) /* */ \
-                X(TerminalVideoRecPause       ) /* */ \
-                X(TerminalVideoRecAbort       ) /* */ \
-                X(TerminalVideoRecRestart     ) /* */ \
-                X(TerminalVideoPlay           ) /* */ \
-                X(TerminalVideoPause          ) /* */ \
-                X(TerminalVideoStop           ) /* */ \
-                X(TerminalVideoForward        ) /* */ \
-                X(TerminalVideoBackward       ) /* */ \
-                X(TerminalVideoHome           ) /* */ \
-                X(TerminalVideoEnd            ) /* */
+            using term = ui::term;
+            using preview = terminal::events::preview;
+            using release = terminal::events::release;
 
-            enum func
+            static const auto proc_map = std::unordered_map<text, std::function<void(ui::item&, menu::item&)>, qiew::hash, qiew::equal>
             {
-                #define X(_proc) _proc,
-                proc_list
-                #undef X
-            };
-
-            static const auto route_options = std::unordered_map<text, func>
-            {
-                #define X(_proc) { #_proc, func::_proc },
-                proc_list
-                #undef X
-            };
-
-            struct disp
-            {
-                using preview = terminal::events::preview;
-                using release = terminal::events::release;
-
-                static void Noop(ui::item& /*boss*/, menu::item& /*item*/) { }
-                static void ExclusiveKeyboardMode(ui::item& boss, menu::item& item)
+                { term::action::Noop, [](ui::item& /*boss*/, menu::item& /*item*/){ } }, 
+                { term::action::ExclusiveKeyboardMode, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take_or<bool>(utf8, faux); });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -283,8 +222,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, state);
                     };
-                }
-                static void TerminalWrapMode(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalWrapMode, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value() ? wrap::on : wrap::off; });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -295,8 +234,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, wrapln);
                     };
-                }
-                static void TerminalAlignMode(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalAlignMode, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::align, utf8, bias::left); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -307,8 +246,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, align);
                     };
-                }
-                static void TerminalFindPrev(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalFindPrev, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
@@ -319,8 +258,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, (status & 2) ? 1 : 0);
                     };
-                }
-                static void TerminalFindNext(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalFindNext, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
@@ -331,92 +270,92 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, (status & 1) ? 1 : 0);
                     };
-                }
-                static void TerminalOutput(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalOutput, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].data });
                     });
-                }
-                static void TerminalSendKey(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalSendKey, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].data });
                     });
-                }
-                static void TerminalQuit(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalQuit, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
                     });
-                }
-                static void TerminalFullscreen(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalFullscreen, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     });
-                }
-                static void TerminalMaximize(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalMaximize, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     });
-                }
-                static void TerminalMinimize(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalMinimize, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.base::riseup(tier::release, e2::form::size::minimize, gear);
                     });
-                }
-                static void TerminalRestart(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalRestart, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::restart);
                     });
-                }
-                static void TerminalUndo(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalUndo, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::undo);
                     });
-                }
-                static void TerminalRedo(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalRedo, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::redo);
                     });
-                }
-                static void TerminalClipboardPaste(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalClipboardPaste, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::paste, gear);
                     });
-                }
-                static void TerminalClipboardWipe(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalClipboardWipe, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& /*boss*/, auto& /*item*/, auto& gear)
                     {
                         gear.clear_clipboard();
                     });
-                }
-                static void TerminalClipboardCopy(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalClipboardCopy, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::copy, gear);
                     });
-                }
-                static void TerminalClipboardFormat(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalClipboardFormat, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -427,8 +366,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, mode);
                     };
-                }
-                static void TerminalSelectionOneShot(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalSelectionOneShot, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -439,8 +378,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, mode);
                     };
-                }
-                static void TerminalSelectionRect(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalSelectionRect, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -451,52 +390,52 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, selbox);
                     };
-                }
-                static void TerminalSelectionCancel(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalSelectionCancel, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::deselect);
                     });
-                }
-                static void TerminalViewportCopy(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalViewportCopy, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
                         boss.bell::signal(tier::anycast, terminal::events::data::prnscrn, gear);
                     });
-                }
-                static void TerminalScrollViewportByPage(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalScrollViewportByPage, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::v, { .vector = delta });
                     });
-                }
-                static void TerminalScrollViewportByCell(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalScrollViewportByCell, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::v, { .vector = delta });
                     });
-                }
-                static void TerminalScrollViewportToTop(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalScrollViewportToTop, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_top::y);
                     });
-                }
-                static void TerminalScrollViewportToEnd(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalScrollViewportToEnd, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
                         boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_end::y);
                     });
-                }
-                static void TerminalStdioLog(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalStdioLog, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -507,8 +446,8 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, state);
                     };
-                }
-                static void TerminalCwdSync(ui::item& boss, menu::item& item)
+                }},
+                { term::action::TerminalCwdSync, [](ui::item& boss, menu::item& item)
                 {
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
@@ -519,84 +458,76 @@ namespace netxs::app::terminal
                     {
                         _update_to(boss, item, state);
                     };
-                }
-                static void TerminalLogStart(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalLogStart, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalLogPause(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalLogPause, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalLogStop(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalLogStop, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalLogAbort(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalLogAbort, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalLogRestart(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalLogRestart, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoRecStart(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoRecStart, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoRecStop(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoRecStop, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoRecPause(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoRecPause, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoRecAbort(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoRecAbort, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoRecRestart(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoRecRestart, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoPlay(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoPlay, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoPause(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoPause, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoStop(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoStop, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoForward(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoForward, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoBackward(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoBackward, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoHome(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoHome, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
-                static void TerminalVideoEnd(ui::item& /*boss*/, menu::item& /*item*/)
+                }},
+                { term::action::TerminalVideoEnd, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
-                }
+                }},
             };
-            using submit_proc = std::function<void(ui::item&, menu::item&)>;
-            static const auto proc_map = std::unordered_map<func, submit_proc>
-            {
-                #define X(_proc) { func::_proc, &disp::_proc },
-                proc_list
-                #undef X
-            };
-            #undef proc_list
 
             auto list = menu::list{};
             auto defs = menu::item::look{};
@@ -604,11 +535,11 @@ namespace netxs::app::terminal
             {
                 auto item = menu::item{};
                 auto& data = *data_ptr;
-                auto route = data.take(menu::attr::route, func::Noop,          route_options);
-                item.brand = data.take(menu::attr::brand, menu::item::Command, brand_options);
+                auto action = data.take(menu::attr::action, ""s);
+                item.type = data.take(menu::attr::type, menu::type::Command, type_options);
                 defs.tooltip = data.take(menu::attr::tooltip, ""s);
                 defs.data = data.take(menu::attr::data, ""s);
-                item.alive = route != func::Noop && item.brand != menu::item::Splitter;
+                item.alive = !action.empty() && item.type != menu::type::Splitter;
                 for (auto label : data.list(menu::attr::label))
                 {
                     item.views.push_back(
@@ -619,17 +550,21 @@ namespace netxs::app::terminal
                     });
                 }
                 if (item.views.empty()) continue; // Menu item without label.
-                auto setup = [route](ui::item& boss, menu::item& item)
+                auto setup = [action](ui::item& boss, menu::item& item)
                 {
-                    if (item.brand == menu::item::Option)
+                    if (item.type == menu::type::Option)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
                             item.taken = (item.taken + 1) % item.views.size();
                         };
                     }
-                    auto& initproc = proc_map.find(route)->second;
-                    initproc(boss, item);
+                    auto iter = proc_map.find(action);
+                    if (iter != proc_map.end())
+                    {
+                        auto& initproc = iter->second;
+                        initproc(boss, item);
+                    }
                 };
                 list.push_back({ item, setup });
             }
