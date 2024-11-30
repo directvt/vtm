@@ -144,9 +144,8 @@ namespace netxs::app::shared
         keybd.proc("ScrollCharRight" , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
         keybd.proc("ScrollTop"       , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
         keybd.proc("ScrollEnd"       , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-        //todo use sptr for gear when enqueueing (dangling reference)
-        keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&](auto& /*boss*/){ scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); });
+        keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard eves.
+        keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); });
 
         keybd.bind( "Esc", "DropAutoRepeat"    , true);
         keybd.bind( "Esc", "WindowClosePreview", true);

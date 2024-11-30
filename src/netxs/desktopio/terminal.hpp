@@ -7810,10 +7810,9 @@ namespace netxs::ui
             chords.proc(action::TerminalCwdSync,              [&](hids& gear, txts&){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
             chords.proc(action::TerminalQuit,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
             chords.proc(action::TerminalRestart,              [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
-            //todo use wptr for gear when enqueueing
-            chords.proc(action::TerminalFullscreen,           [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear); }); }); // Refocus-related operations require execution outside of keyboard events.
-            chords.proc(action::TerminalMaximize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::preview, e2::form::size::enlarge::maximize,   gear); }); });
-            chords.proc(action::TerminalMinimize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&](auto& /*boss*/){ base::riseup(tier::release, e2::form::size::minimize, gear); }); });
+            chords.proc(action::TerminalFullscreen,           [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard events.
+            chords.proc(action::TerminalMaximize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::preview, e2::form::size::enlarge::maximize, *gear_ptr); }); });
+            chords.proc(action::TerminalMinimize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::release, e2::form::size::minimize, *gear_ptr); }); });
             chords.proc(action::TerminalUndo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc(action::TerminalRedo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
             chords.proc(action::TerminalClipboardCopy,        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
