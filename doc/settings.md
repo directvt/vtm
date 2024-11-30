@@ -887,27 +887,27 @@ Notes
                 <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
                 <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
-            <key="">           <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
-            <key="">           <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
-            <key=""            action=TerminalViewportCopy/>                  <!-- Сopy viewport to clipboard. -->
-            <key=""            action=TerminalClipboardCopy/>                 <!-- Сopy selection to clipboard. -->
-            <key=""            action=TerminalClipboardPaste/>                <!-- Paste from clipboard. -->
-            <key=""            action=TerminalClipboardWipe/>                 <!-- Reset clipboard. -->
-            <key=""            action=TerminalClipboardFormat/>               <!-- Toggle terminal text selection copy format. -->
-            <key=""            action=TerminalSelectionRect/>                 <!-- Toggle between linear and rectangular selection form. -->
-            <key="Esc" preview action=TerminalSelectionCancel/>               <!-- Deselect a selection. -->
-            <key=""            action=TerminalSelectionOneShot/>              <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key=""            action=TerminalUndo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""            action=TerminalRedo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""            action=TerminalCwdSync/>                       <!-- Toggle the current working directory sync mode. -->
-            <key=""            action=TerminalWrapMode/>                      <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""            action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-            <key=""            action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
-            <key=""            action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
-            <key=""            action=TerminalMinimize/>                      <!-- Minimize window. -->
-            <key=""            action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
-            <key=""            action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
-            <key=""            action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->
+            <key="">                   <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
+            <key="">                   <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
+            <key=""                     action=TerminalViewportCopy/>                 <!-- Сopy viewport to clipboard. -->
+            <key="Ctrl+Insert"  preview action=TerminalClipboardCopy/>                <!-- Сopy selection to clipboard. -->
+            <key="Shift+Insert" preview action=TerminalClipboardPaste/>               <!-- Paste from clipboard. -->
+            <key=""                     action=TerminalClipboardWipe/>                <!-- Reset clipboard. -->
+            <key=""                     action=TerminalClipboardFormat/>              <!-- Toggle terminal text selection copy format. -->
+            <key=""                     action=TerminalSelectionRect/>                <!-- Toggle between linear and rectangular selection form. -->
+            <key="Esc" preview          action=TerminalSelectionCancel/>              <!-- Deselect a selection. -->
+            <key=""                     action=TerminalSelectionOneShot/>             <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+            <key=""                     action=TerminalUndo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                     action=TerminalRedo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                     action=TerminalCwdSync/>                      <!-- Toggle the current working directory sync mode. -->
+            <key=""                     action=TerminalWrapMode/>                     <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""                     action=TerminalAlignMode/>                    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+            <key=""                     action=TerminalFullscreen/>                   <!-- Toggle fullscreen mode. -->
+            <key=""                     action=TerminalMaximize/>                     <!-- Toggle between maximized and normal window size. -->
+            <key=""                     action=TerminalMinimize/>                     <!-- Minimize window. -->
+            <key=""                     action=TerminalStdioLog/>                     <!-- Toggle stdin/stdout logging. -->
+            <key=""                     action=TerminalRestart/>                      <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                     action=TerminalQuit/>                         <!-- Terminate runnning console apps and close terminal. -->
         </terminal>
     </hotkeys>
 </config>

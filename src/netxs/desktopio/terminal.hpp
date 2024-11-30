@@ -1261,6 +1261,7 @@ namespace netxs::ui
                 return boxed;
             }
 
+            //virtual text get_current_line()                                             = 0;
             virtual cell cell_under_cursor()                                            = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
@@ -2550,6 +2551,26 @@ namespace netxs::ui
                 auto c = canvas[coor];
                 return c;
             }
+            //text get_current_line() override
+            //{
+            //    auto crop = escx{};
+            //    auto cy = std::clamp(coord.y, 0, panel.y - 1);
+            //    auto p1 = twod{ 0, cy };
+            //    auto p2 = twod{ panel.x, cy };
+            //    auto stripe = canvas.line(p1, p2);
+            //    auto brush_state = cell{};
+            //    if (owner.selmod == mime::textonly
+            //     || owner.selmod == mime::safetext
+            //     || owner.selmod == mime::disabled)
+            //    {
+            //        utf::trim(crop.s11n<faux, true, faux>(stripe, brush_state));
+            //    }
+            //    else
+            //    {
+            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //    }
+            //    return crop;
+            //}
 
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
@@ -5108,6 +5129,23 @@ namespace netxs::ui
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
                 return c;
             }
+            //text get_current_line() override
+            //{
+            //    auto crop = escx{};
+            //    auto& stripe = batch.current();
+            //    auto brush_state = cell{};
+            //    if (owner.selmod == mime::textonly
+            //     || owner.selmod == mime::safetext
+            //     || owner.selmod == mime::disabled)
+            //    {
+            //        utf::trim(crop.s11n<faux, true, faux>(stripe, brush_state));
+            //    }
+            //    else
+            //    {
+            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //    }
+            //    return crop;
+            //}
 
             // scroll_buf: Calc grip position by coor.
             auto selection_coor_to_grip(twod coor, grip::type role = grip::base)
@@ -7815,7 +7853,7 @@ namespace netxs::ui
             chords.proc(action::TerminalMinimize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::release, e2::form::size::minimize, *gear_ptr); }); });
             chords.proc(action::TerminalUndo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc(action::TerminalRedo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
-            chords.proc(action::TerminalClipboardCopy,        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
+            chords.proc(action::TerminalClipboardCopy,        [&](hids& gear, txts&){ if (selection_active()) { copy(gear); gear.set_handled(); } else if (auto v = ipccon.get_current_line()) { _copy(gear, v.value()); gear.set_handled(); }});
             chords.proc(action::TerminalClipboardPaste,       [&](hids& gear, txts&){ gear.set_handled(); paste(gear);                       });
             chords.proc(action::TerminalClipboardWipe,        [&](hids& gear, txts&){ gear.set_handled(); gear.clear_clipboard();            });
             chords.proc(action::TerminalClipboardFormat,      [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglesel); else set_selmod((si32)netxs::get_or(xml::options::format, args.front(), mime::textonly)); });

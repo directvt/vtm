@@ -4511,6 +4511,10 @@ namespace netxs::os
             {
                 if (attached) termlink->undo(undoredo);
             }
+            auto get_current_line()
+            {
+                return termlink->get_current_line();
+            }
         };
     }
 
