@@ -52,6 +52,8 @@ namespace netxs::app::tile
     using ui::wptr;
 
     #define proc_list \
+        X(TileFocusPrevPane     ) \
+        X(TileFocusNextPane     ) \
         X(TileRunApplicatoin    ) \
         X(TileSelectAllPanes    ) \
         X(TileSplitHorizontally ) \
@@ -828,8 +830,23 @@ namespace netxs::app::tile
 
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
+                ->plugin<pro::keybd>()
                 ->invoke([&](auto& boss)
                 {
+                    auto& keybd = boss.plugins<pro::keybd>();
+                    keybd.proc(action::TileFocusPrevPane     , [&](hids& /*gear*/, txts& /*args*/){ /*gear.set_handled(); todo implement*/ });
+                    keybd.proc(action::TileFocusNextPane     , [&](hids& /*gear*/, txts& /*args*/){ /*gear.set_handled(); todo implement*/ });
+                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear); });
+                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear); });
+                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear); });
+                    keybd.proc(action::TileSplitVertically   , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear); });
+                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear); });
+                    keybd.proc(action::TileSwapPanes         , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear); });
+                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear); });
+                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear, txts& /*args*/){ gear.set_handled(); app::shared::set_title(boss, gear); });
+                    keybd.proc(action::TileClosePane         , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear); });
+                    auto bindings = keybd.load(config, "tile");
+                    keybd.bind(bindings);
                     auto oneoff = ptr::shared(hook{});
                     boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
                     {
@@ -854,6 +871,22 @@ namespace netxs::app::tile
             using namespace app::shared;
             static const auto proc_map = menu::action_map_t
             {
+                { tile::action::TileFocusPrevPane, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileFocusNextPane, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
+                        gear.nodbl = true;
+                    };
+                }},
                 { tile::action::TileRunApplicatoin, [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
