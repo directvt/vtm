@@ -51,6 +51,26 @@ namespace netxs::app::tile
     using ui::sptr;
     using ui::wptr;
 
+    #define proc_list \
+        X(TileRunApplicatoin    ) \
+        X(TileSelectAllPanes    ) \
+        X(TileSplitHorizontally ) \
+        X(TileSplitVertically   ) \
+        X(TileSplitOrientation  ) \
+        X(TileSwapPanes         ) \
+        X(TileEqualizeSplitRatio) \
+        X(TileSetManagerTitle   ) \
+        X(TileClosePane         )
+
+    struct action
+    {
+        #define X(_proc) static constexpr auto _proc = #_proc;
+        proc_list
+        #undef X
+    };
+
+    #undef proc_list
+
     // tile: Right-side item list.
     class items
         : public pro::skill
@@ -832,93 +852,83 @@ namespace netxs::app::tile
                 });
 
             using namespace app::shared;
-            config.cd("/config/tile", "/config/defapp");
-            auto [menu_block, cover, menu_data] = menu::create(config,
-                    menu::list
+            static const auto proc_map = menu::action_map_t
+            {
+                { tile::action::TileRunApplicatoin, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .tooltip = " Launch application instances in active empty slots.     \n"
-                                                                                                                               " The app to run can be set by RightClick on the taskbar. " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .tooltip = " Select all panes " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .tooltip = " Split active panes horizontally " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split active panes vertically " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "┌┘", .tooltip = " Change split orientation " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .tooltip = " Swap two or more panes " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .tooltip = " Equalize split ratio " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .tooltip = " Set tiling manager window title using clipboard data " }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                app::shared::set_title(boss, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close active app ", .hover = c1 }}},
-                        [](auto& boss, auto& /*item*/)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                    });
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSelectAllPanes, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSplitHorizontally, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSplitVertically, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSplitOrientation, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSwapPanes, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileSetManagerTitle, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        app::shared::set_title(boss, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+                { tile::action::TileClosePane, [](auto& boss, auto& /*item*/)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear);
+                        gear.nodbl = true;
+                    };
+                }},
+            };
+            config.cd("/config/tile", "/config/defapp");
+            auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
                   ->invoke([](auto& boss)
                   {

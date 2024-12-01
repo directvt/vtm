@@ -193,11 +193,12 @@ namespace netxs::app::shared
     {
         namespace attr
         {
-            static constexpr auto type    = "type";
-            static constexpr auto label   = "label";
-            static constexpr auto tooltip = "tooltip";
-            static constexpr auto action  = "action";
-            static constexpr auto data    = "data";
+            static constexpr auto menuitem = "menu/item";
+            static constexpr auto type     = "type";
+            static constexpr auto label    = "label";
+            static constexpr auto tooltip  = "tooltip";
+            static constexpr auto action   = "action";
+            static constexpr auto data     = "data";
         }
         namespace type
         {
@@ -207,6 +208,12 @@ namespace netxs::app::shared
             static constexpr auto Option   = __COUNTER__ - _counter;
             static constexpr auto Repeat   = __COUNTER__ - _counter;
         }
+
+        static auto type_options = std::unordered_map<text, si32>
+            {{ "Splitter", menu::type::Splitter },
+             { "Command",  menu::type::Command  },
+             { "Option",   menu::type::Option   },
+             { "Repeat",   menu::type::Repeat   }};
 
         struct item
         {
@@ -262,6 +269,7 @@ namespace netxs::app::shared
             }
         };
 
+        using action_map_t = std::unordered_map<text, std::function<void(ui::item&, menu::item&)>, qiew::hash, qiew::equal>;
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
@@ -445,6 +453,50 @@ namespace netxs::app::shared
             auto autohide = config.take("menu/autohide", faux);
             auto slimsize = config.take("menu/slim"    , true);
             return mini(autohide, slimsize, 0, menu_items);
+        };
+        const auto load = [](xmls& config, action_map_t const& proc_map)
+        {
+            auto list = menu::list{};
+            auto defs = menu::item::look{};
+            auto menudata = config.list(menu::attr::menuitem);
+            for (auto data_ptr : menudata)
+            {
+                auto item = menu::item{};
+                auto& data = *data_ptr;
+                auto action = data.take(menu::attr::action, ""s);
+                item.type = data.take(menu::attr::type, menu::type::Command, type_options);
+                defs.tooltip = data.take(menu::attr::tooltip, ""s);
+                defs.data = data.take(menu::attr::data, ""s);
+                item.alive = !action.empty() && item.type != menu::type::Splitter;
+                for (auto label : data.list(menu::attr::label))
+                {
+                    item.views.push_back(
+                    {
+                        .label = label->take_value(),
+                        .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
+                        .data = label->take(menu::attr::data, defs.data),
+                    });
+                }
+                if (item.views.empty()) continue; // Menu item without label.
+                auto setup = [action, &proc_map](ui::item& boss, menu::item& item)
+                {
+                    if (item.type == menu::type::Option)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            item.taken = (item.taken + 1) % item.views.size();
+                        };
+                    }
+                    auto iter = proc_map.find(action);
+                    if (iter != proc_map.end())
+                    {
+                        auto& initproc = iter->second;
+                        initproc(boss, item);
+                    }
+                };
+                list.push_back({ item, setup });
+            }
+            return menu::create(config, list);
         };
         const auto demo = [](xmls& config)
         {

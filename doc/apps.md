@@ -67,43 +67,62 @@ Note: It is possible to combine multiple command into a single sequence using a 
 
 ### Custom menu configuration
       
-Terminal window menu can be composed from scratch by specifying a list of menu items in the `<config/terminal/menu/>` configuration file section.
+It is possible to create your own terminal window menu from scratch by specifying a list of menu items in the `<config/terminal/menu/>` section of the configuration file.
+
+### Syntax
+
+```xml
+<config>
+    <terminal>
+        <menu>
+            <item type="<menu_item_type>" action="<action>">
+                <tooltip>
+                    " Tooltip text.      \n"
+                    " Can be multi-line. "
+                </tooltip>
+                <label="Content for label of index 0 (default)" data="<Argument_for_action_call_for_that_label.>"/>
+                <label="Content for label of index 1"           data="<The required label will be selected automatically>"/>
+                <label="Content for label of index 2"           data="< based on the argument if the action is performed by"/>
+                <label="Content for label of index 3"           data="< someone outside the menu.>" tooltip="The label may have its own tooltip."/>
+                ...
+            </item>
+            ...
+        </menu>
+    </terminal>
+</config>
+```
 
 ### Attributes for the `<config/terminal/menu/item>` object
 
 Attribute  | Description
 -----------|------------
-type       | Menu item type. `type=Command` is used by default.
+type       | Menu item type.
 label      | Menu item label list. One or more textual representations selected by `data=` value.
-tooltip    | Tooltip text.
-action     | The function name which called on item activation. Inherited by the label attribute.
-data       | Textual parameter for function call. Inherited by the label attribute.
+tooltip    | Tooltip content.
+action     | The action name which called on item activation.
 
 ### Attributes for the `<config/terminal/menu/item/label>` sub-object
 
 Attribute        | Description
 -----------------|------------
-_internal_value_ | Label display variation `label="_internal_value_"`.
-tooltip          | Tooltip text. Inherited from item by default.
-action           | The function name which called on item activation. Inherited from item if not specified.
-data             | Textual parameter for function call. Inherited from item if not specified.
+_internal_value_ | Label content variation `label="_internal_value_"`.
+data             | Textual argument for action call.
+tooltip          | Tooltip content.
 
-#### Attribute `type=`
+#### Attribute `type`
 
-Value     | Description
-----------|------------
-Option    | Cyclically selects the next label in the list and exec the function specified by the `action=` with `data=` as its parameter.
-Command   | Exec the function specified by the `action=` with `data=` as its parameter.
-Repeat    | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
+Value       | Description
+------------|------------
+`Command`   | Calls the action with the arguments from `data=`. This is the default value for the `type` attribute.
+`Option`    | Cyclically selects the next label in the list and calls the action with the arguments from `data=`.
+`Repeat`    | Selects the next label and calls the action repeatedly from the time it is pressed until it is released.
 
-#### Actions `action=`
+#### Actions `action`
 
 `*` - Not implemented.
 
 Value                        | Arguments (`data=`)           | Description
 -----------------------------|-------------------------------|------------
-Noop                         |                               | Ignore all events for the specified key combination. No further processing.
-DropAutoRepeat               |                               | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
 ExclusiveKeyboardMode        |                               | Toggle exclusive keyboard mode.
 TerminalCwdSync              |                               | Current working directory sync toggle. The command to send for synchronization is configurable via the `<config><terminal cwdsync=" cd $P\n"/></config>` setting's option. Where `$P` is a variable containing current path received via OSC 9;9 notification. <br>To enable OSC9;9 shell notifications:<br>- Windows Command Prompt:<br>  `setx PROMPT $e]9;9;$P$e\$P$G`<br>- PowerShell:<br>  `function prompt{ $e=[char]27; "$e]9;9;$(Convert-Path $pwd)$e\PS $pwd$('>' * ($nestedPromptLevel + 1)) " }`<br>- Bash:<br>  `export PS1='\[\033]9;9;\w\033\\\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '`
 TerminalWrapMode             | `on` \| `off`                 | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is.
@@ -170,15 +189,17 @@ Hotkey                       | Description
 `Shift+Ctrl+RightArrow`      | Scroll one cell to the right.
 `Shift+Ctrl+Home`            | Scroll to the scrollback top.
 `Shift+Ctrl+End`             | Scroll to the scrollback bottom (reset viewport position).
-`Esc`                        | Deselect a selection.
+`Ctrl+Insert`                | Copy selection to clipboard if it is.
+`Shift+Insert`               | Paste from clipboard.
+`Esc`                        | Deselect a selection if it is.
 
 #### Terminal configuration example
+
 ```xml
 <config>
     <terminal>
         <menu item*>
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m"/>
+            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
@@ -186,9 +207,10 @@ Hotkey                       | Description
                     "   Match clipboard data if no selection          \n"
                     "   Left+RightClick to clear clipboard            "
                 </tooltip>
+                <label="<"/>
+                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m"/>
+            <item action=TerminalFindNext>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
@@ -196,32 +218,38 @@ Hotkey                       | Description
                     "   Match clipboard data if no selection         \n"
                     "   Left+RightClick to clear clipboard           "
                 </tooltip>
+                <label=">"/>
+                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+            <item type="Option" action=ExclusiveKeyboardMode>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
+                <label=" Desktop "                                      data="off"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
             </item>
-            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+            <item type="Option" action=TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
                 </tooltip>
+                <label="Wrap"                     data="off"/>
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
             </item>
-            <item label="\e[38:2:0:255:0mLeft\e[m" type="Option" action=TerminalAlignMode data="left">
-                <label="\e[38:2:0:255:255mRight\e[m" data="right"/>
-                <label="\e[38:2:255:255:0mCenter\e[m" data="center"/>
+            <item type="Option" action=TerminalAlignMode>
                 <tooltip>
                     " Align text lines left/right/center \n"
                     " - applied to selection if it is    "
                 </tooltip>
+                <label="\e[38:2:0:255:0mLeft\e[m"     data="left"/>
+                <label="\e[38:2:0:255:255mRight\e[m"  data="right"/>
+                <label="\e[38:2:255:255:0mCenter\e[m" data="center"/>
             </item>
-            <item label="Selection" tooltip=" Text selection mode " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+            <item type="Option" action=TerminalClipboardFormat tooltip=" Text selection mode ">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                <label="Selection"                       data="none"/>
+                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
                 <label data="rich">
                     "\e[38:2:109:231:237m""R"
@@ -237,72 +265,85 @@ Hotkey                       | Description
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="Log" tooltip=" Stdin/out logging is off " type="Option" action=TerminalStdioLog data="off">
-                <label="\e[38:2:0:255:0mLog\e[m" tooltip=" Stdin/out logging is on \n Run Logs to see output  " data="on"/>
+            <item type="Option" action=TerminalStdioLog tooltip=" Stdin/out logging is off ">
+                <label="Log"                     data="off"/>
+                <label="\e[38:2:0:255:0mLog\e[m" data="on" tooltip=" Stdin/out logging is on \n Run Logs to see output  "/>
             </item>
-            <item label="  "    tooltip=" ...empty menu block/splitter for safety "/>
-            <item label="Clear" tooltip=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <item label="Restart" type="Command" action=TerminalRestart/>
-            <item label="Top" action=TerminalScrollViewportToTop/>
-            <item label="End" action=TerminalScrollViewportToEnd/>
+            <item label="  " tooltip=" just empty menu block/splitter "/>
+            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
+                <label="Clear" data="\e[2J"/>
+            </item>
+            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                <label="Reset" data="\e[!p"/>
+            </item>
+            <item type="Command" action=TerminalRestart label="Restart"/>
+            <item action=TerminalScrollViewportToTop    label="Top"/>
+            <item action=TerminalScrollViewportToEnd    label="End"/>
 
-            <item label="PgLeft"    type="Repeat" action=TerminalScrollViewportByPage data=" 1, 0"/>
-            <item label="PgRight"   type="Repeat" action=TerminalScrollViewportByPage data="-1, 0"/>
-            <item label="PgUp"      type="Repeat" action=TerminalScrollViewportByPage data=" 0, 1"/>
-            <item label="PgDn"      type="Repeat" action=TerminalScrollViewportByPage data=" 0,-1"/>
-            <item label="CharLeft"  type="Repeat" action=TerminalScrollViewportByCell data=" 1, 0"/>
-            <item label="CharRight" type="Repeat" action=TerminalScrollViewportByCell data="-1, 0"/>
-            <item label="LineUp"    type="Repeat" action=TerminalScrollViewportByCell data=" 0, 1"/>
-            <item label="LineDn"    type="Repeat" action=TerminalScrollViewportByCell data=" 0,-1"/>
+            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgLeft"    data=" 1, 0"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgRight"   data="-1, 0"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgUp"      data=" 0, 1"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgDn"      data=" 0,-1"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByCell><label="CharLeft"  data=" 1, 0"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByCell><label="CharRight" data="-1, 0"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByCell><label="LineUp"    data=" 0, 1"/></item>
+            <item type="Repeat" action=TerminalScrollViewportByCell><label="LineDn"    data=" 0,-1"/></item>
 
-            <item label="PrnScr" action=TerminalViewportCopy/>
-            <item label="Deselect" action=TerminalSelectionCancel/>
+            <item action=TerminalViewportCopy    label="PrnScr"/>
+            <item action=TerminalSelectionCancel label="Deselect"/>
             
-            <item label="Line" type="Option" action=TerminalSelectionRect data="false">
+            <item type="Option" action=TerminalSelectionRect>
+                <label="Line" data="false"/>
                 <label="Rect" data="true"/>
             </item>
-            <item label="Copy" type="Repeat" action=TerminalClipboardCopy/>
-            <item label="Paste" type="Repeat" action=TerminalClipboardPaste/>
-            <item label="Wipe" type="Repeat" action=TerminalClipboardWipe/>
-            <item label="Undo" type="Command" action=TerminalUndo/>
-            <item label="Redo" type="Command" action=TerminalRedo/>
-            <item label="Quit" type="Command" action=TerminalQuit/>
-            <item label="Fullscreen" type="Command" action=TerminalFullscreen/>
-            <item label="Maximize" type="Command" action=TerminalMaximize/>
-            <item label="Minimize" type="Command" action=TerminalMinimize/>
-            <item label="Noop" type="Command" action=Noop/>
+            <item type="Repeat"  action=TerminalClipboardCopy  label="Copy"/>
+            <item type="Repeat"  action=TerminalClipboardPaste label="Paste"/>
+            <item type="Repeat"  action=TerminalClipboardWipe  label="Wipe"/>
+            <item type="Command" action=TerminalUndo           label="Undo"/>
+            <item type="Command" action=TerminalRedo           label="Redo"/>
+            <item type="Command" action=TerminalQuit           label="Quit"/>
+            <item type="Command" action=TerminalFullscreen     label="Fullscreen"/>
+            <item type="Command" action=TerminalMaximize       label="Maximize"/>
+            <item type="Command" action=TerminalMinimize       label="Minimize"/>
+            <item type="Command" action=Noop                   label="Noop"/>
 
-            <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
-                <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
+            <item type="Option" action=TerminalCwdSync>
+                <label="Sync"                     data="off" tooltip=" CWD sync is off "/>
+                <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/>
             </item>
 
-            <item label="Hello, World!" tooltip=" Simulating keypresses " action=TerminalSendKey data="Hello World!"/>
-            <item label="Push Me" tooltip=" test " type="Repeat" action=TerminalOutput data="pressed ">
+            <item action=TerminalSendKey tooltip=" Simulate keypresses ">
+                <label="Hello, World!" data="Hello World!"/>
+            </item>
+            <item type="Repeat" action=TerminalOutput tooltip=" test ">
+                <label="Push Me" data="pressed"/>
                 <label="\e[37mPush Me\e[m"/>
             </item>
 
-            <item label=" HTML " data="none" type="Option" action=TerminalSelectionOneShot>
-                <label="\e[48:2:0:128:128;38:2:0:255:255m HTML \e[m" data="html"/>
+            <item type="Option" action=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as HTML \n"
                     " while mouse tracking is active. "
                 </tooltip>
+                <label=" HTML "                                      data="none"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:255m HTML \e[m" data="html"/>
             </item>
-            <item label=" Text " data="none" type="Option" action=TerminalSelectionOneShot>
-                <label="\e[48:2:0:128:0;38:2:0:255:0m Text \e[m" data="text"/>
+            <item type="Option" action=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as Text \n"
                     " while mouse tracking is active. "
                 </tooltip>
+                <label=" Text "                                  data="none"/>
+                <label="\e[48:2:0:128:0;38:2:0:255:0m Text \e[m" data="text"/>
             </item>
-            <item label="One-Shot" data="none" type="Option" action=TerminalSelectionOneShot>
-                <label="\e[48:2:0:128:0;38:2:0:255:0m  Text  \e[m" data="text"/>
-                <label="\e[48:2:0:128:128;38:2:0:255:255m  HTML  \e[m" data="html"/>
+            <item type="Option" action=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as Text/HTML \n"
                     " while mouse tracking is active.      "
                 </tooltip>
+                <label="One-Shot"                                      data="none"/>
+                <label="\e[48:2:0:128:0;38:2:0:255:0m  Text  \e[m"     data="text"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:255m  HTML  \e[m" data="html"/>
             </item>
         </menu>
     </terminal>

@@ -166,37 +166,39 @@ R"==(
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                                <label="\e[38:2:0:255:0m<\e[m"/>
+                            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
                                     "             one page up if nothing to search    \n"
-                                    "   Match clipboard data if no selection          \n"
-                                    "   Left+RightClick to clear clipboard            "
+                                    "   Match clipboard data if no selection          "
                                 </tooltip>
+                                <label="<"/>
+                                <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item label=">" action=TerminalFindNext>
-                                <label="\e[38:2:0:255:0m>\e[m"/>
+                            <item action=TerminalFindNext>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
                                     "             one page down if nothing to search \n"
-                                    "   Match clipboard data if no selection         \n"
-                                    "   Left+RightClick to clear clipboard           "
+                                    "   Match clipboard data if no selection         "
                                 </tooltip>
+                                <label=">"/>
+                                <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
-                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                            <item type="Option" action=TerminalWrapMode>
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
+                                <label="Wrap"                     data="off"/>
+                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                             </item>
-                            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                                <label="Clipboard"                       data="none"/>
+                                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                                <label data="rich">
+                                <label                                   data="rich">
                                     "\e[38:2:109:231:237m""R"
                                     "\e[38:2:109:237:186m""T"
                                     "\e[38:2:60:255:60m"  "F"
@@ -210,7 +212,9 @@ R"==(
                                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                             </item>
-                            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+                            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                                <label="Reset" data="\e[!p"/>
+                            </item>
                         </menu>
 )=="
 R"==(
@@ -302,45 +306,48 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
             <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m"/>
+            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
                     "             one page up if nothing to search    \n"
-                    "   Match clipboard data if no selection          \n"
-                    "   Left+RightClick to clear clipboard            "
+                    "   Match clipboard data if no selection          "
                 </tooltip>
+                <label="<"/>
+                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m"/>
+            <item action=TerminalFindNext>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
                     "             one page down if nothing to search \n"
-                    "   Match clipboard data if no selection         \n"
-                    "   Left+RightClick to clear clipboard           "
+                    "   Match clipboard data if no selection         "
                 </tooltip>
+                <label=">"/>
+                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+            <item type="Option" action=ExclusiveKeyboardMode>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
+                <label=" Desktop "                                      data="off"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
             </item>
-            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+            <item type="Option" action=TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
+                <label="Wrap"                     data="off"/>
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
             </item>
-            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                <label="Clipboard"                       data="none"/>
+                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label data="rich">
+                <label                                   data="rich">
                     "\e[38:2:109:231:237m""R"
                     "\e[38:2:109:237:186m""T"
                     "\e[38:2:60:255:60m"  "F"
@@ -354,15 +361,21 @@ R"==(
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <!-- <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off"> -->
-            <!--     <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/> -->
+            <!-- <item type="Option" action=TerminalCwdSync> -->
+            <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
+            <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
             <!-- </item> -->
-            <item label="Log" tooltip=" Console logging is off " type="Option" action=TerminalStdioLog data="off">
-                <label="\e[38:2:0:255:0mLog\e[m" tooltip=" Console logging is on   \n Run Logs to see output  " data="on"/>
+            <item type="Option" action=TerminalStdioLog>
+                <label="Log"                     data="off" tooltip=" Console logging is off "/>
+                <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
             </item>
-            <item label="Clear" tooltip=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress "       action=TerminalSendKey data="Hello World!"/> -->
+            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
+                <label="Clear" data="\e[2J"/>
+            </item>
+            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                <label="Reset" data="\e[!p"/>
+            </item>
+            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -374,9 +387,29 @@ R"==(
                                 close:   Always close.
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
+    </terminal>
 )==" // MSVC2022: C2026 String too big, trailing characters truncated.
 R"==(
-    </terminal>
+    <tile>
+        <menu item*>
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
+            <item action=TileRunApplicatoin label=" + ">
+                <tooltip>
+                    " Launch application instances in active empty slots.     \n"
+                    " The app to run can be set by RightClick on the taskbar. "
+                </tooltip>
+            </item>
+            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
+            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
+            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
+            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
+            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
+            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
+            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling manager window title using clipboard data "/>
+            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
+        </menu>
+    </tile>
     <defapp>
         <menu>
             <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
@@ -418,6 +451,17 @@ R"==(
             <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
+        <tile>
+            <key="" action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="" action=TileSelectAllPanes    />  <!-- Select all panes. -->
+            <key="" action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
+            <key="" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
+            <key="" action=TileSplitOrientation  />  <!-- Change split orientation. -->
+            <key="" action=TileSwapPanes         />  <!-- Swap two or more panes. -->
+            <key="" action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
+            <key="" action=TileSetManagerTitle   />  <!-- Set tiling manager window title using clipboard data. -->
+            <key="" action=TileClosePane         />  <!-- Close active application. -->
+        </tile>
         <terminal key*>  <!-- Application specific layer key bindings. -->
 )=="
 #if defined (WIN32)
