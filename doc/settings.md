@@ -591,7 +591,7 @@ Notes
                 </tooltip>
             </item>
             <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
-            <item id="Term" label="Terminal Console" type="dtvt" title="Terminal" cmd="$0 -r term">
+            <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
                     "   LeftClick to launch instance \n"
@@ -609,9 +609,9 @@ Notes
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Tiling Window Manager"   type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id="Site" label="Desktop Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Logs"                    type="dtvt" title="Logs"           cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id="Site" label="Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Desktop Logs"    type="dtvt" title="Logs"           cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
                     <terminal>
                         <scrollback>
