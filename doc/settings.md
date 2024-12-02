@@ -591,7 +591,7 @@ Notes
                 </tooltip>
             </item>
             <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
-            <item id="Term" label="Term" type="dtvt" title="Terminal Console" cmd="$0 -r term">
+            <item id="Term" label="Terminal Console" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
                     "   LeftClick to launch instance \n"
@@ -609,9 +609,9 @@ Notes
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Tile" type="tile" title="Tiling Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id="Site" label="Site" type="site" title="\e[11:3pSite "         cmd="@" winform="maximized" tooltip=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Logs" type="dtvt" title="Logs"                  cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id="Tile" label="Tiling Window Manager"   type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id="Site" label="Desktop Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Logs"                    type="dtvt" title="Logs"           cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
                     <terminal>
                         <scrollback>
@@ -680,8 +680,8 @@ Notes
                 <!--  <item wincoor=8,31 />                         -->
                 <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             </autorun>
-            <width>    <!-- Taskbar menu width. -->
-                <folded=16/>
+            <width>  <!-- Taskbar menu width. -->
+                <folded=17/>
                 <expanded=32/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
@@ -855,7 +855,7 @@ Notes
             <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
             <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
             <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
-            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling manager window title using clipboard data "/>
+            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
             <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
             <!-- <item action=TileFocusPrevPane      label="<"   tooltip=" Focus the previous pane or splitting grip "/> -->
             <!-- <item action=TileFocusNextPane      label=">"   tooltip=" Focus the next pane or splitting grip "/> -->
@@ -912,7 +912,7 @@ Notes
             <key="Alt+Shift+R"     action=TileSplitOrientation  />  <!-- Change split orientation. -->
             <key="Alt+Shift+S"     action=TileSwapPanes         />  <!-- Swap two or more panes. -->
             <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
-            <key="Alt+Shift+F2"    action=TileSetManagerTitle   />  <!-- Set tiling manager window title using clipboard data. -->
+            <key="Alt+Shift+F2"    action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
             <key="Alt+Shift+W"     action=TileClosePane         />  <!-- Close active application. -->
         </tile>
         <terminal key*>  <!-- Application specific layer key bindings. -->

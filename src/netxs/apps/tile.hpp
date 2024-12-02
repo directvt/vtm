@@ -229,18 +229,6 @@ namespace netxs::app::tile
                 boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                 gear.dismiss();
             };
-            //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
-            //{
-            //    auto backup = boss.This();
-            //    boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-            //    gear.dismiss();
-            //};
-            //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
-            //{
-            //    auto backup = boss.This();
-            //    boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-            //    gear.dismiss();
-            //};
         };
         auto app_window = [](auto& what)
         {
@@ -681,11 +669,17 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        if (boss.count() > 0 && boss.back()->base::root()) // Walking a nested visual tree.
+                        if (boss.count() > 1 && boss.back()->base::root()) // Walking a nested visual tree.
                         {
                             boss.back()->bell::signal(tier::anycast, e2::form::proceed::quit::one, true); // fast=true: Immediately closing (no ways to showing a closing process). Forward a quit message to hosted app in order to schedule a cleanup.
                         }
-                        else boss.bell::signal(tier::release, e2::form::proceed::quit::one, fast);
+                        else // Close an empty slot (boss.count() == 1).
+                        {
+                            boss.bell::enqueue(boss.This(), [&](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
+                            {
+                                boss.bell::signal(tier::release, e2::form::proceed::quit::one, fast);
+                            });
+                        }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
@@ -865,6 +859,10 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
                     {
                         boss.bell::signal(tier::anycast, e2::form::prop::cwd, path);
+                    };
+                    boss.LISTEN(tier::request, e2::form::proceed::swap, item_ptr) // Close the tile window manager if we receive a `swap-request` from the top-level `empty-slot`.
+                    {
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                 });
 

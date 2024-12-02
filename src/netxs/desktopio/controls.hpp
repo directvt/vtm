@@ -1919,7 +1919,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
+                    if (chord_str) log("%%Unknown key chord: '%chord%'", prompt::user, chord_str);
                     return std::optional<decltype(chords)>{};
                 }
             }
