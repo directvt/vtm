@@ -228,7 +228,7 @@ R"==(
                 <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             </autorun>
             <width>  <!-- Taskbar menu width. -->
-                <folded=17/>
+                <folded=18/>
                 <expanded=32/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
