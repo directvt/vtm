@@ -1795,6 +1795,11 @@ namespace netxs
             gc = c.gc;
             st.xy(c.st.xy());
         }
+        // cell: Same grapheme cluster fragment.
+        auto same_fragment(cell const& c) const
+        {
+            return gc == c.gc && st.xy() == c.st.xy();
+        }
         // cell: Reset grapheme cluster.
         void set_gc()
         {
@@ -3051,11 +3056,11 @@ namespace netxs
                 auto&test =*base;
                 while (iter != tail)
                 {
-                    if (test.same_txt(*iter++))
+                    if (test.same_fragment(*iter++))
                     {
                         auto init = iter;
                         auto stop = iter + size;
-                        while (init != stop && init->same_txt(*++dest))
+                        while (init != stop && init->same_fragment(*++dest))
                         {
                             ++init;
                         }
