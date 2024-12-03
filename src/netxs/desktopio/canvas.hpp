@@ -2913,11 +2913,14 @@ namespace netxs
         {
             if (!region) return 0;
             static constexpr auto rev = Direction == feed::fwd ? faux : true;
+            auto stop_by_zwsp = 0;
             auto is_empty = [&](auto txt)
             {
-                return txt.empty()
-                    || txt.front() == whitespace
-                    ||(txt.front() == '^' && txt.size() == 2); // C0 characters.
+                auto test = txt.empty()
+                         || txt.front() == whitespace
+                         ||(txt.front() == '^' && txt.size() == 2); // C0 characters.
+                if (test) stop_by_zwsp = 5; // Don't break by zwsp.
+                return test;
             };
             auto empty = [&](auto txt)
             {
@@ -2979,9 +2982,15 @@ namespace netxs
                 auto allfx = [&](auto& c)
                 {
                     auto txt = c.txt();
+                    auto has_zwsp = stop_by_zwsp <= 0 && txt.ends_with("\u200b");
+                    if (has_zwsp || (stop_by_zwsp && stop_by_zwsp < 2))
+                    {
+                        if constexpr (rev) stop_by_zwsp += 2; // Break here.
+                        else               stop_by_zwsp++;    // Include current cluster.
+                    }
                     //todo use whxy
                     auto not_right_half = c.wdt() != right_half;
-                    if (not_right_half && !check(txt)) return true;
+                    if (stop_by_zwsp == 2 || not_right_half && !check(txt)) return true;
                     count++;
                     return faux;
                 };
@@ -2992,6 +3001,10 @@ namespace netxs
 
             coord = std::clamp(coord, dot_00, region.size - dot_11);
             auto test = begin(coord)->txt();
+            if constexpr (rev)
+            {
+                if (test.ends_with("\u200b")) stop_by_zwsp -= 2; // Skip zwsp in the first cell.
+            }
             is_digit(test) ? func(digit) :
             is_email(test) ? func(email) :
             is_empty(test) ? func(empty) :
