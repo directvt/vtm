@@ -281,19 +281,21 @@ namespace netxs::app::tile
                                 what.square.coor = -what.square.coor;
                                 what.forced = true;
                                 what.applet = applet_ptr;
-                                master.remove(applet_ptr);
-                                applet.moveto(dot_00);
 
-                                if (auto parent_ptr = master.parent())
+                                if (auto old_parent_ptr = master.parent())
                                 {
-                                    auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
+                                    auto gear_id_list = pro::focus::cut(old_parent_ptr);
+                                    master.remove(applet_ptr);
+                                    applet.moveto(dot_00);
                                     world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
-                                    pro::focus::set(what.applet, gear_id_list, solo::off, true); // Refocus.
+                                    pro::focus::set(applet_ptr, gear_id_list, solo::off, true); // Refocus.
                                     master.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 }
-
-                                // Redirect this mouse event to the new world's window.
-                                gear.pass(tier::release, what.applet, dot_00);
+                                if (auto new_parent_ptr = applet.parent())
+                                {
+                                    // Redirect this mouse event to the new world's window.
+                                    gear.pass(tier::release, new_parent_ptr, dot_00);
+                                }
                             }
                         };
                         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -529,12 +531,10 @@ namespace netxs::app::tile
                         if (boss.count() == 1) // Only empty pane/slot available.
                         {
                             highlight(boss, faux);
-                            pro::focus::off(boss.This());
-                            auto gear_id_list = pro::focus::get(what.applet);
+                            pro::focus::off(boss.This()); // Remove focus from empty_slot if it is focused.
                             auto app = app_window(what);
                             boss.attach(app);
                             app->bell::signal(tier::anycast, e2::form::upon::started);
-                            pro::focus::set(what.applet, gear_id_list, solo::mix, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
@@ -545,7 +545,7 @@ namespace netxs::app::tile
                         }
                         else if (boss.count() == 2)
                         {
-                            auto gear_id_list = pro::focus::get(boss.This());
+                            auto gear_id_list = pro::focus::cut(boss.This());
                             auto deleted_item = boss.pop_back();
                             if (item_ptr)
                             {
@@ -571,7 +571,7 @@ namespace netxs::app::tile
                                 }
                                 else if (boss.count() == 2)
                                 {
-                                    auto gear_id_list = pro::focus::get(boss.This());
+                                    auto gear_id_list = pro::focus::cut(boss.This());
                                     item_ptr = boss.pop_back();
                                     pro::focus::set(boss.back(), gear_id_list, solo::off);
                                 }
@@ -615,7 +615,7 @@ namespace netxs::app::tile
                             if (boss.back()->base::kind() == base::client) // Preventing the splitter from maximizing.
                             if (auto fullscreen_item = boss.pop_back())
                             {
-                                auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
+                                auto gear_id_list = pro::focus::cut(boss.This());
                                 fullscreen_item->LISTEN(tier::release, e2::form::size::restore, item_ptr, oneoff)
                                 {
                                     if (item_ptr)
@@ -649,7 +649,7 @@ namespace netxs::app::tile
                             auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
                             auto empty_1 = empty_slot(empty_slot, ui::fork::min_ratio);
                             auto empty_2 = empty_slot(empty_slot, ui::fork::max_ratio);
-                            auto gear_id = pro::focus::get(boss.This()); // Seize all foci.
+                            auto gear_id = pro::focus::cut(boss.This());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
@@ -687,7 +687,7 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 1 && boss.back()->base::kind() == base::client) // Only apps can be deleted.
                             {
-                                auto gear_id_list = pro::focus::get(boss.This());
+                                auto gear_id_list = pro::focus::cut(boss.This());
                                 auto deleted_item = boss.pop_back(); // Throw away.
                                 pro::focus::set(boss.back(), gear_id_list, solo::off);
                             }
@@ -714,7 +714,7 @@ namespace netxs::app::tile
 
                         gate.base::riseup(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);
-                        auto gear_id_list = pro::focus::get(boss.back());
+                        auto gear_id_list = pro::focus::cut(boss.back());
                         boss.attach(app);
                         if (auto world_ptr = gate.parent()) // Finalize app creation.
                         {
@@ -824,6 +824,7 @@ namespace netxs::app::tile
 
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
+                ->plugin<pro::focus>()
                 ->plugin<pro::keybd>()
                 ->invoke([&](auto& boss)
                 {
@@ -997,7 +998,7 @@ namespace netxs::app::tile
                     {
                         if (boss.count() > 2)
                         {
-                            auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
+                            auto gear_id_list = pro::focus::cut(boss.This());
                             auto item_ptr = boss.pop_back();
                             item_ptr->bell::signal(tier::release, e2::form::size::restore, item_ptr);
                             pro::focus::set(boss.back(), foci_list, solo::off, true); // Restore saved foci.
@@ -1007,7 +1008,7 @@ namespace netxs::app::tile
 
                         if (fullscreen_item)
                         {
-                            foci_list = pro::focus::get(boss.This()); // Save all foci.
+                            foci_list = pro::focus::cut(boss.This());
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }

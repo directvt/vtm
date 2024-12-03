@@ -119,7 +119,7 @@ namespace netxs::app::vtm
             {
                 what = new_what;
                 auto window_ptr = new_what.applet;
-                auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
+                auto gear_id_list = pro::focus::cut(window_ptr, true);
                 saved = nexthop;
                 nexthop = new_what.applet;
                 window_ptr->base::detach();
@@ -189,7 +189,7 @@ namespace netxs::app::vtm
                 boss.base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
                 boss.base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
                 auto window_ptr = what.applet;
-                auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
+                auto gear_id_list = pro::focus::cut(window_ptr, true);
                 window_ptr->base::detach();
                 if (auto world_ptr = boss.base::parent())
                 {
@@ -644,13 +644,16 @@ namespace netxs::app::vtm
             {
                 drags = faux;
                 boss.bell::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
+                auto boss_ptr = boss.This();
                 if (auto dest_ptr = cover.lock())
                 {
                     auto& dest = *dest_ptr;
                     if (keep)
                     {
+                        auto gear_id_list = pro::focus::cut(boss_ptr);
                         auto what = boss.bell::signal(tier::preview, vtm::events::d_n_d::drop); // Take core.
                         dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
+                        pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
                         boss.base::detach(); // The object kills itself.
                     }
                     else dest.bell::signal(tier::release, vtm::events::d_n_d::abort, boss.This());
@@ -1977,7 +1980,6 @@ namespace netxs::app::vtm
                 log("%%Attach type=%itemtype% menuid=%id%", prompt::hall, utf::debase(cfg.type), utf::debase(what.menuid));
                 this->branch(what.menuid, slot, !cfg.hidden);
                 slot->bell::signal(tier::anycast, e2::form::upon::started);
-                what.applet = slot;
             };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
             {

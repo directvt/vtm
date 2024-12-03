@@ -1805,7 +1805,7 @@ namespace netxs::gui
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type, faux);
+                        owner.bell::signal(tier::preview, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else owner.window_post_command(ipc::take_focus);
                     if (f.focus_type == solo::on) // Set solo focus.
@@ -1815,7 +1815,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    pro::focus::off(owner_ptr, f.gear_id);
+                    owner.bell::signal(tier::preview, hids::events::focus::rem, { .gear_id = f.gear_id });
                 }
             }
             void handle(s11n::xs::syskeybd         lock)

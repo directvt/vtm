@@ -1180,6 +1180,7 @@ namespace netxs::ui
                 template<class P>
                 auto foreach(P proc)
                 {
+                    //todo revise (mutability)
                     auto head = next.begin();
                     auto tail = next.end();
                     while (head != tail)
@@ -1338,14 +1339,11 @@ namespace netxs::ui
                 std::erase_if(gear_id_list, [&](auto& id){ return gear_id == id; });
                 pro::focus::off(item_ptr, gear_id_list);
             }
-            static auto get(sptr item_ptr, bool remove_default = faux)
+            // pro::focus: Defocus all gears and clear routes (optionally remove_default route from parent) and return deleted active gear id's.
+            static auto cut(sptr item_ptr, bool remove_default = faux)
             {
                 auto lock = item_ptr->bell::sync();
-                auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
-                for (auto next_id : gear_id_list)
-                {
-                    item_ptr->base::riseup(tier::request, hids::events::focus::get, { .gear_id = next_id });
-                }
+                auto gear_id_list = item_ptr->base::riseup(tier::request, hids::events::focus::cut);
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
                 {
@@ -1370,7 +1368,10 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
                     {
-                        pro::focus::set(boss.This(), id_t{}, solo::off);
+                        if (parent_ptr) // Parent_ptr is always empty when the boss is dropped via d_n_d.
+                        {
+                            pro::focus::set(boss.This(), id_t{}, solo::off);
+                        }
                     };
                 }
                 boss.LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, memo)
@@ -1471,13 +1472,43 @@ namespace netxs::ui
                 // all tier::previews going to outside (upstream)
                 // all tier::releases going to inside (downstream)
                 // pro::focus: Subscribe on focus offers. Build a focus tree.
+                boss.LISTEN(tier::preview, hids::events::focus::add, seed, memo)
+                {
+                    auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
+                    auto& route = get_route(seed.gear_id);
+                    route.focused = allow_focusize;
+                    notify_set_focus(route, seed);
+                    if (seed.nondefault_gear() || boss.base::kind() != base::reflow_root) // Cut default focus path on base::reflow_root (hall::window) - Don't keep default routes in ui::hall. See pro::focus ctor.
+                    {
+                        if (auto parent = boss.parent())
+                        {
+                            seed.item = boss.This();
+                            parent->base::riseup(tier::preview, hids::events::focus::set, seed);
+                        }
+                    }
+                };
+                boss.LISTEN(tier::preview, hids::events::focus::rem, seed, memo)
+                {
+                    auto& route = get_route(seed.gear_id);
+                    auto boss_ptr = boss.This();
+                    if (route.active)
+                    {
+                        route.focused = faux;
+                        notify_off_focus(route, seed);
+                        if (auto parent_ptr = boss.parent())
+                        {
+                            seed.item = boss_ptr;
+                            parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                        }
+                    }
+                };
                 boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
                 {
                     auto focus_leaf = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     if (focus_leaf)
                     {
                         auto allow_focusize = seed.just_activate_only ? faux : (node_type == mode::focused || node_type == mode::focusable); // Ignore focusablity if it is requested.
-                        if (!allow_focusize && seed.nondefault_gear() && node_type != mode::relay/*block downstream for relays*/)
+                        if (!allow_focusize && seed.nondefault_gear())
                         {
                             boss.bell::signal(tier::release, hids::events::focus::set, seed); // Turn on a default downstream branch.
                         }
@@ -1496,7 +1527,7 @@ namespace netxs::ui
                     else // Build focus tree (we are in the middle of the focus tree).
                     {
                         auto& route = get_route(seed.gear_id);
-                        if (node_type == mode::relay)
+                        if (node_type == mode::relay) //todo never happen (relay in the middle)
                         {
                             if (route.active) // Finish if the branch is active.
                             {
@@ -1548,20 +1579,7 @@ namespace netxs::ui
                     auto focus_leaf = !seed.item; // No unfocused item yet. We are in the the first riseup iteration (pro::focus::off just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto& route = get_route(seed.gear_id);
                     auto boss_ptr = boss.This();
-                    if (node_type == mode::relay)
-                    {
-                        if (route.active)
-                        {
-                            route.focused = faux;
-                            notify_off_focus(route, seed);
-                            if (auto parent_ptr = boss.parent())
-                            {
-                                seed.item = boss_ptr;
-                                parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
-                            }
-                        }
-                    }
-                    else if (!focus_leaf)
+                    if (!focus_leaf)
                     {
                         auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                         if (iter != route.next.end())
@@ -1600,10 +1618,17 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.LISTEN(tier::request, hids::events::focus::get, seed, memo)
+                boss.LISTEN(tier::request, hids::events::focus::cut, gear_id_list, memo)
                 {
-                    boss.bell::signal(tier::preview, hids::events::focus::off, seed);
-                    gears.erase(seed.gear_id);
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        if (gear_id != id_t{} && route.active)
+                        {
+                            boss.bell::signal(tier::preview, hids::events::focus::off, { .gear_id = gear_id });
+                            gear_id_list.push_back(gear_id);
+                        }
+                    }
+                    gears.clear();
                 };
                 boss.LISTEN(tier::request, hids::events::focus::dry, seed, memo)
                 {

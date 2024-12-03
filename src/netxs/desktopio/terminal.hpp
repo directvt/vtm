@@ -8151,11 +8151,11 @@ namespace netxs::ui
                     auto owner_ptr = owner.This();
                     if (f.state)
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type);
+                        owner.bell::signal(tier::preview, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else
                     {
-                        pro::focus::off(owner_ptr, f.gear_id);
+                        owner.bell::signal(tier::preview, hids::events::focus::rem, { .gear_id = f.gear_id });
                     }
                 }
             }
