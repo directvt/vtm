@@ -916,7 +916,10 @@ namespace netxs::app::vtm
                 auto& window = *window_ptr;
                 window.bell::signal(tier::release, e2::form::layout::selected, gear);
                 if (!maximized) jump_to(window);
-                pro::focus::set(window_ptr, gear.id, solo::on);
+                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                {
+                    pro::focus::set(window.This(), gear_id, solo::on);
+                });
             }
             gear.set_handled();
         }

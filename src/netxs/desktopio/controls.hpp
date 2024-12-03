@@ -1180,19 +1180,17 @@ namespace netxs::ui
                 template<class P>
                 auto foreach(P proc)
                 {
-                    //todo revise (mutability)
                     auto head = next.begin();
-                    auto tail = next.end();
-                    while (head != tail)
+                    while (head != next.end())
                     {
-                        auto n = head++;
-                        if (auto nexthop = n->lock())
+                        if (auto nexthop = head->lock())
                         {
+                            head++;
                             proc(nexthop);
                         }
                         else
                         {
-                            next.erase(n);
+                            head = next.erase(head);
                         }
                     }
                 }
