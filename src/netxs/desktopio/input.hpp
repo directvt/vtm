@@ -161,8 +161,9 @@ namespace netxs::events::userland
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
                 EVENT_XS( cut, ui::gear_id_list_t ), // request: Unfocus and delete downstream (to inside) focus route.
-                EVENT_XS( add, input::foci ), // preview: Initiate focus setting toward outside (used by gui and dtvt).
-                EVENT_XS( rem, input::foci ), // preview: Initiate focus resetting toward outside (used by gui and dtvt).
+                EVENT_XS( add, input::foci ), // request: Initiate focus setting toward outside (used by gui and dtvt).
+                EVENT_XS( rem, input::foci ), // request: Initiate focus unsetting toward outside (used by gui and dtvt).
+                EVENT_XS( dup, input::foci ), // request: Make a focus tree copy from default.
             };
             SUBSET_XS( device )
             {
@@ -744,11 +745,8 @@ namespace netxs::input
         si32 focus_type{}; // foci: Exclusive focus request.
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.
-
-        auto nondefault_gear() const
-        {
-            return gear_id != id_t{};
-        }
+        sptr next{}; // foci: Next focused item.
+        si32 prev_state{ -1 }; //foci: Prev item route state on release::focus::set.
     };
 
     // input: Mouse tracker.
@@ -1527,7 +1525,9 @@ namespace netxs::input
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
+            bell::signal(tier::release, events::halt, *this);
             bell::signal(tier::general, events::halt, *this);
+            bell::signal(tier::release, events::die, *this);
             bell::signal(tier::general, events::die, *this);
             bell::signal(tier::general, events::device::user::logout, user_index);
         }

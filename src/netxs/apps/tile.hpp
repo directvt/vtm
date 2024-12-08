@@ -28,8 +28,15 @@ namespace netxs::events::userland
                 EVENT_XS( rotate  , input::hids ), // Change nested objects order. See tilimg manager (ui::fork).
                 EVENT_XS( equalize, input::hids ),
                 EVENT_XS( select  , input::hids ),
+                EVENT_XS( title   , input::hids ),
+                GROUP_XS( focus   , input::hids ),
                 GROUP_XS( split   , input::hids ),
 
+                SUBSET_XS( focus )
+                {
+                    EVENT_XS( next, input::hids ),
+                    EVENT_XS( prev, input::hids ),
+                };
                 SUBSET_XS( split )
                 {
                     EVENT_XS( vt, input::hids ),
@@ -337,19 +344,69 @@ namespace netxs::app::tile
                         }))
                     ->branch(slot::_2, what.applet);
         };
-        auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
+        auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
             auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color.bga(0x40);
 
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
-            node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See empty_slot::select.
+            node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See node_veer::select.
                 ->template plugin<pro::focus>()
                 ->limits(dot_00)
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
+                    //boss.LISTEN(tier::request, app::tile::events::ui::prev, gear)
+                    //{
+                    //    if (slot1 is focused)
+                    //    {
+                    //        if (auto parent_ptr = boss.parent()) // Pass it to the lower nesting level.
+                    //        {
+                    //            if (parent is node)
+                    //            {
+                    //                parent_ptr->base::riseup(tier::request, app::tile::events::ui::prev, gear);
+                    //            }
+                    //            else
+                    //            {
+                    //                // signal focus slot2
+                    //            }
+                    //        }
+                    //    }
+                    //    else if (grip is focused)
+                    //    {
+                    //        // signal focus slot1
+                    //    }
+                    //    else if (slot2 is focused)
+                    //    {
+                    //        // focus grip
+                    //    }
+                    //};
+                    //boss.LISTEN(tier::request, app::tile::events::ui::next, gear)
+                    //{
+                    //    if (slot2 is focused)
+                    //    {
+                    //        if (auto parent_ptr = boss.parent()) // Pass it to the lower nesting level.
+                    //        {
+                    //            if (parent is node)
+                    //            {
+                    //                parent_ptr->base::riseup(tier::request, app::tile::events::ui::next, gear);
+                    //            }
+                    //            else
+                    //            {
+                    //                // signal focus slot1
+                    //            }
+                    //        }
+                    //    }
+                    //    else if (grip is focused)
+                    //    {
+                    //        // signal focus slot2
+                    //    }
+                    //    else if (slot1 is focused)
+                    //    {
+                    //        // focus grip
+                    //    }
+                    //};
                     boss.LISTEN(tier::release, app::tile::events::ui::swap     , gear) { boss.swap();       };
                     boss.LISTEN(tier::release, app::tile::events::ui::rotate   , gear) { boss.rotate();     };
                     boss.LISTEN(tier::release, app::tile::events::ui::equalize , gear) { boss.config(1, 1); };
@@ -382,7 +439,7 @@ namespace netxs::app::tile
                                 ->active());
             return node;
         };
-        auto empty_pane = []
+        auto empty_slot = []
         {
             auto window_clr = skin::color(tone::window_clr);
             auto highlight_color = skin::color(tone::winfocus);
@@ -471,10 +528,10 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
-        auto empty_slot = [](auto&& empty_slot, auto min_state) -> netxs::sptr<ui::veer>
+        auto node_veer = [](auto&& node_veer, auto min_state) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*cut_scope*/)
+                ->plugin<pro::focus>()
                 ->active()
                 ->invoke([&](auto& boss)
                 {
@@ -509,7 +566,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
-                        // Block rising up this event: dtvt object fires this event on exit.
+                        // Block a rising up of this event: dtvt object fires this event on exit.
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
                     {
@@ -531,7 +588,7 @@ namespace netxs::app::tile
                         if (boss.count() == 1) // Only empty pane/slot available.
                         {
                             highlight(boss, faux);
-                            pro::focus::off(boss.This()); // Remove focus from empty_slot if it is focused.
+                            pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
                             auto app = app_window(what);
                             boss.attach(app);
                             app->bell::signal(tier::anycast, e2::form::upon::started);
@@ -603,6 +660,12 @@ namespace netxs::app::tile
                         if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, solo::off);
                         else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
+                    //boss.LISTEN(tier::request, app::tile::events::ui::select, gear)
+                    //{
+                    //    auto item_ptr = boss.back();
+                    //    if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, solo::off);
+                    //    else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
+                    //};
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
@@ -646,14 +709,14 @@ namespace netxs::app::tile
                             if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
-                            auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                            auto empty_1 = empty_slot(empty_slot, ui::fork::min_ratio);
-                            auto empty_2 = empty_slot(empty_slot, ui::fork::max_ratio);
+                            auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                            auto empty_1 = node_veer(node_veer, ui::fork::min_ratio);
+                            auto empty_2 = node_veer(node_veer, ui::fork::max_ratio);
                             auto gear_id = pro::focus::cut(boss.This());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
-                                boss.attach(empty_pane());
+                                boss.attach(empty_slot());
                                 empty_1->pop_back();
                             }
                             auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
@@ -710,7 +773,7 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto current_default = gate.bell::signal(tier::request, e2::data::changed);
                         auto config = gate.base::riseup(tier::request, vtm::events::apptype, { .menuid = current_default });
-                        if (config.kindid == netxs::app::site::id) return; // Deny any view regions inside the tiling manager.
+                        if (config.kindid == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
 
                         gate.base::riseup(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);
@@ -735,21 +798,21 @@ namespace netxs::app::tile
                         }
                         pro::focus::set(app, gear_id_list, solo::off);
                     };
-                    boss.LISTEN(tier::release, events::backup, empty_slot_list)
+                    boss.LISTEN(tier::release, events::backup, node_veer_list)
                     {
                         if (boss.count())
                         if (auto item_ptr = boss.back())
                         if (item_ptr->base::root())
                         {
-                            empty_slot_list.push_back(boss.This());
+                            node_veer_list.push_back(boss.This());
                         }
                     };
                 })
-                ->branch(empty_pane());
+                ->branch(empty_slot());
         };
         auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> netxs::sptr<ui::veer>
         {
-            auto slot = empty_slot(empty_slot, min_ratio);
+            auto slot = node_veer(node_veer, min_ratio);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return slot;
             auto tag = utf8.front();
@@ -784,7 +847,7 @@ namespace netxs::app::tile
                 }
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
-                auto node = built_node(tag, s1, s2, w);
+                auto node = build_node(tag, s1, s2, w);
                 auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
                 auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
                 slot->attach(node);
@@ -811,8 +874,67 @@ namespace netxs::app::tile
             }
             return slot;
         };
+        auto foreach = [](std::vector<sptr>& node_veer_stack, bool with_grips, id_t focused_by_gear_id, auto proc)
+        {
+            while (node_veer_stack.size())
+            {
+                if (auto node_veer_ptr = std::dynamic_pointer_cast<ui::veer>(node_veer_stack.back()))
+                {
+                    node_veer_stack.pop_back();
+                    if (!focused_by_gear_id || node_veer_ptr->plugins<pro::focus>().is_focused(focused_by_gear_id))
+                    {
+                        auto item = node_veer_ptr->back();
+                        if (node_veer_ptr->count() == 1) // Empty slot.
+                        {
+                            proc(item, 0);
+                        }
+                        else if (item->root()) // App window.
+                        {
+                            proc(item, 1);
+                        }
+                        else // if (!item->root()) // Node.
+                        {
+                            if (with_grips)
+                            {
+                                proc(item->base::subset[2], 2); // Grip.
+                            }
+                            node_veer_stack.push_back(item->base::subset[0]);
+                            node_veer_stack.push_back(item->base::subset[1]);
+                        }
+                    }
+                }
+                else
+                {
+                    node_veer_stack.clear();
+                }
+            }
+        };
         auto build_inst = [](eccc appcfg, xmls& config) -> sptr
         {
+            // tile (ui::fork, f, k)
+            //  │ │
+            //  │ └─ slot::_1 ─ menu_block
+            //  └─── slot::_2 ─ parse_data
+            //        │
+            //        └─ node_veer (ui::veer, f)
+            //            │
+            //            ├─ empty_slot (ui::cake, f)->isroot(true, base::placeholder)
+            //            │   │
+            //            │   ├─ ui::post ("Empty Slot")
+            //            │   └─ menu (" +  |  ─  x ")
+            //
+            //            └─ app_window (ui::fork, f)->isroot(true)
+            //                │ │
+            //           or   │ └─ slot::_1: ui::postfx<cell::shaders::contrast>("Title")
+            //                └─── slot::_2: what.applet
+            //            └─ node (ui::fork, f)->isroot(faux, base::node)
+            //                │ │ │
+            //                │ │ └─ slot::_1: parse_data...
+            //                │ └─── slot::_I: (ui::mock, f)->isroot(true)
+            //                └───── slot::_2: parse_data...
+            //            :
+            //            └─ maximized node_veer...
+
             auto param = view{ appcfg.cmd };
             auto window_clr = skin::color(tone::window_clr);
             //auto highlight_color = skin::color(tone::highlight);
@@ -828,20 +950,6 @@ namespace netxs::app::tile
                 ->plugin<pro::keybd>()
                 ->invoke([&](auto& boss)
                 {
-                    auto& keybd = boss.plugins<pro::keybd>();
-                    keybd.proc(action::TileFocusPrevPane     , [&](hids& /*gear*/, txts& /*args*/){ /*gear.set_handled(); todo implement*/ });
-                    keybd.proc(action::TileFocusNextPane     , [&](hids& /*gear*/, txts& /*args*/){ /*gear.set_handled(); todo implement*/ });
-                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear); });
-                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear); });
-                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear); });
-                    keybd.proc(action::TileSplitVertically   , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear); });
-                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear); });
-                    keybd.proc(action::TileSwapPanes         , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear); });
-                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear); });
-                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear, txts& /*args*/){ gear.set_handled(); app::shared::set_title(boss, gear); });
-                    keybd.proc(action::TileClosePane         , [&](hids& gear, txts& /*args*/){ gear.set_handled(); boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear); });
-                    auto bindings = keybd.load(config, "tile");
-                    keybd.bind(bindings);
                     auto oneoff = ptr::shared(hook{});
                     boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
                     {
@@ -865,110 +973,111 @@ namespace netxs::app::tile
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
-                });
+                    auto& keybd = boss.plugins<pro::keybd>();
+                    keybd.proc(action::TileFocusPrevPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::focus::prev, gear); });
+                    keybd.proc(action::TileFocusNextPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::focus::next, gear); });
+                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::create,      gear); });
+                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::select,      gear); });
+                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::split::hz,   gear); });
+                    keybd.proc(action::TileSplitVertically   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::split::vt,   gear); });
+                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::rotate,      gear); });
+                    keybd.proc(action::TileSwapPanes         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::swap,        gear); });
+                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::equalize,    gear); });
+                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::title ,      gear); });
+                    keybd.proc(action::TileClosePane         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::close,       gear); });
+                    auto bindings = pro::keybd::load(config, "tile");
+                    keybd.bind(bindings);
 
+                    boss.LISTEN(tier::request, app::tile::events::ui::focus::prev, gear)
+                    {
+                        log("ui::prev");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::focus::next, gear)
+                    {
+                        log("ui::next");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::create, gear)
+                    {
+                        log("ui::create");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::select, gear, -, (node_veer_stack = std::vector<sptr>{}))
+                    {
+                        log("ui::select");
+                        auto node_veer_ptr = boss.base::subset[1];
+                        auto with_grips = true;
+                        auto by_gear_id = id_t{};
+                        node_veer_stack.push_back(node_veer_ptr);
+                        foreach(node_veer_stack, with_grips, by_gear_id, [&](auto& item_ptr, si32 item_type)
+                        {
+                            if (item_type != 2) pro::focus::set(item_ptr, gear.id, solo::off);
+                            else                pro::focus::off(item_ptr, gear.id); // Exclude grips.
+                        });
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::split::hz, gear)
+                    {
+                        log("ui::split::hz");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::split::vt, gear)
+                    {
+                        log("ui::split::vt");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::rotate,    gear)
+                    {
+                        log("ui::rotate");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::swap,      gear)
+                    {
+                        log("ui::swap");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::equalize,  gear)
+                    {
+                        log("ui::equalize");
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::title ,    gear)
+                    {
+                        log("ui::title");
+                        app::shared::set_title(boss, gear);
+                    };
+                    boss.LISTEN(tier::request, app::tile::events::ui::close,     gear)
+                    {
+                        log("ui::close");
+                        boss.base::riseup(tier::preview, e2::form::proceed::quit::one, true);
+                    };
+                });
+            static auto on_left_click = [](auto& boss, auto& event)
+            {
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    gear.nodbl = true;
+                    boss.bell::expire(tier::release);
+                    boss.base::riseup(tier::request, event, gear);
+                };
+            };
             using namespace app::shared;
             static const auto proc_map = menu::action_map_t
             {
-                { tile::action::TileFocusPrevPane, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileFocusNextPane, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileRunApplicatoin, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSelectAllPanes, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSplitHorizontally, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSplitVertically, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSplitOrientation, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSwapPanes, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileSetManagerTitle, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        app::shared::set_title(boss, gear);
-                        gear.nodbl = true;
-                    };
-                }},
-                { tile::action::TileClosePane, [](auto& boss, auto& /*item*/)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear);
-                        gear.nodbl = true;
-                    };
-                }},
+                { tile::action::TileFocusPrevPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev); }},
+                { tile::action::TileFocusNextPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next); }},
+                { tile::action::TileRunApplicatoin    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create     ); }},
+                { tile::action::TileSelectAllPanes    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select     ); }},
+                { tile::action::TileSplitHorizontally , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz  ); }},
+                { tile::action::TileSplitVertically   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt  ); }},
+                { tile::action::TileSplitOrientation  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate     ); }},
+                { tile::action::TileSwapPanes         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap       ); }},
+                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize   ); }},
+                { tile::action::TileSetManagerTitle   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title      ); }},
+                { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close      ); }},
             };
             config.cd("/config/tile", "/config/defapp");
             auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
-                  ->invoke([](auto& boss)
-                  {
-                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                      {
-                          boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
-                      };
-                  });
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
+                    };
+                });
             menu_data->active(window_clr)
                      //->plugin<pro::track>()
                      ->plugin<pro::acryl>();
@@ -990,7 +1099,6 @@ namespace netxs::app::tile
                 if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, appcfg.cwd, err.value());
                 else     log("%%Change current directory to '%cwd%'", prompt::tile, appcfg.cwd);
             }
-
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
                 ->invoke([&](auto& boss)
                 {
@@ -1025,17 +1133,18 @@ namespace netxs::app::tile
 
                             if (deed == app::tile::events::ui::swap.id)
                             {
-                                auto empty_slot_list = backups{};
+                                //todo reimplement (avoid tier::general usage)
+                                auto node_veer_list = backups{};
                                 auto proc = e2::form::proceed::functor.param([&](sptr item_ptr)
                                 {
                                     auto gear_test = item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                                     if (gear_test.second)
                                     {
-                                        item_ptr->base::riseup(tier::release, events::backup, empty_slot_list);
+                                        item_ptr->base::riseup(tier::release, events::backup, node_veer_list);
                                     }
                                 });
                                 boss.bell::signal(tier::general, e2::form::proceed::functor, proc);
-                                auto slots_count = empty_slot_list.size();
+                                auto slots_count = node_veer_list.size();
                                 log(prompt::tile, "Slots count:", slots_count);
                                 if (slots_count >= 2) // Swap selected panes cyclically.
                                 {
@@ -1044,7 +1153,7 @@ namespace netxs::app::tile
                                     auto app_slot = sptr{};
                                     auto emp_next = sptr{};
                                     auto app_next = sptr{};
-                                    for (auto& s : empty_slot_list)
+                                    for (auto& s : node_veer_list)
                                     {
                                         if (s->count() == 1) // empty only
                                         {
@@ -1069,7 +1178,7 @@ namespace netxs::app::tile
                                         std::swap(emp_slot, emp_next);
                                         std::swap(app_slot, app_next);
                                     }
-                                    auto& s = empty_slot_list.front();
+                                    auto& s = node_veer_list.front();
                                     if (emp_slot) s->attach(emp_slot);
                                     if (app_slot)
                                     {

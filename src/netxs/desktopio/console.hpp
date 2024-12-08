@@ -1126,7 +1126,7 @@ namespace netxs::ui
               fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            auto bindings = keybd.load(config, "tui");
+            auto bindings = pro::keybd::load(config, "tui");
             keybd.bind(bindings);
 
             base::root(true);
@@ -1134,7 +1134,7 @@ namespace netxs::ui
 
             LISTEN(tier::preview, hids::events::focus::any, seed, tokens)
             {
-                if (seed.nondefault_gear())
+                if (seed.gear_id)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
                     if (gear_ptr)
@@ -1145,6 +1145,7 @@ namespace netxs::ui
                     }
                 }
             };
+            //todo mimic pro::focus
             LISTEN(tier::release, hids::events::focus::any, seed, tokens)
             {
                 if (auto target = nexthop.lock())

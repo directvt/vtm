@@ -1805,7 +1805,7 @@ namespace netxs::gui
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        owner.bell::signal(tier::preview, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.bell::signal(tier::request, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else owner.window_post_command(ipc::take_focus);
                     if (f.focus_type == solo::on) // Set solo focus.
@@ -1815,7 +1815,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    owner.bell::signal(tier::preview, hids::events::focus::rem, { .gear_id = f.gear_id });
+                    owner.bell::signal(tier::request, hids::events::focus::rem, { .gear_id = f.gear_id });
                 }
             }
             void handle(s11n::xs::syskeybd         lock)
@@ -3258,8 +3258,11 @@ namespace netxs::gui
                 LISTEN(tier::release, hids::events::focus::any, seed)
                 {
                     auto deed = this->bell::protos(tier::release);
-                    auto state = deed == hids::events::focus::set.id;
-                    stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type);
+                    if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
+                    {
+                        auto state = deed == hids::events::focus::set.id;
+                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type);
+                    }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
                 {

@@ -477,7 +477,7 @@ namespace netxs::ui
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
                 };
-                owner.bell::signal(tier::request, e2::form::state::keybd::check, state);
+                state = owner.bell::signal(tier::request, e2::form::state::focus::count);
             }
 
             operator bool () { return state; }
@@ -7274,7 +7274,7 @@ namespace netxs::ui
             if (onesht != mime::disabled && !ctrl_pressed) selection_oneshot(mime::disabled);
             if (ctrl_pressed || selection_cancel()) // Keep selection if Ctrl is pressed.
             {
-                base::expire(tier::release);
+                bell::expire(tier::release);
                 return true;
             }
             return faux;
@@ -7349,7 +7349,7 @@ namespace netxs::ui
                 console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
-                base::expire(tier::release);
+                bell::expire(tier::release);
             }
             else selection_cancel();
         }
@@ -7357,7 +7357,7 @@ namespace netxs::ui
         {
             target->selection_byword(gear.coord);
             gear.dismiss();
-            base::expire(tier::release);
+            bell::expire(tier::release);
             base::deface();
         }
         void selection_tplclk(hids& gear)
@@ -7367,7 +7367,7 @@ namespace netxs::ui
             else if (clicks == 4) target->selection_bymark(gear.coord);
             else if (clicks == 5) target->selection_selall();
             gear.dismiss();
-            base::expire(tier::release);
+            bell::expire(tier::release);
             base::deface();
         }
         void selection_create(hids& gear)
@@ -7867,7 +7867,7 @@ namespace netxs::ui
             chords.proc(action::TerminalAlignMode,            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
             chords.proc(action::TerminalWrapMode,             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             chords.proc(action::ExclusiveKeyboardMode,        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
-            auto bindings = chords.load(xml_config, "terminal");
+            auto bindings = pro::keybd::load(xml_config, "terminal");
             chords.bind(bindings);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
@@ -8151,11 +8151,11 @@ namespace netxs::ui
                     auto owner_ptr = owner.This();
                     if (f.state)
                     {
-                        owner.bell::signal(tier::preview, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.bell::signal(tier::request, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else
                     {
-                        owner.bell::signal(tier::preview, hids::events::focus::rem, { .gear_id = f.gear_id });
+                        owner.bell::signal(tier::request, hids::events::focus::rem, { .gear_id = f.gear_id });
                     }
                 }
             }
@@ -8518,8 +8518,11 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::focus::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                auto state = deed == hids::events::focus::set.id;
-                stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
+                if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
+                {
+                    auto state = deed == hids::events::focus::set.id;
+                    stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
+                }
             };
             LISTEN(tier::preview, hids::events::keybd::key::any, gear)
             {

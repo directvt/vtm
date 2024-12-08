@@ -391,7 +391,7 @@ namespace netxs::app::shared
             auto term_cake = ui::cake::ctor()
                 ->active(window_clr);
             auto dtvt = ui::dtvt::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::relay, faux/*default: don't cut_scope*/, faux/*no default focus*/)
+                ->plugin<pro::focus>(pro::focus::mode::relay, faux/*no default focus*/)
                 ->limits(dot_11);
             auto scrl = term_cake->attach(ui::rail::ctor());
             auto defclr = config.take("/config/terminal/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
@@ -466,8 +466,10 @@ namespace netxs::app::shared
                     {
                         if (!!started == order)
                         {
+                            auto prev_ptr = boss.back();
                             boss.roll();
-                            boss.bell::signal(tier::request, hids::events::focus::hop, { .item = boss.back() });
+                            auto next_ptr = boss.back();
+                            pro::focus::hop(prev_ptr, next_ptr);
                             boss.back()->base::riseup(tier::preview, e2::form::prop::ui::footer);
                             boss.back()->reflow();
                             boss.back()->deface();

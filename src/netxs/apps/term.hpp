@@ -805,7 +805,7 @@ namespace netxs::app::terminal
                 {
                     if (cwd_sync)
                     {
-                        boss.expire(tier::preview, true);
+                        boss.bell::expire(tier::preview, true);
                         cwd_path = path;
                     }
                 };

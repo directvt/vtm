@@ -161,7 +161,7 @@ namespace netxs::app::vtm
                 window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
+                    boss.bell::expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
                 };
                 window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
@@ -750,7 +750,7 @@ namespace netxs::app::vtm
             keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
             keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); gear.set_handled(); });
-            auto bindings = keybd.load(config, "desktop");
+            auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
@@ -1999,7 +1999,7 @@ namespace netxs::app::vtm
             //todo mimic pro::focus
             LISTEN(tier::preview, hids::events::focus::off, seed) // Forward the focus event to the gate for sending it to the outside.
             {
-                if (seed.nondefault_gear())
+                if (seed.gear_id)
                 {
                     if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
                     {
@@ -2011,7 +2011,7 @@ namespace netxs::app::vtm
             //todo mimic pro::focus
             LISTEN(tier::preview, hids::events::focus::set, seed) // Forward the focus event to the gate for sending it to the outside.
             {
-                if (seed.nondefault_gear())
+                if (seed.gear_id)
                 {
                     if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
                     {
