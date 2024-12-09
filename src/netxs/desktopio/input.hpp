@@ -746,7 +746,6 @@ namespace netxs::input
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.
         sptr next{}; // foci: Next focused item.
-        si32 prev_state{ -1 }; //foci: Prev item route state on release::focus::set.
     };
 
     // input: Mouse tracker.

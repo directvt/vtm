@@ -1217,7 +1217,7 @@ namespace netxs::ui
                     si32 status{}; // dead, live or idle.
                 };
 
-                bool              active{}; // focus: The endpoint is under focus.
+                si32              active{}; // focus: The endpoint focus state.
                 hook              token;    // focus: Cleanup token.
                 std::list<dest_t> next;     // focus: Focus next hop list.
 
@@ -1263,9 +1263,9 @@ namespace netxs::ui
                             {
                                 auto& chain = iter->second;
                                 auto  token = std::move(chain.token);
-                                if (notify_focus_state(faux, chain, gear.id))
+                                if (notify_focus_state(state::idle, chain, gear.id))
                                 {
-                                    chain.active = true; // Keep chain state.
+                                    chain.active = state::live; // Keep chain state.
                                 }
                                 gears[id_t{}] = std::move(chain);
                                 boss.bell::signal(tier::release, hids::events::die, gear); // Notify pro::keybd.
@@ -1285,12 +1285,13 @@ namespace netxs::ui
                 }
                 return iter->second;
             }
-            bool notify_focus_state(bool active, chain_t& chain, id_t gear_id)
+            bool notify_focus_state(si32 active, chain_t& chain, id_t gear_id)
             {
-                auto changed = std::exchange(chain.active, active) != chain.active;
+                auto changed = (chain.active == state::live) != (active == state::live);
+                chain.active = active;
                 if (gear_id && changed)
                 {
-                    if (active)
+                    if (active == state::live)
                     {
                         count++;
                         boss.bell::signal(tier::release, e2::form::state::focus::on, gear_id);
@@ -1398,7 +1399,7 @@ namespace netxs::ui
             auto is_focused(id_t gear_id)
             {
                 auto iter = gears.find(gear_id);
-                auto result = iter != gears.end() && iter->second.active;
+                auto result = iter != gears.end() && iter->second.active == state::live;
                 return result;
             }
 
@@ -1477,7 +1478,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
-                    if (notify_focus_state(faux, chain, seed.gear_id))
+                    if (notify_focus_state(state::idle, chain, seed.gear_id))
                     {
                         chain.foreach([&](auto& nexthop, auto& status)
                         {
@@ -1497,10 +1498,10 @@ namespace netxs::ui
                     {
                         iter = add_chain(seed.gear_id, iter->second); // Create a new chain which is based on default.
                         auto& chain = iter->second;
-                        if (chain.active)
+                        if (chain.active == state::live)
                         {
-                            chain.active = faux;
-                            notify_focus_state(true, chain, seed.gear_id);
+                            chain.active = state::idle;
+                            notify_focus_state(state::live, chain, seed.gear_id);
                             if (node_type == mode::relay)
                             {
                                 boss.bell::signal(tier::release, hids::events::focus::set, seed);
@@ -1530,15 +1531,16 @@ namespace netxs::ui
                         }
                     }
                     auto& chain = iter->second;
-                    notify_focus_state(true, chain, seed.gear_id);
+                    auto prev_state = chain.active;
+                    notify_focus_state(state::live, chain, seed.gear_id);
                     if (node_type != mode::relay)
                     {
                         auto allow_focusize = node_type == mode::focused || node_type == mode::focusable;
                         chain.foreach([&](auto& nexthop, auto& status)
                         {
-                            if (status != state::dead || (!allow_focusize && seed.prev_state == state::dead)) // Focusing a dead item activates a whole dead branch upto a focusable item.
+                            if (status != state::dead || (!allow_focusize && prev_state == state::dead)) // Focusing a dead item activates a whole dead branch upto a focusable item.
                             {
-                                seed.prev_state = std::exchange(status, state::live);
+                                status = state::live;
                                 seed.item = boss.This();
                                 nexthop->bell::signal(tier::release, hids::events::focus::set, seed);
                             }
@@ -1571,7 +1573,7 @@ namespace netxs::ui
                                     }
                                 });
                             }
-                            notify_focus_state(true, chain, seed.gear_id);
+                            notify_focus_state(state::live, chain, seed.gear_id);
                         }
                     }
                     else // Build focus tree (we are in the middle of the focus tree).
@@ -1593,7 +1595,10 @@ namespace netxs::ui
                                     nexthop->bell::signal(tier::release, hids::events::focus::off, seed);
                                 }
                             });
-                            if (!exists) chain.next.push_back({ wptr{ seed.item }, state::live });
+                            if (!exists)
+                            {
+                                chain.next.push_back({ wptr{ seed.item }, state::live });
+                            }
                         }
                         else // Group focus.
                         {
@@ -1606,12 +1611,12 @@ namespace netxs::ui
                             {
                                 iter->status = state::live;
                             }
-                            if (chain.active) // Stop group focusing if the branch is already active.
+                            if (chain.active == state::live) // Stop group focusing if the branch is already active.
                             {
                                 return;
                             }
                         }
-                        notify_focus_state(true, chain, seed.gear_id);
+                        notify_focus_state(state::live, chain, seed.gear_id);
                     }
                     if (auto parent = boss.parent())
                     {
@@ -1626,7 +1631,7 @@ namespace netxs::ui
                     auto& chain = get_chain(seed.gear_id);
                     if (first_step)
                     {
-                        if (chain.active)
+                        if (chain.active == state::live)
                         {
                             boss.bell::signal(tier::release, hids::events::focus::off, seed);
                         }
@@ -1643,9 +1648,10 @@ namespace netxs::ui
                         auto focusable = node_type == mode::focused || node_type == mode::focusable;
                         if (chain.next.size() > 1 || focusable) // Stop unfocusing on hub or focusable.
                         {
+                            boss.bell::expire(tier::preview); // Don't let the hall send the event to the gate.
                             return;
                         }
-                        notify_focus_state(faux, chain, seed.gear_id);
+                        notify_focus_state(state::dead, chain, seed.gear_id);
                     }
                     if (auto parent_ptr = boss.parent())
                     {
@@ -1657,7 +1663,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::request, hids::events::focus::add, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
-                    notify_focus_state(true, chain, seed.gear_id);
+                    notify_focus_state(state::live, chain, seed.gear_id);
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
@@ -1669,7 +1675,7 @@ namespace netxs::ui
                 {
                     auto& chain = get_chain(seed.gear_id);
                     auto boss_ptr = boss.This();
-                    if (notify_focus_state(faux, chain, seed.gear_id))
+                    if (notify_focus_state(state::idle, chain, seed.gear_id))
                     {
                         if (auto parent_ptr = boss.parent())
                         {
@@ -1720,7 +1726,7 @@ namespace netxs::ui
                         if (iter != chain.next.end())
                         {
                             iter->next_wptr = next_ptr;
-                            if (chain.active)
+                            if (chain.active == state::live)
                             {
                                 prev_ptr->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
                                 next_ptr->bell::signal(tier::release, hids::events::focus::set, { .gear_id = gear_id });
@@ -1733,7 +1739,7 @@ namespace netxs::ui
                 {
                     for (auto& [gear_id, chain] : gears)
                     {
-                        if (gear_id && chain.active)
+                        if (gear_id && chain.active == state::live)
                         {
                             gear_id_list.push_back(gear_id);
                         }
@@ -1748,7 +1754,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
                 {
                     auto iter = gears.find(gear_test.first);
-                    if (iter != gears.end() && iter->second.active)
+                    if (iter != gears.end() && iter->second.active == state::live)
                     {
                         gear_test.second++;
                     }
@@ -1760,7 +1766,7 @@ namespace netxs::ui
                     if (iter != gears.end())
                     {
                         auto& chain = iter->second;
-                        if (chain.active)
+                        if (chain.active == state::live)
                         {
                             chain.foreach([&](auto& /*nexthop*/, auto& status)
                             {
@@ -1777,7 +1783,8 @@ namespace netxs::ui
                 {
                     for (auto& [gear_id, chain] : gears)
                     {
-                        if (gear_id && chain.next.empty() && chain.active) // chain.focused === chain.active & chain.next.empty().
+                        //todo revise
+                        if (gear_id && chain.next.empty() && chain.active == state::live)
                         {
                             function(boss.This());
                         }
@@ -1789,7 +1796,7 @@ namespace netxs::ui
                     if (auto iter = gears.find(inputfield_request.gear_id); iter != gears.end())
                     {
                         auto& chain = iter->second;
-                        if (chain.active)
+                        if (chain.active == state::live)
                         {
                             boss.bell::signal(tier::release, ui::e2::command::request::inputfields, inputfield_request);
                         }
