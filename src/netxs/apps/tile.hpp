@@ -250,35 +250,30 @@ namespace netxs::app::tile
                     {
                         anycasting(boss);
                         mouse_subs(boss);
-
                         if (what.applet->size() != dot_00) boss.resize(what.applet->size() + dot_01/*approx title height*/);
-
-                        auto master_shadow = ptr::shadow(boss.This());
                         auto applet_shadow = ptr::shadow(what.applet);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = what.menuid))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, menuid = what.menuid))
                         {
-                            if (auto master_ptr = master_shadow.lock())
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
                             {
-                                auto& master = *master_ptr;
                                 auto& applet = *applet_ptr;
 
-                                auto deed = master.bell::protos(tier::release);
+                                auto deed = boss.bell::protos(tier::release);
                                 if (deed != hids::events::mouse::button::drag::start::left.id
                                  && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
-                                // Restore if maximized. Parent can be changed.
-                                master.bell::signal(tier::release, e2::form::size::restore, e2::form::size::restore.param());
+                                // Restore if maximized. Parent can be changed after that.
+                                boss.bell::signal(tier::release, e2::form::size::restore, e2::form::size::restore.param());
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param({ .menuid = menuid });
-                                master.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
-                                master.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
+                                boss.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
+                                boss.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menuid;
 
                                 // Find creator.
-                                auto world_ptr = master.base::riseup(tier::request, e2::config::creator);
+                                auto world_ptr = boss.base::riseup(tier::request, e2::config::creator);
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
@@ -289,15 +284,12 @@ namespace netxs::app::tile
                                 what.forced = true;
                                 what.applet = applet_ptr;
 
-                                if (auto old_parent_ptr = master.parent())
-                                {
-                                    auto gear_id_list = pro::focus::cut(old_parent_ptr);
-                                    master.remove(applet_ptr);
-                                    applet.moveto(dot_00);
-                                    world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
-                                    pro::focus::set(applet_ptr, gear_id_list, solo::off, true); // Refocus.
-                                    master.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
-                                }
+                                auto gear_id_list = pro::focus::cut(boss.This());
+                                boss.remove(applet_ptr);
+                                applet.moveto(dot_00);
+                                world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
+                                pro::focus::set(applet_ptr, gear_id_list, solo::off, true); // Refocus.
+                                boss.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 if (auto new_parent_ptr = applet.parent())
                                 {
                                     // Redirect this mouse event to the new world's window.

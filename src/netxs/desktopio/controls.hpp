@@ -1678,24 +1678,25 @@ namespace netxs::ui
                         }
                     }
                 };
-                // pro::focus: .
+                // pro::focus: Drop all downlinks (toward inside) from the boss and unfocus boss. Return dropped active gears.
                 boss.LISTEN(tier::request, hids::events::focus::cut, gear_id_list, memo)
                 {
                     for (auto& [gear_id, chain] : gears)
                     {
+                        auto live = faux;
+                        chain.foreach([&](auto& nexthop, auto& status) // Drop all downlinks (toward inside) from the boss.
+                        {
+                            if (gear_id && status == state::live)
+                            {
+                                live = true;
+                                nexthop->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                            }
+                            nexthop = {};
+                        });
                         if (gear_id)
                         {
-                            chain.foreach([&](auto& nexthop, auto& status)
-                            {
-                                if (status == state::live)
-                                {
-                                    status = state::idle;
-                                    nexthop->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
-                                    nexthop = {};
-                                }
-                            });
                             boss.bell::signal(tier::preview, hids::events::focus::off, { .gear_id = gear_id });
-                            gear_id_list.push_back(gear_id);
+                            if (live) gear_id_list.push_back(gear_id); // Backup dropped active gears.
                         }
                     }
                     gears.clear();
