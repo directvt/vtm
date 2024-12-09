@@ -1722,14 +1722,23 @@ namespace netxs::ui
                     auto next_ptr = seed.next;
                     for (auto& [gear_id, chain] : gears)
                     {
-                        auto iter = std::find_if(chain.next.begin(), chain.next.end(), [&](auto& n){ auto next_ptr = n.next_wptr.lock(); return next_ptr == prev_ptr; });
-                        if (iter != chain.next.end())
+                        auto iter = chain.next.begin();
+                        while (iter != chain.next.end())
                         {
-                            iter->next_wptr = next_ptr;
-                            if (chain.active == state::live)
+                            auto& r = *iter++;
+                            auto item_ptr = r.next_wptr.lock();
+                            if (!item_ptr || item_ptr == next_ptr)
                             {
-                                prev_ptr->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
-                                next_ptr->bell::signal(tier::release, hids::events::focus::set, { .gear_id = gear_id });
+                                iter = chain.next.erase(iter);
+                            }
+                            else if (item_ptr == prev_ptr)
+                            {
+                                r.next_wptr = next_ptr;
+                                if (gear_id && r.status == state::live)
+                                {
+                                    prev_ptr->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                                    next_ptr->bell::signal(tier::release, hids::events::focus::set, { .gear_id = gear_id  });
+                                }
                             }
                         }
                     }

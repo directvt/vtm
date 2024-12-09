@@ -389,6 +389,7 @@ namespace netxs::app::shared
                 ->limits(dot_11)
                 ->plugin<pro::focus>();
             auto term_cake = ui::cake::ctor()
+                ->plugin<pro::focus>()
                 ->active(window_clr);
             auto dtvt = ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::relay, faux/*no default focus*/)
