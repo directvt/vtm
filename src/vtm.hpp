@@ -190,20 +190,17 @@ namespace netxs::app::vtm
                 boss.base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
                 boss.base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
                 boss.base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
-                auto window_ptr = what.applet;
-                auto gear_id_list = pro::focus::cut(boss.This());
-                window_ptr->base::detach();
+                auto& window = *what.applet;
                 if (auto world_ptr = boss.base::parent())
                 {
                     world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
                 }
                 switch (restore)
                 {
-                    case type::full: window_ptr->base::extend(prev); break; // Restore previous position.
-                    case type::coor: window_ptr->base::moveto(prev.coor); break;
+                    case type::full: window.base::extend(prev); break; // Restore previous position.
+                    case type::coor: window.base::moveto(prev.coor); break;
                     case type::size:
                     {
-                        auto& window = *window_ptr;
                         auto window_size = window.base::size();
                         auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
                         anchor = anchor * prev.size / std::max(dot_11, window_size);
@@ -214,7 +211,6 @@ namespace netxs::app::vtm
                     }
                 }
                 what.applet.reset();
-                pro::focus::set(window_ptr, gear_id_list, solo::on, true); // Refocus.
             }
         };
 
@@ -1840,8 +1836,11 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
+                auto gear_id_list = pro::focus::cut(what.applet->parent());
+                what.applet->base::detach();
                 auto& cfg = dbase.menu[what.menuid];
                 branch(what.menuid, what.applet, !cfg.hidden);
+                pro::focus::set(what.applet, gear_id_list, solo::on, true);
             };
             LISTEN(tier::request, vtm::events::apptype, what)
             {

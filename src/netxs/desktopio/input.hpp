@@ -1669,6 +1669,7 @@ namespace netxs::input
 
         void take(sysfocus& f)
         {
+            if (f.state) disabled = faux;
             focus::update(f);
         }
         void take(sysmouse& m)
@@ -1692,6 +1693,7 @@ namespace netxs::input
         }
         void take(syskeybd& k)
         {
+            disabled = faux;
             if (k.keycode == key::config) // Receive three layout related values coded as codepoints: nullkey keycode, '/' keycode+mods, '?' keycode+mods.
             {
                 auto i = utf::cpit{ k.cluster };
