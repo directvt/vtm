@@ -826,21 +826,11 @@ namespace netxs::ui
             //todo make it flat
             auto lock = bell::sync();
             bell::signal(Tier, event_id, param);
-            if (forced)
+            if (forced || !bell::accomplished(Tier))
             {
-                base::toboss([&](auto& boss)
+                if (auto parent_ptr = parent())
                 {
-                    boss.base::raw_riseup(Tier, event_id, param, forced);
-                });
-            }
-            else
-            {
-                if (!bell::accomplished(Tier))
-                {
-                    base::toboss([&](auto& boss)
-                    {
-                        boss.base::raw_riseup(Tier, event_id, param, forced);
-                    });
+                    parent_ptr->raw_riseup(Tier, event_id, param, forced);
                 }
             }
         }
