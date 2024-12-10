@@ -584,9 +584,9 @@ namespace netxs::ui
             }
             void fire(hint event_id)
             {
-                for (auto& [gear_id, gear_ptr] : gears)
+                for (auto& [ext_gear_id, gear_ptr] : gears)
                 {
-                    if (gear_id)
+                    if (ext_gear_id)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
@@ -597,11 +597,11 @@ namespace netxs::ui
                     }
                 }
             }
-            auto get_foreign_gear_id(id_t gear_id)
+            auto get_ext_gear_id(id_t gear_id)
             {
-                for (auto& [foreign_id, gear_ptr] : gears)
+                for (auto& [ext_gear_id, gear_ptr] : gears)
                 {
-                    if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
+                    if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
                 }
                 return std::pair{ id_t{}, netxs::sptr<hids>{} };
             }
@@ -868,7 +868,7 @@ namespace netxs::ui
         {
             auto& header = *uname.lyric;
             auto  half_x = header.size().x / 2;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -884,7 +884,7 @@ namespace netxs::ui
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto area = rect_11;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -896,7 +896,7 @@ namespace netxs::ui
         }
         void draw_clipboard_preview(face& canvas, time const& stamp)
         {
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 gear.board::shown = !gear.disabled &&
@@ -917,7 +917,7 @@ namespace netxs::ui
             auto area = canvas.area();
             auto zero = rect{ dot_00, area.size };
             canvas.area(zero);
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -943,14 +943,14 @@ namespace netxs::ui
         void send_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
                     auto [tooltip_data, tooltip_update] = gear.get_tooltip();
-                    list.thing.push(gear_id, tooltip_data, tooltip_update);
+                    list.thing.push(ext_gear_id, tooltip_data, tooltip_update);
                 }
             }
             list.thing.sendby<true>(canal);
@@ -958,7 +958,7 @@ namespace netxs::ui
         void check_tooltips(time now)
         {
             auto result = faux;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -1051,7 +1051,7 @@ namespace netxs::ui
             {
                 if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
                 {
-                    for (auto& [gear_id, gear_ptr] : input.gears)
+                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
@@ -1136,7 +1136,7 @@ namespace netxs::ui
             {
                 if (seed.gear_id)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
@@ -1173,7 +1173,7 @@ namespace netxs::ui
             {
                 if (!gear.handled)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr)
                     {
                         gear.gear_id = ext_gear_id;
@@ -1285,7 +1285,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
             {
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
@@ -1295,7 +1295,7 @@ namespace netxs::ui
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
                 if (gear_ptr)
                 {
                     conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
@@ -1331,12 +1331,12 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
@@ -1375,7 +1375,7 @@ namespace netxs::ui
                     }
                     if (forward)
                     {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                        auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                         if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
@@ -1406,12 +1406,12 @@ namespace netxs::ui
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }

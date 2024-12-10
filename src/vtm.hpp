@@ -117,9 +117,11 @@ namespace netxs::app::vtm
 
             void follow(vtm::link& new_what, dent pads = {})
             {
+                auto old_parent = new_what.applet->parent();
+                if (!old_parent) return;
+                auto gear_id_list = pro::focus::cut(old_parent, true);
                 what = new_what;
                 auto window_ptr = new_what.applet;
-                auto gear_id_list = pro::focus::cut(window_ptr, true);
                 saved = nexthop;
                 nexthop = new_what.applet;
                 window_ptr->base::detach();
@@ -172,8 +174,8 @@ namespace netxs::app::vtm
                     if (coor != new_area.coor) unbind(type::size);
                 };
 
-                window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.base::This());
-                window_ptr->bell::signal(tier::anycast, vtm::events::attached, boss.base::This());
+                window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.This());
+                window_ptr->bell::signal(tier::anycast, vtm::events::attached, boss.This());
                 pro::focus::set(window_ptr, gear_id_list, solo::on, true); // Refocus.
             }
             void unbind(type restore = type::full)
@@ -189,7 +191,7 @@ namespace netxs::app::vtm
                 boss.base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
                 boss.base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
                 auto window_ptr = what.applet;
-                auto gear_id_list = pro::focus::cut(window_ptr, true);
+                auto gear_id_list = pro::focus::cut(boss.This());
                 window_ptr->base::detach();
                 if (auto world_ptr = boss.base::parent())
                 {
@@ -753,6 +755,24 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
+            //todo mimic pro::focus
+            LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens)
+            {
+                if (align.what.applet)
+                {
+                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
+                    {
+                        if (ext_gear_id && !gear_ptr->disabled) // Ignore default and halted gears.
+                        {
+                            if (auto gear_id = gear_ptr->id)
+                            {
+                                gear_id_list.push_back(gear_id);
+                                align.what.applet->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                            }
+                        }
+                    }
+                }
+            };
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
             {
                 create_app(gear);
@@ -1437,7 +1457,7 @@ namespace netxs::app::vtm
                         pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
                         auto what = what_copy;
                         what.applet = window_ptr;
-                        pro::focus::set(boss.This(), gear.id, solo::on, true); // Refocus to demultifocus.
+                        pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
