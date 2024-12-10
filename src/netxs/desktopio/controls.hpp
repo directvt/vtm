@@ -1507,6 +1507,7 @@ namespace netxs::ui
                             notify_focus_state(state::live, chain, seed.gear_id);
                             if (node_type == mode::relay)
                             {
+                                seed.item = boss.This();
                                 boss.bell::signal(tier::release, hids::events::focus::set, seed);
                             }
                         }

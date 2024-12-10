@@ -823,14 +823,25 @@ namespace netxs::ui
         //          base::raw_riseup(tier::preview, e2::form::prop::ui::header, txt);
         void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
-            //todo make it flat
             auto lock = bell::sync();
             bell::signal(Tier, event_id, param);
-            if (forced || !bell::accomplished(Tier))
+            if (forced)
             {
-                if (auto parent_ptr = parent())
+                auto parent_ptr = parent();
+                while (parent_ptr)
                 {
-                    parent_ptr->raw_riseup(Tier, event_id, param, forced);
+                    parent_ptr->bell::signal(Tier, event_id, param);
+                    parent_ptr = parent_ptr->parent();
+                }
+            }
+            else if (!bell::accomplished(Tier))
+            {
+                auto parent_ptr = parent();
+                while (parent_ptr)
+                {
+                    parent_ptr->bell::signal(Tier, event_id, param);
+                    if (parent_ptr->bell::accomplished(Tier)) break;
+                    parent_ptr = parent_ptr->parent();
                 }
             }
         }
