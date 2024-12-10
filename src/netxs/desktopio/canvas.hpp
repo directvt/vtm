@@ -2995,7 +2995,7 @@ namespace netxs
                     }
                     //todo use whxy
                     auto not_right_half = c.wdt() != right_half;
-                    if (stop_by_zwsp == 2 || not_right_half && !check(txt)) return true;
+                    if (stop_by_zwsp == 2 || (not_right_half && !check(txt))) return true;
                     count++;
                     return faux;
                 };

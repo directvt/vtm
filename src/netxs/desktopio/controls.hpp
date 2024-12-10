@@ -1248,7 +1248,7 @@ namespace netxs::ui
             si32 node_type; // focus: .
             si32 count{}; // focus: The number of active gears.
 
-            auto add_chain(id_t gear_id, chain_t new_chain = {})
+            auto add_chain(id_t gear_id, chain_t new_chain = { .active = state::dead })
             {
                 auto iter = gears.emplace(gear_id, std::move(new_chain)).first;
                 if (gear_id)

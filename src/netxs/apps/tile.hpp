@@ -965,7 +965,7 @@ namespace netxs::app::tile
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
-                    auto& keybd = boss.plugins<pro::keybd>();
+                    auto& keybd = boss.template plugins<pro::keybd>();
                     keybd.proc(action::TileFocusPrevPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::focus::prev, gear); });
                     keybd.proc(action::TileFocusNextPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::focus::next, gear); });
                     keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::request, app::tile::events::ui::create,      gear); });
