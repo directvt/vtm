@@ -1494,7 +1494,8 @@ namespace netxs::input
         bool slot_forced = faux; // .
 
         //todo unify
-        bool disabled = faux;
+        bool mouse_disabled = faux; // Hide mouse cursor.
+        bool keybd_disabled = faux; // Inactive gear.
         si32 countdown = 0;
 
         id_t user_index; // hids: User/Device image/icon index.
@@ -1540,7 +1541,7 @@ namespace netxs::input
         auto tooltip_enabled(time const& now)
         {
             return !mouse::m_sys.buttons
-                && !disabled
+                && !mouse_disabled
                 && !tooltip_stop
                 && tooltip_show
                 && tooltip_data.size()
@@ -1669,7 +1670,7 @@ namespace netxs::input
 
         void take(sysfocus& f)
         {
-            if (f.state) disabled = faux;
+            if (f.state) keybd_disabled = faux;
             focus::update(f);
         }
         void take(sysmouse& m)
@@ -1687,13 +1688,14 @@ namespace netxs::input
                 else if (r_ctrl)        netxs::_k3 += m.wheelsi > 0 ? 1 : -1; // RCtrl+Wheel.
             }
             #endif
-            disabled = faux;
+            mouse_disabled = faux;
+            keybd_disabled = faux;
             keybd::ctlstat = m.ctlstat;
             mouse::update(m, idmap);
         }
         void take(syskeybd& k)
         {
-            disabled = faux;
+            keybd_disabled = faux;
             if (k.keycode == key::config) // Receive three layout related values coded as codepoints: nullkey keycode, '/' keycode+mods, '?' keycode+mods.
             {
                 auto i = utf::cpit{ k.cluster };
@@ -1780,7 +1782,8 @@ namespace netxs::input
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
             bell::signal(tier::general, events::halt, *this);
-            disabled = true;
+            mouse_disabled = true;
+            keybd_disabled = true;
         }
         void okay(base& boss)
         {
@@ -1792,7 +1795,7 @@ namespace netxs::input
         }
         void fire(hint new_cause, si32 new_index = mouse::noactive)
         {
-            if (disabled) return;
+            if (mouse_disabled) return;
 
             alive = true;
             mouse::index = new_index;
@@ -1838,7 +1841,7 @@ namespace netxs::input
         }
         bool fire_fast()
         {
-            if (disabled) return true;
+            if (mouse_disabled) return true;
             alive = true;
             auto next_id = mouse::swift ? mouse::swift
                                         : idmap.link(m_sys.coordxy);

@@ -871,7 +871,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 auto coor = twod{ gear.coord };
                 coor.y -= 1;
                 coor.x -= half_x;
@@ -887,7 +887,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 area.coor = gear.coord;
                 auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
                                                 : idle;
@@ -899,7 +899,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                gear.board::shown = !gear.disabled &&
+                gear.board::shown = !gear.mouse_disabled &&
                                     (props.clip_preview_time == span::zero() ||
                                      props.clip_preview_time > stamp - gear.delta.stamp());
                 if (gear.board::shown)
@@ -920,7 +920,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 if (gear.tooltip_enabled(stamp))
                 {
                     auto [tooltip_data, tooltip_update] = gear.get_tooltip();
@@ -946,7 +946,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
                     auto [tooltip_data, tooltip_update] = gear.get_tooltip();
@@ -961,7 +961,7 @@ namespace netxs::ui
             for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 result |= gear.tooltip_check(now);
             }
             if (result) base::strike();

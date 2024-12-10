@@ -758,7 +758,7 @@ namespace netxs::app::vtm
                 {
                     for (auto& [ext_gear_id, gear_ptr] : input.gears)
                     {
-                        if (ext_gear_id && !gear_ptr->disabled) // Ignore default and halted gears.
+                        if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
                         {
                             if (auto gear_id = gear_ptr->id)
                             {
