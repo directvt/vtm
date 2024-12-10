@@ -1701,11 +1701,10 @@ namespace netxs::ui
                         });
                         if (gear_id)
                         {
-                            boss.bell::signal(tier::preview, hids::events::focus::off, { .gear_id = gear_id });
+                            boss.bell::signal(tier::preview, hids::events::focus::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
                             if (live) gear_id_list.push_back(gear_id); // Backup dropped active gears.
                         }
                     }
-                    gears.clear();
                 };
                 // pro::focus: .
                 boss.LISTEN(tier::request, hids::events::focus::dry, seed, memo)

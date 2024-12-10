@@ -882,7 +882,7 @@ namespace netxs::app::tile
                         }
                         else if (item->root()) // App window.
                         {
-                            proc(item, 1);
+                            proc(item->base::subset[1], 1); // Applet.
                         }
                         else // if (!item->root()) // Node.
                         {
