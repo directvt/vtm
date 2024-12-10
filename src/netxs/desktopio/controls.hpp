@@ -1374,11 +1374,14 @@ namespace netxs::ui
             static auto cut(sptr item_ptr, bool remove_default = faux)
             {
                 auto lock = item_ptr->bell::sync();
-                auto gear_id_list = item_ptr->base::riseup(tier::request, hids::events::focus::cut);
-                if (remove_default)
+                auto gear_id_list = hids::events::focus::cut.param();
                 if (auto parent = item_ptr->parent())
                 {
-                    parent->base::riseup(tier::request, hids::events::focus::dry, { .item = item_ptr });
+                    parent->base::riseup(tier::request, hids::events::focus::cut, gear_id_list);
+                    if (remove_default)
+                    {
+                        parent->base::riseup(tier::request, hids::events::focus::dry, { .item = item_ptr });
+                    }
                 }
                 return gear_id_list;
             }

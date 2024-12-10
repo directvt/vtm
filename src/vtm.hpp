@@ -117,10 +117,8 @@ namespace netxs::app::vtm
 
             void follow(vtm::link& new_what, dent pads = {})
             {
-                auto old_parent = new_what.applet->parent();
-                if (!old_parent) return;
-                auto gear_id_list = pro::focus::cut(old_parent, true);
                 what = new_what;
+                auto gear_id_list = pro::focus::cut(what.applet, true);
                 auto window_ptr = new_what.applet;
                 saved = nexthop;
                 nexthop = new_what.applet;
@@ -651,7 +649,7 @@ namespace netxs::app::vtm
                         auto what = boss.bell::signal(tier::preview, vtm::events::d_n_d::drop); // Take core.
                         if (what.applet)
                         {
-                            auto gear_id_list = pro::focus::cut(what.applet->base::parent());
+                            auto gear_id_list = pro::focus::cut(what.applet);
                             what.applet->base::detach();
                             dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
                             pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
@@ -1841,7 +1839,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
-                auto gear_id_list = pro::focus::cut(what.applet->parent());
+                auto gear_id_list = pro::focus::cut(what.applet);
                 what.applet->base::detach();
                 auto& cfg = dbase.menu[what.menuid];
                 branch(what.menuid, what.applet, !cfg.hidden);

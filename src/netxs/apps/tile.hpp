@@ -284,7 +284,7 @@ namespace netxs::app::tile
                                 what.forced = true;
                                 what.applet = applet_ptr;
 
-                                auto gear_id_list = pro::focus::cut(boss.This());
+                                auto gear_id_list = pro::focus::cut(applet_ptr);
                                 boss.remove(applet_ptr);
                                 applet.moveto(dot_00);
                                 world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
@@ -594,7 +594,7 @@ namespace netxs::app::tile
                         }
                         else if (boss.count() == 2)
                         {
-                            auto gear_id_list = pro::focus::cut(boss.This());
+                            auto gear_id_list = pro::focus::cut(boss.back());
                             auto deleted_item = boss.pop_back();
                             if (item_ptr)
                             {
@@ -620,7 +620,7 @@ namespace netxs::app::tile
                                 }
                                 else if (boss.count() == 2)
                                 {
-                                    auto gear_id_list = pro::focus::cut(boss.This());
+                                    auto gear_id_list = pro::focus::cut(boss.back());
                                     item_ptr = boss.pop_back();
                                     pro::focus::set(boss.back(), gear_id_list, solo::off);
                                 }
@@ -675,14 +675,11 @@ namespace netxs::app::tile
                                 fullscreen_item->LISTEN(tier::release, e2::form::size::restore, empty_ptr, oneoff)
                                 {
                                     auto item_ptr = fullscreen_inst.This();
-                                    if (auto parent = item_ptr->parent())
-                                    {
-                                        auto gear_id_list = pro::focus::cut(parent);
-                                        item_ptr->base::detach();
-                                        boss.attach(item_ptr);
-                                        pro::focus::set(item_ptr, gear_id_list, solo::off);
-                                        boss.base::reflow();
-                                    }
+                                    auto gear_id_list = pro::focus::cut(item_ptr);
+                                    item_ptr->base::detach();
+                                    boss.attach(item_ptr);
+                                    pro::focus::set(item_ptr, gear_id_list, solo::off);
+                                    boss.base::reflow();
                                     oneoff.reset();
                                 };
                                 fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
@@ -707,7 +704,7 @@ namespace netxs::app::tile
                             auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
                             auto empty_1 = node_veer(node_veer, ui::fork::min_ratio);
                             auto empty_2 = node_veer(node_veer, ui::fork::max_ratio);
-                            auto gear_id_list = pro::focus::cut(boss.This());
+                            auto gear_id_list = pro::focus::cut(boss.back());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
@@ -745,7 +742,7 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 1 && boss.back()->base::kind() == base::client) // Only apps can be deleted.
                             {
-                                auto gear_id_list = pro::focus::cut(boss.This());
+                                auto gear_id_list = pro::focus::cut(boss.back());
                                 auto deleted_item = boss.pop_back(); // Throw away.
                                 pro::focus::set(boss.back(), gear_id_list, solo::off);
                             }
@@ -1101,7 +1098,7 @@ namespace netxs::app::tile
                         }
                         if (fullscreen_item)
                         {
-                            auto gear_id_list = pro::focus::cut(fullscreen_item->parent());
+                            auto gear_id_list = pro::focus::cut(fullscreen_item);
                             fullscreen_item->base::detach();
                             pro::focus::off(boss.This());
                             boss.attach(fullscreen_item);
