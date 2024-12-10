@@ -264,7 +264,7 @@ namespace netxs::app::tile
                                  && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
                                 // Restore if maximized. Parent can be changed after that.
-                                boss.bell::signal(tier::release, e2::form::size::restore, e2::form::size::restore.param());
+                                boss.bell::signal(tier::release, e2::form::size::restore);
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param({ .menuid = menuid });
@@ -660,23 +660,27 @@ namespace netxs::app::tile
                     //};
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::off);
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
-                            boss.base::riseup(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
+                            boss.base::riseup(tier::release, e2::form::proceed::attach);
                         }
                         else
                         {
                             if (boss.count() > 1) // Preventing the empty slot from maximizing.
-                            if (boss.back())
                             if (boss.back()->base::kind() == base::client) // Preventing the splitter from maximizing.
                             {
-                                auto fullscreen_item = boss.pop_back();
-                                auto gear_id_list = pro::focus::cut(boss.This());
-                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, item_ptr, oneoff)
+                                auto fullscreen_item = boss.back();
+                                auto& fullscreen_inst = *fullscreen_item;
+                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, empty_ptr, oneoff)
                                 {
-                                    if (item_ptr)
+                                    auto item_ptr = fullscreen_inst.This();
+                                    if (auto parent = item_ptr->parent())
                                     {
+                                        auto gear_id_list = pro::focus::cut(parent);
+                                        item_ptr->detach();
                                         boss.attach(item_ptr);
+                                        pro::focus::set(item_ptr, gear_id_list, solo::off);
                                         boss.base::reflow();
                                     }
                                     oneoff.reset();
@@ -685,9 +689,7 @@ namespace netxs::app::tile
                                 {
                                     oneoff.reset();
                                 };
-                                auto just_copy = fullscreen_item;
                                 boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
-                                pro::focus::set(just_copy, gear_id_list, solo::off); // Handover all foci.
                                 boss.base::reflow();
                             }
                         }
@@ -1091,25 +1093,20 @@ namespace netxs::app::tile
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item, -, (foci_list = gear_id_list_t{}))
+                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item)
                     {
                         if (boss.count() > 2)
                         {
-                            auto gear_id_list = pro::focus::cut(boss.This());
-                            auto item_ptr = boss.pop_back();
-                            item_ptr->bell::signal(tier::release, e2::form::size::restore, item_ptr);
-                            pro::focus::set(boss.back(), foci_list, solo::off, true); // Restore saved foci.
-                            pro::focus::set(item_ptr, gear_id_list, solo::off); // Apply item's foci.
-                            foci_list.clear();
+                            boss.back()->bell::signal(tier::release, e2::form::size::restore);
                         }
-
                         if (fullscreen_item)
                         {
-                            foci_list = pro::focus::cut(boss.This());
+                            auto gear_id_list = pro::focus::cut(fullscreen_item->parent());
+                            fullscreen_item->detach();
+                            pro::focus::off(boss.This());
                             boss.attach(fullscreen_item);
-                            fullscreen_item.reset();
+                            pro::focus::set(fullscreen_item, gear_id_list, solo::off);
                         }
-                        else log(prompt::tile, "Fullscreen item is empty");
                     };
                     boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
                     {
@@ -1117,7 +1114,7 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {
-                                boss.base::riseup(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
+                                boss.base::riseup(tier::release, e2::form::proceed::attach);
                             }
 
                             if (deed == app::tile::events::ui::swap.id)
