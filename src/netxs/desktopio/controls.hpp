@@ -1610,6 +1610,16 @@ namespace netxs::ui
                             else
                             {
                                 iter->status = state::live;
+                                if (seed.gear_id) // Seal the || branches.
+                                {
+                                    chain.foreach([&](auto& /*nexthop*/, auto& status)
+                                    {
+                                        if (status == state::idle)
+                                        {
+                                            status = state::dead;
+                                        }
+                                    });
+                                }
                             }
                             if (chain.active == state::live) // Stop group focusing if the branch is already active.
                             {
@@ -1642,7 +1652,7 @@ namespace netxs::ui
                         {
                             if (nexthop == seed.item)
                             {
-                                status = state::dead;
+                                status = state::idle;
                             }
                         });
                         auto focusable = node_type == mode::focused || node_type == mode::focusable;
@@ -1651,7 +1661,7 @@ namespace netxs::ui
                             boss.bell::expire(tier::preview); // Don't let the hall send the event to the gate.
                             return;
                         }
-                        notify_focus_state(state::dead, chain, seed.gear_id);
+                        notify_focus_state(state::idle, chain, seed.gear_id);
                     }
                     if (auto parent_ptr = boss.parent())
                     {
