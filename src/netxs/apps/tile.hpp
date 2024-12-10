@@ -134,7 +134,7 @@ namespace netxs::app::tile
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {
-                                boss.detach(); // Destroy itself.
+                                boss.base::detach(); // Destroy itself.
                             };
                             boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
                             {
@@ -678,7 +678,7 @@ namespace netxs::app::tile
                                     if (auto parent = item_ptr->parent())
                                     {
                                         auto gear_id_list = pro::focus::cut(parent);
-                                        item_ptr->detach();
+                                        item_ptr->base::detach();
                                         boss.attach(item_ptr);
                                         pro::focus::set(item_ptr, gear_id_list, solo::off);
                                         boss.base::reflow();
@@ -1102,7 +1102,7 @@ namespace netxs::app::tile
                         if (fullscreen_item)
                         {
                             auto gear_id_list = pro::focus::cut(fullscreen_item->parent());
-                            fullscreen_item->detach();
+                            fullscreen_item->base::detach();
                             pro::focus::off(boss.This());
                             boss.attach(fullscreen_item);
                             pro::focus::set(fullscreen_item, gear_id_list, solo::off);

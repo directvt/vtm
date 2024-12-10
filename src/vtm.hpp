@@ -648,11 +648,15 @@ namespace netxs::app::vtm
                     auto& dest = *dest_ptr;
                     if (keep)
                     {
-                        auto gear_id_list = pro::focus::cut(boss_ptr);
                         auto what = boss.bell::signal(tier::preview, vtm::events::d_n_d::drop); // Take core.
-                        dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
-                        pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
-                        boss.base::detach(); // The object kills itself.
+                        if (what.applet)
+                        {
+                            auto gear_id_list = pro::focus::cut(what.applet->base::parent());
+                            what.applet->base::detach();
+                            dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
+                            pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
+                            boss.base::detach(); // The object kills itself.
+                        }
                     }
                     else dest.bell::signal(tier::release, vtm::events::d_n_d::abort, boss.This());
                 }
@@ -1305,7 +1309,8 @@ namespace netxs::app::vtm
                     boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
-                        if (auto applet = boss.pop_back())
+                        if (boss.subset.size())
+                        if (auto applet = boss.subset.back())
                         {
                             boss.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
                             boss.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
