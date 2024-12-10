@@ -443,14 +443,15 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, faux, 1,
             menu::list
             {
+                //todo make it configurable
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .tooltip = " Launch application instance.                            \n"
-                                                                                                                           " The app to run can be set by RightClick on the taskbar. " }}},
+                                                                                                                     " The app to run can be set by RightClick on the taskbar. " }}},
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .tooltip = " Split horizontally " }}},
@@ -459,7 +460,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::hz, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split vertically " }}},
@@ -468,7 +469,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::vt, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Delete pane ", .hover = c1 }}},
@@ -476,9 +477,8 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
             });
@@ -667,9 +667,10 @@ namespace netxs::app::tile
                         else
                         {
                             if (boss.count() > 1) // Preventing the empty slot from maximizing.
+                            if (boss.back())
                             if (boss.back()->base::kind() == base::client) // Preventing the splitter from maximizing.
-                            if (auto fullscreen_item = boss.pop_back())
                             {
+                                auto fullscreen_item = boss.pop_back();
                                 auto gear_id_list = pro::focus::cut(boss.This());
                                 fullscreen_item->LISTEN(tier::release, e2::form::size::restore, item_ptr, oneoff)
                                 {
@@ -704,7 +705,7 @@ namespace netxs::app::tile
                             auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
                             auto empty_1 = node_veer(node_veer, ui::fork::min_ratio);
                             auto empty_2 = node_veer(node_veer, ui::fork::max_ratio);
-                            auto gear_id = pro::focus::cut(boss.This());
+                            auto gear_id_list = pro::focus::cut(boss.This());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
@@ -714,8 +715,8 @@ namespace netxs::app::tile
                             auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
                             auto slot_2 = newnode->attach(slot::_2, empty_2);
                             boss.attach(newnode);
-                            pro::focus::set(slot_1->back(), gear_id, solo::off); // Handover all foci.
-                            pro::focus::set(slot_2->back(), gear_id, solo::off);
+                            pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
+                            pro::focus::set(slot_2->back(), gear_id_list, solo::off);
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -769,7 +770,7 @@ namespace netxs::app::tile
 
                         gate.base::riseup(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);
-                        auto gear_id_list = pro::focus::cut(boss.back());
+                        pro::focus::off(boss.back());
                         boss.attach(app);
                         if (auto world_ptr = gate.parent()) // Finalize app creation.
                         {
@@ -784,11 +785,7 @@ namespace netxs::app::tile
                         };
 
                         app->bell::signal(tier::anycast, e2::form::upon::started, app);
-                        if (std::find(gear_id_list.begin(), gear_id_list.end(), gear.id) == gear_id_list.end())
-                        {
-                            gear_id_list.push_back(gear.id);
-                        }
-                        pro::focus::set(app, gear_id_list, solo::off);
+                        pro::focus::set(app, gear.id, solo::off);
                     };
                     boss.LISTEN(tier::release, events::backup, node_veer_list)
                     {
