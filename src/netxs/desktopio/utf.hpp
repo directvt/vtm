@@ -488,7 +488,7 @@ namespace netxs::utf
                         }
                         else // Silently ignore STX.
                         {
-                            code.redo(rest);
+                            code.redo(rest.substr(1));
                             next = left;
                         }
                     }
