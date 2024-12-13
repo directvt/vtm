@@ -926,7 +926,7 @@ namespace netxs::app::tile
             auto param = view{ appcfg.cmd };
             auto window_clr = skin::color(tone::window_clr);
             //auto highlight_color = skin::color(tone::highlight);
-            auto danger_color    = skin::color(tone::danger);
+            //auto danger_color    = skin::color(tone::danger);
             //auto warning_color   = skin::color(tone::warning);
             //auto c3 = highlight_color;
             //auto c2 = warning_color;
