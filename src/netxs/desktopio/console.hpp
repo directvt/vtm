@@ -863,6 +863,7 @@ namespace netxs::ui
         sptr       applet; // gate: Standalone application.
         subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
+        bool       is_recursive; // gate: Recursive user session.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -1111,7 +1112,7 @@ namespace netxs::ui
         }
 
         //todo revise
-        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
+        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux, bool is_recursive = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
@@ -1123,7 +1124,8 @@ namespace netxs::ui
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               local{ true },
               yield{ faux },
-              fullscreen{ faux }
+              fullscreen{ faux },
+              is_recursive{ is_recursive }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
             auto bindings = pro::keybd::load(config, "tui");
@@ -1148,6 +1150,7 @@ namespace netxs::ui
             //todo mimic pro::focus
             LISTEN(tier::release, hids::events::focus::any, seed, tokens)
             {
+                if (!is_recursive)
                 if (auto target = nexthop.lock())
                 {
                     auto deed = bell::protos(tier::release);

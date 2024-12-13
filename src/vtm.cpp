@@ -405,7 +405,8 @@ int main(int argc, char* argv[])
                 auto cfg = config.utf8();
                 auto win = os::dtvt::gridsz;
                 auto gui = app::shared::get_gui_config(config);
-                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
+                auto oid = os::dtvt::client_process_id;
+                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win, oid.first, oid.second);
                 app::shared::splice(client, gui);
                 return 0;
             }
@@ -520,8 +521,9 @@ int main(int argc, char* argv[])
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
                         auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
                         auto config = xmls{ settings };
+                        auto process_id = std::pair{ packet.osid1, packet.osid2 };
                         config.fuse(packet.cfg);
-                        domain->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
+                        domain->invite(user, packet.user, packet.mode, usrcfg, config, session_id, process_id);
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
                 });

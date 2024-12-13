@@ -104,6 +104,7 @@ namespace netxs::os
     using xipc = ui::xipc;
     using deco = ansi::deco;
     using escx = ansi::escx;
+    using osid = directvt::binary::marker::osid;
 
     enum class role { client, server };
 
@@ -3762,6 +3763,7 @@ namespace netxs::os
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
         static auto client = xipc{}; // dtvt: Internal IO link.
+        static auto client_process_id = osid{}; // dtvt: Client process id.
 
         auto consize()
         {
@@ -3821,7 +3823,7 @@ namespace netxs::os
                     if (::PeekNamedPipe(os::stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
+                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
                         if (dtvt::active)
                         {
                             io::recv(os::stdin_fd, buffer);
@@ -3832,7 +3834,7 @@ namespace netxs::os
                 {
                     auto header = io::recv(os::stdin_fd, buffer);
                     length = (DWORD)header.size();
-                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
+                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
                     if (!dtvt::active)
                     {
                         dtvt::leadin = header;
@@ -3850,7 +3852,7 @@ namespace netxs::os
                         auto length = header.length();
                         if (length)
                         {
-                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
+                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
                             if (!dtvt::active)
                             {
                                 dtvt::leadin = header;
@@ -4243,7 +4245,7 @@ namespace netxs::os
                 {
                     auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
                     auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
-                    io::send(m_pipe_w, directvt::binary::marker{ config.size(), initsize });
+                    io::send(m_pipe_w, directvt::binary::marker{ config.size(), initsize, os::process::id });
                     if (config.size())
                     {
                         auto guard = std::lock_guard{ writemtx };
