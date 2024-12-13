@@ -506,7 +506,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                        gear.dismiss();
+                        gear.dismiss(true);
                     };
                 })
                 ->branch
@@ -1036,7 +1036,7 @@ namespace netxs::app::tile
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    gear.nodbl = true;
+                    gear.dismiss(true);
                     boss.bell::expire(tier::release);
                     boss.base::riseup(tier::request, event, gear);
                 };
