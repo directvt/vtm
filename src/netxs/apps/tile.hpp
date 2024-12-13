@@ -930,7 +930,7 @@ namespace netxs::app::tile
             //auto warning_color   = skin::color(tone::warning);
             //auto c3 = highlight_color;
             //auto c2 = warning_color;
-            auto c1 = danger_color;
+            //auto c1 = danger_color;
 
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
