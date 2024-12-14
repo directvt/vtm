@@ -751,7 +751,7 @@ namespace netxs::input
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.
         sptr next{}; // foci: Next focused item.
-        ui64 treeid{}; // foci: Focus tree id.
+        si64 treeid{}; // foci: Focus tree id.
         ui64 digest{}; // foci: Incrementing event number to avoid refocusing when connecting recursively.
     };
 
@@ -1215,7 +1215,7 @@ namespace netxs::input
         };
 
         bool state{};
-        ui64 treeid{};
+        si64 treeid{};
         ui64 digest{};
 
         void update(sysfocus& f)
@@ -1889,8 +1889,8 @@ namespace netxs::input
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set::on, { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
-                         : owner.bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = id, .treeid = focus::treeid, .digest = focus::digest });
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
+                         : owner.bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
         }
         text interpret(bool decckm)
         {

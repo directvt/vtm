@@ -1247,6 +1247,8 @@ namespace netxs::ui
             umap gears; // focus: Registered gears.
             si32 node_type; // focus: .
             si32 count{}; // focus: The number of active gears.
+            si64 treeid = datetime::uniqueid(); // focus: .
+            ui64 digest = ui64{}; // focus: .
 
             auto add_chain(id_t gear_id, chain_t new_chain = { .active = state::dead })
             {
@@ -1554,6 +1556,8 @@ namespace netxs::ui
                 // pro::focus: Set focus to outside.
                 boss.LISTEN(tier::preview, hids::events::focus::set::on, seed, memo)
                 {
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
                     auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     if (first_step)
                     {
@@ -1641,6 +1645,8 @@ namespace netxs::ui
                 // pro::focus: Off focus to outside. Truncate the maximum path without branches.
                 boss.LISTEN(tier::preview, hids::events::focus::set::off, seed, memo)
                 {
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
                     auto first_step = !seed.item; // No unfocused item yet. We are in the the first riseup iteration (pro::focus::off just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto& chain = get_chain(seed.gear_id);
                     if (first_step)
@@ -1749,8 +1755,8 @@ namespace netxs::ui
                                 r.next_wptr = next_ptr;
                                 if (gear_id && r.status == state::live)
                                 {
-                                    prev_ptr->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
-                                    next_ptr->bell::signal(tier::release, hids::events::focus::set::on, { .gear_id = gear_id  });
+                                    prev_ptr->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
+                                    next_ptr->bell::signal(tier::release, hids::events::focus::set::on,  { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
                                 }
                             }
                         }

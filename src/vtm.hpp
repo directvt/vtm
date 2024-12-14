@@ -753,7 +753,7 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
-            LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate hids::events::focus::any.
+            LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate's hids::events::focus::any.
             {
                 if (seed.treeid)
                 {
@@ -761,16 +761,16 @@ namespace netxs::app::vtm
                     {
                         auto deed = this->bell::protos(tier::release);
                         target->bell::signal(tier::request, deed, seed); // Request to filter recursive loops.
-                        this->bell::expire(tier::release);
+                        this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
                     }
                 }
                 else
                 {
-                    this->bell::expire(tier::release, true); // Do not pass the event to the parent (ui::hall) while riseup.
+                    this->bell::expire(tier::release, true);
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens)
+            LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
                 if (align.what.applet)
                 {
@@ -781,7 +781,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 gear_id_list.push_back(gear_id);
-                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
+                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
                             }
                         }
                     }
