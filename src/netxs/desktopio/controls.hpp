@@ -1176,26 +1176,26 @@ namespace netxs::ui
             //     │      │   └─ gears (input_t)...
             //     │      └─ applet (Taskbar/Standalone app (ui::base, f))... 
             //     │
-            //     │   ┌─── input gate M (vtm::gate<ui::gate, k>) -> base::root(true)             ↑
-            //     │   │      ↓   ↑                                                               │
-            //     │   │      │   └─ gears (input_t)                                              │ Outside
-            //     │   │      │       ├─ ... ├─ keybdN                                            │
-            //     │   │      │       ├─ ... ├─ mouseN                                            │
-            //     │   │      │       ├─ ... ├─ focusN                                            │
-            //     │   │      │       └─ ... └─ clipboardN                                        │
-            //     │   │      │                                                                   │
-            //     │   │      └─ applet (Taskbar/Standalone app (ui::base, f))                    │
-            //     │   │                                                                          │
-            //     ↓ : ↓                                                                          │
-            // vtm desktop (vtm::hall<ui::host, f<mode::focusable>>)                              │
-            //  ↓ ↓  : ↓                                                                          │
-            //  │ │    └─── window 1 (ui::cake, f) -> base::kind(reflow_root), base::root(true)   │
-            //  │ │          ↓                                                                    │
-            //  │ │          └─ applet (ui::dtvt, f<mode::relay>)                                 │ Inside
-            //  │ │                                                                               │
-            //  │ └─── window N (ui::cake, f) -> base::kind(reflow_root), base::root(true)        ↓
-            //  │       ↓
-            //  │       └─ applet (tile (ui::fork, f, k)...)
+            //     │   ┌─── input gate M (vtm::gate<ui::gate, k>) -> base::root(true)                        ↑ Outside
+            //     │   │      ↓   ↑                                                                         ██
+            //     │   │      │   └─ gears (input_t)                                                        ██
+            //     │   │      │       ├─ ... ├─ keybdN                                                    ██  ░░
+            //     │   │      │       ├─ ... ├─ mouseN                                                    ██  ░░ Dead (unfocused, focusable)
+            //     │   │      │       ├─ ... ├─ focusN                                                    ██
+            //     │   │      │       └─ ... └─ clipboardN                                                ██ Live (focused, hub)
+            //     │   │      │                                                                         ██  ██
+            //     │   │      └─ applet (Taskbar/Standalone app (ui::base, f))                          ██  ██ Live (focused, focusable)
+            //     │   │                                                                                ██
+            //     ↓ : ↓                                                                                ██ Live (focused, hub)
+            // vtm desktop (vtm::hall<ui::host, f<mode::focusable>>)                                  ██  ░░
+            //  ↓ ↓  : ↓                                                                              ██  ░░ Dead (unfocused, hub)
+            //  │ │    └─── window 1 (ui::cake, f) -> base::kind(reflow_root), base::root(true)       ██    ▓▓
+            //  │ │          ↓                                                                        ██    ▓▓
+            //  │ │          └─ applet (ui::dtvt, f<mode::relay>)                                   ██  ██  ▓▓ Idle (unfocused, focusable)
+            //  │ │                                                                                 ██  ██...
+            //  │ └─── window N (ui::cake, f) -> base::kind(reflow_root), base::root(true)          ██
+            //  │       ↓                                                                           ██ Live (focused, focusable)
+            //  │       └─ applet (tile (ui::fork, f, k)...)                                         ↓ Inside
             //  │           ↓
             //  │           └─ ...
             //  └─── window N+1 (ui::cake, f) -> base::kind(reflow_root), base::root(true)
