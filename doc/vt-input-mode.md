@@ -78,7 +78,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
   ```
 - Mouse
   ```
-  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>,<DeltaX> ESC \
+  ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>[,<DeltaX>] ESC \
   ```
 - Focus
   ```
@@ -351,16 +351,16 @@ Key ID | Name               | Generic Name       | Scan Code | Notes
 ### Mouse
 
 ```
-ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>,<DeltaX> ESC \
+ESC _ event=mouse ; id=0 ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>[,<DeltaX>] ESC \
 ```
 
-Attribute                 | Description
---------------------------|------------
-`id=0`                    | Seat id.
-`kbmods=<KeyMods>`        | Keyboard modifiers (see Keyboard event).
-`coord=<X>,<Y>`           | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
-`buttons=<ButtonState>`   | Mouse button state.
-`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel high-resolution delta represented as floating point value.
+Attribute                   | Description
+----------------------------|------------
+`id=0`                      | Seat id.
+`kbmods=<KeyMods>`          | Keyboard modifiers (see Keyboard event).
+`coord=<X>,<Y>`             | Pixel-wise coordinates of the mouse pointer. Each coordinate is represented in the form of a floating point value of the sum of the integer coordinate of the cell in the terminal window grid and the relative offset within the cell in the range `[0.0f, 1.0f)`.
+`buttons=<ButtonState>`     | Mouse button state.
+`wheel=<DeltaY>[,<DeltaX>]` | Vertical and horizontal high-resolution wheel delta integer value.
 
 In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
 ```
