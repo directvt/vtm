@@ -3082,7 +3082,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        bell::signal(tier::release, hids::events::focus::set, { .gear_id = stream.gears->id, .focus_type = solo::on });
+                        bell::signal(tier::release, hids::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3096,7 +3096,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, hids::events::focus::off, { .gear_id = stream.gears->id });
+                        auto seed = bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = stream.gears->id });
                     });
                 }
             }
@@ -3255,14 +3255,11 @@ namespace netxs::gui
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 };
-                LISTEN(tier::release, hids::events::focus::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
+                LISTEN(tier::release, hids::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
                     auto deed = this->bell::protos(tier::release);
-                    if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
-                    {
-                        auto state = deed == hids::events::focus::set.id;
-                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
-                    }
+                    auto state = deed == hids::events::focus::set::on.id;
+                    stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)
                 {

@@ -598,7 +598,7 @@ namespace netxs::app::desk
                         owner_id = parent.id;
                     };
                     auto oneshot = ptr::shared(hook{});
-                    parent.LISTEN(tier::release, hids::events::focus::any, seed, *oneshot, (oneshot, usrcfg))
+                    parent.LISTEN(tier::release, hids::events::focus::set::any, seed, *oneshot, (oneshot, usrcfg))
                     {
                         usrcfg.win = {};
                         usrcfg.hid = seed.gear_id;

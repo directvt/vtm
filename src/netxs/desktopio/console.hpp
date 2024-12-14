@@ -1132,7 +1132,7 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            LISTEN(tier::preview, hids::events::focus::any, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
             {
                 if (seed.gear_id)
                 {
@@ -1140,7 +1140,7 @@ namespace netxs::ui
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
-                        auto state = deed == hids::events::focus::set.id;
+                        auto state = deed == hids::events::focus::set::on.id;
                         conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
@@ -1548,28 +1548,25 @@ namespace netxs::ui
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
                 }
             };
-            LISTEN(tier::request, hids::events::focus::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            LISTEN(tier::request, hids::events::focus::set::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
             {
-                auto deed = this->bell::protos(tier::request);
-                if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
+                auto is_recursive = faux;
+                if (seed.treeid)
                 {
-                    auto is_recursive = faux;
-                    if (seed.treeid)
+                    auto& digest = focus_tree_map[seed.treeid];
+                    if (digest < seed.digest) // This is the first time this focus event has been received.
                     {
-                        auto& digest = focus_tree_map[seed.treeid];
-                        if (digest < seed.digest) // This is the first time this focus event has been received.
-                        {
-                            digest = seed.digest;
-                        }
-                        else // We've seen this event before.
-                        {
-                            is_recursive = true;
-                        }
+                        digest = seed.digest;
                     }
-                    if (!is_recursive)
+                    else // We've seen this event before.
                     {
-                        this->bell::signal(tier::release, deed, seed);
+                        is_recursive = true;
                     }
+                }
+                if (!is_recursive)
+                {
+                    auto deed = this->bell::protos(tier::request);
+                    this->bell::signal(tier::release, deed, seed);
                 }
             };
 

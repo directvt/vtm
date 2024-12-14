@@ -156,14 +156,19 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::foci ), // release: Set focus toward inside; preview: set focus toward outside.
-                EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
                 EVENT_XS( cut, ui::gear_id_list_t ), // request: Unfocus and delete downstream (to inside) focus route.
                 EVENT_XS( add, input::foci ), // request: Initiate focus setting toward outside (used by gui and dtvt).
                 EVENT_XS( rem, input::foci ), // request: Initiate focus unsetting toward outside (used by gui and dtvt).
                 EVENT_XS( dup, input::foci ), // request: Make a focus tree copy from default.
+                GROUP_XS( set, input::foci ), // Release: Set on/off focus toward inside; preview: Set on/off focus toward outside.
+
+                SUBSET_XS( set )
+                {
+                    EVENT_XS( on , input::foci ), // release: Set focus toward inside; preview: Set focus toward outside.
+                    EVENT_XS( off, input::foci ), // release: Unset focus toward inside; preview: Unset focus toward outside.
+                };
             };
             SUBSET_XS( device )
             {
@@ -1884,8 +1889,8 @@ namespace netxs::input
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
-                         : owner.bell::signal(tier::release, hids::events::focus::off, { .gear_id = id, .treeid = focus::treeid, .digest = focus::digest });
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set::on, { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
+                         : owner.bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = id, .treeid = focus::treeid, .digest = focus::digest });
         }
         text interpret(bool decckm)
         {

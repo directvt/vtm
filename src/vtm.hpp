@@ -753,35 +753,20 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
-            //todo unify (grant to run prior the pro::focus)
-            LISTEN(tier::release, hids::events::focus::set, seed, tokens)
+            LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate hids::events::focus::any.
             {
                 if (seed.treeid)
                 {
                     if (auto target = nexthop.lock())
                     {
-                        target->bell::signal(tier::request, hids::events::focus::set, seed); // Request to filter recursive loops only for set/off.
+                        auto deed = this->bell::protos(tier::release);
+                        target->bell::signal(tier::request, deed, seed); // Request to filter recursive loops.
                         this->bell::expire(tier::release);
                     }
                 }
                 else
                 {
-                    this->bell::expire(tier::release, true);
-                }
-            };
-            LISTEN(tier::release, hids::events::focus::off, seed, tokens)
-            {
-                if (seed.treeid)
-                {
-                    if (auto target = nexthop.lock())
-                    {
-                        target->bell::signal(tier::request, hids::events::focus::off, seed); // Request to filter recursive loops only for set/off.
-                        this->bell::expire(tier::release);
-                    }
-                }
-                else
-                {
-                    this->bell::expire(tier::release, true);
+                    this->bell::expire(tier::release, true); // Do not pass the event to the parent (ui::hall) while riseup.
                 }
             };
             //todo mimic pro::focus
@@ -796,7 +781,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 gear_id_list.push_back(gear_id);
-                                align.what.applet->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
                             }
                         }
                     }
@@ -2050,19 +2035,19 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::preview, hids::events::focus::off, seed) // Forward the focus event to the gate for sending it to the outside.
+            LISTEN(tier::preview, hids::events::focus::set::off, seed) // Forward the focus event to the gate for sending it to the outside.
             {
                 if (seed.gear_id)
                 {
                     if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.bell::signal(tier::preview, hids::events::focus::off, seed);
+                        gear.owner.bell::signal(tier::preview, hids::events::focus::set::off, seed);
                     }
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::preview, hids::events::focus::set, seed) // Forward the focus event to the gate for sending it to the outside.
+            LISTEN(tier::preview, hids::events::focus::set::on, seed) // Forward the focus event to the gate for sending it to the outside.
             {
                 if (seed.gear_id)
                 {
@@ -2070,11 +2055,11 @@ namespace netxs::app::vtm
                     {
                         auto& gear = *gear_ptr;
                         seed.item = this->This();
-                        gear.owner.bell::signal(tier::preview, hids::events::focus::set, seed);
+                        gear.owner.bell::signal(tier::preview, hids::events::focus::set::on, seed);
                     }
                 }
             };
-            LISTEN(tier::release, hids::events::focus::any, seed) // Reset the focus switch counter when it is focused from outside.
+            LISTEN(tier::release, hids::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
             {
                 switch_counter[seed.gear_id] = {};
             };

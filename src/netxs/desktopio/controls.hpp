@@ -457,11 +457,11 @@ namespace netxs::ui
                   alive{ true }
             {
                 // Keybd focus.
-                //boss.LISTEN(tier::release, hids::events::focus::set, seed, memo)
+                //boss.LISTEN(tier::release, hids::events::focus::set::on, seed, memo)
                 //{
                 //    add_keybd(seed.gear_id);
                 //};
-                //boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
+                //boss.LISTEN(tier::release, hids::events::focus::set::off, seed, memo)
                 //{
                 //    del_keybd(seed.gear_id);
                 //};
@@ -1322,7 +1322,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
-                    item_ptr->base::riseup(tier::preview, hids::events::focus::set, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
+                    item_ptr->base::riseup(tier::preview, hids::events::focus::set::on, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
                 {
@@ -1342,7 +1342,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
-                    item_ptr->base::riseup(tier::preview, hids::events::focus::off, { .gear_id = id });
+                    item_ptr->base::riseup(tier::preview, hids::events::focus::set::off, { .gear_id = id });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
                 {
@@ -1478,7 +1478,7 @@ namespace netxs::ui
                 // all tier::previews going to outside (upstream)
                 // all tier::releases going to inside (downstream)
                 // pro::focus: Off focus to inside.
-                boss.LISTEN(tier::release, hids::events::focus::off, seed, memo)
+                boss.LISTEN(tier::release, hids::events::focus::set::off, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
                     if (notify_focus_state(state::idle, chain, seed.gear_id))
@@ -1488,7 +1488,7 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 status = state::idle;
-                                nexthop->bell::signal(tier::release, hids::events::focus::off, seed);
+                                nexthop->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
                         });
                     }
@@ -1508,7 +1508,7 @@ namespace netxs::ui
                             if (node_type == mode::relay)
                             {
                                 seed.item = boss.This();
-                                boss.bell::signal(tier::release, hids::events::focus::set, seed);
+                                boss.bell::signal(tier::release, hids::events::focus::set::on, seed);
                             }
                         }
                         chain.foreach([&](auto& nexthop, auto& /*status*/)
@@ -1518,7 +1518,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::focus: Set focus to inside.
-                boss.LISTEN(tier::release, hids::events::focus::set, seed, memo)
+                boss.LISTEN(tier::release, hids::events::focus::set::on, seed, memo)
                 {
                     auto iter = gears.find(seed.gear_id);
                     if (iter == gears.end()) // No route to inside.
@@ -1546,13 +1546,13 @@ namespace netxs::ui
                             {
                                 status = state::live;
                                 seed.item = boss.This();
-                                nexthop->bell::signal(tier::release, hids::events::focus::set, seed);
+                                nexthop->bell::signal(tier::release, hids::events::focus::set::on, seed);
                             }
                         });
                     }
                 };
                 // pro::focus: Set focus to outside.
-                boss.LISTEN(tier::preview, hids::events::focus::set, seed, memo)
+                boss.LISTEN(tier::preview, hids::events::focus::set::on, seed, memo)
                 {
                     auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     if (first_step)
@@ -1561,7 +1561,7 @@ namespace netxs::ui
                         if (seed.gear_id && (!allow_focusize || seed.focus_type != solo::on)) // Hub or group focus.
                         {
                             auto release_seed = seed;
-                            boss.bell::signal(tier::release, hids::events::focus::set, release_seed); // Turn on a default downstream branch.
+                            boss.bell::signal(tier::release, hids::events::focus::set::on, release_seed); // Turn on a default downstream branch.
                         }
                         else
                         {
@@ -1573,7 +1573,7 @@ namespace netxs::ui
                                     if (status == state::live)
                                     {
                                         status = state::dead;
-                                        nexthop->bell::signal(tier::release, hids::events::focus::off, seed);
+                                        nexthop->bell::signal(tier::release, hids::events::focus::set::off, seed);
                                     }
                                 });
                             }
@@ -1596,7 +1596,7 @@ namespace netxs::ui
                                 else
                                 {
                                     status = state::dead;
-                                    nexthop->bell::signal(tier::release, hids::events::focus::off, seed);
+                                    nexthop->bell::signal(tier::release, hids::events::focus::set::off, seed);
                                 }
                             });
                             if (!exists)
@@ -1635,11 +1635,11 @@ namespace netxs::ui
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
-                        parent->base::riseup(tier::preview, hids::events::focus::set, seed);
+                        parent->base::riseup(tier::preview, hids::events::focus::set::on, seed);
                     }
                 };
                 // pro::focus: Off focus to outside. Truncate the maximum path without branches.
-                boss.LISTEN(tier::preview, hids::events::focus::off, seed, memo)
+                boss.LISTEN(tier::preview, hids::events::focus::set::off, seed, memo)
                 {
                     auto first_step = !seed.item; // No unfocused item yet. We are in the the first riseup iteration (pro::focus::off just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                     auto& chain = get_chain(seed.gear_id);
@@ -1647,7 +1647,7 @@ namespace netxs::ui
                     {
                         if (chain.active == state::live)
                         {
-                            boss.bell::signal(tier::release, hids::events::focus::off, seed);
+                            boss.bell::signal(tier::release, hids::events::focus::set::off, seed);
                         }
                     }
                     else //if (!first_step)
@@ -1670,7 +1670,7 @@ namespace netxs::ui
                     if (auto parent_ptr = boss.parent())
                     {
                         seed.item = boss.This();
-                        parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                        parent_ptr->base::riseup(tier::preview, hids::events::focus::set::off, seed);
                     }
                 };
                 // pro::focus: Initiate focus setting toward outside (used by gui and dtvt).
@@ -1681,7 +1681,7 @@ namespace netxs::ui
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
-                        parent->base::riseup(tier::preview, hids::events::focus::set, seed);
+                        parent->base::riseup(tier::preview, hids::events::focus::set::on, seed);
                     }
                 };
                 // pro::focus: Initiate focus unsetting toward outside (used by gui and dtvt).
@@ -1694,7 +1694,7 @@ namespace netxs::ui
                         if (auto parent_ptr = boss.parent())
                         {
                             seed.item = boss_ptr;
-                            parent_ptr->base::riseup(tier::preview, hids::events::focus::off, seed);
+                            parent_ptr->base::riseup(tier::preview, hids::events::focus::set::off, seed);
                         }
                     }
                 };
@@ -1709,13 +1709,13 @@ namespace netxs::ui
                             if (gear_id && status == state::live)
                             {
                                 live = true;
-                                nexthop->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
+                                nexthop->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
                             }
                             nexthop = {};
                         });
                         if (gear_id)
                         {
-                            boss.bell::signal(tier::preview, hids::events::focus::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
+                            boss.bell::signal(tier::preview, hids::events::focus::set::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
                             if (live) gear_id_list.push_back(gear_id); // Backup dropped active gears.
                         }
                     }
@@ -1749,8 +1749,8 @@ namespace netxs::ui
                                 r.next_wptr = next_ptr;
                                 if (gear_id && r.status == state::live)
                                 {
-                                    prev_ptr->bell::signal(tier::release, hids::events::focus::off, { .gear_id = gear_id });
-                                    next_ptr->bell::signal(tier::release, hids::events::focus::set, { .gear_id = gear_id  });
+                                    prev_ptr->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
+                                    next_ptr->bell::signal(tier::release, hids::events::focus::set::on, { .gear_id = gear_id  });
                                 }
                             }
                         }
