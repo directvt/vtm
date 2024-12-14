@@ -3255,13 +3255,13 @@ namespace netxs::gui
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 };
-                LISTEN(tier::release, hids::events::focus::any, seed)
+                LISTEN(tier::release, hids::events::focus::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
                     auto deed = this->bell::protos(tier::release);
                     if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
                     {
                         auto state = deed == hids::events::focus::set.id;
-                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type);
+                        stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
                     }
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)

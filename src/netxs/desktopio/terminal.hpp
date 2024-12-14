@@ -8521,7 +8521,7 @@ namespace netxs::ui
                 if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
                 {
                     auto state = deed == hids::events::focus::set.id;
-                    stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
+                    stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::key::any, gear)

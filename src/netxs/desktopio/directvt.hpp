@@ -85,35 +85,31 @@ namespace netxs::directvt
 
             using sz_t = le_t<netxs::sz_t>;
             using type = le_t<netxs::twod::type>;
-            using osid = std::pair<ui32, time>;
 
             char mark_FF;
             sz_t cfgsize;
             type winx_sz;
             type winy_sz;
-            osid process_id;
             char mark_FE;
 
             marker()
             { }
-            marker(size_t config_size, twod winsz, osid os_process_id)
+            marker(size_t config_size, twod winsz)
             {
                 mark_FF = initial;
                 cfgsize.set((netxs::sz_t)config_size);
                 winx_sz.set(winsz.x);
                 winy_sz.set(winsz.y);
-                process_id = os_process_id;
                 mark_FE = initial - 1;
             }
 
-            auto get(netxs::sz_t& config_size, twod& winsz, osid& os_process_id)
+            auto get(netxs::sz_t& config_size, twod& winsz)
             {
                 if (mark_FF == initial
                  && mark_FE == initial - 1)
                 {
                     config_size = cfgsize.get();
                     winsz = twod{ winx_sz.get(), winy_sz.get() };
-                    os_process_id = process_id;
                     return true;
                 }
                 else return faux;
@@ -884,7 +880,7 @@ namespace netxs::directvt
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
-        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type))
+        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type) (ui64, treeid) (ui64, digest))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (time, timecod)  // syskeybd: Event time code.
@@ -913,7 +909,7 @@ namespace netxs::directvt
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
-        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win) (ui32, osid1) (time, osid2))
+        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
         STRUCT_macro(cwd,               (text, path))
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))

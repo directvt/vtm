@@ -739,8 +739,8 @@ namespace netxs::app::vtm
         pro::notes tooltip; // gate: Tooltips for user.
         fp2d       drag_origin{}; // gate: Drag origin.
 
-        gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id, bool is_recursive)
-            : ui::gate{ uplink, vtmode, config, userid, session_id, true, is_recursive },
+        gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+            : ui::gate{ uplink, vtmode, config, userid, session_id, true },
               tooltip{*this, ansi::add(prompt::gate, props.title) }
         {
             //todo local=>nexthop
@@ -753,6 +753,37 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
+            //todo unify (grant to run prior the pro::focus)
+            LISTEN(tier::release, hids::events::focus::set, seed, tokens)
+            {
+                if (seed.treeid)
+                {
+                    if (auto target = nexthop.lock())
+                    {
+                        target->bell::signal(tier::request, hids::events::focus::set, seed); // Request to filter recursive loops only for set/off.
+                        this->bell::expire(tier::release);
+                    }
+                }
+                else
+                {
+                    this->bell::expire(tier::release, true);
+                }
+            };
+            LISTEN(tier::release, hids::events::focus::off, seed, tokens)
+            {
+                if (seed.treeid)
+                {
+                    if (auto target = nexthop.lock())
+                    {
+                        target->bell::signal(tier::request, hids::events::focus::off, seed); // Request to filter recursive loops only for set/off.
+                        this->bell::expire(tier::release);
+                    }
+                }
+                else
+                {
+                    this->bell::expire(tier::release, true);
+                }
+            };
             //todo mimic pro::focus
             LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens)
             {
@@ -2210,12 +2241,11 @@ namespace netxs::app::vtm
             this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id, os::osid process_id)
+        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
-            auto is_recursive = process_id == os::process::id;
             auto lock = bell::unique_lock();
-            auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id, is_recursive);
+            auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
             dbase.append(user);
             os::ipc::users = users.size();

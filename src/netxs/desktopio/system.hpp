@@ -104,7 +104,6 @@ namespace netxs::os
     using xipc = ui::xipc;
     using deco = ansi::deco;
     using escx = ansi::escx;
-    using osid = directvt::binary::marker::osid;
 
     enum class role { client, server };
 
@@ -3763,7 +3762,6 @@ namespace netxs::os
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto gridsz = twod{}; // dtvt: Initial window grid size.
         static auto client = xipc{}; // dtvt: Internal IO link.
-        static auto client_process_id = osid{}; // dtvt: Client process id.
 
         auto consize()
         {
@@ -3823,7 +3821,7 @@ namespace netxs::os
                     if (::PeekNamedPipe(os::stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
+                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
                         if (dtvt::active)
                         {
                             io::recv(os::stdin_fd, buffer);
@@ -3834,7 +3832,7 @@ namespace netxs::os
                 {
                     auto header = io::recv(os::stdin_fd, buffer);
                     length = (DWORD)header.size();
-                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
+                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
                     if (!dtvt::active)
                     {
                         dtvt::leadin = header;
@@ -3852,7 +3850,7 @@ namespace netxs::os
                         auto length = header.length();
                         if (length)
                         {
-                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz, dtvt::client_process_id);
+                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::gridsz);
                             if (!dtvt::active)
                             {
                                 dtvt::leadin = header;
@@ -4245,7 +4243,7 @@ namespace netxs::os
                 {
                     auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
                     auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
-                    io::send(m_pipe_w, directvt::binary::marker{ config.size(), initsize, os::process::id });
+                    io::send(m_pipe_w, directvt::binary::marker{ config.size(), initsize });
                     if (config.size())
                     {
                         auto guard = std::lock_guard{ writemtx };
@@ -4848,6 +4846,8 @@ namespace netxs::os
             struct adapter : s11n
             {
                 id_t gear_id = 1;
+                ui64 tree_id = datetime::uniqueid();
+                ui64 digest{};
 
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
@@ -6066,7 +6066,7 @@ namespace netxs::os
                 }
             };
             auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
-            auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0); };
+            auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0, proxy.tree_id, ++proxy.digest); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, close, noop{}); }};

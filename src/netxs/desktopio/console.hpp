@@ -863,7 +863,6 @@ namespace netxs::ui
         sptr       applet; // gate: Standalone application.
         subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
-        bool       is_recursive; // gate: Recursive user session.
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -1112,7 +1111,7 @@ namespace netxs::ui
         }
 
         //todo revise
-        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux, bool recursive = faux)
+        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
@@ -1124,8 +1123,7 @@ namespace netxs::ui
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               local{ true },
               yield{ faux },
-              fullscreen{ faux },
-              is_recursive{ recursive }
+              fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
             auto bindings = pro::keybd::load(config, "tui");
@@ -1143,14 +1141,13 @@ namespace netxs::ui
                     {
                         auto deed = bell::protos(tier::preview);
                         auto state = deed == hids::events::focus::set.id;
-                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type);
+                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
             };
             //todo mimic pro::focus
             LISTEN(tier::release, hids::events::focus::any, seed, tokens)
             {
-                if (!is_recursive)
                 if (auto target = nexthop.lock())
                 {
                     auto deed = bell::protos(tier::release);
@@ -1549,6 +1546,30 @@ namespace netxs::ui
                 else
                 {
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                }
+            };
+            LISTEN(tier::request, hids::events::focus::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            {
+                auto deed = this->bell::protos(tier::request);
+                if (deed == hids::events::focus::set.id || deed == hids::events::focus::off.id)
+                {
+                    auto is_recursive = faux;
+                    if (seed.treeid)
+                    {
+                        auto& digest = focus_tree_map[seed.treeid];
+                        if (digest < seed.digest) // This is the first time this focus event has been received.
+                        {
+                            digest = seed.digest;
+                        }
+                        else // We've seen this event before.
+                        {
+                            is_recursive = true;
+                        }
+                    }
+                    if (!is_recursive)
+                    {
+                        this->bell::signal(tier::release, deed, seed);
+                    }
                 }
             };
 
