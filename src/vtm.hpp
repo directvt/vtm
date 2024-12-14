@@ -2035,27 +2035,15 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::preview, hids::events::focus::set::off, seed) // Forward the focus event to the gate for sending it to the outside.
+            LISTEN(tier::preview, hids::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
             {
                 if (seed.gear_id)
                 {
                     if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.bell::signal(tier::preview, hids::events::focus::set::off, seed);
-                    }
-                }
-            };
-            //todo mimic pro::focus
-            LISTEN(tier::preview, hids::events::focus::set::on, seed) // Forward the focus event to the gate for sending it to the outside.
-            {
-                if (seed.gear_id)
-                {
-                    if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        seed.item = this->This();
-                        gear.owner.bell::signal(tier::preview, hids::events::focus::set::on, seed);
+                        auto deed = this->bell::protos(tier::preview);
+                        gear.owner.bell::signal(tier::preview, deed, seed);
                     }
                 }
             };
