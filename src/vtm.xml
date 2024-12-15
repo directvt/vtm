@@ -458,8 +458,14 @@ R"==(
             <key="Ctrl+PageDown"   action=TileFocusNextPane     />  <!-- Focus the next pane or splitting grip. -->
             <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
             <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
-            <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
-            <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
+            <key="Alt+Shift+'|'">
+                <action=DropAutoRepeat/>         <!-- Don't autorepeat the split action. -->
+                <action=TileSplitHorizontally/>  <!-- Split active panes horizontally. -->
+            </key>
+            <key="Alt+Shift+Minus">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the split action. -->
+                <action=TileSplitVertically/>  <!-- Split active panes vertically. -->
+            </key>
             <key="Alt+Shift+R"     action=TileSplitOrientation  />  <!-- Change split orientation. -->
             <key="Alt+Shift+S"     action=TileSwapPanes         />  <!-- Swap two or more panes. -->
             <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
