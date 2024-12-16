@@ -2133,13 +2133,13 @@ namespace netxs::ui
                 boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
                 {
                     tokens.clear();
-                    if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
+                    if (auto focusable_parent_ptr = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                     {
-                        focusable_parent->LISTEN(tier::release, hids::events::die, gear, tokens)
+                        focusable_parent_ptr->LISTEN(tier::release, hids::events::die, gear, tokens)
                         {
                             last_key.erase(gear.id);
                         };
-                        focusable_parent->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
+                        focusable_parent_ptr->LISTEN(tier::release, hids::events::keybd::key::any, gear, tokens)
                         {
                             gear.shared_event = gear.touched && gear.touched != instance_id;
                             auto& timecod = last_key[gear.id];
@@ -2160,7 +2160,7 @@ namespace netxs::ui
                                 gear.set_handled();
                             }
                         };
-                        focusable_parent->LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
+                        focusable_parent_ptr->LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
                         {
                             gear.shared_event = gear.touched && gear.touched != instance_id;
                             if (gear.payload == input::keybd::type::keypress)

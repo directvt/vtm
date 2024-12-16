@@ -896,11 +896,19 @@ namespace netxs::app::tile
                             root_veer_ptr->base::riseup(tier::release, e2::form::proceed::attach); // Restore the window before any action if maximized.
                         }
                     };
-                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (skip_after_last = faux))
+                    auto switch_counter_ptr = ptr::shared<std::unordered_map<id_t, feed>>();
+                    auto& switch_counter = *switch_counter_ptr;
+                    boss.LISTEN(tier::release, hids::events::focus::set::any, seed, -, (switch_counter_ptr)) // Reset the focus switch counter when it is focused from outside.
                     {
+                        switch_counter[seed.gear_id] = {};
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (switch_counter_ptr))
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
-                        auto root_veer_ptr = boss.base::subset[1];
                         foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/)
                         {
                             if (is_focused(item_ptr, gear.id))
@@ -909,40 +917,73 @@ namespace netxs::app::tile
                             }
                             next_item_ptr = item_ptr;
                         });
-                        if (!prev_item_ptr && std::exchange(skip_after_last, !skip_after_last)) // There are no focused items or there is a single one.
+                        auto skip = !prev_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::rev;
+                        if (skip) // Give another process a chance to handle this event.
                         {
-                            prev_item_ptr = next_item_ptr;
+                            switch_counter[gear.id] = {};
                         }
-                        if (prev_item_ptr)
+                        else
                         {
-                            pro::focus::set(prev_item_ptr, gear.id, solo::on);
-                            gear.set_handled();
+                            if (!prev_item_ptr) // Focused item is at the boundary.
+                            {
+                                prev_item_ptr = next_item_ptr;
+                            }
+                            if (prev_item_ptr)
+                            {
+                                auto& prev_item = *prev_item_ptr;
+                                boss.bell::enqueue(prev_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(prev_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::rev;
+                            }
                         }
                     };
-                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear, -, (skip_after_last = faux))
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear)
                     {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto temp_item_ptr = sptr{};
                         foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/)
                         {
-                            if (prev_item_ptr && is_focused(prev_item_ptr, gear.id))
+                            if (!temp_item_ptr)
                             {
-                                std::swap(next_item_ptr, item_ptr); // Interrupt foreach.
+                                temp_item_ptr = item_ptr; // Fallback item.
                             }
-                            else
+                            if (prev_item_ptr)
+                            {
+                                std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
+                            }
+                            else if (is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = item_ptr;
                             }
                         });
-                        if (!next_item_ptr && std::exchange(skip_after_last, !skip_after_last)) // There are no focused items or there is a single one.
+                        auto skip = !next_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::fwd;
+                        if (skip) // Give another process a chance to handle this event.
                         {
-                            next_item_ptr = prev_item_ptr;
+                            switch_counter[gear.id] = {};
                         }
-                        if (next_item_ptr)
+                        else
                         {
-                            pro::focus::set(next_item_ptr, gear.id, solo::on);
-                            gear.set_handled();
+                            if (!next_item_ptr) // Focused item is at the boundary.
+                            {
+                                next_item_ptr = temp_item_ptr;
+                            }
+                            if (next_item_ptr)
+                            {
+                                auto& next_item = *next_item_ptr;
+                                boss.bell::enqueue(next_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(next_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::fwd;
+                            }
                         }
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::swap, gear)

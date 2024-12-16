@@ -8170,7 +8170,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, hids::events::keybd::key::post, gear);
+                        owner.base::riseup(tier::release, hids::events::keybd::key::post, gear, true);
                     }
                 }
             };
