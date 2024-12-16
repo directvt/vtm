@@ -242,6 +242,27 @@
   </tbody>
 </table>
 
+## Tiling Window Manager
+
+<table>
+  <thead>
+    <tr><th>Hotkey ¹</th>              <th>Default action</th></tr>
+  </thead>
+  <tbody>
+    <tr><th>Ctrl+PageUp</th>      <td>Focus the previous pane or splitting grip.</td></tr>
+    <tr><th>Ctrl+PageDown</th>    <td>Focus the next pane or splitting grip.</td></tr>
+    <tr><th>Alt+Shift+N</th>      <td>Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar.</td></tr>
+    <tr><th>Alt+Shift+A</th>      <td>Select all panes.</td></tr>
+    <tr><th>Alt+Shift+'|'</th>    <td>Split active panes horizontally.</td></tr>
+    <tr><th>Alt+Shift+Minus</th>  <td>Split active panes vertically.</td></tr>
+    <tr><th>Alt+Shift+R</th>      <td>Change split orientation.</td></tr>
+    <tr><th>Alt+Shift+S</th>      <td>Swap two or more panes.</td></tr>
+    <tr><th>Alt+Shift+E</th>      <td>Equalize split ratio.</td></tr>
+    <tr><th>Alt+Shift+F2</th>     <td>Set tiling window manager title using clipboard data.</td></tr>
+    <tr><th>Alt+Shift+W</th>      <td>Close active application.</td></tr>
+  </tbody>
+</table>
+
 ---
 
 ¹ — Key bindings can be customized using settings.  

@@ -432,3 +432,60 @@ Tiling Window Manager is a window container that organizes the workspace into mu
   - `Ctrl+LeftClick` -- Set/Unset group focus
   - `double LeftClick` -- Maxixmize/restore
 - Configurable via settings (See configuration example in doc\settings.md`).
+
+#### Tiling Window Manager configuration example
+
+```xml
+<config>
+    <tile>
+        <menu item*>
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
+            <item action=TileRunApplicatoin label=" + ">
+                <tooltip>
+                    " Launch application instances in active empty slots.     \n"
+                    " The app to run can be set by RightClick on the taskbar. "
+                </tooltip>
+            </item>
+            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
+            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
+            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
+            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
+            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
+            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
+            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
+            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
+            <!-- <item action=TileFocusPrevPane      label="<"   tooltip=" Focus the previous pane or splitting grip "/> -->
+            <!-- <item action=TileFocusNextPane      label=">"   tooltip=" Focus the next pane or splitting grip "/> -->
+        </menu>
+    </tile>
+    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <desktop key*>  <!-- Desktop layer key bindings. -->
+            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
+            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
+            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
+            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
+            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
+        </desktop>
+        <tile key*>
+            <key="Ctrl+PageUp"   action=TileFocusPrevPane     />  <!-- Focus the previous pane or splitting grip. -->
+            <key="Ctrl+PageDown" action=TileFocusNextPane     />  <!-- Focus the next pane or splitting grip. -->
+            <key="Alt+Shift+N"   action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="Alt+Shift+A"   action=TileSelectAllPanes    />  <!-- Select all panes. -->
+            <key="Alt+Shift+'|'">
+                <action=DropAutoRepeat/>         <!-- Don't autorepeat the split action. -->
+                <action=TileSplitHorizontally/>  <!-- Split active panes horizontally. -->
+            </key>
+            <key="Alt+Shift+Minus">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the split action. -->
+                <action=TileSplitVertically/>  <!-- Split active panes vertically. -->
+            </key>
+            <key="Alt+Shift+R"   action=TileSplitOrientation  />  <!-- Change split orientation. -->
+            <key="Alt+Shift+S"   action=TileSwapPanes         />  <!-- Swap two or more panes. -->
+            <key="Alt+Shift+E"   action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
+            <key="Alt+Shift+F2"  action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
+            <key="Alt+Shift+W"   action=TileClosePane         />  <!-- Close active application. -->
+        </tile>
+    </hotkeys>
+</config>
+```
