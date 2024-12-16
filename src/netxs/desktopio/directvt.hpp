@@ -880,7 +880,7 @@ namespace netxs::directvt
         STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
-        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type))
+        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (si32, focus_type) (si64, treeid) (ui64, digest))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
                                         (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (time, timecod)  // syskeybd: Event time code.

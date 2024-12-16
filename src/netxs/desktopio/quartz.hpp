@@ -46,6 +46,11 @@ namespace netxs::datetime
     {
         return std::chrono::steady_clock::now(); // Note: steady_clock does not contain the current time (it is a monotonic clock).
     }
+    // quartz: Return unique ui64 id.
+    auto uniqueid()
+    {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(now().time_since_epoch()).count();
+    }
     auto breakdown(span t)
     {
         auto days         = datetime::round<ui32, std::chrono::        days>(t);

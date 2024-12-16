@@ -474,7 +474,7 @@ Notes
 <config>
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
-        <cellheight=20/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
+        <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
         <gridsize=""/>        <!-- Window initial grid size "width,height" in text cells. If gridsize="" or gridsize=0,0, then the size of the GUI window is left to the OS window manager. -->
         <wincoor=""/>         <!-- Window initial coordinates "x,y" (top-left corner on the desktop in physical pixels). If wincoor="", then the position of the GUI window is left to the OS window manager. -->
         <winstate="normal"/>  <!-- Window initial state: normal | maximized | minimized . -->
@@ -591,7 +591,7 @@ Notes
                 </tooltip>
             </item>
             <item* hidden=no winsize=0,0 wincoor=0,0 winform="normal"/>  <!-- Asterisk in the xml node name to set default node values (it is a template). -->
-            <item id="Term" label="Term" type="dtvt" title="Terminal Console" cmd="$0 -r term">
+            <item id="Term" label="Terminal Emulator" type="dtvt" title="Terminal" cmd="$0 -r term">
                 <tooltip>
                     " Terminal Console               \n"
                     "   LeftClick to launch instance \n"
@@ -609,9 +609,9 @@ Notes
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Tile" type="tile" title="Tiling Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id="Site" label="Site" type="site" title="\e[11:3pSite "         cmd="@" winform="maximized" tooltip=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Logs" type="dtvt" title="Logs"                  cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+            <item id="Site" label="Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Desktop Logs"    type="dtvt" title="Logs"           cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
                 <config>
                     <terminal>
                         <scrollback>
@@ -621,37 +621,39 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                                <label="\e[38:2:0:255:0m<\e[m"/>
+                            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
                                     "             one page up if nothing to search    \n"
-                                    "   Match clipboard data if no selection          \n"
-                                    "   Left+RightClick to clear clipboard            "
+                                    "   Match clipboard data if no selection          "
                                 </tooltip>
+                                <label="<"/>
+                                <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item label=">" action=TerminalFindNext>
-                                <label="\e[38:2:0:255:0m>\e[m"/>
+                            <item action=TerminalFindNext>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
                                     "             one page down if nothing to search \n"
-                                    "   Match clipboard data if no selection         \n"
-                                    "   Left+RightClick to clear clipboard           "
+                                    "   Match clipboard data if no selection         "
                                 </tooltip>
+                                <label=">"/>
+                                <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
-                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                            <item type="Option" action=TerminalWrapMode>
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
                                 </tooltip>
+                                <label="Wrap"                     data="off"/>
+                                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                             </item>
-                            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                                <label="Clipboard"                       data="none"/>
+                                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                                <label data="rich">
+                                <label                                   data="rich">
                                     "\e[38:2:109:231:237m""R"
                                     "\e[38:2:109:237:186m""T"
                                     "\e[38:2:60:255:60m"  "F"
@@ -665,7 +667,9 @@ Notes
                                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                             </item>
-                            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
+                            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                                <label="Reset" data="\e[!p"/>
+                            </item>
                         </menu>
                     </terminal>
                 </config>
@@ -676,8 +680,8 @@ Notes
                 <!--  <item wincoor=8,31 />                         -->
                 <!--  <item wincoor=8,4 winsize=164,25 focused />   -->
             </autorun>
-            <width>    <!-- Taskbar menu width. -->
-                <folded=16/>
+            <width>  <!-- Taskbar menu width. -->
+                <folded=18/>
                 <expanded=32/>
             </width>
             <timeout=250ms/>  <!-- Taskbar collaplse timeout after mouse leave. -->
@@ -753,45 +757,48 @@ Notes
         <menu item*>
             <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
             <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m"/>
+            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
                     "             one page up if nothing to search    \n"
-                    "   Match clipboard data if no selection          \n"
-                    "   Left+RightClick to clear clipboard            "
+                    "   Match clipboard data if no selection          "
                 </tooltip>
+                <label="<"/>
+                <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m"/>
+            <item action=TerminalFindNext>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
                     "             one page down if nothing to search \n"
-                    "   Match clipboard data if no selection         \n"
-                    "   Left+RightClick to clear clipboard           "
+                    "   Match clipboard data if no selection         "
                 </tooltip>
+                <label=">"/>
+                <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode label=" Desktop " data="off">
-                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
+            <item type="Option" action=ExclusiveKeyboardMode>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
                     "   to be passed through without processing   "
                 </tooltip>
+                <label=" Desktop "                                      data="off"/>
+                <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
             </item>
-            <item label="Wrap" type="Option" action=TerminalWrapMode data="off">
-                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+            <item type="Option" action=TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
                 </tooltip>
+                <label="Wrap"                     data="off"/>
+                <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
             </item>
-            <item label="Clipboard" tooltip=" Clipboard format " type="Option" action=TerminalClipboardFormat data="none">  <!-- type=Option means that the тext label will be selected when clicked. -->
-                <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                <label="Clipboard"                       data="none"/>
+                <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
-                <label data="rich">
+                <label                                   data="rich">
                     "\e[38:2:109:231:237m""R"
                     "\e[38:2:109:237:186m""T"
                     "\e[38:2:60:255:60m"  "F"
@@ -805,15 +812,21 @@ Notes
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="Sync" tooltip=" CWD sync is off " type="Option" action=TerminalCwdSync data="off">
-                <label="\e[38:2:0:255:0mSync\e[m" tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled " data="on"/>
+            <!-- <item type="Option" action=TerminalCwdSync> -->
+            <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
+            <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
+            <!-- </item> -->
+            <item type="Option" action=TerminalStdioLog>
+                <label="Log"                     data="off" tooltip=" Console logging is off "/>
+                <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
             </item>
-            <item label="Log" tooltip=" Console logging is off " type="Option" action=TerminalStdioLog data="off">
-                <label="\e[38:2:0:255:0mLog\e[m" tooltip=" Console logging is on   \n Run Logs to see output  " data="on"/>
+            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
+                <label="Clear" data="\e[2J"/>
             </item>
-            <item label="Clear" tooltip=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
-            <item label="Reset" tooltip=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress "       action=TerminalSendKey data="Hello World!"/> -->
+            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                <label="Reset" data="\e[!p"/>
+            </item>
+            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -826,6 +839,28 @@ Notes
                                 restart: Restart session.
                                 retry:   Restart session if exit code != 0. -->
     </terminal>
+    <tile>
+        <menu item*>
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
+            <item action=TileRunApplicatoin label=" + ">
+                <tooltip>
+                    " Launch application instances in active empty slots.     \n"
+                    " The app to run can be set by RightClick on the taskbar. "
+                </tooltip>
+            </item>
+            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
+            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
+            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
+            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
+            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
+            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
+            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
+            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
+            <!-- <item action=TileFocusPrevPane      label="<"   tooltip=" Focus the previous pane or splitting grip "/> -->
+            <!-- <item action=TileFocusNextPane      label=">"   tooltip=" Focus the next pane or splitting grip "/> -->
+        </menu>
+    </tile>
     <defapp>
         <menu>
             <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
@@ -867,18 +902,37 @@ Notes
             <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
+        <tile key*>
+            <key="Ctrl+PageUp"   action=TileFocusPrevPane     />  <!-- Focus the previous pane or splitting grip. -->
+            <key="Ctrl+PageDown" action=TileFocusNextPane     />  <!-- Focus the next pane or splitting grip. -->
+            <key="Alt+Shift+N"   action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="Alt+Shift+A"   action=TileSelectAllPanes    />  <!-- Select all panes. -->
+            <key="Alt+Shift+'|'">
+                <action=DropAutoRepeat/>         <!-- Don't autorepeat the split action. -->
+                <action=TileSplitHorizontally/>  <!-- Split active panes horizontally. -->
+            </key>
+            <key="Alt+Shift+Minus">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the split action. -->
+                <action=TileSplitVertically/>  <!-- Split active panes vertically. -->
+            </key>
+            <key="Alt+Shift+R"   action=TileSplitOrientation  />  <!-- Change split orientation. -->
+            <key="Alt+Shift+S"   action=TileSwapPanes         />  <!-- Swap two or more panes. -->
+            <key="Alt+Shift+E"   action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
+            <key="Alt+Shift+F2"  action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
+            <key="Alt+Shift+W"   action=TileClosePane         />  <!-- Close active application. -->
+        </tile>
         <terminal key*>  <!-- Application specific layer key bindings. -->
             <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
             <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
             <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
-            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
-            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
-            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
+            <key="Shift+Ctrl+PageUp"    ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
+            <key="Shift+Ctrl+PageDown"  ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
+            <key="Shift+Alt+LeftArrow"  ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
+            <key="Shift+Alt+RightArrow" ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
+            <key="Shift+Ctrl+UpArrow"   ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
+            <key="Shift+Ctrl+DownArrow" ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
+            <key="Shift+Ctrl+LeftArrow" ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
+            <key="Shift+Ctrl+RightArrow"><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
             <key="Shift+Ctrl+Home">
                 <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
                 <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
@@ -887,27 +941,27 @@ Notes
                 <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
                 <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
             </key>
-            <key="">           <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
-            <key="">           <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
-            <key=""            action=TerminalViewportCopy/>                  <!-- Сopy viewport to clipboard. -->
-            <key=""            action=TerminalClipboardCopy/>                 <!-- Сopy selection to clipboard. -->
-            <key=""            action=TerminalClipboardPaste/>                <!-- Paste from clipboard. -->
-            <key=""            action=TerminalClipboardWipe/>                 <!-- Reset clipboard. -->
-            <key=""            action=TerminalClipboardFormat/>               <!-- Toggle terminal text selection copy format. -->
-            <key=""            action=TerminalSelectionRect/>                 <!-- Toggle between linear and rectangular selection form. -->
-            <key="Esc" preview action=TerminalSelectionCancel/>               <!-- Deselect a selection. -->
-            <key=""            action=TerminalSelectionOneShot/>              <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key=""            action=TerminalUndo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""            action=TerminalRedo/>                          <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""            action=TerminalCwdSync/>                       <!-- Toggle the current working directory sync mode. -->
-            <key=""            action=TerminalWrapMode/>                      <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""            action=TerminalAlignMode/>                     <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-            <key=""            action=TerminalFullscreen/>                    <!-- Toggle fullscreen mode. -->
-            <key=""            action=TerminalMaximize/>                      <!-- Toggle between maximized and normal window size. -->
-            <key=""            action=TerminalMinimize/>                      <!-- Minimize window. -->
-            <key=""            action=TerminalStdioLog/>                      <!-- Toggle stdin/stdout logging. -->
-            <key=""            action=TerminalRestart/>                       <!-- Terminate runnning console apps and restart current session. -->
-            <key=""            action=TerminalQuit/>                          <!-- Terminate runnning console apps and close terminal. -->
+            <key="">                   <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
+            <key="">                   <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
+            <key=""                     action=TerminalViewportCopy/>                 <!-- Сopy viewport to clipboard. -->
+            <key="Ctrl+Insert"  preview action=TerminalClipboardCopy/>                <!-- Сopy selection to clipboard. -->
+            <key="Shift+Insert" preview action=TerminalClipboardPaste/>               <!-- Paste from clipboard. -->
+            <key=""                     action=TerminalClipboardWipe/>                <!-- Reset clipboard. -->
+            <key=""                     action=TerminalClipboardFormat/>              <!-- Toggle terminal text selection copy format. -->
+            <key=""                     action=TerminalSelectionRect/>                <!-- Toggle between linear and rectangular selection form. -->
+            <key="Esc" preview          action=TerminalSelectionCancel/>              <!-- Deselect a selection. -->
+            <key=""                     action=TerminalSelectionOneShot/>             <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+            <key=""                     action=TerminalUndo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+            <key=""                     action=TerminalRedo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+            <key=""                     action=TerminalCwdSync/>                      <!-- Toggle the current working directory sync mode. -->
+            <key=""                     action=TerminalWrapMode/>                     <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+            <key=""                     action=TerminalAlignMode/>                    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+            <key=""                     action=TerminalFullscreen/>                   <!-- Toggle fullscreen mode. -->
+            <key=""                     action=TerminalMaximize/>                     <!-- Toggle between maximized and normal window size. -->
+            <key=""                     action=TerminalMinimize/>                     <!-- Minimize window. -->
+            <key=""                     action=TerminalStdioLog/>                     <!-- Toggle stdin/stdout logging. -->
+            <key=""                     action=TerminalRestart/>                      <!-- Terminate runnning console apps and restart current session. -->
+            <key=""                     action=TerminalQuit/>                         <!-- Terminate runnning console apps and close terminal. -->
         </terminal>
     </hotkeys>
 </config>

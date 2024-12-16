@@ -156,11 +156,19 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( set, input::foci ), // release: Set focus toward inside; preview: set focus toward outside.
-                EVENT_XS( off, input::foci ), // release: Reset focus toward inside; preview: reset focus toward outside.
-                EVENT_XS( get, input::foci ), // request: Unfocus and delete focus route.
                 EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
+                EVENT_XS( cut, ui::gear_id_list_t ), // request: Unfocus and delete downstream (to inside) focus route.
+                EVENT_XS( add, input::foci ), // request: Initiate focus setting toward outside (used by gui and dtvt).
+                EVENT_XS( rem, input::foci ), // request: Initiate focus unsetting toward outside (used by gui and dtvt).
+                EVENT_XS( dup, input::foci ), // request: Make a focus tree copy from default.
+                GROUP_XS( set, input::foci ), // Release: Set on/off focus toward inside; preview: Set on/off focus toward outside.
+
+                SUBSET_XS( set )
+                {
+                    EVENT_XS( on , input::foci ), // release: Set focus toward inside; preview: Set focus toward outside.
+                    EVENT_XS( off, input::foci ), // release: Unset focus toward inside; preview: Unset focus toward outside.
+                };
             };
             SUBSET_XS( device )
             {
@@ -742,11 +750,9 @@ namespace netxs::input
         si32 focus_type{}; // foci: Exclusive focus request.
         bool just_activate_only{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.
-
-        auto nondefault_gear() const
-        {
-            return gear_id != id_t{};
-        }
+        sptr next{}; // foci: Next focused item.
+        si64 treeid{}; // foci: Focus tree id.
+        ui64 digest{}; // foci: Incrementing event number to avoid refocusing when connecting recursively.
     };
 
     // input: Mouse tracker.
@@ -1208,11 +1214,15 @@ namespace netxs::input
             dec,
         };
 
-        bool state = {};
+        bool state{};
+        si64 treeid{};
+        ui64 digest{};
 
         void update(sysfocus& f)
         {
             state = f.state;
+            treeid = f.treeid;
+            digest = f.digest;
             fire_focus();
         }
 
@@ -1495,7 +1505,8 @@ namespace netxs::input
         bool slot_forced = faux; // .
 
         //todo unify
-        bool disabled = faux;
+        bool mouse_disabled = faux; // Hide mouse cursor.
+        bool keybd_disabled = faux; // Inactive gear.
         si32 countdown = 0;
 
         id_t user_index; // hids: User/Device image/icon index.
@@ -1525,7 +1536,9 @@ namespace netxs::input
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
+            bell::signal(tier::release, events::halt, *this);
             bell::signal(tier::general, events::halt, *this);
+            bell::signal(tier::release, events::die, *this);
             bell::signal(tier::general, events::die, *this);
             bell::signal(tier::general, events::device::user::logout, user_index);
         }
@@ -1539,7 +1552,7 @@ namespace netxs::input
         auto tooltip_enabled(time const& now)
         {
             return !mouse::m_sys.buttons
-                && !disabled
+                && !mouse_disabled
                 && !tooltip_stop
                 && tooltip_show
                 && tooltip_data.size()
@@ -1668,6 +1681,7 @@ namespace netxs::input
 
         void take(sysfocus& f)
         {
+            if (f.state) keybd_disabled = faux;
             focus::update(f);
         }
         void take(sysmouse& m)
@@ -1685,12 +1699,14 @@ namespace netxs::input
                 else if (r_ctrl)        netxs::_k3 += m.wheelsi > 0 ? 1 : -1; // RCtrl+Wheel.
             }
             #endif
-            disabled = faux;
+            mouse_disabled = faux;
+            keybd_disabled = faux;
             keybd::ctlstat = m.ctlstat;
             mouse::update(m, idmap);
         }
         void take(syskeybd& k)
         {
+            keybd_disabled = faux;
             if (k.keycode == key::config) // Receive three layout related values coded as codepoints: nullkey keycode, '/' keycode+mods, '?' keycode+mods.
             {
                 auto i = utf::cpit{ k.cluster };
@@ -1777,7 +1793,8 @@ namespace netxs::input
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
             bell::signal(tier::general, events::halt, *this);
-            disabled = true;
+            mouse_disabled = true;
+            keybd_disabled = true;
         }
         void okay(base& boss)
         {
@@ -1789,7 +1806,7 @@ namespace netxs::input
         }
         void fire(hint new_cause, si32 new_index = mouse::noactive)
         {
-            if (disabled) return;
+            if (mouse_disabled) return;
 
             alive = true;
             mouse::index = new_index;
@@ -1835,7 +1852,7 @@ namespace netxs::input
         }
         bool fire_fast()
         {
-            if (disabled) return true;
+            if (mouse_disabled) return true;
             alive = true;
             auto next_id = mouse::swift ? mouse::swift
                                         : idmap.link(m_sys.coordxy);
@@ -1872,8 +1889,8 @@ namespace netxs::input
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set, { .gear_id = id, .just_activate_only = true })
-                         : owner.bell::signal(tier::release, hids::events::focus::off, { .gear_id = id });
+            focus::state ? owner.bell::signal(tier::release, hids::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
+                         : owner.bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
         }
         text interpret(bool decckm)
         {

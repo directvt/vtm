@@ -28,6 +28,7 @@ struct consrv
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
     virtual void style(si32 style) = 0;
+    virtual std::optional<text> get_current_line() = 0;
     virtual void sighup() = 0;
     void cleanup(bool io_log)
     {
@@ -1060,27 +1061,16 @@ struct impl : consrv
                                && need__ctrl == !!(s & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED))
                                && need___alt == !!(s & (LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED ));
         }
+        auto get_current_line()
+        {
+            auto lock = std::lock_guard{ locker };
+            return incook ? std::optional{ cooked.ustr }
+                          : std::nullopt;
+        }
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
             toWIDE.clear();
-            if constexpr (isreal()) // Copy/Paste by Ctrl/Shift+Insert in cooked read mode.
-            {
-                //todo key
-                if (incook && gear.keystat && gear.keycode == input::key::KeyInsert)
-                {
-                    if (gear.meta(input::hids::anyShift))
-                    {
-                        server.uiterm.paste(gear);
-                        return;
-                    }
-                    else if (gear.meta(input::hids::anyCtrl))
-                    {
-                        server.uiterm._copy(gear, cooked.ustr);
-                        return;
-                    }
-                }
-            }
             utf::to_utf(gear.cluster, toWIDE);
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
@@ -1213,15 +1203,16 @@ struct impl : consrv
                         if (c == 0x7f && v == 0) v = VK_BACK;
                         switch (v)
                         {
+                            case VK_SHIFT:
+                            case VK_MENU:
+                            case VK_LWIN:
+                            case VK_RWIN:
                             case VK_CONTROL:
+                                //todo unify
                                 cooked.ustr.clear();
-                                line.lyric->utf8(cooked.ustr); // Prepare data to copy to clipboard by Ctrl+Instert.
+                                line.lyric->utf8(cooked.ustr); // Prepare data to copy to clipboard.
                                 break;
-                            case VK_SHIFT:   break;
-                            case VK_MENU:    break; /*Alt*/
                             case VK_PAUSE:   break;
-                            case VK_LWIN:    break;
-                            case VK_RWIN:    break;
                             case VK_APPS:    break;
                             case VK_NUMLOCK: break;
                             case VK_CAPITAL: break;
@@ -1247,13 +1238,9 @@ struct impl : consrv
                                 }
                                 break;
                             case VK_INSERT:
-                                if (cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED) // Copy to clipboard.
-                                 || cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)
-                                 || cooked.ctrl & (SHIFT_PRESSED)) // Paste from clipboard.
-                                {
-                                    // do nothing.
-                                }
-                                else
+                                if (!(cooked.ctrl & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED |
+                                                     LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED |
+                                                     SHIFT_PRESSED)))
                                 {
                                     burn();
                                     mode = !mode;
@@ -5220,6 +5207,7 @@ struct impl : consrv
     bool  send(view utf8)                      { events.write(utf8); return true;  }
     void  undo(bool undo_redo)                 { events.undo(undo_redo);           }
     fd_t watch()                               { return events.ondata;             }
+    auto get_current_line()                    { return events.get_current_line(); }
 
     impl(Term& uiterm)
         : uiterm{ uiterm                                         },
@@ -5443,6 +5431,10 @@ struct consrv : ipc::stdcon
     void style(si32 /*format*/)
     {
         //todo win32-input-mode
+    }
+    auto get_current_line()
+    {
+        return std::optional<text>{};
     }
     void undo(bool /*undoredo*/)
     {

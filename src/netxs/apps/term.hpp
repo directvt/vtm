@@ -96,7 +96,6 @@ namespace netxs::app::terminal
     {
         static constexpr auto cwdsync   = "/config/terminal/cwdsync";
         static constexpr auto borders   = "/config/terminal/border";
-        static constexpr auto menuitems = "/config/terminal/menu/item";
     }
 
     using events = netxs::events::userland::terminal;
@@ -196,19 +195,11 @@ namespace netxs::app::terminal
             //auto highlight_color = skin::color(tone::highlight);
             //auto c3 = highlight_color;
 
-            auto menudata = config.list(attr::menuitems);
-
-            static auto type_options = std::unordered_map<text, si32>
-               {{ "Splitter", menu::type::Splitter },
-                { "Command",  menu::type::Command  },
-                { "Option",   menu::type::Option   },
-                { "Repeat",   menu::type::Repeat   }};
-
             using term = ui::term;
             using preview = terminal::events::preview;
             using release = terminal::events::release;
 
-            static const auto proc_map = std::unordered_map<text, std::function<void(ui::item&, menu::item&)>, qiew::hash, qiew::equal>
+            static const auto proc_map = menu::action_map_t
             {
                 { term::action::Noop, [](ui::item& /*boss*/, menu::item& /*item*/){ } }, 
                 { term::action::ExclusiveKeyboardMode, [](ui::item& boss, menu::item& item)
@@ -529,47 +520,8 @@ namespace netxs::app::terminal
                 }},
             };
 
-            auto list = menu::list{};
-            auto defs = menu::item::look{};
-            for (auto data_ptr : menudata)
-            {
-                auto item = menu::item{};
-                auto& data = *data_ptr;
-                auto action = data.take(menu::attr::action, ""s);
-                item.type = data.take(menu::attr::type, menu::type::Command, type_options);
-                defs.tooltip = data.take(menu::attr::tooltip, ""s);
-                defs.data = data.take(menu::attr::data, ""s);
-                item.alive = !action.empty() && item.type != menu::type::Splitter;
-                for (auto label : data.list(menu::attr::label))
-                {
-                    item.views.push_back(
-                    {
-                        .label = label->take_value(),
-                        .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
-                        .data = label->take(menu::attr::data, defs.data),
-                    });
-                }
-                if (item.views.empty()) continue; // Menu item without label.
-                auto setup = [action](ui::item& boss, menu::item& item)
-                {
-                    if (item.type == menu::type::Option)
-                    {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                        {
-                            item.taken = (item.taken + 1) % item.views.size();
-                        };
-                    }
-                    auto iter = proc_map.find(action);
-                    if (iter != proc_map.end())
-                    {
-                        auto& initproc = iter->second;
-                        initproc(boss, item);
-                    }
-                };
-                list.push_back({ item, setup });
-            }
             config.cd("/config/terminal", "/config/defapp");
-            return menu::create(config, list);
+            return menu::load(config, proc_map);
         }
     }
 
@@ -853,7 +805,7 @@ namespace netxs::app::terminal
                 {
                     if (cwd_sync)
                     {
-                        boss.expire(tier::preview, true);
+                        boss.bell::expire(tier::preview, true);
                         cwd_path = path;
                     }
                 };

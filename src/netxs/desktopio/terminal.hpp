@@ -477,7 +477,7 @@ namespace netxs::ui
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
                 };
-                owner.bell::signal(tier::request, e2::form::state::keybd::check, state);
+                state = owner.bell::signal(tier::request, e2::form::state::focus::count);
             }
 
             operator bool () { return state; }
@@ -1261,6 +1261,7 @@ namespace netxs::ui
                 return boxed;
             }
 
+            //virtual text get_current_line()                                             = 0;
             virtual cell cell_under_cursor()                                            = 0;
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(dent& oversz)                                      = 0;
@@ -2550,6 +2551,26 @@ namespace netxs::ui
                 auto c = canvas[coor];
                 return c;
             }
+            //text get_current_line() override
+            //{
+            //    auto crop = escx{};
+            //    auto cy = std::clamp(coord.y, 0, panel.y - 1);
+            //    auto p1 = twod{ 0, cy };
+            //    auto p2 = twod{ panel.x, cy };
+            //    auto stripe = canvas.line(p1, p2);
+            //    auto brush_state = cell{};
+            //    if (owner.selmod == mime::textonly
+            //     || owner.selmod == mime::safetext
+            //     || owner.selmod == mime::disabled)
+            //    {
+            //        utf::trim(crop.s11n<faux, true, faux>(stripe, brush_state));
+            //    }
+            //    else
+            //    {
+            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //    }
+            //    return crop;
+            //}
 
             // alt_screen: Start text selection.
             void selection_create(twod coor, bool mode) override
@@ -5108,6 +5129,23 @@ namespace netxs::ui
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
                 return c;
             }
+            //text get_current_line() override
+            //{
+            //    auto crop = escx{};
+            //    auto& stripe = batch.current();
+            //    auto brush_state = cell{};
+            //    if (owner.selmod == mime::textonly
+            //     || owner.selmod == mime::safetext
+            //     || owner.selmod == mime::disabled)
+            //    {
+            //        utf::trim(crop.s11n<faux, true, faux>(stripe, brush_state));
+            //    }
+            //    else
+            //    {
+            //        crop.s11n<true, true, faux>(stripe, brush_state);
+            //    }
+            //    return crop;
+            //}
 
             // scroll_buf: Calc grip position by coor.
             auto selection_coor_to_grip(twod coor, grip::type role = grip::base)
@@ -7236,7 +7274,7 @@ namespace netxs::ui
             if (onesht != mime::disabled && !ctrl_pressed) selection_oneshot(mime::disabled);
             if (ctrl_pressed || selection_cancel()) // Keep selection if Ctrl is pressed.
             {
-                base::expire(tier::release);
+                bell::expire(tier::release);
                 return true;
             }
             return faux;
@@ -7311,7 +7349,7 @@ namespace netxs::ui
                 console.selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
-                base::expire(tier::release);
+                bell::expire(tier::release);
             }
             else selection_cancel();
         }
@@ -7319,7 +7357,7 @@ namespace netxs::ui
         {
             target->selection_byword(gear.coord);
             gear.dismiss();
-            base::expire(tier::release);
+            bell::expire(tier::release);
             base::deface();
         }
         void selection_tplclk(hids& gear)
@@ -7329,7 +7367,7 @@ namespace netxs::ui
             else if (clicks == 4) target->selection_bymark(gear.coord);
             else if (clicks == 5) target->selection_selall();
             gear.dismiss();
-            base::expire(tier::release);
+            bell::expire(tier::release);
             base::deface();
         }
         void selection_create(hids& gear)
@@ -7815,7 +7853,7 @@ namespace netxs::ui
             chords.proc(action::TerminalMinimize,             [&](hids& gear, txts&){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::release, e2::form::size::minimize, *gear_ptr); }); });
             chords.proc(action::TerminalUndo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
             chords.proc(action::TerminalRedo,                 [&](hids& gear, txts&){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
-            chords.proc(action::TerminalClipboardCopy,        [&](hids& gear, txts&){ gear.set_handled(); copy(gear);                        });
+            chords.proc(action::TerminalClipboardCopy,        [&](hids& gear, txts&){ if (selection_active()) { copy(gear); gear.set_handled(); } else if (auto v = ipccon.get_current_line()) { _copy(gear, v.value()); gear.set_handled(); }});
             chords.proc(action::TerminalClipboardPaste,       [&](hids& gear, txts&){ gear.set_handled(); paste(gear);                       });
             chords.proc(action::TerminalClipboardWipe,        [&](hids& gear, txts&){ gear.set_handled(); gear.clear_clipboard();            });
             chords.proc(action::TerminalClipboardFormat,      [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglesel); else set_selmod((si32)netxs::get_or(xml::options::format, args.front(), mime::textonly)); });
@@ -7829,7 +7867,7 @@ namespace netxs::ui
             chords.proc(action::TerminalAlignMode,            [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, args.front(), bias::none)); });
             chords.proc(action::TerminalWrapMode,             [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
             chords.proc(action::ExclusiveKeyboardMode,        [&](hids& gear, txts& args){ gear.set_handled(); if (args.empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!xml::take_or<bool>(args.front(), true)); });
-            auto bindings = chords.load(xml_config, "terminal");
+            auto bindings = pro::keybd::load(xml_config, "terminal");
             chords.bind(bindings);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
@@ -8113,11 +8151,11 @@ namespace netxs::ui
                     auto owner_ptr = owner.This();
                     if (f.state)
                     {
-                        pro::focus::set(owner_ptr, f.gear_id, f.focus_type);
+                        owner.bell::signal(tier::request, hids::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else
                     {
-                        pro::focus::off(owner_ptr, f.gear_id);
+                        owner.bell::signal(tier::request, hids::events::focus::rem, { .gear_id = f.gear_id });
                     }
                 }
             }
@@ -8132,7 +8170,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, hids::events::keybd::key::post, gear);
+                        owner.base::riseup(tier::release, hids::events::keybd::key::post, gear, true);
                     }
                 }
             };
@@ -8477,11 +8515,11 @@ namespace netxs::ui
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, hids::events::focus::any, seed)
+            LISTEN(tier::release, hids::events::focus::set::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                auto state = deed == hids::events::focus::set.id;
-                stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type);
+                auto state = deed == hids::events::focus::set::on.id;
+                stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
             };
             LISTEN(tier::preview, hids::events::keybd::key::any, gear)
             {

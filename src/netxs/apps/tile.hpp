@@ -3,33 +3,33 @@
 
 #pragma once
 
-namespace netxs::app::tile
-{
-    using backups = std::list<netxs::sptr<ui::veer>>;
-}
-
 namespace netxs::events::userland
 {
     struct tile
     {
         EVENTPACK( tile, ui::e2::extra::slot4 )
         {
-            EVENT_XS( backup, app::tile::backups ),
             EVENT_XS( enlist, ui::sptr           ),
             EVENT_XS( delist, bool               ),
             GROUP_XS( ui    , input::hids        ), // Window manager command pack.
 
             SUBSET_XS( ui )
             {
-                EVENT_XS( create  , input::hids ),
-                EVENT_XS( close   , input::hids ),
-                EVENT_XS( toggle  , input::hids ), // Toggle window size: maximize/restore.
-                EVENT_XS( swap    , input::hids ),
-                EVENT_XS( rotate  , input::hids ), // Change nested objects order. See tilimg manager (ui::fork).
-                EVENT_XS( equalize, input::hids ),
-                EVENT_XS( select  , input::hids ),
-                GROUP_XS( split   , input::hids ),
+                EVENT_XS( create  , input::hids ), // Run app if pane is empty.
+                EVENT_XS( close   , input::hids ), // Close panes.
+                EVENT_XS( swap    , input::hids ), // Swap panes.
+                EVENT_XS( rotate  , input::hids ), // Change split orientation.
+                EVENT_XS( equalize, input::hids ), // Make panes the same size.
+                EVENT_XS( select  , input::hids ), // Focusize all panes.
+                EVENT_XS( title   , input::hids ), // Set window manager title using clipboard.
+                GROUP_XS( focus   , input::hids ), // Focusize prev/next pane.
+                GROUP_XS( split   , input::hids ), // Split panes.
 
+                SUBSET_XS( focus )
+                {
+                    EVENT_XS( next, input::hids ),
+                    EVENT_XS( prev, input::hids ),
+                };
                 SUBSET_XS( split )
                 {
                     EVENT_XS( vt, input::hids ),
@@ -50,6 +50,28 @@ namespace netxs::app::tile
     using events = netxs::events::userland::tile;
     using ui::sptr;
     using ui::wptr;
+
+    #define proc_list \
+        X(TileFocusPrevPane     ) \
+        X(TileFocusNextPane     ) \
+        X(TileRunApplicatoin    ) \
+        X(TileSelectAllPanes    ) \
+        X(TileSplitHorizontally ) \
+        X(TileSplitVertically   ) \
+        X(TileSplitOrientation  ) \
+        X(TileSwapPanes         ) \
+        X(TileEqualizeSplitRatio) \
+        X(TileSetManagerTitle   ) \
+        X(TileClosePane         )
+
+    struct action
+    {
+        #define X(_proc) static constexpr auto _proc = #_proc;
+        proc_list
+        #undef X
+    };
+
+    #undef proc_list
 
     // tile: Right-side item list.
     class items
@@ -105,7 +127,7 @@ namespace netxs::app::tile
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {
-                                boss.detach(); // Destroy itself.
+                                boss.base::detach(); // Destroy itself.
                             };
                             boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
                             {
@@ -148,58 +170,6 @@ namespace netxs::app::tile
 
     namespace
     {
-        auto anycasting = [](auto& boss)
-        {
-            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
-            {
-                parent->LISTEN(tier::anycast, app::tile::events::ui::any, gear, boss.relyon)
-                {
-                    auto gear_test = boss.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
-                    if (gear_test.second)
-                    {
-                        if (auto parent = boss.parent())
-                        if (auto deed = parent->bell::protos(tier::anycast))
-                        {
-                            switch (deed)
-                            {
-                                case app::tile::events::ui::create.id:
-                                    boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                                    break;
-                                case app::tile::events::ui::close.id:
-                                    boss.base::riseup(tier::preview, e2::form::proceed::quit::one, true);
-                                    break;
-                                case app::tile::events::ui::toggle.id:
-                                    if (boss.base::kind() == base::client) // Only apps can be maximized.
-                                    if (gear.countdown > 0)
-                                    {
-                                        gear.countdown--; // The only one can be maximized if several are selected.
-                                        boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
-                                    }
-                                    break;
-                                case app::tile::events::ui::swap.id:
-                                    if (gear.countdown > 0)
-                                    {
-                                        boss.base::riseup(tier::release, app::tile::events::ui::swap, gear);
-                                    }
-                                    break;
-                                case app::tile::events::ui::rotate.id:
-                                    boss.base::riseup(tier::release, app::tile::events::ui::rotate, gear);
-                                    break;
-                                case app::tile::events::ui::equalize.id:
-                                    boss.base::riseup(tier::release, app::tile::events::ui::equalize, gear);
-                                    break;
-                                case app::tile::events::ui::split::vt.id:
-                                    boss.base::riseup(tier::release, app::tile::events::ui::split::vt, gear);
-                                    break;
-                                case app::tile::events::ui::split::hz.id:
-                                    boss.base::riseup(tier::release, app::tile::events::ui::split::hz, gear);
-                                    break;
-                            }
-                        }
-                    }
-                };
-            };
-        };
         auto mouse_subs = [](auto& boss)
         {
             boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
@@ -207,18 +177,6 @@ namespace netxs::app::tile
                 boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                 gear.dismiss();
             };
-            //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
-            //{
-            //    auto backup = boss.This();
-            //    boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-            //    gear.dismiss();
-            //};
-            //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
-            //{
-            //    auto backup = boss.This();
-            //    boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-            //    gear.dismiss();
-            //};
         };
         auto app_window = [](auto& what)
         {
@@ -231,37 +189,31 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
-                        anycasting(boss);
                         mouse_subs(boss);
-
                         if (what.applet->size() != dot_00) boss.resize(what.applet->size() + dot_01/*approx title height*/);
-
-                        auto master_shadow = ptr::shadow(boss.This());
                         auto applet_shadow = ptr::shadow(what.applet);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = what.menuid))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, menuid = what.menuid))
                         {
-                            if (auto master_ptr = master_shadow.lock())
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
                             {
-                                auto& master = *master_ptr;
                                 auto& applet = *applet_ptr;
 
-                                auto deed = master.bell::protos(tier::release);
+                                auto deed = boss.bell::protos(tier::release);
                                 if (deed != hids::events::mouse::button::drag::start::left.id
                                  && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
-                                // Restore if maximized. Parent can be changed.
-                                master.bell::signal(tier::release, e2::form::size::restore, e2::form::size::restore.param());
+                                // Restore if maximized. Parent can be changed after that.
+                                boss.bell::signal(tier::release, e2::form::size::restore);
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param({ .menuid = menuid });
-                                master.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
-                                master.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
+                                boss.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
+                                boss.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
                                 if (what.header.empty()) what.header = menuid;
 
                                 // Find creator.
-                                auto world_ptr = master.base::riseup(tier::request, e2::config::creator);
+                                auto world_ptr = boss.base::riseup(tier::request, e2::config::creator);
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
@@ -271,19 +223,18 @@ namespace netxs::app::tile
                                 what.square.coor = -what.square.coor;
                                 what.forced = true;
                                 what.applet = applet_ptr;
-                                master.remove(applet_ptr);
+
+                                auto gear_id_list = pro::focus::cut(applet_ptr);
+                                boss.remove(applet_ptr);
                                 applet.moveto(dot_00);
-
-                                if (auto parent_ptr = master.parent())
+                                world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
+                                pro::focus::set(applet_ptr, gear_id_list, solo::off, true); // Refocus.
+                                boss.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
+                                if (auto new_parent_ptr = applet.parent())
                                 {
-                                    auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
-                                    world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
-                                    pro::focus::set(what.applet, gear_id_list, solo::off, true); // Refocus.
-                                    master.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
+                                    // Redirect this mouse event to the new world's window.
+                                    gear.pass(tier::release, new_parent_ptr, dot_00);
                                 }
-
-                                // Redirect this mouse event to the new world's window.
-                                gear.pass(tier::release, what.applet, dot_00);
                             }
                         };
                         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -325,14 +276,14 @@ namespace netxs::app::tile
                         }))
                     ->branch(slot::_2, what.applet);
         };
-        auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
+        auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
             auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color.bga(0x40);
 
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
-            node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See empty_slot::select.
+            node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See node_veer::select.
                 ->template plugin<pro::focus>()
                 ->limits(dot_00)
                 ->invoke([&](auto& boss)
@@ -359,8 +310,6 @@ namespace netxs::app::tile
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
-                                    anycasting(boss);
-                                    //todo implement keydb support
                                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                                     {
                                         boss.base::riseup(tier::release, e2::form::size::minimize, gear);
@@ -370,7 +319,7 @@ namespace netxs::app::tile
                                 ->active());
             return node;
         };
-        auto empty_pane = []
+        auto empty_slot = []
         {
             auto window_clr = skin::color(tone::window_clr);
             auto highlight_color = skin::color(tone::winfocus);
@@ -382,14 +331,15 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, faux, 1,
             menu::list
             {
+                //todo make it configurable
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .tooltip = " Launch application instance.                            \n"
-                                                                                                                           " The app to run can be set by RightClick on the taskbar. " }}},
+                                                                                                                     " The app to run can be set by RightClick on the taskbar. " }}},
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .tooltip = " Split horizontally " }}},
@@ -398,7 +348,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::hz, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split vertically " }}},
@@ -407,7 +357,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.base::riseup(tier::release, app::tile::events::ui::split::vt, gear);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
                 { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Delete pane ", .hover = c1 }}},
@@ -415,9 +365,8 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
-                        gear.nodbl = true;
+                        gear.dismiss(true);
                     };
                 }},
             });
@@ -440,12 +389,11 @@ namespace netxs::app::tile
                 ->shader(c3, e2::form::state::focus::count)
                 ->invoke([&](auto& boss)
                 {
-                    anycasting(boss);
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
-                        gear.dismiss();
+                        gear.dismiss(true);
                     };
                 })
                 ->branch
@@ -459,10 +407,10 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
-        auto empty_slot = [](auto&& empty_slot, auto min_state) -> netxs::sptr<ui::veer>
+        auto node_veer = [](auto&& node_veer, auto min_state) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*cut_scope*/)
+                ->plugin<pro::focus>()
                 ->active()
                 ->invoke([&](auto& boss)
                 {
@@ -497,7 +445,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
-                        // Block rising up this event: dtvt object fires this event on exit.
+                        // Block a rising up of this event: dtvt object fires this event on exit.
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
                     {
@@ -519,12 +467,10 @@ namespace netxs::app::tile
                         if (boss.count() == 1) // Only empty pane/slot available.
                         {
                             highlight(boss, faux);
-                            pro::focus::off(boss.This());
-                            auto gear_id_list = pro::focus::get(what.applet);
+                            pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
                             auto app = app_window(what);
                             boss.attach(app);
                             app->bell::signal(tier::anycast, e2::form::upon::started);
-                            pro::focus::set(what.applet, gear_id_list, solo::mix, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
@@ -535,7 +481,7 @@ namespace netxs::app::tile
                         }
                         else if (boss.count() == 2)
                         {
-                            auto gear_id_list = pro::focus::get(boss.This());
+                            auto gear_id_list = pro::focus::cut(boss.back());
                             auto deleted_item = boss.pop_back();
                             if (item_ptr)
                             {
@@ -561,7 +507,7 @@ namespace netxs::app::tile
                                 }
                                 else if (boss.count() == 2)
                                 {
-                                    auto gear_id_list = pro::focus::get(boss.This());
+                                    auto gear_id_list = pro::focus::cut(boss.back());
                                     item_ptr = boss.pop_back();
                                     pro::focus::set(boss.back(), gear_id_list, solo::off);
                                 }
@@ -587,41 +533,35 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
-                    {
-                        auto item_ptr = boss.back();
-                        if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, solo::off);
-                        else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
-                    };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::off);
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
-                            boss.base::riseup(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
+                            boss.base::riseup(tier::release, e2::form::proceed::attach);
                         }
                         else
                         {
                             if (boss.count() > 1) // Preventing the empty slot from maximizing.
                             if (boss.back()->base::kind() == base::client) // Preventing the splitter from maximizing.
-                            if (auto fullscreen_item = boss.pop_back())
                             {
-                                auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
-                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, item_ptr, oneoff)
+                                auto fullscreen_item = boss.back();
+                                auto& fullscreen_inst = *fullscreen_item;
+                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, empty_ptr, oneoff)
                                 {
-                                    if (item_ptr)
-                                    {
-                                        boss.attach(item_ptr);
-                                        boss.base::reflow();
-                                    }
+                                    auto item_ptr = fullscreen_inst.This();
+                                    auto gear_id_list = pro::focus::cut(item_ptr);
+                                    item_ptr->base::detach();
+                                    boss.attach(item_ptr);
+                                    pro::focus::set(item_ptr, gear_id_list, solo::off);
+                                    boss.base::reflow();
                                     oneoff.reset();
                                 };
                                 fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
                                 {
                                     oneoff.reset();
                                 };
-                                auto just_copy = fullscreen_item;
                                 boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
-                                pro::focus::set(just_copy, gear_id_list, solo::off); // Handover all foci.
                                 boss.base::reflow();
                             }
                         }
@@ -636,21 +576,21 @@ namespace netxs::app::tile
                             if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
-                            auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                            auto empty_1 = empty_slot(empty_slot, ui::fork::min_ratio);
-                            auto empty_2 = empty_slot(empty_slot, ui::fork::max_ratio);
-                            auto gear_id = pro::focus::get(boss.This()); // Seize all foci.
+                            auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                            auto empty_1 = node_veer(node_veer, ui::fork::min_ratio);
+                            auto empty_2 = node_veer(node_veer, ui::fork::max_ratio);
+                            auto gear_id_list = pro::focus::cut(boss.back());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
-                                boss.attach(empty_pane());
+                                boss.attach(empty_slot());
                                 empty_1->pop_back();
                             }
                             auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
                             auto slot_2 = newnode->attach(slot::_2, empty_2);
                             boss.attach(newnode);
-                            pro::focus::set(slot_1->back(), gear_id, solo::off); // Handover all foci.
-                            pro::focus::set(slot_2->back(), gear_id, solo::off);
+                            pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
+                            pro::focus::set(slot_2->back(), gear_id_list, solo::off);
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -659,11 +599,17 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        if (boss.count() > 0 && boss.back()->base::root()) // Walking a nested visual tree.
+                        if (boss.count() > 1 && boss.back()->base::root()) // Walking a nested visual tree.
                         {
                             boss.back()->bell::signal(tier::anycast, e2::form::proceed::quit::one, true); // fast=true: Immediately closing (no ways to showing a closing process). Forward a quit message to hosted app in order to schedule a cleanup.
                         }
-                        else boss.bell::signal(tier::release, e2::form::proceed::quit::one, fast);
+                        else // Close an empty slot (boss.count() == 1).
+                        {
+                            boss.bell::enqueue(boss.This(), [&](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
+                            {
+                                boss.bell::signal(tier::release, e2::form::proceed::quit::one, fast);
+                            });
+                        }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
@@ -671,7 +617,7 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 1 && boss.back()->base::kind() == base::client) // Only apps can be deleted.
                             {
-                                auto gear_id_list = pro::focus::get(boss.This());
+                                auto gear_id_list = pro::focus::cut(boss.back());
                                 auto deleted_item = boss.pop_back(); // Throw away.
                                 pro::focus::set(boss.back(), gear_id_list, solo::off);
                             }
@@ -694,11 +640,11 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto current_default = gate.bell::signal(tier::request, e2::data::changed);
                         auto config = gate.base::riseup(tier::request, vtm::events::apptype, { .menuid = current_default });
-                        if (config.kindid == netxs::app::site::id) return; // Deny any view regions inside the tiling manager.
+                        if (config.kindid == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
 
                         gate.base::riseup(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);
-                        auto gear_id_list = pro::focus::get(boss.back());
+                        pro::focus::off(boss.back());
                         boss.attach(app);
                         if (auto world_ptr = gate.parent()) // Finalize app creation.
                         {
@@ -713,27 +659,14 @@ namespace netxs::app::tile
                         };
 
                         app->bell::signal(tier::anycast, e2::form::upon::started, app);
-                        if (std::find(gear_id_list.begin(), gear_id_list.end(), gear.id) == gear_id_list.end())
-                        {
-                            gear_id_list.push_back(gear.id);
-                        }
-                        pro::focus::set(app, gear_id_list, solo::off);
-                    };
-                    boss.LISTEN(tier::release, events::backup, empty_slot_list)
-                    {
-                        if (boss.count())
-                        if (auto item_ptr = boss.back())
-                        if (item_ptr->base::root())
-                        {
-                            empty_slot_list.push_back(boss.This());
-                        }
+                        pro::focus::set(app, gear.id, solo::off);
                     };
                 })
-                ->branch(empty_pane());
+                ->branch(empty_slot());
         };
         auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> netxs::sptr<ui::veer>
         {
-            auto slot = empty_slot(empty_slot, min_ratio);
+            auto slot = node_veer(node_veer, min_ratio);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return slot;
             auto tag = utf8.front();
@@ -768,7 +701,7 @@ namespace netxs::app::tile
                 }
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
-                auto node = built_node(tag, s1, s2, w);
+                auto node = build_node(tag, s1, s2, w);
                 auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
                 auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
                 slot->attach(node);
@@ -795,19 +728,111 @@ namespace netxs::app::tile
             }
             return slot;
         };
+        namespace item_type
+        {
+            static constexpr auto _counter   = __COUNTER__ + 1;
+            static constexpr auto empty_slot = __COUNTER__ - _counter;
+            static constexpr auto applet     = __COUNTER__ - _counter;
+            static constexpr auto grip       = __COUNTER__ - _counter;
+        }
+        auto is_focused = [](auto item_ptr, auto gear_id){ return !gear_id || !!item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear_id, 0 }).second; };
+        auto _foreach = [](auto _foreach, sptr& root_veer_ptr, id_t gear_id, auto proc) -> void
+        {
+            if (auto node_veer_ptr = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr))
+            {
+                if (is_focused(node_veer_ptr, gear_id))
+                {
+                    auto item_ptr = node_veer_ptr->back();
+                    if (node_veer_ptr->count() == 1) // Empty slot.
+                    {
+                        if (is_focused(item_ptr, gear_id))
+                        {
+                            proc(item_ptr, item_type::empty_slot, node_veer_ptr);
+                            if (!item_ptr)
+                            {
+                                root_veer_ptr = {}; // Interrupt foreach.
+                            }
+                        }
+                    }
+                    else if (item_ptr->root()) // App window.
+                    {
+                        auto applet_ptr = item_ptr->base::subset[1];
+                        if (is_focused(applet_ptr, gear_id))
+                        {
+                            proc(applet_ptr, item_type::applet, node_veer_ptr); // Applet.
+                            if (!applet_ptr)
+                            {
+                                root_veer_ptr = {}; // Interrupt foreach.
+                            }
+                        }
+                    }
+                    else // if (!item_ptr->root()) // Node.
+                    {
+                        root_veer_ptr = item_ptr->base::subset[0];
+                        _foreach(_foreach, root_veer_ptr, gear_id, proc);
+                        if (!root_veer_ptr) return;
+
+                        auto grip_ptr = item_ptr->base::subset[2];
+                        if (is_focused(grip_ptr, gear_id))
+                        {
+                            proc(grip_ptr, item_type::grip, node_veer_ptr); // Grip.
+                            if (!grip_ptr)
+                            {
+                                root_veer_ptr = {}; // Interrupt foreach.
+                                return;
+                            }
+                        }
+
+                        root_veer_ptr = item_ptr->base::subset[1];
+                        _foreach(_foreach, root_veer_ptr, gear_id, proc);
+                        if (!root_veer_ptr) return;
+                    }
+                }
+            }
+        };
+        auto foreach = [](sptr& root_veer_ptr, id_t gear_id, auto proc)
+        {
+            _foreach(_foreach, root_veer_ptr, gear_id, proc);
+        };
         auto build_inst = [](eccc appcfg, xmls& config) -> sptr
         {
+            // tile (ui::fork, f, k)
+            //  │ │
+            //  │ └─ slot::_1 ─ menu_block
+            //  └─── slot::_2 ─ parse_data
+            //        │
+            //        └─ node_veer (ui::veer, f)
+            //            │
+            //            ├─ empty_slot (ui::cake, f)->isroot(true, base::placeholder)
+            //            │   │
+            //            │   ├─ ui::post ("Empty Slot")
+            //            │   └─ menu (" +  |  ─  x ")
+            //
+            //            └─ app_window (ui::fork, f)->isroot(true)
+            //                │ │
+            //           or   │ └─ slot::_1: ui::postfx<cell::shaders::contrast>("Title")
+            //                └─── slot::_2: what.applet
+            //            └─ node (ui::fork, f)->isroot(faux, base::node)
+            //                │ │ │
+            //                │ │ └─ slot::_1: parse_data...
+            //                │ └─── slot::_I: (ui::mock, f)->isroot(true)
+            //                └───── slot::_2: parse_data...
+            //            :
+            //            └─ maximized node_veer...
+
             auto param = view{ appcfg.cmd };
             auto window_clr = skin::color(tone::window_clr);
             //auto highlight_color = skin::color(tone::highlight);
-            auto danger_color    = skin::color(tone::danger);
+            //auto danger_color    = skin::color(tone::danger);
             //auto warning_color   = skin::color(tone::warning);
             //auto c3 = highlight_color;
             //auto c2 = warning_color;
-            auto c1 = danger_color;
+            //auto c1 = danger_color;
 
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
+                ->plugin<pro::focus>()
+                ->plugin<pro::keybd>()
                 ->invoke([&](auto& boss)
                 {
                     auto oneoff = ptr::shared(hook{});
@@ -829,104 +854,313 @@ namespace netxs::app::tile
                     {
                         boss.bell::signal(tier::anycast, e2::form::prop::cwd, path);
                     };
-                });
-
-            using namespace app::shared;
-            config.cd("/config/tile", "/config/defapp");
-            auto [menu_block, cover, menu_data] = menu::create(config,
-                    menu::list
+                    boss.LISTEN(tier::request, e2::form::proceed::swap, item_ptr) // Close the tile window manager if we receive a `swap-request` from the top-level `empty-slot`.
                     {
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .tooltip = " Launch application instances in active empty slots.     \n"
-                                                                                                                               " The app to run can be set by RightClick on the taskbar. " }}},
-                        [](auto& boss, auto& /*item*/)
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
+                    };
+                    auto& keybd = boss.template plugins<pro::keybd>();
+                    keybd.proc(action::TileFocusPrevPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prev, gear); });
+                    keybd.proc(action::TileFocusNextPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::next, gear); });
+                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::create,      gear); });
+                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::select,      gear); });
+                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::split::hz,   gear); });
+                    keybd.proc(action::TileSplitVertically   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::split::vt,   gear); });
+                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::rotate,      gear); });
+                    keybd.proc(action::TileSwapPanes         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::swap,        gear); });
+                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::equalize,    gear); });
+                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::title ,      gear); });
+                    keybd.proc(action::TileClosePane         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::close,       gear); });
+                    auto bindings = pro::keybd::load(config, "tile");
+                    keybd.bind(bindings);
+
+                    boss.LISTEN(tier::preview, app::tile::events::ui::any, gear)
+                    {
+                        auto root_veer_ptr = std::dynamic_pointer_cast<ui::veer>(boss.base::subset[1]);
+                        if (root_veer_ptr->count() > 2)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::create, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .tooltip = " Select all panes " }}},
-                        [](auto& boss, auto& /*item*/)
+                            root_veer_ptr->base::riseup(tier::release, e2::form::proceed::attach); // Restore the window before any action if maximized.
+                        }
+                    };
+                    auto switch_counter_ptr = ptr::shared<std::unordered_map<id_t, feed>>();
+                    auto& switch_counter = *switch_counter_ptr;
+                    boss.LISTEN(tier::release, hids::events::focus::set::any, seed, -, (switch_counter_ptr)) // Reset the focus switch counter when it is focused from outside.
+                    {
+                        switch_counter[seed.gear_id] = {};
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (switch_counter_ptr))
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_item_ptr = sptr{};
+                        auto next_item_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            if (is_focused(item_ptr, gear.id))
                             {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::select, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .tooltip = " Split active panes horizontally " }}},
-                        [](auto& boss, auto& /*item*/)
+                                prev_item_ptr = next_item_ptr;
+                            }
+                            next_item_ptr = item_ptr;
+                        });
+                        auto skip = !prev_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::rev;
+                        if (skip) // Give another process a chance to handle this event.
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::split::hz, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .tooltip = " Split active panes vertically " }}},
-                        [](auto& boss, auto& /*item*/)
+                            switch_counter[gear.id] = {};
+                        }
+                        else
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            if (!prev_item_ptr) // Focused item is at the boundary.
                             {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::split::vt, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "┌┘", .tooltip = " Change split orientation " }}},
-                        [](auto& boss, auto& /*item*/)
+                                prev_item_ptr = next_item_ptr;
+                            }
+                            if (prev_item_ptr)
+                            {
+                                auto& prev_item = *prev_item_ptr;
+                                boss.bell::enqueue(prev_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(prev_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::rev;
+                            }
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_item_ptr = sptr{};
+                        auto next_item_ptr = sptr{};
+                        auto temp_item_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            if (!temp_item_ptr)
                             {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::rotate, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .tooltip = " Swap two or more panes " }}},
-                        [](auto& boss, auto& /*item*/)
+                                temp_item_ptr = item_ptr; // Fallback item.
+                            }
+                            if (prev_item_ptr)
+                            {
+                                std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
+                            }
+                            else if (is_focused(item_ptr, gear.id))
+                            {
+                                prev_item_ptr = item_ptr;
+                            }
+                        });
+                        auto skip = !next_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::fwd;
+                        if (skip) // Give another process a chance to handle this event.
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::swap, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .tooltip = " Equalize split ratio " }}},
-                        [](auto& boss, auto& /*item*/)
+                            switch_counter[gear.id] = {};
+                        }
+                        else
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            if (!next_item_ptr) // Focused item is at the boundary.
                             {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::equalize, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .tooltip = " Set tiling manager window title using clipboard data " }}},
-                        [](auto& boss, auto& /*item*/)
+                                next_item_ptr = temp_item_ptr;
+                            }
+                            if (next_item_ptr)
+                            {
+                                auto& next_item = *next_item_ptr;
+                                boss.bell::enqueue(next_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(next_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::fwd;
+                            }
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::swap, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto node_veer_list = std::vector<netxs::sptr<ui::veer>>{};
+                        auto node_grip_list = std::vector<netxs::sptr<ui::veer>>{};
+                        foreach(root_veer_ptr, gear.id, [&](auto& /*item_ptr*/, si32 item_type, auto node_veer_ptr)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            if (item_type == item_type::grip)
                             {
-                                app::shared::set_title(boss, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                        { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .tooltip = " Close active app ", .hover = c1 }}},
-                        [](auto& boss, auto& /*item*/)
+                                node_grip_list.push_back(node_veer_ptr);
+                            }
+                            else
+                            {
+                                node_veer_list.push_back(node_veer_ptr);
+                            }
+                        });
+                        auto slots_count = node_veer_list.size();
+                        if (slots_count == 1) // Swap panes in split.
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            node_veer_list.front()->back()->base::riseup(tier::release, app::tile::events::ui::swap, gear);
+                        }
+                        else if (slots_count)// Swap selected panes cyclically.
+                        {
+                            auto emp_slot = sptr{};
+                            auto app_slot = sptr{};
+                            auto emp_next = sptr{};
+                            auto app_next = sptr{};
+                            for (auto& s : node_veer_list)
                             {
-                                boss.bell::signal(tier::anycast, app::tile::events::ui::close, gear);
-                                gear.nodbl = true;
-                            };
-                        }},
-                    });
+                                if (s->count() == 1) // empty only
+                                {
+                                    app_next.reset();
+                                    pro::focus::cut(s->back());
+                                    emp_next = s->pop_back();
+                                }
+                                else if (s->count() == 2) // empty + app
+                                {
+                                    if (auto app = s->back())
+                                    {
+                                        app->bell::signal(tier::release, events::delist, true);
+                                    }
+                                    pro::focus::cut(s->back());
+                                    app_next = s->pop_back();
+                                    pro::focus::cut(s->back());
+                                    emp_next = s->pop_back();
+                                }
+                                if (emp_slot)
+                                {
+                                    s->attach(emp_slot);
+                                    if (!app_slot) pro::focus::set(emp_slot, gear.id, solo::off); // Refocus.
+                                }
+                                if (app_slot)
+                                {
+                                    s->attach(app_slot);
+                                    pro::focus::set(app_slot, gear.id, solo::off); // Refocus.
+                                    app_slot->base::riseup(tier::release, events::enlist, app_slot);
+                                }
+                                std::swap(emp_slot, emp_next);
+                                std::swap(app_slot, app_next);
+                            }
+                            auto& first_item_ptr = node_veer_list.front();
+                            if (emp_slot)
+                            {
+                                first_item_ptr->attach(emp_slot);
+                                if (!app_slot) pro::focus::set(emp_slot, gear.id, solo::off); // Refocus.
+                            }
+                            if (app_slot)
+                            {
+                                first_item_ptr->attach(app_slot);
+                                pro::focus::set(app_slot, gear.id, solo::off); // Refocus.
+                                app_slot->base::riseup(tier::release, events::enlist, app_slot);
+                            }
+                        }
+                        for (auto& s : node_grip_list) // Swap panes in split.
+                        {
+                            s->back()->base::riseup(tier::release, app::tile::events::ui::swap, gear);
+                        }
+                        gear.set_handled();
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::create, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type == item_type::empty_slot)
+                            {
+                                item_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
+                                gear.set_handled();
+                            }
+                        });
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::select, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type != item_type::grip) pro::focus::set(item_ptr, gear.id, solo::off);
+                            else                              pro::focus::off(item_ptr, gear.id);
+                        });
+                        gear.set_handled();
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::split::any, gear)
+                    {
+                        auto deed = boss.bell::protos(tier::preview);
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        {
+                            boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
+                            {
+                                if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                if (auto item_ptr = item_wptr.lock())
+                                {
+                                    item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);
+                                }
+                            });
+                            gear.set_handled();
+                        });
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::rotate, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        {
+                            item_ptr->base::riseup(tier::release, app::tile::events::ui::rotate, gear);
+                            gear.set_handled();
+                        });
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::equalize, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        {
+                            item_ptr->base::riseup(tier::release, app::tile::events::ui::equalize, gear);
+                            gear.set_handled();
+                        });
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::title , gear)
+                    {
+                        app::shared::set_title(boss, gear);
+                        gear.set_handled();
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::close, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type != item_type::grip)
+                            {
+                                item_ptr->base::riseup(tier::preview, e2::form::proceed::quit::one, true);
+                                gear.set_handled();
+                            }
+                        });
+                    };
+                });
+            static auto on_left_click = [](auto& boss, auto& event)
+            {
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    gear.dismiss(true);
+                    boss.bell::expire(tier::release);
+                    boss.base::riseup(tier::preview, event, gear);
+                };
+            };
+            using namespace app::shared;
+            static const auto proc_map = menu::action_map_t
+            {
+                { tile::action::TileFocusPrevPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev); }},
+                { tile::action::TileFocusNextPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next); }},
+                { tile::action::TileRunApplicatoin    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create     ); }},
+                { tile::action::TileSelectAllPanes    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select     ); }},
+                { tile::action::TileSplitHorizontally , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz  ); }},
+                { tile::action::TileSplitVertically   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt  ); }},
+                { tile::action::TileSplitOrientation  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate     ); }},
+                { tile::action::TileSwapPanes         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap       ); }},
+                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize   ); }},
+                { tile::action::TileSetManagerTitle   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title      ); }},
+                { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close      ); }},
+            };
+            config.cd("/config/tile", "/config/defapp");
+            auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
-                  ->invoke([](auto& boss)
-                  {
-                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                      {
-                          boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
-                      };
-                  });
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.base::riseup(tier::release, e2::form::proceed::quit::one, fast);
+                    };
+                });
             menu_data->active(window_clr)
                      //->plugin<pro::track>()
                      ->plugin<pro::acryl>();
@@ -948,99 +1182,22 @@ namespace netxs::app::tile
                 if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, appcfg.cwd, err.value());
                 else     log("%%Change current directory to '%cwd%'", prompt::tile, appcfg.cwd);
             }
-
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item, -, (foci_list = gear_id_list_t{}))
+                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item)
                     {
                         if (boss.count() > 2)
                         {
-                            auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
-                            auto item_ptr = boss.pop_back();
-                            item_ptr->bell::signal(tier::release, e2::form::size::restore, item_ptr);
-                            pro::focus::set(boss.back(), foci_list, solo::off, true); // Restore saved foci.
-                            pro::focus::set(item_ptr, gear_id_list, solo::off); // Apply item's foci.
-                            foci_list.clear();
+                            boss.back()->bell::signal(tier::release, e2::form::size::restore);
                         }
-
                         if (fullscreen_item)
                         {
-                            foci_list = pro::focus::get(boss.This()); // Save all foci.
+                            auto gear_id_list = pro::focus::cut(fullscreen_item);
+                            fullscreen_item->base::detach();
+                            pro::focus::off(boss.This());
                             boss.attach(fullscreen_item);
-                            fullscreen_item.reset();
-                        }
-                        else log(prompt::tile, "Fullscreen item is empty");
-                    };
-                    boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
-                    {
-                        if (auto deed = boss.bell::protos(tier::anycast))
-                        {
-                            if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
-                            {
-                                boss.base::riseup(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
-                            }
-
-                            if (deed == app::tile::events::ui::swap.id)
-                            {
-                                auto empty_slot_list = backups{};
-                                auto proc = e2::form::proceed::functor.param([&](sptr item_ptr)
-                                {
-                                    auto gear_test = item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
-                                    if (gear_test.second)
-                                    {
-                                        item_ptr->base::riseup(tier::release, events::backup, empty_slot_list);
-                                    }
-                                });
-                                boss.bell::signal(tier::general, e2::form::proceed::functor, proc);
-                                auto slots_count = empty_slot_list.size();
-                                log(prompt::tile, "Slots count:", slots_count);
-                                if (slots_count >= 2) // Swap selected panes cyclically.
-                                {
-                                    log(prompt::tile, "Swap slots cyclically");
-                                    auto emp_slot = sptr{};
-                                    auto app_slot = sptr{};
-                                    auto emp_next = sptr{};
-                                    auto app_next = sptr{};
-                                    for (auto& s : empty_slot_list)
-                                    {
-                                        if (s->count() == 1) // empty only
-                                        {
-                                            app_next.reset();
-                                            emp_next = s->pop_back();
-                                        }
-                                        else if (s->count() == 2) // empty + app
-                                        {
-                                            if (auto app = s->back())
-                                            {
-                                                app->bell::signal(tier::release, events::delist, true);
-                                            }
-                                            app_next = s->pop_back();
-                                            emp_next = s->pop_back();
-                                        }
-                                        if (emp_slot) s->attach(emp_slot);
-                                        if (app_slot)
-                                        {
-                                            s->attach(app_slot);
-                                            app_slot->base::riseup(tier::release, events::enlist, app_slot);
-                                        }
-                                        std::swap(emp_slot, emp_next);
-                                        std::swap(app_slot, app_next);
-                                    }
-                                    auto& s = empty_slot_list.front();
-                                    if (emp_slot) s->attach(emp_slot);
-                                    if (app_slot)
-                                    {
-                                        s->attach(app_slot);
-                                        app_slot->base::riseup(tier::release, events::enlist, app_slot);
-                                    }
-                                    gear.countdown = 0; // Interrupt swapping.
-                                }
-                                else // Swap panes in split.
-                                {
-                                    gear.countdown = 1;
-                                }
-                            }
+                            pro::focus::set(fullscreen_item, gear_id_list, solo::off);
                         }
                     };
                 });

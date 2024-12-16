@@ -584,9 +584,9 @@ namespace netxs::ui
             }
             void fire(hint event_id)
             {
-                for (auto& [gear_id, gear_ptr] : gears)
+                for (auto& [ext_gear_id, gear_ptr] : gears)
                 {
-                    if (gear_id)
+                    if (ext_gear_id)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
@@ -597,11 +597,11 @@ namespace netxs::ui
                     }
                 }
             }
-            auto get_foreign_gear_id(id_t gear_id)
+            auto get_ext_gear_id(id_t gear_id)
             {
-                for (auto& [foreign_id, gear_ptr] : gears)
+                for (auto& [ext_gear_id, gear_ptr] : gears)
                 {
-                    if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
+                    if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
                 }
                 return std::pair{ id_t{}, netxs::sptr<hids>{} };
             }
@@ -868,10 +868,10 @@ namespace netxs::ui
         {
             auto& header = *uname.lyric;
             auto  half_x = header.size().x / 2;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 auto coor = twod{ gear.coord };
                 coor.y -= 1;
                 coor.x -= half_x;
@@ -884,10 +884,10 @@ namespace netxs::ui
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto area = rect_11;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 area.coor = gear.coord;
                 auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
                                                 : idle;
@@ -896,10 +896,10 @@ namespace netxs::ui
         }
         void draw_clipboard_preview(face& canvas, time const& stamp)
         {
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                gear.board::shown = !gear.disabled &&
+                gear.board::shown = !gear.mouse_disabled &&
                                     (props.clip_preview_time == span::zero() ||
                                      props.clip_preview_time > stamp - gear.delta.stamp());
                 if (gear.board::shown)
@@ -917,10 +917,10 @@ namespace netxs::ui
             auto area = canvas.area();
             auto zero = rect{ dot_00, area.size };
             canvas.area(zero);
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 if (gear.tooltip_enabled(stamp))
                 {
                     auto [tooltip_data, tooltip_update] = gear.get_tooltip();
@@ -943,14 +943,14 @@ namespace netxs::ui
         void send_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
                     auto [tooltip_data, tooltip_update] = gear.get_tooltip();
-                    list.thing.push(gear_id, tooltip_data, tooltip_update);
+                    list.thing.push(ext_gear_id, tooltip_data, tooltip_update);
                 }
             }
             list.thing.sendby<true>(canal);
@@ -958,10 +958,10 @@ namespace netxs::ui
         void check_tooltips(time now)
         {
             auto result = faux;
-            for (auto& [gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
+                if (gear.mouse_disabled) continue;
                 result |= gear.tooltip_check(now);
             }
             if (result) base::strike();
@@ -1051,7 +1051,7 @@ namespace netxs::ui
             {
                 if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
                 {
-                    for (auto& [gear_id, gear_ptr] : input.gears)
+                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
@@ -1126,25 +1126,26 @@ namespace netxs::ui
               fullscreen{ faux }
         {
             keybd.proc("ToggleDebugOverlay", [&](hids& gear, txts&){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            auto bindings = keybd.load(config, "tui");
+            auto bindings = pro::keybd::load(config, "tui");
             keybd.bind(bindings);
 
             base::root(true);
             base::limits(dot_11);
 
-            LISTEN(tier::preview, hids::events::focus::any, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
             {
-                if (seed.nondefault_gear())
+                if (seed.gear_id)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.gear_id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
-                        auto state = deed == hids::events::focus::set.id;
-                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type);
+                        auto state = deed == hids::events::focus::set::on.id;
+                        conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
             };
+            //todo mimic pro::focus
             LISTEN(tier::release, hids::events::focus::any, seed, tokens)
             {
                 if (auto target = nexthop.lock())
@@ -1172,7 +1173,7 @@ namespace netxs::ui
             {
                 if (!gear.handled)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr)
                     {
                         gear.gear_id = ext_gear_id;
@@ -1284,7 +1285,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
             {
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
@@ -1294,7 +1295,7 @@ namespace netxs::ui
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
                 if (gear_ptr)
                 {
                     conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
@@ -1330,12 +1331,12 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
@@ -1374,7 +1375,7 @@ namespace netxs::ui
                     }
                     if (forward)
                     {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                        auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                         if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
@@ -1405,12 +1406,12 @@ namespace netxs::ui
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
@@ -1545,6 +1546,27 @@ namespace netxs::ui
                 else
                 {
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                }
+            };
+            LISTEN(tier::request, hids::events::focus::set::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            {
+                auto is_recursive = faux;
+                if (seed.treeid)
+                {
+                    auto& digest = focus_tree_map[seed.treeid];
+                    if (digest < seed.digest) // This is the first time this focus event has been received.
+                    {
+                        digest = seed.digest;
+                    }
+                    else // We've seen this event before.
+                    {
+                        is_recursive = true;
+                    }
+                }
+                if (!is_recursive)
+                {
+                    auto deed = this->bell::protos(tier::request);
+                    this->bell::signal(tier::release, deed, seed);
                 }
             };
 

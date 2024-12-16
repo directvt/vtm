@@ -4511,6 +4511,10 @@ namespace netxs::os
             {
                 if (attached) termlink->undo(undoredo);
             }
+            auto get_current_line()
+            {
+                return termlink->get_current_line();
+            }
         };
     }
 
@@ -4842,6 +4846,8 @@ namespace netxs::os
             struct adapter : s11n
             {
                 id_t gear_id = 1;
+                ui64 tree_id = datetime::uniqueid();
+                ui64 digest{};
 
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
@@ -6060,7 +6066,7 @@ namespace netxs::os
                 }
             };
             auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
-            auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0); };
+            auto focus = [&](auto state){ if (alive)                proxy.sysfocus.send(intio, proxy.gear_id, state, 0, proxy.tree_id, ++proxy.digest); };
             auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
             auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, close, noop{}); }};
