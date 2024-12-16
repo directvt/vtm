@@ -762,7 +762,7 @@ namespace netxs::app::tile
                     {
                         if (is_focused(item_ptr, gear_id))
                         {
-                            proc(item_ptr, item_type::empty_slot);
+                            proc(item_ptr, item_type::empty_slot, node_veer_ptr);
                             if (!item_ptr)
                             {
                                 root_veer_ptr = {}; // Interrupt foreach.
@@ -774,7 +774,7 @@ namespace netxs::app::tile
                         auto applet_ptr = item_ptr->base::subset[1];
                         if (is_focused(applet_ptr, gear_id))
                         {
-                            proc(applet_ptr, item_type::applet); // Applet.
+                            proc(applet_ptr, item_type::applet, node_veer_ptr); // Applet.
                             if (!applet_ptr)
                             {
                                 root_veer_ptr = {}; // Interrupt foreach.
@@ -790,7 +790,7 @@ namespace netxs::app::tile
                         auto grip_ptr = item_ptr->base::subset[2];
                         if (is_focused(grip_ptr, gear_id))
                         {
-                            proc(grip_ptr, item_type::grip); // Grip.
+                            proc(grip_ptr, item_type::grip, node_veer_ptr); // Grip.
                             if (!grip_ptr)
                             {
                                 root_veer_ptr = {}; // Interrupt foreach.
@@ -909,7 +909,7 @@ namespace netxs::app::tile
                         if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
-                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/)
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             if (is_focused(item_ptr, gear.id))
                             {
@@ -948,7 +948,7 @@ namespace netxs::app::tile
                         auto prev_item_ptr = sptr{};
                         auto next_item_ptr = sptr{};
                         auto temp_item_ptr = sptr{};
-                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/)
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             if (!temp_item_ptr)
                             {
@@ -988,12 +988,89 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::swap, gear)
                     {
-                        log("ui::swap");
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto node_veer_list = std::vector<netxs::sptr<ui::veer>>{};
+                        auto node_grip_list = std::vector<netxs::sptr<ui::veer>>{};
+                        foreach(root_veer_ptr, gear.id, [&](auto& /*item_ptr*/, si32 item_type, auto node_veer_ptr)
+                        {
+                            if (item_type == item_type::grip)
+                            {
+                                node_grip_list.push_back(node_veer_ptr);
+                            }
+                            else
+                            {
+                                node_veer_list.push_back(node_veer_ptr);
+                            }
+                        });
+                        auto slots_count = node_veer_list.size();
+                        if (slots_count == 1) // Swap panes in split.
+                        {
+                            node_veer_list.front()->back()->base::riseup(tier::release, app::tile::events::ui::swap, gear);
+                        }
+                        else if (slots_count)// Swap selected panes cyclically.
+                        {
+                            auto emp_slot = sptr{};
+                            auto app_slot = sptr{};
+                            auto emp_next = sptr{};
+                            auto app_next = sptr{};
+                            for (auto& s : node_veer_list)
+                            {
+                                if (s->count() == 1) // empty only
+                                {
+                                    app_next.reset();
+                                    pro::focus::cut(s->back());
+                                    emp_next = s->pop_back();
+                                }
+                                else if (s->count() == 2) // empty + app
+                                {
+                                    if (auto app = s->back())
+                                    {
+                                        app->bell::signal(tier::release, events::delist, true);
+                                    }
+                                    pro::focus::cut(s->back());
+                                    app_next = s->pop_back();
+                                    pro::focus::cut(s->back());
+                                    emp_next = s->pop_back();
+                                }
+                                if (emp_slot)
+                                {
+                                    s->attach(emp_slot);
+                                    if (!app_slot) pro::focus::set(emp_slot, gear.id, solo::off); // Refocus.
+                                }
+                                if (app_slot)
+                                {
+                                    s->attach(app_slot);
+                                    pro::focus::set(app_slot, gear.id, solo::off); // Refocus.
+                                    app_slot->base::riseup(tier::release, events::enlist, app_slot);
+                                }
+                                std::swap(emp_slot, emp_next);
+                                std::swap(app_slot, app_next);
+                            }
+                            auto& first_item_ptr = node_veer_list.front();
+                            if (emp_slot)
+                            {
+                                first_item_ptr->attach(emp_slot);
+                                if (!app_slot) pro::focus::set(emp_slot, gear.id, solo::off); // Refocus.
+                            }
+                            if (app_slot)
+                            {
+                                first_item_ptr->attach(app_slot);
+                                pro::focus::set(app_slot, gear.id, solo::off); // Refocus.
+                                app_slot->base::riseup(tier::release, events::enlist, app_slot);
+                            }
+                        }
+                        for (auto& s : node_grip_list) // Swap panes in split.
+                        {
+                            s->back()->base::riseup(tier::release, app::tile::events::ui::swap, gear);
+                        }
+                        gear.set_handled();
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::create, gear)
                     {
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type == item_type::empty_slot)
                             {
@@ -1005,7 +1082,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::select, gear)
                     {
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type)
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type != item_type::grip) pro::focus::set(item_ptr, gear.id, solo::off);
                             else                              pro::focus::off(item_ptr, gear.id);
@@ -1016,7 +1093,7 @@ namespace netxs::app::tile
                     {
                         auto deed = boss.bell::protos(tier::preview);
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
                             {
@@ -1032,7 +1109,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::rotate, gear)
                     {
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             item_ptr->base::riseup(tier::release, app::tile::events::ui::rotate, gear);
                             gear.set_handled();
@@ -1041,7 +1118,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::equalize, gear)
                     {
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             item_ptr->base::riseup(tier::release, app::tile::events::ui::equalize, gear);
                             gear.set_handled();
@@ -1055,7 +1132,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::close, gear)
                     {
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type != item_type::grip)
                             {
