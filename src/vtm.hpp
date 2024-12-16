@@ -1652,6 +1652,7 @@ namespace netxs::app::vtm
         auto vtm_set(eccc& /*script*/, qiew args)
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+            appconf.cd("item");
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .fixed   = true,
                                        .winform = shared::win::state::normal,
@@ -1716,6 +1717,7 @@ namespace netxs::app::vtm
         auto vtm_run(eccc& script, qiew args)
         {
             auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+            appconf.cd("item");
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .hidden  = true,
                                        .winform = shared::win::state::normal,
