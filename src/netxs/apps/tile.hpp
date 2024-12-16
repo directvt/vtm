@@ -3,18 +3,12 @@
 
 #pragma once
 
-namespace netxs::app::tile
-{
-    using backups = std::list<netxs::sptr<ui::veer>>;
-}
-
 namespace netxs::events::userland
 {
     struct tile
     {
         EVENTPACK( tile, ui::e2::extra::slot4 )
         {
-            EVENT_XS( backup, app::tile::backups ),
             EVENT_XS( enlist, ui::sptr           ),
             EVENT_XS( delist, bool               ),
             GROUP_XS( ui    , input::hids        ), // Window manager command pack.
@@ -667,15 +661,6 @@ namespace netxs::app::tile
                         app->bell::signal(tier::anycast, e2::form::upon::started, app);
                         pro::focus::set(app, gear.id, solo::off);
                     };
-                    boss.LISTEN(tier::release, events::backup, node_veer_list)
-                    {
-                        if (boss.count())
-                        if (auto item_ptr = boss.back())
-                        if (item_ptr->base::root())
-                        {
-                            node_veer_list.push_back(boss.This());
-                        }
-                    };
                 })
                 ->branch(empty_slot());
         };
@@ -1213,78 +1198,6 @@ namespace netxs::app::tile
                             pro::focus::off(boss.This());
                             boss.attach(fullscreen_item);
                             pro::focus::set(fullscreen_item, gear_id_list, solo::off);
-                        }
-                    };
-                    boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
-                    {
-                        if (auto deed = boss.bell::protos(tier::anycast))
-                        {
-                            //if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
-                            //{
-                            //    boss.base::riseup(tier::release, e2::form::proceed::attach); // Restore the window before any action if maximized.
-                            //}
-
-                            if (deed == app::tile::events::ui::swap.id)
-                            {
-                                //todo reimplement (avoid tier::general usage)
-                                auto node_veer_list = backups{};
-                                auto proc = e2::form::proceed::functor.param([&](sptr item_ptr)
-                                {
-                                    auto gear_test = item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
-                                    if (gear_test.second)
-                                    {
-                                        item_ptr->base::riseup(tier::release, events::backup, node_veer_list);
-                                    }
-                                });
-                                boss.bell::signal(tier::general, e2::form::proceed::functor, proc);
-                                auto slots_count = node_veer_list.size();
-                                log(prompt::tile, "Slots count:", slots_count);
-                                if (slots_count >= 2) // Swap selected panes cyclically.
-                                {
-                                    log(prompt::tile, "Swap slots cyclically");
-                                    auto emp_slot = sptr{};
-                                    auto app_slot = sptr{};
-                                    auto emp_next = sptr{};
-                                    auto app_next = sptr{};
-                                    for (auto& s : node_veer_list)
-                                    {
-                                        if (s->count() == 1) // empty only
-                                        {
-                                            app_next.reset();
-                                            emp_next = s->pop_back();
-                                        }
-                                        else if (s->count() == 2) // empty + app
-                                        {
-                                            if (auto app = s->back())
-                                            {
-                                                app->bell::signal(tier::release, events::delist, true);
-                                            }
-                                            app_next = s->pop_back();
-                                            emp_next = s->pop_back();
-                                        }
-                                        if (emp_slot) s->attach(emp_slot);
-                                        if (app_slot)
-                                        {
-                                            s->attach(app_slot);
-                                            app_slot->base::riseup(tier::release, events::enlist, app_slot);
-                                        }
-                                        std::swap(emp_slot, emp_next);
-                                        std::swap(app_slot, app_next);
-                                    }
-                                    auto& s = node_veer_list.front();
-                                    if (emp_slot) s->attach(emp_slot);
-                                    if (app_slot)
-                                    {
-                                        s->attach(app_slot);
-                                        app_slot->base::riseup(tier::release, events::enlist, app_slot);
-                                    }
-                                    gear.countdown = 0; // Interrupt swapping.
-                                }
-                                else // Swap panes in split.
-                                {
-                                    gear.countdown = 1;
-                                }
-                            }
                         }
                     };
                 });
