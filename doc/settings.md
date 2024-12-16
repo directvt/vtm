@@ -903,17 +903,23 @@ Notes
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
         </desktop>
         <tile key*>
-            <key="Ctrl+PageUp"     action=TileFocusPrevPane     />  <!-- Focus the previous pane or splitting grip. -->
-            <key="Ctrl+PageDown"   action=TileFocusNextPane     />  <!-- Focus the next pane or splitting grip. -->
-            <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-            <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
-            <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
-            <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
-            <key="Alt+Shift+R"     action=TileSplitOrientation  />  <!-- Change split orientation. -->
-            <key="Alt+Shift+S"     action=TileSwapPanes         />  <!-- Swap two or more panes. -->
-            <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
-            <key="Alt+Shift+F2"    action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
-            <key="Alt+Shift+W"     action=TileClosePane         />  <!-- Close active application. -->
+            <key="Ctrl+PageUp"   action=TileFocusPrevPane     />  <!-- Focus the previous pane or splitting grip. -->
+            <key="Ctrl+PageDown" action=TileFocusNextPane     />  <!-- Focus the next pane or splitting grip. -->
+            <key="Alt+Shift+N"   action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="Alt+Shift+A"   action=TileSelectAllPanes    />  <!-- Select all panes. -->
+            <key="Alt+Shift+'|'">
+                <action=DropAutoRepeat/>         <!-- Don't autorepeat the split action. -->
+                <action=TileSplitHorizontally/>  <!-- Split active panes horizontally. -->
+            </key>
+            <key="Alt+Shift+Minus">
+                <action=DropAutoRepeat/>       <!-- Don't autorepeat the split action. -->
+                <action=TileSplitVertically/>  <!-- Split active panes vertically. -->
+            </key>
+            <key="Alt+Shift+R"   action=TileSplitOrientation  />  <!-- Change split orientation. -->
+            <key="Alt+Shift+S"   action=TileSwapPanes         />  <!-- Swap two or more panes. -->
+            <key="Alt+Shift+E"   action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
+            <key="Alt+Shift+F2"  action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
+            <key="Alt+Shift+W"   action=TileClosePane         />  <!-- Close active application. -->
         </tile>
         <terminal key*>  <!-- Application specific layer key bindings. -->
             <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
