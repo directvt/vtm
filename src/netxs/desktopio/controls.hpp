@@ -1710,7 +1710,7 @@ namespace netxs::ui
                     for (auto& [gear_id, chain] : gears)
                     {
                         auto live = faux;
-                        chain.foreach([&](auto& nexthop, auto& status) // Drop all downlinks (toward inside) from the boss.
+                        chain.foreach([&, gear_id](auto& nexthop, auto& status) // Drop all downlinks (toward inside) from the boss. //todo Apple clang can't capture gear_id in lambda
                         {
                             if (gear_id && status == state::live)
                             {
