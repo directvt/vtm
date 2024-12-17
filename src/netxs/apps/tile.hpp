@@ -24,6 +24,7 @@ namespace netxs::events::userland
                 EVENT_XS( title   , input::hids ), // Set window manager title using clipboard.
                 GROUP_XS( focus   , input::hids ), // Focusize prev/next pane.
                 GROUP_XS( split   , input::hids ), // Split panes.
+                GROUP_XS( grips   , twod        ), // Splitting grip modification.
 
                 SUBSET_XS( focus )
                 {
@@ -34,6 +35,11 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( vt, input::hids ),
                     EVENT_XS( hz, input::hids ),
+                };
+                SUBSET_XS( grips )
+                {
+                    EVENT_XS( move  , twod ),
+                    EVENT_XS( resize, si32 ),
                 };
             };
         };
@@ -62,7 +68,9 @@ namespace netxs::app::tile
         X(TileSwapPanes         ) \
         X(TileEqualizeSplitRatio) \
         X(TileSetManagerTitle   ) \
-        X(TileClosePane         )
+        X(TileClosePane         ) \
+        X(TileMoveGrip          ) \
+        X(TileResizeGrip        )
 
     struct action
     {
@@ -276,7 +284,7 @@ namespace netxs::app::tile
                         }))
                     ->branch(slot::_2, what.applet);
         };
-        auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
+        auto build_node = [](auto tag, auto slot1, auto slot2, auto grip_width, auto grip_bindings_ptr)
         {
             auto highlight_color = skin::color(tone::winfocus);
             auto c3 = highlight_color.bga(0x40);
@@ -300,23 +308,46 @@ namespace netxs::app::tile
                             gear.dismiss();
                         }
                     };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::grips::move, delta)
+                    {
+                        if (delta)
+                        {
+                            auto [orientation, griparea, ratio] = boss.get_config();
+                            auto step = orientation == axis::X ? delta.x : delta.y;
+                            if (step == 0) boss.bell::expire(tier::preview, true);
+                            else           boss.move_slider(step);
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::grips::resize, step)
+                    {
+                        if (step)
+                        {
+                            auto [orientation, griparea, ratio] = boss.get_config();
+                            auto grip_width = orientation == axis::X ? griparea.size.x : griparea.size.y;
+                            boss.set_grip_width(grip_width + step);
+                        }
+                    };
                 });
-                auto grip = node->attach(slot::_I,
-                                ui::mock::ctor()
-                                ->isroot(true)
-                                ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
-                                ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                                ->shader(c3, e2::form::state::focus::count)
-                                ->template plugin<pro::shade<cell::shaders::xlight>>()
-                                ->invoke([&](auto& boss)
-                                {
-                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                                    {
-                                        boss.base::riseup(tier::release, e2::form::size::minimize, gear);
-                                        gear.dismiss();
-                                    };
-                                })
-                                ->active());
+                auto grip = node->attach(slot::_I, ui::mock::ctor())
+                    ->isroot(true)
+                    ->active()
+                    ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
+                    ->template plugin<pro::focus>(pro::focus::mode::focusable)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
+                    ->template plugin<pro::shade<cell::shaders::xlight>>()
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                        {
+                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                            gear.dismiss();
+                        };
+                        auto& keybd = boss.template plugins<pro::keybd>();
+                        keybd.proc(action::TileMoveGrip  , [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   { args.size() ? xml::take_or<twod>(args.front(), dot_00) : dot_00 }); });
+                        keybd.proc(action::TileResizeGrip, [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, { args.size() ? xml::take_or<si32>(args.front(), 0) : 0 }); });
+                        keybd.bind(*grip_bindings_ptr);
+                    });
             return node;
         };
         auto empty_slot = []
@@ -338,6 +369,7 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
                         gear.dismiss(true);
                     };
@@ -392,6 +424,7 @@ namespace netxs::app::tile
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
                         gear.dismiss(true);
                     };
@@ -407,7 +440,7 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
-        auto node_veer = [](auto&& node_veer, auto min_state) -> netxs::sptr<ui::veer>
+        auto node_veer = [](auto&& node_veer, auto min_state, auto grip_bindings_ptr) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>()
@@ -566,7 +599,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::release, app::tile::events::ui::split::any, gear)
+                    boss.LISTEN(tier::release, app::tile::events::ui::split::any, gear, -, (grip_bindings_ptr))
                     {
                         if (auto deed = boss.bell::protos(tier::release))
                         {
@@ -576,9 +609,9 @@ namespace netxs::app::tile
                             if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
-                            auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                            auto empty_1 = node_veer(node_veer, ui::fork::min_ratio);
-                            auto empty_2 = node_veer(node_veer, ui::fork::max_ratio);
+                            auto newnode = build_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2, grip_bindings_ptr);
+                            auto empty_1 = node_veer(node_veer, ui::fork::min_ratio, grip_bindings_ptr);
+                            auto empty_2 = node_veer(node_veer, ui::fork::max_ratio, grip_bindings_ptr);
                             auto gear_id_list = pro::focus::cut(boss.back());
                             auto curitem = boss.pop_back();
                             if (boss.empty())
@@ -664,9 +697,9 @@ namespace netxs::app::tile
                 })
                 ->branch(empty_slot());
         };
-        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> netxs::sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio, auto grip_bindings_ptr) -> netxs::sptr<ui::veer>
         {
-            auto slot = node_veer(node_veer, min_ratio);
+            auto slot = node_veer(node_veer, min_ratio, grip_bindings_ptr);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return slot;
             auto tag = utf8.front();
@@ -701,9 +734,9 @@ namespace netxs::app::tile
                 }
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
-                auto node = build_node(tag, s1, s2, w);
-                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
-                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
+                auto node = build_node(tag, s1, s2, w, grip_bindings_ptr);
+                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio, grip_bindings_ptr));
+                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio, grip_bindings_ptr));
                 slot->attach(node);
                 utf::trim_front(utf8, ") ");
             }
@@ -1078,16 +1111,20 @@ namespace netxs::app::tile
                     {
                         auto deed = boss.bell::protos(tier::preview);
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto node_veer_ptr)
                         {
-                            boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
+                            auto room = node_veer_ptr->base::size() / 3;
+                            if (room.x && room.y) // Suppress split if there is no space.
                             {
-                                if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                if (auto item_ptr = item_wptr.lock())
+                                boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
                                 {
-                                    item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);
-                                }
-                            });
+                                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                    if (auto item_ptr = item_wptr.lock())
+                                    {
+                                        item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);
+                                    }
+                                });
+                            }
                             gear.set_handled();
                         });
                     };
@@ -1152,6 +1189,7 @@ namespace netxs::app::tile
                 { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close      ); }},
             };
             config.cd("/config/tile", "/config/defapp");
+            auto grip_bindings_ptr = ptr::shared(pro::keybd::load(config, "tile/grips"));
             auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)
@@ -1182,7 +1220,7 @@ namespace netxs::app::tile
                 if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, appcfg.cwd, err.value());
                 else     log("%%Change current directory to '%cwd%'", prompt::tile, appcfg.cwd);
             }
-            object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
+            object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio, grip_bindings_ptr))
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item)
