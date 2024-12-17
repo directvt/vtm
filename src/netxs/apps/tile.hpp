@@ -1114,7 +1114,7 @@ namespace netxs::app::tile
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto node_veer_ptr)
                         {
                             auto room = node_veer_ptr->base::size() / 3;
-                            if (room.x * room.y) // Suppress split if there is no space.
+                            if (room.x && room.y) // Suppress split if there is no space.
                             {
                                 boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
                                 {
