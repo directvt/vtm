@@ -920,6 +920,14 @@ Notes
             <key="Alt+Shift+E"   action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
             <key="Alt+Shift+F2"  action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
             <key="Alt+Shift+W"   action=TileClosePane         />  <!-- Close active application. -->
+            <grips key*>
+                <key="LeftArrow"  ><action=TileMoveGrip   data="-1, 0"/></key>  <!-- Move the split grip to the left. -->
+                <key="RightArrow" ><action=TileMoveGrip   data=" 1, 0"/></key>  <!-- Move the split grip to the right. -->
+                <key="UpArrow"    ><action=TileMoveGrip   data=" 0,-1"/></key>  <!-- Move the split grip up. -->
+                <key="DownArrow"  ><action=TileMoveGrip   data=" 0, 1"/></key>  <!-- Move the split grip down. -->
+                <key="'-'"        ><action=TileResizeGrip data="-1"   /></key>  <!-- Decrease the split grip width. -->
+                <key="Shift+'+'"  ><action=TileResizeGrip data=" 1"   /></key>  <!-- Increase the split grip width. -->
+            </grips>
         </tile>
         <terminal key*>  <!-- Application specific layer key bindings. -->
             <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->

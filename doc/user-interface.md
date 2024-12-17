@@ -260,6 +260,12 @@
     <tr><th>Alt+Shift+E</th>      <td>Equalize split ratio.</td></tr>
     <tr><th>Alt+Shift+F2</th>     <td>Set tiling window manager title using clipboard data.</td></tr>
     <tr><th>Alt+Shift+W</th>      <td>Close active application.</td></tr>
+    <tr><th>LeftArrow</th>        <td>Move the split grip to the left.</td></tr>
+    <tr><th>RightArrow</th>       <td>Move the split grip to the right.</td></tr>
+    <tr><th>UpArrow</th>          <td>Move the split grip up.</td></tr>
+    <tr><th>DownArrow</th>        <td>Move the split grip down.</td></tr>
+    <tr><th>'-'</th>              <td>Decrease the split grip width.</td></tr>
+    <tr><th>Shift+'+'</th>        <td>Increase the split grip width.</td></tr>
   </tbody>
 </table>
 

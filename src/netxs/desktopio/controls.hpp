@@ -2229,7 +2229,7 @@ namespace netxs::ui
                     {
                         for (auto& proc_name : proc_names)
                         {
-                            auto args_ptr = ptr::shared(std::move(proc_name.args));
+                            auto args_ptr = ptr::shared(proc_name.args);
                             set(proc_name.action, args_ptr);
                         }
                     }
@@ -2920,10 +2920,14 @@ namespace netxs::ui
         {
             return rotation == axis::X ? p : twod{ p.y, p.x };
         }
+        void _set_grip_width(si32 grip_width)
+        {
+            griparea.size = xpose({ std::max(0, grip_width), 0 });
+        }
         void _config(axis orientation, si32 grip_width, si32 s1 = 1, si32 s2 = 1)
         {
             rotation = orientation;
-            griparea.size = xpose({ std::max(0, grip_width), 0 });
+            _set_grip_width(grip_width);
             _config_ratio(s1, s2);
         }
         void _config_ratio(si32 s1, si32 s2)
@@ -3046,6 +3050,12 @@ namespace netxs::ui
             fraction = new_ratio;
         }
         // fork: .
+        auto set_grip_width(si32 new_grip_width)
+        {
+            _set_grip_width(new_grip_width);
+            base::reflow();
+        }
+        // fork: .
         void config(si32 s1, si32 s2 = 1)
         {
             _config_ratio(s1, s2);
@@ -3056,6 +3066,11 @@ namespace netxs::ui
         {
             _config(orientation, grip_width, s1, s2);
             return This();
+        }
+        // fork: .
+        auto get_config()
+        {
+            return std::tuple{ rotation, griparea, fraction };
         }
         // fork: .
         void rotate()
@@ -3078,7 +3093,7 @@ namespace netxs::ui
         {
             if (splitter)
             {
-                auto delta = griparea.size * xpose({ step, 0 });
+                auto delta = std::max(dot_11, griparea.size) * xpose({ step, 0 });
                 splitter->bell::signal(tier::preview, e2::form::upon::changed, delta);
             }
         }
