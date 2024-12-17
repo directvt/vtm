@@ -1110,16 +1110,20 @@ namespace netxs::app::tile
                     {
                         auto deed = boss.bell::protos(tier::preview);
                         auto root_veer_ptr = boss.base::subset[1];
-                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
+                        foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto node_veer_ptr)
                         {
-                            boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
+                            auto room = node_veer_ptr->base::size() / 3;
+                            if (room.x * room.y) // Suppress split if there is no space.
                             {
-                                if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                if (auto item_ptr = item_wptr.lock())
+                                boss.bell::enqueue(boss.This(), [&, deed, gear_id = gear.id, item_wptr = ptr::shadow(item_ptr)](auto& /*boss*/) // Enqueue to keep the focus tree intact while processing key events.
                                 {
-                                    item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);
-                                }
-                            });
+                                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                    if (auto item_ptr = item_wptr.lock())
+                                    {
+                                        item_ptr->base::raw_riseup(tier::release, deed, *gear_ptr);
+                                    }
+                                });
+                            }
                             gear.set_handled();
                         });
                     };
