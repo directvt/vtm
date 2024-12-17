@@ -293,7 +293,6 @@ namespace netxs::app::tile
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
             node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See node_veer::select.
                 ->template plugin<pro::focus>()
-                ->template plugin<pro::keybd>()
                 ->limits(dot_00)
                 ->invoke([&](auto& boss)
                 {
@@ -328,27 +327,27 @@ namespace netxs::app::tile
                             boss.set_grip_width(grip_width + step);
                         }
                     };
-                    auto& keybd = boss.template plugins<pro::keybd>();
-                    keybd.proc(action::TileMoveGrip  , [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   { args.size() ? xml::take_or<twod>(args.front(), dot_00) : dot_00 }); });
-                    keybd.proc(action::TileResizeGrip, [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, { args.size() ? xml::take_or<si32>(args.front(), 0) : 0 }); });
-                    keybd.bind(*grip_bindings_ptr);
                 });
-                auto grip = node->attach(slot::_I,
-                                ui::mock::ctor()
-                                ->isroot(true)
-                                ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
-                                ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                                ->shader(c3, e2::form::state::focus::count)
-                                ->template plugin<pro::shade<cell::shaders::xlight>>()
-                                ->invoke([&](auto& boss)
-                                {
-                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                                    {
-                                        boss.base::riseup(tier::release, e2::form::size::minimize, gear);
-                                        gear.dismiss();
-                                    };
-                                })
-                                ->active());
+                auto grip = node->attach(slot::_I, ui::mock::ctor())
+                    ->isroot(true)
+                    ->active()
+                    ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
+                    ->template plugin<pro::focus>(pro::focus::mode::focusable)
+                    ->template plugin<pro::keybd>()
+                    ->shader(c3, e2::form::state::focus::count)
+                    ->template plugin<pro::shade<cell::shaders::xlight>>()
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                        {
+                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                            gear.dismiss();
+                        };
+                        auto& keybd = boss.template plugins<pro::keybd>();
+                        keybd.proc(action::TileMoveGrip  , [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   { args.size() ? xml::take_or<twod>(args.front(), dot_00) : dot_00 }); });
+                        keybd.proc(action::TileResizeGrip, [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, { args.size() ? xml::take_or<si32>(args.front(), 0) : 0 }); });
+                        keybd.bind(*grip_bindings_ptr);
+                    });
             return node;
         };
         auto empty_slot = []
@@ -370,6 +369,7 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
                         gear.dismiss(true);
                     };
@@ -424,6 +424,7 @@ namespace netxs::app::tile
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                     {
+                        pro::focus::set(boss.This(), gear.id, solo::on);
                         boss.base::riseup(tier::request, e2::form::proceed::createby, gear);
                         gear.dismiss(true);
                     };
