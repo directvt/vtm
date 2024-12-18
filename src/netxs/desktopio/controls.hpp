@@ -1401,6 +1401,10 @@ namespace netxs::ui
                 auto gear_test = item.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                 return gear_test.second;
             }
+            static auto is_focused(sptr item_ptr, id_t gear_id)
+            {
+                return !gear_id || !!item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear_id, 0 }).second;
+            }
             auto is_focused(id_t gear_id)
             {
                 auto iter = gears.find(gear_id);

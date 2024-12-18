@@ -778,17 +778,16 @@ namespace netxs::app::tile
             static constexpr auto applet     = __COUNTER__ - _counter;
             static constexpr auto grip       = __COUNTER__ - _counter;
         }
-        auto is_focused = [](auto item_ptr, auto gear_id){ return !gear_id || !!item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear_id, 0 }).second; };
         auto _foreach = [](auto _foreach, sptr& root_veer_ptr, id_t gear_id, auto proc) -> void
         {
             if (auto node_veer_ptr = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr))
             {
-                if (is_focused(node_veer_ptr, gear_id))
+                if (pro::focus::is_focused(node_veer_ptr, gear_id))
                 {
                     auto item_ptr = node_veer_ptr->back();
                     if (node_veer_ptr->count() == 1) // Empty slot.
                     {
-                        if (is_focused(item_ptr, gear_id))
+                        if (pro::focus::is_focused(item_ptr, gear_id))
                         {
                             proc(item_ptr, item_type::empty_slot, node_veer_ptr);
                             if (!item_ptr)
@@ -800,7 +799,7 @@ namespace netxs::app::tile
                     else if (item_ptr->root()) // App window.
                     {
                         auto applet_ptr = item_ptr->base::subset[1];
-                        if (is_focused(applet_ptr, gear_id))
+                        if (pro::focus::is_focused(applet_ptr, gear_id))
                         {
                             proc(applet_ptr, item_type::applet, node_veer_ptr); // Applet.
                             if (!applet_ptr)
@@ -816,7 +815,7 @@ namespace netxs::app::tile
                         if (!root_veer_ptr) return;
 
                         auto grip_ptr = item_ptr->base::subset[2];
-                        if (is_focused(grip_ptr, gear_id))
+                        if (pro::focus::is_focused(grip_ptr, gear_id))
                         {
                             proc(grip_ptr, item_type::grip, node_veer_ptr); // Grip.
                             if (!grip_ptr)
@@ -944,7 +943,7 @@ namespace netxs::app::tile
                         auto next_item_ptr = sptr{};
                         foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
-                            if (is_focused(item_ptr, gear.id))
+                            if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = next_item_ptr;
                             }
@@ -991,7 +990,7 @@ namespace netxs::app::tile
                             {
                                 std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
                             }
-                            else if (is_focused(item_ptr, gear.id))
+                            else if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = item_ptr;
                             }
@@ -1030,7 +1029,7 @@ namespace netxs::app::tile
                         {
                             if (item_type != item_type::grip)
                             {
-                                if (is_focused(item_ptr, gear.id))
+                                if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
                                     prev_item_ptr = next_item_ptr;
                                 }
@@ -1080,7 +1079,7 @@ namespace netxs::app::tile
                                 {
                                     std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
                                 }
-                                else if (is_focused(item_ptr, gear.id))
+                                else if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
                                     prev_item_ptr = item_ptr;
                                 }
@@ -1120,7 +1119,7 @@ namespace netxs::app::tile
                         {
                             if (item_type == item_type::grip)
                             {
-                                if (is_focused(item_ptr, gear.id))
+                                if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
                                     prev_grip_ptr = next_grip_ptr;
                                 }
@@ -1161,7 +1160,7 @@ namespace netxs::app::tile
                                 {
                                     std::swap(next_grip_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
                                 }
-                                else if (is_focused(item_ptr, gear.id))
+                                else if (pro::focus::is_focused(item_ptr, gear.id))
                                 {
                                     prev_grip_ptr = item_ptr;
                                 }

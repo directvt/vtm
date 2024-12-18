@@ -750,12 +750,12 @@ namespace netxs::app::vtm
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
             keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
-            //keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ always_on_top_focused_windows(gear); });
-            //keybd.proc("WarpWindow",        [&](hids& gear){ warp_focused_windows(gear); });
-            //keybd.proc("CloseWindow",       [&](hids& gear){ close_focused_windows(gear); });
-            //keybd.proc("MinimizeWindow",    [&](hids& gear){ minimize_focused_windows(gear); });
-            //keybd.proc("MaximizeWindow",    [&](hids& gear){ maximize_focused_windows(gear); });
-            //keybd.proc("FullscreenWindow",  [&](hids& gear){ fullscreen_first_focused_window(gear); });
+            keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
+            keybd.proc("WarpWindow",        [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::warp       , gear); });
+            keybd.proc("CloseWindow",       [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::close      , gear); });
+            keybd.proc("MinimizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::minimize   , gear); });
+            keybd.proc("MaximizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::maximize   , gear); });
+            keybd.proc("FullscreenWindow",  [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::fullscreen , gear); });
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -1248,6 +1248,17 @@ namespace netxs::app::vtm
                 items.push_front(items.back());
                 items.pop_back();
                 return items.back();
+            }
+            auto foreach(id_t gear_id, auto function)
+            {
+                for (auto& item : items)
+                {
+                    if (item && pro::focus::is_focused(item->object, gear_id))
+                    {
+                        function(item);
+                        if (!item) break;
+                    }
+                }
             }
         };
         struct depo // hall: Actors registry.
@@ -1776,8 +1787,14 @@ namespace netxs::app::vtm
         {
             if (gear.args_ptr)
             {
-                auto state = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                log("always_on_top_focused_windows");
+                auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
+                items.foreach(gear.id, [&](auto& item_ptr)
+                {
+                    auto order = arg == 0 ? zpos::plain
+                               : arg == 1 ? zpos::topmost
+                               : item_ptr->z_order != zpos::topmost ? zpos::topmost : zpos::plain;
+                    item_ptr->object->bell::signal(tier::preview, e2::form::prop::zorder, order);
+                });
                 gear.set_handled();
             }
         }
@@ -2189,6 +2206,31 @@ namespace netxs::app::vtm
                         break;
                     }
                 }
+            };
+
+            LISTEN(tier::preview, e2::form::proceed::action::alwaysontop, gear)
+            {
+                always_on_top_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::warp       , gear)
+            {
+                close_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::close      , gear)
+            {
+                minimize_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::minimize   , gear)
+            {
+                maximize_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::maximize   , gear)
+            {
+                fullscreen_first_focused_window(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::fullscreen , gear)
+            {
+                warp_focused_windows(gear);
             };
         }
 
