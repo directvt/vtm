@@ -7839,8 +7839,8 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            chords.proc(action::TerminalScrollViewportByPage, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = gear.get_args_or<twod>() }); });
-            chords.proc(action::TerminalScrollViewportByCell, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = gear.get_args_or<twod>() }); });
+            chords.proc(action::TerminalScrollViewportByPage, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = gear.get_args_or(twod{}) }); });
+            chords.proc(action::TerminalScrollViewportByCell, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = gear.get_args_or(twod{}) }); });
             chords.proc(action::TerminalScrollViewportToTop,  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
             chords.proc(action::TerminalScrollViewportToEnd,  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
             chords.proc(action::TerminalFindPrev,             [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::rev); });
@@ -7861,12 +7861,12 @@ namespace netxs::ui
             chords.proc(action::TerminalSelectionCancel,      [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
             chords.proc(action::TerminalSelectionRect,        [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::toggleselalt); else set_selalt(xml::take_or<bool>(gear.args_ptr->front(), faux)); });
             chords.proc(action::TerminalSelectionOneShot,     [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) set_oneshot(mime::textonly); else set_oneshot(netxs::get_or(xml::options::format, gear.args_ptr->front(), mime::textonly)); });
-            chords.proc(action::TerminalStdioLog,             [&](hids& gear){ gear.set_handled(); set_log(gear.get_args_or<bool>(!io_log)); ondata<true>();  });
-            chords.proc(action::TerminalSendKey,              [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or<qiew>()) data_out(crop); });
-            chords.proc(action::TerminalOutput,               [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or<qiew>()) data_in(crop); });
+            chords.proc(action::TerminalStdioLog,             [&](hids& gear){ gear.set_handled(); set_log(gear.get_args_or(!io_log)); ondata<true>();  });
+            chords.proc(action::TerminalSendKey,              [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or(qiew{})) data_out(crop); });
+            chords.proc(action::TerminalOutput,               [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or(qiew{})) data_in(crop); });
             chords.proc(action::TerminalAlignMode,            [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, gear.args_ptr->front(), bias::none)); });
-            chords.proc(action::TerminalWrapMode,             [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!gear.get_args_or<bool>(true)); });
-            chords.proc(action::ExclusiveKeyboardMode,        [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!gear.get_args_or<bool>(true)); });
+            chords.proc(action::TerminalWrapMode,             [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!gear.get_args_or(true)); });
+            chords.proc(action::ExclusiveKeyboardMode,        [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!gear.get_args_or(true)); });
             auto bindings = pro::keybd::load(xml_config, "terminal");
             chords.bind(bindings);
 

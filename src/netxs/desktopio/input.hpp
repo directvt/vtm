@@ -1518,9 +1518,9 @@ namespace netxs::input
                 return fallback;
             }
         }
-        template<> auto get_args_or<text>(text fallback) { return args_ptr && args_ptr->size() ? args_ptr->front() : fallback; }
-        template<> auto get_args_or<qiew>(qiew fallback) { return args_ptr && args_ptr->size() ? qiew{ args_ptr->front() } : fallback; }
-        template<> auto get_args_or<view>(view fallback) { return args_ptr && args_ptr->size() ? view{ args_ptr->front() } : fallback; }
+        auto get_args_or(text fallback) { return args_ptr && args_ptr->size() ? args_ptr->front() : fallback; }
+        auto get_args_or(qiew fallback) { return args_ptr && args_ptr->size() ? qiew{ args_ptr->front() } : fallback; }
+        auto get_args_or(view fallback) { return args_ptr && args_ptr->size() ? view{ args_ptr->front() } : fallback; }
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.

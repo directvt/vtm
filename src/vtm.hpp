@@ -887,7 +887,7 @@ namespace netxs::app::vtm
         void create_app(hids& gear)
         {
             static auto offset = dot_00; // static: Share initial offset between all instances.
-            auto inst_id = gear.get_args_or<qiew>();
+            auto inst_id = gear.get_args_or(qiew{});
             if (auto world_ptr = nexthop.lock())
             {
                 if (inst_id)
@@ -1803,7 +1803,7 @@ namespace netxs::app::vtm
         }
         void warp_focused_windows(hids& gear)
         {
-            auto warp_delta = gear.get_args_or<dent>();
+            auto warp_delta = gear.get_args_or(dent{});
             log("warp_focused_windows");
             gear.set_handled();
         }

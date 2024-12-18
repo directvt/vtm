@@ -352,8 +352,8 @@ namespace netxs::app::tile
                             gear.dismiss();
                         };
                         auto& keybd = boss.template plugins<pro::keybd>();
-                        keybd.proc(action::TileMoveGrip     , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   gear.get_args_or<twod>()); });
-                        keybd.proc(action::TileResizeGrip   , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, gear.get_args_or<si32>()); });
+                        keybd.proc(action::TileMoveGrip     , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   gear.get_args_or(twod{})); });
+                        keybd.proc(action::TileResizeGrip   , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, gear.get_args_or(si32{})); });
                         keybd.proc(action::TileFocusPrevGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
                         keybd.proc(action::TileFocusNextGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
                         keybd.bind(*grip_bindings_ptr);
