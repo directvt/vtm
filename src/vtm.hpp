@@ -745,11 +745,17 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("FocusPrevWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::rev); });
-            keybd.proc("FocusNextWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::fwd); });
-            keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
-            keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
-            keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); gear.set_handled(); });
+            keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
+            keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
+            keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
+            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
+            keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
+            //keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ always_on_top_focused_windows(gear); });
+            //keybd.proc("WarpWindow",        [&](hids& gear){ warp_focused_windows(gear); });
+            //keybd.proc("CloseWindow",       [&](hids& gear){ close_focused_windows(gear); });
+            //keybd.proc("MinimizeWindow",    [&](hids& gear){ minimize_focused_windows(gear); });
+            //keybd.proc("MaximizeWindow",    [&](hids& gear){ maximize_focused_windows(gear); });
+            //keybd.proc("FullscreenWindow",  [&](hids& gear){ fullscreen_first_focused_window(gear); });
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -878,9 +884,10 @@ namespace netxs::app::vtm
             };
         }
 
-        void create_app(hids& gear, qiew inst_id = {})
+        void create_app(hids& gear)
         {
             static auto offset = dot_00; // static: Share initial offset between all instances.
+            auto inst_id = gear.get_args_or<qiew>();
             if (auto world_ptr = nexthop.lock())
             {
                 if (inst_id)
@@ -1764,6 +1771,41 @@ namespace netxs::app::vtm
         {
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
+        }
+        void always_on_top_focused_windows(hids& gear)
+        {
+            if (gear.args_ptr)
+            {
+                auto state = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
+                log("always_on_top_focused_windows");
+                gear.set_handled();
+            }
+        }
+        void close_focused_windows(hids& gear)
+        {
+            log("close_focused_windows");
+            gear.set_handled();
+        }
+        void minimize_focused_windows(hids& gear)
+        {
+            log("minimize_focused_windows");
+            gear.set_handled();
+        }
+        void maximize_focused_windows(hids& gear)
+        {
+            log("maximize_focused_windows");
+            gear.set_handled();
+        }
+        void fullscreen_first_focused_window(hids& gear)
+        {
+            log("fullscreen_first_focused_window");
+            gear.set_handled();
+        }
+        void warp_focused_windows(hids& gear)
+        {
+            auto warp_delta = gear.get_args_or<dent>();
+            log("warp_focused_windows");
+            gear.set_handled();
         }
 
     public:

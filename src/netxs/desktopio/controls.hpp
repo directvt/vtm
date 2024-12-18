@@ -2040,7 +2040,7 @@ namespace netxs::ui
         class keybd
             : public skill
         {
-            using func = std::function<void(hids&, txts&)>;
+            using func = std::function<void(hids&)>;
             using wptr = netxs::wptr<func>;
             using sptr = netxs::sptr<func>;
             using skill::boss,
@@ -2098,7 +2098,12 @@ namespace netxs::ui
                     auto proc_ptr = proc_wptr.lock();
                     if (proc_ptr)
                     {
-                        if (!interrupt_key_proc) (*proc_ptr)(gear, *args_ptr);
+                        if (!interrupt_key_proc)
+                        {
+                            auto temp = std::exchange(gear.args_ptr, args_ptr);
+                            (*proc_ptr)(gear);
+                            gear.args_ptr = temp;
+                        }
                     }
                     return !proc_ptr;
                 });
@@ -2164,8 +2169,8 @@ namespace netxs::ui
                         if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
                     }
                 };
-                proc("Noop",           [&](hids& gear, txts&){ gear.set_handled(); interrupt_key_proc = true; });
-                proc("DropAutoRepeat", [&](hids& gear, txts&){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
+                proc("Noop",           [&](hids& gear){ gear.set_handled(); interrupt_key_proc = true; });
+                proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
             }
 
             auto filter(hids& gear)

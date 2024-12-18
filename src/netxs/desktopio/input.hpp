@@ -1505,6 +1505,24 @@ namespace netxs::input
         bool slot_forced = faux; // .
 
         //todo unify
+        netxs::sptr<txts> args_ptr; // args passed by pro::keybd.
+        template<class T>
+        auto get_args_or(T fallback = {})
+        {
+            if (args_ptr && args_ptr->size())
+            {
+                return xml::take_or<T>(args_ptr->front(), fallback);
+            }
+            else
+            {
+                return fallback;
+            }
+        }
+        template<> auto get_args_or<text>(text fallback) { return args_ptr && args_ptr->size() ? args_ptr->front() : fallback; }
+        template<> auto get_args_or<qiew>(qiew fallback) { return args_ptr && args_ptr->size() ? qiew{ args_ptr->front() } : fallback; }
+        template<> auto get_args_or<view>(view fallback) { return args_ptr && args_ptr->size() ? view{ args_ptr->front() } : fallback; }
+
+        //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.
         bool keybd_disabled = faux; // Inactive gear.
         si32 countdown = 0;

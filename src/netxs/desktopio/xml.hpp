@@ -70,6 +70,32 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
+    auto take<dent>(qiew utf8) -> std::optional<dent>
+    {
+        utf::trim_front(utf8, " ({[\"\'");
+        if (utf8)
+        if (auto l = utf::to_int(utf8))
+        {
+            utf::trim_front(utf8, " ,.x/:;");
+            if (auto r = utf::to_int(utf8))
+            {
+                utf::trim_front(utf8, " ,.x/:;");
+                if (auto t = utf::to_int(utf8))
+                {
+                    utf::trim_front(utf8, " ,.x/:;");
+                    if (auto b = utf::to_int(utf8))
+                    {
+                        return dent{ l.value(), r.value(), t.value(), b.value() };
+                    }
+                    else return dent{ l.value(), r.value(), t.value() };
+                }
+                else return dent{ l.value(), r.value() };
+            }
+            else return dent{ l.value() };
+        }
+        return std::nullopt;
+    }
+    template<>
     auto take<span>(qiew utf8) -> std::optional<span>
     {
         using namespace std::chrono;
