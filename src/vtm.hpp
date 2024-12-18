@@ -96,7 +96,7 @@ namespace netxs::app::vtm
             link what; // align: Original window properties.
             rect prev; // align: Window size before the fullscreen has applied.
             twod coor; // align: Coor tracking.
-            hook maxs; // align: Fullscreen event subscription token.
+            subs maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
             align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
@@ -108,6 +108,10 @@ namespace netxs::app::vtm
                     auto is_new = what.applet != new_what.applet;
                     if (what.applet) unbind();
                     if (is_new) follow(new_what);
+                };
+                boss.LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
+                {
+                    ask_what = what;
                 };
             }
            ~align()
@@ -1249,14 +1253,20 @@ namespace netxs::app::vtm
                 items.pop_back();
                 return items.back();
             }
-            auto foreach(id_t gear_id, auto function)
+            auto foreach(hids& gear, auto function)
             {
-                for (auto& item : items)
+                auto what = gear.owner.bell::signal(tier::request, vtm::events::gate::fullscreen); // Check if there is a fullscreen window.
+                if (what.applet)
                 {
-                    if (item && pro::focus::is_focused(item->object, gear_id))
+                    function(what.applet);
+                }
+                else for (auto item : items)
+                {
+                    if (item && pro::focus::is_focused(item->object, gear.id))
                     {
-                        function(item);
-                        if (!item) break;
+                        auto window_ptr = item->object;
+                        function(window_ptr);
+                        if (!window_ptr) break;
                     }
                 }
             }
@@ -1788,21 +1798,21 @@ namespace netxs::app::vtm
             if (gear.args_ptr)
             {
                 auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                items.foreach(gear.id, [&](auto& item_ptr)
+                items.foreach(gear, [&](auto window_ptr)
                 {
-                    auto order = arg == 0 ? zpos::plain
-                               : arg == 1 ? zpos::topmost
-                               : item_ptr->z_order != zpos::topmost ? zpos::topmost : zpos::plain;
-                    item_ptr->object->bell::signal(tier::preview, e2::form::prop::zorder, order);
+                    auto zorder = arg == 0 ? zpos::plain
+                                : arg == 1 ? zpos::topmost
+                                : window_ptr->bell::signal(tier::request, e2::form::prop::zorder) != zpos::topmost ? zpos::topmost : zpos::plain;
+                    window_ptr->bell::signal(tier::preview, e2::form::prop::zorder, zorder);
                 });
                 gear.set_handled();
             }
         }
         void close_focused_windows(hids& gear)
         {
-            items.foreach(gear.id, [&](auto& item_ptr)
+            items.foreach(gear, [&](auto window_ptr)
             {
-                bell::enqueue(item_ptr->object, [](auto& boss) // Keep the focus tree intact while processing key events.
+                bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
                 {
                     boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                 });
@@ -1811,9 +1821,9 @@ namespace netxs::app::vtm
         }
         void minimize_focused_windows(hids& gear)
         {
-            items.foreach(gear.id, [&](auto& item_ptr)
+            items.foreach(gear, [&](auto window_ptr)
             {
-                bell::enqueue(item_ptr->object, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
                     if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                     {
@@ -1826,13 +1836,34 @@ namespace netxs::app::vtm
         }
         void maximize_focused_windows(hids& gear)
         {
-            log("maximize_focused_windows");
-            gear.set_handled();
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    }
+                });
+                gear.set_handled();
+            });
         }
         void fullscreen_first_focused_window(hids& gear)
         {
-            log("fullscreen_first_focused_window");
-            gear.set_handled();
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                    }
+                });
+                gear.set_handled();
+                window_ptr.reset(); // Break iterating.
+            });
         }
         void warp_focused_windows(hids& gear)
         {
