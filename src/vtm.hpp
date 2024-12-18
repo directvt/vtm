@@ -1811,8 +1811,18 @@ namespace netxs::app::vtm
         }
         void minimize_focused_windows(hids& gear)
         {
-            log("minimize_focused_windows");
-            gear.set_handled();
+            items.foreach(gear.id, [&](auto& item_ptr)
+            {
+                bell::enqueue(item_ptr->object, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                    }
+                });
+                gear.set_handled();
+            });
         }
         void maximize_focused_windows(hids& gear)
         {
