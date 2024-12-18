@@ -1800,8 +1800,14 @@ namespace netxs::app::vtm
         }
         void close_focused_windows(hids& gear)
         {
-            log("close_focused_windows");
-            gear.set_handled();
+            items.foreach(gear.id, [&](auto& item_ptr)
+            {
+                bell::enqueue(item_ptr->object, [](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                });
+                gear.set_handled();
+            });
         }
         void minimize_focused_windows(hids& gear)
         {
@@ -2214,23 +2220,23 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, e2::form::proceed::action::warp       , gear)
             {
-                close_focused_windows(gear);
+                warp_focused_windows(gear);
             };
             LISTEN(tier::preview, e2::form::proceed::action::close      , gear)
             {
-                minimize_focused_windows(gear);
+                close_focused_windows(gear);
             };
             LISTEN(tier::preview, e2::form::proceed::action::minimize   , gear)
             {
-                maximize_focused_windows(gear);
+                minimize_focused_windows(gear);
             };
             LISTEN(tier::preview, e2::form::proceed::action::maximize   , gear)
             {
-                fullscreen_first_focused_window(gear);
+                maximize_focused_windows(gear);
             };
             LISTEN(tier::preview, e2::form::proceed::action::fullscreen , gear)
             {
-                warp_focused_windows(gear);
+                fullscreen_first_focused_window(gear);
             };
         }
 
