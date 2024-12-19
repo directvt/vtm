@@ -736,7 +736,7 @@ namespace netxs::app::shared
                                         .gridsize = config.take("/config/gui/gridsize", dot_mx),
                                         .cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
-        if (gui_config.gridsize == dot_00) gui_config.gridsize = dot_mx;
+        if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto recs = config.list("/config/gui/fonts/font");
         for (auto& f : recs)
         {

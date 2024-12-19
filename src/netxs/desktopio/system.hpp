@@ -669,7 +669,7 @@ namespace netxs::os
                     if (size)
                     {
                         dest.Left = 0;
-                        if (size >= area.x) // Mid block.
+                        if (size >= area.x && area.x) // Mid block.
                         {
                             auto height = (SHORT)(size / area.x);
                             auto crop = COORD{ (SHORT)area.x, height };
@@ -5861,7 +5861,7 @@ namespace netxs::os
                         ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected);
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
-                            auto scale = twod{ 6,12 }; //todo magic numbers
+                            auto scale = twod{ 6, 12 }; //todo magic numbers
                             auto limit = w.winsize * scale;
                             auto bttns = data[0] & 7;
                             mcoord.x  += data[1];

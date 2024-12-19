@@ -1220,7 +1220,7 @@ namespace netxs::ui
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
         void insert(si32 at, si32 count, cell const& blank, si32 margin)
         {
-            if (count <= 0) return;
+            if (count <= 0 || margin == 0) return;
             auto len = length();
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
@@ -1254,7 +1254,7 @@ namespace netxs::ui
         // rich: (current segment) Delete n chars and add blanks at the right margin.
         void cutoff(si32 at, si32 count, cell const& blank, si32 margin)
         {
-            if (count <= 0) return;
+            if (count <= 0 || margin == 0) return;
             auto len = length();
             if (at < len)
             {
@@ -1287,7 +1287,7 @@ namespace netxs::ui
         // rich: (whole line) Delete n chars and add blanks at the right margin.
         void cutoff_full(si32 at, si32 count, cell const& blank, si32 margin)
         {
-            if (count <= 0) return;
+            if (count <= 0 || margin == 0) return;
             auto len = length();
             if (at < len)
             {

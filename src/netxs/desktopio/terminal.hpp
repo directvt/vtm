@@ -1104,12 +1104,12 @@ namespace netxs::ui
                     assert(_kind == style.get_kind());
                     return _kind == type::autowrap;
                 }
-                si32 height(si32 width) const
+                si32 height(si32 panel_x) const
                 {
                     auto len = length();
                     assert(_kind == style.get_kind());
-                    return len > width && wrapped() ? (len + width - 1) / width
-                                                    : 1;
+                    return len > panel_x && wrapped() ? (len + panel_x - 1) / panel_x
+                                                      : 1;
                 }
             };
             struct redo
@@ -4697,6 +4697,7 @@ namespace netxs::ui
             {
                 dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                 auto clip = dest.clip();
+                if (!clip) return;
                 auto full = dest.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                 auto stop = clip.coor.y + clip.size.y;

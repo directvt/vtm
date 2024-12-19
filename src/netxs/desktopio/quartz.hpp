@@ -144,7 +144,7 @@ namespace netxs::datetime
                 fiber = std::thread{ &quartz::worker, this };
             }
         }
-        void ignite(int frequency)
+        void ignite(si32 frequency)
         {
             ignite(span{ span::period::den / frequency });
         }

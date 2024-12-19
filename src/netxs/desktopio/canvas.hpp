@@ -2389,6 +2389,7 @@ namespace netxs
                 step = over / 2 - offset;
                 auto spline = netxs::spline01{ bias };
                 auto sz = ratio * (size * 2 + 1);
+                if (sz.x <= 1 || sz.y <= 1) return;
                 bitmap.size(sz);
                 auto it = bitmap.begin();
                 for (auto y = 0.f; y < sz.y; y++)
