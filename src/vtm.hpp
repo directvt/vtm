@@ -1825,7 +1825,7 @@ namespace netxs::app::vtm
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                     {
                         auto& gear = *gear_ptr;
                         boss.bell::signal(tier::release, e2::form::size::minimize, gear);
@@ -1840,7 +1840,7 @@ namespace netxs::app::vtm
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                     {
                         auto& gear = *gear_ptr;
                         boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
@@ -1855,7 +1855,7 @@ namespace netxs::app::vtm
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                     {
                         auto& gear = *gear_ptr;
                         boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
