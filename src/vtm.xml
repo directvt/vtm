@@ -461,6 +461,11 @@ R"==(
             <key="Esc+F12"       action=FullscreenWindow/> <!-- Fullscreen the first focused desktop window. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
+            <key="Esc+LeftArrow">                                        <action=WarpWindow data=" 1,-1, 0, 0"/></key> <!-- Move window to the left. -->
+            <key="Esc+RightArrow">                                       <action=WarpWindow data="-1, 1, 0, 0"/></key> <!-- Move window to the right. -->
+            <key="Esc+UpArrow">                                          <action=WarpWindow data=" 0, 0, 1,-1"/></key> <!-- Move window up. -->
+            <key="Esc+DownArrow">                                        <action=WarpWindow data=" 0, 0,-1, 1"/></key> <!-- Move window down. -->
+
             <key="Esc+LeftArrow+UpArrow">                                <action=WarpWindow data=" 0, 0, 0,-1"/></key> <!-- Move bottom side of window up. -->
             <key="Esc+LeftArrow+DownArrow">                              <action=WarpWindow data=" 0, 0, 0, 1"/></key> <!-- Move bottom side of window down. -->
             <key="Esc+RightArrow+UpArrow">                               <action=WarpWindow data=" 0, 0, 1, 0"/></key> <!-- Move top side of window up. -->
