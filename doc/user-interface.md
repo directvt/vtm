@@ -154,6 +154,8 @@
     <td colspan="7">Horizontal scrolling</td>
     <td colspan="2"></td>
   </tr>
+  <tr><th>Esc+F11</th>                                               <td colspan="6"></td><td colspan="3">Maximize all focused desktop windows</td></tr>
+  <tr><th>Esc+F12</th>                                               <td colspan="6"></td><td colspan="3">Fullscreen the first focused desktop window</td></tr>
   <tr><th>Esc+LeftArrow</th>                                         <td colspan="6"></td><td colspan="3">Move window to the left</td></tr>
   <tr><th>Esc+RightArrow</th>                                        <td colspan="6"></td><td colspan="3">Move window to the right</td></tr>
   <tr><th>Esc+UpArrow</th>                                           <td colspan="6"></td><td colspan="3">Move window up</td></tr>
