@@ -2076,7 +2076,7 @@ namespace netxs::ui
                 {
                     auto head = chord_qiew_list.begin();
                     auto tail = chord_qiew_list.end();
-                    if (auto first_chord_list = _get_chord_list(*head++))
+                    if (auto first_chord_list = _get_chord_list(utf::trim(*head++)))
                     {
                         auto chords = first_chord_list.value();
                         while (head != tail)

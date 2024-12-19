@@ -1867,9 +1867,23 @@ namespace netxs::app::vtm
         }
         void warp_focused_windows(hids& gear)
         {
-            auto warp_delta = gear.get_args_or(dent{});
-            log("warp_focused_windows");
-            gear.set_handled();
+            auto warp = gear.get_args_or(dent{});
+            auto focused_window_list = std::vector<sptr>{};
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                focused_window_list.push_back(window_ptr);
+                gear.set_handled();
+            });
+            if (focused_window_list.size())
+            {
+                bell::enqueue(this->This(), [warp, focused_window_list](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                {
+                    for (auto w : focused_window_list)
+                    {
+                        w->bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                    }
+                });
+            }
         }
 
     public:
