@@ -8340,7 +8340,7 @@ namespace netxs::ui
                   owner{ owner }
             {
                 auto oneshot = ptr::shared(hook{});
-                owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
+                owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, *oneshot, (oneshot))
                 {
                     owner_wptr = owner.This();
                     oneshot->reset();

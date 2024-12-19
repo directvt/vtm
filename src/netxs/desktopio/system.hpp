@@ -4147,8 +4147,11 @@ namespace netxs::os
                         {
                             auto err = std::error_code{};
                             fs::current_path(cfg.cwd, err);
-                            if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cfg.cwd, utf::to_hex_0x(err.value()), ansi::nil());
-                            else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cfg.cwd);
+                            auto msg = !err ? utf::fprint("%%Change current directory to '%cwd%'", prompt::dtvt, cfg.cwd)
+                                            : utf::fprint("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cfg.cwd, utf::to_hex_0x(err.value()), ansi::nil());
+                            auto logs = netxs::directvt::binary::logs_t{};
+                            logs.set(os::process::id.first, os::process::id.second, msg);
+                            logs.sendfx([](auto& data){ io::send(os::stdout_fd, data); });   // Send logs to the dtvt-app hoster.
                         }
                         os::fdscleanup();
                         cfg.env = os::env::add(cfg.env);

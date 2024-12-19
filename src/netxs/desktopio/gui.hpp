@@ -970,7 +970,7 @@ namespace netxs::gui
             vsize *= 0.99f; // Make the wave amp a little smaller to aviod pixels get outside.
             auto fract = (thick * 3) & ~1; // &~1: To make it look better for small sizes.
             auto width = block.size.x + fract * 4; // Bump for texture sliding.
-            auto k = 3.14f / 2.f / fract; // Aling fract with the sine period.
+            auto k = 3.14f / 2.f / fract; // Align the fract with the sine period.
             block.size.x = 1;
             block.size.y = thick;
             auto c = byte{ 255 }; // Opaque alpha texture.
