@@ -741,12 +741,12 @@ namespace netxs::app::shared
                 auto& state_inst = *state_state;
                 auto& keybd = boss.template plugins<pro::keybd>();
                 app::shared::base_kb_navigation(keybd, scroll, boss);
-                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear, txts&)
+                keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear)
                 {
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
                     if (rawkbd) gear.set_handled();
                 });
-                keybd.proc("ExclusiveKeyboardMode", [&, update_ptr](hids& gear, txts&)
+                keybd.proc("ExclusiveKeyboardMode", [&, update_ptr](hids& gear)
                 {
                     state_inst.bell::signal(tier::release, ui::term::events::rawkbd);
                     if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);

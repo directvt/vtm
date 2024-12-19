@@ -367,7 +367,7 @@ namespace netxs
     template<class T1, class T2, class T3 = T2, class = std::enable_if_t<std::is_integral_v<T1> && std::is_integral_v<T2> && std::is_integral_v<T3>>>
     constexpr T3 grid_mod(T1 n, T2 d)
     {
-        auto mod = n % d;
+        auto mod = d != 0 ? n % d : 0;
         if (mod < 0) mod += d;
         return mod;
     }

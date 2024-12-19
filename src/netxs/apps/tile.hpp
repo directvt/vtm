@@ -28,8 +28,12 @@ namespace netxs::events::userland
 
                 SUBSET_XS( focus )
                 {
-                    EVENT_XS( next, input::hids ),
-                    EVENT_XS( prev, input::hids ),
+                    EVENT_XS( next    , input::hids ),
+                    EVENT_XS( prev    , input::hids ),
+                    EVENT_XS( nextpane, input::hids ),
+                    EVENT_XS( prevpane, input::hids ),
+                    EVENT_XS( nextgrip, input::hids ),
+                    EVENT_XS( prevgrip, input::hids ),
                 };
                 SUBSET_XS( split )
                 {
@@ -58,8 +62,12 @@ namespace netxs::app::tile
     using ui::wptr;
 
     #define proc_list \
+        X(TileFocusPrev         ) \
+        X(TileFocusNext         ) \
         X(TileFocusPrevPane     ) \
         X(TileFocusNextPane     ) \
+        X(TileFocusPrevGrip     ) \
+        X(TileFocusNextGrip     ) \
         X(TileRunApplicatoin    ) \
         X(TileSelectAllPanes    ) \
         X(TileSplitHorizontally ) \
@@ -70,7 +78,7 @@ namespace netxs::app::tile
         X(TileSetManagerTitle   ) \
         X(TileClosePane         ) \
         X(TileMoveGrip          ) \
-        X(TileResizeGrip        )
+        X(TileResizeGrip        ) \
 
     struct action
     {
@@ -344,8 +352,10 @@ namespace netxs::app::tile
                             gear.dismiss();
                         };
                         auto& keybd = boss.template plugins<pro::keybd>();
-                        keybd.proc(action::TileMoveGrip  , [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   { args.size() ? xml::take_or<twod>(args.front(), dot_00) : dot_00 }); });
-                        keybd.proc(action::TileResizeGrip, [&](hids& gear, txts& args){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, { args.size() ? xml::take_or<si32>(args.front(), 0) : 0 }); });
+                        keybd.proc(action::TileMoveGrip     , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   gear.get_args_or(twod{})); });
+                        keybd.proc(action::TileResizeGrip   , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, gear.get_args_or(si32{})); });
+                        keybd.proc(action::TileFocusPrevGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
+                        keybd.proc(action::TileFocusNextGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
                         keybd.bind(*grip_bindings_ptr);
                     });
             return node;
@@ -768,17 +778,16 @@ namespace netxs::app::tile
             static constexpr auto applet     = __COUNTER__ - _counter;
             static constexpr auto grip       = __COUNTER__ - _counter;
         }
-        auto is_focused = [](auto item_ptr, auto gear_id){ return !gear_id || !!item_ptr->bell::signal(tier::request, e2::form::state::keybd::find, { gear_id, 0 }).second; };
         auto _foreach = [](auto _foreach, sptr& root_veer_ptr, id_t gear_id, auto proc) -> void
         {
             if (auto node_veer_ptr = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr))
             {
-                if (is_focused(node_veer_ptr, gear_id))
+                if (pro::focus::is_focused(node_veer_ptr, gear_id))
                 {
                     auto item_ptr = node_veer_ptr->back();
                     if (node_veer_ptr->count() == 1) // Empty slot.
                     {
-                        if (is_focused(item_ptr, gear_id))
+                        if (pro::focus::is_focused(item_ptr, gear_id))
                         {
                             proc(item_ptr, item_type::empty_slot, node_veer_ptr);
                             if (!item_ptr)
@@ -790,7 +799,7 @@ namespace netxs::app::tile
                     else if (item_ptr->root()) // App window.
                     {
                         auto applet_ptr = item_ptr->base::subset[1];
-                        if (is_focused(applet_ptr, gear_id))
+                        if (pro::focus::is_focused(applet_ptr, gear_id))
                         {
                             proc(applet_ptr, item_type::applet, node_veer_ptr); // Applet.
                             if (!applet_ptr)
@@ -806,7 +815,7 @@ namespace netxs::app::tile
                         if (!root_veer_ptr) return;
 
                         auto grip_ptr = item_ptr->base::subset[2];
-                        if (is_focused(grip_ptr, gear_id))
+                        if (pro::focus::is_focused(grip_ptr, gear_id))
                         {
                             proc(grip_ptr, item_type::grip, node_veer_ptr); // Grip.
                             if (!grip_ptr)
@@ -892,17 +901,21 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& keybd = boss.template plugins<pro::keybd>();
-                    keybd.proc(action::TileFocusPrevPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prev, gear); });
-                    keybd.proc(action::TileFocusNextPane     , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::next, gear); });
-                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::create,      gear); });
-                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::select,      gear); });
-                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::split::hz,   gear); });
-                    keybd.proc(action::TileSplitVertically   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::split::vt,   gear); });
-                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::rotate,      gear); });
-                    keybd.proc(action::TileSwapPanes         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::swap,        gear); });
-                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::equalize,    gear); });
-                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::title ,      gear); });
-                    keybd.proc(action::TileClosePane         , [&](hids& gear, txts& /*args*/){ boss.bell::signal(tier::preview, app::tile::events::ui::close,       gear); });
+                    keybd.proc(action::TileFocusPrev         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prev,     gear); });
+                    keybd.proc(action::TileFocusNext         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::next,     gear); });
+                    keybd.proc(action::TileFocusPrevPane     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevpane, gear); });
+                    keybd.proc(action::TileFocusNextPane     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear); });
+                    keybd.proc(action::TileFocusPrevGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
+                    keybd.proc(action::TileFocusNextGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
+                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::create,          gear); });
+                    keybd.proc(action::TileSelectAllPanes    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::select,          gear); });
+                    keybd.proc(action::TileSplitHorizontally , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::hz,       gear); });
+                    keybd.proc(action::TileSplitVertically   , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::vt,       gear); });
+                    keybd.proc(action::TileSplitOrientation  , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::rotate,          gear); });
+                    keybd.proc(action::TileSwapPanes         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::swap,            gear); });
+                    keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::equalize,        gear); });
+                    keybd.proc(action::TileSetManagerTitle   , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::title ,          gear); });
+                    keybd.proc(action::TileClosePane         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::close,           gear); });
                     auto bindings = pro::keybd::load(config, "tile");
                     keybd.bind(bindings);
 
@@ -920,6 +933,7 @@ namespace netxs::app::tile
                     {
                         switch_counter[seed.gear_id] = {};
                     };
+                    //todo generalize refocusing
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (switch_counter_ptr))
                     {
                         auto root_veer_ptr = boss.base::subset[1];
@@ -929,7 +943,7 @@ namespace netxs::app::tile
                         auto next_item_ptr = sptr{};
                         foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
-                            if (is_focused(item_ptr, gear.id))
+                            if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = next_item_ptr;
                             }
@@ -976,7 +990,7 @@ namespace netxs::app::tile
                             {
                                 std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
                             }
-                            else if (is_focused(item_ptr, gear.id))
+                            else if (pro::focus::is_focused(item_ptr, gear.id))
                             {
                                 prev_item_ptr = item_ptr;
                             }
@@ -1002,6 +1016,168 @@ namespace netxs::app::tile
                                 gear.set_handled();
                                 switch_counter[gear.id] = feed::fwd;
                             }
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear, -, (switch_counter_ptr))
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_item_ptr = sptr{};
+                        auto next_item_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type != item_type::grip)
+                            {
+                                if (pro::focus::is_focused(item_ptr, gear.id))
+                                {
+                                    prev_item_ptr = next_item_ptr;
+                                }
+                                next_item_ptr = item_ptr;
+                            }
+                        });
+                        auto skip = !prev_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::rev;
+                        if (skip) // Give another process a chance to handle this event.
+                        {
+                            switch_counter[gear.id] = {};
+                        }
+                        else
+                        {
+                            if (!prev_item_ptr) // Focused item is at the boundary.
+                            {
+                                prev_item_ptr = next_item_ptr;
+                            }
+                            if (prev_item_ptr)
+                            {
+                                auto& prev_item = *prev_item_ptr;
+                                boss.bell::enqueue(prev_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(prev_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::rev;
+                            }
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextpane, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_item_ptr = sptr{};
+                        auto next_item_ptr = sptr{};
+                        auto temp_item_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type != item_type::grip)
+                            {
+                                if (!temp_item_ptr)
+                                {
+                                    temp_item_ptr = item_ptr; // Fallback item.
+                                }
+                                if (prev_item_ptr)
+                                {
+                                    std::swap(next_item_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
+                                }
+                                else if (pro::focus::is_focused(item_ptr, gear.id))
+                                {
+                                    prev_item_ptr = item_ptr;
+                                }
+                            }
+                        });
+                        auto skip = !next_item_ptr && gear.shared_event && switch_counter[gear.id] == feed::fwd;
+                        if (skip) // Give another process a chance to handle this event.
+                        {
+                            switch_counter[gear.id] = {};
+                        }
+                        else
+                        {
+                            if (!next_item_ptr) // Focused item is at the boundary.
+                            {
+                                next_item_ptr = temp_item_ptr;
+                            }
+                            if (next_item_ptr)
+                            {
+                                auto& next_item = *next_item_ptr;
+                                boss.bell::enqueue(next_item_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                {
+                                    pro::focus::set(next_item.This(), gear_id, solo::on);
+                                });
+                                gear.set_handled();
+                                switch_counter[gear.id] = feed::fwd;
+                            }
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevgrip, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_grip_ptr = sptr{};
+                        auto next_grip_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type == item_type::grip)
+                            {
+                                if (pro::focus::is_focused(item_ptr, gear.id))
+                                {
+                                    prev_grip_ptr = next_grip_ptr;
+                                }
+                                next_grip_ptr = item_ptr;
+                            }
+                        });
+                        if (!prev_grip_ptr) // Focused grip is at the boundary.
+                        {
+                            prev_grip_ptr = next_grip_ptr;
+                        }
+                        if (prev_grip_ptr)
+                        {
+                            auto& prev_grip = *prev_grip_ptr;
+                            boss.bell::enqueue(prev_grip_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                            {
+                                pro::focus::set(prev_grip.This(), gear_id, solo::on);
+                            });
+                            gear.set_handled();
+                        }
+                    };
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
+                    {
+                        auto root_veer_ptr = boss.base::subset[1];
+                        auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
+                        if (nothing_to_iterate) return;
+                        auto prev_grip_ptr = sptr{};
+                        auto next_grip_ptr = sptr{};
+                        auto temp_grip_ptr = sptr{};
+                        foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
+                        {
+                            if (item_type == item_type::grip)
+                            {
+                                if (!temp_grip_ptr)
+                                {
+                                    temp_grip_ptr = item_ptr; // Fallback item.
+                                }
+                                if (prev_grip_ptr)
+                                {
+                                    std::swap(next_grip_ptr, item_ptr); // Interrupt foreach (empty item_ptr).
+                                }
+                                else if (pro::focus::is_focused(item_ptr, gear.id))
+                                {
+                                    prev_grip_ptr = item_ptr;
+                                }
+                            }
+                        });
+                        if (!next_grip_ptr) // Focused item is at the boundary.
+                        {
+                            next_grip_ptr = temp_grip_ptr;
+                        }
+                        if (next_grip_ptr)
+                        {
+                            auto& next_grip = *next_grip_ptr;
+                            boss.bell::enqueue(next_grip_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                            {
+                                pro::focus::set(next_grip.This(), gear_id, solo::on);
+                            });
+                            gear.set_handled();
                         }
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::swap, gear)
@@ -1176,17 +1352,21 @@ namespace netxs::app::tile
             using namespace app::shared;
             static const auto proc_map = menu::action_map_t
             {
-                { tile::action::TileFocusPrevPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev); }},
-                { tile::action::TileFocusNextPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next); }},
-                { tile::action::TileRunApplicatoin    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create     ); }},
-                { tile::action::TileSelectAllPanes    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select     ); }},
-                { tile::action::TileSplitHorizontally , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz  ); }},
-                { tile::action::TileSplitVertically   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt  ); }},
-                { tile::action::TileSplitOrientation  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate     ); }},
-                { tile::action::TileSwapPanes         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap       ); }},
-                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize   ); }},
-                { tile::action::TileSetManagerTitle   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title      ); }},
-                { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close      ); }},
+                { tile::action::TileFocusPrev         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prev    ); }},
+                { tile::action::TileFocusNext         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::next    ); }},
+                { tile::action::TileFocusPrevPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevpane); }},
+                { tile::action::TileFocusNextPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextpane); }},
+                { tile::action::TileFocusPrevGrip     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevgrip); }},
+                { tile::action::TileFocusNextGrip     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextgrip); }},
+                { tile::action::TileRunApplicatoin    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
+                { tile::action::TileSelectAllPanes    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select         ); }},
+                { tile::action::TileSplitHorizontally , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz      ); }},
+                { tile::action::TileSplitVertically   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt      ); }},
+                { tile::action::TileSplitOrientation  , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::rotate         ); }},
+                { tile::action::TileSwapPanes         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::swap           ); }},
+                { tile::action::TileEqualizeSplitRatio, [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::equalize       ); }},
+                { tile::action::TileSetManagerTitle   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::title          ); }},
+                { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
             };
             config.cd("/config/tile", "/config/defapp");
             auto grip_bindings_ptr = ptr::shared(pro::keybd::load(config, "tile/grips"));

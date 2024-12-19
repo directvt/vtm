@@ -249,23 +249,25 @@
     <tr><th>Hotkey ¹</th>              <th>Default action</th></tr>
   </thead>
   <tbody>
-    <tr><th>Ctrl+PageUp</th>      <td>Focus the previous pane or splitting grip.</td></tr>
-    <tr><th>Ctrl+PageDown</th>    <td>Focus the next pane or splitting grip.</td></tr>
-    <tr><th>Alt+Shift+N</th>      <td>Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar.</td></tr>
-    <tr><th>Alt+Shift+A</th>      <td>Select all panes.</td></tr>
-    <tr><th>Alt+Shift+'|'</th>    <td>Split active panes horizontally.</td></tr>
-    <tr><th>Alt+Shift+Minus</th>  <td>Split active panes vertically.</td></tr>
-    <tr><th>Alt+Shift+R</th>      <td>Change split orientation.</td></tr>
-    <tr><th>Alt+Shift+S</th>      <td>Swap two or more panes.</td></tr>
-    <tr><th>Alt+Shift+E</th>      <td>Equalize split ratio.</td></tr>
-    <tr><th>Alt+Shift+F2</th>     <td>Set tiling window manager title using clipboard data.</td></tr>
-    <tr><th>Alt+Shift+W</th>      <td>Close active application.</td></tr>
-    <tr><th>LeftArrow</th>        <td>Move the split grip to the left.</td></tr>
-    <tr><th>RightArrow</th>       <td>Move the split grip to the right.</td></tr>
-    <tr><th>UpArrow</th>          <td>Move the split grip up.</td></tr>
-    <tr><th>DownArrow</th>        <td>Move the split grip down.</td></tr>
-    <tr><th>'-'</th>              <td>Decrease the split grip width.</td></tr>
-    <tr><th>Shift+'+'</th>        <td>Increase the split grip width.</td></tr>
+    <tr><th>Ctrl+PageUp</th>            <td>Focus the previous pane or the split grip.</td></tr>
+    <tr><th>Ctrl+PageDown</th>          <td>Focus the next pane or the split grip.</td></tr>
+    <tr><th>Alt+Shift+N</th>            <td>Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar.</td></tr>
+    <tr><th>Alt+Shift+A</th>            <td>Select all panes.</td></tr>
+    <tr><th>Alt+Shift+'|'</th>          <td>Split active panes horizontally.</td></tr>
+    <tr><th>Alt+Shift+Minus</th>        <td>Split active panes vertically.</td></tr>
+    <tr><th>Alt+Shift+R</th>            <td>Change split orientation.</td></tr>
+    <tr><th>Alt+Shift+S</th>            <td>Swap two or more panes.</td></tr>
+    <tr><th>Alt+Shift+E</th>            <td>Equalize split ratio.</td></tr>
+    <tr><th>Alt+Shift+F2</th>           <td>Set tiling window manager title using clipboard data.</td></tr>
+    <tr><th>Alt+Shift+W</th>            <td>Close active application.</td></tr>
+    <tr><th>LeftArrow</th>              <td>Move the split grip to the left.</td></tr>
+    <tr><th>RightArrow</th>             <td>Move the split grip to the right.</td></tr>
+    <tr><th>UpArrow</th>                <td>Move the split grip up.</td></tr>
+    <tr><th>DownArrow</th>              <td>Move the split grip down.</td></tr>
+    <tr><th>'-'</th>                    <td>Decrease the split grip width.</td></tr>
+    <tr><th>Shift+'+'<br>NumpadPlus</th><td>Increase the split grip width.</td></tr>
+    <tr><th>Shift+Tab</th>              <td>Focus the previous split grip.</td></tr>
+    <tr><th>Tab</th>                    <td>Focus the next split grip.</td></tr>
   </tbody>
 </table>
 

@@ -308,10 +308,20 @@ namespace netxs::events::userland
                     EVENT_XS( functor   , ui::functor ), // Exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc    ), // Exec functor on behalf (see gate).
                     GROUP_XS( quit      , bool        ), // Request to quit/detach (arg: fast or not).
+                    GROUP_XS( action    , input::hids ), // Request to proceed action.
 
                     SUBSET_XS( quit )
                     {
                         EVENT_XS( one, bool ), // Signal to close (fast or not).
+                    };
+                    SUBSET_XS( action )
+                    {
+                        EVENT_XS( alwaysontop, input::hids ),
+                        EVENT_XS( warp       , input::hids ),
+                        EVENT_XS( close      , input::hids ),
+                        EVENT_XS( minimize   , input::hids ),
+                        EVENT_XS( maximize   , input::hids ),
+                        EVENT_XS( fullscreen , input::hids ),
                     };
                 };
                 SUBSET_XS( cursor )

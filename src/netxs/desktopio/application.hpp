@@ -24,7 +24,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.57";
+    static const auto version = "v0.9.99.58";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -114,7 +114,7 @@ namespace netxs::app::shared
     {
         auto& scroll_inst = *scroll;
         auto esc_pressed = ptr::shared(faux);
-        keybd.proc("WindowClose", [&, esc_pressed](hids& gear, txts&)
+        keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
         {
             if (*esc_pressed)
             {
@@ -122,30 +122,30 @@ namespace netxs::app::shared
                 gear.set_handled();
             }
         });
-        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/, txts&)
+        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
         {
             if (std::exchange(*esc_pressed, true) != *esc_pressed)
             {
                 boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
             }
         });
-        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/, txts&)
+        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
         {
             if (std::exchange(*esc_pressed, faux) != *esc_pressed)
             {
                 boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
             }
         });
-        keybd.proc("ScrollPageUp"    , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
-        keybd.proc("ScrollPageDown"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
-        keybd.proc("ScrollLineUp"    , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
-        keybd.proc("ScrollLineDown"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
-        keybd.proc("ScrollCharLeft"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
-        keybd.proc("ScrollCharRight" , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
-        keybd.proc("ScrollTop"       , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-        keybd.proc("ScrollEnd"       , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-        keybd.proc("ToggleMaximize"  , [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        keybd.proc("ToggleFullscreen", [&](hids& gear, txts&){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); });
+        keybd.proc("ScrollPageUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
+        keybd.proc("ScrollPageDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
+        keybd.proc("ScrollLineUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
+        keybd.proc("ScrollLineDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
+        keybd.proc("ScrollCharLeft"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
+        keybd.proc("ScrollCharRight" , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
+        keybd.proc("ScrollTop"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
+        keybd.proc("ScrollEnd"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
+        keybd.proc("ToggleMaximize"  , [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard eves.
+        keybd.proc("ToggleFullscreen", [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); });
 
         keybd.bind( "Esc", "DropAutoRepeat"    , true);
         keybd.bind( "Esc", "WindowClosePreview", true);
@@ -736,7 +736,7 @@ namespace netxs::app::shared
                                         .gridsize = config.take("/config/gui/gridsize", dot_mx),
                                         .cellsize = std::clamp(config.take("/config/gui/cellheight", si32{ 20 }), 0, 256) };
         if (gui_config.cellsize == 0) gui_config.cellsize = 20;
-        if (gui_config.gridsize == dot_00) gui_config.gridsize = dot_mx;
+        if (gui_config.gridsize.x == 0 || gui_config.gridsize.y == 0) gui_config.gridsize = dot_mx;
         auto recs = config.list("/config/gui/fonts/font");
         for (auto& f : recs)
         {

@@ -1172,7 +1172,7 @@ namespace netxs::utf
         }
         else return std::to_string(number);
     }
-    template<class T, int L = std::numeric_limits<T>::digits>
+    template<class T, si32 L = std::numeric_limits<T>::digits>
     auto to_bin(T n)
     {
         return std::bitset<L>(n).to_string();

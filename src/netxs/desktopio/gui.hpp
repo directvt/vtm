@@ -110,14 +110,14 @@ namespace netxs::gui
             };
 
             std::vector<face_rec> fontface;
-            fp32                  base_descent{};
-            fp32                  base_ascent{};
+            fp32                  base_descent{ 1.f };
+            fp32                  base_ascent{ 1.f };
             fp2d                  base_underline{};
             fp2d                  base_strikeout{};
             fp2d                  base_overline{};
             si32                  base_emheight{};
-            si32                  base_x_height{};
-            fp2d                  facesize; // Typeface cell size.
+            si32                  base_x_height{ 1 };
+            fp2d                  facesize{ 1.f, 1.f }; // Typeface cell size.
             fp32                  ratio{};
             ui32                  index{ ~0u };
             bool                  color{ faux };
@@ -277,7 +277,8 @@ namespace netxs::gui
                 auto italic_width = ui32{};
                 fcache.get_common_widths(fontface, facesize, proportional, normal_width, italic_width);
                 auto w = proportional && normal_width ? (fp32)normal_width : facesize.x;
-                auto k = w / (w + (italic_width - normal_width));
+                auto italic_w = w + (italic_width - normal_width);
+                auto k = italic_w ? w / italic_w : 1.f;
                 transform *= k;
                 em_height *= k;
                 transform_letters = std::floor(base_x_height * transform) / base_x_height; // Respect x-height.
@@ -969,7 +970,7 @@ namespace netxs::gui
             vsize *= 0.99f; // Make the wave amp a little smaller to aviod pixels get outside.
             auto fract = (thick * 3) & ~1; // &~1: To make it look better for small sizes.
             auto width = block.size.x + fract * 4; // Bump for texture sliding.
-            auto k = 3.14f / 2.f / fract; // Aling fract with the sine period.
+            auto k = 3.14f / 2.f / fract; // Align the fract with the sine period.
             block.size.x = 1;
             block.size.y = thick;
             auto c = byte{ 255 }; // Opaque alpha texture.
@@ -1680,7 +1681,7 @@ namespace netxs::gui
                 {
                     auto update = [&](auto head, auto iter, auto tail)
                     {
-                        if (owner.waitsz) return;
+                        if (owner.waitsz || owner.gridsz.x == 0 || owner.cellsz.x == 0) return;
                         auto offset = (si32)(iter - head);
                         auto length = (si32)(tail - iter);
                         auto origin = twod{ offset % owner.gridsz.x, offset / owner.gridsz.x } * owner.cellsz;
@@ -1994,14 +1995,14 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client }
         {
-            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(1.f); });
-            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear, txts&){ gear.set_handled(); IncreaseCellHeight(-1.f);});
-            wkeybd.proc("ResetCellHeight"       , [&](hids& gear, txts&){ gear.set_handled(); ResetCellHeight();        });
-            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear, txts&){ gear.set_handled(); ToggleFullscreenMode();   });
-            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear, txts&){ gear.set_handled(); ToggleAntialiasingMode(); });
-            wkeybd.proc("RollFontsBackward"     , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::rev);  });
-            wkeybd.proc("RollFontsForward"      , [&](hids& gear, txts&){ gear.set_handled(); RollFontList(feed::fwd);  });
-            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/, txts&){ whlacc = {}; });
+            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
+            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
+            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
+            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
+            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
+            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
+            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
+            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
             wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
             wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
             wkeybd.bind(hotkeys);

@@ -96,7 +96,7 @@ namespace netxs::app::vtm
             link what; // align: Original window properties.
             rect prev; // align: Window size before the fullscreen has applied.
             twod coor; // align: Coor tracking.
-            hook maxs; // align: Fullscreen event subscription token.
+            subs maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
             align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
@@ -108,6 +108,10 @@ namespace netxs::app::vtm
                     auto is_new = what.applet != new_what.applet;
                     if (what.applet) unbind();
                     if (is_new) follow(new_what);
+                };
+                boss.LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
+                {
+                    ask_what = what;
                 };
             }
            ~align()
@@ -745,11 +749,17 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("FocusPrevWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::rev); });
-            keybd.proc("FocusNextWindow", [&](hids& gear, txts&){ focus_next_window(gear, feed::fwd); });
-            keybd.proc("Disconnect",      [&](hids& gear, txts&){ disconnect(gear); });
-            keybd.proc("TryToQuit",       [&](hids& gear, txts&){ try_quit(gear); });
-            keybd.proc("RunApplication",  [&](hids& gear, txts& args){ create_app(gear, args.empty() ? "" : args.front()); gear.set_handled(); });
+            keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
+            keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
+            keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
+            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
+            keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
+            keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
+            keybd.proc("WarpWindow",        [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::warp       , gear); });
+            keybd.proc("CloseWindow",       [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::close      , gear); });
+            keybd.proc("MinimizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::minimize   , gear); });
+            keybd.proc("MaximizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::maximize   , gear); });
+            keybd.proc("FullscreenWindow",  [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::fullscreen , gear); });
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -878,9 +888,10 @@ namespace netxs::app::vtm
             };
         }
 
-        void create_app(hids& gear, qiew inst_id = {})
+        void create_app(hids& gear)
         {
             static auto offset = dot_00; // static: Share initial offset between all instances.
+            auto inst_id = gear.get_args_or(qiew{});
             if (auto world_ptr = nexthop.lock())
             {
                 if (inst_id)
@@ -1241,6 +1252,23 @@ namespace netxs::app::vtm
                 items.push_front(items.back());
                 items.pop_back();
                 return items.back();
+            }
+            auto foreach(hids& gear, auto function)
+            {
+                auto what = gear.owner.bell::signal(tier::request, vtm::events::gate::fullscreen); // Check if there is a fullscreen window.
+                if (what.applet)
+                {
+                    function(what.applet);
+                }
+                else for (auto item : items)
+                {
+                    if (item && pro::focus::is_focused(item->object, gear.id))
+                    {
+                        auto window_ptr = item->object;
+                        function(window_ptr);
+                        if (!window_ptr) break;
+                    }
+                }
             }
         };
         struct depo // hall: Actors registry.
@@ -1765,6 +1793,98 @@ namespace netxs::app::vtm
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
         }
+        void always_on_top_focused_windows(hids& gear)
+        {
+            if (gear.args_ptr)
+            {
+                auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
+                items.foreach(gear, [&](auto window_ptr)
+                {
+                    auto zorder = arg == 0 ? zpos::plain
+                                : arg == 1 ? zpos::topmost
+                                : window_ptr->bell::signal(tier::request, e2::form::prop::zorder) != zpos::topmost ? zpos::topmost : zpos::plain;
+                    window_ptr->bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                });
+                gear.set_handled();
+            }
+        }
+        void close_focused_windows(hids& gear)
+        {
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                });
+                gear.set_handled();
+            });
+        }
+        void minimize_focused_windows(hids& gear)
+        {
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                    }
+                });
+                gear.set_handled();
+            });
+        }
+        void maximize_focused_windows(hids& gear)
+        {
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    }
+                });
+                gear.set_handled();
+            });
+        }
+        void fullscreen_first_focused_window(hids& gear)
+        {
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                {
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                    }
+                });
+                gear.set_handled();
+                window_ptr.reset(); // Break iterating.
+            });
+        }
+        void warp_focused_windows(hids& gear)
+        {
+            auto warp = gear.get_args_or(dent{});
+            auto focused_window_list = std::vector<sptr>{};
+            items.foreach(gear, [&](auto window_ptr)
+            {
+                focused_window_list.push_back(window_ptr);
+                gear.set_handled();
+            });
+            if (focused_window_list.size())
+            {
+                bell::enqueue(this->This(), [warp, focused_window_list](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                {
+                    for (auto w : focused_window_list)
+                    {
+                        w->bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                    }
+                });
+            }
+        }
 
     public:
         hall(xipc server, xmls& config)
@@ -2147,6 +2267,31 @@ namespace netxs::app::vtm
                         break;
                     }
                 }
+            };
+
+            LISTEN(tier::preview, e2::form::proceed::action::alwaysontop, gear)
+            {
+                always_on_top_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::warp       , gear)
+            {
+                warp_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::close      , gear)
+            {
+                close_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::minimize   , gear)
+            {
+                minimize_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::maximize   , gear)
+            {
+                maximize_focused_windows(gear);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::fullscreen , gear)
+            {
+                fullscreen_first_focused_window(gear);
             };
         }
 
