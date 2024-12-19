@@ -154,6 +154,26 @@
     <td colspan="7">Horizontal scrolling</td>
     <td colspan="2"></td>
   </tr>
+  <tr><th>Esc+LeftArrow</th>                                         <td colspan="6"></td><td colspan="3">Move window to the left</td></tr>
+  <tr><th>Esc+RightArrow</th>                                        <td colspan="6"></td><td colspan="3">Move window to the right</td></tr>
+  <tr><th>Esc+UpArrow</th>                                           <td colspan="6"></td><td colspan="3">Move window up</td></tr>
+  <tr><th>Esc+DownArrow</th>                                         <td colspan="6"></td><td colspan="3">Move window down</td></tr>
+  <tr><th>Esc+LeftArrow+UpArrow</th>                                 <td colspan="6"></td><td colspan="3">Move the bottom window side up</td></tr>
+  <tr><th>Esc+LeftArrow+DownArrow</th>                               <td colspan="6"></td><td colspan="3">Move the bottom window side down</td></tr>
+  <tr><th>Esc+RightArrow+UpArrow</th>                                <td colspan="6"></td><td colspan="3">Move the top window side up</td></tr>
+  <tr><th>Esc+RightArrow+DownArrow</th>                              <td colspan="6"></td><td colspan="3">Move the top window side down</td></tr>
+  <tr><th>Esc+UpArrow+LeftArrow</th>                                 <td colspan="6"></td><td colspan="3">Move the left window side to the left</td></tr>
+  <tr><th>Esc+UpArrow+RightArrow</th>                                <td colspan="6"></td><td colspan="3">Move the left window side to the right</td></tr>
+  <tr><th>Esc+DownArrow+RightArrow</th>                              <td colspan="6"></td><td colspan="3">Move the right window side to the right</td></tr>
+  <tr><th>Esc+DownArrow+LeftArrow</th>                               <td colspan="6"></td><td colspan="3">Move the right window side to the left</td></tr>
+  <tr><th>Ctrl+LeftArrow+DownArrow<br>Ctrl+DownArrow+LeftArrow</th>  <td colspan="6"></td><td colspan="3">Move the left bottom corner to outside</td></tr>
+  <tr><th>Ctrl+RightArrow+DownArrow<br>Ctrl+DownArrow+RightArrow</th><td colspan="6"></td><td colspan="3">Move the right bottom corner to outside</td></tr>
+  <tr><th>Ctrl+LeftArrow+UpArrow<br>Ctrl+UpArrow+LeftArrow</th>      <td colspan="6"></td><td colspan="3">Move the left top corner to outside</td></tr>
+  <tr><th>Ctrl+RightArrow+UpArrow<br>Ctrl+UpArrow+RightArrow</th>    <td colspan="6"></td><td colspan="3">Move the right top corner to outside</td></tr>
+  <tr><th>Alt+LeftArrow+DownArrow<br>Alt+DownArrow+LeftArrow</th>    <td colspan="6"></td><td colspan="3">Move the left top corner to inside</td></tr>
+  <tr><th>Alt+RightArrow+DownArrow<br>Alt+DownArrow+RightArrow</th>  <td colspan="6"></td><td colspan="3">Move the right top corner to inside</td></tr>
+  <tr><th>Alt+LeftArrow+UpArrow<br>Alt+UpArrow+LeftArrow</th>        <td colspan="6"></td><td colspan="3">Move the left bottom corner to inside</td></tr>
+  <tr><th>Alt+RightArrow+UpArrow<br>Alt+UpArrow+RightArrow</th>      <td colspan="6"></td><td colspan="3">Move the right bottom corner to inside</td></tr>
 </tbody>
 </table>
 
