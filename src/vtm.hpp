@@ -754,6 +754,7 @@ namespace netxs::app::vtm
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
             keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
+            keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
             keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
             keybd.proc("WarpWindow",        [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::warp       , gear); });
             keybd.proc("CloseWindow",       [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::close      , gear); });
@@ -1793,6 +1794,21 @@ namespace netxs::app::vtm
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
         }
+        void run_script(hids& gear)
+        {
+            if (gear.args_ptr)
+            {
+                auto& args = *gear.args_ptr;
+                for (auto cmd : args)
+                {
+                    bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                    {
+                        boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .hid = gear_id });
+                    });
+                }
+                gear.set_handled();
+            }
+        }
         void always_on_top_focused_windows(hids& gear)
         {
             if (gear.args_ptr)
@@ -2269,6 +2285,10 @@ namespace netxs::app::vtm
                 }
             };
 
+            LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
+            {
+                run_script(gear);
+            };
             LISTEN(tier::preview, e2::form::proceed::action::alwaysontop, gear)
             {
                 always_on_top_focused_windows(gear);

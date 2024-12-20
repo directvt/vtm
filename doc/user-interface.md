@@ -154,6 +154,7 @@
     <td colspan="7">Horizontal scrolling</td>
     <td colspan="2"></td>
   </tr>
+  <tr><th>Esc+F1</th>                                             <td colspan="3"></td><td colspan="7">Open Info-page</td></tr>
   <tr><th>Esc+F11</th>                                            <td colspan="3"></td><td colspan="7">Maximize window</td></tr>
   <tr><th>Esc+F12</th>                                            <td colspan="3"></td><td colspan="7">Maximize window to full screen</td></tr>
   <tr><th>Esc+'=' | Esc+'+'</th>                                  <td colspan="3"></td><td colspan="7">Increase window size</td></tr>

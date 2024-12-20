@@ -459,6 +459,7 @@ R"==(
             <key=""              action=MinimizeWindow/>   <!-- Minimize window. -->
             <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize window. -->
             <key="Esc+F12"       action=FullscreenWindow/> <!-- Maximize window to full screen. -->
+            <key="Esc+F1">      <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
             <key="Esc+'=' | Esc+'+'">                                    <action=WarpWindow data=" 1, 1, 1, 1"/></key> <!-- Increase window size. -->

@@ -394,6 +394,13 @@ Action                         | Arguments (`data=`)                            
 `FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
 `Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
 `RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
+`RunScript`                    | _`Script body`_                                        | Desktop             | Run script.
+`AlwaysOnTopWindow`            | `on` \| `off`                                          | Desktop             | Toggle AlwaysOnTop window flag.
+`CloseWindow`                  |                                                        | Desktop             | Close window.
+`MinimizeWindow`               |                                                        | Desktop             | Minimize window.
+`MaximizeWindow`               |                                                        | Desktop             | Maximize window.
+`FullscreenWindow`             |                                                        | Desktop             | Maximize window to full screen.
+`WarpWindow`                   | _`IntL, IntR, IntT, IntB`_                             | Desktop             | Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides.
 `TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
 `ExclusiveKeyboardMode`        | `on` \| `off`                                          | Application         | Toggle exclusive keyboard mode.
 `TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
@@ -908,6 +915,7 @@ Notes
             <key=""              action=MinimizeWindow/>   <!-- Minimize window. -->
             <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize window. -->
             <key="Esc+F12"       action=FullscreenWindow/> <!-- Maximize window to full screen. -->
+            <key="Esc+F1">      <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
             <key="Esc+'=' | Esc+'+'">                                    <action=WarpWindow data=" 1, 1, 1, 1"/></key> <!-- Increase window size. -->
