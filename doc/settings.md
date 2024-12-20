@@ -903,38 +903,23 @@ Notes
             <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
             <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
-            <key=""              action=AlwaysOnTopWindow/><!-- Toggle AlwaysOnTop flag on all focused windows. -->
-            <key=""              action=CloseWindow/>      <!-- Close all focused desktop windows. -->
-            <key=""              action=MinimizeWindow/>   <!-- Minimize all focused desktop windows. -->
-            <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize all focused desktop windows. -->
-            <key="Esc+F12"       action=FullscreenWindow/> <!-- Fullscreen the first focused desktop window. -->
+            <key=""              action=AlwaysOnTopWindow/><!-- Toggle AlwaysOnTop window flag. -->
+            <key=""              action=CloseWindow/>      <!-- Close window. -->
+            <key=""              action=MinimizeWindow/>   <!-- Minimize window. -->
+            <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize window. -->
+            <key="Esc+F12"       action=FullscreenWindow/> <!-- Maximize window to full screen. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
+            <key="Esc+'=' | Esc+'+'">                                    <action=WarpWindow data=" 1, 1, 1, 1"/></key> <!-- Increase window size. -->
+            <key="Esc+'-'">                                              <action=WarpWindow data="-1,-1,-1,-1"/></key> <!-- Reduce window size. -->        </desktop>
             <key="Esc+LeftArrow">                                        <action=WarpWindow data=" 1,-1, 0, 0"/></key> <!-- Move window to the left. -->
             <key="Esc+RightArrow">                                       <action=WarpWindow data="-1, 1, 0, 0"/></key> <!-- Move window to the right. -->
             <key="Esc+UpArrow">                                          <action=WarpWindow data=" 0, 0, 1,-1"/></key> <!-- Move window up. -->
             <key="Esc+DownArrow">                                        <action=WarpWindow data=" 0, 0,-1, 1"/></key> <!-- Move window down. -->
-
-            <key="Esc+LeftArrow+UpArrow">                                <action=WarpWindow data=" 0, 0, 0,-1"/></key> <!-- Move bottom side of window up. -->
-            <key="Esc+LeftArrow+DownArrow">                              <action=WarpWindow data=" 0, 0, 0, 1"/></key> <!-- Move bottom side of window down. -->
-            <key="Esc+RightArrow+UpArrow">                               <action=WarpWindow data=" 0, 0, 1, 0"/></key> <!-- Move top side of window up. -->
-            <key="Esc+RightArrow+DownArrow">                             <action=WarpWindow data=" 0, 0,-1, 0"/></key> <!-- Move top side of window down. -->
-
-            <key="Esc+UpArrow+LeftArrow">                                <action=WarpWindow data=" 1, 0, 0, 0"/></key> <!-- Move left side of window to left. -->
-            <key="Esc+UpArrow+RightArrow">                               <action=WarpWindow data="-1, 0, 0, 0"/></key> <!-- Move left side of window to right. -->
-            <key="Esc+DownArrow+RightArrow">                             <action=WarpWindow data=" 0, 1, 0, 0"/></key> <!-- Move right side of window to right. -->
-            <key="Esc+DownArrow+LeftArrow">                              <action=WarpWindow data=" 0,-1, 0, 0"/></key> <!-- Move right side of window to left. -->
-
-            <key="Ctrl+LeftArrow+DownArrow  | Ctrl+DownArrow+LeftArrow"> <action=WarpWindow data=" 1, 0, 0, 1"/></key> <!-- Move the bottom left corner of the window outward. -->
-            <key="Ctrl+RightArrow+DownArrow | Ctrl+DownArrow+RightArrow"><action=WarpWindow data=" 0, 1, 0, 1"/></key> <!-- Move the bottom right corner outside. -->
-            <key="Ctrl+LeftArrow+UpArrow    | Ctrl+UpArrow+LeftArrow">   <action=WarpWindow data=" 1, 0, 1, 0"/></key> <!-- Move the top left corner of the window outward. -->
-            <key="Ctrl+RightArrow+UpArrow   | Ctrl+UpArrow+RightArrow">  <action=WarpWindow data=" 0, 1, 1, 0"/></key> <!-- Move the top right corner of the window outward. -->
-
-            <key="Alt+LeftArrow+DownArrow   | Alt+DownArrow+LeftArrow">  <action=WarpWindow data=" 0,-1,-1, 0"/></key> <!-- Move the top left corner of the window inward. -->
-            <key="Alt+RightArrow+DownArrow  | Alt+DownArrow+RightArrow"> <action=WarpWindow data="-1, 0,-1, 0"/></key> <!-- Move the top right corner of the window inward. -->
-            <key="Alt+LeftArrow+UpArrow     | Alt+UpArrow+LeftArrow">    <action=WarpWindow data=" 0,-1, 0,-1"/></key> <!-- Move the bottom left corner of the window inward. -->
-            <key="Alt+RightArrow+UpArrow    | Alt+UpArrow+RightArrow">   <action=WarpWindow data="-1, 0, 0,-1"/></key> <!-- Move the bottom right corner of the window inward. -->
-        </desktop>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow">     <action=WarpWindow data=" 2,-2, 1,-1"/></key> <!-- Move window to the top-left. -->
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow">   <action=WarpWindow data=" 2,-2,-1, 1"/></key> <!-- Move window to the bottom-left. -->
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow">    <action=WarpWindow data="-2, 2, 1,-1"/></key> <!-- Move window to the top-right. -->
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow">  <action=WarpWindow data="-2, 2,-1, 1"/></key> <!-- Move window to the bottom-right. -->
         <tile key*>
             <key="Ctrl+PageUp"     action=TileFocusPrev         />  <!-- Focus the previous pane or the split grip. -->
             <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->

@@ -462,13 +462,6 @@ Tiling Window Manager is a window container that organizes the workspace into mu
         </menu>
     </tile>
     <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
-        </desktop>
         <tile key*>
             <key="Ctrl+PageUp"     action=TileFocusPrev         />  <!-- Focus the previous pane or the split grip. -->
             <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->
