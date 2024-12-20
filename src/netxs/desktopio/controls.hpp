@@ -1662,15 +1662,16 @@ namespace netxs::ui
                     }
                     else //if (!first_step)
                     {
+                        auto focusable = node_type == mode::focused || node_type == mode::focusable;
+                        auto last_step = chain.next.size() > 1 || focusable;
                         chain.foreach([&](auto& nexthop, auto& status)
                         {
                             if (nexthop == seed.item)
                             {
-                                status = state::idle;
+                                status = last_step ? state::dead : state::idle;
                             }
                         });
-                        auto focusable = node_type == mode::focused || node_type == mode::focusable;
-                        if (chain.next.size() > 1 || focusable) // Stop unfocusing on hub or focusable.
+                        if (last_step) // Stop unfocusing on hub or focusable.
                         {
                             boss.bell::expire(tier::preview); // Don't let the hall send the event to the gate.
                             return;
@@ -1711,6 +1712,7 @@ namespace netxs::ui
                 // pro::focus: Drop all downlinks (toward inside) from the boss and unfocus boss. Return dropped active gears.
                 boss.LISTEN(tier::request, hids::events::focus::cut, gear_id_list, memo)
                 {
+                    //todo cut a single item
                     for (auto& [gear_id, chain] : gears)
                     {
                         auto live = faux;
@@ -1725,7 +1727,8 @@ namespace netxs::ui
                         });
                         if (gear_id)
                         {
-                            boss.bell::signal(tier::preview, hids::events::focus::set::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
+                            //todo revise
+                            //boss.bell::signal(tier::preview, hids::events::focus::set::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
                             if (live) gear_id_list.push_back(gear_id); // Backup dropped active gears.
                         }
                     }

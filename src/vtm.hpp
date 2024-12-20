@@ -2172,7 +2172,7 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            //todo mimic pro::focus
+            //todo mimic pro::focus (hall has no parent)
             LISTEN(tier::preview, hids::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
             {
                 if (seed.gear_id)

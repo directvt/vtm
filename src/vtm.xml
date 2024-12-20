@@ -493,7 +493,7 @@ R"==(
                 <key="UpArrow"   ><action=TileMoveGrip   data=" 0,-1"/></key>  <!-- Move the split grip up. -->
                 <key="DownArrow" ><action=TileMoveGrip   data=" 0, 1"/></key>  <!-- Move the split grip down. -->
                 <key="'-'"       ><action=TileResizeGrip data="-1"   /></key>  <!-- Decrease the split grip width. -->
-                <key="Shift+'+' | NumpadPlus"><action=TileResizeGrip data="1"/></key>  <!-- Increase the split grip width. -->
+                <key="Shift+'+' | '+' | '=' | NumpadPlus"><action=TileResizeGrip data="1"/></key>  <!-- Increase the split grip width. -->
                 <key="Shift+Tab" action=TileFocusPrevGrip/>  <!-- Focus the next split grip. -->
                 <key="Tab"       action=TileFocusNextGrip/>  <!-- Focus the previous split grip. -->
             </grips>
