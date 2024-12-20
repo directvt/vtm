@@ -117,10 +117,7 @@ namespace netxs
             state.block.clear();
         }
     };
-}
 
-namespace
-{
     template<bool Newline = true, class ...Args>
     void log(netxs::view format, Args&&... args)
     {

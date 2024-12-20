@@ -435,7 +435,7 @@ namespace netxs::ui
                         {
                             auto& c = iter++->bgc();
                             auto x0 = (x - area.size.x / 2) / (area.size.x - 4 - 2 * 1.6f);
-                            auto dr = std::sqrt(x0 * x0 + y0);
+                            auto dr = std::sqrt(std::abs(x0 * x0 + y0));
                             if (dr > 1) c.chan.a = 0;
                             else
                             {
