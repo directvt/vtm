@@ -316,6 +316,7 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( action )
                     {
+                        EVENT_XS( runscript  , input::hids ),
                         EVENT_XS( alwaysontop, input::hids ),
                         EVENT_XS( warp       , input::hids ),
                         EVENT_XS( close      , input::hids ),

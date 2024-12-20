@@ -154,28 +154,19 @@
     <td colspan="7">Horizontal scrolling</td>
     <td colspan="2"></td>
   </tr>
-  <tr><th>Esc+F11</th>                                               <td colspan="3"></td><td colspan="7">Maximize all focused desktop windows</td></tr>
-  <tr><th>Esc+F12</th>                                               <td colspan="3"></td><td colspan="7">Fullscreen the first focused desktop window</td></tr>
-  <tr><th>Esc+LeftArrow</th>                                         <td colspan="3"></td><td colspan="7">Move window to the left</td></tr>
-  <tr><th>Esc+RightArrow</th>                                        <td colspan="3"></td><td colspan="7">Move window to the right</td></tr>
-  <tr><th>Esc+UpArrow</th>                                           <td colspan="3"></td><td colspan="7">Move window up</td></tr>
-  <tr><th>Esc+DownArrow</th>                                         <td colspan="3"></td><td colspan="7">Move window down</td></tr>
-  <tr><th>Esc+LeftArrow+UpArrow</th>                                 <td colspan="3"></td><td colspan="7">Move bottom side of window up</td></tr>
-  <tr><th>Esc+LeftArrow+DownArrow</th>                               <td colspan="3"></td><td colspan="7">Move bottom side of window down</td></tr>
-  <tr><th>Esc+RightArrow+UpArrow</th>                                <td colspan="3"></td><td colspan="7">Move top side of window up</td></tr>
-  <tr><th>Esc+RightArrow+DownArrow</th>                              <td colspan="3"></td><td colspan="7">Move top side of window down</td></tr>
-  <tr><th>Esc+UpArrow+LeftArrow</th>                                 <td colspan="3"></td><td colspan="7">Move left side of window to left</td></tr>
-  <tr><th>Esc+UpArrow+RightArrow</th>                                <td colspan="3"></td><td colspan="7">Move left side of window to right</td></tr>
-  <tr><th>Esc+DownArrow+RightArrow</th>                              <td colspan="3"></td><td colspan="7">Move right side of window to right</td></tr>
-  <tr><th>Esc+DownArrow+LeftArrow</th>                               <td colspan="3"></td><td colspan="7">Move right side of window to left</td></tr>
-  <tr><th>Ctrl+LeftArrow+DownArrow<br>Ctrl+DownArrow+LeftArrow</th>  <td colspan="3"></td><td colspan="7">Move the bottom left corner of the window outward</td></tr>
-  <tr><th>Ctrl+RightArrow+DownArrow<br>Ctrl+DownArrow+RightArrow</th><td colspan="3"></td><td colspan="7">Move the bottom right corner outside</td></tr>
-  <tr><th>Ctrl+LeftArrow+UpArrow<br>Ctrl+UpArrow+LeftArrow</th>      <td colspan="3"></td><td colspan="7">Move the top left corner of the window outward</td></tr>
-  <tr><th>Ctrl+RightArrow+UpArrow<br>Ctrl+UpArrow+RightArrow</th>    <td colspan="3"></td><td colspan="7">Move the top right corner of the window outward</td></tr>
-  <tr><th>Alt+LeftArrow+DownArrow<br>Alt+DownArrow+LeftArrow</th>    <td colspan="3"></td><td colspan="7">Move the top left corner of the window inward</td></tr>
-  <tr><th>Alt+RightArrow+DownArrow<br>Alt+DownArrow+RightArrow</th>  <td colspan="3"></td><td colspan="7">Move the top right corner of the window inward</td></tr>
-  <tr><th>Alt+LeftArrow+UpArrow<br>Alt+UpArrow+LeftArrow</th>        <td colspan="3"></td><td colspan="7">Move the bottom left corner of the window inward</td></tr>
-  <tr><th>Alt+RightArrow+UpArrow<br>Alt+UpArrow+RightArrow</th>      <td colspan="3"></td><td colspan="7">Move the bottom right corner of the window inward</td></tr>
+  <tr><th>Esc+F1</th>                                             <td colspan="3"></td><td colspan="7">Open Info-page</td></tr>
+  <tr><th>Esc+F11</th>                                            <td colspan="3"></td><td colspan="7">Maximize window</td></tr>
+  <tr><th>Esc+F12</th>                                            <td colspan="3"></td><td colspan="7">Maximize window to full screen</td></tr>
+  <tr><th>Esc+'=' | Esc+'+'</th>                                  <td colspan="3"></td><td colspan="7">Increase window size</td></tr>
+  <tr><th>Esc+'-'</th>                                            <td colspan="3"></td><td colspan="7">Reduce window size</td></tr>
+  <tr><th>Esc+LeftArrow</th>                                      <td colspan="3"></td><td colspan="7">Move window to the left</td></tr>
+  <tr><th>Esc+RightArrow</th>                                     <td colspan="3"></td><td colspan="7">Move window to the right</td></tr>
+  <tr><th>Esc+UpArrow</th>                                        <td colspan="3"></td><td colspan="7">Move window up</td></tr>
+  <tr><th>Esc+DownArrow</th>                                      <td colspan="3"></td><td colspan="7">Move window down</td></tr>
+  <tr><th>Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow</th>   <td colspan="3"></td><td colspan="7">Move window to the top-left</td></tr>
+  <tr><th>Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow</th> <td colspan="3"></td><td colspan="7">Move window to the bottom-left</td></tr>
+  <tr><th>Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow</th>  <td colspan="3"></td><td colspan="7">Move window to the top-right</td></tr>
+  <tr><th>Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow</th><td colspan="3"></td><td colspan="7">Move window to the bottom-right</td></tr>
 </tbody>
 </table>
 
