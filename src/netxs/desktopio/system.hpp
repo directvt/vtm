@@ -1261,7 +1261,10 @@ namespace netxs::os
             auto platform = "macOS"s;
             #elif defined(__linux__)
             auto platform = "Linux"s;
-            auto fedisableexcept = ::fedisableexcept(FE_ALL_EXCEPT);
+            if constexpr (!debugmode)
+            {
+                ::fedisableexcept(FE_ALL_EXCEPT);
+            }
             #elif defined(__BSD__)
             auto platform = "BSD"s;
             #else
