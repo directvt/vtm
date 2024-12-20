@@ -37,7 +37,6 @@ namespace netxs
     using arch = size_t;
     using flag = std::atomic<bool>;
 
-    static const auto feclearexcept = []{ return std::feclearexcept(FE_ALL_EXCEPT); }();
     constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
     static constexpr auto bytemax = std::numeric_limits<byte>::max();
