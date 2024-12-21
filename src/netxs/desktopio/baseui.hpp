@@ -323,6 +323,7 @@ namespace netxs::events::userland
                         EVENT_XS( minimize   , input::hids ),
                         EVENT_XS( maximize   , input::hids ),
                         EVENT_XS( fullscreen , input::hids ),
+                        EVENT_XS( nextwindow , input::hids ),
                     };
                 };
                 SUBSET_XS( cursor )

@@ -390,8 +390,7 @@ Action                         | Arguments (`data=`)                            
 `RollFontsBackward`            |                                                        | Native GUI window   | Roll font list backward.
 `RollFontsForward`             |                                                        | Native GUI window   | Roll font list forward.
 `ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
-`FocusPrevWindow`              |                                                        | Desktop             | Switch focus to the next desktop window.
-`FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
+`FocusNextWindow`              | `on` \| `off`                                          | Desktop             | Switch focus to the next desktop window. The data parameter specifies the direction of focus switching: prev ("off"), next ("on").
 `Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
 `RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
 `RunScript`                    | _`Script body`_                                        | Desktop             | Run script.
@@ -905,17 +904,17 @@ Notes
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
-            <key=""              action=AlwaysOnTopWindow/><!-- Toggle AlwaysOnTop window flag. -->
-            <key=""              action=CloseWindow/>      <!-- Close window. -->
-            <key=""              action=MinimizeWindow/>   <!-- Minimize window. -->
-            <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize window. -->
-            <key="Esc+F12"       action=FullscreenWindow/> <!-- Maximize window to full screen. -->
-            <key="Esc+F1">      <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
+            <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>  <!-- Switch focus to the previous desktop window. -->
+            <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>  <!-- Switch focus to the next desktop window. -->
+            <key="Shift+F7"       action=Disconnect/>                    <!-- Disconnect from the desktop. -->
+            <key="F10" preview    action=TryToQuit/>                     <!-- Shut down the desktop server if no applications are running. -->
+            <key="Alt+Shift+N"    action=RunApplication/>                <!-- Run default application. -->
+            <key=""               action=AlwaysOnTopWindow/>             <!-- Toggle AlwaysOnTop window flag. -->
+            <key=""               action=CloseWindow/>                   <!-- Close window. -->
+            <key=""               action=MinimizeWindow/>                <!-- Minimize window. -->
+            <key="Esc+F11"        action=MaximizeWindow/>                <!-- Maximize window. -->
+            <key="Esc+F12"        action=FullscreenWindow/>              <!-- Maximize window to full screen. -->
+            <key="Esc+F1">       <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
             <key="Esc+'=' | Esc+'+'">                                    <action=WarpWindow data=" 1, 1, 1, 1"/></key> <!-- Increase window size. -->

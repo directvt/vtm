@@ -149,6 +149,11 @@ namespace netxs::app::vtm
                     if (new_area.coor != boss.base::coor()) unbind();
                     else what.applet->base::resize(new_area.size + pads);
                 };
+                boss.LISTEN(tier::preview, e2::form::proceed::action::nextwindow, gear, memo)
+                {
+                    unbind();
+                    boss.bell::expire(tier::preview);
+                };
                 window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
                 {
                     auto deed = what.applet->bell::protos(tier::preview);
@@ -749,11 +754,10 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("FocusPrevWindow", [&](hids& gear){ focus_next_window(gear, feed::rev); });
-            keybd.proc("FocusNextWindow", [&](hids& gear){ focus_next_window(gear, feed::fwd); });
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
             keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
+            keybd.proc("FocusNextWindow",   [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::nextwindow , gear); });
             keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
             keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
             keybd.proc("WarpWindow",        [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::warp       , gear); });
@@ -924,51 +928,6 @@ namespace netxs::app::vtm
         {
             gear.owner.bell::signal(tier::preview, e2::conio::quit);
             this->bell::expire(tier::preview);
-            gear.set_handled();
-        }
-        void focus_next_window(hids& gear, feed forward)
-        {
-            auto down = forward == feed::fwd;
-            if (gear.shared_event) // Give another process a chance to handle this event.
-            {
-                auto gear_id = gear.id;
-                down ? this->base::riseup(tier::request, e2::form::layout::focus::next, gear_id)
-                     : this->base::riseup(tier::request, e2::form::layout::focus::prev, gear_id);
-                if (!gear_id) return;
-            }
-
-            if (align.what.applet)
-            {
-                align.unbind();
-            }
-            auto window_ptr = this->base::riseup(tier::request, e2::form::layout::go::item); // Take current window.
-            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
-
-            auto current = window_ptr; 
-            auto maximized = faux;
-            auto owner_id = id_t{};
-            do
-            {
-                window_ptr.reset();
-                owner_id = id_t{};
-                if (down) this->base::riseup(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                else      this->base::riseup(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
-                maximized = owner_id == gear.owner.id;
-                if (!owner_id || maximized) break;
-            }
-            while (window_ptr != current); // Skip all foreign maximized windows.
-
-            if (window_ptr && (!owner_id || maximized))
-            {
-                auto& window = *window_ptr;
-                window.bell::signal(tier::release, e2::form::layout::selected, gear);
-                if (!maximized) jump_to(window);
-                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
-                {
-                    pro::focus::set(window.This(), gear_id, solo::on);
-                });
-            }
             gear.set_handled();
         }
         void move_viewport(twod newpos, rect viewport)
@@ -1796,6 +1755,51 @@ namespace netxs::app::vtm
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
         }
+
+        void next_window(hids& gear)
+        {
+            auto go_forward = gear.get_args_or(true);
+            if (gear.shared_event) // Give another process a chance to handle this event.
+            {
+                auto gear_id = gear.id;
+                go_forward ? bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                           : bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                if (!gear_id) return;
+            }
+
+            auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
+            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+
+            auto current = window_ptr; 
+            auto maximized = faux;
+            auto owner_id = id_t{};
+            do
+            {
+                window_ptr.reset();
+                owner_id = id_t{};
+                if (go_forward) bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                else            bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                maximized = owner_id == gear.owner.id;
+                if (!owner_id || maximized) break;
+            }
+            while (window_ptr != current); // Skip all foreign maximized windows.
+
+            if (window_ptr && (!owner_id || maximized))
+            {
+                auto& window = *window_ptr;
+                window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                if (!maximized)
+                {
+                    gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
+                }
+                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                {
+                    pro::focus::set(window.This(), gear_id, solo::on);
+                });
+            }
+            gear.set_handled();
+        }
         void run_script(hids& gear)
         {
             if (gear.args_ptr)
@@ -2288,6 +2292,10 @@ namespace netxs::app::vtm
                 }
             };
 
+            LISTEN(tier::preview, e2::form::proceed::action::nextwindow, gear)
+            {
+                next_window(gear);
+            };
             LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
             {
                 run_script(gear);
