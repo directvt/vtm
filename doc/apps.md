@@ -441,7 +441,7 @@ Tiling Window Manager is a window container that organizes the workspace into mu
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplicatoin label=" + ">
+            <item action=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
@@ -467,7 +467,7 @@ Tiling Window Manager is a window container that organizes the workspace into mu
             <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->
             <key=""                action=TileFocusPrevPane     />  <!-- Focus the previous pane. -->
             <key=""                action=TileFocusNextPane     />  <!-- Focus the next pane. -->
-            <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="Alt+Shift+N"     action=TileRunApplication    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
             <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
             <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
             <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->

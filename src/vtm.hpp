@@ -756,7 +756,6 @@ namespace netxs::app::vtm
             local = faux;
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
-            keybd.proc("RunApplication",  [&](hids& gear){ create_app(gear); gear.set_handled(); });
             keybd.proc("FocusNextWindow",   [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::nextwindow , gear); });
             keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
             keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
@@ -1706,24 +1705,38 @@ namespace netxs::app::vtm
         }
         auto vtm_run(eccc& script, qiew args)
         {
-            auto appconf = xml::settings{ "<item " + text{ args } + " />" };
-            appconf.cd("item");
-            auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .hidden  = true,
                                        .winform = shared::win::state::normal,
                                        .type    = app::vtty::id,
                                        .gearid  = script.hid };
-            auto menuid = itemptr->take(attr::id, ""s);
-            if (dbase.menu.contains(menuid))
+            utf::trim(args);
+            if (!args) // Get default app spec.
             {
-                auto& appbase = dbase.menu[menuid];
-                if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
-                else               hall::loadspec(appspec, appspec, *itemptr, menuid);
+                if (auto gear_ptr = bell::getref<hids>(appspec.gearid))
+                {
+                    auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
+                    appspec = dbase.menu[menuid];
+                    appspec.fixed = faux;
+                    appspec.menuid = menuid;
+                }
             }
             else
             {
-                if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
-                hall::loadspec(appspec, appspec, *itemptr, menuid);
+                auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+                appconf.cd("item");
+                auto itemptr = appconf.homelist.front();
+                auto menuid = itemptr->take(attr::id, ""s);
+                if (dbase.menu.contains(menuid))
+                {
+                    auto& appbase = dbase.menu[menuid];
+                    if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
+                    else               hall::loadspec(appspec, appspec, *itemptr, menuid);
+                }
+                else
+                {
+                    if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
+                    hall::loadspec(appspec, appspec, *itemptr, menuid);
+                }
             }
             appspec.appcfg.env += script.env;
             if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;

@@ -68,7 +68,7 @@ namespace netxs::app::tile
         X(TileFocusNextPane     ) \
         X(TileFocusPrevGrip     ) \
         X(TileFocusNextGrip     ) \
-        X(TileRunApplicatoin    ) \
+        X(TileRunApplication    ) \
         X(TileSelectAllPanes    ) \
         X(TileSplitHorizontally ) \
         X(TileSplitVertically   ) \
@@ -908,7 +908,7 @@ namespace netxs::app::tile
                     keybd.proc(action::TileFocusNextPane     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear); });
                     keybd.proc(action::TileFocusPrevGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
                     keybd.proc(action::TileFocusNextGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
-                    keybd.proc(action::TileRunApplicatoin    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::create,          gear); });
+                    keybd.proc(action::TileRunApplication    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::create,          gear); });
                     keybd.proc(action::TileSelectAllPanes    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::select,          gear); });
                     keybd.proc(action::TileSplitHorizontally , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::hz,       gear); });
                     keybd.proc(action::TileSplitVertically   , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::vt,       gear); });
@@ -1359,7 +1359,7 @@ namespace netxs::app::tile
                 { tile::action::TileFocusNextPane     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextpane); }},
                 { tile::action::TileFocusPrevGrip     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::prevgrip); }},
                 { tile::action::TileFocusNextGrip     , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::focus::nextgrip); }},
-                { tile::action::TileRunApplicatoin    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
+                { tile::action::TileRunApplication    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::create         ); }},
                 { tile::action::TileSelectAllPanes    , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::select         ); }},
                 { tile::action::TileSplitHorizontally , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::hz      ); }},
                 { tile::action::TileSplitVertically   , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::split::vt      ); }},

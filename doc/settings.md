@@ -392,7 +392,6 @@ Action                         | Arguments (`data=`)                            
 `ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
 `FocusNextWindow`              | `on` \| `off`                                          | Desktop             | Switch focus to the next desktop window. The data parameter specifies the direction of focus switching: prev ("off"), next ("on").
 `Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
-`RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
 `RunScript`                    | _`Script body`_                                        | Desktop             | Run script.
 `AlwaysOnTopWindow`            | `on` \| `off`                                          | Desktop             | Toggle AlwaysOnTop window flag.
 `CloseWindow`                  |                                                        | Desktop             | Close window.
@@ -849,7 +848,7 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplicatoin label=" + ">
+            <item action=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
@@ -904,16 +903,16 @@ Notes
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>  <!-- Switch focus to the previous desktop window. -->
-            <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>  <!-- Switch focus to the next desktop window. -->
-            <key="Shift+F7"       action=Disconnect/>                    <!-- Disconnect from the desktop. -->
-            <key="F10" preview    action=TryToQuit/>                     <!-- Shut down the desktop server if no applications are running. -->
-            <key="Alt+Shift+N"    action=RunApplication/>                <!-- Run default application. -->
-            <key=""               action=AlwaysOnTopWindow/>             <!-- Toggle AlwaysOnTop window flag. -->
-            <key=""               action=CloseWindow/>                   <!-- Close window. -->
-            <key=""               action=MinimizeWindow/>                <!-- Minimize window. -->
-            <key="Esc+F11"        action=MaximizeWindow/>                <!-- Maximize window. -->
-            <key="Esc+F12"        action=FullscreenWindow/>              <!-- Maximize window to full screen. -->
+            <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>      <!-- Switch focus to the previous desktop window. -->
+            <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>      <!-- Switch focus to the next desktop window. -->
+            <key="Shift+F7"       action=Disconnect/>                        <!-- Disconnect from the desktop. -->
+            <key="F10" preview    action=TryToQuit/>                         <!-- Shut down the desktop server if no applications are running. -->
+            <key="Alt+Shift+N">  <action=RunScript data="vtm.run()"/></key>  <!-- Run default application. -->
+            <key=""               action=AlwaysOnTopWindow/>                 <!-- Toggle AlwaysOnTop window flag. -->
+            <key=""               action=CloseWindow/>                       <!-- Close window. -->
+            <key=""               action=MinimizeWindow/>                    <!-- Minimize window. -->
+            <key="Esc+F11"        action=MaximizeWindow/>                    <!-- Maximize window. -->
+            <key="Esc+F12"        action=FullscreenWindow/>                  <!-- Maximize window to full screen. -->
             <key="Esc+F1">       <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
@@ -936,7 +935,7 @@ Notes
             <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->
             <key=""                action=TileFocusPrevPane     />  <!-- Focus the previous pane. -->
             <key=""                action=TileFocusNextPane     />  <!-- Focus the next pane. -->
-            <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+            <key="Alt+Shift+N"     action=TileRunApplication    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
             <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
             <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
             <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
