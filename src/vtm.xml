@@ -472,6 +472,10 @@ R"==(
             <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow">   <action=WarpWindow data=" 2,-2,-1, 1"/></key> <!-- Move window to the bottom-left. -->
             <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow">    <action=WarpWindow data="-2, 2, 1,-1"/></key> <!-- Move window to the top-right. -->
             <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow">  <action=WarpWindow data="-2, 2,-1, 1"/></key> <!-- Move window to the bottom-right. -->
+            <key="Esc+LeftArrow+RightArrow">                             <action=WarpWindow data=" 0, 1, 0, 0"/></key> <!-- Increase window width. -->
+            <key="Esc+RightArrow+LeftArrow">                             <action=WarpWindow data=" 0,-1, 0, 0"/></key> <!-- Decrease window width. -->
+            <key="Esc+UpArrow+DownArrow">                                <action=WarpWindow data=" 0, 0, 0, 1"/></key> <!-- Increase window height. -->
+            <key="Esc+DownArrow+UpArrow">                                <action=WarpWindow data=" 0, 0, 0,-1"/></key> <!-- Decrease window height. -->
         </desktop>
         <tile key*>
             <key="Ctrl+PageUp"     action=TileFocusPrev         />  <!-- Focus the previous pane or the split grip. -->

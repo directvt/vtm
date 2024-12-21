@@ -167,6 +167,10 @@
   <tr><th>Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow</th> <td colspan="3"></td><td colspan="7">Move window to the bottom-left</td></tr>
   <tr><th>Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow</th>  <td colspan="3"></td><td colspan="7">Move window to the top-right</td></tr>
   <tr><th>Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow</th><td colspan="3"></td><td colspan="7">Move window to the bottom-right</td></tr>
+  <tr><th>Esc+LeftArrow+RightArrow</th>                           <td colspan="3"></td><td colspan="7">Increase window width</td></tr>
+  <tr><th>Esc+RightArrow+LeftArrow</th>                           <td colspan="3"></td><td colspan="7">Decrease window width</td></tr>
+  <tr><th>Esc+UpArrow+DownArrow</th>                              <td colspan="3"></td><td colspan="7">Increase window height</td></tr>
+  <tr><th>Esc+DownArrow+UpArrow</th>                              <td colspan="3"></td><td colspan="7">Decrease window height</td></tr>
 </tbody>
 </table>
 
