@@ -1373,17 +1373,13 @@ namespace netxs::ui
                 pro::focus::off(item_ptr, gear_id_list);
             }
             // pro::focus: Defocus all gears and clear chains (optionally remove_default route from parent) and return deleted active gear id's.
-            static auto cut(sptr item_ptr, bool remove_default = faux)
+            static auto cut(sptr item_ptr)
             {
                 auto lock = item_ptr->bell::sync();
-                auto gear_id_list = hids::events::focus::cut.param();
+                auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 if (auto parent = item_ptr->parent())
                 {
-                    parent->base::riseup(tier::request, hids::events::focus::cut, gear_id_list);
-                    if (remove_default)
-                    {
-                        parent->base::riseup(tier::request, hids::events::focus::dry, { .item = item_ptr });
-                    }
+                    parent->base::riseup(tier::request, hids::events::focus::cut, { .item = item_ptr });
                 }
                 return gear_id_list;
             }
@@ -1710,35 +1706,22 @@ namespace netxs::ui
                     }
                 };
                 // pro::focus: Drop all downlinks (toward inside) from the boss and unfocus boss. Return dropped active gears.
-                boss.LISTEN(tier::request, hids::events::focus::cut, gear_id_list, memo)
+                boss.LISTEN(tier::request, hids::events::focus::cut, seed, memo)
                 {
-                    //todo cut a single item
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
                     for (auto& [gear_id, chain] : gears)
                     {
-                        auto live = faux;
-                        chain.foreach([&, gear_id = gear_id](auto& nexthop, auto& status) // Drop all downlinks (toward inside) from the boss. //todo Apple clang can't capture gear_id in lambda
+                        chain.next.remove_if([&](auto& next) // Drop all downlinks (toward inside) from the boss.
                         {
-                            if (gear_id && status == state::live)
+                            auto match = next.next_wptr.lock() == seed.item;
+                            if (match && gear_id && next.status == state::live)
                             {
-                                live = true;
-                                nexthop->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id });
+                                seed.gear_id = gear_id;
+                                seed.item->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
-                            nexthop = {};
+                            return match;
                         });
-                        if (gear_id)
-                        {
-                            //todo revise
-                            //boss.bell::signal(tier::preview, hids::events::focus::set::off, { .gear_id = gear_id }); // The cutting object is changing its host along with focus.
-                            if (live) gear_id_list.push_back(gear_id); // Backup dropped active gears.
-                        }
-                    }
-                };
-                // pro::focus: .
-                boss.LISTEN(tier::request, hids::events::focus::dry, seed, memo)
-                {
-                    for (auto& [gear_id, chain] : gears)
-                    {
-                        chain.next.remove_if([&](auto& next){ return next.next_wptr.lock() == seed.item; });
                     }
                 };
                 // pro::focus: Switch all foci from the prev_ptr to the next_ptr (which must have a pro::focus on board).

@@ -156,9 +156,8 @@ namespace netxs::events::userland
             };
             SUBSET_XS( focus )
             {
-                EVENT_XS( dry, input::foci ), // request: Remove the reference to the specified applet.
                 EVENT_XS( hop, input::foci ), // request: Switch focus branch to seed.item.
-                EVENT_XS( cut, ui::gear_id_list_t ), // request: Unfocus and delete downstream (to inside) focus route.
+                EVENT_XS( cut, input::foci ), // request: Unfocus and delete downstream (to inside) focus route.
                 EVENT_XS( add, input::foci ), // request: Initiate focus setting toward outside (used by gui and dtvt).
                 EVENT_XS( rem, input::foci ), // request: Initiate focus unsetting toward outside (used by gui and dtvt).
                 EVENT_XS( dup, input::foci ), // request: Make a focus tree copy from default.

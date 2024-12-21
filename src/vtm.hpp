@@ -122,7 +122,7 @@ namespace netxs::app::vtm
             void follow(vtm::link& new_what, dent pads = {})
             {
                 what = new_what;
-                auto gear_id_list = pro::focus::cut(what.applet, true);
+                auto gear_id_list = pro::focus::cut(what.applet);
                 auto window_ptr = new_what.applet;
                 saved = nexthop;
                 nexthop = new_what.applet;
@@ -781,18 +781,20 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
+            LISTEN(tier::request, hids::events::focus::cut, seed, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
                 if (align.what.applet)
                 {
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
                     for (auto& [ext_gear_id, gear_ptr] : input.gears)
                     {
                         if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
                         {
                             if (auto gear_id = gear_ptr->id)
                             {
-                                gear_id_list.push_back(gear_id);
-                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
+                                seed.gear_id = gear_id;
+                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -1993,11 +1995,12 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
-                auto gear_id_list = pro::focus::cut(what.applet);
-                what.applet->base::detach();
+                auto window_ptr = what.applet;
+                auto gear_id_list = pro::focus::cut(window_ptr);
+                window_ptr->base::detach();
                 auto& cfg = dbase.menu[what.menuid];
-                branch(what.menuid, what.applet, !cfg.hidden);
-                pro::focus::set(what.applet, gear_id_list, solo::on, true);
+                branch(what.menuid, window_ptr, !cfg.hidden);
+                pro::focus::set(window_ptr, gear_id_list, solo::on, true);
             };
             LISTEN(tier::request, vtm::events::apptype, what)
             {
