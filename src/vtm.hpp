@@ -1816,7 +1816,7 @@ namespace netxs::app::vtm
             if (gear.args_ptr)
             {
                 auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                items.foreach(gear, [&](auto window_ptr)
+                items.foreach(gear, [&](auto& window_ptr)
                 {
                     auto zorder = arg == 0 ? zpos::plain
                                 : arg == 1 ? zpos::topmost
@@ -1828,7 +1828,7 @@ namespace netxs::app::vtm
         }
         void close_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1839,7 +1839,7 @@ namespace netxs::app::vtm
         }
         void minimize_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1854,7 +1854,7 @@ namespace netxs::app::vtm
         }
         void maximize_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1869,7 +1869,7 @@ namespace netxs::app::vtm
         }
         void fullscreen_first_focused_window(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1887,7 +1887,7 @@ namespace netxs::app::vtm
         {
             auto warp = gear.get_args_or(dent{});
             auto focused_window_list = std::vector<sptr>{};
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 focused_window_list.push_back(window_ptr);
                 gear.set_handled();
