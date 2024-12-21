@@ -399,7 +399,6 @@ Action                         | Arguments (`data=`)                            
 `MaximizeWindow`               |                                                        | Desktop             | Maximize window.
 `FullscreenWindow`             |                                                        | Desktop             | Maximize window to full screen.
 `WarpWindow`                   | _`IntL, IntR, IntT, IntB`_                             | Desktop             | Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides.
-`TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
 `ExclusiveKeyboardMode`        | `on` \| `off`                                          | Application         | Toggle exclusive keyboard mode.
 `TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
 `TerminalFindPrev`             |                                                        | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
@@ -903,16 +902,16 @@ Notes
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
         </tui>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>      <!-- Switch focus to the previous desktop window. -->
-            <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>      <!-- Switch focus to the next desktop window. -->
-            <key="Shift+F7"       action=Disconnect/>                        <!-- Disconnect from the desktop. -->
-            <key="F10" preview    action=TryToQuit/>                         <!-- Shut down the desktop server if no applications are running. -->
-            <key="Alt+Shift+N">  <action=RunScript data="vtm.run()"/></key>  <!-- Run default application. -->
-            <key=""               action=AlwaysOnTopWindow/>                 <!-- Toggle AlwaysOnTop window flag. -->
-            <key=""               action=CloseWindow/>                       <!-- Close window. -->
-            <key=""               action=MinimizeWindow/>                    <!-- Minimize window. -->
-            <key="Esc+F11"        action=MaximizeWindow/>                    <!-- Maximize window. -->
-            <key="Esc+F12"        action=FullscreenWindow/>                  <!-- Maximize window to full screen. -->
+            <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>              <!-- Switch focus to the previous desktop window. -->
+            <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>              <!-- Switch focus to the next desktop window. -->
+            <key="Shift+F7"       action=Disconnect/>                                <!-- Disconnect from the desktop. -->
+            <key="F10" preview>  <action=RunScript data="vtm.shutdown(try)"/></key>  <!-- Shut down the desktop server if no applications are running. -->
+            <key="Alt+Shift+N">  <action=RunScript data="vtm.run()"/></key>          <!-- Run default application. -->
+            <key=""               action=AlwaysOnTopWindow/>                         <!-- Toggle AlwaysOnTop window flag. -->
+            <key=""               action=CloseWindow/>                               <!-- Close window. -->
+            <key=""               action=MinimizeWindow/>                            <!-- Minimize window. -->
+            <key="Esc+F11"        action=MaximizeWindow/>                            <!-- Maximize window. -->
+            <key="Esc+F12"        action=FullscreenWindow/>                          <!-- Maximize window to full screen. -->
             <key="Esc+F1">       <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
 
             <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->

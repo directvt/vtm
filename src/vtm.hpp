@@ -755,7 +755,6 @@ namespace netxs::app::vtm
             //todo local=>nexthop
             local = faux;
             keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
-            keybd.proc("TryToQuit",       [&](hids& gear){ try_quit(gear); });
             keybd.proc("FocusNextWindow",   [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::nextwindow , gear); });
             keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
             keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
@@ -910,17 +909,6 @@ namespace netxs::app::vtm
                 gear.slot.size = current_viewport.size * 3 / 4;
                 gear.slot_forced = faux;
                 world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
-            }
-        }
-        void try_quit(hids& gear)
-        {
-            auto window_ptr = e2::form::layout::go::item.param();
-            this->base::riseup(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
-            if (!window_ptr)
-            {
-                this->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::gate, "Server shutdown"));
-                this->bell::expire(tier::preview);
-                gear.set_handled();
             }
         }
         void disconnect(hids& gear)
@@ -1763,8 +1751,16 @@ namespace netxs::app::vtm
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
-        auto vtm_shutdown(eccc& /*script*/, qiew /*args*/)
+        auto vtm_shutdown(eccc& /*script*/, qiew args)
         {
+            if (args) // Shut down if there are no windows.
+            {
+                auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
+                if (window_ptr)
+                {
+                    return "aborted"s;
+                }
+            }
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
         }

@@ -73,7 +73,7 @@ Script Command                           | Description
 `vtm.del([<item_id>])`                   | Delete the taskbar menu item by `<id>`.<br>Delete all menu items if no `<id>` specified.
 `vtm.dtvt(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.
 `vtm.selected(<item_id>)`                | Set selected menu item using specified `<id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
-`vtm.shutdown()`                         | Terminate the running desktop session.
+`vtm.shutdown([try])`                    | Terminate the running desktop session. If `try` is specified, the server will only shut down if there are no running windows.
 
 ### Character escaping
 
