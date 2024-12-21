@@ -1712,7 +1712,7 @@ namespace netxs::ui
                     seed.digest = ++digest;
                     for (auto& [gear_id, chain] : gears)
                     {
-                        chain.next.remove_if([&](auto& next) // Drop all downlinks (toward inside) from the boss.
+                        chain.next.remove_if([&, gear_id = gear_id](auto& next) // Drop all downlinks (toward inside) from the boss. //todo Apple clang can't capture gear_id by ref.
                         {
                             auto match = next.next_wptr.lock() == seed.item;
                             if (match && gear_id && next.status == state::live)
