@@ -244,7 +244,7 @@ namespace netxs::app::tile
                                 boss.remove(applet_ptr);
                                 applet.moveto(dot_00);
                                 world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
-                                pro::focus::set(applet_ptr, gear_id_list, solo::off, true); // Refocus.
+                                pro::focus::set(applet_ptr, gear.id, solo::on, true);
                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 if (auto new_parent_ptr = applet.parent())
                                 {
@@ -510,7 +510,8 @@ namespace netxs::app::tile
                         if (boss.count() == 1) // Only empty pane/slot available.
                         {
                             highlight(boss, faux);
-                            pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
+                            // Solo focus will be set in pro::d_n_d::proceed.
+                            //pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
                             auto app = app_window(what);
                             boss.attach(app);
                             app->bell::signal(tier::anycast, e2::form::upon::started);

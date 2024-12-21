@@ -122,7 +122,7 @@ namespace netxs::app::vtm
             void follow(vtm::link& new_what, dent pads = {})
             {
                 what = new_what;
-                auto gear_id_list = pro::focus::cut(what.applet, true);
+                auto gear_id_list = pro::focus::cut(what.applet);
                 auto window_ptr = new_what.applet;
                 saved = nexthop;
                 nexthop = new_what.applet;
@@ -640,7 +640,7 @@ namespace netxs::app::vtm
             fp2d coord;
             wptr cover;
 
-            void proceed(bool keep)
+            void proceed(bool keep, hids& gear)
             {
                 drags = faux;
                 boss.bell::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
@@ -656,7 +656,7 @@ namespace netxs::app::vtm
                             auto gear_id_list = pro::focus::cut(what.applet);
                             what.applet->base::detach();
                             dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
-                            pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
+                            pro::focus::set(what.applet, gear.id, solo::on, true); // Set unique focus.
                             boss.base::detach(); // The object kills itself.
                         }
                     }
@@ -686,21 +686,21 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         coord = gear.coord - gear.delta.get();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
-                    else                         proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
+                    else                         proceed(true, gear);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
-                    else                         proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
+                    else                         proceed(true, gear);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
@@ -781,18 +781,20 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::request, hids::events::focus::cut, gear_id_list, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
+            LISTEN(tier::request, hids::events::focus::cut, seed, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
                 if (align.what.applet)
                 {
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
                     for (auto& [ext_gear_id, gear_ptr] : input.gears)
                     {
                         if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
                         {
                             if (auto gear_id = gear_ptr->id)
                             {
-                                gear_id_list.push_back(gear_id);
-                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
+                                seed.gear_id = gear_id;
+                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -1814,7 +1816,7 @@ namespace netxs::app::vtm
             if (gear.args_ptr)
             {
                 auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                items.foreach(gear, [&](auto window_ptr)
+                items.foreach(gear, [&](auto& window_ptr)
                 {
                     auto zorder = arg == 0 ? zpos::plain
                                 : arg == 1 ? zpos::topmost
@@ -1826,7 +1828,7 @@ namespace netxs::app::vtm
         }
         void close_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1837,7 +1839,7 @@ namespace netxs::app::vtm
         }
         void minimize_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1852,7 +1854,7 @@ namespace netxs::app::vtm
         }
         void maximize_focused_windows(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1867,7 +1869,7 @@ namespace netxs::app::vtm
         }
         void fullscreen_first_focused_window(hids& gear)
         {
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                 {
@@ -1885,7 +1887,7 @@ namespace netxs::app::vtm
         {
             auto warp = gear.get_args_or(dent{});
             auto focused_window_list = std::vector<sptr>{};
-            items.foreach(gear, [&](auto window_ptr)
+            items.foreach(gear, [&](auto& window_ptr)
             {
                 focused_window_list.push_back(window_ptr);
                 gear.set_handled();
@@ -1993,11 +1995,12 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
-                auto gear_id_list = pro::focus::cut(what.applet);
-                what.applet->base::detach();
+                auto window_ptr = what.applet;
+                auto gear_id_list = pro::focus::cut(window_ptr);
+                window_ptr->base::detach();
                 auto& cfg = dbase.menu[what.menuid];
-                branch(what.menuid, what.applet, !cfg.hidden);
-                pro::focus::set(what.applet, gear_id_list, solo::on, true);
+                branch(what.menuid, window_ptr, !cfg.hidden);
+                pro::focus::set(window_ptr, gear_id_list, solo::on, true);
             };
             LISTEN(tier::request, vtm::events::apptype, what)
             {
@@ -2172,7 +2175,7 @@ namespace netxs::app::vtm
                     gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
-            //todo mimic pro::focus
+            //todo mimic pro::focus (hall has no parent)
             LISTEN(tier::preview, hids::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
             {
                 if (seed.gear_id)
