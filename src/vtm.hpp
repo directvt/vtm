@@ -640,7 +640,7 @@ namespace netxs::app::vtm
             fp2d coord;
             wptr cover;
 
-            void proceed(bool keep)
+            void proceed(bool keep, hids& gear)
             {
                 drags = faux;
                 boss.bell::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
@@ -656,7 +656,7 @@ namespace netxs::app::vtm
                             auto gear_id_list = pro::focus::cut(what.applet);
                             what.applet->base::detach();
                             dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
-                            pro::focus::set(what.applet, gear_id_list, solo::off, true); // Re set focus.
+                            pro::focus::set(what.applet, gear.id, solo::on, true); // Set unique focus.
                             boss.base::detach(); // The object kills itself.
                         }
                     }
@@ -686,21 +686,21 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         coord = gear.coord - gear.delta.get();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
-                    else                         proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
+                    else                         proceed(true, gear);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
-                    if (gear.meta(hids::anyMod)) proceed(faux);
-                    else                         proceed(true);
+                    if (gear.meta(hids::anyMod)) proceed(faux, gear);
+                    else                         proceed(true, gear);
                     gear.setfree();
                 };
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
