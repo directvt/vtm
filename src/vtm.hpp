@@ -754,7 +754,6 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("Disconnect",      [&](hids& gear){ disconnect(gear); });
             keybd.proc("FocusNextWindow",   [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::nextwindow , gear); });
             keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
             keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
@@ -910,12 +909,6 @@ namespace netxs::app::vtm
                 gear.slot_forced = faux;
                 world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
             }
-        }
-        void disconnect(hids& gear)
-        {
-            gear.owner.bell::signal(tier::preview, e2::conio::quit);
-            this->bell::expire(tier::preview);
-            gear.set_handled();
         }
         void move_viewport(twod newpos, rect viewport)
         {
@@ -1351,18 +1344,18 @@ namespace netxs::app::vtm
                                     auto viewport = gear.owner.base::area();
                                     auto window = e2::form::layout::go::prev.param();
                                     auto hidden = true;
-                                    auto gearid = id_t{};
+                                    auto gear_id = id_t{};
                                     do
                                     {
                                         parent->bell::signal(tier::request, e2::form::layout::go::prev, window);
                                         if (window)
                                         {
-                                            window->bell::signal(tier::request, e2::form::state::maximized, gearid);
+                                            window->bell::signal(tier::request, e2::form::state::maximized, gear_id);
                                             hidden = window->hidden;
                                         }
                                         else hidden = true;
                                     }
-                                    while (window != This && ((gearid && gearid != gear.owner.id) || (hidden == true || !viewport.hittest(window->center()))));
+                                    while (window != This && ((gear_id && gear_id != gear.owner.id) || (hidden == true || !viewport.hittest(window->center()))));
                                     if (window != This)
                                     {
                                         pro::focus::set(window, gear.id, solo::on);
@@ -1696,11 +1689,11 @@ namespace netxs::app::vtm
             auto appspec = desk::spec{ .hidden  = true,
                                        .winform = shared::win::state::normal,
                                        .type    = app::vtty::id,
-                                       .gearid  = script.hid };
+                                       .gear_id = script.hid };
             utf::trim(args);
             if (!args) // Get default app spec.
             {
-                if (auto gear_ptr = bell::getref<hids>(appspec.gearid))
+                if (auto gear_ptr = bell::getref<hids>(script.hid))
                 {
                     auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
                     appspec = dbase.menu[menuid];
@@ -1739,9 +1732,9 @@ namespace netxs::app::vtm
         }
         auto vtm_dtvt(eccc& script, qiew args)
         {
-            auto appspec = desk::spec{ .hidden = true,
-                                       .type   = app::dtvt::id,
-                                       .gearid = script.hid };
+            auto appspec = desk::spec{ .hidden  = true,
+                                       .type    = app::dtvt::id,
+                                       .gear_id = script.hid };
             appspec.appcfg.env = script.env;
             appspec.appcfg.cwd = script.cwd;
             appspec.appcfg.cmd = args;
@@ -1763,6 +1756,16 @@ namespace netxs::app::vtm
             }
             bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
             return "ok"s;
+        }
+        auto vtm_disconnect(eccc& script, qiew /*args*/)
+        {
+            if (auto gear_ptr = bell::getref<hids>(script.hid))
+            {
+                gear_ptr->owner.bell::signal(tier::preview, e2::conio::quit);
+                gear_ptr->set_handled();
+                return "ok"s;
+            }
+            return "aborted"s;
         }
 
         void next_window(hids& gear)
@@ -2079,7 +2082,7 @@ namespace netxs::app::vtm
             {
                 static auto offset = dot_00;
                 auto gear_ptr = netxs::sptr<hids>{};
-                if (appspec.gearid == id_t{})
+                if (appspec.gear_id == id_t{})
                 {
                     //todo revise
                     if (hall::focus) // Take last active keybard.
@@ -2087,7 +2090,7 @@ namespace netxs::app::vtm
                         gear_ptr = bell::getref<hids>(hall::focus);
                         if (gear_ptr)
                         {
-                            appspec.gearid = hall::focus;
+                            appspec.gear_id = hall::focus;
                         }
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
@@ -2100,7 +2103,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                else gear_ptr = bell::getref<hids>(appspec.gearid);
+                else gear_ptr = bell::getref<hids>(appspec.gear_id);
 
                 auto menu_id = appspec.menuid;
                 auto wincoor = appspec.wincoor;
@@ -2222,14 +2225,15 @@ namespace netxs::app::vtm
             {
                 static auto fx = std::unordered_map<text, text(hall::*)(eccc&, qiew), qiew::hash, qiew::equal>
                 {
-                    { "vtm.selected" , &hall::vtm_selected },
-                    { "vtm.set"      , &hall::vtm_set      },
-                    { "vtm.del"      , &hall::vtm_del      },
-                    { "vtm.run"      , &hall::vtm_run      },
-                    { "vtm.dtvt"     , &hall::vtm_dtvt     },
-                    { "vtm.exit"     , &hall::vtm_shutdown },
-                    { "vtm.close"    , &hall::vtm_shutdown },
-                    { "vtm.shutdown" , &hall::vtm_shutdown },
+                    { "vtm.selected"  , &hall::vtm_selected   },
+                    { "vtm.set"       , &hall::vtm_set        },
+                    { "vtm.del"       , &hall::vtm_del        },
+                    { "vtm.run"       , &hall::vtm_run        },
+                    { "vtm.dtvt"      , &hall::vtm_dtvt       },
+                    { "vtm.disconnect", &hall::vtm_disconnect },
+                    { "vtm.exit"      , &hall::vtm_shutdown   },
+                    { "vtm.close"     , &hall::vtm_shutdown   },
+                    { "vtm.shutdown"  , &hall::vtm_shutdown   },
                 };
                 static auto delims = "\r\n\t ;.,\"\'"sv;
                 static auto expression = [](auto& shadow)

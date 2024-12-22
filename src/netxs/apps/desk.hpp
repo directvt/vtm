@@ -27,7 +27,7 @@ namespace netxs::app::desk
         text     type{};
         bool   folded{};
         bool notfound{};
-        id_t   gearid{};
+        id_t  gear_id{};
     };
 
     using menu = std::unordered_map<text, spec>;
@@ -438,7 +438,7 @@ namespace netxs::app::desk
                     auto infospec = spec{ .hidden = true, .label = label, .title = title, .type = appid };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (infospec))
                     {
-                        infospec.gearid = gear.id;
+                        infospec.gear_id = gear.id;
                         gear.owner.base::riseup(tier::request, desk::events::exec, infospec);
                         gear.dismiss(true);
                     };

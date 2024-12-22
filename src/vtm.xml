@@ -451,7 +451,7 @@ R"==(
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp">  <action=FocusNextWindow data=0/></key>              <!-- Switch focus to the previous desktop window. -->
             <key="Ctrl+PageDown"><action=FocusNextWindow data=1/></key>              <!-- Switch focus to the next desktop window. -->
-            <key="Shift+F7"       action=Disconnect/>                                <!-- Disconnect from the desktop. -->
+            <key="Shift+F7">     <action=RunScript data="vtm.disconnect()"/></key>   <!-- Disconnect from the desktop. -->
             <key="F10" preview>  <action=RunScript data="vtm.shutdown(try)"/></key>  <!-- Shut down the desktop server if no applications are running. -->
             <key="Alt+Shift+N">  <action=RunScript data="vtm.run()"/></key>          <!-- Run default application. -->
             <key=""               action=AlwaysOnTopWindow/>                         <!-- Toggle AlwaysOnTop window flag. -->
