@@ -1748,7 +1748,7 @@ namespace netxs::app::vtm
             }
             return "aborted"s;
         }
-        auto vtm_nextwindow(eccc& script, qiew args)
+        auto vtm_nextwindow(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1796,7 +1796,7 @@ namespace netxs::app::vtm
                 gear.set_handled();
             });
         }
-        auto vtm_alwaysontop(eccc& script, qiew args)
+        auto vtm_alwaysontop(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1811,7 +1811,7 @@ namespace netxs::app::vtm
                 gear.set_handled();
             });
         }
-        auto vtm_warp(eccc& script, qiew args)
+        auto vtm_warp(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1834,7 +1834,7 @@ namespace netxs::app::vtm
                 }
             });
         }
-        auto vtm_close(eccc& script, qiew args)
+        auto vtm_close(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1848,7 +1848,7 @@ namespace netxs::app::vtm
                 });
             });
         }
-        auto vtm_minimize(eccc& script, qiew args)
+        auto vtm_minimize(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1866,7 +1866,7 @@ namespace netxs::app::vtm
                 });
             });
         }
-        auto vtm_maximize(eccc& script, qiew args)
+        auto vtm_maximize(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
@@ -1884,7 +1884,7 @@ namespace netxs::app::vtm
                 });
             });
         }
-        auto vtm_fullscreen(eccc& script, qiew args)
+        auto vtm_fullscreen(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
