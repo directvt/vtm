@@ -149,7 +149,7 @@ namespace netxs::app::vtm
                     if (new_area.coor != boss.base::coor()) unbind();
                     else what.applet->base::resize(new_area.size + pads);
                 };
-                boss.LISTEN(tier::preview, e2::form::proceed::action::nextwindow, gear, memo)
+                boss.LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
                 {
                     unbind();
                     boss.bell::expire(tier::preview);
@@ -754,14 +754,7 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("FocusNextWindow",   [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::nextwindow , gear); });
-            keybd.proc("RunScript",         [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript  , gear); });
-            keybd.proc("AlwaysOnTopWindow", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::alwaysontop, gear); });
-            keybd.proc("WarpWindow",        [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::warp       , gear); });
-            keybd.proc("CloseWindow",       [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::close      , gear); });
-            keybd.proc("MinimizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::minimize   , gear); });
-            keybd.proc("MaximizeWindow",    [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::maximize   , gear); });
-            keybd.proc("FullscreenWindow",  [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::fullscreen , gear); });
+            keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -1689,11 +1682,11 @@ namespace netxs::app::vtm
             auto appspec = desk::spec{ .hidden  = true,
                                        .winform = shared::win::state::normal,
                                        .type    = app::vtty::id,
-                                       .gear_id = script.hid };
+                                       .gear_id = script.gear_id };
             utf::trim(args);
             if (!args) // Get default app spec.
             {
-                if (auto gear_ptr = bell::getref<hids>(script.hid))
+                if (auto gear_ptr = bell::getref<hids>(script.gear_id))
                 {
                     auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
                     appspec = dbase.menu[menuid];
@@ -1734,7 +1727,7 @@ namespace netxs::app::vtm
         {
             auto appspec = desk::spec{ .hidden  = true,
                                        .type    = app::dtvt::id,
-                                       .gear_id = script.hid };
+                                       .gear_id = script.gear_id };
             appspec.appcfg.env = script.env;
             appspec.appcfg.cwd = script.cwd;
             appspec.appcfg.cmd = args;
@@ -1743,6 +1736,172 @@ namespace netxs::app::vtm
             appspec.tooltip = args;
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
+        }
+        auto run_with_gear(id_t gear_id, auto function)
+        {
+            if (auto gear_ptr = bell::getref<hids>(gear_id))
+            {
+                auto& gear = *gear_ptr;
+                function(gear);
+                gear.set_handled();
+                return "ok"s;
+            }
+            return "aborted"s;
+        }
+        auto vtm_nextwindow(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                auto go_forward = gear.get_args_or(true);
+                if (gear.shared_event) // Give another process a chance to handle this event.
+                {
+                    auto gear_id = gear.id;
+                    go_forward ? bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                               : bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                    if (!gear_id) return;
+                }
+                gear.owner.bell::signal(tier::preview, e2::form::proceed::action::restore, gear);
+
+                auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
+                if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+
+                auto current = window_ptr; 
+                auto maximized = faux;
+                auto owner_id = id_t{};
+                do
+                {
+                    window_ptr.reset();
+                    owner_id = id_t{};
+                    if (go_forward) bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                    else            bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                    if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                    maximized = owner_id == gear.owner.id;
+                    if (!owner_id || maximized) break;
+                }
+                while (window_ptr != current); // Skip all foreign maximized windows.
+
+                if (window_ptr && (!owner_id || maximized))
+                {
+                    auto& window = *window_ptr;
+                    window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                    if (!maximized)
+                    {
+                        gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
+                    }
+                    bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                    {
+                        pro::focus::set(window.This(), gear_id, solo::on);
+                    });
+                }
+                gear.set_handled();
+            });
+        }
+        auto vtm_alwaysontop(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                auto arg = !gear.args_ptr || gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    auto zorder = arg == 0 ? zpos::plain
+                                : arg == 1 ? zpos::topmost
+                                : window_ptr->bell::signal(tier::request, e2::form::prop::zorder) != zpos::topmost ? zpos::topmost : zpos::plain;
+                    window_ptr->bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                });
+                gear.set_handled();
+            });
+        }
+        auto vtm_warp(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                auto warp = gear.get_args_or(dent{});
+                auto focused_window_list = std::vector<sptr>{};
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    focused_window_list.push_back(window_ptr);
+                    gear.set_handled();
+                });
+                if (focused_window_list.size())
+                {
+                    bell::enqueue(this->This(), [warp, focused_window_list](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                    {
+                        for (auto w : focused_window_list)
+                        {
+                            w->bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                        }
+                    });
+                }
+            });
+        }
+        auto vtm_close(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
+                    {
+                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                    });
+                    gear.set_handled();
+                });
+            });
+        }
+        auto vtm_minimize(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                    {
+                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                        }
+                    });
+                    gear.set_handled();
+                });
+            });
+        }
+        auto vtm_maximize(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                    {
+                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        }
+                    });
+                    gear.set_handled();
+                });
+            });
+        }
+        auto vtm_fullscreen(eccc& script, qiew args)
+        {
+            return run_with_gear(script.gear_id, [&](hids& gear)
+            {
+                items.foreach(gear, [&](auto& window_ptr)
+                {
+                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+                    {
+                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                        }
+                    });
+                    gear.set_handled();
+                    window_ptr.reset(); // Break iterating.
+                });
+            });
         }
         auto vtm_shutdown(eccc& /*script*/, qiew args)
         {
@@ -1759,59 +1918,12 @@ namespace netxs::app::vtm
         }
         auto vtm_disconnect(eccc& script, qiew /*args*/)
         {
-            if (auto gear_ptr = bell::getref<hids>(script.hid))
+            return run_with_gear(script.gear_id, [&](hids& gear)
             {
-                gear_ptr->owner.bell::signal(tier::preview, e2::conio::quit);
-                gear_ptr->set_handled();
-                return "ok"s;
-            }
-            return "aborted"s;
+                gear.owner.bell::signal(tier::preview, e2::conio::quit);
+            });
         }
 
-        void next_window(hids& gear)
-        {
-            auto go_forward = gear.get_args_or(true);
-            if (gear.shared_event) // Give another process a chance to handle this event.
-            {
-                auto gear_id = gear.id;
-                go_forward ? bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
-                           : bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
-                if (!gear_id) return;
-            }
-
-            auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
-            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
-
-            auto current = window_ptr; 
-            auto maximized = faux;
-            auto owner_id = id_t{};
-            do
-            {
-                window_ptr.reset();
-                owner_id = id_t{};
-                if (go_forward) bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                else            bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
-                maximized = owner_id == gear.owner.id;
-                if (!owner_id || maximized) break;
-            }
-            while (window_ptr != current); // Skip all foreign maximized windows.
-
-            if (window_ptr && (!owner_id || maximized))
-            {
-                auto& window = *window_ptr;
-                window.bell::signal(tier::release, e2::form::layout::selected, gear);
-                if (!maximized)
-                {
-                    gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
-                }
-                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
-                {
-                    pro::focus::set(window.This(), gear_id, solo::on);
-                });
-            }
-            gear.set_handled();
-        }
         void run_script(hids& gear)
         {
             if (gear.args_ptr)
@@ -1821,102 +1933,10 @@ namespace netxs::app::vtm
                 {
                     bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
                     {
-                        boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .hid = gear_id });
+                        boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .gear_id = gear_id });
                     });
                 }
                 gear.set_handled();
-            }
-        }
-        void always_on_top_focused_windows(hids& gear)
-        {
-            if (gear.args_ptr)
-            {
-                auto arg = gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    auto zorder = arg == 0 ? zpos::plain
-                                : arg == 1 ? zpos::topmost
-                                : window_ptr->bell::signal(tier::request, e2::form::prop::zorder) != zpos::topmost ? zpos::topmost : zpos::plain;
-                    window_ptr->bell::signal(tier::preview, e2::form::prop::zorder, zorder);
-                });
-                gear.set_handled();
-            }
-        }
-        void close_focused_windows(hids& gear)
-        {
-            items.foreach(gear, [&](auto& window_ptr)
-            {
-                bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
-                {
-                    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                });
-                gear.set_handled();
-            });
-        }
-        void minimize_focused_windows(hids& gear)
-        {
-            items.foreach(gear, [&](auto& window_ptr)
-            {
-                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                {
-                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        boss.bell::signal(tier::release, e2::form::size::minimize, gear);
-                    }
-                });
-                gear.set_handled();
-            });
-        }
-        void maximize_focused_windows(hids& gear)
-        {
-            items.foreach(gear, [&](auto& window_ptr)
-            {
-                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                {
-                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    }
-                });
-                gear.set_handled();
-            });
-        }
-        void fullscreen_first_focused_window(hids& gear)
-        {
-            items.foreach(gear, [&](auto& window_ptr)
-            {
-                bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                {
-                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                    }
-                });
-                gear.set_handled();
-                window_ptr.reset(); // Break iterating.
-            });
-        }
-        void warp_focused_windows(hids& gear)
-        {
-            auto warp = gear.get_args_or(dent{});
-            auto focused_window_list = std::vector<sptr>{};
-            items.foreach(gear, [&](auto& window_ptr)
-            {
-                focused_window_list.push_back(window_ptr);
-                gear.set_handled();
-            });
-            if (focused_window_list.size())
-            {
-                bell::enqueue(this->This(), [warp, focused_window_list](auto& /*boss*/) // Keep the focus tree intact while processing key events.
-                {
-                    for (auto w : focused_window_list)
-                    {
-                        w->bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                    }
-                });
             }
         }
 
@@ -2234,6 +2254,14 @@ namespace netxs::app::vtm
                     { "vtm.exit"      , &hall::vtm_shutdown   },
                     { "vtm.close"     , &hall::vtm_shutdown   },
                     { "vtm.shutdown"  , &hall::vtm_shutdown   },
+                    
+                    { "vtm.window.next"       , &hall::vtm_nextwindow  },
+                    { "vtm.window.alwaysontop", &hall::vtm_alwaysontop },
+                    { "vtm.window.warp"       , &hall::vtm_warp        },
+                    { "vtm.window.close"      , &hall::vtm_close       },
+                    { "vtm.window.minimize"   , &hall::vtm_minimize    },
+                    { "vtm.window.maximize"   , &hall::vtm_maximize    },
+                    { "vtm.window.fullscreen" , &hall::vtm_fullscreen  },
                 };
                 static auto delims = "\r\n\t ;.,\"\'"sv;
                 static auto expression = [](auto& shadow)
@@ -2305,37 +2333,9 @@ namespace netxs::app::vtm
                 }
             };
 
-            LISTEN(tier::preview, e2::form::proceed::action::nextwindow, gear)
-            {
-                next_window(gear);
-            };
             LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
             {
                 run_script(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::alwaysontop, gear)
-            {
-                always_on_top_focused_windows(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::warp       , gear)
-            {
-                warp_focused_windows(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::close      , gear)
-            {
-                close_focused_windows(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::minimize   , gear)
-            {
-                minimize_focused_windows(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::maximize   , gear)
-            {
-                maximize_focused_windows(gear);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::fullscreen , gear)
-            {
-                fullscreen_first_focused_window(gear);
             };
         }
 

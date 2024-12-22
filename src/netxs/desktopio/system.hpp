@@ -89,7 +89,7 @@ namespace netxs
         text cmd{}; // eccc: Command line to run.
         text cfg{}; // eccc: Configuration patch.
         twod win{}; // eccc: Console window size.
-        id_t hid{}; // eccc: Gear id.
+        id_t gear_id{}; // eccc: Gear id.
     };
 }
 namespace netxs::os

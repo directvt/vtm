@@ -316,14 +316,8 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( action )
                     {
-                        EVENT_XS( runscript  , input::hids ),
-                        EVENT_XS( alwaysontop, input::hids ),
-                        EVENT_XS( warp       , input::hids ),
-                        EVENT_XS( close      , input::hids ),
-                        EVENT_XS( minimize   , input::hids ),
-                        EVENT_XS( maximize   , input::hids ),
-                        EVENT_XS( fullscreen , input::hids ),
-                        EVENT_XS( nextwindow , input::hids ),
+                        EVENT_XS( runscript, input::hids ),
+                        EVENT_XS( restore  , input::hids ),
                     };
                 };
                 SUBSET_XS( cursor )

@@ -601,7 +601,7 @@ namespace netxs::app::desk
                     parent.LISTEN(tier::release, hids::events::focus::set::any, seed, *oneshot, (oneshot, usrcfg))
                     {
                         usrcfg.win = {};
-                        usrcfg.hid = seed.gear_id;
+                        usrcfg.gear_id = seed.gear_id;
                         boss.base::riseup(tier::release, scripting::events::invoke, usrcfg);
                         oneshot->reset();
                     };
