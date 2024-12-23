@@ -122,15 +122,18 @@ R"==(<!-- Ordered list of paths to settings files. -->
         </selection>
 )=="
 R"==(
+        <Noop                  ="vtm.noop()"/>                    <!-- No op action. -->
         <Disconnect            ="vtm.disconnect()"/>              <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm.shutdown(try)"/>             <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.run()"/>                     <!-- Run default application. -->
         <RunInfoPage           ="vtm.run(title='Info-page' hidden=true label=Info type=info)"/>  <!-- Run Info-page. -->
 
-        <FocusPrevWindow       ="vtm.window.next(-1)"/>           <!-- Switch focus to the previous desktop window. -->
-        <FocusNextWindow       ="vtm.window.next(1)"/>            <!-- Switch focus to the next desktop window. -->
+        <FocusPrevWindow       ="vtm.window.next(-1)"/>           <!-- Switch focus to the prev desktop window. -->
+        <FocusNextWindow       ="vtm.window.next( 1)"/>           <!-- Switch focus to the next desktop window. -->
         <AlwaysOnTop           ="vtm.window.alwaysontop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="vtm.window.close()"/>            <!-- Close window. -->
+        <WindowClosePreview    ="vtm.window.close.preview()"/>    <!-- Pred window close action. -->
+        <CancelWindowClose     ="vtm.window.close.cancel()"/>     <!-- Clear pred-close window state. -->
         <MinimizeWindow        ="vtm.window.minimize()"/>         <!-- Minimize window. -->
         <MaximizeWindow        ="vtm.window.maximize()"/>         <!-- Maximize window. -->
         <FullscreenWindow      ="vtm.window.fullscreen()"/>       <!-- Maximize window to full screen. -->
@@ -150,9 +153,9 @@ R"==(
         <DecreaseWindowHeight  ="vtm.window.warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
 
         <TileFocusPrev         ="vtm.tile.focus.next(-1)"/>      <!-- Focus the previous pane or the split grip. -->
-        <TileFocusNext         ="vtm.tile.focus.next(1)"/>       <!-- Focus the next pane or the split grip. -->
+        <TileFocusNext         ="vtm.tile.focus.next( 1)"/>      <!-- Focus the next pane or the split grip. -->
         <TileFocusPrevPane     ="vtm.tile.focus.nextpane(-1)"/>  <!-- Focus the previous pane. -->
-        <TileFocusNextPane     ="vtm.tile.focus.nextpane(1)"/>   <!-- Focus the next pane. -->
+        <TileFocusNextPane     ="vtm.tile.focus.nextpane( 1)"/>  <!-- Focus the next pane. -->
         <TileRunApplication    ="vtm.tile.run()"/>               <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
         <TileSelectAllPanes    ="vtm.tile.selectall()"/>         <!-- Select all panes. -->
         <TileSplitHorizontally ="vtm.tile.split(0)"/>            <!-- Split active panes horizontally. -->
@@ -167,22 +170,23 @@ R"==(
         <TileMoveGripUp        ="vtm.tile.grip.move( 0,-1)"/>    <!-- Move the split grip up. -->
         <TileMoveGripDown      ="vtm.tile.grip.move( 0, 1)"/>    <!-- Move the split grip down. -->
         <TileDecreaseGripWidth ="vtm.tile.grip.resize(-1)"/>     <!-- Decrease the split grip width. -->
-        <TileIncreaseGripWidth ="vtm.tile.grip.resize(1)"/>      <!-- Increase the split grip width. -->
+        <TileIncreaseGripWidth ="vtm.tile.grip.resize( 1)"/>     <!-- Increase the split grip width. -->
         <TileFocusPrevGrip     ="vtm.tile.grip.focusnext(-1)"/>  <!-- Focus the previous split grip. -->
-        <TileFocusNextGrip     ="vtm.tile.grip.focusnext(1)"/>   <!-- Focus the next split grip. -->
+        <TileFocusNextGrip     ="vtm.tile.grip.focusnext( 1)"/>  <!-- Focus the next split grip. -->
 
-        <IncreaseCellHeight    ="vtm.gui.cell.grow(1)"/>                            <!-- Increase the text cell height by one pixel. -->
+        <IncreaseCellHeight    ="vtm.gui.cell.grow( 1)"/>                           <!-- Increase the text cell height by one pixel. -->
         <DecreaseCellHeight    ="vtm.gui.cell.grow(-1)"/>                           <!-- Decrease the text cell height by one pixel. -->
+        <ResetWheelAccumulator ="vtm.gui.wheel.reset()"/>                           <!-- Reset wheel accumulator. -->
         <ResetCellHeight       ="vtm.dropifrepeat(); vtm.gui.cell.reset()"/>        <!-- Reset text cell height. -->
         <ToggleFullscreenMode  ="vtm.dropifrepeat(); vtm.gui.fullscreen()"/>        <!-- Toggle fullscreen mode. -->
         <ToggleAntialiasingMode="vtm.dropifrepeat(); vtm.gui.antialiasingmode()"/>  <!-- Toggle text antialiasing mode. -->
         <RollFontsBackward     ="vtm.dropifrepeat(); vtm.gui.fonts.roll(-1)"/>      <!-- Roll font list backward. -->
-        <RollFontsForward      ="vtm.dropifrepeat(); vtm.gui.fonts.roll(1)"/>       <!-- Roll font list forward. -->
+        <RollFontsForward      ="vtm.dropifrepeat(); vtm.gui.fonts.roll( 1)"/>      <!-- Roll font list forward. -->
 
         <ToggleDebugOverlay    ="vtm.tui.debugoverlay()"/>  <!-- Toggle debug overlay. -->
 
         <ExclusiveKeyboardMode             ="vtm.terminal.exclusivekeybd()"/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-        <TerminalFindNext                  ="vtm.terminal.findnext(1)"/>                   <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindNext                  ="vtm.terminal.findnext( 1)"/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalFindPrev                  ="vtm.terminal.findnext(-1)"/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalScrollViewportOnePageUp   ="vtm.terminal.viewport.scrollbypage(0, 1)"/>   <!-- Scroll viewport one page up. -->
         <TerminalScrollViewportOnePageDown ="vtm.terminal.viewport.scrollbypage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
@@ -215,6 +219,15 @@ R"==(
         <TerminalStdioLog                  ="vtm.terminal.logging()"/>                     <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.restart()"/>                     <!-- Terminate runnning console apps and restart current session. -->
         <TerminalQuit                      ="vtm.terminal.quit()"/>                        <!-- Terminate runnning console apps and close terminal. -->
+
+        <ScrollPageUp      ="vtm.defapp.scrollbypage( 0, 1)"/>  <!--  -->
+        <ScrollPageDown    ="vtm.defapp.scrollbypage( 0,-1)"/>  <!--  -->
+        <ScrollLineUp      ="vtm.defapp.scrollbystep( 0, 3)"/>  <!--  -->
+        <ScrollLineDown    ="vtm.defapp.scrollbystep( 0,-3)"/>  <!--  -->
+        <ScrollCharLeft    ="vtm.defapp.scrollbystep( 3, 0)"/>  <!--  -->
+        <ScrollCharRight   ="vtm.defapp.scrollbystep(-3, 0)"/>  <!--  -->
+        <ScrollTop         ="vtm.defapp.scrolltotop()"/>  <!--  -->
+        <ScrollEnd         ="vtm.defapp.scrolltoend()"/>  <!--  -->
 )=="
 R"==(
     </set>
@@ -526,6 +539,7 @@ R"==(
             <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>
             <key="Ctrl+Shift+F11"     action=RollFontsBackward/>
             <key="Ctrl+Shift+F12"     action=RollFontsForward/>
+            <key="-Ctrl" preview      action=ResetWheelAccumulator/>
         </gui>
         <tui key*>  <!-- TUI matrix layer key bindings. -->
             <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>

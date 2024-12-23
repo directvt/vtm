@@ -1125,7 +1125,8 @@ namespace netxs::ui
               yield{ faux },
               fullscreen{ faux }
         {
-            keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            //todo scripting
+            //keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
             auto bindings = pro::keybd::load(config, "tui");
             keybd.bind(bindings);
 

@@ -754,7 +754,8 @@ namespace netxs::app::vtm
         {
             //todo local=>nexthop
             local = faux;
-            keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
+            //todo scripting
+            //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -888,7 +889,8 @@ namespace netxs::app::vtm
         void create_app(hids& gear)
         {
             static auto offset = dot_00; // static: Share initial offset between all instances.
-            auto inst_id = gear.get_args_or(qiew{});
+            //todo scripting
+            auto inst_id = qiew{};//gear.get_args_or(qiew{});
             if (auto world_ptr = nexthop.lock())
             {
                 if (inst_id)
@@ -1752,7 +1754,8 @@ namespace netxs::app::vtm
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
-                auto go_forward = gear.get_args_or(true);
+                //todo scripting
+                auto go_forward = true;//gear.get_args_or(true);
                 if (gear.shared_event) // Give another process a chance to handle this event.
                 {
                     auto gear_id = gear.id;
@@ -1800,7 +1803,8 @@ namespace netxs::app::vtm
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
-                auto arg = !gear.args_ptr || gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
+                //todo scripting
+                auto arg = -1;//!gear.args_ptr || gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
                 items.foreach(gear, [&](auto& window_ptr)
                 {
                     auto zorder = arg == 0 ? zpos::plain
@@ -1815,7 +1819,8 @@ namespace netxs::app::vtm
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
             {
-                auto warp = gear.get_args_or(dent{});
+                //todo scripting
+                auto warp = dent{};// gear.get_args_or(dent{});
                 auto focused_window_list = std::vector<sptr>{};
                 items.foreach(gear, [&](auto& window_ptr)
                 {
@@ -1924,20 +1929,21 @@ namespace netxs::app::vtm
             });
         }
 
-        void run_script(hids& gear)
+        void run_script(hids& /*gear*/)
         {
-            if (gear.args_ptr)
-            {
-                auto& args = *gear.args_ptr;
-                for (auto cmd : args)
-                {
-                    bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                    {
-                        boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .gear_id = gear_id });
-                    });
-                }
-                gear.set_handled();
-            }
+            //todo scripting
+            //if (gear.args_ptr)
+            //{
+            //    auto& args = *gear.args_ptr;
+            //    for (auto cmd : args)
+            //    {
+            //        bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+            //        {
+            //            boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .gear_id = gear_id });
+            //        });
+            //    }
+            //    gear.set_handled();
+            //}
         }
 
     public:

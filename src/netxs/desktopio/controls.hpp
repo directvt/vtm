@@ -2030,14 +2030,10 @@ namespace netxs::ui
         class keybd
             : public skill
         {
-            using func = std::function<void(hids&)>;
-            using wptr = netxs::wptr<func>;
-            using sptr = netxs::sptr<func>;
             using skill::boss,
                   skill::memo;
 
-            std::unordered_map<text, std::pair<std::list<std::pair<wptr, netxs::sptr<txts>>>, bool>, qiew::hash, qiew::equal> handlers;
-            std::unordered_map<text, sptr, qiew::hash, qiew::equal> api_map;
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<action>>, preview>>.
             bool interrupt_key_proc;
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;
@@ -2079,35 +2075,24 @@ namespace netxs::ui
                 }
                 return _get_chord_list();
             }
-            auto _proceed(hids& gear, auto iter)
-            {
-                auto& [procs, run_preview] = iter->second;
-                std::erase_if(procs, [&](auto& rec)
-                {
-                    auto& [proc_wptr, args_ptr] = rec;
-                    auto proc_ptr = proc_wptr.lock();
-                    if (proc_ptr)
-                    {
-                        if (!interrupt_key_proc)
-                        {
-                            auto temp = std::exchange(gear.args_ptr, args_ptr);
-                            (*proc_ptr)(gear);
-                            gear.args_ptr = temp;
-                        }
-                    }
-                    return !proc_ptr;
-                });
-                if (procs.empty()) handlers.erase(iter);
-            }
             void _dispatch(hids& gear, bool preview_mode, qiew chord)
             {
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
-                    auto& [procs, run_preview] = iter->second;
+                    auto& [actions, run_preview] = iter->second;
                     if (!preview_mode || run_preview)
                     {
-                        _proceed(gear, iter);
+                        for (auto& action_ptr : actions)
+                        {
+                            if (!interrupt_key_proc)
+                            {
+                                auto temp = std::exchange(gear.action_ptr, action_ptr);
+                                log("run script: ", *gear.action_ptr);
+                                boss.base::riseup(tier::release, e2::runscript, gear);
+                                gear.action_ptr = temp;
+                            }
+                        }
                     }
                     else
                     {
@@ -2159,8 +2144,9 @@ namespace netxs::ui
                         if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
                     }
                 };
-                proc("Noop",           [&](hids& gear){ gear.set_handled(); interrupt_key_proc = true; });
-                proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
+                //todo scripting
+                //proc("Noop",           [&](hids& gear){ gear.set_handled(); interrupt_key_proc = true; });
+                //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
             }
 
             auto filter(hids& gear)
@@ -2172,34 +2158,24 @@ namespace netxs::ui
                     if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
                 }
             }
-            void proc(qiew name, func proc)
-            {
-                //api_map[name] = ptr::shared(std::move(proc));
-                api_map[name] = ptr::shared(proc);
-            }
-            auto bind(qiew chord_str, auto&& proc_names, bool preview = faux)
+            auto bind(qiew chord_str, auto&& actions, bool preview = faux)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
                 {
                     auto& chords = chord_list.value();
-                    auto set = [&](qiew proc_name, auto args_ptr)
+                    auto set = [&](netxs::sptr<text> action_ptr)
                     {
-                        if (proc_name)
+                        if (action_ptr && action_ptr->size())
                         {
-                            if (auto iter = api_map.find(proc_name); iter != api_map.end())
+                            for (auto& chord : chords)
                             {
-                                auto handler_ptr = iter->second;
-                                for (auto& chord : chords)
-                                {
-                                    auto& r = handlers[chord];
-                                    r.first.emplace_back(handler_ptr, args_ptr);
-                                    r.second = preview;
-                                }
+                                auto& r = handlers[chord];
+                                r.first.emplace_back(action_ptr);
+                                r.second = preview;
                             }
-                            else log("%%Action '%proc%' not found", prompt::user, proc_name);
                         }
-                        else
+                        else // Reset all bindings for chords.
                         {
                             for (auto& chord : chords)
                             {
@@ -2207,17 +2183,16 @@ namespace netxs::ui
                             }
                         }
                     };
-                    if constexpr (std::is_same_v<char, std::decay_t<decltype(proc_names[0])>>) // The case it is a plain string.
+                    if constexpr (std::is_same_v<char, std::decay_t<decltype(actions[0])>>) // The case it is a plain string.
                     {
-                        auto args_ptr = ptr::shared(txts{});
-                        set(proc_names, args_ptr);
+                        auto action_ptr = ptr::shared(text{ actions });
+                        set(action_ptr);
                     }
                     else
                     {
-                        for (auto& proc_name : proc_names)
+                        for (auto& action_ptr : actions)
                         {
-                            auto args_ptr = ptr::shared(proc_name.args);
-                            set(proc_name.action, args_ptr);
+                            set(action_ptr);
                         }
                     }
                 }
@@ -2243,18 +2218,11 @@ namespace netxs::ui
                         auto action_ptr_list = keybind_ptr->list("action");
                         bindings.push_back({ .chord = chord, .preview = preview });
                         auto& rec = bindings.back();
-                        //if constexpr (debugmode) log("chord=%% preview=%%", chord, preview);
+                        if constexpr (debugmode) log("chord=%% preview=%%", chord, (si32)preview);
                         for (auto action_ptr : action_ptr_list)
                         {
-                            rec.actions.push_back({ .action = config.expand(action_ptr) });
-                            auto& action = rec.actions.back();
-                            //if constexpr (debugmode) log("  action=", action.action);
-                            auto arg_ptr_list = action_ptr->list("data");
-                            for (auto arg_ptr : arg_ptr_list)
-                            {
-                                action.args.push_back(config.expand(arg_ptr));
-                                //if constexpr (debugmode) log("    data=", action.args.back());
-                            }
+                            rec.actions.push_back(ptr::shared(config.expand(action_ptr)));
+                            if constexpr (debugmode) log("  action=", *rec.actions.back());
                         }
                     }
                 }

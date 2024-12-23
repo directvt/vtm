@@ -711,14 +711,9 @@ namespace netxs::input
 
         struct keybind_t
         {
-            struct action_t
-            {
-                text action;
-                txts args;
-            };
             text chord;
             bool preview{};
-            std::vector<action_t> actions;
+            std::vector<netxs::sptr<text>> actions;
         };
         using keybind_list_t = std::vector<keybind_t>;
 
@@ -1504,22 +1499,7 @@ namespace netxs::input
         bool slot_forced = faux; // .
 
         //todo unify
-        netxs::sptr<txts> args_ptr; // args passed by pro::keybd.
-        template<class T>
-        auto get_args_or(T fallback = {})
-        {
-            if (args_ptr && args_ptr->size())
-            {
-                return xml::take_or<T>(args_ptr->front(), fallback);
-            }
-            else
-            {
-                return fallback;
-            }
-        }
-        auto get_args_or(text fallback) { return args_ptr && args_ptr->size() ? args_ptr->front() : fallback; }
-        auto get_args_or(qiew fallback) { return args_ptr && args_ptr->size() ? qiew{ args_ptr->front() } : fallback; }
-        auto get_args_or(view fallback) { return args_ptr && args_ptr->size() ? view{ args_ptr->front() } : fallback; }
+        netxs::sptr<text> action_ptr; // An action script body passed by pro::keybd.
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.

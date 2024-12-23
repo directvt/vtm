@@ -1995,16 +1995,15 @@ namespace netxs::gui
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client }
         {
-            wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
-            wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
-            wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
-            wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
-            wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
-            wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
-            wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
-            wkeybd.proc("_ResetWheelAccumulator", [&](hids& /*gear*/){ whlacc = {}; });
-            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
-            wkeybd.bind("-Ctrl", "_ResetWheelAccumulator", true);
+            //todo scripting
+            //wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
+            //wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
+            //wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
+            //wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
+            //wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
+            //wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
+            //wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
+            //wkeybd.proc("ResetWheelAccumulator" , [&](hids& /*gear*/){ whlacc = {}; });
             wkeybd.bind(hotkeys);
         }
 
