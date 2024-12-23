@@ -472,7 +472,7 @@ namespace netxs::app::shared
                 {
                     item.views.push_back(
                     {
-                        .label = label->take_value(),
+                        .label = config.expand(label),
                         .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
                         .data = label->take(menu::attr::data, defs.data),
                     });
@@ -741,7 +741,7 @@ namespace netxs::app::shared
         for (auto& f : recs)
         {
             //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(f->take_value());
+            gui_config.fontlist.push_back(config.expand(f));
         }
         gui_config.hotkeys = ui::pro::keybd::load(config, "gui");
         return gui_config;

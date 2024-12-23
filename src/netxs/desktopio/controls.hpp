@@ -2238,7 +2238,7 @@ namespace netxs::ui
                     auto keybinds = config.list(path);
                     for (auto keybind_ptr : keybinds)
                     {
-                        auto chord = keybind_ptr->take_value();
+                        auto chord = config.expand(keybind_ptr);
                         auto preview = keybind_ptr->take("preview", faux);
                         auto action_ptr_list = keybind_ptr->list("action");
                         bindings.push_back({ .chord = chord, .preview = preview });
@@ -2246,13 +2246,13 @@ namespace netxs::ui
                         //if constexpr (debugmode) log("chord=%% preview=%%", chord, preview);
                         for (auto action_ptr : action_ptr_list)
                         {
-                            rec.actions.push_back({ .action = action_ptr->take_value() });
+                            rec.actions.push_back({ .action = config.expand(action_ptr) });
                             auto& action = rec.actions.back();
                             //if constexpr (debugmode) log("  action=", action.action);
                             auto arg_ptr_list = action_ptr->list("data");
                             for (auto arg_ptr : arg_ptr_list)
                             {
-                                action.args.push_back(arg_ptr->take_value());
+                                action.args.push_back(config.expand(arg_ptr));
                                 //if constexpr (debugmode) log("    data=", action.args.back());
                             }
                         }
