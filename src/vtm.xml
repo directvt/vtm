@@ -122,112 +122,125 @@ R"==(<!-- Ordered list of paths to settings files. -->
         </selection>
 )=="
 R"==(
-        <Noop                  ="vtm.noop()"/>                    <!-- No op action. -->
-        <Disconnect            ="vtm.disconnect()"/>              <!-- Disconnect from the desktop. -->
-        <TryToQuit             ="vtm.shutdown(try)"/>             <!-- Shut down the desktop server if no applications are running. -->
-        <RunApplication        ="vtm.run()"/>                     <!-- Run default application. -->
-        <RunInfoPage           ="vtm.run(title='Info-page' hidden=true label=Info type=info)"/>  <!-- Run Info-page. -->
+        <!-- Scripting context:
+                - $vtm: ...
+                    - $session: ...
+                        - $window: ...
+                            - $tile: ...
+                                - $grip: ...
+                            - $terminal: ...
+                                - $viewport: ...
+                                - $clipboard: ...
+                                - $selection: ...
+                                - $currentline: ...
+                                - $readline: ...
+                                - $scrollback: ...  -->
+        <Noop                  ="$vtm.Noop()"/>                    <!-- No op action. -->
+        <Disconnect            ="$session.Disconnect()"/>          <!-- Disconnect from the desktop. -->
+        <TryToQuit             ="$vtm.Shutdown(try)"/>             <!-- Shut down the desktop server if no applications are running. -->
+        <RunApplication        ="$vtm.Run()"/>                     <!-- Run default application. -->
+        <RunInfoPage           ="$vtm.Run(title='Info-page' hidden=true label=Info type=info)"/>  <!-- Run Info-page. -->
 
-        <FocusPrevWindow       ="vtm.window.next(-1)"/>           <!-- Switch focus to the prev desktop window. -->
-        <FocusNextWindow       ="vtm.window.next( 1)"/>           <!-- Switch focus to the next desktop window. -->
-        <AlwaysOnTop           ="vtm.window.alwaysontop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
-        <CloseWindow           ="vtm.window.close()"/>            <!-- Close window. -->
-        <WindowClosePreview    ="vtm.window.close.preview()"/>    <!-- Pred window close action. -->
-        <CancelWindowClose     ="vtm.window.close.cancel()"/>     <!-- Clear pred-close window state. -->
-        <MinimizeWindow        ="vtm.window.minimize()"/>         <!-- Minimize window. -->
-        <MaximizeWindow        ="vtm.window.maximize()"/>         <!-- Maximize window. -->
-        <FullscreenWindow      ="vtm.window.fullscreen()"/>       <!-- Maximize window to full screen. -->
-        <IncreaseWindowSize    ="vtm.window.warp( 1, 1, 1, 1)"/>  <!-- Increase window size. vtm.window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-        <DecreaseWindowSize    ="vtm.window.warp(-1,-1,-1,-1)"/>  <!-- Reduce window size. -->
-        <MoveWindowLeft        ="vtm.window.warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. -->
-        <MoveWindowRight       ="vtm.window.warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
-        <MoveWindowUp          ="vtm.window.warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
-        <MoveWindowDown        ="vtm.window.warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
-        <MoveWindowTopLeft     ="vtm.window.warp( 2,-2, 1,-1)"/>  <!-- Move window to the top-left. -->
-        <MoveWindowBottomLeft  ="vtm.window.warp( 2,-2,-1, 1)"/>  <!-- Move window to the bottom-left. -->
-        <MoveWindowTopRight    ="vtm.window.warp(-2, 2, 1,-1)"/>  <!-- Move window to the top-right. -->
-        <MoveWindowBottomRight ="vtm.window.warp(-2, 2,-1, 1)"/>  <!-- Move window to the bottom-right. -->
-        <IncreaseWindowWidth   ="vtm.window.warp( 0, 1, 0, 0)"/>  <!-- Increase window width. -->
-        <DecreaseWindowWidth   ="vtm.window.warp( 0,-1, 0, 0)"/>  <!-- Decrease window width. -->
-        <IncreaseWindowHeight  ="vtm.window.warp( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
-        <DecreaseWindowHeight  ="vtm.window.warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
+        <FocusPrevWindow       ="$window.Next(-1)"/>           <!-- Switch focus to the prev desktop window. -->
+        <FocusNextWindow       ="$window.Next( 1)"/>           <!-- Switch focus to the next desktop window. -->
+        <AlwaysOnTop           ="$window.AlwaysOnTop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
+        <CloseWindow           ="$window.Close()"/>            <!-- Close window. -->
+        <WindowClosePreview    ="$window.ShowClosePreview()"/> <!-- Pred window close action. -->
+        <CancelWindowClose     ="$window.HideClosePreview()"/> <!-- Clear pred-close window state. -->
+        <MinimizeWindow        ="$window.Minimize()"/>         <!-- Minimize window. -->
+        <MaximizeWindow        ="$window.Maximize()"/>         <!-- Maximize window. -->
+        <FullscreenWindow      ="$window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
+        <IncreaseWindowSize    ="$window.Warp( 1, 1, 1, 1)"/>  <!-- Increase window size. $window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+        <DecreaseWindowSize    ="$window.Warp(-1,-1,-1,-1)"/>  <!-- Reduce window size. -->
+        <MoveWindowLeft        ="$window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. -->
+        <MoveWindowRight       ="$window.Warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
+        <MoveWindowUp          ="$window.Warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
+        <MoveWindowDown        ="$window.Warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
+        <MoveWindowTopLeft     ="$window.Warp( 2,-2, 1,-1)"/>  <!-- Move window to the top-left. -->
+        <MoveWindowBottomLeft  ="$window.Warp( 2,-2,-1, 1)"/>  <!-- Move window to the bottom-left. -->
+        <MoveWindowTopRight    ="$window.Warp(-2, 2, 1,-1)"/>  <!-- Move window to the top-right. -->
+        <MoveWindowBottomRight ="$window.Warp(-2, 2,-1, 1)"/>  <!-- Move window to the bottom-right. -->
+        <IncreaseWindowWidth   ="$window.Warp( 0, 1, 0, 0)"/>  <!-- Increase window width. -->
+        <DecreaseWindowWidth   ="$window.Warp( 0,-1, 0, 0)"/>  <!-- Decrease window width. -->
+        <IncreaseWindowHeight  ="$window.Warp( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
+        <DecreaseWindowHeight  ="$window.Warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
 
-        <TileFocusPrev         ="vtm.window.tile.focus.next(-1)"/>      <!-- Focus the previous pane or the split grip. -->
-        <TileFocusNext         ="vtm.window.tile.focus.next( 1)"/>      <!-- Focus the next pane or the split grip. -->
-        <TileFocusPrevPane     ="vtm.window.tile.focus.nextpane(-1)"/>  <!-- Focus the previous pane. -->
-        <TileFocusNextPane     ="vtm.window.tile.focus.nextpane( 1)"/>  <!-- Focus the next pane. -->
-        <TileRunApplication    ="vtm.window.tile.run()"/>               <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-        <TileSelectAllPanes    ="vtm.window.tile.selectall()"/>         <!-- Select all panes. -->
-        <TileSplitHorizontally ="vtm.window.tile.split(0)"/>            <!-- Split active panes horizontally. -->
-        <TileSplitVertically   ="vtm.window.tile.split(1)"/>            <!-- Split active panes vertically. -->
-        <TileSplitOrientation  ="vtm.window.tile.rotate()"/>            <!-- Change split orientation. -->
-        <TileSwapPanes         ="vtm.window.tile.swap()"/>              <!-- Swap two or more panes. -->
-        <TileEqualizeSplitRatio="vtm.window.tile.equalize()"/>          <!-- Equalize split ratio. -->
-        <TileSetManagerTitle   ="vtm.window.tile.title()"/>             <!-- Set tiling window manager title using clipboard data. -->
-        <TileClosePane         ="vtm.window.tile.closepane()"/>         <!-- Close active application. -->
-        <TileMoveGripLeft      ="vtm.window.tile.grip.move(-1, 0)"/>    <!-- Move the split grip to the left. -->
-        <TileMoveGripRight     ="vtm.window.tile.grip.move( 1, 0)"/>    <!-- Move the split grip to the right. -->
-        <TileMoveGripUp        ="vtm.window.tile.grip.move( 0,-1)"/>    <!-- Move the split grip up. -->
-        <TileMoveGripDown      ="vtm.window.tile.grip.move( 0, 1)"/>    <!-- Move the split grip down. -->
-        <TileDecreaseGripWidth ="vtm.window.tile.grip.resize(-1)"/>     <!-- Decrease the split grip width. -->
-        <TileIncreaseGripWidth ="vtm.window.tile.grip.resize( 1)"/>     <!-- Increase the split grip width. -->
-        <TileFocusPrevGrip     ="vtm.window.tile.grip.focusnext(-1)"/>  <!-- Focus the previous split grip. -->
-        <TileFocusNextGrip     ="vtm.window.tile.grip.focusnext( 1)"/>  <!-- Focus the next split grip. -->
+        <TileFocusPrev         ="$tile.FocusNext(-1)"/>      <!-- Focus the previous pane or the split grip. -->
+        <TileFocusNext         ="$tile.FocusNext( 1)"/>      <!-- Focus the next pane or the split grip. -->
+        <TileFocusPrevPane     ="$tile.FocusNextPane(-1)"/>  <!-- Focus the previous pane. -->
+        <TileFocusNextPane     ="$tile.FocusNextPane( 1)"/>  <!-- Focus the next pane. -->
+        <TileRunApplication    ="$tile.Run()"/>              <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+        <TileSelectAllPanes    ="$tile.SelectAllPanes()"/>   <!-- Select all panes. -->
+        <TileSplitHorizontally ="$tile.Split(0)"/>           <!-- Split active panes horizontally. -->
+        <TileSplitVertically   ="$tile.Split(1)"/>           <!-- Split active panes vertically. -->
+        <TileSplitOrientation  ="$tile.Rotate()"/>           <!-- Change split orientation. -->
+        <TileSwapPanes         ="$tile.Swap()"/>             <!-- Swap two or more panes. -->
+        <TileEqualizeSplitRatio="$tile.Equalize()"/>         <!-- Equalize split ratio. -->
+        <TileSetManagerTitle   ="$tile.Title()"/>            <!-- Set tiling window manager title using clipboard data. -->
+        <TileClosePane         ="$tile.ClosePane()"/>        <!-- Close active application. -->
+        <TileMoveGripLeft      ="$grip.Move(-1, 0)"/>        <!-- Move the split grip to the left. -->
+        <TileMoveGripRight     ="$grip.Move( 1, 0)"/>        <!-- Move the split grip to the right. -->
+        <TileMoveGripUp        ="$grip.Move( 0,-1)"/>        <!-- Move the split grip up. -->
+        <TileMoveGripDown      ="$grip.Move( 0, 1)"/>        <!-- Move the split grip down. -->
+        <TileDecreaseGripWidth ="$grip.Resize(-1)"/>         <!-- Decrease the split grip width. -->
+        <TileIncreaseGripWidth ="$grip.Resize( 1)"/>         <!-- Increase the split grip width. -->
+        <TileFocusPrevGrip     ="$grip.FocusNext(-1)"/>      <!-- Focus the previous split grip. -->
+        <TileFocusNextGrip     ="$grip.FocusNext( 1)"/>      <!-- Focus the next split grip. -->
 
-        <IncreaseCellHeight    ="vtm.gui.cell.grow( 1)"/>                           <!-- Increase the text cell height by one pixel. -->
-        <DecreaseCellHeight    ="vtm.gui.cell.grow(-1)"/>                           <!-- Decrease the text cell height by one pixel. -->
-        <ResetWheelAccumulator ="vtm.gui.wheel.reset()"/>                           <!-- Reset wheel accumulator. -->
-        <ResetCellHeight       ="vtm.dropifrepeat(); vtm.gui.cell.reset()"/>        <!-- Reset text cell height. -->
-        <ToggleFullscreenMode  ="vtm.dropifrepeat(); vtm.gui.fullscreen()"/>        <!-- Toggle fullscreen mode. -->
-        <ToggleAntialiasingMode="vtm.dropifrepeat(); vtm.gui.antialiasingmode()"/>  <!-- Toggle text antialiasing mode. -->
-        <RollFontsBackward     ="vtm.dropifrepeat(); vtm.gui.fonts.roll(-1)"/>      <!-- Roll font list backward. -->
-        <RollFontsForward      ="vtm.dropifrepeat(); vtm.gui.fonts.roll( 1)"/>      <!-- Roll font list forward. -->
+        <IncreaseCellHeight    ="$vtm.gui_IncreasecCellHeight( 1)"/>                  <!-- Increase the text cell height by one pixel. -->
+        <DecreaseCellHeight    ="$vtm.gui_IncreasecCellHeight(-1)"/>                  <!-- Decrease the text cell height by one pixel. -->
+        <ResetWheelAccumulator ="$vtm.gui_WheelAccumReset()"/>                        <!-- Reset wheel accumulator. -->
+        <ResetCellHeight       ="$vtm.dropifrepeat(); $vtm.gui_CellHeightReset()"/>   <!-- Reset text cell height. -->
+        <ToggleFullscreenMode  ="$vtm.dropifrepeat(); $vtm.gui_Fullscreen()"/>        <!-- Toggle fullscreen mode. -->
+        <ToggleAntialiasingMode="$vtm.dropifrepeat(); $vtm.gui_AntialiasingMode()"/>  <!-- Toggle text antialiasing mode. -->
+        <RollFontsBackward     ="$vtm.dropifrepeat(); $vtm.gui_RollFonts(-1)"/>       <!-- Roll font list backward. -->
+        <RollFontsForward      ="$vtm.dropifrepeat(); $vtm.gui_RollFonts( 1)"/>       <!-- Roll font list forward. -->
 
-        <ToggleDebugOverlay    ="vtm.tui.debugoverlay()"/>  <!-- Toggle debug overlay. -->
+        <ToggleDebugOverlay    ="$vtm.tui_DebugOverlay()"/>  <!-- Toggle debug overlay. -->
 
-        <ExclusiveKeyboardMode             ="vtm.window.terminal.exclusivekeybd()"/>              <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-        <TerminalFindNext                  ="vtm.window.terminal.findnext( 1)"/>                  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalFindPrev                  ="vtm.window.terminal.findnext(-1)"/>                  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalScrollViewportOnePageUp   ="vtm.window.terminal.viewport.scrollbypage(0, 1)"/>   <!-- Scroll viewport one page up. -->
-        <TerminalScrollViewportOnePageDown ="vtm.window.terminal.viewport.scrollbypage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
-        <TerminalScrollViewportOnePageLeft ="vtm.window.terminal.viewport.scrollbypage( 1, 0)"/>  <!-- Scroll viewport one page to the left. -->
-        <TerminalScrollViewportOnePageRight="vtm.window.terminal.viewport.scrollbypage(-1, 0)"/>  <!-- Scroll viewport one page to the right. -->
-        <TerminalScrollViewportOneLineUp   ="vtm.window.terminal.viewport.scrollbycell( 0, 1)"/>  <!-- Scroll viewport one line up. -->
-        <TerminalScrollViewportOneLineDown ="vtm.window.terminal.viewport.scrollbycell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
-        <TerminalScrollViewportOneCellLeft ="vtm.window.terminal.viewport.scrollbycell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
-        <TerminalScrollViewportOneCellRight="vtm.window.terminal.viewport.scrollbycell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
-        <TerminalScrollViewportToTop       ="vtm.dropifrepeat(); vtm.window.terminal.viewport.scrolltotop()"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalScrollViewportToEnd       ="vtm.dropifrepeat(); vtm.window.terminal.viewport.scrolltoend()"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalSendKey                   ="vtm.window.terminal.sendkey('test\r')"/>             <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="vtm.window.terminal.print('Hello!')"/>               <!-- Direct output the string to the terminal scrollback. -->
-        <TerminalViewportCopy              ="vtm.window.terminal.viewport.copy()"/>               <!-- Сopy viewport to clipboard. -->
-        <TerminalClipboardCopy             ="vtm.window.terminal.selection.copy()"/>              <!-- Сopy selection to clipboard. -->
-        <TerminalClipboardPaste            ="vtm.window.terminal.paste()"/>                       <!-- Paste from clipboard. -->
-        <TerminalClipboardWipe             ="vtm.window.terminal.clipboard.clear()"/>             <!-- Reset clipboard. -->
-        <TerminalClipboardFormat           ="vtm.window.terminal.clipboard.format()"/>            <!-- Toggle terminal text selection copy format. -->
-        <TerminalSelectionRect             ="vtm.window.terminal.selection.form()"/>              <!-- Toggle between linear and rectangular selection form. -->
-        <TerminalSelectionCancel           ="vtm.window.terminal.selection.clear()"/>             <!-- Deselect a selection. -->
-        <TerminalSelectionOneShot          ="vtm.window.terminal.selection.oneshot()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-        <TerminalUndo                      ="vtm.window.terminal.cookedread.undo()"/>             <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-        <TerminalRedo                      ="vtm.window.terminal.cookedread.redo()"/>             <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-        <TerminalCwdSync                   ="vtm.window.terminal.cwdsync()"/>                     <!-- Toggle the current working directory sync mode. -->
-        <TerminalWrapMode                  ="vtm.window.terminal.line.wrapping()"/>               <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-        <TerminalAlignMode                 ="vtm.window.terminal.line.aligning()"/>               <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalFullscreen                ="vtm.window.fullscreen()"/>                    <!-- Toggle fullscreen mode. -->
-        <TerminalMaximize                  ="vtm.window.maximize()"/>                      <!-- Toggle between maximized and normal window size. -->
-        <TerminalMinimize                  ="vtm.window.minimize()"/>                      <!-- Minimize window. -->
-        <TerminalStdioLog                  ="vtm.window.terminal.logging()"/>                     <!-- Toggle stdin/stdout logging. -->
-        <TerminalRestart                   ="vtm.window.terminal.restart()"/>                     <!-- Terminate runnning console apps and restart current session. -->
-        <TerminalQuit                      ="vtm.window.terminal.quit()"/>                        <!-- Terminate runnning console apps and close terminal. -->
+        <ExclusiveKeyboardMode             ="$terminal.ExclusiveKeyboardMode()"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+        <TerminalFindNext                  ="$terminal.FindNext( 1)"/>             <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindPrev                  ="$terminal.FindNext(-1)"/>             <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalScrollViewportOnePageUp   ="$viewport.ScrollByPage(0, 1)"/>       <!-- Scroll viewport one page up. -->
+        <TerminalScrollViewportOnePageDown ="$viewport.ScrollByPage( 0,-1)"/>      <!-- Scroll viewport one page down. -->
+        <TerminalScrollViewportOnePageLeft ="$viewport.ScrollByPage( 1, 0)"/>      <!-- Scroll viewport one page to the left. -->
+        <TerminalScrollViewportOnePageRight="$viewport.ScrollByPage(-1, 0)"/>      <!-- Scroll viewport one page to the right. -->
+        <TerminalScrollViewportOneLineUp   ="$viewport.ScrollByCell( 0, 1)"/>      <!-- Scroll viewport one line up. -->
+        <TerminalScrollViewportOneLineDown ="$viewport.ScrollByCell( 0,-1)"/>      <!-- Scroll viewport one line down. -->
+        <TerminalScrollViewportOneCellLeft ="$viewport.ScrollByCell( 1, 0)"/>      <!-- Scroll viewport one cell to the left. -->
+        <TerminalScrollViewportOneCellRight="$viewport.ScrollByCell(-1, 0)"/>      <!-- Scroll viewport one cell to the right. -->
+        <TerminalScrollViewportToTop       ="$vtm.DropIfRepeat(); $viewport.ScrollToTop()"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalScrollViewportToEnd       ="$vtm.DropIfRepeat(); $viewport.ScrollToEnd()"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalSendKey                   ="$terminal.SendKey('test\r')"/>        <!-- Simulating keypresses using the specified string. -->
+        <TerminalOutput                    ="$terminal.Print('Hello!')"/>          <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalViewportCopy              ="$viewport.Copy()"/>                   <!-- Сopy viewport to clipboard. -->
+        <TerminalClipboardCopy             ="$selection.Copy()"/>                  <!-- Сopy selection to clipboard. -->
+        <TerminalClipboardPaste            ="$terminal.Paste()"/>                  <!-- Paste from clipboard. -->
+        <TerminalClipboardWipe             ="$clipboard.Clear()"/>                 <!-- Reset clipboard. -->
+        <TerminalClipboardFormat           ="$clipboard.Format()"/>                <!-- Toggle terminal text selection copy format. -->
+        <TerminalSelectionRect             ="$selection.Form()"/>                  <!-- Toggle between linear and rectangular selection form. -->
+        <TerminalSelectionCancel           ="$selection.Clear()"/>                 <!-- Deselect a selection. -->
+        <TerminalSelectionOneShot          ="$selection.OneShot()"/>               <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+        <TerminalUndo                      ="$readline.Undo()"/>                   <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+        <TerminalRedo                      ="$readline.Redo()"/>                   <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+        <TerminalCwdSync                   ="$terminal.CwdSync()"/>                <!-- Toggle the current working directory sync mode. -->
+        <TerminalWrapMode                  ="$currentline.Wrapping()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+        <TerminalAlignMode                 ="$currentline.Aligning()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+        <TerminalFullscreen                ="$window.Fullscreen()"/>               <!-- Toggle fullscreen mode. -->
+        <TerminalMaximize                  ="$window.Maximize()"/>                 <!-- Toggle between maximized and normal window size. -->
+        <TerminalMinimize                  ="$window.Minimize()"/>                 <!-- Minimize window. -->
+        <TerminalStdioLog                  ="$terminal.Logging()"/>                <!-- Toggle stdin/stdout logging. -->
+        <TerminalRestart                   ="$terminal.Restart()"/>                <!-- Terminate runnning console apps and restart current session. -->
+        <TerminalQuit                      ="$terminal.Quit()"/>                   <!-- Terminate runnning console apps and close terminal. -->
 
-        <ScrollPageUp      ="vtm.window.defapp.scrollbypage( 0, 1)"/>  <!--  -->
-        <ScrollPageDown    ="vtm.window.defapp.scrollbypage( 0,-1)"/>  <!--  -->
-        <ScrollLineUp      ="vtm.window.defapp.scrollbystep( 0, 3)"/>  <!--  -->
-        <ScrollLineDown    ="vtm.window.defapp.scrollbystep( 0,-3)"/>  <!--  -->
-        <ScrollCharLeft    ="vtm.window.defapp.scrollbystep( 3, 0)"/>  <!--  -->
-        <ScrollCharRight   ="vtm.window.defapp.scrollbystep(-3, 0)"/>  <!--  -->
-        <ScrollTop         ="vtm.window.defapp.scrolltotop()"/>  <!--  -->
-        <ScrollEnd         ="vtm.window.defapp.scrolltoend()"/>  <!--  -->
+        <ScrollPageUp      ="$viewport.ScrollByPage( 0, 1)"/>  <!--  -->
+        <ScrollPageDown    ="$viewport.ScrollByPage( 0,-1)"/>  <!--  -->
+        <ScrollLineUp      ="$viewport.ScrollByStep( 0, 3)"/>  <!--  -->
+        <ScrollLineDown    ="$viewport.ScrollByStep( 0,-3)"/>  <!--  -->
+        <ScrollCharLeft    ="$viewport.ScrollByStep( 3, 0)"/>  <!--  -->
+        <ScrollCharRight   ="$viewport.ScrollByStep(-3, 0)"/>  <!--  -->
+        <ScrollTop         ="$viewport.ScrollToTop()"/>        <!--  -->
+        <ScrollEnd         ="$viewport.ScrollToEnd()"/>        <!--  -->
 )=="
 R"==(
     </set>
