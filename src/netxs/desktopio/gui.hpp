@@ -1968,7 +1968,7 @@ namespace netxs::gui
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              wkeybd{ *this },
+              wkeybd{ *this, "gui" }, //todo scripting: move processing to ui::host
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },

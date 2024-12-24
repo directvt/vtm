@@ -336,7 +336,7 @@ namespace netxs::app::calc
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
-                  ->plugin<pro::keybd>()
+                  ->plugin<pro::keybd>("defapp")
                   ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()

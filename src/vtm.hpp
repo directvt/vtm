@@ -1270,8 +1270,9 @@ namespace netxs::app::vtm
         id_t focus; // hall: Last active gear id.
         text selected_item; // hall: Override default menu item (if not empty).
         std::unordered_map<id_t, si32> switch_counter; // hall: Focus switch counter.
+        input::key::keybind_list_t window_bindings;
 
-        static auto window(link& what)
+        auto window(link& what)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -1282,9 +1283,34 @@ namespace netxs::app::vtm
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::focus>()
+                ->plugin<pro::keybd>("window")
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
+                    auto& keybd = boss.template plugins<pro::keybd>();
+                    keybd.bind(window_bindings);
+
+                    boss.LISTEN(tier::release, e2::runscript, gear)
+                    {
+                        //todo unify
+                        gear.set_handled();
+                        auto cmd = gear.call_proc;
+                        log("cmd=", cmd);
+                        auto proc_name = utf::take_front(cmd, "(");
+                        log("proc_name=", proc_name);
+                        utf::trim_front(cmd, "(");
+                        auto args = utf::take_front(cmd, ")");
+                        log("args=", args);
+                        if (proc_name.starts_with("Warp"))
+                        {
+                            auto warp = xml::take_or(args, dent{});
+                            boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
+                            {
+                                boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                            });
+                        }
+                    };
+
                     boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
@@ -1951,6 +1977,8 @@ namespace netxs::app::vtm
             : host{ server, config, pro::focus::mode::focusable },
               focus{ id_t{} }
         {
+            window_bindings = pro::keybd::load(host::config, "window");
+
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
             auto& menu_list = dbase.menu;

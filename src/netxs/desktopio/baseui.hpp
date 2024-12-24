@@ -54,7 +54,7 @@ namespace netxs::events::userland
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
-            EVENT_XS( runscript , input::hids    ), // release: Run script activated by gear.
+            EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.

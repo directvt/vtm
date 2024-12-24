@@ -1117,7 +1117,7 @@ namespace netxs::ui
               input{ props, *this },
               debug{*this },
               //focus{*this },
-              keybd{*this },
+              keybd{*this, "gate" },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -1127,7 +1127,7 @@ namespace netxs::ui
         {
             //todo scripting
             //keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            auto bindings = pro::keybd::load(config, "tui");
+            auto bindings = pro::keybd::load(config, "tui"); //todo -> pro::keybd("gate")
             keybd.bind(bindings);
 
             base::root(true);
@@ -1436,6 +1436,8 @@ namespace netxs::ui
         using tick = datetime::quartz<bell, tier::general, e2::timer::tick.id>;
 
         pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
+        //todo scripting: process gui keybd events
+        pro::keybd keybd; // host: Keybd controller.
 
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
@@ -1448,6 +1450,7 @@ namespace netxs::ui
 
         host(xipc server, xmls config, si32 focus_type = pro::focus::mode::hub)
             :  focus{ *this, focus_type, faux },
+               keybd{ *this, "vtm" },
               quartz{ *this },
               config{ config },
               active{ true }
@@ -1496,6 +1499,38 @@ namespace netxs::ui
             maxfps = config.take("/config/timings/fps", 60);
             if (maxfps <= 0) maxfps = 60;
 
+            LISTEN(tier::preview, e2::runscript, gear)
+            {
+                if (!gear.action_ptr) return;
+                if (!gear.scripting_context_ptr) return;
+                //todo scripting
+                auto& script_body = *gear.action_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
+                log("script context:");
+                log("  script body: ", ansi::hi(script_body));
+                for (auto [object_name, object_wptr] : scripting_context)
+                {
+                    if (auto object_ptr = object_wptr.lock())
+                    {
+                        log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
+                    }
+                }
+                //todo unify
+                auto cmd_list = utf::split(script_body, '$');
+                for (auto cmd : cmd_list)
+                {
+                    auto object_name = utf::take_front(cmd, ".");
+                    utf::trim_front(cmd, "."); // Pop ".".
+                    auto iter = scripting_context.find(object_name);
+                    if (iter != scripting_context.end())
+                    if (auto object_ptr = iter->second.lock())
+                    {
+                        gear.call_proc = cmd;
+                        object_ptr->bell::signal(tier::release, e2::runscript, gear);
+                        gear.call_proc = {};
+                    }
+                }
+            };
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
             {
                 world_ptr = base::This();

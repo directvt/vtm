@@ -1499,7 +1499,10 @@ namespace netxs::input
         bool slot_forced = faux; // .
 
         //todo unify
-        netxs::sptr<text> action_ptr; // An action script body passed by pro::keybd.
+        bool interrupt_key_proc{}; // hids: .
+        netxs::sptr<text> action_ptr; // hids: A script body passed by pro::keybd/ui::menu.
+        netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+        qiew call_proc; // hids: .
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.

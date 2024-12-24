@@ -341,7 +341,7 @@ namespace netxs::app::tile
                     ->active()
                     ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                     ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                    ->template plugin<pro::keybd>()
+                    ->template plugin<pro::keybd>("grip")
                     ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
@@ -876,7 +876,7 @@ namespace netxs::app::tile
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
                 ->plugin<pro::focus>()
-                ->plugin<pro::keybd>()
+                ->plugin<pro::keybd>("tile")
                 ->invoke([&](auto& boss)
                 {
                     auto oneoff = ptr::shared(hook{});

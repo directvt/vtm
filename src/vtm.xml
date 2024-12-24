@@ -124,7 +124,7 @@ R"==(<!-- Ordered list of paths to settings files. -->
 R"==(
         <!-- Scripting context:
                 - $vtm: ...
-                    - $session: ...
+                    - $gate: ...
                         - $window: ...
                             - $tile: ...
                                 - $grip: ...
@@ -136,13 +136,13 @@ R"==(
                                 - $readline: ...
                                 - $scrollback: ...  -->
         <Noop                  ="$vtm.Noop()"/>                    <!-- No op action. -->
-        <Disconnect            ="$session.Disconnect()"/>          <!-- Disconnect from the desktop. -->
+        <Disconnect            ="$gate.Disconnect()"/>          <!-- Disconnect from the desktop. -->
         <TryToQuit             ="$vtm.Shutdown(try)"/>             <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="$vtm.Run()"/>                     <!-- Run default application. -->
         <RunInfoPage           ="$vtm.Run(title='Info-page' hidden=true label=Info type=info)"/>  <!-- Run Info-page. -->
+        <FocusPrevWindow       ="$vtm.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
+        <FocusNextWindow       ="$vtm.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
 
-        <FocusPrevWindow       ="$window.Next(-1)"/>           <!-- Switch focus to the prev desktop window. -->
-        <FocusNextWindow       ="$window.Next( 1)"/>           <!-- Switch focus to the next desktop window. -->
         <AlwaysOnTop           ="$window.AlwaysOnTop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="$window.Close()"/>            <!-- Close window. -->
         <WindowClosePreview    ="$window.ShowClosePreview()"/> <!-- Pred window close action. -->
@@ -150,9 +150,7 @@ R"==(
         <MinimizeWindow        ="$window.Minimize()"/>         <!-- Minimize window. -->
         <MaximizeWindow        ="$window.Maximize()"/>         <!-- Maximize window. -->
         <FullscreenWindow      ="$window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
-        <IncreaseWindowSize    ="$window.Warp( 1, 1, 1, 1)"/>  <!-- Increase window size. $window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-        <DecreaseWindowSize    ="$window.Warp(-1,-1,-1,-1)"/>  <!-- Reduce window size. -->
-        <MoveWindowLeft        ="$window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. -->
+        <MoveWindowLeft        ="$window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. --> $window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
         <MoveWindowRight       ="$window.Warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
         <MoveWindowUp          ="$window.Warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
         <MoveWindowDown        ="$window.Warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
@@ -184,8 +182,8 @@ R"==(
         <TileMoveGripDown      ="$grip.Move( 0, 1)"/>        <!-- Move the split grip down. -->
         <TileDecreaseGripWidth ="$grip.Resize(-1)"/>         <!-- Decrease the split grip width. -->
         <TileIncreaseGripWidth ="$grip.Resize( 1)"/>         <!-- Increase the split grip width. -->
-        <TileFocusPrevGrip     ="$grip.FocusNext(-1)"/>      <!-- Focus the previous split grip. -->
-        <TileFocusNextGrip     ="$grip.FocusNext( 1)"/>      <!-- Focus the next split grip. -->
+        <TileFocusPrevGrip     ="$grip.FocusNextGrip(-1)"/>  <!-- Focus the prev split grip. -->
+        <TileFocusNextGrip     ="$grip.FocusNextGrip( 1)"/>  <!-- Focus the next split grip. -->
 
         <IncreaseCellHeight    ="$vtm.gui_IncreasecCellHeight( 1)"/>                  <!-- Increase the text cell height by one pixel. -->
         <DecreaseCellHeight    ="$vtm.gui_IncreasecCellHeight(-1)"/>                  <!-- Decrease the text cell height by one pixel. -->
@@ -199,8 +197,8 @@ R"==(
         <ToggleDebugOverlay    ="$vtm.tui_DebugOverlay()"/>  <!-- Toggle debug overlay. -->
 
         <ExclusiveKeyboardMode             ="$terminal.ExclusiveKeyboardMode()"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-        <TerminalFindNext                  ="$terminal.FindNext( 1)"/>             <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalFindPrev                  ="$terminal.FindNext(-1)"/>             <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindPrev                  ="$terminal.FindNextMatch(-1)"/>        <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindNext                  ="$terminal.FindNextMatch( 1)"/>        <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalScrollViewportOnePageUp   ="$viewport.ScrollByPage(0, 1)"/>       <!-- Scroll viewport one page up. -->
         <TerminalScrollViewportOnePageDown ="$viewport.ScrollByPage( 0,-1)"/>      <!-- Scroll viewport one page down. -->
         <TerminalScrollViewportOnePageLeft ="$viewport.ScrollByPage( 1, 0)"/>      <!-- Scroll viewport one page to the left. -->
@@ -563,14 +561,14 @@ R"==(
             <key="Shift+F7"                                             action=Disconnect/>
             <key="F10" preview                                          action=TryToQuit/>
             <key="Alt+Shift+N"                                          action=RunApplication/>
+            <key="Esc+F1"                                               action=RunInfoPage/>
+        </desktop>
+        <window key*>  <!-- Window layer key bindings. -->
             <key="Esc+T"                                                action=AlwaysOnTop/>
             <key="Esc+W"                                                action=CloseWindow/>
             <key="Esc+M"                                                action=MinimizeWindow/>
             <key="Esc+F11"                                              action=MaximizeWindow/>
             <key="Esc+F12"                                              action=FullscreenWindow/>
-            <key="Esc+F1"                                               action=RunInfoPage/>
-            <key="Esc+'=' | Esc+'+'"                                    action=IncreaseWindowSize/>
-            <key="Esc+'-'"                                              action=DecreaseWindowSize/>
             <key="Esc+LeftArrow"                                        action=MoveWindowLeft/>
             <key="Esc+RightArrow"                                       action=MoveWindowRight/>
             <key="Esc+UpArrow"                                          action=MoveWindowUp/>
@@ -583,7 +581,7 @@ R"==(
             <key="Esc+RightArrow+LeftArrow"                             action=DecreaseWindowWidth/>
             <key="Esc+UpArrow+DownArrow"                                action=IncreaseWindowHeight/>
             <key="Esc+DownArrow+UpArrow"                                action=DecreaseWindowHeight/>
-        </desktop>
+        </window>
         <tile key*>
             <key="Ctrl+PageUp"     action=TileFocusPrev/>
             <key="Ctrl+PageDown"   action=TileFocusNext/>

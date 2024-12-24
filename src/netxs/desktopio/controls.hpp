@@ -2033,10 +2033,11 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
+            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
             std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<action>>, preview>>.
-            bool interrupt_key_proc;
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;
+            text boss_name_str;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -2083,14 +2084,25 @@ namespace netxs::ui
                     auto& [actions, run_preview] = iter->second;
                     if (!preview_mode || run_preview)
                     {
+                        if (!scripting_context_ptr) // Restore scripting context.
+                        {
+                            scripting_context_ptr = ptr::shared<decltype(scripting_context_ptr)::element_type>();
+                            std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                            boss.base::riseup(tier::request, e2::runscript, gear, true);
+                            std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                        }
                         for (auto& action_ptr : actions)
                         {
-                            if (!interrupt_key_proc)
+                            if (!gear.interrupt_key_proc)
                             {
-                                auto temp = std::exchange(gear.action_ptr, action_ptr);
-                                log("run script: ", *gear.action_ptr);
-                                boss.base::riseup(tier::release, e2::runscript, gear);
-                                gear.action_ptr = temp;
+                                auto temp_action_ptr = std::exchange(gear.action_ptr, action_ptr);
+                                auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
+                                if (auto world_ptr = gear.owner.parent())
+                                {
+                                    world_ptr->bell::signal(tier::preview, e2::runscript, gear);
+                                }
+                                gear.action_ptr = temp_action_ptr;
+                                gear.scripting_context_ptr = temp_scripting_context_ptr;
                             }
                         }
                     }
@@ -2103,11 +2115,26 @@ namespace netxs::ui
 
         public:
             keybd(base&&) = delete;
-            keybd(base& boss)
+            keybd(base& boss, text boss_name = {})
                 : skill{ boss },
-                  interrupt_key_proc{ faux },
-                  instance_id{ datetime::now().time_since_epoch().count() }
+                  instance_id{ datetime::now().time_since_epoch().count() },
+                  boss_name_str{ boss_name.empty() ? utf::concat("object"s, boss.id) : boss_name }
             {
+                boss.LISTEN(tier::request, e2::runscript, gear)
+                {
+                    if (gear.scripting_context_ptr)
+                    {
+                        auto& scripting_context = *gear.scripting_context_ptr;
+                        scripting_context[boss_name_str] = boss.This();
+                    }
+                };
+                boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                {
+                    if (count == 0)
+                    {
+                        scripting_context_ptr.reset();
+                    }
+                };
                 boss.LISTEN(tier::general, hids::events::die, gear, memo)
                 {
                     last_key.erase(gear.id);
@@ -2121,7 +2148,7 @@ namespace netxs::ui
                         timecod = gear.timecod;
                         if (gear.payload == input::keybd::type::keypress)
                         {
-                            interrupt_key_proc = faux;
+                            gear.interrupt_key_proc = faux;
                             if (!gear.handled) _dispatch(gear, faux, input::key::kmap::any_key);
                             if (!gear.handled) _dispatch(gear, faux, gear.vkchord);
                             if (!gear.handled) _dispatch(gear, faux, gear.chchord);
@@ -2145,8 +2172,8 @@ namespace netxs::ui
                     }
                 };
                 //todo scripting
-                //proc("Noop",           [&](hids& gear){ gear.set_handled(); interrupt_key_proc = true; });
-                //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); interrupt_key_proc = true; }});
+                //proc("Noop",           [&](hids& gear){ gear.set_handled(); gear.interrupt_key_proc = true; });
+                //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); gear.interrupt_key_proc = true; }});
             }
 
             auto filter(hids& gear)

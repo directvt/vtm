@@ -7798,7 +7798,7 @@ namespace netxs::ui
               cursor{ *this, config.def_cur_on, config.def_cursor, dot_00, config.def_period, config.def_curclr },
               worker{ *this },
               dynamo{ *this },
-              chords{ *this },
+              chords{ *this, "terminal" },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },

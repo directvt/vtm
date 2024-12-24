@@ -235,7 +235,7 @@ namespace netxs::app::shared
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::keybd>()
+                  ->plugin<pro::keybd>("defapp")
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -516,7 +516,7 @@ namespace netxs::app::shared
                 .add(app::shared::repository);
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>()
+                ->plugin<pro::keybd>("defapp")
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
