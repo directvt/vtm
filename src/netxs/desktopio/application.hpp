@@ -110,7 +110,7 @@ namespace netxs::app::shared
             }
         }
     };
-    const auto base_kb_navigation = [](ui::pro::keybd& keybd, netxs::sptr<base> scroll, base& /*boss*/)
+    const auto base_kb_navigation = [](ui::pro::keybd& keybd, netxs::sptr<base> /*scroll*/, base& /*boss*/)
     {
         //todo scripting
         //auto& scroll_inst = *scroll;

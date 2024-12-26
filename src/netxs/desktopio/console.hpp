@@ -4,6 +4,7 @@
 #pragma once
 
 #include "controls.hpp"
+#include "lua.hpp"
 
 namespace netxs::ui
 {

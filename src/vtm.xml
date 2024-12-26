@@ -150,7 +150,7 @@ R"==(
         <MinimizeWindow        ="$window.Minimize()"/>         <!-- Minimize window. -->
         <MaximizeWindow        ="$window.Maximize()"/>         <!-- Maximize window. -->
         <FullscreenWindow      ="$window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
-        <MoveWindowLeft        ="$window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. --> $window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+        <MoveWindowLeft        ="$window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. $window.warp: The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
         <MoveWindowRight       ="$window.Warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
         <MoveWindowUp          ="$window.Warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
         <MoveWindowDown        ="$window.Warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
