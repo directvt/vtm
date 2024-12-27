@@ -123,23 +123,18 @@ R"==(<!-- Ordered list of paths to settings files. -->
 )=="
 R"==(
         <!-- Scripting context:
+                - $gear: ...
                 - $vtm: ...
                     - $gate: ...
                         - $window: ...
                             - $tile: ...
                                 - $grip: ...
-                            - $terminal: ...
-                                - $viewport: ...
-                                - $clipboard: ...
-                                - $selection: ...
-                                - $currentline: ...
-                                - $readline: ...
-                                - $scrollback: ...  -->
-        <Noop                  ="$vtm.Noop()"/>                    <!-- No op action. -->
-        <Disconnect            ="$gate.Disconnect()"/>          <!-- Disconnect from the desktop. -->
-        <TryToQuit             ="$vtm.Shutdown(try)"/>             <!-- Shut down the desktop server if no applications are running. -->
-        <RunApplication        ="$vtm.Run()"/>                     <!-- Run default application. -->
-        <RunInfoPage           ="$vtm.Run(title='Info-page' hidden=true label=Info type=info)"/>  <!-- Run Info-page. -->
+                            - $terminal: ...  -->
+        <Noop                  ="$vtm.Noop()"/>                <!-- No op action. -->
+        <Disconnect            ="$gate.Disconnect()"/>         <!-- Disconnect from the desktop. -->
+        <TryToQuit             ="$vtm.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
+        <RunApplication        ="$vtm.Run()"/>                 <!-- Run default application. -->
+        <RunInfoPage           ="$vtm.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
         <FocusPrevWindow       ="$vtm.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
         <FocusNextWindow       ="$vtm.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
 
@@ -163,82 +158,82 @@ R"==(
         <IncreaseWindowHeight  ="$window.Warp( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
         <DecreaseWindowHeight  ="$window.Warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
 
-        <TileFocusPrev         ="$tile.FocusNext(-1)"/>      <!-- Focus the previous pane or the split grip. -->
-        <TileFocusNext         ="$tile.FocusNext( 1)"/>      <!-- Focus the next pane or the split grip. -->
-        <TileFocusPrevPane     ="$tile.FocusNextPane(-1)"/>  <!-- Focus the previous pane. -->
-        <TileFocusNextPane     ="$tile.FocusNextPane( 1)"/>  <!-- Focus the next pane. -->
-        <TileRunApplication    ="$tile.Run()"/>              <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-        <TileSelectAllPanes    ="$tile.SelectAllPanes()"/>   <!-- Select all panes. -->
-        <TileSplitHorizontally ="$tile.Split(0)"/>           <!-- Split active panes horizontally. -->
-        <TileSplitVertically   ="$tile.Split(1)"/>           <!-- Split active panes vertically. -->
-        <TileSplitOrientation  ="$tile.Rotate()"/>           <!-- Change split orientation. -->
-        <TileSwapPanes         ="$tile.Swap()"/>             <!-- Swap two or more panes. -->
-        <TileEqualizeSplitRatio="$tile.Equalize()"/>         <!-- Equalize split ratio. -->
-        <TileSetManagerTitle   ="$tile.Title()"/>            <!-- Set tiling window manager title using clipboard data. -->
-        <TileClosePane         ="$tile.ClosePane()"/>        <!-- Close active application. -->
-        <TileMoveGripLeft      ="$grip.Move(-1, 0)"/>        <!-- Move the split grip to the left. -->
-        <TileMoveGripRight     ="$grip.Move( 1, 0)"/>        <!-- Move the split grip to the right. -->
-        <TileMoveGripUp        ="$grip.Move( 0,-1)"/>        <!-- Move the split grip up. -->
-        <TileMoveGripDown      ="$grip.Move( 0, 1)"/>        <!-- Move the split grip down. -->
-        <TileDecreaseGripWidth ="$grip.Resize(-1)"/>         <!-- Decrease the split grip width. -->
-        <TileIncreaseGripWidth ="$grip.Resize( 1)"/>         <!-- Increase the split grip width. -->
-        <TileFocusPrevGrip     ="$grip.FocusNextGrip(-1)"/>  <!-- Focus the prev split grip. -->
-        <TileFocusNextGrip     ="$grip.FocusNextGrip( 1)"/>  <!-- Focus the next split grip. -->
+        <TileFocusPrev         ="$tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
+        <TileFocusNext         ="$tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
+        <TileFocusPrevPane     ="$tile.FocusNextPane(-1)"/>        <!-- Focus the previous pane. -->
+        <TileFocusNextPane     ="$tile.FocusNextPane( 1)"/>        <!-- Focus the next pane. -->
+        <TileRunApplication    ="$tile.RunApplication()"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+        <TileSelectAllPanes    ="$tile.SelectAllPanes()"/>         <!-- Select all panes. -->
+        <TileSplitHorizontally ="$tile.SplitPane(0)"/>             <!-- Split active panes horizontally. -->
+        <TileSplitVertically   ="$tile.SplitPane(1)"/>             <!-- Split active panes vertically. -->
+        <TileSplitOrientation  ="$tile.RotateSplit()"/>            <!-- Change split orientation. -->
+        <TileSwapPanes         ="$tile.SwapPanes()"/>              <!-- Swap two or more panes. -->
+        <TileEqualizeSplitRatio="$tile.EqualizeSplitRatio()"/>     <!-- Equalize split ratio. -->
+        <TileSetManagerTitle   ="$tile.SetTitle()"/>               <!-- Set tiling window manager title using clipboard data. -->
+        <TileClosePane         ="$tile.ClosePane()"/>              <!-- Close active application. -->
+        <TileMoveGripLeft      ="$grip.MoveGrip(-1, 0)"/>          <!-- Move the split grip to the left. -->
+        <TileMoveGripRight     ="$grip.MoveGrip( 1, 0)"/>          <!-- Move the split grip to the right. -->
+        <TileMoveGripUp        ="$grip.MoveGrip( 0,-1)"/>          <!-- Move the split grip up. -->
+        <TileMoveGripDown      ="$grip.MoveGrip( 0, 1)"/>          <!-- Move the split grip down. -->
+        <TileDecreaseGripWidth ="$grip.ResizeGrip(-1)"/>           <!-- Decrease the split grip width. -->
+        <TileIncreaseGripWidth ="$grip.ResizeGrip( 1)"/>           <!-- Increase the split grip width. -->
+        <TileFocusPrevGrip     ="$grip.FocusNextGrip(-1)"/>        <!-- Focus the prev split grip. -->
+        <TileFocusNextGrip     ="$grip.FocusNextGrip( 1)"/>        <!-- Focus the next split grip. -->
 
         <IncreaseCellHeight    ="$vtm.gui_IncreasecCellHeight( 1)"/>                  <!-- Increase the text cell height by one pixel. -->
         <DecreaseCellHeight    ="$vtm.gui_IncreasecCellHeight(-1)"/>                  <!-- Decrease the text cell height by one pixel. -->
         <ResetWheelAccumulator ="$vtm.gui_WheelAccumReset()"/>                        <!-- Reset wheel accumulator. -->
-        <ResetCellHeight       ="$vtm.dropifrepeat(); $vtm.gui_CellHeightReset()"/>   <!-- Reset text cell height. -->
-        <ToggleFullscreenMode  ="$vtm.dropifrepeat(); $vtm.gui_Fullscreen()"/>        <!-- Toggle fullscreen mode. -->
-        <ToggleAntialiasingMode="$vtm.dropifrepeat(); $vtm.gui_AntialiasingMode()"/>  <!-- Toggle text antialiasing mode. -->
-        <RollFontsBackward     ="$vtm.dropifrepeat(); $vtm.gui_RollFonts(-1)"/>       <!-- Roll font list backward. -->
-        <RollFontsForward      ="$vtm.dropifrepeat(); $vtm.gui_RollFonts( 1)"/>       <!-- Roll font list forward. -->
+        <ResetCellHeight       ="if (not $gear.repeated) then $vtm.gui_CellHeightReset() end"/>   <!-- Reset text cell height. -->
+        <ToggleFullscreenMode  ="if (not $gear.repeated) then $vtm.gui_Fullscreen() end"/>        <!-- Toggle fullscreen mode. -->
+        <ToggleAntialiasingMode="if (not $gear.repeated) then $vtm.gui_AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
+        <RollFontsBackward     ="if (not $gear.repeated) then $vtm.gui_RollFonts(-1) end"/>       <!-- Roll font list backward. -->
+        <RollFontsForward      ="if (not $gear.repeated) then $vtm.gui_RollFonts( 1) end"/>       <!-- Roll font list forward. -->
 
         <ToggleDebugOverlay    ="$vtm.tui_DebugOverlay()"/>  <!-- Toggle debug overlay. -->
 
-        <ExclusiveKeyboardMode             ="$terminal.ExclusiveKeyboardMode()"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-        <TerminalFindPrev                  ="$terminal.FindNextMatch(-1)"/>        <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalFindNext                  ="$terminal.FindNextMatch( 1)"/>        <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-        <TerminalScrollViewportOnePageUp   ="$viewport.ScrollByPage(0, 1)"/>       <!-- Scroll viewport one page up. -->
-        <TerminalScrollViewportOnePageDown ="$viewport.ScrollByPage( 0,-1)"/>      <!-- Scroll viewport one page down. -->
-        <TerminalScrollViewportOnePageLeft ="$viewport.ScrollByPage( 1, 0)"/>      <!-- Scroll viewport one page to the left. -->
-        <TerminalScrollViewportOnePageRight="$viewport.ScrollByPage(-1, 0)"/>      <!-- Scroll viewport one page to the right. -->
-        <TerminalScrollViewportOneLineUp   ="$viewport.ScrollByCell( 0, 1)"/>      <!-- Scroll viewport one line up. -->
-        <TerminalScrollViewportOneLineDown ="$viewport.ScrollByCell( 0,-1)"/>      <!-- Scroll viewport one line down. -->
-        <TerminalScrollViewportOneCellLeft ="$viewport.ScrollByCell( 1, 0)"/>      <!-- Scroll viewport one cell to the left. -->
-        <TerminalScrollViewportOneCellRight="$viewport.ScrollByCell(-1, 0)"/>      <!-- Scroll viewport one cell to the right. -->
-        <TerminalScrollViewportToTop       ="$vtm.DropIfRepeat(); $viewport.ScrollToTop()"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalScrollViewportToEnd       ="$vtm.DropIfRepeat(); $viewport.ScrollToEnd()"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalSendKey                   ="$terminal.SendKey('test\r')"/>        <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="$terminal.Print('Hello!')"/>          <!-- Direct output the string to the terminal scrollback. -->
-        <TerminalViewportCopy              ="$viewport.Copy()"/>                   <!-- Сopy viewport to clipboard. -->
-        <TerminalClipboardCopy             ="$selection.Copy()"/>                  <!-- Сopy selection to clipboard. -->
-        <TerminalClipboardPaste            ="$terminal.Paste()"/>                  <!-- Paste from clipboard. -->
-        <TerminalClipboardWipe             ="$clipboard.Clear()"/>                 <!-- Reset clipboard. -->
-        <TerminalClipboardFormat           ="$clipboard.Format()"/>                <!-- Toggle terminal text selection copy format. -->
-        <TerminalSelectionRect             ="$selection.Form()"/>                  <!-- Toggle between linear and rectangular selection form. -->
-        <TerminalSelectionCancel           ="$selection.Clear()"/>                 <!-- Deselect a selection. -->
-        <TerminalSelectionOneShot          ="$selection.OneShot()"/>               <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-        <TerminalUndo                      ="$readline.Undo()"/>                   <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-        <TerminalRedo                      ="$readline.Redo()"/>                   <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-        <TerminalCwdSync                   ="$terminal.CwdSync()"/>                <!-- Toggle the current working directory sync mode. -->
-        <TerminalWrapMode                  ="$currentline.Wrapping()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-        <TerminalAlignMode                 ="$currentline.Aligning()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalFullscreen                ="$window.Fullscreen()"/>               <!-- Toggle fullscreen mode. -->
-        <TerminalMaximize                  ="$window.Maximize()"/>                 <!-- Toggle between maximized and normal window size. -->
-        <TerminalMinimize                  ="$window.Minimize()"/>                 <!-- Minimize window. -->
-        <TerminalStdioLog                  ="$terminal.Logging()"/>                <!-- Toggle stdin/stdout logging. -->
-        <TerminalRestart                   ="$terminal.Restart()"/>                <!-- Terminate runnning console apps and restart current session. -->
-        <TerminalQuit                      ="$terminal.Quit()"/>                   <!-- Terminate runnning console apps and close terminal. -->
+        <ExclusiveKeyboardMode             ="$terminal.SetExclusiveKeyboardMode()"/>   <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+        <TerminalFindPrev                  ="$terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindNext                  ="$terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalScrollViewportOnePageUp   ="$terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
+        <TerminalScrollViewportOnePageDown ="$terminal.ScrollViewportByPage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
+        <TerminalScrollViewportOnePageLeft ="$terminal.ScrollViewportByPage( 1, 0)"/>  <!-- Scroll viewport one page to the left. -->
+        <TerminalScrollViewportOnePageRight="$terminal.ScrollViewportByPage(-1, 0)"/>  <!-- Scroll viewport one page to the right. -->
+        <TerminalScrollViewportOneLineUp   ="$terminal.ScrollViewportByCell( 0, 1)"/>  <!-- Scroll viewport one line up. -->
+        <TerminalScrollViewportOneLineDown ="$terminal.ScrollViewportByCell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
+        <TerminalScrollViewportOneCellLeft ="$terminal.ScrollViewportByCell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
+        <TerminalScrollViewportOneCellRight="$terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
+        <TerminalScrollViewportToTop       ="if (not $gear.repeated) then $terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalScrollViewportToEnd       ="if (not $gear.repeated) then $terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalSendKey                   ="$terminal.SendKey('test\r')"/>            <!-- Simulating keypresses using the specified string. -->
+        <TerminalOutput                    ="$terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalCopyViewport              ="$terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
+        <TerminalCopySelection             ="$terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
+        <TerminalClipboardPaste            ="$terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
+        <TerminalClipboardWipe             ="$terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
+        <TerminalClipboardFormat           ="$terminal.SetClipboardFormat()"/>         <!-- Toggle terminal text selection copy format. -->
+        <TerminalSelectionForm             ="$terminal.SetSelectionForm()"/>           <!-- Toggle between linear and rectangular selection form. -->
+        <TerminalSelectionCancel           ="$terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
+        <TerminalSelectionOneShot          ="$terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+        <TerminalUndo                      ="$terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+        <TerminalRedo                      ="$terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+        <TerminalCwdSync                   ="$terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
+        <TerminalWrapMode                  ="$terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+        <TerminalAlignMode                 ="$terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+        <TerminalFullscreen                ="$window.SetFullscreenMode()"/>            <!-- Toggle fullscreen mode. -->
+        <TerminalMaximize                  ="$window.Maximize()"/>                     <!-- Toggle between maximized and normal window size. -->
+        <TerminalMinimize                  ="$window.Minimize()"/>                     <!-- Minimize window. -->
+        <TerminalStdioLog                  ="$terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
+        <TerminalRestart                   ="$terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
+        <TerminalQuit                      ="$terminal.Quit()"/>                       <!-- Terminate runnning console apps and close terminal. -->
 
-        <ScrollPageUp      ="$viewport.ScrollByPage( 0, 1)"/>  <!--  -->
-        <ScrollPageDown    ="$viewport.ScrollByPage( 0,-1)"/>  <!--  -->
-        <ScrollLineUp      ="$viewport.ScrollByStep( 0, 3)"/>  <!--  -->
-        <ScrollLineDown    ="$viewport.ScrollByStep( 0,-3)"/>  <!--  -->
-        <ScrollCharLeft    ="$viewport.ScrollByStep( 3, 0)"/>  <!--  -->
-        <ScrollCharRight   ="$viewport.ScrollByStep(-3, 0)"/>  <!--  -->
-        <ScrollTop         ="$viewport.ScrollToTop()"/>        <!--  -->
-        <ScrollEnd         ="$viewport.ScrollToEnd()"/>        <!--  -->
+        <ScrollPageUp      ="$defapp.ScrollViewportByPage( 0, 1)"/>  <!--  -->
+        <ScrollPageDown    ="$defapp.ScrollViewportByPage( 0,-1)"/>  <!--  -->
+        <ScrollLineUp      ="$defapp.ScrollViewportByStep( 0, 3)"/>  <!--  -->
+        <ScrollLineDown    ="$defapp.ScrollViewportByStep( 0,-3)"/>  <!--  -->
+        <ScrollCharLeft    ="$defapp.ScrollViewportByStep( 3, 0)"/>  <!--  -->
+        <ScrollCharRight   ="$defapp.ScrollViewportByStep(-3, 0)"/>  <!--  -->
+        <ScrollTop         ="$defapp.ScrollViewportToTop()"/>        <!--  -->
+        <ScrollEnd         ="$defapp.ScrollViewportToEnd()"/>        <!--  -->
 )=="
 R"==(
     </set>
@@ -633,8 +628,8 @@ R"==(
             <key="Shift+Ctrl+End"        action=TerminalScrollViewportToEnd/>
             <key=""                      action=TerminalSendKey/>
             <key=""                      action=TerminalOutput/>
-            <key=""                      action=TerminalViewportCopy/>
-            <key="Ctrl+Insert"  preview  action=TerminalClipboardCopy/>
+            <key=""                      action=TerminalCopyViewport/>
+            <key="Ctrl+Insert"  preview  action=TerminalCopySelection/>
             <key="Shift+Insert" preview  action=TerminalClipboardPaste/>
             <key=""                      action=TerminalClipboardWipe/>
             <key=""                      action=TerminalClipboardFormat/>
