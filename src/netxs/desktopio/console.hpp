@@ -1516,21 +1516,22 @@ namespace netxs::ui
                         log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
                     }
                 }
+                scripting_context["gear"] = gear.This();
                 //todo unify
-                auto cmd_list = utf::split(script_body, '$');
-                for (auto cmd : cmd_list)
-                {
-                    auto object_name = utf::take_front(cmd, ".");
-                    utf::trim_front(cmd, "."); // Pop ".".
-                    auto iter = scripting_context.find(object_name);
-                    if (iter != scripting_context.end())
-                    if (auto object_ptr = iter->second.lock())
-                    {
-                        gear.call_proc = cmd;
-                        object_ptr->bell::signal(tier::release, e2::runscript, gear);
-                        gear.call_proc = {};
-                    }
-                }
+                //auto cmd_list = utf::split(script_body, '$');
+                //for (auto cmd : cmd_list)
+                //{
+                //    auto object_name = utf::take_front(cmd, ".");
+                //    utf::trim_front(cmd, "."); // Pop ".".
+                //    auto iter = scripting_context.find(object_name);
+                //    if (iter != scripting_context.end())
+                //    if (auto object_ptr = iter->second.lock())
+                //    {
+                //        gear.call_proc = cmd;
+                //        object_ptr->bell::signal(tier::release, e2::runscript, gear);
+                //        gear.call_proc = {};
+                //    }
+                //}
             };
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
             {
