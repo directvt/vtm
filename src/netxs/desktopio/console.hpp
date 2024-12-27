@@ -1516,7 +1516,22 @@ namespace netxs::ui
                         log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
                     }
                 }
-                scripting_context["gear"] = gear.This();
+                //scripting_context["gear"] = gear.This();
+                static auto lua = []
+                {
+                    auto lua = std::unique_ptr<lua_State, decltype(&::lua_close)>(::luaL_newstate(), &::lua_close);
+                    ::luaL_openlibs(lua.get());
+                    return lua;
+                }();
+
+                auto error = ::luaL_loadbuffer(lua.get(), script_body.data(), script_body.size(), "event")
+                          || ::lua_pcall(lua.get(), 0, 0, 0);
+                if (error)
+                {
+                    log("%%%msg%", prompt::lua, ansi::err(::lua_tostring(lua.get(), -1)));
+                    ::lua_pop(lua.get(), 1);  // Pop error message from stack.
+                }
+
                 //todo unify
                 //auto cmd_list = utf::split(script_body, '$');
                 //for (auto cmd : cmd_list)

@@ -13,6 +13,7 @@ namespace netxs::prompt
     static constexpr auto   gui = " gui: "sv;
     static constexpr auto   ack = " ack: "sv;
     static constexpr auto   key = " key: "sv;
+    static constexpr auto   lua = " lua: "sv;
     static constexpr auto   tty = " tty: "sv;
     static constexpr auto   vtm = " vtm: "sv;
     static constexpr auto   xml = " xml: "sv;
