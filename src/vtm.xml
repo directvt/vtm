@@ -134,9 +134,9 @@ R"==(
         <Disconnect            ="gate:Disconnect()"/>         <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm:Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm:Run()"/>                 <!-- Run default application. -->
-        <RunInfoPage           ="vtm:Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
-        <FocusPrevWindow       ="vtm:FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
-        <FocusNextWindow       ="vtm:FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
+        <RunInfoPage           ="vtm:Run{ title='Info-page', hidden=true, label='Info', type='info' }"/>  <!-- Run Info-page. -->
+        <FocusPrevWindow       ="log(123, 'vtm:FocusNextWindow(-1)'); vtm:FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
+        <FocusNextWindow       ="log(456, 'vtm:FocusNextWindow( 1)'); vtm:FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
 
         <AlwaysOnTop           ="window:AlwaysOnTop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="window:Close()"/>            <!-- Close window. -->

@@ -305,6 +305,20 @@ namespace netxs::ansi
             {
                 itos(data);
             }
+            else if constexpr (std::is_floating_point_v<D>)
+            {
+                if ((si64)data == data)
+                {
+                    block += std::to_string((si64)data) + ".0";
+                }
+                else
+                {
+                    auto str = std::to_string(data);
+                    auto shadow = qiew{ str };
+                    utf::trim_back(shadow, "0");
+                    block += shadow;
+                }
+            }
             else if constexpr (std::is_same_v<D, bias>
                             || std::is_same_v<D, wrap>
                             || std::is_same_v<D, rtol>

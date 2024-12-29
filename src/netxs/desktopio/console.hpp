@@ -1519,8 +1519,27 @@ namespace netxs::ui
                 //scripting_context["gear"] = gear.This();
                 static auto lua = []
                 {
+                    auto lua_log =[](lua_State* lua_ptr)
+                    {
+                        auto n = ::lua_gettop(lua_ptr);
+                        auto crop = ansi::escx{};
+                        for (auto i = 1; i <= n; i++)
+                        {
+                            auto t = ::lua_type(lua_ptr, i);
+                            switch (t)
+                            {
+                                case LUA_TBOOLEAN: crop.add(::lua_toboolean(lua_ptr, i) ? "true" : "faux"); break;
+                                case LUA_TSTRING:  crop.add(::lua_tostring(lua_ptr, i)); break;
+                                case LUA_TNUMBER:  crop.add(::lua_tonumber(lua_ptr, i)); break;
+                                default:           crop.add(::lua_typename(lua_ptr, t)); break;
+                            }
+                        }
+                        log("", crop);
+                        return 0;
+                    };
                     auto lua = std::unique_ptr<lua_State, decltype(&::lua_close)>(::luaL_newstate(), &::lua_close);
                     ::luaL_openlibs(lua.get());
+                    lua_register(lua.get(), "log", lua_log);
                     return lua;
                 }();
 
