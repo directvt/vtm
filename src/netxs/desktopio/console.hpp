@@ -1524,7 +1524,7 @@ namespace netxs::ui
                     return lua;
                 }();
 
-                auto error = ::luaL_loadbuffer(lua.get(), script_body.data(), script_body.size(), "event")
+                auto error = ::luaL_loadbuffer(lua.get(), script_body.data(), script_body.size(), "event handler")
                           || ::lua_pcall(lua.get(), 0, 0, 0);
                 if (error)
                 {
