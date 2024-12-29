@@ -1531,7 +1531,7 @@ namespace netxs::ui
                                 case LUA_TBOOLEAN: crop.add(::lua_toboolean(lua_ptr, i) ? "true" : "faux"); break;
                                 case LUA_TSTRING:  crop.add(::lua_tostring(lua_ptr, i)); break;
                                 case LUA_TNUMBER:  crop.add(::lua_tonumber(lua_ptr, i)); break;
-                                default:           crop.add(::lua_typename(lua_ptr, t)); break;
+                                default:           crop.add('<', ::lua_typename(lua_ptr, t), '>'); break;
                             }
                         }
                         log("", crop);
