@@ -1290,26 +1290,50 @@ namespace netxs::app::vtm
                     auto& keybd = boss.template plugins<pro::keybd>();
                     keybd.bind(window_bindings);
 
-                    boss.LISTEN(tier::release, e2::runscript, gear)
+                    static auto proc_map = std::unordered_map<text, std::function<void(base&, lua_State*)>>
                     {
-                        //todo unify
-                        gear.set_handled();
-                        auto cmd = gear.call_proc;
-                        log("cmd=", cmd);
-                        auto proc_name = utf::take_front(cmd, "(");
-                        log("proc_name=", proc_name);
-                        utf::trim_front(cmd, "(");
-                        auto args = utf::take_front(cmd, ")");
-                        log("args=", args);
-                        if (proc_name.starts_with("Warp"))
+                        { "WarpWindow", [](base& boss, lua_State* lua_ptr)
+                                        {
+                                            auto warp = dent{ (si32)::lua_tonumber(lua_ptr, 1),   // Args...
+                                                              (si32)::lua_tonumber(lua_ptr, 2),   //
+                                                              (si32)::lua_tonumber(lua_ptr, 3),   //
+                                                              (si32)::lua_tonumber(lua_ptr, 4) }; //
+                                            boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
+                                            {
+                                                boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                                            });
+                                        }
+                        },
+                    };
+                    boss.LISTEN(tier::release, e2::luafx, luacall)
+                    {
+                        auto iter = proc_map.find(luacall.fx_name);
+                        if (iter != proc_map.end())
                         {
-                            auto warp = xml::take_or(args, dent{});
-                            boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
-                            {
-                                boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                            });
+                            auto& fx = iter->second;
+                            fx(boss, luacall.lua_ptr);
                         }
                     };
+                    //boss.LISTEN(tier::release, e2::runscript, gear)
+                    //{
+                    //    //todo unify
+                    //    gear.set_handled();
+                    //    auto cmd = gear.call_proc;
+                    //    log("cmd=", cmd);
+                    //    auto proc_name = utf::take_front(cmd, "(");
+                    //    log("proc_name=", proc_name);
+                    //    utf::trim_front(cmd, "(");
+                    //    auto args = utf::take_front(cmd, ")");
+                    //    log("args=", args);
+                    //    if (proc_name.starts_with("Warp"))
+                    //    {
+                    //        auto warp = xml::take_or(args, dent{});
+                    //        boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
+                    //        {
+                    //            boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                    //        });
+                    //    }
+                    //};
 
                     boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
@@ -1955,22 +1979,22 @@ namespace netxs::app::vtm
             });
         }
 
-        void run_script(hids& /*gear*/)
-        {
-            //todo scripting
-            //if (gear.args_ptr)
-            //{
-            //    auto& args = *gear.args_ptr;
-            //    for (auto cmd : args)
-            //    {
-            //        bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-            //        {
-            //            boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .gear_id = gear_id });
-            //        });
-            //    }
-            //    gear.set_handled();
-            //}
-        }
+        //void run_script(hids& /*gear*/)
+        //{
+        //    //todo scripting
+        //    //if (gear.args_ptr)
+        //    //{
+        //    //    auto& args = *gear.args_ptr;
+        //    //    for (auto cmd : args)
+        //    //    {
+        //    //        bell::enqueue(this->This(), [cmd, gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
+        //    //        {
+        //    //            boss.bell::signal(tier::release, scripting::events::invoke, { .cmd = cmd, .gear_id = gear_id });
+        //    //        });
+        //    //    }
+        //    //    gear.set_handled();
+        //    //}
+        //}
 
     public:
         hall(xipc server, xmls& config)
@@ -2367,10 +2391,10 @@ namespace netxs::app::vtm
                 }
             };
 
-            LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
-            {
-                run_script(gear);
-            };
+            //LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
+            //{
+            //    run_script(gear);
+            //};
         }
 
         // hall: Autorun apps from config.
