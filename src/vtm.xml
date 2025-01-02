@@ -183,11 +183,11 @@ R"==(
         <IncreaseCellHeight    ="vtm.gui_IncreasecCellHeight( 1)"/>                  <!-- Increase the text cell height by one pixel. -->
         <DecreaseCellHeight    ="vtm.gui_IncreasecCellHeight(-1)"/>                  <!-- Decrease the text cell height by one pixel. -->
         <ResetWheelAccumulator ="vtm.gui_WheelAccumReset()"/>                        <!-- Reset wheel accumulator. -->
-        <ResetCellHeight       ="if (not gear.repeated) then vtm.gui_CellHeightReset() end"/>   <!-- Reset text cell height. -->
-        <ToggleFullscreenMode  ="if (not gear.repeated) then vtm.gui_Fullscreen() end"/>        <!-- Toggle fullscreen mode. -->
-        <ToggleAntialiasingMode="if (not gear.repeated) then vtm.gui_AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
-        <RollFontsBackward     ="if (not gear.repeated) then vtm.gui_RollFonts(-1) end"/>       <!-- Roll font list backward. -->
-        <RollFontsForward      ="if (not gear.repeated) then vtm.gui_RollFonts( 1) end"/>       <!-- Roll font list forward. -->
+        <ResetCellHeight       ="if (not gear.IsKeyRepeated()) then vtm.gui_CellHeightReset() end"/>   <!-- Reset text cell height. -->
+        <ToggleFullscreenMode  ="if (not gear.IsKeyRepeated()) then vtm.gui_Fullscreen() end"/>        <!-- Toggle fullscreen mode. -->
+        <ToggleAntialiasingMode="if (not gear.IsKeyRepeated()) then vtm.gui_AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
+        <RollFontsBackward     ="if (not gear.IsKeyRepeated()) then vtm.gui_RollFonts(-1) end"/>       <!-- Roll font list backward. -->
+        <RollFontsForward      ="if (not gear.IsKeyRepeated()) then vtm.gui_RollFonts( 1) end"/>       <!-- Roll font list forward. -->
 
         <ToggleDebugOverlay    ="vtm.tui_DebugOverlay()"/>  <!-- Toggle debug overlay. -->
 
@@ -202,8 +202,8 @@ R"==(
         <TerminalScrollViewportOneLineDown ="terminal.ScrollViewportByCell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
         <TerminalScrollViewportOneCellLeft ="terminal.ScrollViewportByCell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
         <TerminalScrollViewportOneCellRight="terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
-        <TerminalScrollViewportToTop       ="if (not gear.repeated) then terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalScrollViewportToEnd       ="if (not gear.repeated) then terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalScrollViewportToTop       ="if (not gear.IsKeyRepeated()) then terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalScrollViewportToEnd       ="if (not gear.IsKeyRepeated()) then terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalSendKey                   ="terminal.SendKey('test\r')"/>            <!-- Simulating keypresses using the specified string. -->
         <TerminalOutput                    ="terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
         <TerminalCopyViewport              ="terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->

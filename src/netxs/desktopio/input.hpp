@@ -1501,8 +1501,17 @@ namespace netxs::input
         //todo unify
         bool interrupt_key_proc{}; // hids: .
         netxs::sptr<text> action_ptr; // hids: A script body passed by pro::keybd/ui::menu.
-        netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+        netxs::sptr<std::unordered_map<text, netxs::wptr<bell>>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
         qiew call_proc; // hids: .
+        netxs::wptr<bell> this_ptr; // hids: .
+        auto This() const
+        {
+            return this_ptr.lock();
+        }
+        void This(netxs::sptr<bell> gear_ptr)
+        {
+            this_ptr = gear_ptr;
+        }
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.
@@ -1532,6 +1541,25 @@ namespace netxs::input
             mouse::coord = dot_mx;
             keybd::gear_id = bell::id;
             bell::signal(tier::general, events::device::user::login, user_index);
+
+            static auto proc_map = std::unordered_map<text, std::function<void(hids&, ui::luafx&)>>
+            {
+                { "IsKeyRepeated", [](hids& gear, ui::luafx& luacall)
+                                   {
+                                       auto repeated = gear.keystat == input::key::repeated;
+                                       luacall.return_boolean = ptr::shared(repeated);
+                                   }
+                },
+            };
+            LISTEN(tier::release, ui::e2::luafx, luacall)
+            {
+                auto iter = proc_map.find(luacall.fx_name);
+                if (iter != proc_map.end())
+                {
+                    auto& fx = iter->second;
+                    fx(*this, luacall);
+                }
+            };
         }
         virtual ~hids()
         {

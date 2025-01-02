@@ -511,6 +511,8 @@ namespace netxs::ui
                 if (gear_it == gears.end())
                 {
                     gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
+                    //todo unify (ui::base)
+                    gear_it->second->This(gear_it->second);
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -1499,7 +1501,7 @@ namespace netxs::ui
             maxfps = config.take("/config/timings/fps", 60);
             if (maxfps <= 0) maxfps = 60;
 
-            LISTEN(tier::preview, e2::runscript, gear)
+            LISTEN(tier::preview, e2::runscript, gear, -, (object_list = std::vector<std::pair<netxs::sptr<bell>, qiew>>{}))
             {
                 if (!gear.action_ptr) return;
                 if (!gear.scripting_context_ptr) return;
@@ -1530,12 +1532,37 @@ namespace netxs::ui
                     //      lua_upvalueindex(2): Fx name.
                     //      1. args:        ...
                     //      2.     :        ...
+                    auto fx_name = ::lua_tostring(lua_ptr, lua_upvalueindex(2)); // Get fx name.
+                    auto luacall = e2::luafx.param({ .lua_ptr = lua_ptr, .fx_name = fx_name });
                     if (auto object_ptr = (bell*)::lua_touserdata(lua_ptr, lua_upvalueindex(1))) // Get Object_ptr.
                     {
-                        auto fx_name = ::lua_tostring(lua_ptr, lua_upvalueindex(2)); // Get fx name.
-                        object_ptr->bell::signal(tier::release, e2::luafx, { .lua_ptr = lua_ptr, .fx_name = fx_name });
+                        object_ptr->bell::signal(tier::release, e2::luafx, luacall);
                     }
-                    return 0;
+                    if (luacall.return_string)
+                    {
+                        auto& s = *luacall.return_string;
+                        ::lua_pushlstring(lua_ptr, s.data(), s.size());
+                        return 1;
+                    }
+                    else if (luacall.return_integer)
+                    {
+                        auto& i = *luacall.return_integer;
+                        ::lua_pushinteger(lua_ptr, i);
+                        return 1;
+                    }
+                    else if (luacall.return_float)
+                    {
+                        auto& f = *luacall.return_float;
+                        ::lua_pushnumber(lua_ptr, f);
+                        return 1;
+                    }
+                    else if (luacall.return_boolean)
+                    {
+                        auto& b = *luacall.return_boolean;
+                        ::lua_pushboolean(lua_ptr, b);
+                        return 1;
+                    }
+                    else return 0;
                 };
                 static auto vtmlua_index = [](lua_State* lua_ptr)
                 {
@@ -1574,18 +1601,26 @@ namespace netxs::ui
                 auto& script_body = *gear.action_ptr;
                 auto& scripting_context = *gear.scripting_context_ptr;
                 auto lua_ptr = lua.get();
-                auto object_list = std::vector<std::pair<sptr, qiew>>{};
                 log("script context:");
                 log("  script body: ", ansi::hi(script_body));
-                for (auto& [object_name, object_wptr] : scripting_context)
+                auto set_object = [&](netxs::sptr<bell> object_ptr, qiew object_name)
                 {
-                    if (auto object_ptr = object_wptr.lock())
+                    if (object_ptr)
                     {
                         object_list.push_back({ object_ptr, object_name });
                         log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
                         ::lua_pushlightuserdata(lua_ptr, object_ptr.get()); // Object ptr.
                         ::luaL_setmetatable(lua_ptr, "vtmmetatable"); // Set the metatable.
                         ::lua_setglobal(lua_ptr, object_name.data()); // Set global var.
+                    }
+                };
+                set_object(gear.This(), "gear");
+                for (auto& [object_name, object_wptr] : scripting_context)
+                {
+                    if (auto object_ptr = object_wptr.lock())
+                    {
+                        set_object(object_ptr, object_name);
+                        object_list.push_back({ object_ptr, object_name });
                     }
                 }
                 ::lua_settop(lua_ptr, 0);
@@ -1601,6 +1636,7 @@ namespace netxs::ui
                     ::lua_pushnil(lua_ptr);
                     ::lua_setglobal(lua_ptr, object_name.data());
                 }
+                object_list.clear();
             };
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
             {

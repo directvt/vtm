@@ -43,6 +43,10 @@ namespace netxs::ui
     {
         lua_State* lua_ptr;
         qiew       fx_name;
+        netxs::sptr<text> return_string;
+        netxs::sptr<si32> return_integer;
+        netxs::sptr<fp32> return_float;
+        netxs::sptr<bool> return_boolean;
     };
 }
 
