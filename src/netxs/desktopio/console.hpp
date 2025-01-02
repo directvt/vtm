@@ -1504,17 +1504,6 @@ namespace netxs::ui
                 if (!gear.action_ptr) return;
                 if (!gear.scripting_context_ptr) return;
                 //todo scripting
-                auto& script_body = *gear.action_ptr;
-                auto& scripting_context = *gear.scripting_context_ptr;
-                log("script context:");
-                log("  script body: ", ansi::hi(script_body));
-                for (auto [object_name, object_wptr] : scripting_context)
-                {
-                    if (auto object_ptr = object_wptr.lock())
-                    {
-                        log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
-                    }
-                }
                 //scripting_context["gear"] = gear.This();
                 static auto vtmlua_log = [](lua_State* lua_ptr)
                 {
@@ -1582,9 +1571,13 @@ namespace netxs::ui
                     return lua;
                 }();
                 // Create context.
+                auto& script_body = *gear.action_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
                 auto lua_ptr = lua.get();
                 auto object_list = std::vector<std::pair<sptr, qiew>>{};
-                for (auto [object_name, object_wptr] : scripting_context)
+                log("script context:");
+                log("  script body: ", ansi::hi(script_body));
+                for (auto& [object_name, object_wptr] : scripting_context)
                 {
                     if (auto object_ptr = object_wptr.lock())
                     {
@@ -1600,12 +1593,13 @@ namespace netxs::ui
                           || ::lua_pcall(lua.get(), 0, 0, 0);
                 if (error)
                 {
-                    log("%%%msg%", prompt::lua, ansi::err(::lua_tolstring(lua.get(), -1, 0)));
+                    log("%%%msg%", prompt::lua, ansi::err(::lua_tostring(lua.get(), -1)));
                     ::lua_pop(lua.get(), 1);  // Pop error message from stack.
                 }
-                for (auto [object_ptr, object_name] : object_list)
+                for (auto& [object_ptr, object_name] : object_list) // Wipe global context.
                 {
-                    //todo drop context globals
+                    ::lua_pushnil(lua_ptr);
+                    ::lua_setglobal(lua_ptr, object_name.data());
                 }
             };
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
