@@ -138,7 +138,7 @@ R"==(
         <FocusPrevWindow       ="vtm.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
         <FocusNextWindow       ="vtm.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
 
-        <AlwaysOnTop           ="window.AlwaysOnTop()"/>      <!-- Toggle AlwaysOnTop window flag. -->
+        <AlwaysOnTop           ="window.AlwaysOnTop(not window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="window.Close()"/>            <!-- Close window. -->
         <WindowClosePreview    ="window.ShowClosePreview()"/> <!-- Pred window close action. -->
         <CancelWindowClose     ="window.HideClosePreview()"/> <!-- Clear pred-close window state. -->

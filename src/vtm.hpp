@@ -1307,6 +1307,40 @@ namespace netxs::app::vtm
                                             });
                                             ::lua_settop(lua, 0);
                                         }},
+                        { "AlwaysOnTop", [](base& boss, auto lua)
+                                         {
+                                            auto args_count = ::lua_gettop(lua);
+                                            if (args_count == 0) // Request.
+                                            {
+                                                auto zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
+                                                ::lua_pushboolean(lua, zorder == zpos::topmost);
+                                            }
+                                            else // Setup.
+                                            {
+                                                auto zorder = ::lua_toboolean(lua, 1) ? zpos::topmost : zpos::plain;
+                                                boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                ::lua_settop(lua, 0);
+                                                ::lua_pushboolean(lua, zorder == zpos::topmost);
+                                            }
+                                         }},
+                        { "Close", [](base& boss, auto lua)
+                                   {
+                                   }},
+                        { "ShowClosePreview", [](base& boss, auto lua)
+                                              {
+                                              }},
+                        { "HideClosePreview", [](base& boss, auto lua)
+                                              {
+                                              }},
+                        { "MinimizeWindow", [](base& boss, auto lua)
+                                            {
+                                            }},
+                        { "MaximizeWindow", [](base& boss, auto lua)
+                                            {
+                                            }},
+                        { "Fullscreen", [](base& boss, auto lua)
+                                        {
+                                        }},
                     };
                     boss.base::plugin<pro::luafx>(proc_map);
                     //boss.LISTEN(tier::release, e2::runscript, gear)
