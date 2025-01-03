@@ -1542,22 +1542,28 @@ namespace netxs::input
             keybd::gear_id = bell::id;
             bell::signal(tier::general, events::device::user::login, user_index);
 
-            static auto proc_map = std::unordered_map<text, std::function<void(hids&, ui::luafx&)>>
+            static auto proc_map = std::unordered_map<text, std::function<void(hids&, lua_State*)>>
             {
-                { "IsKeyRepeated", [](hids& gear, ui::luafx& luacall)
+                { "IsKeyRepeated", [](hids& gear, lua_State* lua)
                                    {
                                        auto repeated = gear.keystat == input::key::repeated;
-                                       luacall.return_boolean = ptr::shared(repeated);
+                                       ::lua_settop(lua, 0);
+                                       ::lua_pushboolean(lua, repeated);
                                    }
                 },
             };
-            LISTEN(tier::release, ui::e2::luafx, luacall)
+            LISTEN(tier::release, ui::e2::luafx, lua)
             {
-                auto iter = proc_map.find(luacall.fx_name);
+                auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
+                auto iter = proc_map.find(fx_name);
                 if (iter != proc_map.end())
                 {
                     auto& fx = iter->second;
-                    fx(*this, luacall);
+                    fx(*this, lua);
+                }
+                else
+                {
+                    ::lua_settop(lua, 0);
                 }
             };
         }

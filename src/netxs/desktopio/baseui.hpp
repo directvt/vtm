@@ -39,15 +39,6 @@ namespace netxs::ui
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
     using book = std::vector<sptr>;
-    struct luafx
-    {
-        lua_State* lua_ptr;
-        qiew       fx_name;
-        netxs::sptr<text> return_string;
-        netxs::sptr<si32> return_integer;
-        netxs::sptr<fp32> return_float;
-        netxs::sptr<bool> return_boolean;
-    };
 }
 
 namespace netxs::events::userland
@@ -65,7 +56,7 @@ namespace netxs::events::userland
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
             EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
-            EVENT_XS( luafx     , ui::luafx      ), // release: Handle lua __call.
+            EVENT_XS( luafx     , lua_State*     ), // release: Handle lua __call.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
