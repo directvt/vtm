@@ -450,7 +450,8 @@ int main(int argc, char* argv[])
         using e2 = ui::e2;
         auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto domain = ui::host::ctor<app::vtm::hall>(server, config);
-        domain->plugin<scripting::host>();
+        //todo scripting
+        //domain->plugin<scripting::host>();
         domain->autorun();
         auto settings = config.utf8();
         config_lock.unlock();
@@ -474,7 +475,8 @@ int main(int argc, char* argv[])
                         if (active)
                         {
                             onecmd.cmd = cmd;
-                            domain->bell::signal(tier::release, scripting::events::invoke, onecmd);
+                            //todo scripting
+                            //domain->bell::signal(tier::release, scripting::events::invoke, onecmd);
                         }
                         else
                         {
@@ -503,7 +505,7 @@ int main(int argc, char* argv[])
             }
         }};
 
-        auto execline = [&](qiew line){ domain->bell::signal(tier::release, scripting::events::invoke, { .cmd = line }); };
+        auto execline = [&](qiew /*line*/) { /*domain->bell::signal(tier::release, scripting::events::invoke, {.cmd = line});*/ }; //todo scripting
         auto shutdown = [&]{ domain->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::main, "Shutdown on signal")); };
         execline(script);
         auto readline = os::tty::readline(execline, shutdown);

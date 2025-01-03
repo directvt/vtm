@@ -2886,7 +2886,6 @@ namespace netxs::ui
     class form
         : public base
     {
-        std::map<std::type_index, uptr<pro::skill>> depo;
         std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
@@ -2897,33 +2896,25 @@ namespace netxs::ui
             auto item = ui::tui_domain().template create<TT>(std::forward<Args>(args)...);
             return item;
         }
-        // form: Attach feature and return itself.
+        // form: Attach a plugin of the specified type and return self.
         template<class S, class ...Args>
         auto plugin(Args&&... args)
         {
-            auto backup = This();
-            depo[std::type_index(typeid(S))] = std::make_unique<S>(*backup, std::forward<Args>(args)...);
-            return backup;
+            base::plugin<S>(std::forward<Args>(args)...);
+            return This();
         }
-        // form: Detach feature and return itself.
+        // form: Detach the specified plugin and return self.
         template<class S>
         auto unplug()
         {
-            auto backup = This();
-            depo.erase(std::type_index(typeid(S)));
-            return backup;
+            base::unplug<S>();
+            return This();
         }
         // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
         template<class S, class ...Args>
         auto& plugins(Args&&... args)
         {
-            auto it = depo.find(std::type_index(typeid(S)));
-            if (it == depo.end())
-            {
-                it = depo.emplace(std::type_index(typeid(S)), std::make_unique<S>(*this, std::forward<Args>(args)...)).first;
-            }
-            auto ptr = static_cast<S*>(it->second.get());
-            return *ptr;
+            return base::plugin<S>(std::forward<Args>(args)...);
         }
         // form: Fill object region using parametrized fx.
         template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
@@ -2963,7 +2954,7 @@ namespace netxs::ui
             }
             return This();
         }
-        // form: deprecated in favor of pro::brush. Set colors and return itself.
+        // form: deprecated in favor of pro::brush. Set colors and return self.
         template<class ...Args>
         auto colors(Args&&... args)
         {
@@ -2987,7 +2978,7 @@ namespace netxs::ui
         {
             return active(base::color());
         }
-        // form: Invoke arbitrary functor(itself/*This/boss) in place.
+        // form: Invoke an arbitrary functor(self/*This/boss) in place.
         template<class P>
         auto invoke(P functor)
         {
@@ -2995,7 +2986,7 @@ namespace netxs::ui
             functor(*backup);
             return backup;
         }
-        // form: Attach homeless branch and return itself.
+        // form: Attach a homeless branch and return self.
         template<class ...Args>
         auto branch(Args&&... args)
         {

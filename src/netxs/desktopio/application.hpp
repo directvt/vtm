@@ -10,7 +10,7 @@
 
 #include "console.hpp"
 #include "system.hpp"
-#include "scripting.hpp"
+//#include "scripting.hpp"
 #include "gui.hpp"
 
 #include <fstream>
@@ -781,7 +781,8 @@ namespace netxs::app::shared
         {
             app::shared::splice(client, gui_config);
         }};
-        auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
+        //todo scripting
+        auto domain = ui::host::ctor(server, config);// ->plugin<scripting::host>();
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         config_lock.unlock();

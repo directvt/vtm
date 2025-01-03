@@ -2308,97 +2308,98 @@ namespace netxs::app::vtm
                     gear_id = {};
                 }
             };
-            LISTEN(tier::release, scripting::events::invoke, script)
-            {
-                static auto fx = std::unordered_map<text, text(hall::*)(eccc&, qiew), qiew::hash, qiew::equal>
-                {
-                    { "vtm.selected"  , &hall::vtm_selected   },
-                    { "vtm.set"       , &hall::vtm_set        },
-                    { "vtm.del"       , &hall::vtm_del        },
-                    { "vtm.run"       , &hall::vtm_run        },
-                    { "vtm.dtvt"      , &hall::vtm_dtvt       },
-                    { "vtm.disconnect", &hall::vtm_disconnect },
-                    { "vtm.exit"      , &hall::vtm_shutdown   },
-                    { "vtm.close"     , &hall::vtm_shutdown   },
-                    { "vtm.shutdown"  , &hall::vtm_shutdown   },
-                    
-                    { "vtm.window.next"       , &hall::vtm_nextwindow  },
-                    { "vtm.window.alwaysontop", &hall::vtm_alwaysontop },
-                    { "vtm.window.warp"       , &hall::vtm_warp        },
-                    { "vtm.window.close"      , &hall::vtm_close       },
-                    { "vtm.window.minimize"   , &hall::vtm_minimize    },
-                    { "vtm.window.maximize"   , &hall::vtm_maximize    },
-                    { "vtm.window.fullscreen" , &hall::vtm_fullscreen  },
-                };
-                static auto delims = "\r\n\t ;.,\"\'"sv;
-                static auto expression = [](auto& shadow)
-                {
-                    auto func = qiew{};
-                    auto args = qiew{};
-                    auto fend = shadow.find('(');
-                    if (fend < shadow.size() - 1)
-                    {
-                        auto para = 1;
-                        auto quot = '\0';
-                        auto head = shadow.begin() + fend + 1;
-                        auto tail = shadow.end();
-                        while (head != tail)
-                        {
-                            auto c = *head;
-                            if (c == '\\' && head + 1 != tail) head++;
-                            else if (quot)
-                            {
-                                if (c == quot) quot = 0;
-                            }
-                            else if (c == '\"') quot = c;
-                            else if (c == '\'') quot = c;
-                            else if (c == '(') para++;
-                            else if (c == ')' && --para == 0) break;
-                            head++;
-                        }
-                        if (head != tail)
-                        {
-                            auto aend = std::distance(shadow.begin(), head);
-                            func = shadow.substr(0, fend);
-                            args = shadow.substr(fend + 1, aend - (fend + 1));
-                            shadow.remove_prefix(aend + 1);
-                        }
-                        utf::trim_front(shadow, delims);
-                    }
-                    return std::pair{ func, args };
-                };
-                utf::unescape(script.cmd);
-                auto backup = std::move(script.cmd);
-                auto shadow = qiew{ backup };
-                utf::trim_front(shadow, delims);
-                while (shadow)
-                {
-                    auto [func, args] = expression(shadow);
-                    if (func)
-                    {
-                        auto expr = utf::debase<faux, faux>(utf::concat(func, '(', args, ')'));
-                        auto iter = fx.find(func);
-                        if (iter != fx.end())
-                        {
-                            auto result = (this->*(iter->second))(script, args);
-                            log(ansi::clr(yellowlt, expr, ": "), result);
-                            script.cmd += expr + ": " + result + '\n';
-                        }
-                        else 
-                        {
-                            log(prompt::repl, "Function not found: ", expr);
-                            script.cmd += "Function not found: " + expr + '\n';
-                        }
-                    }
-                    else
-                    {
-                        auto expr = utf::debase<faux, faux>(shadow);
-                        log(prompt::repl, "Check syntax: ", ansi::clr(redlt, expr));
-                        script.cmd += "Check syntax: " + expr + '\n';
-                        break;
-                    }
-                }
-            };
+            //todo scripting
+            //LISTEN(tier::release, scripting::events::invoke, script)
+            //{
+            //    static auto fx = std::unordered_map<text, text(hall::*)(eccc&, qiew), qiew::hash, qiew::equal>
+            //    {
+            //        { "vtm.selected"  , &hall::vtm_selected   },
+            //        { "vtm.set"       , &hall::vtm_set        },
+            //        { "vtm.del"       , &hall::vtm_del        },
+            //        { "vtm.run"       , &hall::vtm_run        },
+            //        { "vtm.dtvt"      , &hall::vtm_dtvt       },
+            //        { "vtm.disconnect", &hall::vtm_disconnect },
+            //        { "vtm.exit"      , &hall::vtm_shutdown   },
+            //        { "vtm.close"     , &hall::vtm_shutdown   },
+            //        { "vtm.shutdown"  , &hall::vtm_shutdown   },
+            //        
+            //        { "vtm.window.next"       , &hall::vtm_nextwindow  },
+            //        { "vtm.window.alwaysontop", &hall::vtm_alwaysontop },
+            //        { "vtm.window.warp"       , &hall::vtm_warp        },
+            //        { "vtm.window.close"      , &hall::vtm_close       },
+            //        { "vtm.window.minimize"   , &hall::vtm_minimize    },
+            //        { "vtm.window.maximize"   , &hall::vtm_maximize    },
+            //        { "vtm.window.fullscreen" , &hall::vtm_fullscreen  },
+            //    };
+            //    static auto delims = "\r\n\t ;.,\"\'"sv;
+            //    static auto expression = [](auto& shadow)
+            //    {
+            //        auto func = qiew{};
+            //        auto args = qiew{};
+            //        auto fend = shadow.find('(');
+            //        if (fend < shadow.size() - 1)
+            //        {
+            //            auto para = 1;
+            //            auto quot = '\0';
+            //            auto head = shadow.begin() + fend + 1;
+            //            auto tail = shadow.end();
+            //            while (head != tail)
+            //            {
+            //                auto c = *head;
+            //                if (c == '\\' && head + 1 != tail) head++;
+            //                else if (quot)
+            //                {
+            //                    if (c == quot) quot = 0;
+            //                }
+            //                else if (c == '\"') quot = c;
+            //                else if (c == '\'') quot = c;
+            //                else if (c == '(') para++;
+            //                else if (c == ')' && --para == 0) break;
+            //                head++;
+            //            }
+            //            if (head != tail)
+            //            {
+            //                auto aend = std::distance(shadow.begin(), head);
+            //                func = shadow.substr(0, fend);
+            //                args = shadow.substr(fend + 1, aend - (fend + 1));
+            //                shadow.remove_prefix(aend + 1);
+            //            }
+            //            utf::trim_front(shadow, delims);
+            //        }
+            //        return std::pair{ func, args };
+            //    };
+            //    utf::unescape(script.cmd);
+            //    auto backup = std::move(script.cmd);
+            //    auto shadow = qiew{ backup };
+            //    utf::trim_front(shadow, delims);
+            //    while (shadow)
+            //    {
+            //        auto [func, args] = expression(shadow);
+            //        if (func)
+            //        {
+            //            auto expr = utf::debase<faux, faux>(utf::concat(func, '(', args, ')'));
+            //            auto iter = fx.find(func);
+            //            if (iter != fx.end())
+            //            {
+            //                auto result = (this->*(iter->second))(script, args);
+            //                log(ansi::clr(yellowlt, expr, ": "), result);
+            //                script.cmd += expr + ": " + result + '\n';
+            //            }
+            //            else 
+            //            {
+            //                log(prompt::repl, "Function not found: ", expr);
+            //                script.cmd += "Function not found: " + expr + '\n';
+            //            }
+            //        }
+            //        else
+            //        {
+            //            auto expr = utf::debase<faux, faux>(shadow);
+            //            log(prompt::repl, "Check syntax: ", ansi::clr(redlt, expr));
+            //            script.cmd += "Check syntax: " + expr + '\n';
+            //            break;
+            //        }
+            //    }
+            //};
 
             //LISTEN(tier::preview, e2::form::proceed::action::runscript, gear)
             //{

@@ -464,6 +464,12 @@ namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 
+    // controls: UI extensions.
+    namespace pro
+    {
+        struct skill;
+    }
+
     //todo reimplement
     struct skin
     {
@@ -578,6 +584,7 @@ namespace netxs::ui
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
+        std::map<std::type_index, uptr<pro::skill>> depo;
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -888,6 +895,24 @@ namespace netxs::ui
         {
             base::intpad = new_intpad;
             base::extpad = new_extpad;
+        }
+        // base: Detach the specified plugin.
+        template<class S>
+        void unplug()
+        {
+            depo.erase(std::type_index(typeid(S)));
+        }
+        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin (using the specified arguments) if it does not exist.
+        template<class S, class ...Args>
+        auto& plugin(Args&&... args)
+        {
+            auto it = depo.find(std::type_index(typeid(S)));
+            if (it == depo.end())
+            {
+                it = depo.emplace(std::type_index(typeid(S)), std::make_unique<S>(*this, std::forward<Args>(args)...)).first;
+            }
+            auto ptr = static_cast<S*>(it->second.get());
+            return *ptr;
         }
         // base: Render to the canvas. Trim = trim viewport to the nested object region.
         template<bool Forced = faux>

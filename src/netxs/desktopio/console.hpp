@@ -502,7 +502,7 @@ namespace netxs::ui
 
     public:
         pipe&      canal; // gate: Channel to outside.
-        props_t    props; // gate: Application properties.
+        props_t    props; // gate: Input gate properties.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -556,6 +556,13 @@ namespace netxs::ui
                 if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
             }
             return std::pair{ id_t{}, netxs::sptr<hids>{} };
+        }
+        id_t get_int_gear_id(id_t ext_gear_id)
+        {
+            auto int_gear_id = id_t{};
+            auto gear_it = gears.find(ext_gear_id);
+            if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
+            return int_gear_id;
         }
         void draw_foreign_names(face& parent_canvas)
         {
@@ -660,14 +667,6 @@ namespace netxs::ui
             if (result) base::strike();
         }
 
-        // gate: .
-        id_t get_int_gear_id(id_t ext_gear_id)
-        {
-            auto int_gear_id = id_t{};
-            auto gear_it = gears.find(ext_gear_id);
-            if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
-            return int_gear_id;
-        }
         // gate: Attach a new item.
         auto attach(sptr& item)
         {
