@@ -498,121 +498,11 @@ namespace netxs::ui
             }
         };
 
-        // gate: Input forwarder.
-        struct input_t
-        {
-            //todo use bell::getref(gear_id)
-            using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
-
-            void forward(auto& device)
-            {
-                auto gear_it = gears.find(device.gear_id);
-                if (gear_it == gears.end())
-                {
-                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss, xmap)).first;
-                    auto& gear = *(gear_it->second);
-                    gear.tooltip_timeout = boss.props.tooltip_timeout;
-                    gear.board::ghost = boss.props.clip_preview_glow;
-                    gear.board::brush = boss.props.clip_preview_clrs;
-                    gear.board::alpha = boss.props.clip_preview_alfa;
-                    gear.mouse::delay = boss.props.dblclick_timeout;
-                }
-                auto& [_id, gear_ptr] = *gear_it;
-                gear_ptr->hids::take(device);
-                boss.strike();
-            }
-
-            gate& boss;
-            subs  memo;
-            face  xmap;
-            depo  gears;
-
-            input_t(props_t& props, gate& boss)
-                : boss{ boss }
-            {
-                xmap.cmode = props.vtmode;
-                xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
-                xmap.face::area(boss.base::area());
-                boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
-                {
-                    auto data = escx{};
-                    data.s11n(xmap, gear.slot);
-                    if (data.length())
-                    {
-                        if (boss.props.clip_prtscrn_mime != mime::disabled)
-                        {
-                            gear.set_clipboard(gear.slot.size, data, boss.props.clip_prtscrn_mime);
-                        }
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
-                {
-                    xmap.mark(new_filler);
-                };
-                boss.LISTEN(tier::release, e2::area, new_area, memo)
-                {
-                    xmap.face::area(new_area);
-                };
-                boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
-                {
-                    if (m.enabled != hids::stat::ok)
-                    {
-                        auto gear_it = gears.find(m.gear_id);
-                        if (gear_it != gears.end())
-                        {
-                            switch (m.enabled)
-                            {
-                                case hids::stat::ok:   break;
-                                case hids::stat::halt: gear_it->second->deactivate(); break;
-                                case hids::stat::die:  gears.erase(gear_it);          break;
-                            }
-                        }
-                        boss.strike();
-                    }
-                    else forward(m);
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
-                {
-                    forward(k);
-                };
-                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
-                {
-                    forward(f);
-                };
-                boss.LISTEN(tier::release, e2::conio::board, c, memo)
-                {
-                    forward(c);
-                };
-            }
-            void fire(hint event_id)
-            {
-                for (auto& [ext_gear_id, gear_ptr] : gears)
-                {
-                    if (ext_gear_id)
-                    {
-                        auto& gear = *gear_ptr;
-                        if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
-                        {
-                            gear.fire_fast();
-                            gear.fire(event_id);
-                        }
-                    }
-                }
-            }
-            auto get_ext_gear_id(id_t gear_id)
-            {
-                for (auto& [ext_gear_id, gear_ptr] : gears)
-                {
-                    if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
-                }
-                return std::pair{ id_t{}, netxs::sptr<hids>{} };
-            }
-        };
+        using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
 
     public:
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Application properties.
-        input_t    input; // gate: Input event handler.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -624,12 +514,54 @@ namespace netxs::ui
         sptr       applet; // gate: Standalone application.
         subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
+        face       xmap; // gate: .
+        depo       gears; // gate: .
 
+        void forward(auto& device)
+        {
+            auto gear_it = gears.find(device.gear_id);
+            if (gear_it == gears.end())
+            {
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, xmap)).first;
+                auto& gear = *(gear_it->second);
+                gear.tooltip_timeout = props.tooltip_timeout;
+                gear.board::ghost = props.clip_preview_glow;
+                gear.board::brush = props.clip_preview_clrs;
+                gear.board::alpha = props.clip_preview_alfa;
+                gear.mouse::delay = props.dblclick_timeout;
+            }
+            auto& [_id, gear_ptr] = *gear_it;
+            gear_ptr->hids::take(device);
+            base::strike();
+        }
+        void fire(hint event_id)
+        {
+            for (auto& [ext_gear_id, gear_ptr] : gears)
+            {
+                if (ext_gear_id)
+                {
+                    auto& gear = *gear_ptr;
+                    if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
+                    {
+                        gear.fire_fast();
+                        gear.fire(event_id);
+                    }
+                }
+            }
+        }
+        auto get_ext_gear_id(id_t gear_id)
+        {
+            for (auto& [ext_gear_id, gear_ptr] : gears)
+            {
+                if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
+            }
+            return std::pair{ id_t{}, netxs::sptr<hids>{} };
+        }
         void draw_foreign_names(face& parent_canvas)
         {
             auto& header = *uname.lyric;
             auto  half_x = header.size().x / 2;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -645,7 +577,7 @@ namespace netxs::ui
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto area = rect_11;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -657,7 +589,7 @@ namespace netxs::ui
         }
         void draw_clipboard_preview(face& canvas, time const& stamp)
         {
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 gear.board::shown = !gear.mouse_disabled &&
@@ -678,7 +610,7 @@ namespace netxs::ui
             auto area = canvas.area();
             auto zero = rect{ dot_00, area.size };
             canvas.area(zero);
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -704,7 +636,7 @@ namespace netxs::ui
         void send_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [ext_gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -719,7 +651,7 @@ namespace netxs::ui
         void check_tooltips(time now)
         {
             auto result = faux;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -732,8 +664,8 @@ namespace netxs::ui
         id_t get_int_gear_id(id_t ext_gear_id)
         {
             auto int_gear_id = id_t{};
-            auto gear_it = input.gears.find(ext_gear_id);
-            if (gear_it != input.gears.end()) int_gear_id = gear_it->second->id;
+            auto gear_it = gears.find(ext_gear_id);
+            if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
             return int_gear_id;
         }
         // gate: Attach a new item.
@@ -747,7 +679,7 @@ namespace netxs::ui
         void _rebuild_scene(bool damaged)
         {
             auto stamp = datetime::now();
-            auto& canvas = input.xmap;
+            auto& canvas = xmap;
             if (damaged)
             {
                 if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
@@ -768,9 +700,9 @@ namespace netxs::ui
                     auto& debug = plugins<pro::debug>();
                     debug.output(canvas);
                     if constexpr (debugmode) // Red channel histogram.
-                    if (input.gears.size())
+                    if (gears.size())
                     {
-                        auto& [gear_id, gear_ptr] = *input.gears.begin();
+                        auto& [gear_id, gear_ptr] = *gears.begin();
                         if (gear_ptr->meta(hids::ScrlLock)) 
                         {
                             auto hist = page{};
@@ -813,7 +745,7 @@ namespace netxs::ui
             {
                 if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
                 {
-                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
+                    for (auto& [ext_gear_id, gear_ptr] : gears)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
@@ -834,7 +766,7 @@ namespace netxs::ui
             {
                 auto& debug = plugins<pro::debug>();
                 debug.bypass = true;
-                input.fire(hids::events::mouse::move.id);
+                fire(hids::events::mouse::move.id);
                 debug.bypass = faux;
                 yield = paint.commit(canvas);
                 if (yield)
@@ -846,7 +778,7 @@ namespace netxs::ui
             }
             else
             {
-                input.fire(hids::events::mouse::move.id);
+                fire(hids::events::mouse::move.id);
                 yield = paint.commit(canvas); // Try output my canvas to the my console.
             }
         }
@@ -855,12 +787,11 @@ namespace netxs::ui
         {
             if (damaged)
             {
-                auto& canvas = input.xmap;
-                canvas.wipe(world_id);
+                xmap.wipe(world_id);
                 if (applet)
-                if (auto context = canvas.change_basis(base::area()))
+                if (auto context = xmap.change_basis(base::area()))
                 {
-                    applet->render(canvas);
+                    applet->render(xmap);
                 }
             }
             _rebuild_scene(damaged);
@@ -877,7 +808,6 @@ namespace netxs::ui
         gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
-              input{ props, *this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -904,11 +834,64 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
+            xmap.cmode = props.vtmode;
+            xmap.mark(props.background_color.txt(whitespace).link(bell::id));
+            xmap.face::area(base::area());
+            LISTEN(tier::release, e2::command::printscreen, gear, tokens)
+            {
+                auto data = escx{};
+                data.s11n(xmap, gear.slot);
+                if (data.length())
+                {
+                    if (props.clip_prtscrn_mime != mime::disabled)
+                    {
+                        gear.set_clipboard(gear.slot.size, data, props.clip_prtscrn_mime);
+                    }
+                }
+            };
+            LISTEN(tier::release, e2::form::prop::filler, new_filler, tokens)
+            {
+                xmap.mark(new_filler);
+            };
+            LISTEN(tier::release, e2::area, new_area, tokens)
+            {
+                xmap.face::area(new_area);
+            };
+            LISTEN(tier::release, e2::conio::mouse, m, tokens)
+            {
+                if (m.enabled != hids::stat::ok)
+                {
+                    auto gear_it = gears.find(m.gear_id);
+                    if (gear_it != gears.end())
+                    {
+                        switch (m.enabled)
+                        {
+                            case hids::stat::ok:   break;
+                            case hids::stat::halt: gear_it->second->deactivate(); break;
+                            case hids::stat::die:  gears.erase(gear_it);          break;
+                        }
+                    }
+                    base::strike();
+                }
+                else forward(m);
+            };
+            LISTEN(tier::release, e2::conio::keybd, k, tokens)
+            {
+                forward(k);
+            };
+            LISTEN(tier::release, e2::conio::focus, f, tokens)
+            {
+                forward(f);
+            };
+            LISTEN(tier::release, e2::conio::board, c, tokens)
+            {
+                forward(c);
+            };
             LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
             {
                 if (seed.gear_id)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(seed.gear_id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
@@ -945,7 +928,7 @@ namespace netxs::ui
             {
                 if (!gear.handled)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr)
                     {
                         gear.gear_id = ext_gear_id;
@@ -979,7 +962,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
             {
                 //todo hids
-                //proc(input.gear);
+                //proc(gear);
             };
             LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
             {
@@ -1057,7 +1040,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
             {
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
@@ -1067,7 +1050,7 @@ namespace netxs::ui
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
                 if (gear_ptr)
                 {
                     conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
@@ -1111,12 +1094,12 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
@@ -1155,7 +1138,7 @@ namespace netxs::ui
                     }
                     if (forward)
                     {
-                        auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                        auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                         if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
@@ -1186,12 +1169,12 @@ namespace netxs::ui
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }

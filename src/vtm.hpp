@@ -784,7 +784,7 @@ namespace netxs::app::vtm
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
-                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
+                    for (auto& [ext_gear_id, gear_ptr] : gears)
                     {
                         if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
                         {
@@ -852,7 +852,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
             {
-                if (&canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
+                if (&canvas != &xmap) // Draw a shadow of user's terminal window for other users (spectators).
                 {
                     auto gate_area = canvas.full();
                     if (canvas.cmode != svga::vt16 && canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
@@ -877,7 +877,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
             {
-                if (&parent_canvas != &input.xmap)
+                if (&parent_canvas != &xmap)
                 {
                     if (uname.lyric) // Render foreign user names at their place.
                     {
@@ -937,7 +937,7 @@ namespace netxs::app::vtm
         {
             if (damaged)
             {
-                auto& canvas = input.xmap;
+                auto& canvas = xmap;
                 canvas.wipe(world.id);
                 if (align.what.applet)
                 {
@@ -2183,7 +2183,7 @@ namespace netxs::app::vtm
                     if (!gear_ptr && users.size()) // Take any existing.
                     {
                         auto gate_ptr = bell::getref<gate>(users.back()->id);
-                        auto& gears = gate_ptr->input.gears;
+                        auto& gears = gate_ptr->gears;
                         if (gears.size())
                         {
                             gear_ptr = gears.begin()->second;
