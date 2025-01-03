@@ -130,7 +130,6 @@ R"==(
                             - tile: ...
                                 - grip: ...
                             - terminal: ...  -->
-        <Noop                  ="vtm.Noop()"/>                <!-- No op action. -->
         <Disconnect            ="gate.Disconnect()"/>         <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.Run()"/>                 <!-- Run default application. -->

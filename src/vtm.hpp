@@ -1295,7 +1295,7 @@ namespace netxs::app::vtm
 
                     static auto proc_map = pro::luafx::fxmap<base>
                     {
-                        { "WarpWindow",         [](base& boss, auto lua)
+                        { "WarpWindow",         [](auto& boss, auto lua)
                                                 {
                                                     auto warp = dent{ (si32)::lua_tonumber(lua, 1),   // Args...
                                                                       (si32)::lua_tonumber(lua, 2),   //
@@ -1307,7 +1307,7 @@ namespace netxs::app::vtm
                                                     });
                                                     ::lua_settop(lua, 0); // No returns.
                                                 }},
-                        { "AlwaysOnTop",        [](base& boss, auto lua)
+                        { "AlwaysOnTop",        [](auto& boss, auto lua)
                                                 {
                                                    auto args_count = ::lua_gettop(lua);
                                                    if (args_count == 0) // Request.
@@ -1323,7 +1323,7 @@ namespace netxs::app::vtm
                                                        ::lua_pushboolean(lua, zorder == zpos::topmost); // Return current state.
                                                    }
                                                 }},
-                        { "Close",              [](base& boss, auto lua)
+                        { "Close",              [](auto& boss, auto lua)
                                                 {
                                                      boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
                                                      {
@@ -1331,13 +1331,13 @@ namespace netxs::app::vtm
                                                      });
                                                      ::lua_settop(lua, 0);
                                                 }},
-                        { "ShowClosePreview",   [](base& boss, auto lua)
+                        { "ShowClosePreview",   [](auto& boss, auto lua)
                                                 {
                                                     auto preview_state = ::lua_toboolean(lua, 1);
                                                     boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
                                                     ::lua_settop(lua, 0);
                                                 }},
-                        { "MinimizeWindow",     [](base& boss, auto lua)
+                        { "MinimizeWindow",     [](auto& boss, auto lua)
                                                 {
                                                     ::lua_getglobal(lua, "gear");
                                                     if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
@@ -1353,7 +1353,7 @@ namespace netxs::app::vtm
                                                     }
                                                     ::lua_settop(lua, 0);
                                                 }},
-                        { "MaximizeWindow",     [](base& boss, auto lua)
+                        { "MaximizeWindow",     [](auto& boss, auto lua)
                                                 {
                                                     ::lua_getglobal(lua, "gear");
                                                     if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
@@ -1369,7 +1369,7 @@ namespace netxs::app::vtm
                                                     }
                                                     ::lua_settop(lua, 0);
                                                 }},
-                        { "Fullscreen",         [](base& boss, auto lua)
+                        { "Fullscreen",         [](auto& boss, auto lua)
                                                 {
                                                     ::lua_getglobal(lua, "gear");
                                                     if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
@@ -1902,128 +1902,6 @@ namespace netxs::app::vtm
                 gear.set_handled();
             });
         }
-        auto vtm_alwaysontop(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                //todo scripting
-                auto arg = -1;//!gear.args_ptr || gear.args_ptr->empty() ? -1 : (si32)xml::take_or<bool>(gear.args_ptr->front(), faux);
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    auto zorder = arg == 0 ? zpos::plain
-                                : arg == 1 ? zpos::topmost
-                                : window_ptr->bell::signal(tier::request, e2::form::prop::zorder) != zpos::topmost ? zpos::topmost : zpos::plain;
-                    window_ptr->bell::signal(tier::preview, e2::form::prop::zorder, zorder);
-                });
-                gear.set_handled();
-            });
-        }
-        auto vtm_warp(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                //todo scripting
-                auto warp = dent{};// gear.get_args_or(dent{});
-                auto focused_window_list = std::vector<sptr>{};
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    focused_window_list.push_back(window_ptr);
-                    gear.set_handled();
-                });
-                if (focused_window_list.size())
-                {
-                    bell::enqueue(this->This(), [warp, focused_window_list](auto& /*boss*/) // Keep the focus tree intact while processing key events.
-                    {
-                        for (auto w : focused_window_list)
-                        {
-                            w->bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                        }
-                    });
-                }
-            });
-        }
-        auto vtm_close(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    bell::enqueue(window_ptr, [](auto& boss) // Keep the focus tree intact while processing key events.
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                    });
-                    gear.set_handled();
-                });
-            });
-        }
-        auto vtm_minimize(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                    {
-                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                        {
-                            auto& gear = *gear_ptr;
-                            boss.bell::signal(tier::release, e2::form::size::minimize, gear);
-                        }
-                    });
-                    gear.set_handled();
-                });
-            });
-        }
-        auto vtm_maximize(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                    {
-                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                        {
-                            auto& gear = *gear_ptr;
-                            boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        }
-                    });
-                    gear.set_handled();
-                });
-            });
-        }
-        auto vtm_fullscreen(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                items.foreach(gear, [&](auto& window_ptr)
-                {
-                    bell::enqueue(window_ptr, [gear_id = gear.id](auto& boss) // Keep the focus tree intact while processing key events.
-                    {
-                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                        {
-                            auto& gear = *gear_ptr;
-                            boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                        }
-                    });
-                    gear.set_handled();
-                    window_ptr.reset(); // Break iterating.
-                });
-            });
-        }
-        auto vtm_shutdown(eccc& /*script*/, qiew args)
-        {
-            if (args) // Shut down if there are no windows.
-            {
-                auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
-                if (window_ptr)
-                {
-                    return "aborted"s;
-                }
-            }
-            bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
-            return "ok"s;
-        }
         auto vtm_disconnect(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
@@ -2055,6 +1933,81 @@ namespace netxs::app::vtm
               focus{ id_t{} }
         {
             window_bindings = pro::keybd::load(host::config, "window");
+            static auto proc_map = pro::luafx::fxmap<hall>
+            {
+                { "Shutdown",           [](auto& boss, auto lua)
+                                        {
+                                            auto args_count = ::lua_gettop(lua);
+                                            auto ok = !args_count || !boss.bell::signal(tier::request, e2::form::layout::go::item);
+                                            if (ok)
+                                            {
+                                                boss.bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                            }
+                                            ::lua_settop(lua, 0);
+                                            ::lua_pushboolean(lua, ok);
+                                        }},
+                { "Run",                [](auto& boss, auto lua)
+                                        {
+                                            auto args_count = ::lua_gettop(lua);
+                                            ::lua_getglobal(lua, "gear");
+                                            auto object_ptr = (base*)::lua_touserdata(lua, -1);
+                                            ::lua_pop(lua, 1); // Pop gear.
+                                            auto gear_id = object_ptr ? object_ptr->id : id_t{};
+                                            auto appspec = desk::spec{ .hidden  = true,
+                                                                       .winform = shared::win::state::normal,
+                                                                       .type    = app::vtty::id,
+                                                                       .gear_id = gear_id };
+                                            if (!args_count) // Get default app spec.
+                                            {
+                                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                                                {
+                                                    auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
+                                                    appspec = boss.dbase.menu[menuid];
+                                                    appspec.fixed = faux;
+                                                    appspec.menuid = menuid;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                //auto appconf = xml::settings{ "<item " + text{ /*args*/ } + " />" };
+                                                auto appconf = xml::settings{ "<item title='Info-page' hidden=true label='Info' type='info' />" };
+                                                appconf.cd("item");
+                                                auto itemptr = appconf.homelist.front();
+                                                auto menuid = itemptr->take(attr::id, ""s);
+                                                if (boss.dbase.menu.contains(menuid))
+                                                {
+                                                    auto& appbase = boss.dbase.menu[menuid];
+                                                    if (appbase.fixed) boss.hall::loadspec(appspec, appbase, *itemptr, menuid);
+                                                    else               boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                }
+                                                else
+                                                {
+                                                    if (menuid.empty()) menuid = "vtm.run(" + text{ /*args*/ } + ")";
+                                                    boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                }
+                                            }
+                                            //appspec.appcfg.env += script.env;
+                                            //if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                                            auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
+                                                    : appspec.title.empty() ? appspec.label
+                                                    : appspec.label.empty() ? appspec.title : ""s;
+                                            if (appspec.title.empty()) appspec.title = title;
+                                            if (appspec.label.empty()) appspec.label = title;
+                                            if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
+                                            boss.bell::signal(tier::request, desk::events::exec, appspec);
+                                            //return "ok " + appspec.appcfg.cmd;
+                                            ::lua_settop(lua, 0); // No returns.
+                                        }},
+                { "FocusNextWindow",    [](auto& boss, auto lua)
+                                        {
+                                            boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
+                                            {
+                                            //    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                            });
+                                            ::lua_settop(lua, 0);
+                                        }},
+            };
+            base::plugin<pro::luafx>(proc_map);
 
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
