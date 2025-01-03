@@ -503,7 +503,6 @@ namespace netxs::ui
         {
             //todo use bell::getref(gear_id)
             using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
-            using lock = std::recursive_mutex;
 
             void forward(auto& device)
             {
@@ -526,7 +525,6 @@ namespace netxs::ui
             gate& boss;
             subs  memo;
             face  xmap;
-            lock  sync;
             depo  gears;
 
             input_t(props_t& props, gate& boss)
@@ -549,12 +547,10 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.mark(new_filler);
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
                     xmap.face::area(new_area);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
