@@ -2657,13 +2657,6 @@ namespace netxs::ui
         std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
-        pro::mouse mouse{ *this }; // form: Mouse controller.
-        //pro::keybd keybd{ *this }; // form: Keybd controller.
-
-        form(size_t nested_count = 0)
-            : base{ ui::tui_domain(), nested_count }
-        { }
-
         auto This() { return base::This<T>(); }
         template<class TT = T, class ...Args>
         static auto ctor(Args&&... args)
@@ -2686,6 +2679,18 @@ namespace netxs::ui
             auto backup = This();
             depo.erase(std::type_index(typeid(S)));
             return backup;
+        }
+        // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
+        template<class S, class ...Args>
+        auto& plugins(Args&&... args)
+        {
+            auto it = depo.find(std::type_index(typeid(S)));
+            if (it == depo.end())
+            {
+                it = depo.emplace(std::type_index(typeid(S)), std::make_unique<S>(*this, std::forward<Args>(args)...)).first;
+            }
+            auto ptr = static_cast<S*>(it->second.get());
+            return *ptr;
         }
         // form: Fill object region using parametrized fx.
         template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
@@ -2748,18 +2753,6 @@ namespace netxs::ui
         auto active()
         {
             return active(base::color());
-        }
-        // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
-        template<class S, class ...Args>
-        auto& plugins(Args&&... args)
-        {
-            const auto it = depo.find(std::type_index(typeid(S)));
-            if (it == depo.end())
-            {
-                plugin<S>(std::forward<Args>(args)...);
-            }
-            auto ptr = static_cast<S*>(depo[std::type_index(typeid(S))].get());
-            return *ptr;
         }
         // form: Invoke arbitrary functor(itself/*This/boss) in place.
         template<class P>
@@ -2883,6 +2876,12 @@ namespace netxs::ui
             auto basis = rect{ dot_00, base::region.size } - base::intpad;
             auto context = parent_canvas.change_basis(basis, true);
             return context;
+        }
+
+        form(size_t nested_count = 0)
+            : base{ ui::tui_domain(), nested_count }
+        {
+            plugins<pro::mouse>();
         }
     };
 

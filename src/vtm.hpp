@@ -750,12 +750,14 @@ namespace netxs::app::vtm
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
-              tooltip{*this, ansi::add(prompt::gate, props.title) }
+              tooltip{ *this, ansi::add(prompt::gate, props.title) }
         {
             //todo local=>nexthop
             local = faux;
             //todo scripting
             //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
+            auto& keybd = plugins<pro::keybd>();
+            auto& mouse = plugins<pro::mouse>();
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
@@ -1287,6 +1289,7 @@ namespace netxs::app::vtm
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
+                    auto& mouse = boss.template plugins<pro::mouse>();
                     auto& keybd = boss.template plugins<pro::keybd>();
                     keybd.bind(window_bindings);
 
@@ -1456,7 +1459,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
-                        boss.mouse.reset();
+                        mouse.reset();
                         boss.base::detach(); // The object kills itself.
                     };
                     boss.LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
@@ -2537,7 +2540,8 @@ namespace netxs::app::vtm
             bell::dequeue(); // Wait until all cleanups are completed.
             host::quartz.stop();
             auto lock = bell::sync();
-            host::mouse.reset(); // Release the captured mouse.
+            auto& mouse = plugins<pro::mouse>();
+            mouse.reset(); // Release the captured mouse.
             host::tokens.reset();
             dbase.reset();
             items.reset();

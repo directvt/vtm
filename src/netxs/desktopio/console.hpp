@@ -852,7 +852,6 @@ namespace netxs::ui
         debug_t    debug; // gate: Statistics monitor.
         //todo
         //pro::focus focus; // gate: Focus controller.
-        pro::keybd keybd; // gate: Keyboard controller.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -1118,7 +1117,6 @@ namespace netxs::ui
               input{ props, *this },
               debug{*this },
               //focus{*this },
-              keybd{*this, "gate" },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -1128,6 +1126,8 @@ namespace netxs::ui
         {
             //todo scripting
             //keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            auto& keybd = plugins<pro::keybd>("gate");
+            auto& mouse = plugins<pro::mouse>();
             auto bindings = pro::keybd::load(config, "tui"); //todo -> pro::keybd("gate")
             keybd.bind(bindings);
 
@@ -1436,10 +1436,6 @@ namespace netxs::ui
     public:
         using tick = datetime::quartz<bell, tier::general, e2::timer::tick.id>;
 
-        pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
-        //todo scripting: process gui keybd events
-        pro::keybd keybd; // host: Keybd controller.
-
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
         regs debris; // host: Wrecked regions.
@@ -1450,12 +1446,13 @@ namespace netxs::ui
         std::vector<bool> user_numbering; // host: .
 
         host(xipc server, xmls config, si32 focus_type = pro::focus::mode::hub)
-            :  focus{ *this, focus_type, faux },
-               keybd{ *this, "vtm" },
-              quartz{ *this },
+            : quartz{ *this },
               config{ config },
               active{ true }
         {
+            plugins<pro::focus>(focus_type, faux);
+            plugins<pro::keybd>("vtm");
+
             using namespace std::chrono;
             auto& canal = *server;
 
@@ -1731,6 +1728,7 @@ namespace netxs::ui
         void stop()
         {
             auto lock = bell::sync();
+            auto& mouse = plugins<pro::mouse>();
             mouse.reset();
             tokens.reset();
         }
