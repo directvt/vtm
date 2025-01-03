@@ -505,13 +505,18 @@ namespace netxs::ui
             using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
             using lock = std::recursive_mutex;
 
-            template<class T>
-            void forward(T& device)
+            void forward(auto& device)
             {
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
+                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss, xmap)).first;
+                    auto& gear = *(gear_it->second);
+                    gear.tooltip_timeout = boss.props.tooltip_timeout;
+                    gear.board::ghost = boss.props.clip_preview_glow;
+                    gear.board::brush = boss.props.clip_preview_clrs;
+                    gear.board::alpha = boss.props.clip_preview_alfa;
+                    gear.mouse::delay = boss.props.dblclick_timeout;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);

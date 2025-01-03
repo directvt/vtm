@@ -1483,16 +1483,16 @@ namespace netxs::input
         bool        alive; // hids: Whether event processing is complete.
 
         //todo unify
-        span&       tooltip_timeout; // hids: .
-        text        tooltip_data; // hids: Tooltip data.
-        ui32        digest = 0; // hids: Tooltip digest.
-        ui32        digest_tracker = 0; // hids: Tooltip changes tracker.
-        ui32        tooltip_digest = 0; // hids: Tooltip digest.
-        time        tooltip_time = {}; // hids: The moment to show tooltip.
-        bool        tooltip_show = faux; // hids: Show tooltip or not.
-        bool        tooltip_stop = true; // hids: Disable tooltip.
-        bool        tooltip_set  = faux; // hids: Tooltip has been set.
-        twod        tooltip_coor = {}; // hids: .
+        span tooltip_timeout; // hids: .
+        text tooltip_data; // hids: Tooltip data.
+        ui32 digest = 0; // hids: Tooltip digest.
+        ui32 digest_tracker = 0; // hids: Tooltip changes tracker.
+        ui32 tooltip_digest = 0; // hids: Tooltip digest.
+        time tooltip_time = {}; // hids: The moment to show tooltip.
+        bool tooltip_show = faux; // hids: Show tooltip or not.
+        bool tooltip_stop = true; // hids: Disable tooltip.
+        bool tooltip_set  = faux; // hids: Tooltip has been set.
+        twod tooltip_coor = {}; // hids: .
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1514,20 +1514,14 @@ namespace netxs::input
 
         bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
 
-        template<class T>
-        hids(auth& indexer, T& props, base& owner, core const& idmap)
+        hids(auth& indexer, base& owner, core const& idmap)
             : base{ indexer },
               relay{ 0 },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
-              tooltip_timeout{   props.tooltip_timeout },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) } // Defaults for US layout.
         {
-            board::ghost = props.clip_preview_glow;
-            board::brush = props.clip_preview_clrs;
-            board::alpha = props.clip_preview_alfa;
-            mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             keybd::gear_id = bell::id;
