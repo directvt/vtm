@@ -608,250 +608,10 @@ namespace netxs::ui
             }
         };
 
-        // gate: Realtime statistics.
-        struct debug_t
-        {
-            #define prop_list                     \
-            X(total_size   , "total sent"       ) \
-            X(proceed_ns   , "rendering time"   ) \
-            X(render_ns    , "stdout time"      ) \
-            X(frame_size   , "frame size"       ) \
-            X(frame_rate   , "frame rate"       ) \
-            X(focused      , "focus"            ) \
-            X(win_size     , "win size"         ) \
-            X(key_code     , "key virt"         ) \
-            X(key_scancode , "key scan"         ) \
-            X(key_chord    , "key chord"        ) \
-            X(key_state    , "key state"        ) \
-            X(key_payload  , "key type"         ) \
-            X(ctrl_state   , "controls"         ) \
-            X(k            , "k"                ) \
-            X(mouse_pos    , "mouse coord"      ) \
-            X(mouse_wheelsi, "wheel steps"      ) \
-            X(mouse_wheeldt, "wheel delta"      ) \
-            X(mouse_hzwheel, "H wheel"          ) \
-            X(mouse_vtwheel, "V wheel"          ) \
-            X(mouse_btn_1  , "left button"      ) \
-            X(mouse_btn_2  , "right button"     ) \
-            X(mouse_btn_3  , "middle button"    ) \
-            X(mouse_btn_4  , "4th button"       ) \
-            X(mouse_btn_5  , "5th button"       ) \
-            X(mouse_btn_6  , "left+right combo" ) \
-            X(last_event   , "event"            )
-
-            enum prop
-            {
-                #define X(a, b) a,
-                prop_list
-                #undef X
-            };
-
-            static constexpr auto description = std::to_array(
-            {
-                #define X(a, b) b##sv,
-                prop_list
-                #undef X
-            });
-            #undef prop_list
-
-            base& boss;
-            subs  tokens;
-            cell  alerts;
-            cell  stress;
-            page  status;
-            escx  coder;
-            bool  bypass = faux;
-
-            struct
-            {
-                span render = span::zero();
-                span output = span::zero();
-                si32 frsize = 0;
-                si64 totals = 0;
-                si32 number = 0;    // info: Current frame number
-                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
-            }
-            track; // debug: Textify the telemetry data for debugging purpose.
-
-            void shadow()
-            {
-                for (auto i = 0; i < (si32)description.size(); i++)
-                {
-                    status[i].ease();
-                }
-            }
-
-            debug_t(base& boss)
-                : boss{ boss }
-            { }
-
-            operator bool () const { return tokens.count(); }
-
-            void update(bool focus_state)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "focus";
-                status[prop::focused].set(stress) = focus_state ? "active" : "lost";
-            }
-            void update(twod new_size)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "size";
-                status[prop::win_size].set(stress) =
-                    std::to_string(new_size.x) + " x " +
-                    std::to_string(new_size.y);
-            }
-            void update(span watch, si32 delta)
-            {
-                track.output = watch;
-                track.frsize = delta;
-                track.totals+= delta;
-            }
-            void update(time timestamp)
-            {
-                track.render = datetime::now() - timestamp;
-            }
-            void output(face& canvas)
-            {
-                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-
-                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-
-                status[prop::frame_size].set(stress) =
-                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-
-                status[prop::total_size].set(stress) =
-                    utf::format(track.totals) + " bytes";
-
-                track.number++;
-                status.reindex();
-                auto ctx = canvas.change_basis(canvas.area());
-                canvas.output(status);
-            }
-            void stop()
-            {
-                track = {};
-                tokens.clear();
-            }
-            void start()
-            {
-                //todo use skin
-                stress = cell{}.fgc(whitelt);
-                alerts = cell{}.fgc(argb{ 0xFF'ff'd0'd0 });
-
-                status.style.wrp(wrap::off).jet(bias::left).rlf(feed::rev).mgl(4);
-                status.current().locus.cup(dot_00).cnl(2);
-
-                auto maxlen = 0_sz;
-                for (auto& desc : description)
-                {
-                    maxlen = std::max(maxlen, desc.size());
-                }
-                auto attr = si32{ 0 };
-                for (auto& desc : description)
-                {
-                    status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
-                    coder.clear();
-                }
-
-                boss.LISTEN(tier::general, e2::config::fps, fps, tokens)
-                {
-                    status[prop::frame_rate].set(stress) = std::to_string(fps);
-                    boss.base::strike();
-                };
-                boss.bell::signal(tier::general, e2::config::fps, e2::config::fps.param(-1));
-                boss.LISTEN(tier::release, e2::area, new_area, tokens)
-                {
-                    update(new_area.size);
-                };
-                boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
-                {
-                    if (bypass) return;
-                    shadow();
-                    status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos ].set(stress) =
-                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
-                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
-
-                    auto m_buttons = std::bitset<8>(m.buttons);
-                    for (auto i = 0; i < hids::numofbuttons; i++)
-                    {
-                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
-                        state = m_buttons[i] ? "pressed" : "idle   ";
-                    }
-
-                    if constexpr (debugmode)
-                    {
-                        status[prop::k].set(stress) = std::to_string(netxs::_k0) + " "
-                                                    + std::to_string(netxs::_k1) + " "
-                                                    + std::to_string(netxs::_k2) + " "
-                                                    + std::to_string(netxs::_k3);
-                    }
-                    status[prop::mouse_wheeldt].set(stress) = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
-                    status[prop::mouse_wheelsi].set(stress) = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
-                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
-                };
-                boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
-                {
-                    shadow();
-                    status[prop::focused].set(stress) = f.state ? "focused  " : "unfocused";
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
-                {
-                    static constexpr auto kstate = std::to_array({ "idle    ", "pressed ", "repeated" });
-                    shadow();
-                    status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
-                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
-                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-                    status[prop::key_payload  ].set(stress) = k.payload == keybd::type::keypress ? "keypress"
-                                                            : k.payload == keybd::type::keypaste ? "keypaste"
-                                                            : k.payload == keybd::type::imeanons ? "IME composition"
-                                                            : k.payload == keybd::type::imeinput ? "IME input"
-                                                            : k.payload == keybd::type::kblayout ? "keyboard layout" : "unknown payload";
-                    if (k.vkchord.length())
-                    {
-                        auto t = text{};
-                        if (k.vkchord.size() && k.keystat != input::key::repeated)
-                        {
-                            auto vkchord =     input::key::kmap::to_string(k.vkchord, faux);
-                            auto scchord =     input::key::kmap::to_string(k.scchord, faux);
-                            auto chchord =     input::key::kmap::to_string(k.chchord, faux);
-                            auto gen_vkchord = input::key::kmap::to_string(k.vkchord, true);
-                            auto gen_chchord = input::key::kmap::to_string(k.chchord, true);
-                            //log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                            if (vkchord.size()) t += (t.size() ? "  " : "") + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "  " + vkchord);
-                            if (chchord.size()) t += (t.size() ? "  " : "") + (chchord == gen_chchord ? chchord : gen_chchord + "  " + chchord);
-                            if (scchord.size()) t += (t.size() ? "  " : "") + scchord;
-                        }
-                        else if (k.cluster.length()) //todo revise
-                        {
-                            for (byte c : k.cluster)
-                            {
-                                     if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
-                                else if (c == 0x7F) t += "\\x7F";
-                                else if (c == 0x20) t += "\\x20";
-                                else                t.push_back(c);
-                            }
-                        }
-                        if (t.size()) status[prop::key_chord].set(stress) = t;
-                    }
-                };
-            }
-        };
-
     public:
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
-        debug_t    debug; // gate: Statistics monitor.
-        //todo
-        //pro::focus focus; // gate: Focus controller.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
@@ -1002,8 +762,9 @@ namespace netxs::ui
                     if (direct) send_tooltips();
                     else        draw_tooltips(canvas, stamp);
                 }
-                if (debug)
+                if (props.debug_overlay)
                 {
+                    auto& debug = plugins<pro::debug>();
                     debug.output(canvas);
                     if constexpr (debugmode) // Red channel histogram.
                     if (input.gears.size())
@@ -1068,8 +829,9 @@ namespace netxs::ui
             //       because in the global frame the mouse can stand still,
             //       but any form can move under the cursor, so for the form itself,
             //       the mouse cursor moves inside the form.
-            if (debug)
+            if (props.debug_overlay)
             {
+                auto& debug = plugins<pro::debug>();
                 debug.bypass = true;
                 input.fire(hids::events::mouse::move.id);
                 debug.bypass = faux;
@@ -1115,8 +877,6 @@ namespace netxs::ui
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
-              debug{*this },
-              //focus{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
@@ -1124,10 +884,19 @@ namespace netxs::ui
               yield{ faux },
               fullscreen{ faux }
         {
+            //todo
+            //auto& focus = plugins<pro::focus>();
             //todo scripting
-            //keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
+            //keybd.proc("ToggleDebugOverlay", [&](hids& gear)
+            //{
+            //    gear.set_handled();
+            //    auto& debug = plugins<pro::debug>();
+            //    props.debug_overlay ? debug.stop() : debug.start();
+            //    props.debug_overlay = !props.debug_overlay;
+            //});
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
+            auto& debug = plugins<pro::debug>();
             auto bindings = pro::keybd::load(config, "tui"); //todo -> pro::keybd("gate")
             keybd.bind(bindings);
 
@@ -1310,15 +1079,23 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
             {
-                if (debug)
+                if (props.debug_overlay)
                 {
                     props.show_regions = true;
+                    props.debug_overlay = faux;
                     debug.stop();
                 }
                 else
                 {
-                    if (props.show_regions) props.show_regions = faux;
-                    else                    debug.start();
+                    if (props.show_regions)
+                    {
+                        props.show_regions = faux;
+                    }
+                    else
+                    {
+                        props.debug_overlay = true;
+                        debug.start();
+                    }
                 }
                 gear.dismiss();
             };
