@@ -140,8 +140,8 @@ R"==(
 
         <AlwaysOnTop           ="window.AlwaysOnTop(not window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="window.Close()"/>            <!-- Close window. -->
-        <WindowClosePreview    ="window.ShowClosePreview()"/> <!-- Pred window close action. -->
-        <CancelWindowClose     ="window.HideClosePreview()"/> <!-- Clear pred-close window state. -->
+        <ShowClosePreview      ="window.ShowClosePreview(not gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
+        <HideClosePreview      ="window.ShowClosePreview(false)"/> <!-- Clear pred-close window state. -->
         <MinimizeWindow        ="window.MinimizeWindow()"/>   <!-- Minimize window. -->
         <MaximizeWindow        ="window.MaximizeWindow()"/>   <!-- Maximize window. -->
         <FullscreenWindow      ="window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
@@ -648,5 +648,9 @@ R"==(
             <key=""                      action=TerminalRestart/>
             <key=""                      action=TerminalQuit/>
         </terminal>
+        <defapp>
+            <key="Esc"  action=ShowClosePreview/>
+            <key="-Esc" action=CloseWindow/>
+        </defapp>
     </hotkeys>
 </config>)=="

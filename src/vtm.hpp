@@ -1295,74 +1295,98 @@ namespace netxs::app::vtm
 
                     static auto proc_map = pro::luafx::fxmap<base>
                     {
-                        { "WarpWindow", [](base& boss, auto lua)
-                                        {
-                                            auto warp = dent{ (si32)::lua_tonumber(lua, 1),   // Args...
-                                                              (si32)::lua_tonumber(lua, 2),   //
-                                                              (si32)::lua_tonumber(lua, 3),   //
-                                                              (si32)::lua_tonumber(lua, 4) }; //
-                                            boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
-                                            {
-                                                boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                                            });
-                                            ::lua_settop(lua, 0);
-                                        }},
-                        { "AlwaysOnTop", [](base& boss, auto lua)
-                                         {
-                                            auto args_count = ::lua_gettop(lua);
-                                            if (args_count == 0) // Request.
-                                            {
-                                                auto zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
-                                                ::lua_pushboolean(lua, zorder == zpos::topmost);
-                                            }
-                                            else // Setup.
-                                            {
-                                                auto zorder = ::lua_toboolean(lua, 1) ? zpos::topmost : zpos::plain;
-                                                boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
-                                                ::lua_settop(lua, 0);
-                                                ::lua_pushboolean(lua, zorder == zpos::topmost);
-                                            }
-                                         }},
-                        { "Close", [](base& boss, auto lua)
-                                   {
-                                   }},
-                        { "ShowClosePreview", [](base& boss, auto lua)
-                                              {
-                                              }},
-                        { "HideClosePreview", [](base& boss, auto lua)
-                                              {
-                                              }},
-                        { "MinimizeWindow", [](base& boss, auto lua)
-                                            {
-                                            }},
-                        { "MaximizeWindow", [](base& boss, auto lua)
-                                            {
-                                            }},
-                        { "Fullscreen", [](base& boss, auto lua)
-                                        {
-                                        }},
+                        { "WarpWindow",         [](base& boss, auto lua)
+                                                {
+                                                    auto warp = dent{ (si32)::lua_tonumber(lua, 1),   // Args...
+                                                                      (si32)::lua_tonumber(lua, 2),   //
+                                                                      (si32)::lua_tonumber(lua, 3),   //
+                                                                      (si32)::lua_tonumber(lua, 4) }; //
+                                                    boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
+                                                    {
+                                                        boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                                                    });
+                                                    ::lua_settop(lua, 0); // No returns.
+                                                }},
+                        { "AlwaysOnTop",        [](base& boss, auto lua)
+                                                {
+                                                   auto args_count = ::lua_gettop(lua);
+                                                   if (args_count == 0) // Request.
+                                                   {
+                                                       auto zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
+                                                       ::lua_pushboolean(lua, zorder == zpos::topmost);
+                                                   }
+                                                   else // Setup.
+                                                   {
+                                                       auto zorder = ::lua_toboolean(lua, 1) ? zpos::topmost : zpos::plain;
+                                                       boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                       ::lua_settop(lua, 0);
+                                                       ::lua_pushboolean(lua, zorder == zpos::topmost); // Return current state.
+                                                   }
+                                                }},
+                        { "Close",              [](base& boss, auto lua)
+                                                {
+                                                     boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
+                                                     {
+                                                         boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                                     });
+                                                     ::lua_settop(lua, 0);
+                                                }},
+                        { "ShowClosePreview",   [](base& boss, auto lua)
+                                                {
+                                                    auto preview_state = ::lua_toboolean(lua, 1);
+                                                    boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
+                                                    ::lua_settop(lua, 0);
+                                                }},
+                        { "MinimizeWindow",     [](base& boss, auto lua)
+                                                {
+                                                    ::lua_getglobal(lua, "gear");
+                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    {
+                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        {
+                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                            {
+                                                                auto& gear = *gear_ptr;
+                                                                boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                                            }
+                                                        });
+                                                    }
+                                                    ::lua_settop(lua, 0);
+                                                }},
+                        { "MaximizeWindow",     [](base& boss, auto lua)
+                                                {
+                                                    ::lua_getglobal(lua, "gear");
+                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    {
+                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        {
+                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                            {
+                                                                auto& gear = *gear_ptr;
+                                                                boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                                                            }
+                                                        });
+                                                    }
+                                                    ::lua_settop(lua, 0);
+                                                }},
+                        { "Fullscreen",         [](base& boss, auto lua)
+                                                {
+                                                    ::lua_getglobal(lua, "gear");
+                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    {
+                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        {
+                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                            {
+                                                                auto& gear = *gear_ptr;
+                                                                boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                                                            }
+                                                        });
+                                                    }
+                                                    ::lua_settop(lua, 0);
+                                                }},
                     };
                     boss.base::plugin<pro::luafx>(proc_map);
-                    //boss.LISTEN(tier::release, e2::runscript, gear)
-                    //{
-                    //    //todo unify
-                    //    gear.set_handled();
-                    //    auto cmd = gear.call_proc;
-                    //    log("cmd=", cmd);
-                    //    auto proc_name = utf::take_front(cmd, "(");
-                    //    log("proc_name=", proc_name);
-                    //    utf::trim_front(cmd, "(");
-                    //    auto args = utf::take_front(cmd, ")");
-                    //    log("args=", args);
-                    //    if (proc_name.starts_with("Warp"))
-                    //    {
-                    //        auto warp = xml::take_or(args, dent{});
-                    //        boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
-                    //        {
-                    //            boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                    //        });
-                    //    }
-                    //};
 
                     boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
