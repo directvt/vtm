@@ -1360,7 +1360,7 @@ namespace netxs::input
           public keybd,
           public focus,
           public board,
-          public bell
+          public base
     {
         using events = netxs::events::userland::hids;
         using list = std::list<wptr>;
@@ -1525,7 +1525,7 @@ namespace netxs::input
 
         template<class T>
         hids(auth& indexer, T& props, base& owner, core const& idmap)
-            : bell{ indexer },
+            : base{ indexer },
               relay{ 0 },
               owner{ owner },
               idmap{ idmap },
