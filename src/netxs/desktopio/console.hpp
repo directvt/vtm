@@ -501,6 +501,7 @@ namespace netxs::ui
         // gate: Input forwarder.
         struct input_t
         {
+            //todo use bell::getref(gear_id)
             using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
             using lock = std::recursive_mutex;
 
@@ -511,8 +512,6 @@ namespace netxs::ui
                 if (gear_it == gears.end())
                 {
                     gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
-                    //todo unify (ui::base)
-                    gear_it->second->This(gear_it->second);
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -1501,7 +1500,7 @@ namespace netxs::ui
             maxfps = config.take("/config/timings/fps", 60);
             if (maxfps <= 0) maxfps = 60;
 
-            LISTEN(tier::preview, e2::runscript, gear, -, (object_list = std::vector<std::pair<netxs::sptr<bell>, qiew>>{}))
+            LISTEN(tier::preview, e2::runscript, gear, -, (object_list = std::vector<std::pair<sptr, qiew>>{}))
             {
                 if (!gear.action_ptr) return;
                 if (!gear.scripting_context_ptr) return;
@@ -1577,7 +1576,7 @@ namespace netxs::ui
                 auto lua = lua_uptr.get();
                 log("script context:");
                 log("  script body: ", ansi::hi(script_body));
-                auto set_object = [&](netxs::sptr<bell> object_ptr, qiew object_name)
+                auto set_object = [&](sptr object_ptr, qiew object_name)
                 {
                     if (object_ptr)
                     {

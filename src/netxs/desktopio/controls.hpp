@@ -2033,7 +2033,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<std::unordered_map<text, netxs::wptr<bell>>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+            netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
             std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<action>>, preview>>.
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;

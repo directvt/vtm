@@ -1501,17 +1501,8 @@ namespace netxs::input
         //todo unify
         bool interrupt_key_proc{}; // hids: .
         netxs::sptr<text> action_ptr; // hids: A script body passed by pro::keybd/ui::menu.
-        netxs::sptr<std::unordered_map<text, netxs::wptr<bell>>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
+        netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
         qiew call_proc; // hids: .
-        netxs::wptr<bell> this_ptr; // hids: .
-        auto This() const
-        {
-            return this_ptr.lock();
-        }
-        void This(netxs::sptr<bell> gear_ptr)
-        {
-            this_ptr = gear_ptr;
-        }
 
         //todo unify
         bool mouse_disabled = faux; // Hide mouse cursor.
