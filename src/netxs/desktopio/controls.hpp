@@ -2873,6 +2873,39 @@ namespace netxs::ui
                 };
             }
         };
+
+        // pro: Lua scripting.
+        class luafx
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+        public:
+            template<class T>
+            using fxmap = std::unordered_map<text, std::function<void(T&, lua_State*)>>;
+
+            luafx(base&&) = delete;
+            template<class T>
+            luafx(base& boss, fxmap<T>& proc_map)
+                : skill{ boss }
+            {
+                auto& owner = dynamic_cast<T&>(boss);
+                boss.LISTEN(tier::release, e2::luafx, lua)
+                {
+                    auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
+                    auto iter = proc_map.find(fx_name);
+                    if (iter != proc_map.end())
+                    {
+                        auto& fx = iter->second;
+                        fx(owner, lua); // After call, all values in the stack will be returned as a result.
+                    }
+                    else
+                    {
+                        ::lua_settop(lua, 0); // No results.
+                    }
+                };
+            }
+        };
     }
 
     auto& tui_domain()

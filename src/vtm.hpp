@@ -1293,9 +1293,9 @@ namespace netxs::app::vtm
                     auto& keybd = boss.template plugins<pro::keybd>();
                     keybd.bind(window_bindings);
 
-                    static auto proc_map = std::unordered_map<text, std::function<void(base&, lua_State*)>>
+                    static auto proc_map = pro::luafx::fxmap<base>
                     {
-                        { "WarpWindow", [](base& boss, lua_State* lua)
+                        { "WarpWindow", [](base& boss, auto lua)
                                         {
                                             auto warp = dent{ (si32)::lua_tonumber(lua, 1),   // Args...
                                                               (si32)::lua_tonumber(lua, 2),   //
@@ -1306,23 +1306,9 @@ namespace netxs::app::vtm
                                                 boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
                                             });
                                             ::lua_settop(lua, 0);
-                                        }
-                        },
+                                        }},
                     };
-                    boss.LISTEN(tier::release, e2::luafx, lua)
-                    {
-                        auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
-                        auto iter = proc_map.find(fx_name);
-                        if (iter != proc_map.end())
-                        {
-                            auto& fx = iter->second;
-                            fx(boss, lua);
-                        }
-                        else
-                        {
-                            ::lua_settop(lua, 0);
-                        }
-                    };
+                    boss.base::plugin<pro::luafx>(proc_map);
                     //boss.LISTEN(tier::release, e2::runscript, gear)
                     //{
                     //    //todo unify

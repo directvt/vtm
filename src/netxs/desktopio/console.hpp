@@ -529,6 +529,17 @@ namespace netxs::ui
                 gear.board::brush = props.clip_preview_clrs;
                 gear.board::alpha = props.clip_preview_alfa;
                 gear.mouse::delay = props.dblclick_timeout;
+
+                static auto proc_map = pro::luafx::fxmap<hids>
+                {
+                    { "IsKeyRepeated", [](hids& gear, auto lua)
+                                       {
+                                           auto repeated = gear.keystat == input::key::repeated;
+                                           ::lua_settop(lua, 0);
+                                           ::lua_pushboolean(lua, repeated);
+                                       }},
+                };
+                gear.base::plugin<pro::luafx>(proc_map);
             }
             auto& [_id, gear_ptr] = *gear_it;
             gear_ptr->hids::take(device);
