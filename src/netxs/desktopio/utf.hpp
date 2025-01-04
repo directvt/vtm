@@ -1730,10 +1730,23 @@ namespace netxs::utf
     }
     auto escape(qiew line, text& dest, auto... x)
     {
-        dest.resize(dest.size() + line.size() * 2);
-        auto iter = dest.begin();
+        auto start = dest.size();
+        dest.resize(start + line.size() * 2);
+        auto iter = dest.begin() + start;
         _escape(line, iter, x...);
         dest.resize(iter - dest.begin());
+    }
+    auto filter_azAZ(qiew line, text& dest)
+    {
+        dest.reserve(dest.size() + line.size());
+        while (line)
+        {
+            auto c = line.pop_front();
+            if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')
+            {
+                dest.push_back(c);
+            }
+        }
     }
     auto unescape(text& utf8) // Unescape in place.
     {

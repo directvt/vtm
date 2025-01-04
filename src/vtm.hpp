@@ -1967,10 +1967,45 @@ namespace netxs::app::vtm
                                                     appspec.menuid = menuid;
                                                 }
                                             }
-                                            else
+                                            else if (lua_istable(lua, 1))
                                             {
-                                                //auto appconf = xml::settings{ "<item " + text{ /*args*/ } + " />" };
-                                                auto appconf = xml::settings{ "<item title='Info-page' hidden=true label='Info' type='info' />" };
+                                                auto utf8_xml = ansi::escx{};
+                                                utf8_xml += "<item ";
+                                                //log("parsing args:");
+                                                ::lua_pushnil(lua); // Push prev key.
+                                                auto key = view{};
+                                                auto val = view{};
+                                                while (::lua_next(lua, 1)) // Table is in the stack at index 1. { "<item " + text{ table } + " />" }
+                                                {
+                                                    if (!lua_isstring(lua, -2))
+                                                    {
+                                                        ::lua_pop(lua, 2); // Pop key+val.
+                                                        break;
+                                                    }
+                                                    key = ::lua_tostring(lua, -2);
+                                                    if (lua_isboolean(lua, -1))
+                                                    {
+                                                        val = ::lua_toboolean(lua, -1) ? "true" : "false";
+                                                    }
+                                                    else if (lua_isstring(lua, -1))
+                                                    {
+                                                        val = ::lua_tostring(lua, -1);
+                                                    }
+                                                    else
+                                                    {
+                                                        //todo scripting make a keylist if val is a table (eg: for multiple env=)
+                                                        val = {};
+                                                    }
+                                                    //log("  %%=%%", key, val);
+                                                    utf::filter_azAZ(key, utf8_xml);
+                                                    utf8_xml += "=\"";
+                                                    utf::escape(val, utf8_xml, '"');
+                                                    utf8_xml += "\" ";
+                                                    ::lua_pop(lua, 1); // Pop val.
+                                                }
+                                                utf8_xml += "/>";
+                                                //log("  utf8_xml=", utf8_xml);
+                                                auto appconf = xml::settings{ utf8_xml };
                                                 appconf.cd("item");
                                                 auto itemptr = appconf.homelist.front();
                                                 auto menuid = itemptr->take(attr::id, ""s);
@@ -1982,15 +2017,15 @@ namespace netxs::app::vtm
                                                 }
                                                 else
                                                 {
-                                                    if (menuid.empty()) menuid = "vtm.run(" + text{ /*args*/ } + ")";
+                                                    if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
                                                     boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                             }
                                             //appspec.appcfg.env += script.env;
                                             //if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
-                                                    : appspec.title.empty() ? appspec.label
-                                                    : appspec.label.empty() ? appspec.title : ""s;
+                                                       : appspec.title.empty() ? appspec.label
+                                                       : appspec.label.empty() ? appspec.title : ""s;
                                             if (appspec.title.empty()) appspec.title = title;
                                             if (appspec.label.empty()) appspec.label = title;
                                             if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
