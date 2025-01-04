@@ -5,16 +5,6 @@ R"==(<!-- Ordered list of paths to settings files. -->
 <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
 <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 <config>  <!-- App configuration. -->
-    <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details. -->
-        <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
-        <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive" run="\"Hello World!\""/>
-        <lua        cwd="" usetty=no  cmd="lua -i"               run="print \"Hello World!\""/>
-        <javascript cwd="" usetty=no  cmd="node -i">
-            <run>
-                console.log("Hello, World!");
-            </run>
-        </javascript>
-    </scripting>
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->

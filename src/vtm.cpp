@@ -475,8 +475,7 @@ int main(int argc, char* argv[])
                         if (active)
                         {
                             onecmd.cmd = cmd;
-                            //todo scripting
-                            //domain->bell::signal(tier::release, scripting::events::invoke, onecmd);
+                            domain->bell::signal(tier::release, e2::command::run, onecmd);
                         }
                         else
                         {
@@ -490,7 +489,7 @@ int main(int argc, char* argv[])
                             }
                             init++;
                         }
-                        events.command.send(monitor, onecmd.cmd);
+                        events.command.send(monitor, onecmd.cmd); // Output reply.
                     }};
                     auto writer = netxs::logger::attach([&](auto utf8)
                     {
@@ -505,7 +504,7 @@ int main(int argc, char* argv[])
             }
         }};
 
-        auto execline = [&](qiew /*line*/) { /*domain->bell::signal(tier::release, scripting::events::invoke, {.cmd = line});*/ }; //todo scripting
+        auto execline = [&](qiew line){ domain->bell::signal(tier::release, e2::command::run, { .cmd = line }); };
         auto shutdown = [&]{ domain->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::main, "Shutdown on signal")); };
         execline(script);
         auto readline = os::tty::readline(execline, shutdown);

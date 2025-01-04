@@ -602,8 +602,7 @@ namespace netxs::app::desk
                     {
                         usrcfg.win = {};
                         usrcfg.gear_id = seed.gear_id;
-                        //todo scripting
-                        //boss.base::riseup(tier::release, scripting::events::invoke, usrcfg);
+                        boss.base::riseup(tier::release, e2::command::run, usrcfg);
                         oneshot->reset();
                     };
                 };

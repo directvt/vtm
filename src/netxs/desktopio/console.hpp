@@ -169,7 +169,7 @@ namespace netxs::ui
             {
                 //todo implement
                 //auto cmd = eccc{ .cmd = lock.thing.utf8 };
-                //notify(scripting::events::invoke, cmd);
+                //notify(e2::command::run, cmd);
                 auto cmd = qiew{ lock.thing.utf8 };
                 if (cmd.starts_with("exit") || cmd.starts_with("quit"))
                 {
@@ -1268,6 +1268,21 @@ namespace netxs::ui
             maxfps = config.take("/config/timings/fps", 60);
             if (maxfps <= 0) maxfps = 60;
 
+            LISTEN(tier::release, e2::command::run, script)
+            {
+                utf::unescape(script.cmd);
+                //set gear
+                //set env
+                //set vtm
+                //set cwd
+                //run script.cmd
+                //place reply to script.cmd
+                
+                //auto cmd = std::move(script.cmd);
+                //auto result = (this->*(iter->second))(script, args);
+                //log(ansi::clr(yellowlt, expr, ": "), result);
+                //script.cmd += expr + ": " + result + '\n';
+            };
             LISTEN(tier::preview, e2::runscript, gear, -, (object_list = std::vector<std::pair<sptr, qiew>>{}))
             {
                 if (!gear.action_ptr) return;

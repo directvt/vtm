@@ -201,7 +201,7 @@ namespace netxs::scripting
                 if (run.size()) write(run);
                 config.popd();
             }
-            owner.LISTEN(tier::release, scripting::events::invoke, script, skill::memo)
+            owner.LISTEN(tier::release, e2::command::run, script, skill::memo)
             {
                 if (engine)
                 {

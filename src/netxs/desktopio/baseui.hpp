@@ -32,6 +32,18 @@ static auto lua_torawstring(auto lua, auto idx)
     return crop;
 }
 
+namespace netxs
+{
+    struct eccc
+    {
+        text env{}; // eccc: Environment var list delimited by \0.
+        text cwd{}; // eccc: Current working directory.
+        text cmd{}; // eccc: Command line to run.
+        text cfg{}; // eccc: Configuration patch.
+        twod win{}; // eccc: Console window size.
+        id_t gear_id{}; // eccc: Gear id.
+    };
+}
 namespace netxs::input
 {
     struct hids;
@@ -176,6 +188,7 @@ namespace netxs::events::userland
                 EVENT_XS( cout       , const text  ), // Append extra data to output.
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
+                EVENT_XS( run        , eccc        ), // Run script.
                 GROUP_XS( request    , input::hids ), // general: Request input field list.
 
                 SUBSET_XS( request )
@@ -340,7 +353,6 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( action )
                     {
-                        //EVENT_XS( runscript, input::hids ),
                         EVENT_XS( restore  , input::hids ),
                     };
                 };
