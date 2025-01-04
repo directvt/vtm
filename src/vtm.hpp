@@ -1970,41 +1970,49 @@ namespace netxs::app::vtm
                                             else if (lua_istable(lua, 1))
                                             {
                                                 auto utf8_xml = ansi::escx{};
-                                                utf8_xml += "<item ";
-                                                //log("parsing args:");
-                                                ::lua_pushnil(lua); // Push prev key.
-                                                auto key = view{};
-                                                auto val = view{};
-                                                while (::lua_next(lua, 1)) // Table is in the stack at index 1. { "<item " + text{ table } + " />" }
+                                                utf8_xml += "<item>";
+                                                auto add_item = [&](qiew key, qiew val)
                                                 {
-                                                    if (!lua_isstring(lua, -2))
-                                                    {
-                                                        ::lua_pop(lua, 2); // Pop key+val.
-                                                        break;
-                                                    }
-                                                    key = ::lua_tostring(lua, -2);
-                                                    if (lua_isboolean(lua, -1))
-                                                    {
-                                                        val = ::lua_toboolean(lua, -1) ? "true" : "false";
-                                                    }
-                                                    else if (lua_isstring(lua, -1))
-                                                    {
-                                                        val = ::lua_tostring(lua, -1);
-                                                    }
-                                                    else
-                                                    {
-                                                        //todo scripting make a keylist if val is a table (eg: for multiple env=)
-                                                        val = {};
-                                                    }
-                                                    //log("  %%=%%", key, val);
-                                                    utf::filter_azAZ(key, utf8_xml);
+                                                    //log("  %%=%%", key, utf::debase437(val));
+                                                    utf8_xml += "<";
+                                                    utf::filter_alphanumeric(key, utf8_xml);
                                                     utf8_xml += "=\"";
                                                     utf::escape(val, utf8_xml, '"');
-                                                    utf8_xml += "\" ";
+                                                    utf8_xml += "\"/>";
+                                                };
+                                                ::lua_pushnil(lua); // Push prev key.
+                                                while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<item " + text{ table } + " />" }
+                                                {
+                                                    auto key = ::lua_torawstring(lua, -2);
+                                                    if (!key.empty()) // Allow stringable keys only.
+                                                    {
+                                                        auto val = ::lua_torawstring(lua, -1);
+                                                        if (val.empty() && lua_istable(lua, -1)) // Extract item list.
+                                                        {
+                                                            ::lua_pushnil(lua); // Push prev key.
+                                                            while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
+                                                            {
+                                                                auto val2 = ::lua_torawstring(lua, -1);
+                                                                if (::lua_type(lua, -2) != LUA_TSTRING)
+                                                                {
+                                                                    add_item(key, val2);
+                                                                }
+                                                                else
+                                                                {
+                                                                    auto key2 = ::lua_torawstring(lua, -2);
+                                                                    add_item(key, utf::concat(key2, '=', val2));
+                                                                }
+                                                                ::lua_pop(lua, 1); // Pop val2.
+                                                            }
+                                                            ::lua_pop(lua, 1); // Pop val.
+                                                            continue;
+                                                        }
+                                                        add_item(key, val);
+                                                    }
                                                     ::lua_pop(lua, 1); // Pop val.
                                                 }
-                                                utf8_xml += "/>";
-                                                //log("  utf8_xml=", utf8_xml);
+                                                utf8_xml += "</item>";
+                                                log("%%Run item %%", prompt::lua, ansi::hi(utf::debase437(utf8_xml)));
                                                 auto appconf = xml::settings{ utf8_xml };
                                                 appconf.cd("item");
                                                 auto itemptr = appconf.homelist.front();
@@ -2021,6 +2029,7 @@ namespace netxs::app::vtm
                                                     boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                             }
+                                            //todo implement env and cwd
                                             //appspec.appcfg.env += script.env;
                                             //if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
@@ -2030,14 +2039,13 @@ namespace netxs::app::vtm
                                             if (appspec.label.empty()) appspec.label = title;
                                             if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
                                             boss.bell::signal(tier::request, desk::events::exec, appspec);
-                                            //return "ok " + appspec.appcfg.cmd;
                                             ::lua_settop(lua, 0); // No returns.
                                         }},
                 { "FocusNextWindow",    [](auto& boss, auto lua)
                                         {
                                             boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
                                             {
-                                            //    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                                boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                                             });
                                             ::lua_settop(lua, 0);
                                         }},

@@ -11,6 +11,27 @@
 #include <typeindex>
 #include <future>
 
+static auto lua_torawstring(auto lua, auto idx)
+{
+    auto crop = netxs::text{};
+    switch (::lua_type(lua, idx))
+    {
+        case LUA_TBOOLEAN:
+            crop = ::lua_toboolean(lua, idx) ? "true" : "false";
+        case LUA_TNUMBER:
+        case LUA_TSTRING:
+        {
+            ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
+            auto len = size_t{};
+            auto ptr = ::lua_tolstring(lua, -1, &len);
+            crop = { ptr, len };
+            ::lua_pop(lua, 1);
+            break;
+        }
+    }
+    return crop;
+}
+
 namespace netxs::input
 {
     struct hids;

@@ -1736,13 +1736,13 @@ namespace netxs::utf
         _escape(line, iter, x...);
         dest.resize(iter - dest.begin());
     }
-    auto filter_azAZ(qiew line, text& dest)
+    auto filter_alphanumeric(qiew line, text& dest)
     {
         dest.reserve(dest.size() + line.size());
         while (line)
         {
             auto c = line.pop_front();
-            if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')
+            if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') // The environment variable must be alphanumeric, and may contain an underscore.
             {
                 dest.push_back(c);
             }
