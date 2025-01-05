@@ -18,6 +18,7 @@ static auto lua_torawstring(auto lua, auto idx)
     {
         case LUA_TBOOLEAN:
             crop = ::lua_toboolean(lua, idx) ? "true" : "false";
+            break;
         case LUA_TNUMBER:
         case LUA_TSTRING:
         {
@@ -28,6 +29,12 @@ static auto lua_torawstring(auto lua, auto idx)
             ::lua_pop(lua, 1);
             break;
         }
+        case LUA_TLIGHTUSERDATA:
+            if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+            {
+                crop = netxs::utf::concat("<object:", object_ptr->id, ">");
+            }
+            break;
     }
     return crop;
 }

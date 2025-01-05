@@ -1207,6 +1207,24 @@ namespace netxs::ui
             std::vector<std::pair<sptr, qiew>> object_list; // luna: .
             lua_State* lua; // luna: .
 
+            auto vtmlua_getval()
+            {
+                auto n = ::lua_gettop(lua);
+                auto crop = ansi::escx{};
+                for (auto i = 1; i <= n; i++)
+                {
+                    auto t = ::lua_type(lua, i);
+                    switch (t)
+                    {
+                        case LUA_TBOOLEAN:
+                        case LUA_TNUMBER:
+                        case LUA_TSTRING: crop.add(::lua_torawstring(lua, i)); break;
+                        default:          crop.add('<', ::lua_typename(lua, t), '>'); break;
+                    }
+                }
+                log("", crop);
+                return 0;
+            }
             static auto vtmlua_log(lua_State* lua)
             {
                 auto n = ::lua_gettop(lua);
@@ -1262,16 +1280,28 @@ namespace netxs::ui
                 if (object_ptr)
                 {
                     object_list.push_back({ object_ptr, object_name });
-                    log("  %name%: id=%%", utf::adjust(object_name, 11, ' ', true), object_ptr->id);
                     ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr.
                     ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable.
                     ::lua_setglobal(lua, object_name.data()); // Set global var.
                 }
             }
+            auto logcontext()
+            {
+                log("%%Context:", prompt::lua);
+                lua_pushglobaltable(lua);
+                ::lua_pushnil(lua);
+                while (::lua_next(lua, -2))
+                {
+                    auto var = ::lua_torawstring(lua, -2);
+                    auto val = ::lua_torawstring(lua, -1);
+                    if (val.size()) log("%%%name% = %value%", prompt::pads, utf::adjust(var, 11, ' ', true), val);
+                    ::lua_pop(lua, 1); // Pop val.
+                }
+                ::lua_pop(lua, 1); // Pop table.
+            }
             auto runscript(auto& script_body, auto& scripting_context)
             {
-                log("script context:");
-                log("  script body: ", ansi::hi(script_body));
+                //log("  script body: ", ansi::hi(script_body));
                 for (auto& [object_name, object_wptr] : scripting_context)
                 {
                     if (auto object_ptr = object_wptr.lock())
@@ -1280,6 +1310,7 @@ namespace netxs::ui
                         object_list.push_back({ object_ptr, object_name });
                     }
                 }
+                logcontext();
                 ::lua_settop(lua, 0);
                 auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                           || ::lua_pcall(lua, 0, 0, 0);
