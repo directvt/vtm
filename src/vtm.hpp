@@ -2195,26 +2195,30 @@ namespace netxs::app::vtm
                 if (appspec.gear_id == id_t{})
                 {
                     //todo revise
-                    if (hall::focus) // Take last active keybard.
+                    if (hall::focus) // Take the last active keyboard.
                     {
                         gear_ptr = bell::getref<hids>(hall::focus);
-                        if (gear_ptr)
-                        {
-                            appspec.gear_id = hall::focus;
-                        }
+                        //if (gear_ptr)
+                        //{
+                        //    appspec.gear_id = hall::focus;
+                        //}
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
                     {
                         auto gate_ptr = bell::getref<gate>(users.back()->id);
                         auto& gears = gate_ptr->gears;
-                        if (gears.size())
+                        for (auto& [ext_gear_id, _gear_ptr] : gears)
                         {
-                            gear_ptr = gears.begin()->second;
+                            if (ext_gear_id)
+                            {
+                                gear_ptr = _gear_ptr;
+                            }
                         }
                     }
                 }
                 else gear_ptr = bell::getref<hids>(appspec.gear_id);
 
+                auto gear_id = appspec.gear_id;
                 auto menu_id = appspec.menuid;
                 auto wincoor = appspec.wincoor;
                 auto winsize = appspec.winsize;
@@ -2240,7 +2244,8 @@ namespace netxs::app::vtm
                     what.square.size = winsize ? winsize : viewport.size * 3 / 4;
                     if (auto window = create(what))
                     {
-                        pro::focus::set(window, gear.id, solo::on); // Notify pro::focus owners.
+                        //todo revise: Should the requester set focus on their own behalf?
+                        pro::focus::set(window, gear_id/*requested focus*/, solo::on); // Notify pro::focus owners.
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                         else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
