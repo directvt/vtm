@@ -1388,9 +1388,6 @@ namespace netxs::ui
 
             LISTEN(tier::release, e2::command::run, script)
             {
-                utf::unescape(script.cmd);
-                //todo set env
-                //todo set cwd
                 auto scripting_context = std::unordered_map<text, wptr>{};
                 if (script.cwd.size())
                 {

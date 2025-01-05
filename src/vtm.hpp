@@ -1933,8 +1933,12 @@ namespace netxs::app::vtm
                                         {
                                             auto args_count = ::lua_gettop(lua);
                                             ::lua_getglobal(lua, "gear");
-                                            auto object_ptr = (base*)::lua_touserdata(lua, -1);
-                                            ::lua_pop(lua, 1); // Pop gear.
+                                            ::lua_getglobal(lua, "env");
+                                            ::lua_getglobal(lua, "cwd");
+                                            auto object_ptr = (base*)::lua_touserdata(lua, -3);
+                                            auto env = ::lua_torawstring(lua, -2);
+                                            auto cwd = ::lua_torawstring(lua, -1);
+                                            ::lua_pop(lua, 3); // Pop gear/env/cwd.
                                             auto gear_id = object_ptr ? object_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = shared::win::state::normal,
@@ -2012,9 +2016,8 @@ namespace netxs::app::vtm
                                                     boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                             }
-                                            //todo implement env and cwd
-                                            //appspec.appcfg.env += script.env;
-                                            //if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                                            if (env.size()) appspec.appcfg.env += '\0' + env;
+                                            if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = cwd;
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
                                                        : appspec.label.empty() ? appspec.title : ""s;

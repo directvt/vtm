@@ -2245,11 +2245,11 @@ namespace netxs::ui
                         auto action_ptr_list = keybind_ptr->list("action");
                         bindings.push_back({ .chord = chord, .preview = preview });
                         auto& rec = bindings.back();
-                        if constexpr (debugmode) log("chord=%% preview=%%", chord, (si32)preview);
+                        //if constexpr (debugmode) log("chord=%% preview=%%", chord, (si32)preview);
                         for (auto action_ptr : action_ptr_list)
                         {
                             rec.actions.push_back(ptr::shared(config.expand(action_ptr)));
-                            if constexpr (debugmode) log("  action=", *rec.actions.back());
+                            //if constexpr (debugmode) log("  action=", *rec.actions.back());
                         }
                     }
                 }
