@@ -694,6 +694,8 @@ namespace netxs::ansi
             }
             else if (gear.m_sys.wheelsi)
             {
+                //todo impl hz scrolling 66/67
+                // impl ext mouse buttons 128-131
                 ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
                 pressed = true;
             }
@@ -729,6 +731,8 @@ namespace netxs::ansi
             static constexpr auto idle     = si32{ 32 };
             static constexpr auto wheel_up = si32{ 64 };
             static constexpr auto wheel_dn = si32{ 65 };
+            //todo impl hz scrolling 66/67
+            // impl ext mouse buttons 128-131
 
             auto ctrl = si32{};
             if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;

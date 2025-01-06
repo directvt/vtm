@@ -2905,6 +2905,15 @@ namespace netxs::ui
                     }
                 };
             }
+            static auto get_object(auto lua, const char* object_name)
+            {
+                ::lua_getglobal(lua, "vtm");
+                ::lua_pushstring(lua, object_name);
+                ::lua_gettable(lua, -2);
+                auto object_ptr = (base*)::lua_touserdata(lua, -1);
+                ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
+                return object_ptr;
+            }
         };
     }
 

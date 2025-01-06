@@ -5769,6 +5769,8 @@ namespace netxs::os
                                         m.wheelfp = -1;
                                         m.wheelsi = -1;
                                         break;
+                                    //todo impl hz scrolling 66/67
+                                    // impl ext mouse buttons 129-131
                                 }
                                 m.changed++;
                                 m.timecod = timecode;

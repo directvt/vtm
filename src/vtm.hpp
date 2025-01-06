@@ -1339,8 +1339,7 @@ namespace netxs::app::vtm
                                                 }},
                         { "MinimizeWindow",     [](auto& boss, auto lua)
                                                 {
-                                                    ::lua_getglobal(lua, "gear");
-                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    if (auto object_ptr = pro::luafx::get_object(lua, "gear"))
                                                     {
                                                         boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
@@ -1355,8 +1354,7 @@ namespace netxs::app::vtm
                                                 }},
                         { "MaximizeWindow",     [](auto& boss, auto lua)
                                                 {
-                                                    ::lua_getglobal(lua, "gear");
-                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    if (auto object_ptr = pro::luafx::get_object(lua, "gear"))
                                                     {
                                                         boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
@@ -1371,8 +1369,7 @@ namespace netxs::app::vtm
                                                 }},
                         { "Fullscreen",         [](auto& boss, auto lua)
                                                 {
-                                                    ::lua_getglobal(lua, "gear");
-                                                    if (auto object_ptr = (base*)::lua_touserdata(lua, -1))
+                                                    if (auto object_ptr = pro::luafx::get_object(lua, "gear"))
                                                     {
                                                         boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
@@ -1886,9 +1883,7 @@ namespace netxs::app::vtm
                 { "Run",                [](auto& boss, auto lua)
                                         {
                                             auto args_count = ::lua_gettop(lua);
-                                            ::lua_getglobal(lua, "gear");
-                                            auto object_ptr = (base*)::lua_touserdata(lua, -1);
-                                            ::lua_pop(lua, 1); // Pop gear.
+                                            auto object_ptr = pro::luafx::get_object(lua, "gear");
                                             auto gear_id = object_ptr ? object_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = shared::win::state::normal,
