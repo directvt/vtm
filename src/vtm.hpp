@@ -1782,52 +1782,6 @@ namespace netxs::app::vtm
                 }
             }
         }
-        auto vtm_run(eccc& script, qiew args)
-        {
-            auto appspec = desk::spec{ .hidden  = true,
-                                       .winform = shared::win::state::normal,
-                                       .type    = app::vtty::id,
-                                       .gear_id = script.gear_id };
-            utf::trim(args);
-            if (!args) // Get default app spec.
-            {
-                if (auto gear_ptr = bell::getref<hids>(script.gear_id))
-                {
-                    auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
-                    appspec = dbase.menu[menuid];
-                    appspec.fixed = faux;
-                    appspec.menuid = menuid;
-                }
-            }
-            else
-            {
-                auto appconf = xml::settings{ "<item " + text{ args } + " />" };
-                appconf.cd("item");
-                auto itemptr = appconf.homelist.front();
-                auto menuid = itemptr->take(attr::id, ""s);
-                if (dbase.menu.contains(menuid))
-                {
-                    auto& appbase = dbase.menu[menuid];
-                    if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
-                    else               hall::loadspec(appspec, appspec, *itemptr, menuid);
-                }
-                else
-                {
-                    if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
-                    hall::loadspec(appspec, appspec, *itemptr, menuid);
-                }
-            }
-            appspec.appcfg.env += script.env;
-            if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
-            auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
-                       : appspec.title.empty() ? appspec.label
-                       : appspec.label.empty() ? appspec.title : ""s;
-            if (appspec.title.empty()) appspec.title = title;
-            if (appspec.label.empty()) appspec.label = title;
-            if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
-            bell::signal(tier::request, desk::events::exec, appspec);
-            return "ok " + appspec.appcfg.cmd;
-        }
         auto vtm_dtvt(eccc& script, qiew args)
         {
             auto appspec = desk::spec{ .hidden  = true,
@@ -1933,12 +1887,8 @@ namespace netxs::app::vtm
                                         {
                                             auto args_count = ::lua_gettop(lua);
                                             ::lua_getglobal(lua, "gear");
-                                            ::lua_getglobal(lua, "env");
-                                            ::lua_getglobal(lua, "cwd");
-                                            auto object_ptr = (base*)::lua_touserdata(lua, -3);
-                                            auto env = ::lua_torawstring(lua, -2);
-                                            auto cwd = ::lua_torawstring(lua, -1);
-                                            ::lua_pop(lua, 3); // Pop gear/env/cwd.
+                                            auto object_ptr = (base*)::lua_touserdata(lua, -1);
+                                            ::lua_pop(lua, 1); // Pop gear.
                                             auto gear_id = object_ptr ? object_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = shared::win::state::normal,
@@ -2016,8 +1966,6 @@ namespace netxs::app::vtm
                                                     boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                             }
-                                            if (env.size()) appspec.appcfg.env += '\0' + env;
-                                            if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = cwd;
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                                        : appspec.title.empty() ? appspec.label
                                                        : appspec.label.empty() ? appspec.title : ""s;
