@@ -758,7 +758,7 @@ namespace netxs::app::vtm
             //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
             auto& keybd = plugins<pro::keybd>();
             auto& mouse = plugins<pro::mouse>();
-            auto bindings = pro::keybd::load(config, "desktop");
+            auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
             keybd.bind(bindings);
 
             LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate's hids::events::focus::any.
@@ -1949,7 +1949,7 @@ namespace netxs::app::vtm
                                                     ::lua_pop(lua, 1); // Pop val.
                                                 }
                                                 utf8_xml += "</item>";
-                                                log("%%Run item %%", prompt::lua, ansi::hi(utf::debase437(utf8_xml)));
+                                                log("%%Run %%", prompt::host, ansi::hi(utf::debase437(utf8_xml)));
                                                 auto appconf = xml::settings{ utf8_xml };
                                                 appconf.cd("item");
                                                 auto itemptr = appconf.homelist.front();

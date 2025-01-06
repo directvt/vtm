@@ -11,30 +11,33 @@
 #include <typeindex>
 #include <future>
 
-static auto lua_torawstring(auto lua, auto idx)
+static auto lua_torawstring(auto lua, auto idx, bool extended = faux)
 {
     auto crop = netxs::text{};
-    switch (::lua_type(lua, idx))
+    auto type = ::lua_type(lua, idx);
+    if (type == LUA_TBOOLEAN)
     {
-        case LUA_TBOOLEAN:
-            crop = ::lua_toboolean(lua, idx) ? "true" : "false";
-            break;
-        case LUA_TNUMBER:
-        case LUA_TSTRING:
+        crop = ::lua_toboolean(lua, idx) ? "true" : "false";
+    }
+    else if (type == LUA_TNUMBER || type == LUA_TSTRING)
+    {
+        ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
+        auto len = size_t{};
+        auto ptr = ::lua_tolstring(lua, -1, &len);
+        crop = { ptr, len };
+        ::lua_pop(lua, 1);
+    }
+    else if (type == LUA_TLIGHTUSERDATA)
+    {
+        if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
         {
-            ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
-            auto len = size_t{};
-            auto ptr = ::lua_tolstring(lua, -1, &len);
-            crop = { ptr, len };
-            ::lua_pop(lua, 1);
-            break;
+            crop = netxs::utf::concat("<object:", object_ptr->id, ">");
         }
-        case LUA_TLIGHTUSERDATA:
-            if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
-            {
-                crop = netxs::utf::concat("<object:", object_ptr->id, ">");
-            }
-            break;
+    }
+    else if (extended)
+    {
+             if (type == LUA_TFUNCTION) crop = "<function>";
+        else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
     }
     return crop;
 }

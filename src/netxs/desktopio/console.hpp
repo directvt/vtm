@@ -1277,24 +1277,33 @@ namespace netxs::ui
             if (object_ptr)
             {
                 object_list.push_back({ object_ptr, object_name });
-                ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr.
-                ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable.
-                ::lua_setglobal(lua, object_name.data()); // Set global var.
+                if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
+                {
+                    ::lua_pop(lua, 1); // Pop if it is a non-table.
+                    ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+                    ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+                    ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
+                }
+                ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
+                ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
+                ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+                ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
+                ::lua_pop(lua, 1); // Pop table "vtm".
             }
         }
         auto logcontext()
         {
-            log("%%Context:", prompt::lua);
-            lua_pushglobaltable(lua);
+            log("%%vtm context:", prompt::lua);
+            ::lua_getglobal(lua, "vtm");
             ::lua_pushnil(lua);
             while (::lua_next(lua, -2))
             {
                 auto var = ::lua_torawstring(lua, -2);
-                auto val = ::lua_torawstring(lua, -1);
-                if (val.size()) log("%%%name% = %value%", prompt::pads, var, val);
+                auto val = ::lua_torawstring(lua, -1, true);
+                if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
                 ::lua_pop(lua, 1); // Pop val.
             }
-            ::lua_pop(lua, 1); // Pop table.
+            ::lua_pop(lua, 1); // Pop table "vtm".
         }
         auto runscript(auto& script_body, auto& scripting_context)
         {
@@ -1372,7 +1381,7 @@ namespace netxs::ui
               active{ true }
         {
             plugins<pro::focus>(focus_type, faux);
-            plugins<pro::keybd>("vtm");
+            plugins<pro::keybd>("desktop");
 
             using namespace std::chrono;
             auto& canal = *server;
@@ -1422,7 +1431,7 @@ namespace netxs::ui
             {
                 auto scripting_context = std::unordered_map<text, wptr>{};
                 if (utf::trim(script.cmd, " \r\n\t\f").empty()) return;
-                vtmlua.setobject(This(), "vtm");
+                vtmlua.setobject(This(), "desktop");
                 if (script.gear_id)
                 if (auto gear_ptr = bell::getref<hids>(script.gear_id))
                 {
