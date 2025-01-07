@@ -1891,7 +1891,7 @@ namespace netxs::app::vtm
                                             boss.bell::signal(tier::request, desk::events::exec, appspec);
                                             luafx.set_return();
                                         }},
-                { "FocusNextWindow",    [](auto& boss, auto luafx)
+                { "FocusNextWindow",    [](auto& boss, auto& luafx)
                                         {
                                             auto go_forward = luafx.get_args_or(1, 1) > 0;
                                             auto gear_ptr = luafx.get_object<hids>("gear");
