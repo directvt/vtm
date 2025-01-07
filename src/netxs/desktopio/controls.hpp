@@ -5,6 +5,37 @@
 
 #include "input.hpp"
 
+static auto lua_torawstring(auto lua, auto idx, bool extended = faux)
+{
+    auto crop = netxs::text{};
+    auto type = ::lua_type(lua, idx);
+    if (type == LUA_TBOOLEAN)
+    {
+        crop = ::lua_toboolean(lua, idx) ? "true" : "false";
+    }
+    else if (type == LUA_TNUMBER || type == LUA_TSTRING)
+    {
+        ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
+        auto len = size_t{};
+        auto ptr = ::lua_tolstring(lua, -1, &len);
+        crop = { ptr, len };
+        ::lua_pop(lua, 1);
+    }
+    else if (type == LUA_TLIGHTUSERDATA)
+    {
+        if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
+        {
+            crop = netxs::utf::concat("<object:", object_ptr->id, ">");
+        }
+    }
+    else if (extended)
+    {
+             if (type == LUA_TFUNCTION) crop = "<function>";
+        else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
+    }
+    return crop;
+}
+
 namespace netxs::ui
 {
     // controls: UI extensions.
@@ -2882,13 +2913,20 @@ namespace netxs::ui
                   skill::memo;
         public:
             template<class T>
-            using fxmap = std::unordered_map<text, std::function<void(T&, lua_State*)>>;
+            using fxmap = std::unordered_map<text, std::function<void(T&, luafx&)>>;
+
+            lua_State* lua;
 
             luafx(base&&) = delete;
+            luafx(base& boss)
+                : skill{ boss },
+                  lua{ boss.indexer.lua }
+            { }
+
             template<class T>
-            luafx(base& boss, fxmap<T>& proc_map)
-                : skill{ boss }
+            auto activate(fxmap<T>& proc_map)
             {
+                if (!lua) return;
                 auto& owner = dynamic_cast<T&>(boss);
                 boss.LISTEN(tier::release, e2::luafx, lua)
                 {
@@ -2897,15 +2935,61 @@ namespace netxs::ui
                     if (iter != proc_map.end())
                     {
                         auto& fx = iter->second;
-                        fx(owner, lua); // After call, all values in the stack will be returned as a result.
-                    }
-                    else
-                    {
-                        ::lua_settop(lua, 0); // No results.
+                        fx(owner, *this); // After call, all values in the stack will be returned as a result.
+                        boss.bell::expire(tier::release); // Do not pass from ui::host to vtm::hall.
                     }
                 };
             }
-            static auto get_object(auto lua, const char* object_name)
+            template<class T>
+            auto get_args_or(si32 idx, T fallback = {})
+            {
+                static constexpr auto is_string_v = requires{ (const char*)fallback.data(); };
+                static constexpr auto is_cstring_v = requires{ (const char*)fallback[0]; };
+
+                auto type = ::lua_type(lua, idx);
+                if (type != LUA_TNIL)
+                {
+                         if constexpr (std::is_same_v<std::decay_t<T>, bool>) return (T)::lua_toboolean(lua, idx);
+                    else if constexpr (is_string_v || is_cstring_v)           return ::lua_torawstring(lua, idx);
+                    else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
+                    else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
+                }
+                if constexpr (is_string_v || is_cstring_v) return text{ fallback };
+                else                                       return fallback;
+            }
+            auto log_context()
+            {
+                log("%%vtm context:", prompt::lua);
+                ::lua_getglobal(lua, "vtm");
+                ::lua_pushnil(lua);
+                while (::lua_next(lua, -2))
+                {
+                    auto var = ::lua_torawstring(lua, -2);
+                    auto val = ::lua_torawstring(lua, -1, true);
+                    if (val.size()) log("%%vtm.%name% = %value%", prompt::pads, var, val);
+                    ::lua_pop(lua, 1); // Pop val.
+                }
+                ::lua_pop(lua, 1); // Pop table "vtm".
+            }
+            auto set_object(sptr object_ptr, qiew object_name)
+            {
+                if (object_ptr)
+                {
+                    if (::lua_getglobal(lua, "vtm") != LUA_TTABLE) // Push "vtm" table to stack.
+                    {
+                        ::lua_pop(lua, 1); // Pop if it is a non-table.
+                        ::lua_newtable(lua); // Create and push new "vtm.*" global table.
+                        ::lua_setglobal(lua, "vtm"); // Set global var "vtm". Pop "vtm".
+                        ::lua_getglobal(lua, "vtm"); // Push "vtm" table again to stack.
+                    }
+                    ::lua_pushstring(lua, object_name.data()); // Push vtm.* var name (key).
+                    ::lua_pushlightuserdata(lua, object_ptr.get()); // Object ptr (val).
+                    ::luaL_setmetatable(lua, "vtmmetatable"); // Set the metatable for -1 userdata.
+                    ::lua_settable(lua, -3); // Set vtm.key=val. Pop key+val.
+                    ::lua_pop(lua, 1); // Pop table "vtm".
+                }
+            }
+            auto get_object(const char* object_name)
             {
                 ::lua_getglobal(lua, "vtm");
                 ::lua_pushstring(lua, object_name);
@@ -2914,12 +2998,140 @@ namespace netxs::ui
                 ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
                 return object_ptr;
             }
+            auto push_value(auto& v)
+            {
+                using T = decltype(v);
+                static constexpr auto is_string_v = requires{ (const char*)v.data(); };
+                static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
+                     if constexpr (std::is_same_v<std::decay_t<T>, bool>) ::lua_pushboolean(lua, v);
+                else if constexpr (is_string_v)                           ::lua_pushlstring(lua, v.data(), v.size());
+                else if constexpr (is_cstring_v)                          ::lua_pushstring(lua, v);
+                else if constexpr (std::is_integral_v<T>)                 ::lua_pushinteger(lua, v);
+                else if constexpr (std::is_floating_point_v<T>)           ::lua_pushnumber(lua, v);
+                else if constexpr (std::is_pointer_v<T>)                  ::lua_pushlightuserdata(lua, v);
+                else if constexpr (debugmode) throw;
+            }
+            void set_return(auto... args)
+            {
+                ::lua_settop(lua, 0);
+                (push_value(args), ...);
+            }
+            auto args_count()
+            {
+                return ::lua_gettop(lua);
+            }
+            auto run_script(auto& script_body, auto& scripting_context)
+            {
+                //log("  script body: ", ansi::hi(script_body));
+                for (auto& [object_name, object_wptr] : scripting_context)
+                {
+                    if (auto object_ptr = object_wptr.lock())
+                    {
+                        set_object(object_ptr, object_name);
+                    }
+                }
+                log_context();
+                ::lua_settop(lua, 0);
+                auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
+                          || ::lua_pcall(lua, 0, 0, 0);
+                auto result = text{};
+                if (error)
+                {
+                    result = ::lua_tostring(lua, -1);
+                    log("%%%msg%", prompt::lua, ansi::err(result));
+                    ::lua_pop(lua, 1);  // Pop error message from stack.
+                }
+                else if (::lua_gettop(lua))
+                {
+                    result = ::lua_torawstring(lua, -1);
+                    ::lua_settop(lua, 0);
+                }
+                //todo optimize
+                ::lua_pushnil(lua);
+                ::lua_setglobal(lua, "vtm"); // Wipe global context.
+                return result;
+            }
         };
     }
 
+    // console: Lua scripting.
+    struct luna
+    {
+        lua_State* lua; // luna: .
+
+        static auto vtmlua_log(lua_State* lua)
+        {
+            auto n = ::lua_gettop(lua);
+            auto crop = text{};
+            for (auto i = 1; i <= n; i++)
+            {
+                auto t = ::lua_type(lua, i);
+                switch (t)
+                {
+                    case LUA_TBOOLEAN:
+                    case LUA_TNUMBER:
+                    case LUA_TSTRING: crop = ::lua_torawstring(lua, i); break;
+                    default:          crop = "<" + text{ ::lua_typename(lua, t) } + ">"; break;
+                }
+            }
+            log("", crop);
+            return 0;
+        }
+        static auto vtmlua_call(lua_State* lua) // UpValue[1]: Object_ptr. UpValue[2]: Function_name.
+        {
+            // Stack:
+            //      lua_upvalueindex(1): Get Object_ptr.
+            //      lua_upvalueindex(2): Fx name.
+            //      1. args:        ...
+            //      2.     :        ...
+            if (auto object_ptr = (bell*)::lua_touserdata(lua, lua_upvalueindex(1))) // Get Object_ptr.
+            {
+                object_ptr->bell::signal(tier::release, e2::luafx, lua);
+            }
+            return ::lua_gettop(lua);
+        }
+        static auto vtmlua_index(lua_State* lua)
+        {
+            // Stack:
+            //      1. userdata (or table).
+            //      2. fx name (keyname).
+            ::lua_pushcclosure(lua, vtmlua_call, 2);
+            return 1;
+        }
+        static auto vtmlua_tostring(lua_State* lua)
+        {
+            auto crop = text{};
+            if (auto object_ptr = (bell*)::lua_touserdata(lua, -1)) // Get Object_ptr.
+            {
+                crop = utf::concat("<object:", object_ptr->id, ">");
+            }
+            else crop = "<object>";
+            ::lua_pushstring(lua, crop.data());
+            return 1;
+        }
+
+        luna()
+            : lua{ ::luaL_newstate() }
+        {
+            ::luaL_openlibs(lua);
+            ::lua_pushcclosure(lua, vtmlua_log, 0);
+            ::lua_setglobal(lua, "log");
+            static auto metalist = std::to_array<luaL_Reg>({{ "__index", vtmlua_index },
+                                                            { "__tostring", vtmlua_tostring },
+                                                            { nullptr, nullptr }});
+            ::luaL_newmetatable(lua, "vtmmetatable"); // Create a new metatable in registry and push it to the stack.
+            ::luaL_setfuncs(lua, metalist.data(), 0); // Assign metamethods for the table which at the top of the stack.
+        }
+        ~luna()
+        {
+            if (lua) ::lua_close(lua);
+        }
+    };
+
     auto& tui_domain()
     {
-        static auto indexer = netxs::events::auth{};
+        static auto scripting = luna{};
+        static auto indexer = netxs::events::auth{ scripting.lua };
         return indexer;
     }
 

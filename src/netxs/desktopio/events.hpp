@@ -4,6 +4,7 @@
 #pragma once
 
 #include "geometry.hpp"
+#include "lua.hpp"
 
 #include <vector>
 #include <mutex>
@@ -249,6 +250,11 @@ namespace netxs::events
         std::map<id_t, wptr<bell>> store;
         generics::jobs<wptr<bell>> agent;
         reactor                    general{ true };
+        lua_State*                 lua;
+
+        auth(lua_State* lua = {})
+            : lua{ lua }
+        { }
 
         // auth: .
         auto sync()
@@ -426,7 +432,6 @@ namespace netxs::events
                 EVENT_XS( cascade  , ftor ),
                 EVENT_XS( base     , root ),
                 EVENT_XS( hids     , root ),
-                EVENT_XS( scripting, root ),
                 EVENT_XS( custom   , root ),
                 EVENT_XS( cleanup  , ref_count_t ), // Garbage collection.
             };

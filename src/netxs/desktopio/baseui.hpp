@@ -6,41 +6,9 @@
 #include "richtext.hpp"
 #include "events.hpp"
 #include "xml.hpp"
-#include "lua.hpp"
 
 #include <typeindex>
 #include <future>
-
-static auto lua_torawstring(auto lua, auto idx, bool extended = faux)
-{
-    auto crop = netxs::text{};
-    auto type = ::lua_type(lua, idx);
-    if (type == LUA_TBOOLEAN)
-    {
-        crop = ::lua_toboolean(lua, idx) ? "true" : "false";
-    }
-    else if (type == LUA_TNUMBER || type == LUA_TSTRING)
-    {
-        ::lua_pushvalue(lua, idx); // ::lua_tolstring converts value to string in place.
-        auto len = size_t{};
-        auto ptr = ::lua_tolstring(lua, -1, &len);
-        crop = { ptr, len };
-        ::lua_pop(lua, 1);
-    }
-    else if (type == LUA_TLIGHTUSERDATA)
-    {
-        if (auto object_ptr = (netxs::bell*)::lua_touserdata(lua, idx)) // Get Object_ptr.
-        {
-            crop = netxs::utf::concat("<object:", object_ptr->id, ">");
-        }
-    }
-    else if (extended)
-    {
-             if (type == LUA_TFUNCTION) crop = "<function>";
-        else if (type == LUA_TTABLE)    crop = "<table>"; //todo expand table
-    }
-    return crop;
-}
 
 namespace netxs
 {
