@@ -1938,10 +1938,11 @@ namespace netxs::app::vtm
                                                                 }
                                                                 ::lua_pop(lua, 1); // Pop val2.
                                                             }
-                                                            ::lua_pop(lua, 1); // Pop val.
-                                                            continue;
                                                         }
-                                                        add_item(key, val);
+                                                        else
+                                                        {
+                                                            add_item(key, val);
+                                                        }
                                                     }
                                                     ::lua_pop(lua, 1); // Pop val.
                                                 }
