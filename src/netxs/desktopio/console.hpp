@@ -827,7 +827,7 @@ namespace netxs::ui
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
             auto& debug = plugins<pro::debug>();
-            auto bindings = pro::keybd::load(config, "tui"); //todo -> pro::keybd("gate")
+            auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
 
             base::root(true);
