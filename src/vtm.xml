@@ -120,7 +120,7 @@ R"==(
                             - .tile: ...
                                 - .grip: ...
                             - .terminal: ...  -->
-        <Disconnect            ="vtm.gate.Disconnect()"/>         <!-- Disconnect from the desktop. -->
+        <Disconnect            ="vtm.desktop.Disconnect()"/>          <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm.desktop.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.desktop.Run()"/>                 <!-- Run default application. -->
         <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->

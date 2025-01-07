@@ -1794,24 +1794,6 @@ namespace netxs::app::vtm
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
-        auto run_with_gear(id_t gear_id, auto function)
-        {
-            if (auto gear_ptr = bell::getref<hids>(gear_id))
-            {
-                auto& gear = *gear_ptr;
-                function(gear);
-                gear.set_handled();
-                return "ok"s;
-            }
-            return "aborted"s;
-        }
-        auto vtm_disconnect(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                gear.owner.bell::signal(tier::preview, e2::conio::quit);
-            });
-        }
 
     public:
         hall(xipc server, xmls& config)
@@ -1832,23 +1814,35 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
+                { "Disconnect",         [](auto& /*boss*/, auto& luafx) //todo Disconnect(gear_id)
+                                        {
+                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto ok = !!gear_ptr;
+                                            if (ok)
+                                            {
+                                                gear_ptr->owner.bell::signal(tier::preview, e2::conio::quit);
+                                                gear_ptr->set_handled();
+                                            }
+                                            luafx.set_return(ok);
+                                        }},
                 { "Run",                [](auto& boss, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto object_ptr = luafx.get_object("gear");
-                                            auto gear_id = object_ptr ? object_ptr->id : id_t{};
+                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_id = gear_ptr ? gear_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = shared::win::state::normal,
                                                                        .type    = app::vtty::id,
                                                                        .gear_id = gear_id };
                                             if (!args_count) // Get default app spec.
                                             {
-                                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                                                if (gear_ptr)
                                                 {
                                                     auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
                                                     appspec = boss.dbase.menu[menuid];
                                                     appspec.fixed = faux;
                                                     appspec.menuid = menuid;
+                                                    appspec.gear_id = gear_id;
                                                 }
                                             }
                                             else
@@ -1889,6 +1883,7 @@ namespace netxs::app::vtm
                                             if (appspec.label.empty()) appspec.label = title;
                                             if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
                                             boss.bell::signal(tier::request, desk::events::exec, appspec);
+                                            if (gear_ptr) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
                 { "FocusNextWindow",    [](auto& boss, auto& luafx)
