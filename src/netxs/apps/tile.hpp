@@ -342,6 +342,7 @@ namespace netxs::app::tile
                     ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                     ->template plugin<pro::focus>(pro::focus::mode::focusable)
                     ->template plugin<pro::keybd>("grip")
+                    ->template plugin<pro::luafx>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
@@ -352,12 +353,47 @@ namespace netxs::app::tile
                             gear.dismiss();
                         };
                         auto& keybd = boss.template plugins<pro::keybd>();
-                        //todo scripting
-                        //keybd.proc(action::TileMoveGrip     , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::move,   gear.get_args_or(twod{})); });
-                        //keybd.proc(action::TileResizeGrip   , [&](hids& gear){ gear.set_handled(); boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, gear.get_args_or(si32{})); });
-                        //keybd.proc(action::TileFocusPrevGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
-                        //keybd.proc(action::TileFocusNextGrip, [&](hids& gear){ boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
+                        auto& luafx = boss.template plugins<pro::luafx>();
                         keybd.bind(*grip_bindings_ptr);
+
+                        static auto proc_map = pro::luafx::fxmap<decltype(boss)>
+                        {
+                            { "MoveGrip",       [](auto& boss, auto& luafx)
+                                                {
+                                                    auto delta = luafx.get_args_or(1, twod{});
+                                                    boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
+                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                    {
+                                                        gear_ptr->set_handled();
+                                                    }
+                                                    luafx.set_return();
+                                                }},
+                            { "ResizeGrip",     [](auto& boss, auto& luafx)
+                                                {
+                                                    auto delta = luafx.get_args_or(1, si32{});
+                                                    boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
+                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
+                                                    {
+                                                        gear_ptr->set_handled();
+                                                    }
+                                                    luafx.set_return();
+                                                }},
+                            { "FocusNextGrip",  [](auto& boss, auto& luafx)
+                                                {
+                                                    auto gear_ptr = luafx.get_object<hids>("gear");
+                                                    auto ok = !!gear_ptr;
+                                                    if (ok)
+                                                    {
+                                                        auto& gear = *gear_ptr;
+                                                        auto delta = luafx.get_args_or(1, si32{ 1 });
+                                                        delta > 0 ? boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
+                                                                  : boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);
+                                                        gear.set_handled();
+                                                    }
+                                                    luafx.set_return(ok);
+                                                }},
+                        };
+                        luafx.activate(proc_map);
                     });
             return node;
         };
@@ -1372,7 +1408,7 @@ namespace netxs::app::tile
                 { tile::action::TileClosePane         , [](auto& boss, auto& /*item*/){ on_left_click(boss, app::tile::events::ui::close          ); }},
             };
             config.cd("/config/tile", "/config/defapp");
-            auto grip_bindings_ptr = ptr::shared(pro::keybd::load(config, "tile/grips"));
+            auto grip_bindings_ptr = ptr::shared(pro::keybd::load(config, "tile/grip"));
             auto [menu_block, cover, menu_data] = menu::load(config, proc_map);
             object->attach(slot::_1, menu_block)
                 ->invoke([](auto& boss)

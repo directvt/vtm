@@ -2267,7 +2267,7 @@ namespace netxs::ui
                 auto bindings = input::key::keybind_list_t{};
                 if (section)
                 {
-                    auto path = "/config/hotkeys/" + section.str() + "/key";
+                    auto path = "/config/events/" + section.str() + "/key";
                     auto keybinds = config.list(path);
                     for (auto keybind_ptr : keybinds)
                     {
@@ -2943,8 +2943,8 @@ namespace netxs::ui
             template<class T>
             auto get_args_or(si32 idx, T fallback = {})
             {
-                static constexpr auto is_string_v = requires{ (const char*)fallback.data(); };
-                static constexpr auto is_cstring_v = requires{ (const char*)fallback[0]; };
+                static constexpr auto is_string_v = requires{ static_cast<const char*>(fallback.data()); };
+                static constexpr auto is_cstring_v = requires{ static_cast<const char*>(fallback); };
 
                 auto type = ::lua_type(lua, idx);
                 if (type != LUA_TNIL)
@@ -2953,6 +2953,7 @@ namespace netxs::ui
                     else if constexpr (is_string_v || is_cstring_v)           return ::lua_torawstring(lua, idx);
                     else if constexpr (std::is_integral_v<T>)                 return (T)::lua_tointeger(lua, idx);
                     else if constexpr (std::is_floating_point_v<T>)           return (T)::lua_tonumber(lua, idx);
+                    else if constexpr (std::is_same_v<std::decay_t<T>, twod>) return twod{ ::lua_tointeger(lua, idx), ::lua_tointeger(lua, idx + 1) };
                 }
                 if constexpr (is_string_v || is_cstring_v) return text{ fallback };
                 else                                       return fallback;

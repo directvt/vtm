@@ -524,7 +524,7 @@ R"==(
             <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
         </menu>
     </defapp>
-    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
         <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
             <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>
             <key="CapsLock+DownArrow" action=DecreaseCellHeight/>
@@ -579,7 +579,7 @@ R"==(
             <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>
             <key="Alt+Shift+F2"    action=TileSetManagerTitle/>
             <key="Alt+Shift+W"     action=TileClosePane/>
-            <grips key*>
+            <grip key*>
                 <key="LeftArrow"                          action=TileMoveGripLeft/>
                 <key="RightArrow"                         action=TileMoveGripRight/>
                 <key="UpArrow"                            action=TileMoveGripUp/>
@@ -588,7 +588,7 @@ R"==(
                 <key="Shift+'+' | '+' | '=' | NumpadPlus" action=TileIncreaseGripWidth/>
                 <key="Shift+Tab"                          action=TileFocusPrevGrip/>
                 <key="Tab"                                action=TileFocusNextGrip/>
-            </grips>
+            </grip>
         </tile>
         <terminal key*>  <!-- Terminal specific layer key bindings. -->
 )=="
@@ -640,5 +640,5 @@ R"==(
             <key="Esc"  action=ShowClosingPreview/>
             <key="-Esc" action=CloseWindow/>
         </defapp>
-    </hotkeys>
+    </events>
 </config>)=="
