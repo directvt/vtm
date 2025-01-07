@@ -120,13 +120,13 @@ R"==(
                         - .tile: ...
                             - .grip: ...
                         - .terminal: ...  -->
-        <Disconnect            ="vtm.desktop.Disconnect()"/>          <!-- Disconnect from the desktop. -->
+        <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm.desktop.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.desktop.Run()"/>                 <!-- Run default application. -->
         <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
         <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
         <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
-        <ToggleDebugOverlay    ="vtm.desktop.DebugOverlay()"/>        <!-- Toggle debug overlay. -->
+        <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
 
         <AlwaysOnTop           ="vtm.window.AlwaysOnTop(not vtm.window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="vtm.window.Close()"/>            <!-- Close window. -->
@@ -535,10 +535,10 @@ R"==(
             <key="Ctrl+Shift+F12"     action=RollFontsForward/>
             <key="-Ctrl" preview      action=ResetWheelAccumulator/>
         </gui>
-        <gate>  <!-- Taskbar layer key bindings. -->
+        <gate key*>  <!-- Session layer key bindings. -->
+            <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
         </gate>
         <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
             <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
             <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
             <key="Shift+F7"                                             action=Disconnect/>
@@ -636,7 +636,7 @@ R"==(
             <key=""                      action=TerminalRestart/>
             <key=""                      action=TerminalQuit/>
         </terminal>
-        <defapp>
+        <defapp key*>
             <key="Esc"  action=ShowClosingPreview/>
             <key="-Esc" action=CloseWindow/>
         </defapp>

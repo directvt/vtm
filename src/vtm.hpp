@@ -1825,20 +1825,6 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "DebugOverlay",       [](auto& /*boss*/, auto& luafx) //todo DebugOverlay(gate)
-                                        {
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
-                                            auto gate_ptr = luafx.get_object<ui::gate>("gate");
-                                            auto ok = !!gear_ptr && !!gate_ptr;
-                                            if (ok)
-                                            {
-                                                auto& debug = gate_ptr->plugins<pro::debug>();
-                                                gate_ptr->props.debug_overlay ? debug.stop() : debug.start();
-                                                gate_ptr->props.debug_overlay = !gate_ptr->props.debug_overlay;
-                                                gear_ptr->set_handled();
-                                            }
-                                            luafx.set_return(ok);
-                                        }},
                 { "Run",                [](auto& boss, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();

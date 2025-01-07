@@ -816,19 +816,42 @@ namespace netxs::ui
         {
             //todo
             //auto& focus = plugins<pro::focus>();
-            //todo scripting
-            //keybd.proc("ToggleDebugOverlay", [&](hids& gear)
-            //{
-            //    gear.set_handled();
-            //    auto& debug = plugins<pro::debug>();
-            //    props.debug_overlay ? debug.stop() : debug.start();
-            //    props.debug_overlay = !props.debug_overlay;
-            //});
+
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
             auto& debug = plugins<pro::debug>();
+            auto& luafx = plugins<pro::luafx>();
             auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
+
+            static auto proc_map = pro::luafx::fxmap<gate>
+            {
+                { "Disconnect",         [](auto& boss, auto& luafx)
+                                        {
+                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto ok = !!gear_ptr;
+                                            if (ok)
+                                            {
+                                                boss.bell::signal(tier::preview, e2::conio::quit);
+                                                gear_ptr->set_handled();
+                                            }
+                                            luafx.set_return(ok);
+                                        }},
+                { "DebugOverlay",       [](auto& boss, auto& luafx)
+                                        {
+                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto ok = !!gear_ptr;
+                                            if (ok)
+                                            {
+                                                auto& debug = boss.plugins<pro::debug>();
+                                                boss.props.debug_overlay ? debug.stop() : debug.start();
+                                                boss.props.debug_overlay = !boss.props.debug_overlay;
+                                                gear_ptr->set_handled();
+                                            }
+                                            luafx.set_return(ok);
+                                        }},
+            };
+            luafx.activate(proc_map);
 
             base::root(true);
             base::limits(dot_11);
