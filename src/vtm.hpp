@@ -1805,55 +1805,6 @@ namespace netxs::app::vtm
             }
             return "aborted"s;
         }
-        auto vtm_nextwindow(eccc& script, qiew /*args*/)
-        {
-            return run_with_gear(script.gear_id, [&](hids& gear)
-            {
-                //todo scripting
-                auto go_forward = true;//gear.get_args_or(true);
-                if (gear.shared_event) // Give another process a chance to handle this event.
-                {
-                    auto gear_id = gear.id;
-                    go_forward ? bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
-                               : bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
-                    if (!gear_id) return;
-                }
-                gear.owner.bell::signal(tier::preview, e2::form::proceed::action::restore, gear);
-
-                auto window_ptr = bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
-                if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
-
-                auto current = window_ptr; 
-                auto maximized = faux;
-                auto owner_id = id_t{};
-                do
-                {
-                    window_ptr.reset();
-                    owner_id = id_t{};
-                    if (go_forward) bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                    else            bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                    if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
-                    maximized = owner_id == gear.owner.id;
-                    if (!owner_id || maximized) break;
-                }
-                while (window_ptr != current); // Skip all foreign maximized windows.
-
-                if (window_ptr && (!owner_id || maximized))
-                {
-                    auto& window = *window_ptr;
-                    window.bell::signal(tier::release, e2::form::layout::selected, gear);
-                    if (!maximized)
-                    {
-                        gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
-                    }
-                    bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
-                    {
-                        pro::focus::set(window.This(), gear_id, solo::on);
-                    });
-                }
-                gear.set_handled();
-            });
-        }
         auto vtm_disconnect(eccc& script, qiew /*args*/)
         {
             return run_with_gear(script.gear_id, [&](hids& gear)
@@ -1942,10 +1893,63 @@ namespace netxs::app::vtm
                                         }},
                 { "FocusNextWindow",    [](auto& boss, auto luafx)
                                         {
-                                            boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
+                                            auto go_forward = luafx.get_args_or(1, 1) > 0;
+                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            if (!gear_ptr)
                                             {
-                                                boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                                            });
+                                                luafx.set_return();
+                                                return;
+                                            }
+                                            auto& gear = *gear_ptr;
+                                            auto gear_id = gear.id;
+                                            auto appspec = desk::spec{ .hidden  = true,
+                                                                       .winform = shared::win::state::normal,
+                                                                       .type    = app::vtty::id,
+                                                                       .gear_id = gear_id };
+                                            if (gear.shared_event) // Give another process a chance to handle this event.
+                                            {
+                                                go_forward ? boss.bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                                                           : boss.bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                                                if (!gear_id)
+                                                {
+                                                    luafx.set_return();
+                                                    return;
+                                                }
+                                            }
+                                            gear.owner.bell::signal(tier::preview, e2::form::proceed::action::restore, gear);
+
+                                            auto window_ptr = boss.bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
+                                            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+
+                                            auto current = window_ptr; 
+                                            auto maximized = faux;
+                                            auto owner_id = id_t{};
+                                            do
+                                            {
+                                                window_ptr.reset();
+                                                owner_id = id_t{};
+                                                if (go_forward) boss.bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                                                else            boss.bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                                                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                                                maximized = owner_id == gear.owner.id;
+                                                if (!owner_id || maximized) break;
+                                            }
+                                            while (window_ptr != current); // Skip all foreign maximized windows.
+
+                                            if (window_ptr && (!owner_id || maximized))
+                                            {
+                                                auto& window = *window_ptr;
+                                                window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                                                if (!maximized)
+                                                {
+                                                    gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
+                                                }
+                                                boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                                {
+                                                    pro::focus::set(window.This(), gear_id, solo::on);
+                                                });
+                                            }
+                                            gear.set_handled();
                                             luafx.set_return();
                                         }},
             };
