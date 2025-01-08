@@ -726,7 +726,6 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        input::key::keybind_list_t hotkeys;
     };
 
     auto get_gui_config(xmls& config)
@@ -745,7 +744,6 @@ namespace netxs::app::shared
             //todo implement 'fonts/font/file' - font file path/url
             gui_config.fontlist.push_back(config.expand(f));
         }
-        gui_config.hotkeys = ui::pro::keybd::load(config, "gui");
         return gui_config;
     }
     void splice(xipc client, gui_config_t& gc)
@@ -757,7 +755,7 @@ namespace netxs::app::shared
             auto connect = [&]
             {
                 auto event_domain = netxs::events::auth{};
-                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21, gc.hotkeys);
+                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)

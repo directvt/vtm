@@ -2207,15 +2207,6 @@ namespace netxs::ui
                 //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); gear.interrupt_key_proc = true; }});
             }
 
-            auto filter(hids& gear)
-            {
-                if (gear.payload == input::keybd::type::keypress)
-                {
-                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.vkchord);
-                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.chchord);
-                    if (!gear.touched && !gear.handled) _dispatch(gear, true, gear.scchord);
-                }
-            }
             auto bind(qiew chord_str, auto&& actions, bool preview = faux)
             {
                 if (!chord_str) return;

@@ -1903,7 +1903,6 @@ namespace netxs::gui
 
         title titles; // winbase: UI header/footer.
         focus wfocus; // winbase: UI focus.
-        keybd wkeybd; // winbase: Keyboard controller.
         layer master; // winbase: Layer for Client.
         layer blinky; // winbase: Layer for blinking characters.
         layer header; // winbase: Layer for Header.
@@ -1948,11 +1947,10 @@ namespace netxs::gui
         evnt  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
 
-        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell, input::key::keybind_list_t& hotkeys)
+        winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
             : base{ indexer },
               titles{ *this, "", "", faux },
               wfocus{ *this, ui::pro::focus::mode::relay },
-              wkeybd{ *this, "gui" }, //todo scripting: move processing to ui::host
               fcache{ font_names, cell_height, [&]{ netxs::set_flag<task::all>(reload); window_post_command(ipc::no_command); } },
               gcache{ fcache, antialiasing },
               blinks{ .init = blink_rate },
@@ -1978,18 +1976,7 @@ namespace netxs::gui
               whlacc{ 0.f },
               wdelta{ 24.f },
               stream{ *this, *os::dtvt::client }
-        {
-            //todo scripting
-            //wkeybd.proc("IncreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(1.f); });
-            //wkeybd.proc("DecreaseCellHeight"    , [&](hids& gear){ gear.set_handled(); IncreaseCellHeight(-1.f);});
-            //wkeybd.proc("ResetCellHeight"       , [&](hids& gear){ gear.set_handled(); ResetCellHeight();        });
-            //wkeybd.proc("ToggleFullscreenMode"  , [&](hids& gear){ gear.set_handled(); ToggleFullscreenMode();   });
-            //wkeybd.proc("ToggleAntialiasingMode", [&](hids& gear){ gear.set_handled(); ToggleAntialiasingMode(); });
-            //wkeybd.proc("RollFontsBackward"     , [&](hids& gear){ gear.set_handled(); RollFontList(feed::rev);  });
-            //wkeybd.proc("RollFontsForward"      , [&](hids& gear){ gear.set_handled(); RollFontList(feed::fwd);  });
-            //wkeybd.proc("ResetWheelAccumulator" , [&](hids& /*gear*/){ whlacc = {}; });
-            wkeybd.bind(hotkeys);
-        }
+        { }
 
         virtual bool layer_create(layer& s, winbase* host_ptr = nullptr, twod win_coord = {}, twod grid_size = {}, dent border_dent = {}, twod cell_size = {}) = 0;
         //virtual void layer_delete(layer& s) = 0;
@@ -2824,7 +2811,6 @@ namespace netxs::gui
             gear.handled = {};
             gear.touched = {};
             gear.timecod = datetime::now();
-            wkeybd.filter(gear);
             stream.keybd(gear, [&](view block)
             {
                 if (mfocus.active())
@@ -3049,7 +3035,6 @@ namespace netxs::gui
                         keybd.syncto(gear);
                         gear.gear_id = gear.bell::id; // Restore gear id.
                         gear.touched = {};
-                        wkeybd.filter(gear);
                         stream.keybd(gear);
                     }
                 }
