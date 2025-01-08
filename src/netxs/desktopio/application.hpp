@@ -464,6 +464,7 @@ namespace netxs::app::shared
             {
                 auto item = menu::item{};
                 auto& data = *data_ptr;
+                //todo scripting (expand action)
                 auto action = data.take(menu::attr::action, ""s);
                 item.type = data.take(menu::attr::type, menu::type::Command, type_options);
                 defs.tooltip = data.take(menu::attr::tooltip, ""s);

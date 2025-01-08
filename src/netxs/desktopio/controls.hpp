@@ -3022,6 +3022,17 @@ namespace netxs::ui
             {
                 return ::lua_gettop(lua);
             }
+            auto run_with_gear(auto proc)
+            {
+                auto gear_ptr = get_object<hids>("gear");
+                auto ok = !!gear_ptr;
+                if (ok)
+                {
+                    auto& gear = *gear_ptr;
+                    proc(gear);
+                }
+                set_return(ok);
+            }
             auto read_args(auto add_item)
             {
                 if (!lua_istable(lua, -1)) return;

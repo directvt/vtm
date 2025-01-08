@@ -6596,6 +6596,7 @@ namespace netxs::ui
         pro::timer worker; // term: Linear animation controller.
         pro::robot dynamo; // term: Linear animation controller.
         pro::keybd chords; // term: Keyboard controller.
+        pro::luafx lunafx; // term: App scripting.
         m_tracking mtrack; // term: VT-style mouse tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -7799,6 +7800,7 @@ namespace netxs::ui
               worker{ *this },
               dynamo{ *this },
               chords{ *this, "terminal" },
+              lunafx{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
@@ -7840,37 +7842,277 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            //todo scripting
-            //chords.proc(action::TerminalScrollViewportByPage, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = gear.get_args_or(twod{}) }); });
-            //chords.proc(action::TerminalScrollViewportByCell, [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = gear.get_args_or(twod{}) }); });
-            //chords.proc(action::TerminalScrollViewportToTop,  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-            //chords.proc(action::TerminalScrollViewportToEnd,  [&](hids& gear){ if (target != &normal) return; gear.set_handled(); base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-            //chords.proc(action::TerminalFindPrev,             [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::rev); });
-            //chords.proc(action::TerminalFindNext,             [&](hids& gear){ gear.set_handled(); selection_search(gear, feed::fwd); });
-            //chords.proc(action::TerminalCwdSync,              [&](hids& gear){ gear.set_handled(); base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true); });
-            //chords.proc(action::TerminalQuit,                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::sighup);    });
-            //chords.proc(action::TerminalRestart,              [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::restart);   });
-            //chords.proc(action::TerminalFullscreen,           [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard events.
-            //chords.proc(action::TerminalMaximize,             [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::preview, e2::form::size::enlarge::maximize, *gear_ptr); }); });
-            //chords.proc(action::TerminalMinimize,             [&](hids& gear){ gear.set_handled(); bell::enqueue(This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = bell::getref<hids>(gear_id)) base::riseup(tier::release, e2::form::size::minimize, *gear_ptr); }); });
-            //chords.proc(action::TerminalUndo,                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::undo);      });
-            //chords.proc(action::TerminalRedo,                 [&](hids& gear){ gear.set_handled(); exec_cmd(commands::ui::redo);      });
-            //chords.proc(action::TerminalClipboardCopy,        [&](hids& gear){ if (selection_active()) { copy(gear); gear.set_handled(); } else if (auto v = ipccon.get_current_line()) { _copy(gear, v.value()); gear.set_handled(); }});
-            //chords.proc(action::TerminalClipboardPaste,       [&](hids& gear){ gear.set_handled(); paste(gear);                       });
-            //chords.proc(action::TerminalClipboardWipe,        [&](hids& gear){ gear.set_handled(); gear.clear_clipboard();            });
-            //chords.proc(action::TerminalClipboardFormat,      [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglesel); else set_selmod((si32)netxs::get_or(xml::options::format, gear.args_ptr->front(), mime::textonly)); });
-            //chords.proc(action::TerminalViewportCopy,         [&](hids& gear){ gear.set_handled(); prnscrn(gear);                     });
-            //chords.proc(action::TerminalSelectionCancel,      [&](hids& gear){ if (!selection_active()) return; gear.set_handled(); exec_cmd(commands::ui::deselect); });
-            //chords.proc(action::TerminalSelectionRect,        [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::toggleselalt); else set_selalt(xml::take_or<bool>(gear.args_ptr->front(), faux)); });
-            //chords.proc(action::TerminalSelectionOneShot,     [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) set_oneshot(mime::textonly); else set_oneshot(netxs::get_or(xml::options::format, gear.args_ptr->front(), mime::textonly)); });
-            //chords.proc(action::TerminalStdioLog,             [&](hids& gear){ gear.set_handled(); set_log(gear.get_args_or(!io_log)); ondata<true>();  });
-            //chords.proc(action::TerminalSendKey,              [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or(qiew{})) data_out(crop); });
-            //chords.proc(action::TerminalOutput,               [&](hids& gear){ gear.set_handled(); if (auto crop = gear.get_args_or(qiew{})) data_in(crop); });
-            //chords.proc(action::TerminalAlignMode,            [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglejet); else set_align((si32)netxs::get_or(xml::options::align, gear.args_ptr->front(), bias::none)); });
-            //chords.proc(action::TerminalWrapMode,             [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::togglewrp); else set_wrapln(1 + (si32)!gear.get_args_or(true)); });
-            //chords.proc(action::ExclusiveKeyboardMode,        [&](hids& gear){ gear.set_handled(); if (!gear.args_ptr || gear.args_ptr->empty()) exec_cmd(commands::ui::toggleraw); else set_rawkbd(1 + (si32)!gear.get_args_or(true)); });
             auto bindings = pro::keybd::load(xml_config, "terminal");
             chords.bind(bindings);
+
+            static auto proc_map = pro::luafx::fxmap<decltype(*this)>
+            {
+                { "SetExclusiveKeyboardMode",   [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            boss.exec_cmd(commands::ui::toggleraw);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, true);
+                                                            boss.set_rawkbd(1 + (si32)state);
+                                                        }
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "FindNextMatch",              [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                        boss.selection_search(gear, dir > 0 ? feed::fwd : feed::rev);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ScrollViewportByPage",       [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.target != &boss.normal) return;
+                                                        auto vector = luafx.get_args_or(1, dot_00);
+                                                        boss.base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = vector });
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ScrollViewportByCell",       [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.target != &boss.normal) return;
+                                                        auto vector = luafx.get_args_or(1, dot_00);
+                                                        boss.base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = vector });
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ScrollViewportToTop",        [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.target != &boss.normal) return;
+                                                        boss.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ScrollViewportToEnd",        [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.target != &boss.normal) return;
+                                                        boss.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SendKey",                    [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto crop = luafx.get_args_or(1, ""s);
+                                                        if (crop.size()) boss.data_out(crop);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "Print",                      [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto crop = luafx.get_args_or(1, ""s);
+                                                        if (crop.size()) boss.data_in(crop);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "CopyViewport",               [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.prnscrn(gear);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "CopySelection",              [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.selection_active())
+                                                        {
+                                                            boss.copy(gear);
+                                                            gear.set_handled();
+                                                        }
+                                                        else if (auto v = boss.ipccon.get_current_line())
+                                                        {
+                                                            boss._copy(gear, v.value());
+                                                            gear.set_handled();
+                                                        }
+                                                    });
+                                                }},
+                { "PasteClipboard",             [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.paste(gear);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ClearClipboard",             [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        gear.clear_clipboard();
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetClipboardFormat",         [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto format = luafx.get_args_or(1, ""s);
+                                                        if (format.empty())
+                                                        {
+                                                            boss.exec_cmd(commands::ui::togglesel);
+                                                        }
+                                                        else
+                                                        {
+                                                            boss.set_selmod((si32)netxs::get_or(xml::options::format, format, mime::textonly));
+                                                        }
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetSelectionForm",           [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            boss.exec_cmd(commands::ui::toggleselalt);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto form = luafx.get_args_or(1, faux);
+                                                            boss.set_selalt(form);
+                                                        }
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "ClearSelection",             [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        if (boss.selection_active())
+                                                        {
+                                                            boss.exec_cmd(commands::ui::deselect);
+                                                            gear.set_handled();
+                                                        }
+                                                    });
+                                                }},
+                { "OneShotSelection",           [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto format = luafx.get_args_or(1, ""s);
+                                                        if (format.empty())
+                                                        {
+                                                            boss.set_oneshot(mime::textonly);
+                                                        }
+                                                        else
+                                                        {
+                                                            boss.set_oneshot(netxs::get_or(xml::options::format, format, mime::textonly));
+                                                        }
+                                                    });
+                                                }},
+                { "UndoReadline",               [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.exec_cmd(commands::ui::undo);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "RedoReadline",               [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.exec_cmd(commands::ui::redo);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetCwdSync",                 [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.base::riseup(tier::preview, ui::term::events::toggle::cwdsync, true);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetWrappingMode",            [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            boss.exec_cmd(commands::ui::togglewrp);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, true);
+                                                            boss.set_wrapln(1 + (si32)!state);
+                                                        }
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetAligningMode",            [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto args_count = luafx.args_count();
+                                                        if (!args_count)
+                                                        {
+                                                            boss.exec_cmd(commands::ui::togglejet);
+                                                        }
+                                                        else
+                                                        {
+                                                            auto state = luafx.get_args_or(1, ""s);
+                                                            boss.set_align((si32)netxs::get_or(xml::options::align, state, bias::none));
+                                                        }
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "SetLogging",                 [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.set_log(luafx.get_args_or(1, !boss.io_log));
+                                                        boss.ondata<true>();
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "Restart",                    [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.exec_cmd(commands::ui::restart);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+                { "Quit",                       [](auto& boss, auto& luafx)
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        boss.exec_cmd(commands::ui::sighup);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
+            };
+            lunafx.activate(proc_map);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
