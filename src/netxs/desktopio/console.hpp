@@ -828,7 +828,7 @@ namespace netxs::ui
             {
                 { "Disconnect",             [](auto& boss, auto& luafx)
                                             {
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -839,13 +839,13 @@ namespace netxs::ui
                                             }},
                 { "DebugOverlay",           [](auto& boss, auto& luafx)
                                             {
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
                                                     gear_ptr->set_handled();
                                                 }
-                                                auto& debug = boss.plugins<pro::debug>();
+                                                auto& debug = boss.template plugins<pro::debug>();
                                                 boss.props.debug_overlay ? debug.stop() : debug.start();
                                                 boss.props.debug_overlay = !boss.props.debug_overlay;
                                                 luafx.set_return();
@@ -853,7 +853,7 @@ namespace netxs::ui
                 { "IncreasecCellHeight",    [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -868,7 +868,7 @@ namespace netxs::ui
                 { "RollFonts",              [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -883,7 +883,7 @@ namespace netxs::ui
                 { "WheelAccumReset",        [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -896,7 +896,7 @@ namespace netxs::ui
                 { "CellHeightReset",        [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -910,7 +910,7 @@ namespace netxs::ui
                 { "Fullscreen",             [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {
@@ -925,7 +925,7 @@ namespace netxs::ui
                 { "AntialiasingMode",       [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
-                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
                                                 auto ok = !!gear_ptr;
                                                 if (ok)
                                                 {

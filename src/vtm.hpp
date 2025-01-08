@@ -1816,7 +1816,7 @@ namespace netxs::app::vtm
                                         }},
                 { "Disconnect",         [](auto& /*boss*/, auto& luafx) //todo Disconnect(gear_id)
                                         {
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
                                             if (ok)
                                             {
@@ -1828,7 +1828,7 @@ namespace netxs::app::vtm
                 { "Run",                [](auto& boss, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto gear_id = gear_ptr ? gear_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
                                                                        .winform = shared::win::state::normal,
@@ -1889,7 +1889,7 @@ namespace netxs::app::vtm
                 { "FocusNextWindow",    [](auto& boss, auto& luafx)
                                         {
                                             auto go_forward = luafx.get_args_or(1, 1) > 0;
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
+                                            auto gear_ptr = luafx.template get_object<hids>("gear");
                                             if (!gear_ptr)
                                             {
                                                 luafx.set_return();

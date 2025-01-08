@@ -8091,7 +8091,7 @@ namespace netxs::ui
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
                                                         boss.set_log(luafx.get_args_or(1, !boss.io_log));
-                                                        boss.ondata<true>();
+                                                        boss.template ondata<true>();
                                                         gear.set_handled();
                                                     });
                                                 }},
