@@ -913,6 +913,7 @@ namespace netxs::app::tile
                 ->plugin<items>()
                 ->plugin<pro::focus>()
                 ->plugin<pro::keybd>("tile")
+                ->plugin<pro::luafx>()
                 ->invoke([&](auto& boss)
                 {
                     auto oneoff = ptr::shared(hook{});
@@ -939,24 +940,111 @@ namespace netxs::app::tile
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
                     auto& keybd = boss.template plugins<pro::keybd>();
-                    //todo scripting
-                    //keybd.proc(action::TileFocusPrev         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prev,     gear); });
-                    //keybd.proc(action::TileFocusNext         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::next,     gear); });
-                    //keybd.proc(action::TileFocusPrevPane     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevpane, gear); });
-                    //keybd.proc(action::TileFocusNextPane     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear); });
-                    //keybd.proc(action::TileFocusPrevGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevgrip, gear); });
-                    //keybd.proc(action::TileFocusNextGrip     , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear); });
-                    //keybd.proc(action::TileRunApplication    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::create,          gear); });
-                    //keybd.proc(action::TileSelectAllPanes    , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::select,          gear); });
-                    //keybd.proc(action::TileSplitHorizontally , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::hz,       gear); });
-                    //keybd.proc(action::TileSplitVertically   , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::split::vt,       gear); });
-                    //keybd.proc(action::TileSplitOrientation  , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::rotate,          gear); });
-                    //keybd.proc(action::TileSwapPanes         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::swap,            gear); });
-                    //keybd.proc(action::TileEqualizeSplitRatio, [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::equalize,        gear); });
-                    //keybd.proc(action::TileSetManagerTitle   , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::title ,          gear); });
-                    //keybd.proc(action::TileClosePane         , [&](hids& gear){ boss.bell::signal(tier::preview, app::tile::events::ui::close,           gear); });
+                    auto& luafx = boss.template plugins<pro::luafx>();
                     auto bindings = pro::keybd::load(config, "tile");
                     keybd.bind(bindings);
+                    static auto run_with_gear = [](auto& luafx, auto proc)
+                    {
+                        auto gear_ptr = luafx.get_object<hids>("gear");
+                        auto ok = !!gear_ptr;
+                        if (ok)
+                        {
+                            auto& gear = *gear_ptr;
+                            proc(gear);
+                        }
+                        luafx.set_return(ok);
+                    };
+                    static auto proc_map = pro::luafx::fxmap<decltype(boss)>
+                    {
+                        { "FocusNextPaneOrGrip",    [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            dir < 0 ? boss.bell::signal(tier::preview, app::tile::events::ui::focus::prev, gear)
+                                                                    : boss.bell::signal(tier::preview, app::tile::events::ui::focus::next, gear);
+                                                        });
+                                                    }},
+                        { "FocusNextPane",          [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            dir < 0 ? boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevpane, gear)
+                                                                    : boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextpane, gear);
+                                                        });
+                                                    }},
+                        { "FocusNextGrip",          [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            dir < 0 ? boss.bell::signal(tier::preview, app::tile::events::ui::focus::prevgrip, gear)
+                                                                    : boss.bell::signal(tier::preview, app::tile::events::ui::focus::nextgrip, gear);
+                                                        });
+                                                    }},
+                        { "RunApplication",         [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            //todo add agrs
+                                                            //auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::create, gear);
+                                                        });
+                                                    }},
+                        { "SelectAllPanes",         [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::select, gear);
+                                                        });
+                                                    }},
+                        { "SplitPane",              [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            auto dir = luafx.get_args_or(1, si32{ 1 });
+                                                            dir > 0 ? boss.bell::signal(tier::preview, app::tile::events::ui::split::vt, gear)
+                                                                    : boss.bell::signal(tier::preview, app::tile::events::ui::split::hz, gear);
+                                                        });
+                                                    }},
+                        { "RotateSplit",            [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::rotate, gear);
+                                                        });
+                                                    }},
+                        { "SwapPanes",              [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::swap, gear);
+                                                        });
+                                                    }},
+                        { "EqualizeSplitRatio",     [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::equalize, gear);
+                                                        });
+                                                    }},
+                        { "SetTitle",               [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::title, gear);
+                                                        });
+                                                    }},
+                        { "ClosePane",              [](auto& boss, auto& luafx)
+                                                    {
+                                                        run_with_gear(luafx, [&](auto& gear)
+                                                        {
+                                                            boss.bell::signal(tier::preview, app::tile::events::ui::close, gear);
+                                                        });
+                                                    }},
+                    };
+                    luafx.activate(proc_map);
 
                     boss.LISTEN(tier::preview, app::tile::events::ui::any, gear)
                     {
