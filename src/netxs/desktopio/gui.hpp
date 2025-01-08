@@ -1462,17 +1462,6 @@ namespace netxs::gui
             static constexpr auto clipboard  = __COUNTER__ - _counter;
             static constexpr auto rightshift = __COUNTER__ - _counter;
         };
-        struct syscmd
-        {
-            static constexpr auto _counter     = __COUNTER__ + 1;
-            static constexpr auto minimize     = __COUNTER__ - _counter;
-            static constexpr auto maximize     = __COUNTER__ - _counter;
-            static constexpr auto restore      = __COUNTER__ - _counter;
-            static constexpr auto move         = __COUNTER__ - _counter;
-            static constexpr auto monitorpower = __COUNTER__ - _counter;
-            static constexpr auto update       = __COUNTER__ - _counter;
-            static constexpr auto close        = __COUNTER__ - _counter;
-        };
         struct ipc
         {
             #define ipc_t \
@@ -1889,6 +1878,10 @@ namespace netxs::gui
                 //{
                 //    owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
                 //});
+            }
+            void handle(s11n::xs::gui_command      lock)
+            {
+                owner.sys_command(lock.thing.cmd_id, lock.thing.args);
             }
 
             evnt(winbase& owner, ui::pipe& intio)
@@ -2957,45 +2950,40 @@ namespace netxs::gui
             chords.reset(gear);
             stream_keybd(gear);
         }
+
+        void ResetWheelAccumulator()
+        {
+            whlacc = {};
+        }
         void IncreaseCellHeight(fp32 dir)
         {
-            if (!isbusy.exchange(true))
-            bell::enqueue(This(), [&, dir](auto& /*boss*/)
-            {
-                change_cell_size(faux, dir);
-                sync_cellsz();
-                update_gui();
-            });
+            change_cell_size(faux, dir);
+            sync_cellsz();
+            update_gui();
         }
         void ResetCellHeight()
         {
-            bell::enqueue(This(), [&](auto& /*boss*/)
-            {
-                auto dy = origsz - cellsz.y;
-                change_cell_size(faux, (fp32)dy, master.area.size / 2);
-                sync_cellsz();
-                update_gui();
-            });
+            auto dy = origsz - cellsz.y;
+            change_cell_size(faux, (fp32)dy, master.area.size / 2);
+            sync_cellsz();
+            update_gui();
         }
         void ToggleFullscreenMode()
         {
-            bell::enqueue(This(), [&](auto& /*boss*/)
+            if (fsmode != state::minimized)
             {
-                if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
-            });
+                set_state(fsmode == state::maximized ? state::normal : state::maximized);
+            }
         }
         void ToggleAntialiasingMode()
         {
-            bell::enqueue(This(), [&](auto& /*boss*/)
-            {
-                set_aa_mode(!gcache.aamode);
-            });
+            set_aa_mode(!gcache.aamode);
         }
-        void RollFontList(feed dir)
+        void RollFontList(fp32 dir)
         {
             if (fcache.families.empty()) return;
             auto& families = fcache.families;
-            if (dir == feed::fwd)
+            if (dir > 0)
             {
                 families.push_back(std::move(families.front()));
                 families.pop_front();
@@ -3007,6 +2995,7 @@ namespace netxs::gui
             }
             set_font_list(families);
         }
+
         arch run_command(arch command, arch lParam)
         {
             if constexpr (debug_foci) log("command: ", ipc::str(command));
@@ -3167,10 +3156,14 @@ namespace netxs::gui
                 update_gui();
             });
         }
-        void sys_command(si32 menucmd)
+        void sys_command(si32 menucmd, fp32 dir = {})
         {
             if (menucmd == syscmd::update && !reload) return;
-            bell::enqueue(This(), [&, menucmd](auto& /*boss*/)
+            if (menucmd == syscmd::tunecellheight)
+            {
+                if (isbusy.exchange(true) || dir == 0.f) return;
+            }
+            bell::enqueue(This(), [&, menucmd, dir](auto& /*boss*/)
             {
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
@@ -3183,6 +3176,13 @@ namespace netxs::gui
                     //case syscmd::monitorpower:  break;
                     case syscmd::close:  window_shutdown(); break;
                     case syscmd::update: update_gui(); break;
+                    //
+                    case syscmd::resetwheelaccum: ResetWheelAccumulator();  break;
+                    case syscmd::tunecellheight:  IncreaseCellHeight(dir);  break;
+                    case syscmd::resetcellheight: ResetCellHeight();        break;
+                    case syscmd::togglefsmode:    ToggleFullscreenMode();   break;
+                    case syscmd::toggleaamode:    ToggleAntialiasingMode(); break;
+                    case syscmd::rollfontlist:    RollFontList(dir);        break;
                 }
             });
         }

@@ -826,30 +826,117 @@ namespace netxs::ui
 
             static auto proc_map = pro::luafx::fxmap<gate>
             {
-                { "Disconnect",         [](auto& boss, auto& luafx)
-                                        {
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
-                                            auto ok = !!gear_ptr;
-                                            if (ok)
+                { "Disconnect",             [](auto& boss, auto& luafx)
                                             {
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gear_ptr->set_handled();
+                                                }
                                                 boss.bell::signal(tier::preview, e2::conio::quit);
-                                                gear_ptr->set_handled();
-                                            }
-                                            luafx.set_return(ok);
-                                        }},
-                { "DebugOverlay",       [](auto& boss, auto& luafx)
-                                        {
-                                            auto gear_ptr = luafx.get_object<hids>("gear");
-                                            auto ok = !!gear_ptr;
-                                            if (ok)
+                                                luafx.set_return();
+                                            }},
+                { "DebugOverlay",           [](auto& boss, auto& luafx)
                                             {
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gear_ptr->set_handled();
+                                                }
                                                 auto& debug = boss.plugins<pro::debug>();
                                                 boss.props.debug_overlay ? debug.stop() : debug.start();
                                                 boss.props.debug_overlay = !boss.props.debug_overlay;
-                                                gear_ptr->set_handled();
-                                            }
-                                            luafx.set_return(ok);
-                                        }},
+                                                luafx.set_return();
+                                            }},
+                { "IncreasecCellHeight",    [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::tunecellheight;
+                                                gui_cmd.args = luafx.get_args_or(1, fp32{ 1.f });
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "RollFonts",              [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::rollfontlist;
+                                                gui_cmd.args = luafx.get_args_or(1, fp32{ 1.f });
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "WheelAccumReset",        [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                }
+                                                gui_cmd.cmd_id = syscmd::resetwheelaccum;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "CellHeightReset",        [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::resetcellheight;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "Fullscreen",             [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                //todo args
+                                                gui_cmd.cmd_id = syscmd::togglefsmode;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "AntialiasingMode",       [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                //todo args
+                                                gui_cmd.cmd_id = syscmd::toggleaamode;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
             };
             luafx.activate(proc_map);
 
@@ -878,6 +965,18 @@ namespace netxs::ui
             LISTEN(tier::release, e2::area, new_area, tokens)
             {
                 xmap.face::area(new_area);
+            };
+            LISTEN(tier::preview, e2::command::gui, gui_cmd, tokens)
+            {
+                if (gui_cmd.gear_id)
+                {
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gui_cmd.gear_id);
+                    if (gear_ptr)
+                    {
+                        gui_cmd.gear_id = ext_gear_id;
+                    }
+                }
+                conio.gui_command.send(canal, gui_cmd);
             };
             LISTEN(tier::release, e2::command::run, script)
             {

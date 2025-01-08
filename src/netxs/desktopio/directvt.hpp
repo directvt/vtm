@@ -915,6 +915,7 @@ namespace netxs::directvt
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
         STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
+        STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (fp32, args))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1444,7 +1445,8 @@ namespace netxs::directvt
             X(cwd              ) /* CWD Notification.                             */\
             X(restored         ) /* Notify normal window state.                   */\
             X(req_input_fields ) /* Request input field list.                     */\
-            X(ack_input_fields ) /* Reply input field list.                       */
+            X(ack_input_fields ) /* Reply input field list.                       */\
+            X(gui_command      ) /* GUI command request.                          */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 

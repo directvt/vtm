@@ -21,6 +21,23 @@ namespace netxs
         twod win{}; // eccc: Console window size.
         id_t gear_id{}; // eccc: Gear id.
     };
+    struct syscmd
+    {
+        static constexpr auto _counter        = __COUNTER__ + 1;
+        static constexpr auto minimize        = __COUNTER__ - _counter;
+        static constexpr auto maximize        = __COUNTER__ - _counter;
+        static constexpr auto restore         = __COUNTER__ - _counter;
+        static constexpr auto move            = __COUNTER__ - _counter;
+        static constexpr auto monitorpower    = __COUNTER__ - _counter;
+        static constexpr auto update          = __COUNTER__ - _counter;
+        static constexpr auto close           = __COUNTER__ - _counter;
+        static constexpr auto tunecellheight  = __COUNTER__ - _counter;
+        static constexpr auto rollfontlist    = __COUNTER__ - _counter;
+        static constexpr auto resetcellheight = __COUNTER__ - _counter;
+        static constexpr auto resetwheelaccum = __COUNTER__ - _counter;
+        static constexpr auto togglefsmode    = __COUNTER__ - _counter;
+        static constexpr auto toggleaamode    = __COUNTER__ - _counter;
+    };
 }
 namespace netxs::input
 {
@@ -50,6 +67,7 @@ namespace netxs::ui
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
     using book = std::vector<sptr>;
+    using guicmd = directvt::binary::gui_command_t;
 }
 
 namespace netxs::events::userland
@@ -167,6 +185,7 @@ namespace netxs::events::userland
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
                 EVENT_XS( run        , eccc        ), // Run script.
+                EVENT_XS( gui        , ui::guicmd  ), // Request a gui command.
                 GROUP_XS( request    , input::hids ), // general: Request input field list.
 
                 SUBSET_XS( request )

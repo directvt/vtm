@@ -7961,7 +7961,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ClearClipboard",             [](auto& boss, auto& luafx)
+                { "ClearClipboard",             [](auto& /*boss*/, auto& luafx)
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8015,7 +8015,7 @@ namespace netxs::ui
                                                 }},
                 { "OneShotSelection",           [](auto& boss, auto& luafx)
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear([&](auto& /*gear*/)
                                                     {
                                                         auto format = luafx.get_args_or(1, ""s);
                                                         if (format.empty())
@@ -8574,6 +8574,16 @@ namespace netxs::ui
                 owner.bell::enqueue(owner_wptr, [&, path = lock.thing.path](auto& /*boss*/)
                 {
                     owner.base::riseup(tier::preview, e2::form::prop::cwd, path);
+                });
+            }
+            void handle(s11n::xs::gui_command         lock)
+            {
+                owner.bell::enqueue(owner_wptr, [&, gui_cmd = lock.thing](auto& /*boss*/)
+                {
+                    if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
+                    {
+                        gear_ptr->owner.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                    }
                 });
             }
 

@@ -120,13 +120,11 @@ R"==(
                         - .tile: ...
                             - .grip: ...
                         - .terminal: ...  -->
-        <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
         <TryToQuit             ="vtm.desktop.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.desktop.Run()"/>                 <!-- Run default application. -->
         <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
         <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
         <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
-        <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
 
         <AlwaysOnTop           ="vtm.window.AlwaysOnTop(not vtm.window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="vtm.window.Close()"/>            <!-- Close window. -->
@@ -170,14 +168,16 @@ R"==(
         <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1)"/>        <!-- Focus the prev split grip. -->
         <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1)"/>        <!-- Focus the next split grip. -->
 
-        <IncreaseCellHeight    ="vtm.gui.IncreasecCellHeight( 1)"/>                  <!-- Increase the text cell height by one pixel. -->
-        <DecreaseCellHeight    ="vtm.gui.IncreasecCellHeight(-1)"/>                  <!-- Decrease the text cell height by one pixel. -->
-        <ResetWheelAccumulator ="vtm.gui.WheelAccumReset()"/>                        <!-- Reset wheel accumulator. -->
-        <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gui.CellHeightReset() end"/>   <!-- Reset text cell height. -->
-        <ToggleFullscreenMode  ="if (not vtm.gear.IsKeyRepeated()) then vtm.gui.Fullscreen() end"/>        <!-- Toggle fullscreen mode. -->
-        <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gui.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
-        <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gui.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
-        <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gui.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
+        <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
+        <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
+        <IncreaseCellHeight    ="vtm.gate.IncreasecCellHeight( 1)"/>  <!-- Increase the text cell height by one pixel. -->
+        <DecreaseCellHeight    ="vtm.gate.IncreasecCellHeight(-1)"/>  <!-- Decrease the text cell height by one pixel. -->
+        <ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
+        <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
+        <ToggleFullscreenMode  ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.Fullscreen() end"/>        <!-- Toggle fullscreen mode. -->
+        <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
+        <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
+        <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
 
         <ExclusiveKeyboardMode             ="vtm.terminal.SetExclusiveKeyboardMode()"/>   <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
@@ -524,18 +524,16 @@ R"==(
             <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
-            <key="CapsLock+UpArrow"   action=IncreaseCellHeight/>
-            <key="CapsLock+DownArrow" action=DecreaseCellHeight/>
-            <key="Ctrl+0"             action=ResetCellHeight/>
-            <key="Alt+Enter"          action=ToggleFullscreenMode/>
-            <key="Ctrl+CapsLock"      action=ToggleAntialiasingMode/>
-            <key="Ctrl+Shift+F11"     action=RollFontsBackward/>
-            <key="Ctrl+Shift+F12"     action=RollFontsForward/>
-            <key="-Ctrl" preview      action=ResetWheelAccumulator/>
-        </gui>
-        <gate key*>  <!-- Session layer key bindings. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop; key* is to clear all previous bindings and start a new list. -->
+        <gate key*>  <!-- Session layer key bindings. Available in standalone mode. -->
+            <key="CapsLock+UpArrow"                                     action=IncreaseCellHeight/>
+            <key="CapsLock+DownArrow"                                   action=DecreaseCellHeight/>
+            <key="Ctrl+0"                                               action=ResetCellHeight/>
+            <key="Alt+Enter"                                            action=ToggleFullscreenMode/>
+            <key="Ctrl+CapsLock"                                        action=ToggleAntialiasingMode/>
+            <key="Ctrl+Shift+F11"                                       action=RollFontsBackward/>
+            <key="Ctrl+Shift+F12"                                       action=RollFontsForward/>
+            <key="-Ctrl" preview                                        action=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
         </gate>
         <desktop key*>  <!-- Desktop layer key bindings. -->
