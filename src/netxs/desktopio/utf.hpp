@@ -1742,7 +1742,7 @@ namespace netxs::utf
         while (line)
         {
             auto c = line.pop_front();
-            if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_') // The environment variable must be alphanumeric, and may contain an underscore.
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') // The environment variable must be alphanumeric, and may contain an underscore.
             {
                 dest.push_back(c);
             }

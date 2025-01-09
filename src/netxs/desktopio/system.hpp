@@ -38,7 +38,7 @@
     #include <sys/types.h>  // ::getaddrinfo
     #include <sys/socket.h> // ::shutdown() ::socket(2)
     #include <netdb.h>      //
-    #include <arpa/inet.h>  // ::inet_ntop()
+    //#include <arpa/inet.h>  // ::inet_ntop() ?This may require dynamic linking. #GH696
 
     #include <stdio.h>
     #include <unistd.h>     // ::read()
@@ -3594,12 +3594,12 @@ namespace netxs::os
                 return socket;
             }
 
-            static auto open([[maybe_unused]] text addr, [[maybe_unused]] text port, [[maybe_unused]] bool logs = faux)
+            //todo X11 support. #GH696
+            /*static auto open([[maybe_unused]] text addr, [[maybe_unused]] text port, [[maybe_unused]] bool logs = faux)
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;
                 auto socket = sptr<ipc::stdcon>{};
-
                 #if defined(_WIN32)
                     // N/A
                 #else
@@ -3709,13 +3709,12 @@ namespace netxs::os
                         }
                     }
                 #endif
-
                 if (r != os::invalid_fd && w != os::invalid_fd)
                 {
                     socket = ptr::shared<ipc::stdcon>(r, w);
                 }
                 return socket;
-            }
+            }*/
         };
 
         auto stdio()
