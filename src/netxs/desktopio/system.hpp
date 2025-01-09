@@ -5770,13 +5770,13 @@ namespace netxs::os
                                         break;
                                     case 66:
                                         m.hzwheel = true;
-                                        m.wheelfp = -1;
-                                        m.wheelsi = -1;
+                                        m.wheelfp = 1;
+                                        m.wheelsi = 1;
                                         break;
                                     case 67:
                                         m.hzwheel = true;
-                                        m.wheelfp = 1;
-                                        m.wheelsi = 1;
+                                        m.wheelfp = -1;
+                                        m.wheelsi = -1;
                                         break;
                                     //todo impl ext mouse buttons 129-131
                                 }
