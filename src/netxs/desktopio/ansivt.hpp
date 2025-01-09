@@ -661,6 +661,8 @@ namespace netxs::ansi
             static constexpr auto idle     = si32{ 32 };
             static constexpr auto wheel_up = si32{ 64 };
             static constexpr auto wheel_dn = si32{ 65 };
+            static constexpr auto wheel_lt = si32{ 66 };
+            static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
             if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
@@ -694,13 +696,13 @@ namespace netxs::ansi
             }
             else if (gear.m_sys.wheelsi)
             {
-                //todo impl hz scrolling 66/67
-                // impl ext mouse buttons 128-131
-                ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+                if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_rt : wheel_lt;
+                else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
                 pressed = true;
             }
             else if (gear.m_sys.buttons)
             {
+                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
@@ -731,8 +733,8 @@ namespace netxs::ansi
             static constexpr auto idle     = si32{ 32 };
             static constexpr auto wheel_up = si32{ 64 };
             static constexpr auto wheel_dn = si32{ 65 };
-            //todo impl hz scrolling 66/67
-            // impl ext mouse buttons 128-131
+            static constexpr auto wheel_lt = si32{ 66 };
+            static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
             if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
@@ -748,12 +750,18 @@ namespace netxs::ansi
             auto s_rght = s_bttn[hids::right ];
             auto s_mddl = s_bttn[hids::middle];
 
+            //todo impl ext mouse buttons 128-131
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m_sys.wheelsi) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+            else if (gear.m_sys.wheelsi)
+            {
+                if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_rt : wheel_lt;
+                else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+            }
             else if (gear.m_sys.buttons)
             {
+                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
