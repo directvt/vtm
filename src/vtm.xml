@@ -558,6 +558,14 @@ R"==(
             <key="Ctrl+Shift+F12"                                       action=RollFontsForward/>
             <key="-Ctrl" preview                                        action=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
+        </gate>
+        <desktop key*>  <!-- Desktop layer key bindings. -->
+            <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
+            <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
+            <key="Shift+F7"                                             action=Disconnect/>
+            <key="F10" preview                                          action=TryToQuit/>
+            <key="Alt+Shift+N"                                          action=RunApplication/>
+            <key="Esc+F1"                                               action=RunInfoPage/>
 
             <key="Esc+T"                                                action=GuiAlwaysOnTop/>
             <key="Esc+W"                                                action=GuiCloseWindow/>
@@ -580,14 +588,6 @@ R"==(
             <key="Esc+RightArrow+LeftArrow"                             action=GuiDecreaseWindowWidth/>
             <key="Esc+UpArrow+DownArrow"                                action=GuiIncreaseWindowHeight/>
             <key="Esc+DownArrow+UpArrow"                                action=GuiDecreaseWindowHeight/>
-        </gate>
-        <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
-            <key="Shift+F7"                                             action=Disconnect/>
-            <key="F10" preview                                          action=TryToQuit/>
-            <key="Alt+Shift+N"                                          action=RunApplication/>
-            <key="Esc+F1"                                               action=RunInfoPage/>
         </desktop>
         <window key*>  <!-- Window layer key bindings. -->
             <key="Esc+T"                                                action=AlwaysOnTop/>

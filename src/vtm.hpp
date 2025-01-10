@@ -1307,21 +1307,23 @@ namespace netxs::app::vtm
                                                     {
                                                         boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
                                                     });
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                     luafx.set_return(); // No returns.
                                                 }},
                         { "AlwaysOnTop",        [](auto& boss, auto& luafx)
                                                 {
-                                                   auto args_count = luafx.args_count();
-                                                   auto zorder = zpos::plain;
-                                                   if (args_count == 0) // Request zpos.
-                                                   {
-                                                       zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
-                                                   }
-                                                   else // Set zpos.
-                                                   {
-                                                       zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                                       boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
-                                                   }
+                                                    auto args_count = luafx.args_count();
+                                                    auto zorder = zpos::plain;
+                                                    if (args_count == 0) // Request zpos.
+                                                    {
+                                                        zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
+                                                    }
+                                                    else // Set zpos.
+                                                    {
+                                                        zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
+                                                        boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                    }
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                     luafx.set_return(zorder == zpos::topmost);
                                                 }},
                         { "Close",              [](auto& boss, auto& luafx)
@@ -1330,6 +1332,7 @@ namespace netxs::app::vtm
                                                     {
                                                         boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                                                     });
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                     luafx.set_return();
                                                 }},
                         { "ShowClosingPreview", [](auto& boss, auto& luafx)
@@ -1340,9 +1343,10 @@ namespace netxs::app::vtm
                                                 }},
                         { "MinimizeWindow",     [](auto& boss, auto& luafx)
                                                 {
-                                                    if (auto object_ptr = luafx.get_object("gear"))
+                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
                                                     {
-                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        gear_ptr->set_handled();
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
@@ -1355,9 +1359,10 @@ namespace netxs::app::vtm
                                                 }},
                         { "MaximizeWindow",     [](auto& boss, auto& luafx)
                                                 {
-                                                    if (auto object_ptr = luafx.get_object("gear"))
+                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
                                                     {
-                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        gear_ptr->set_handled();
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
@@ -1370,9 +1375,10 @@ namespace netxs::app::vtm
                                                 }},
                         { "Fullscreen",         [](auto& boss, auto& luafx)
                                                 {
-                                                    if (auto object_ptr = luafx.get_object("gear"))
+                                                    if (auto gear_ptr = luafx.get_object<hids>("gear"))
                                                     {
-                                                        boss.bell::enqueue(boss.This(), [gear_id = object_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        gear_ptr->set_handled();
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
