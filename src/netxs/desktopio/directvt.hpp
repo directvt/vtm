@@ -168,6 +168,38 @@ namespace netxs::directvt
             {
                 // Noop.
             }
+            else if constexpr (std::is_same_v<D, std::any>)
+            {
+                // Four letters type encoding.
+                #define type_id_list \
+                    X(char) \
+                    X(text) \
+                    X(byte) \
+                    X(ui16) \
+                    X(ui32) \
+                    X(ui64) \
+                    X(si16) \
+                    X(si32) \
+                    X(si64) \
+                    X(twod) \
+                    X(rect) \
+                    X(fp32) \
+                    X(fp64) \
+                    X(fp2d) \
+                    X(time) \
+                    X(span) \
+                    X(argb) \
+                    X(dent)
+                #define X(item_t)   if (data.type() == typeid(item_t)) {                \
+                                        fuse_ext(block, make_ui32(#item_t));            \
+                                        fuse_ext(block, *std::any_cast<item_t>(&data)); \
+                                    } else
+                type_id_list
+                {
+                    log(prompt::dtvt, "Unsupported data type");
+                }
+                #undef X
+            }
             else if constexpr (requires{ std::begin(std::declval<D>()); })
             {
                 auto length = (sz_t)data.size();
@@ -273,6 +305,29 @@ namespace netxs::directvt
                     {
                         data.remove_prefix(sizeof(data_type));
                     }
+                    return crop;
+                }
+                else if constexpr (std::is_same_v<D, std::any>)
+                {
+                    auto crop = std::any{};
+                    if (data.size() <= sizeof(si32))
+                    {
+                        log(prompt::dtvt, "Corrupted frame data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return crop;
+                    }
+                    auto type_id = netxs::aligned<si32>(data.data()); // Get four letters type index.
+                    auto bits = data.substr(sizeof(si32));
+                    switch (type_id)
+                    {
+                        #define X(item_t) case make_ui32(#item_t): \
+                                            crop = _take_item<item_t>(bits); \
+                                            break;
+                        type_id_list
+                        #undef X
+                        #undef type_id_list
+                    }
+                    if constexpr (!PeekOnly) data = bits;
                     return crop;
                 }
                 else if constexpr (requires{ std::begin(std::declval<D>()); })
@@ -847,7 +902,8 @@ namespace netxs::directvt
 
         auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
-        auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto r : rs) s << r; return s << '}'; }
+        auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto& r : rs) s << r; return s << '}'; }
+        auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
 
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
@@ -915,7 +971,7 @@ namespace netxs::directvt
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
         STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
-        STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (fp32, args))
+        STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (many, args))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite

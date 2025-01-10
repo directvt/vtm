@@ -861,7 +861,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::tunecellheight;
-                                                gui_cmd.args = luafx.get_args_or(1, fp32{ 1.f });
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
                                                 boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
@@ -876,7 +876,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::rollfontlist;
-                                                gui_cmd.args = luafx.get_args_or(1, fp32{ 1.f });
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
                                                 boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},

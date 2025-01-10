@@ -35,6 +35,10 @@ namespace netxs
     static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';
     static constexpr auto emptyspace  = "\0"sv; //"\xC0\x80"sv; // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
+    static consteval auto make_ui32(view four_bytes){ return ((ui32)four_bytes[0] << 24)
+                                                           | ((ui32)four_bytes[1] << 16)
+                                                           | ((ui32)four_bytes[2] << 8)
+                                                           | ((ui32)four_bytes[3] << 0); }
 }
 
 namespace netxs::utf

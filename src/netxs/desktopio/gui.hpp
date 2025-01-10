@@ -2941,8 +2941,9 @@ namespace netxs::gui
         {
             whlacc = {};
         }
-        void IncreaseCellHeight(fp32 dir)
+        void IncreaseCellHeight(many const& args)
         {
+            auto dir = args.size() ? any_get_or(args.front(), 0.f) : 0.f;
             change_cell_size(faux, dir);
             sync_cellsz();
             update_gui();
@@ -2965,11 +2966,12 @@ namespace netxs::gui
         {
             set_aa_mode(!gcache.aamode);
         }
-        void RollFontList(fp32 dir)
+        void RollFontList(many const& args)
         {
             if (fcache.families.empty()) return;
+            auto dir = args.size() ? any_get_or<si32>(args.front()) : 0;
             auto& families = fcache.families;
-            if (dir > 0)
+            if (dir >= 0)
             {
                 families.push_back(std::move(families.front()));
                 families.pop_front();
@@ -3141,14 +3143,17 @@ namespace netxs::gui
                 update_gui();
             });
         }
-        void sys_command(si32 menucmd, fp32 dir = {})
+        void sys_command(si32 menucmd, many args = {})
         {
             if (menucmd == syscmd::update && !reload) return;
             if (menucmd == syscmd::tunecellheight)
             {
-                if (isbusy.exchange(true) || dir == 0.f) return;
+                if (isbusy.exchange(true) || args.empty() || any_get_or(args.front(), 0.f) == 0.f)
+                {
+                    return;
+                }
             }
-            bell::enqueue(This(), [&, menucmd, dir](auto& /*boss*/)
+            bell::enqueue(This(), [&, menucmd, args](auto& /*boss*/)
             {
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
@@ -3163,11 +3168,11 @@ namespace netxs::gui
                     case syscmd::update: update_gui(); break;
                     //
                     case syscmd::resetwheelaccum: ResetWheelAccumulator();  break;
-                    case syscmd::tunecellheight:  IncreaseCellHeight(dir);  break;
+                    case syscmd::tunecellheight:  IncreaseCellHeight(args); break;
                     case syscmd::resetcellheight: ResetCellHeight();        break;
                     case syscmd::togglefsmode:    ToggleFullscreenMode();   break;
                     case syscmd::toggleaamode:    ToggleAntialiasingMode(); break;
-                    case syscmd::rollfontlist:    RollFontList(dir);        break;
+                    case syscmd::rollfontlist:    RollFontList(args);       break;
                 }
             });
         }

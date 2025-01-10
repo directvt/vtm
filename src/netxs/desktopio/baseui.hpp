@@ -7,7 +7,6 @@
 #include "events.hpp"
 #include "xml.hpp"
 
-#include <typeindex>
 #include <future>
 
 namespace netxs
