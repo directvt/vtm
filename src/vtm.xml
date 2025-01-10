@@ -146,6 +146,29 @@ R"==(
         <IncreaseWindowHeight  ="vtm.window.WarpWindow( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
         <DecreaseWindowHeight  ="vtm.window.WarpWindow( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
 
+        <GuiFocusPrevWindow       ="vtm.gate.FocusNextWindow(-1)"/>
+        <GuiFocusNextWindow       ="vtm.gate.FocusNextWindow( 1)"/>
+        <GuiAlwaysOnTop           ="vtm.gate.AlwaysOnTop()"/>
+        <GuiMinimizeWindow        ="vtm.gate.MinimizeWindow()"/>
+        <GuiMaximizeWindow        ="vtm.gate.MaximizeWindow()"/>
+        <GuiFullscreenWindow      ="vtm.gate.Fullscreen()"/>
+        <GuiMoveWindowLeft        ="vtm.gate.WarpWindow( 1,-1, 0, 0)"/>
+        <GuiMoveWindowRight       ="vtm.gate.WarpWindow(-1, 1, 0, 0)"/>
+        <GuiMoveWindowUp          ="vtm.gate.WarpWindow( 0, 0, 1,-1)"/>
+        <GuiMoveWindowDown        ="vtm.gate.WarpWindow( 0, 0,-1, 1)"/>
+        <GuiMoveWindowTopLeft     ="vtm.gate.WarpWindow( 2,-2, 1,-1)"/>
+        <GuiMoveWindowBottomLeft  ="vtm.gate.WarpWindow( 2,-2,-1, 1)"/>
+        <GuiMoveWindowTopRight    ="vtm.gate.WarpWindow(-2, 2, 1,-1)"/>
+        <GuiMoveWindowBottomRight ="vtm.gate.WarpWindow(-2, 2,-1, 1)"/>
+        <GuiIncreaseWindowWidth   ="vtm.gate.WarpWindow( 0, 1, 0, 0)"/>
+        <GuiDecreaseWindowWidth   ="vtm.gate.WarpWindow( 0,-1, 0, 0)"/>
+        <GuiIncreaseWindowHeight  ="vtm.gate.WarpWindow( 0, 0, 0, 1)"/>
+        <GuiDecreaseWindowHeight  ="vtm.gate.WarpWindow( 0, 0, 0,-1)"/>
+        <GuiMoveWindowLeftByPx    ="vtm.gate.MoveWindow(-1, 0)"/>
+        <GuiMoveWindowRightByPx   ="vtm.gate.MoveWindow( 1, 0)"/>
+        <GuiMoveWindowUpByPx      ="vtm.gate.MoveWindow( 0,-1)"/>
+        <GuiMoveWindowDownByPx    ="vtm.gate.MoveWindow( 0, 1)"/>
+
         <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
         <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
         <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1)"/>        <!-- Focus the previous pane. -->
@@ -535,6 +558,28 @@ R"==(
             <key="Ctrl+Shift+F12"                                       action=RollFontsForward/>
             <key="-Ctrl" preview                                        action=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
+
+            <key="Esc+T"                                                action=GuiAlwaysOnTop/>
+            <key="Esc+W"                                                action=GuiCloseWindow/>
+            <key="Esc+M"                                                action=GuiMinimizeWindow/>
+            <key="Esc+F11"                                              action=GuiMaximizeWindow/>
+            <key="Esc+F12"                                              action=GuiFullscreenWindow/>
+            <key="Esc+Shift+LeftArrow"                                  action=GuiMoveWindowLeftByPx/>
+            <key="Esc+Shift+RightArrow"                                 action=GuiMoveWindowRightByPx/>
+            <key="Esc+Shift+UpArrow"                                    action=GuiMoveWindowUpByPx/>
+            <key="Esc+Shift+DownArrow"                                  action=GuiMoveWindowDownByPx/>
+            <key="Esc+LeftArrow"                                        action=GuiMoveWindowLeft/>
+            <key="Esc+RightArrow"                                       action=GuiMoveWindowRight/>
+            <key="Esc+UpArrow"                                          action=GuiMoveWindowUp/>
+            <key="Esc+DownArrow"                                        action=GuiMoveWindowDown/>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     action=GuiMoveWindowTopLeft/>
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   action=GuiMoveWindowBottomLeft/>
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    action=GuiMoveWindowTopRight/>
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  action=GuiMoveWindowBottomRight/>
+            <key="Esc+LeftArrow+RightArrow"                             action=GuiIncreaseWindowWidth/>
+            <key="Esc+RightArrow+LeftArrow"                             action=GuiDecreaseWindowWidth/>
+            <key="Esc+UpArrow+DownArrow"                                action=GuiIncreaseWindowHeight/>
+            <key="Esc+DownArrow+UpArrow"                                action=GuiDecreaseWindowHeight/>
         </gate>
         <desktop key*>  <!-- Desktop layer key bindings. -->
             <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>

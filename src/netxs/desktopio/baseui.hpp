@@ -36,6 +36,9 @@ namespace netxs
         static constexpr auto resetwheelaccum = __COUNTER__ - _counter;
         static constexpr auto togglefsmode    = __COUNTER__ - _counter;
         static constexpr auto toggleaamode    = __COUNTER__ - _counter;
+        static constexpr auto focusnextwindow = __COUNTER__ - _counter;
+        static constexpr auto alwaysontop     = __COUNTER__ - _counter;
+        static constexpr auto warpwindow      = __COUNTER__ - _counter;
     };
 }
 namespace netxs::input

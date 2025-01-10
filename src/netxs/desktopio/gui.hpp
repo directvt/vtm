@@ -2325,10 +2325,10 @@ namespace netxs::gui
             auto old_client = blinky.area;
             auto new_client = old_client + warp_delta;
             auto new_gridsz = std::max(dot_11, new_client.size / cellsz);
-            if (gridsz != new_gridsz)
+            auto size_delta = new_gridsz * cellsz - old_client.size;
+            auto coor_delta = new_client.coor - old_client.coor;
+            if (size_delta || coor_delta)
             {
-                auto size_delta = new_gridsz * cellsz - old_client.size;
-                auto coor_delta = new_client.coor - old_client.coor;
                 size_window(size_delta);
                 move_window(coor_delta);
             }
@@ -2983,6 +2983,48 @@ namespace netxs::gui
             }
             set_font_list(families);
         }
+        void MoveWindow(many const& args)
+        {
+            if (args.size())
+            if (auto delta = twod{ any_get_or(args[0]), any_get_or(args[1]) })
+            {
+                move_window(delta);
+            }
+        }
+        void WarpWindow(many const& args)
+        {
+            if (args.size() != 4) return;
+            auto warp = dent{ any_get_or(args[0]),
+                              any_get_or(args[1]),
+                              any_get_or(args[2]),
+                              any_get_or(args[3]) };
+            warp_window(warp * cellsz);
+        }
+        void FocusNextWindow(many const& args)
+        {
+            auto dir = args.size() ? any_get_or<si32>(args.front()) : 0;
+            if (dir >= 0)
+            {
+                //todo implement
+            }
+            else
+            {
+                //todo implement
+            }
+        }
+        void AlwaysOnTop(many const& args)
+        {
+            auto state = args.size() ? any_get_or<si32>(args.front(), -1) + 1 : 0;
+            if (state == 0) // Toggle.
+            {
+                //todo implement
+            }
+            else // Set state - 1;
+            {
+                state -= 1;
+                //todo implement
+            }
+        }
 
         arch run_command(arch command, arch lParam)
         {
@@ -3173,6 +3215,10 @@ namespace netxs::gui
                     case syscmd::togglefsmode:    ToggleFullscreenMode();   break;
                     case syscmd::toggleaamode:    ToggleAntialiasingMode(); break;
                     case syscmd::rollfontlist:    RollFontList(args);       break;
+                    case syscmd::warpwindow:      WarpWindow(args);         break;
+                    case syscmd::move:            MoveWindow(args);         break;
+                    case syscmd::focusnextwindow: FocusNextWindow(args);    break;
+                    case syscmd::alwaysontop:     AlwaysOnTop(args);        break;
                 }
             });
         }

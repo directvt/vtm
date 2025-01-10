@@ -937,6 +937,97 @@ namespace netxs::ui
                                                 boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
+                { "MoveWindow",             [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::move;
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "WarpWindow",             [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::warpwindow;
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "MaximizeWindow",         [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::maximize;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "MinimizeWindow",         [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::minimize;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "AlwaysOnTop",            [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::alwaysontop;
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "FocusNextWindow",        [](auto& boss, auto& luafx)
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::focusnextwindow;
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
             };
             luafx.activate(proc_map);
 

@@ -485,6 +485,11 @@ namespace netxs
         {
             return dent{ l * factor, r * factor, t * factor, b * factor };
         }
+        // dent: Scale padding.
+        constexpr auto operator * (twod factor) const
+        {
+            return dent{ l * factor.x, r * factor.x, t * factor.y, b * factor.y };
+        }
         // dent: Return size with padding.
         friend constexpr auto operator + (twod size, dent pad)
         {

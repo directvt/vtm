@@ -135,7 +135,7 @@ namespace netxs
         return value.type() == typeid(T) ? *std::any_cast<T*>(value)
                                          : fallback;
     }
-    template<class T>
+    template<class T = si32>
     auto any_get_or(std::any const& value, T const& fallback = {})
     {
         return value.type() == typeid(T) ? std::any_cast<T>(value)
