@@ -3207,7 +3207,7 @@ namespace netxs::gui
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
                     case syscmd::close:  window_shutdown(); break;
-                    case syscmd::update: update_gui(); break;
+                    //case syscmd::update: update_gui(); break;
                     //
                     case syscmd::resetwheelaccum: ResetWheelAccumulator();  break;
                     case syscmd::tunecellheight:  IncreaseCellHeight(args); break;
@@ -3220,6 +3220,7 @@ namespace netxs::gui
                     case syscmd::focusnextwindow: FocusNextWindow(args);    break;
                     case syscmd::alwaysontop:     AlwaysOnTop(args);        break;
                 }
+                update_gui();
             });
         }
         void book_clipboard()
@@ -4104,13 +4105,13 @@ namespace netxs::gui
                     case WM_DISPLAYCHANGE:
                     case WM_DEVICECHANGE:     w->check_fsmode();                                 break; // Restore from maximized mode if resolution changed.
                     case WM_DESTROY:          w->window_cleanup();                               break;
-                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); break;
-                                                                   case SC_MAXIMIZE: w->sys_command(syscmd::maximize); break;
-                                                                   case SC_RESTORE:  w->sys_command(syscmd::restore);  break;
-                                                                   case SC_CLOSE:    w->sys_command(syscmd::close);    break;
+                    case WM_SYSCOMMAND: switch (wParam & 0xFFF0) { case SC_MINIMIZE: w->sys_command(syscmd::minimize); return stat;
+                                                                   case SC_MAXIMIZE: w->sys_command(syscmd::maximize); return stat;
+                                                                   case SC_RESTORE:  w->sys_command(syscmd::restore);  return stat;
+                                                                   case SC_CLOSE:    w->sys_command(syscmd::close);    return stat;
                                                                    //todo implement
-                                                                   //case SC_MOVE:         w->sys_command(syscmd::move);         break;
-                                                                   //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); break;
+                                                                   //case SC_MOVE:         w->sys_command(syscmd::move);         return stat;
+                                                                   //case SC_MONITORPOWER: w->sys_command(syscmd::monitorpower); return stat;
                                                                    default: stat = TRUE; // An application should return zero only if it processes this message.
                                                                  } break; // Taskbar ctx menu to change the size and position.
                     //case WM_INITMENU: //todo The application can perform its own checking or graying by responding to the WM_INITMENU message that is sent before any menu is displayed.
