@@ -449,9 +449,7 @@ int main(int argc, char* argv[])
 
         using e2 = ui::e2;
         auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
-        auto domain = ui::host::ctor<app::vtm::hall>(server, config);
-        //todo scripting
-        //domain->plugin<scripting::host>();
+        auto domain = app::vtm::hall::ctor(server, config);
         domain->autorun();
         auto settings = config.utf8();
         config_lock.unlock();

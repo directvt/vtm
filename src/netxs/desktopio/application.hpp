@@ -746,6 +746,45 @@ namespace netxs::app::shared
         }
         return gui_config;
     }
+    auto get_tui_config(xmls& config, ui::skin& g)
+    {
+        using namespace std::chrono;
+        g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
+        g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
+        g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
+        g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
+        g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
+        g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
+        g.action         = config.take("/config/colors/action"     , cell{ whitespace });
+        g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
+        g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
+        g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
+        g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
+        g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
+        g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
+        g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
+        g.spd_max        = config.take("/config/timings/kinetic/spd_max"  , 100 );
+        g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
+        g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
+        g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
+        g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
+        g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
+        g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
+        g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
+        g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
+        g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
+        g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
+        g.maxfps         = config.take("/config/timings/fps"              , 60);
+        g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
+        g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
+        g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
+        g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
+        g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
+        g.shadow_blur    = config.take("/config/desktop/shadow/blur"   , 3);
+        g.shadow_opacity = config.take("/config/desktop/shadow/opacity", 105.5f);
+        g.shadow_offset  = config.take("/config/desktop/shadow/offset" , dot_21);
+        if (g.maxfps <= 0) g.maxfps = 60;
+    }
     void splice(xipc client, gui_config_t& gc)
     {
         if (os::dtvt::active || !(os::dtvt::vtmode & ui::console::gui)) os::tty::splice(client);
@@ -754,8 +793,8 @@ namespace netxs::app::shared
             os::dtvt::client = client;
             auto connect = [&]
             {
-                auto event_domain = netxs::events::auth{};
-                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
+                auto gui_event_domain = netxs::events::auth{};
+                auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)
@@ -773,20 +812,53 @@ namespace netxs::app::shared
     }
     void start(text cmd, text aclass, xmls& config)
     {
+        //todo revise
         auto [client, server] = os::ipc::xlink();
-        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
+        auto& indexer = ui::tui_domain();
+        auto config_lock = indexer.unique_lock(); // Sync multithreaded access to config.
         auto gui_config = app::shared::get_gui_config(config);
+        auto& g = ui::skin::globals();
+        app::shared::get_tui_config(config, g);
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, gui_config);
         }};
-        //todo scripting
-        auto domain = ui::host::ctor(server, config);// ->plugin<scripting::host>();
+        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
+        auto& gate = *gate_ptr;
+        gate.base::resize(os::dtvt::gridsz);
+        gate.LISTEN(tier::general, e2::timer::any, timestamp)
+        {
+            gate.rebuild_scene(gate.id, gate.ruined());
+        };
+        gate.LISTEN(tier::release, e2::conio::winsz, new_size)
+        {
+            gate.rebuild_scene(gate.id, true);
+        };
+        gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
+        //todo deduplicate (vtm::hall)
+        gate.LISTEN(tier::general, e2::config::fps, fps)
+        {
+            if (fps > 0)
+            {
+                g.maxfps = fps;
+            }
+            else if (fps < 0)
+            {
+                fps = g.maxfps;
+            }
+        };
+        log(prompt::gate, "Rendering refresh rate: ", g.maxfps, " fps");
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
+        gate.attach(applet);
         config_lock.unlock();
-        domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
-        domain->stop();
+        gate.launch();
+        gate.bell::dequeue();
+        gate.bell::signal(tier::general, e2::config::fps, 0);
+        config_lock.lock();
+        auto& mouse = gate.plugins<pro::mouse>();
+        mouse.reset();
+        gate.tokens.reset();
         server->shut();
         client->shut(); //todo revise deadlock when closing term inside desktop by X close button.
         thread.join();

@@ -8801,8 +8801,7 @@ namespace netxs::ui
                     stream.syswinsz.send(*this, 0, new_area.size, faux);
                 }
             };
-            auto fps = bell::signal(tier::general, e2::config::fps, -1);
-            maxoff = span{ span::period::den / std::max(1, fps) };
+            maxoff = span{ span::period::den / std::max(1, ui::skin::globals().maxfps) };
             LISTEN(tier::general, e2::config::fps, fps)
             {
                 maxoff = span{ span::period::den / std::max(1, fps) };

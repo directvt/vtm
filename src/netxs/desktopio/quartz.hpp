@@ -78,20 +78,20 @@ namespace netxs::datetime
         return milliseconds;
     }
 
-    template<class Bell, auto Tier, auto Deed>
+    template<class T>
     class quartz
     {
         using cond = std::condition_variable;
         using work = std::thread;
 
-        Bell& owner;
-        flag  alive;
-        flag  letup;
-        span  delay;
-        span  watch;
-        span  pulse;
-        work  fiber;
-        cond  synch;
+        T&   owner;
+        flag alive;
+        flag letup;
+        span delay;
+        span watch;
+        span pulse;
+        work fiber;
+        cond synch;
 
         void worker()
         {
@@ -107,7 +107,7 @@ namespace netxs::datetime
                 prior =  now;
 
                 now = datetime::now();
-                owner.signal(Tier, Deed, now);
+                owner.timer(now);
 
                 if (letup.exchange(faux))
                 {
@@ -123,7 +123,7 @@ namespace netxs::datetime
         }
 
     public:
-        quartz(Bell& owner)
+        quartz(T& owner)
             : owner{ owner        },
               alive{ faux         },
               letup{ faux         },

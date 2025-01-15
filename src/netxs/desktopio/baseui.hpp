@@ -537,6 +537,8 @@ namespace netxs::ui
         span repeat_delay;
         span repeat_rate;
 
+        si32 maxfps = 60;
+
         bool shadow_enabled = true;
         si32 shadow_blur = 3;
         fp32 shadow_bias = 0.37f;

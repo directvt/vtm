@@ -251,10 +251,31 @@ namespace netxs::events
         generics::jobs<wptr<bell>> agent;
         reactor                    general{ true };
         lua_State*                 lua;
+        si32                       fps{};
+        hook                       memo{};
+        datetime::quartz<auth>     quartz;
+        hint                       e2_timer_tick_id;
 
-        auth(lua_State* lua = {})
-            : lua{ lua }
-        { }
+        auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
+            : lua{ lua },
+              quartz{ *this },
+              e2_timer_tick_id{ e2_timer_tick_id }
+        {
+            if (e2_config_fps_id)
+            {
+                memo = general.subscribe(e2_config_fps_id, reactor::hndl<si32>{ [&](si32& fps)
+                {
+                    if (fps > 0)
+                    {
+                        quartz.ignite(fps);
+                    }
+                    else
+                    {
+                        quartz.stop();
+                    }
+                }});
+            }
+        }
 
         // auth: .
         auto sync()
@@ -275,6 +296,12 @@ namespace netxs::events
         auto unique_lock()
         {
             return std::unique_lock{ mutex };
+        }
+        // auth: .
+        void timer(time now)
+        {
+            auto lock = sync();
+            general.notify(e2_timer_tick_id, now);
         }
         // auth: Return sptr of the object by its id.
         template<class T = bell>

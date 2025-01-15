@@ -1530,6 +1530,7 @@ namespace netxs::input
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
+            release_if_captured();
             bell::signal(tier::release, events::halt, *this);
             bell::signal(tier::general, events::halt, *this);
             bell::signal(tier::release, events::die, *this);
@@ -1781,11 +1782,20 @@ namespace netxs::input
                 mouse::cause = saved_cause;
             }
         }
+        void release_if_captured()
+        {
+            if (captured())
+            {
+                setfree();
+                dismiss();
+            }
+        }
         void deactivate()
         {
             mouse::load_button_state(0);
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
+            release_if_captured();
             bell::signal(tier::general, events::halt, *this);
             mouse_disabled = true;
             keybd_disabled = true;

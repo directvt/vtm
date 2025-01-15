@@ -2812,7 +2812,6 @@ namespace netxs::ui
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
                     boss.base::strike();
                 };
-                boss.bell::signal(tier::general, e2::config::fps, e2::config::fps.param(-1));
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     update(new_area.size);
@@ -3172,7 +3171,7 @@ namespace netxs::ui
     auto& tui_domain()
     {
         static auto scripting = luna{};
-        static auto indexer = netxs::events::auth{ scripting.lua };
+        static auto indexer = netxs::events::auth{ scripting.lua, e2::config::fps.id, e2::timer::tick.id };
         return indexer;
     }
 

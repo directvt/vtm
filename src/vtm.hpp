@@ -967,7 +967,7 @@ namespace netxs::app::vtm
 
     // vtm: Desktop Workspace.
     struct hall
-        : public host
+        : public form<hall>
     {
     private:
         struct node // hall: Adapter for the object that going to be attached to the world.
@@ -1273,6 +1273,10 @@ namespace netxs::app::vtm
         text selected_item; // hall: Override default menu item (if not empty).
         std::unordered_map<id_t, si32> switch_counter; // hall: Focus switch counter.
         input::key::keybind_list_t window_bindings;
+        xmls config; // hall: Resultant settings.
+        subs tokens; // hall: Subscription tokens.
+        flag active; // hall: Host is available for connections.
+        std::vector<bool> user_numbering; // hall: .
 
         auto window(link& what)
         {
@@ -1802,11 +1806,19 @@ namespace netxs::app::vtm
         }
 
     public:
-        hall(xipc server, xmls& config)
-            : host{ server, config, pro::focus::mode::focusable },
-              focus{ id_t{} }
+        hall(xipc server, xmls def_config)
+            : focus{ id_t{} },
+              config{ def_config },
+              active{ true }
         {
-            window_bindings = pro::keybd::load(host::config, "window");
+            auto& canal = *server;
+
+            auto& g = ui::skin::globals();
+            app::shared::get_tui_config(config, g);
+
+            plugins<pro::focus>(pro::focus::mode::focusable, faux);
+            plugins<pro::keybd>("desktop");
+            window_bindings = pro::keybd::load(config, "window");
             auto& luafx = base::plugin<pro::luafx>();
             static auto proc_map = pro::luafx::fxmap<hall>
             {
@@ -1989,7 +2001,7 @@ namespace netxs::app::vtm
                 utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
                 utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
-            for (auto item_ptr : host::config.list(path::item))
+            for (auto item_ptr : config.list(path::item))
             {
                 auto& item = *item_ptr;
                 auto splitter = item.take(attr::splitter, faux);
@@ -2030,8 +2042,8 @@ namespace netxs::app::vtm
 
             LISTEN(tier::general, e2::timer::any, timestamp, tokens)
             {
-                auto damaged = !host::debris.empty();
-                host::debris.clear();
+                auto damaged = base::ruined();//!host::debris.empty();
+                //host::debris.clear();
                 for (auto& u : users.items)
                 {
                     if (auto client = std::dynamic_pointer_cast<gate>(u->object))
@@ -2040,6 +2052,84 @@ namespace netxs::app::vtm
                     }
                 }
             };
+            //todo move to luafx/keybd/ui::base/indexer
+            LISTEN(tier::release, e2::command::run, script)
+            {
+                auto scripting_context = std::unordered_map<text, wptr>{};
+                auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+                if (shadow.empty()) return;
+                luafx.set_object(This(), "desktop");
+                if (script.gear_id)
+                if (auto gear_ptr = bell::getref<hids>(script.gear_id))
+                {
+                    luafx.set_object(gear_ptr, "gear");
+                }
+                auto result = luafx.run_script(script.cmd, scripting_context);
+                if (result.empty()) result = "ok";
+                log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+                script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+            };
+            LISTEN(tier::preview, e2::runscript, gear)
+            {
+                if (!gear.action_ptr) return;
+                if (!gear.scripting_context_ptr) return;
+                auto& script_body = *gear.action_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
+                luafx.set_object(gear.This(), "gear");
+                luafx.run_script(script_body, scripting_context);
+            };
+
+            LISTEN(tier::general, e2::shutdown, msg, tokens)
+            {
+                if constexpr (debugmode) log(prompt::host, msg);
+                active.exchange(faux); // To prevent new applications from launching.
+                canal.stop();
+            };
+            LISTEN(tier::general, e2::cleanup, counter, tokens)
+            {
+                this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
+            };
+            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
+            {
+                world_ptr = base::This();
+            };
+            LISTEN(tier::general, hids::events::device::user::login, props, tokens)
+            {
+                props = 0;
+                while (props < user_numbering.size() && user_numbering[props]) { props++; }
+                if (props == user_numbering.size()) user_numbering.push_back(true);
+                else                                user_numbering[props] = true;
+            };
+            LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
+            {
+                if (props < user_numbering.size()) user_numbering[props] = faux;
+                else
+                {
+                    if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                }
+            };
+            LISTEN(tier::request, hids::events::focus::set::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            {
+                auto is_recursive = faux;
+                if (seed.treeid)
+                {
+                    auto& digest = focus_tree_map[seed.treeid];
+                    if (digest < seed.digest) // This is the first time this focus event has been received.
+                    {
+                        digest = seed.digest;
+                    }
+                    else // We've seen this event before.
+                    {
+                        is_recursive = true;
+                    }
+                }
+                if (!is_recursive)
+                {
+                    auto deed = this->bell::protos(tier::request);
+                    this->bell::signal(tier::release, deed, seed);
+                }
+            };
+
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
                 auto window_ptr = what.applet;
@@ -2058,7 +2148,7 @@ namespace netxs::app::vtm
             {
                 auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.appcfg, host::config);
+                what.applet = maker(setup.appcfg, config);
                 what.header = setup.title;
                 what.footer = setup.footer;
             };
@@ -2069,12 +2159,14 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::layout::bubble, area)
             {
                 //auto region = items.bubble(inst.bell::id);
-                host::denote(area);
+                //host::denote(area);
+                base::deface();
             };
             LISTEN(tier::release, e2::form::layout::expose, area)
             {
                 //auto area = items.expose(inst.bell::id);
-                host::denote(area);
+                //host::denote(area);
+                base::deface();
             };
             LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {
@@ -2257,14 +2349,28 @@ namespace netxs::app::vtm
                     gear_id = {};
                 }
             };
+            //todo deduplicate (ui::gate)
+            LISTEN(tier::general, e2::config::fps, fps)
+            {
+                if (fps > 0)
+                {
+                    g.maxfps = fps;
+                    log(prompt::hall, "Rendering refresh rate: ", g.maxfps, " fps");
+                }
+                else if (fps < 0)
+                {
+                    fps = g.maxfps;
+                }
+            };
+            bell::signal(tier::general, e2::config::fps, g.maxfps);
         }
 
         // hall: Autorun apps from config.
         void autorun()
         {
-            vport = host::config.take(path::viewport, dot_00);
+            vport = config.take(path::viewport, dot_00);
             auto what = link{};
-            auto apps = host::config.list(path::autorun);
+            auto apps = config.list(path::autorun);
             auto foci = book{};
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
@@ -2314,7 +2420,7 @@ namespace netxs::app::vtm
         // hall: Attach a new item to the scene.
         void branch(text const& menuid, sptr item, bool fixed = true)
         {
-            if (!host::active) return;
+            if (!active) return;
             items.append(item);
             item->base::root(true);
             auto& [stat, list] = dbase.apps[menuid];
@@ -2329,7 +2435,7 @@ namespace netxs::app::vtm
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
-            auto user = host::ctor<gate>(client, userid, vtmode, app_config, session_id);
+            auto user = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
             dbase.append(user);
             os::ipc::users = users.size();
@@ -2351,12 +2457,15 @@ namespace netxs::app::vtm
         void remove(sptr item_ptr) override
         {
             auto& inst = *item_ptr;
-            host::denote(items.remove(inst.id));
+            auto del1 = items.remove(inst.id);
+            //host::denote(del1);
+            base::deface();
             auto block = users.remove(inst.id);
             os::ipc::users = users.size();
             if (block) // Save user's viewport last position.
             {
-                host::denote(block);
+                //host::denote(block);
+                base::deface();
                 vport = block.coor;
             }
             if (dbase.remove(item_ptr))
@@ -2391,11 +2500,11 @@ namespace netxs::app::vtm
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             bell::dequeue(); // Wait until all cleanups are completed.
-            host::quartz.stop();
+            bell::signal(tier::general, e2::config::fps, 0);
             auto lock = bell::sync();
             auto& mouse = plugins<pro::mouse>();
             mouse.reset(); // Release the captured mouse.
-            host::tokens.reset();
+            tokens.reset();
             dbase.reset();
             items.reset();
         }

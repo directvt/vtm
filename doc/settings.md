@@ -18,20 +18,22 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in a slightly modified XML-like format which allows to store hierarchical list of key=value pairs.  
+The settings are stored in an XML-like format, forming a hierarchical list of key=value pairs.  
 See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
-There are two default settings locations that can be overridden:
+We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
+
+There are two predefined settings source locations:
 ```xml
 <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
 <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 ```
 
 The process of loading settings consists of the following steps:
-- Build an ordered list of source files by looking for the root `<file=.../>` subsections.
-- Overlay the `<config/>` subsection from the source files in the loading order.
+- Build an ordered list of the setting source files by looking for the root `<file=.../>` subsections.
+- Overlay the `<config/>` subsection from the source files in the specified order.
 - Overlay the `<config/>` subsection from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
-- Overlay the `<config/>` subsection from the DirectVT config received from the parent process.
+- Overlay the `<config/>` subsection from the DirectVT config payload received from the parent process.
 - Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
 
 The file list is built in the following order from the following sources:
@@ -57,21 +59,24 @@ The file list is built in the following order from the following sources:
 
 ## Details
 
-### Key differences from the standard XML
+### Key differences from XML
 
- - All stored values are UTF-8 strings:
+ - All stored values are UTF-8 strings (the settings consumer decides on its own side how to interpret the string):
    - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
    - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
  - In addition to a set of sub-objects each object can contain its own text value:
-   - E.g. `<name=names_value param=params_value />`.
+   - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
- - Objects can reference values ​​of other objects using absolute references (three levels of indirection allowed).
+ - Objects can reference values of other objects using absolute references (three levels of indirection allowed).
    - `thing2` refers to the value `thing1` in `<node1 thing1=value1/><node2 thing2=/node1/thing1 />`.
+ - Any Unicode characters are allowed, including the U+0000 (null) character.
+ - Multiple root elements are allowed.
+ - There is no support for named XML character entities.
  - Escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
