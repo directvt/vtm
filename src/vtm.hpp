@@ -2441,10 +2441,6 @@ namespace netxs::app::vtm
             os::ipc::users = users.size();
             user->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
-            user->LISTEN(tier::release, e2::conio::winsz, new_size, -)
-            {
-                user->rebuild_scene(*this, true);
-            };
             usrcfg.cfg = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             user->attach(deskmenu);

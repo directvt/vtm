@@ -1107,6 +1107,10 @@ namespace netxs::ui
             {
                 forward(c);
             };
+            LISTEN(tier::release, e2::conio::winsz, new_size)
+            {
+                rebuild_scene(bell::id, true);
+            };
             LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
             {
                 if (seed.gear_id)
