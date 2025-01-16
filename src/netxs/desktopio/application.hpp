@@ -830,6 +830,10 @@ namespace netxs::app::shared
         {
             gate.rebuild_scene(gate.id, gate.ruined());
         };
+        gate.LISTEN(tier::release, e2::conio::winsz, new_size)
+        {
+            gate.rebuild_scene(gate.id, true);
+        };
         gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
         //todo deduplicate (vtm::hall)
         gate.LISTEN(tier::general, e2::config::fps, fps)

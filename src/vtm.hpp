@@ -2040,18 +2040,6 @@ namespace netxs::app::vtm
                 menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
 
-            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
-            {
-                auto damaged = base::ruined();//!host::debris.empty();
-                //host::debris.clear();
-                for (auto& u : users.items)
-                {
-                    if (auto client = std::dynamic_pointer_cast<gate>(u->object))
-                    {
-                        client->rebuild_scene(*this, damaged);
-                    }
-                }
-            };
             //todo move to luafx/keybd/ui::base/indexer
             LISTEN(tier::release, e2::command::run, script)
             {
@@ -2441,6 +2429,16 @@ namespace netxs::app::vtm
             os::ipc::users = users.size();
             user->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            user->LISTEN(tier::release, e2::conio::winsz, new_size)
+            {
+                user->rebuild_scene(*this, true);
+            };
+            user->LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                auto damaged = base::ruined();//!host::debris.empty();
+                //host::debris.clear();
+                user->rebuild_scene(*this, damaged);
+            };
             usrcfg.cfg = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             user->attach(deskmenu);
