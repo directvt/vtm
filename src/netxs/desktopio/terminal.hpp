@@ -8315,14 +8315,12 @@ namespace netxs::ui
     struct dtvt
         : public ui::form<dtvt>
     {
-        using s11n = directvt::binary::s11n;
-
         // dtvt: Event handler.
-        struct evnt : s11n, input_fields_handler
+        struct link : s11n, input_fields_handler
         {
             using input_fields_handler::handle;
 
-            dtvt& owner; // evnt: Terminal object reference.
+            dtvt& owner; // link: Terminal object reference.
             wptr  owner_wptr;
 
             void handle(s11n::xs::bitmap_dtvt       /*lock*/)
@@ -8587,7 +8585,7 @@ namespace netxs::ui
                 });
             }
 
-            evnt(dtvt& owner)
+            link(dtvt& owner)
                 : s11n{ *this, owner.id },
                   input_fields_handler{ owner },
                   owner{ owner }
@@ -8609,7 +8607,7 @@ namespace netxs::ui
 
         using vtty = os::dtvt::vtty;
 
-        evnt stream; // dtvt: Event handler.
+        link stream; // dtvt: Event handler.
         flag active; // dtvt: Terminal lifetime.
         si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         si32 nodata; // dtvt: Show splash "No signal".

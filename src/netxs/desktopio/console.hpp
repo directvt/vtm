@@ -117,7 +117,7 @@ namespace netxs::ui
             void run()
             {
                 directvt::binary::stream::reading_loop(canal, [&](view data){ s11n::sync(data); });
-                s11n::stop(); // Wake up waiting objects, if any.
+                s11n::stop(); // Wake up waiting dtvt objects, if any.
                 if constexpr (debugmode) log(prompt::gate, "DirectVT session complete");
             }
             // link: Notify environment to disconnect.
@@ -278,8 +278,8 @@ namespace netxs::ui
 
             struct stat
             {
-                span watch{}; // diff::stat: Duration of the STDOUT rendering.
-                sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
+                span watch{}; // diff::stat: Rendering duration.
+                sz_t delta{}; // diff::stat: Last rendered frame size.
             };
 
             pipe& canal; // diff: Channel to outside.
@@ -369,14 +369,14 @@ namespace netxs::ui
                   abort{ faux }
             {
                 using namespace netxs::directvt;
-                paint = work([&, vtmode]
+                paint = std::thread{ [&, vtmode]
                 {
                          if (vtmode == svga::dtvt ) render<binary::bitmap_dtvt_t >();
                     else if (vtmode == svga::vtrgb) render<binary::bitmap_vtrgb_t>();
                     else if (vtmode == svga::vt256) render<binary::bitmap_vt256_t>();
                     else if (vtmode == svga::vt16 ) render<binary::bitmap_vt16_t >();
                     else if (vtmode == svga::nt16 ) render<binary::bitmap_dtvt_t >();
-                });
+                }};
             }
             void stop()
             {
@@ -493,7 +493,7 @@ namespace netxs::ui
     public:
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
-        diff       paint; // gate: Render.
+        diff       paint; // gate: Renderer.
         link       conio; // gate: Input data parser.
         bool       direct; // gate: .
         bool       local; // gate: .

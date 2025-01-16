@@ -1620,19 +1620,19 @@ namespace netxs::gui
                 return std::pair{ changed, target_list };
             }
         };
-        struct evnt : s11n, ui::input_fields_handler
+        struct link : s11n, ui::input_fields_handler
         {
             using input_fields_handler::handle;
 
-            winbase&        owner; // evnt: .
-            ui::pipe&       intio; // evnt: .
-            flag            alive; // evnt: .
+            winbase&        owner; // link: .
+            ui::pipe&       intio; // link: .
+            flag            alive; // link: .
 
             //todo use gear.m_sys
-            input::sysmouse m = {}; // evnt: .
-            input::syswinsz w = {}; // evnt: .
-            input::sysclose c = {}; // evnt: .
-            netxs::sptr<input::hids> gears; // evnt: .
+            input::sysmouse m = {}; // link: .
+            input::syswinsz w = {}; // link: .
+            input::sysclose c = {}; // link: .
+            netxs::sptr<input::hids> gears; // link: .
 
             auto keybd(hids& gear, auto proc)
             {
@@ -1884,7 +1884,7 @@ namespace netxs::gui
                 owner.sys_command(lock.thing.cmd_id, lock.thing.args);
             }
 
-            evnt(winbase& owner, ui::pipe& intio)
+            link(winbase& owner, ui::pipe& intio)
                 : s11n{ *this },
                  input_fields_handler{ owner },
                  owner{ owner },
@@ -1944,7 +1944,7 @@ namespace netxs::gui
         fp32  wdelta; // winbase: Mouse wheel OS-wise setting.
         foci  mfocus; // winbase: GUI multi-focus control.
         regs  fields; // winbase: Text input field list.
-        evnt  stream; // winbase: DirectVT event proxy.
+        link  stream; // winbase: DirectVT event proxy.
         kmap  chords; // winbase: Pressed key table (key chord).
 
         winbase(auth& indexer, std::list<text>& font_names, si32 cell_height, bool antialiasing, span blink_rate, twod grip_cell)
@@ -3307,7 +3307,7 @@ namespace netxs::gui
                 };
                 bell::signal(tier::anycast, e2::form::upon::started, This());
             }
-            auto winio = std::thread{[&]
+            auto winio = std::thread{ [&]
             {
                 auto sync = [&](view data)
                 {
