@@ -1633,6 +1633,13 @@ namespace netxs::app::vtm
                             boss.bell::signal(tier::release, e2::form::state::maximized, owner_id);
                         }
                     };
+                    boss.LISTEN(tier::request, e2::form::prop::window::state, state)
+                    {
+                        //todo unify (+fullscreen)
+                        state = maximize_token ? winstate::maximized
+                                 : boss.hidden ? winstate::minimized
+                                               : winstate::normal;
+                    };
 
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
                     {
@@ -1731,7 +1738,7 @@ namespace netxs::app::vtm
             appconf.cd("item");
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .fixed   = true,
-                                       .winform = shared::win::state::normal,
+                                       .winform = winstate::normal,
                                        .type    = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
@@ -1849,7 +1856,7 @@ namespace netxs::app::vtm
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto gear_id = gear_ptr ? gear_ptr->id : id_t{};
                                             auto appspec = desk::spec{ .hidden  = true,
-                                                                       .winform = shared::win::state::normal,
+                                                                       .winform = winstate::normal,
                                                                        .type    = app::vtty::id,
                                                                        .gear_id = gear_id };
                                             if (!args_count) // Get default app spec.
@@ -1916,7 +1923,7 @@ namespace netxs::app::vtm
                                             auto& gear = *gear_ptr;
                                             auto gear_id = gear.id;
                                             auto appspec = desk::spec{ .hidden  = true,
-                                                                       .winform = shared::win::state::normal,
+                                                                       .winform = winstate::normal,
                                                                        .type    = app::vtty::id,
                                                                        .gear_id = gear_id };
                                             if (gear.shared_event) // Give another process a chance to handle this event.
@@ -1974,7 +1981,7 @@ namespace netxs::app::vtm
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
-                                          .winform  = shared::win::state::normal,
+                                          .winform  = winstate::normal,
                                           .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
@@ -2248,8 +2255,9 @@ namespace netxs::app::vtm
                         //todo revise: Should the requester set focus on their own behalf?
                         pro::focus::set(window, gear_id/*requested focus*/, solo::on); // Notify pro::focus owners.
                         window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                             if (appbase.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
+                             if (appbase.winform == winstate::maximized)  window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (appbase.winform == winstate::fullscreen) window->bell::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                        else if (appbase.winform == winstate::minimized)  window->bell::signal(tier::release, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -2281,8 +2289,9 @@ namespace netxs::app::vtm
                     pro::focus::set(window, gear.id, solo::on);
                     window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     auto& cfg = dbase.menu[what.menuid];
-                         if (cfg.winform == shared::win::state::maximized) window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    else if (cfg.winform == shared::win::state::minimized) window->bell::signal(tier::release, e2::form::size::minimize, gear);
+                         if (cfg.winform == winstate::maximized)  window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    else if (cfg.winform == winstate::fullscreen) window->bell::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                    else if (cfg.winform == winstate::minimized)  window->bell::signal(tier::release, e2::form::size::minimize, gear);
                 }
             };
             LISTEN(tier::request, vtm::events::handoff, what)
@@ -2369,13 +2378,13 @@ namespace netxs::app::vtm
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
                                     app.take(attr::winsize, twod{ 80,27 }) };
-                    auto winform =  app.take(attr::winform, shared::win::state::normal, shared::win::options);
+                    auto winform =  app.take(attr::winform, winstate::normal, shared::win::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (winform == shared::win::state::minimized) window_ptr->base::hidden = true;
+                        if (winform == winstate::minimized) window_ptr->base::hidden = true;
                         else if (focused) foci.push_back(window_ptr);
                     }
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");

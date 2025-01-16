@@ -3873,7 +3873,7 @@ namespace netxs::ui
             new_area.size = std::max(new_area.size, cellsz(dot_00, m));
         }
         // grid: .
-        void inform(rect /*new_area*/) override
+        void inform([[maybe_unused]] rect new_area) override
         {
             auto elem_ptr = blocks.begin();
             for (auto& object : subset)

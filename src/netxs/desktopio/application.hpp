@@ -173,21 +173,21 @@ namespace netxs::app::shared
 
     namespace win
     {
-        using state = gui::window::state;
-
         namespace type
         {
-            static const auto undefined = "undefined"s;
-            static const auto normal    = "normal"s;
-            static const auto minimized = "minimized"s;
-            static const auto maximized = "maximized"s;
+            static const auto undefined  = "undefined"s;
+            static const auto normal     = "normal"s;
+            static const auto minimized  = "minimized"s;
+            static const auto maximized  = "maximized"s;
+            static const auto fullscreen = "fullscreen"s;
         }
 
         static auto options = std::unordered_map<text, si32>
-           {{ type::undefined, state::normal    },
-            { type::normal,    state::normal    },
-            { type::minimized, state::minimized },
-            { type::maximized, state::maximized }};
+           {{ type::undefined,  winstate::normal     },
+            { type::normal,     winstate::normal     },
+            { type::minimized,  winstate::minimized  },
+            { type::maximized,  winstate::maximized  },
+            { type::fullscreen, winstate::fullscreen }};
     }
 
     namespace menu
@@ -730,7 +730,7 @@ namespace netxs::app::shared
 
     auto get_gui_config(xmls& config)
     {
-        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options),
+        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", winstate::normal, app::shared::win::options),
                                         .aliasing = config.take("/config/gui/antialiasing", faux),
                                         .blinking = config.take("/config/gui/blinkrate", span{ 400ms }),
                                         .wincoord = config.take("/config/gui/wincoor", dot_mx),

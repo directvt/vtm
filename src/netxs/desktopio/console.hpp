@@ -110,31 +110,12 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
-            flag  alive; // link: sysclose isn't sent.
             wptr  owner_wptr; // link: .
-
-            // link: Send data outside.
-            void run()
-            {
-                directvt::binary::stream::reading_loop(canal, [&](view data){ s11n::sync(data); });
-                s11n::stop(); // Wake up waiting dtvt objects, if any.
-                if constexpr (debugmode) log(prompt::gate, "DirectVT session complete");
-            }
-            // link: Notify environment to disconnect.
-            void disconnect()
-            {
-                if (alive.exchange(faux))
-                {
-                    s11n::sysclose.send(canal, true);
-                    canal.wake();
-                }
-            }
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
-                 owner{ owner },
-                 alive{ true  }
+                 owner{ owner }
             {
                 auto oneshot = ptr::shared(hook{});
                 owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
@@ -265,7 +246,7 @@ namespace netxs::ui
                 // In case of recursive connection via terminal, ui::term schedules self-closing and waiting for the vtty to be released inside the task broker.
                 // vtm client waits for disconnect acknowledge which is scheduled (if scheduled) right after the vtty cleanup task.
                 lock.unlock();
-                disconnect();
+                owner.disconnect();
             }
         };
 
@@ -495,6 +476,7 @@ namespace netxs::ui
         props_t    props; // gate: Input gate properties.
         diff       paint; // gate: Renderer.
         link       conio; // gate: Input data parser.
+        flag       alive; // gate: sysclose isn't sent.
         bool       direct; // gate: .
         bool       local; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
@@ -795,11 +777,13 @@ namespace netxs::ui
             }
             _rebuild_scene(damaged);
         }
-        // gate: Main loop.
+        // gate: Rx loop.
         void launch()
         {
             bell::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
-            conio.run();
+            directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
+            conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
+            if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
             bell::signal(tier::release, e2::form::upon::stopped, true);
         }
 
@@ -809,6 +793,7 @@ namespace netxs::ui
               props{ canal, userid, vtmode, isvtm, session_id, config },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
+              alive{ true },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               local{ true },
               yield{ faux },
@@ -1163,7 +1148,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
-                conio.disconnect();
+                disconnect();
             };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {
@@ -1211,7 +1196,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
             {
                 this->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast);
-                conio.disconnect();
+                disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
@@ -1219,11 +1204,11 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, e2::conio::quit, deal, tokens) // Disconnect.
             {
-                conio.disconnect();
+                disconnect();
             };
             LISTEN(tier::general, e2::conio::quit, deal, tokens) // Shutdown.
             {
-                conio.disconnect();
+                disconnect();
             };
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
             {
@@ -1404,9 +1389,22 @@ namespace netxs::ui
             }
             conio.sysstart.send(canal);
         }
+        // gate: Notify environment to disconnect.
+        void disconnect()
+        {
+            if (alive.exchange(faux))
+            {
+                conio.s11n::sysclose.send(canal, true);
+                canal.wake();
+            }
+        }
         // gate: .
         void inform(rect new_area) override
         {
+            //for (auto& object : subset)
+            //{
+            //    object->base::resize(new_area.size);
+            //}
             if (applet)
             {
                 applet->base::resize(new_area.size);

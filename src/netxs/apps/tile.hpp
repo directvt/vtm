@@ -93,13 +93,13 @@ namespace netxs::app::tile
               skill::memo;
 
         netxs::sptr<ui::list> client;
-        si32                  depth;
+        si32                  window_state;
 
     public:
         items(base&&) = delete;
         items(base& boss)
             : skill{ boss },
-              depth{ 0    }
+              window_state{ winstate::undefined }
         {
             client = ui::list::ctor(axis::Y, sort::reverse);
             client->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.This());
@@ -163,7 +163,7 @@ namespace netxs::app::tile
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
             {
-                if (depth < 4/*we're not in the tile manager*/ && client)
+                if (window_state == winstate::normal && client)
                 {
                     auto context = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
                     client->render(parent_canvas);
@@ -173,9 +173,10 @@ namespace netxs::app::tile
             boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
             {
                 client->clear();
-                depth = 0;
-                boss.diveup([&]{ depth++; });
-                if constexpr (debugmode) log("%%Start depth %%", prompt::tile, depth);
+                if (auto parent_ptr = boss.parent())
+                {
+                    window_state = parent_ptr->base::riseup(tier::request, e2::form::prop::window::state);
+                }
             };
         }
     };
@@ -648,7 +649,12 @@ namespace netxs::app::tile
                         if (auto deed = boss.bell::protos(tier::release))
                         {
                             auto depth = 0;
-                            boss.diveup([&]{ depth++; });
+                            auto parent_ptr = boss.parent();
+                            while (parent_ptr)
+                            {
+                                depth++;
+                                parent_ptr = parent_ptr->parent();
+                            }
                             if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
                             if (depth > inheritance_limit) return;
 
@@ -926,6 +932,10 @@ namespace netxs::app::tile
                             gate.bell::signal(tier::release, e2::data::changed, menuid); // Set current  default;
                         }
                         oneoff.reset();
+                    };
+                    boss.LISTEN(tier::request, e2::form::prop::window::state, state)
+                    {
+                        state = winstate::tiled;
                     };
                     boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
                     {

@@ -1446,14 +1446,6 @@ namespace netxs::gui
             static constexpr auto mouse = 1 << 0;
             static constexpr auto keybd = 1 << 1;
         };
-        struct state
-        {
-            static constexpr auto _counter  = __COUNTER__ + 1;
-            static constexpr auto undefined = __COUNTER__ - _counter;
-            static constexpr auto normal    = __COUNTER__ - _counter;
-            static constexpr auto minimized = __COUNTER__ - _counter;
-            static constexpr auto maximized = __COUNTER__ - _counter;
-        };
         struct timers
         {
             static constexpr auto _counter   = __COUNTER__ + 1;
@@ -1661,9 +1653,9 @@ namespace netxs::gui
                     //todo use digest instead of winsize
                     if (owner.waitsz == new_gridsz) owner.waitsz = dot_00;
                 };
-                if (owner.reload == task::all || owner.fsmode == state::minimized) // We need full repaint.
+                if (owner.reload == task::all || owner.fsmode == winstate::minimized) // We need full repaint.
                 {
-                    if (owner.fsmode == state::minimized) owner.redraw = true;
+                    if (owner.fsmode == winstate::minimized) owner.redraw = true;
                     bitmap.get(data, {}, resize);
                 }
                 else
@@ -1763,19 +1755,19 @@ namespace netxs::gui
             //todo use xs::screenmode
             void handle(s11n::xs::fullscrn       /*lock*/)
             {
-                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
-                else                                  owner.set_state(state::maximized);
+                if (owner.fsmode == winstate::maximized) owner.set_state(winstate::normal);
+                else                                     owner.set_state(winstate::maximized);
             }
             void handle(s11n::xs::maximize       /*lock*/)
             {
                 //todo diff fullscreen and maximized
-                if (owner.fsmode == state::maximized) owner.set_state(state::normal);
-                else                                  owner.set_state(state::maximized);
+                if (owner.fsmode == winstate::maximized) owner.set_state(winstate::normal);
+                else                                     owner.set_state(winstate::maximized);
             }
             void handle(s11n::xs::minimize       /*lock*/)
             {
-                if (owner.fsmode == state::minimized) owner.set_state(state::normal);
-                else                                  owner.set_state(state::minimized);
+                if (owner.fsmode == winstate::minimized) owner.set_state(winstate::normal);
+                else                                     owner.set_state(winstate::minimized);
             }
             void handle(s11n::xs::expose         /*lock*/)
             {
@@ -1967,7 +1959,7 @@ namespace netxs::gui
               redraw{ faux },
               isbusy{ faux },
               reload{ task::all },
-              fsmode{ state::undefined },
+              fsmode{ winstate::undefined },
               fullcs{ cellsz },
               normcs{ cellsz },
               vkstat{},
@@ -2081,7 +2073,7 @@ namespace netxs::gui
         void sync_cellsz()
         {
             fullcs = cellsz;
-            if (fsmode != state::maximized) normcs = cellsz;
+            if (fsmode != winstate::maximized) normcs = cellsz;
         }
         void change_cell_size(bool forced = true, fp32 dy = {}, twod resize_center = {})
         {
@@ -2092,7 +2084,7 @@ namespace netxs::gui
             gcache.reset();
             gripsz = grip_cell * cellsz; // cellsz was updated in fcache.
             shadow.generate(0.44f/*bias*/, 116.5f/*alfa*/, gripsz.x, dot_00, dot_11, cell::shaders::full);
-            if (fsmode == state::maximized)
+            if (fsmode == winstate::maximized)
             {
                 auto over_sz = master.area.size % cellsz;
                 auto half_sz = over_sz / 2;
@@ -2152,14 +2144,14 @@ namespace netxs::gui
         }
         void set_state(si32 new_state)
         {
-            if (fsmode == new_state && fsmode != state::normal) return; // Restore to normal if it was silently hidden by the system.
-            log("%%Set window to ", prompt::gui, new_state == state::maximized ? "maximized" : new_state == state::normal ? "normal" : "minimized", " state");
-            auto old_state = std::exchange(fsmode, state::undefined);
-            if (new_state != state::minimized) reset_blinky(); // To avoid visual desync.
+            if (fsmode == new_state && fsmode != winstate::normal) return; // Restore to normal if it was silently hidden by the system.
+            log("%%Set window to ", prompt::gui, new_state == winstate::maximized ? "maximized" : new_state == winstate::normal ? "normal" : "minimized", " state");
+            auto old_state = std::exchange(fsmode, winstate::undefined);
+            if (new_state != winstate::minimized) reset_blinky(); // To avoid visual desync.
             window_sync_taskbar(new_state);
             fsmode = new_state;
-            if (old_state == state::normal) normsz = master.area;
-            if (fsmode == state::normal)
+            if (old_state == winstate::normal) normsz = master.area;
+            if (fsmode == winstate::normal)
             {
                 for (auto p : { &master, &header, &footer }) p->show();
                 if (blinks.poll) blinky.show();
@@ -2174,11 +2166,11 @@ namespace netxs::gui
                 else border = { gripsz.x, gripsz.x, gripsz.y, gripsz.y };
                 size_window();
             }
-            else if (fsmode == state::minimized)
+            else if (fsmode == winstate::minimized)
             {
                 for (auto p : { &master, &blinky, &footer, &header }) p->hide();
             }
-            else if (fsmode == state::maximized)
+            else if (fsmode == winstate::maximized)
             {
                 drop_grips();
                 master.area = window_get_fs_area(master.area - border);
@@ -2200,8 +2192,8 @@ namespace netxs::gui
             }
             if (old_state != fsmode)
             {
-                stream.fsmod(fsmode == state::maximized);
-                if (redraw && old_state == state::minimized) // Redraw all to restore after minimization.
+                stream.fsmod(fsmode == winstate::maximized);
+                if (redraw && old_state == winstate::minimized) // Redraw all to restore after minimization.
                 {
                     redraw = faux;
                     netxs::set_flag<task::all>(reload);
@@ -2210,11 +2202,11 @@ namespace netxs::gui
         }
         void check_window(twod coor)
         {
-            if (fsmode != state::normal) return;
+            if (fsmode != winstate::normal) return;
             if (coor == master.hidden) // We are in an implicit hidden state caused by Win+D or so.
             {
                 log("%%Set window to minimized state (implicit)", prompt::gui);
-                fsmode = state::minimized;
+                fsmode = winstate::minimized;
                 for (auto p : { &master, &blinky, &footer, &header }) p->hide();
             }
             else if (auto delta = coor - master.area.coor)
@@ -2227,16 +2219,16 @@ namespace netxs::gui
         }
         void check_fsmode()
         {
-            if (fsmode == state::undefined) return;
+            if (fsmode == winstate::undefined) return;
             auto unsync = true;
             if (auto lock = bell::try_sync()) // Try to sync with ui thread for fast checking.
             {
-                if (fsmode == state::maximized)
+                if (fsmode == winstate::maximized)
                 {
                     auto fs_area = window_get_fs_area(master.area);
                     unsync = fs_area != master.area;
                 }
-                else if (fsmode == state::normal)
+                else if (fsmode == winstate::normal)
                 {
                     auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     unsync = !avail_area.trim(master.area);
@@ -2245,7 +2237,7 @@ namespace netxs::gui
             }
             if (unsync) bell::enqueue(This(), [&](auto& /*boss*/) // Perform corrections.
             {
-                if (fsmode == state::maximized)
+                if (fsmode == winstate::maximized)
                 {
                     auto fs_area = window_get_fs_area(master.area);
                     if (fs_area != master.area)
@@ -2253,10 +2245,10 @@ namespace netxs::gui
                         auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                         avail_area.size -= std::min(avail_area.size, normsz.size);
                         normsz.coor = avail_area.clamp(normsz.coor);
-                        set_state(state::normal);
+                        set_state(winstate::normal);
                     }
                 }
-                else if (fsmode == state::normal)
+                else if (fsmode == winstate::normal)
                 {
                     auto avail_area = window_get_fs_area(rect{ -dot_mx / 2, dot_mx });
                     if (!avail_area.trim(master.area))
@@ -2268,7 +2260,7 @@ namespace netxs::gui
                         sync_pixel_layout(); // Align grips and shadow.
                     }
                 }
-                if (fsmode != state::minimized)
+                if (fsmode != winstate::minimized)
                 {
                     for (auto p : { &master, &blinky, &footer, &header }) p->prev.coor = dot_mx; // Windows moves our windows the way it wants, breaking the layout.
                     netxs::set_flag<task::moved>(reload);
@@ -2294,7 +2286,7 @@ namespace netxs::gui
             auto sizechanged = stream.w.winsize != gridsz;
             blinky.area.size = gridsz * cellsz;
             master.area = blinky.area + border;
-            if (fsmode != state::maximized)
+            if (fsmode != winstate::maximized)
             {
                 size_title(h_grid, titles.head_page);
                 size_title(f_grid, titles.foot_page);
@@ -2336,7 +2328,7 @@ namespace netxs::gui
         }
         bool hit_grips()
         {
-            if (fsmode == state::maximized || szgrip.zoomon) return faux;
+            if (fsmode == winstate::maximized || szgrip.zoomon) return faux;
             auto inner_rect = blinky.area;
             auto outer_rect = master.area;
             auto hit = szgrip.seized || (mhover && outer_rect.hittest(mcoord) && !inner_rect.hittest(mcoord));
@@ -2344,7 +2336,7 @@ namespace netxs::gui
         }
         void draw_grips()
         {
-            if (fsmode == state::maximized) return;
+            if (fsmode == winstate::maximized) return;
             static auto trans = argb::active_transparent;
             static auto shade = 0x5F'3f'3f'3f;
             static auto black = 0x3F'00'00'00;
@@ -2532,7 +2524,7 @@ namespace netxs::gui
                     auto bitmap_lock = stream.bitmap_dtvt.freeze();
                     auto& grid = bitmap_lock.thing.image;
                     fill_stripe(grid.begin(), grid.end());
-                    if (fsmode == state::maximized)
+                    if (fsmode == winstate::maximized)
                     {
                         auto canvas = layer_get_bits(master);
                         netxs::misc::cage(canvas, canvas.area(), border, cell::shaders::full(argb{ tint::pureblack }));
@@ -2540,7 +2532,7 @@ namespace netxs::gui
                     master.strike<true>(master.area);
                     check_blinky();
                 }
-                if (fsmode == state::normal)
+                if (fsmode == winstate::normal)
                 {
                     if (what & (task::sized | task::hover | task::grips)) draw_grips(); // 0.150 ms
                     if (what & (task::sized | task::header)) draw_header();
@@ -2669,7 +2661,7 @@ namespace netxs::gui
             }
             if ((!seized && ingrip) || szgrip.seized)
             {
-                if (mbttns == bttn::right && fsmode == state::normal) // Move window.
+                if (mbttns == bttn::right && fsmode == winstate::normal) // Move window.
                 {
                     moving = true;
                 }
@@ -2690,7 +2682,7 @@ namespace netxs::gui
             {
                 netxs::set_flag<task::grips>(reload);
             }
-            if (moving && fsmode == state::normal)
+            if (moving && fsmode == winstate::normal)
             {
                 if (auto dxdy = coord - mcoord)
                 {
@@ -2698,7 +2690,7 @@ namespace netxs::gui
                     bell::enqueue(This(), [&, dxdy](auto& /*boss*/)
                     {
                         //todo revise
-                        //if (fsmode == state::maximized) set_state(state::normal);
+                        //if (fsmode == winstate::maximized) set_state(winstate::normal);
                         move_window(dxdy);
                         sync_pixel_layout(); // Align grips and shadow.
                         update_gui();
@@ -2796,7 +2788,7 @@ namespace netxs::gui
                 {
                     if (datetime::now() - dblclick < 500ms)
                     {
-                        if (fsmode != state::minimized) set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                        if (fsmode != winstate::minimized) set_state(fsmode == winstate::maximized ? winstate::normal : winstate::maximized);
                         dblclick -= 1s;
                     }
                     else
@@ -2957,9 +2949,9 @@ namespace netxs::gui
         }
         void ToggleFullscreenMode()
         {
-            if (fsmode != state::minimized)
+            if (fsmode != winstate::minimized)
             {
-                set_state(fsmode == state::maximized ? state::normal : state::maximized);
+                set_state(fsmode == winstate::maximized ? winstate::normal : winstate::maximized);
             }
         }
         void ToggleAntialiasingMode()
@@ -3170,7 +3162,7 @@ namespace netxs::gui
             }
             else if (eventid == timers::blink) bell::enqueue(This(), [&](auto& /*boss*/)
             {
-                if (fsmode == state::minimized) return;
+                if (fsmode == winstate::minimized) return;
                 auto visible = blinky.live;
                 if (mfocus.focused() && visible)
                 {
@@ -3200,9 +3192,9 @@ namespace netxs::gui
                 //log("sys_command: menucmd=", utf::to_hex_0x(menucmd));
                 switch (menucmd)
                 {
-                    case syscmd::maximize: set_state(fsmode == state::maximized ? state::normal : state::maximized); break;
-                    case syscmd::minimize: set_state(state::minimized); break;
-                    case syscmd::restore:  set_state(state::normal);    break;
+                    case syscmd::maximize: set_state(fsmode == winstate::maximized ? winstate::normal : winstate::maximized); break;
+                    case syscmd::minimize: set_state(winstate::minimized); break;
+                    case syscmd::restore:  set_state(winstate::normal);    break;
                     //todo implement
                     //case syscmd::move:          break;
                     //case syscmd::monitorpower:  break;
@@ -3267,7 +3259,7 @@ namespace netxs::gui
 
                 LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
-                    if (fsmode != state::normal) return;
+                    if (fsmode != winstate::normal) return;
                     moving = true;
                     mouse_send_halt();
                     auto dxdy = twod{ std::round(gear.delta.get() * cellsz) };
@@ -3276,8 +3268,8 @@ namespace netxs::gui
                 };
                 LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
-                         if (fsmode == state::maximized) set_state(state::normal);
-                    else if (fsmode == state::normal)    set_state(state::maximized);
+                         if (fsmode == winstate::maximized) set_state(winstate::normal);
+                    else if (fsmode == winstate::normal)    set_state(winstate::maximized);
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
@@ -3999,11 +3991,11 @@ namespace netxs::gui
         }
         void window_sync_taskbar(si32 new_state)
         {
-            if (new_state == state::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
+            if (new_state == winstate::minimized) // In order to be in sync with winNT taskbar. Other ways don't work because explorer.exe tracks our window state on their side.
             {
                 ::ShowWindow((HWND)master.hWnd, SW_MINIMIZE);
             }
-            else if (new_state == state::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
+            else if (new_state == winstate::maximized) // "ShowWindow(SW_MAXIMIZE)" makes the window transparent to the mouse when maximized to multiple monitors.
             {
                 //todo It doesn't work that way. Sync with system ctx menu.
                 //auto ctxmenu = ::GetSystemMenu((HWND)master.hWnd, FALSE);

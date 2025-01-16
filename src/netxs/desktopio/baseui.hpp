@@ -40,6 +40,16 @@ namespace netxs
         static constexpr auto alwaysontop     = __COUNTER__ - _counter;
         static constexpr auto warpwindow      = __COUNTER__ - _counter;
     };
+    struct winstate
+    {
+        static constexpr auto _counter   = __COUNTER__ + 1;
+        static constexpr auto undefined  = __COUNTER__ - _counter;
+        static constexpr auto normal     = __COUNTER__ - _counter;
+        static constexpr auto minimized  = __COUNTER__ - _counter;
+        static constexpr auto maximized  = __COUNTER__ - _counter;
+        static constexpr auto fullscreen = __COUNTER__ - _counter;
+        static constexpr auto tiled      = __COUNTER__ - _counter;
+    };
 }
 namespace netxs::input
 {
@@ -435,6 +445,7 @@ namespace netxs::events::userland
                         EVENT_XS( size    , twod     ), // Set window size.
                         EVENT_XS( fullsize, rect     ), // Request window size with titles and borders.
                         EVENT_XS( instance, ui::sptr ), // Request window instance.
+                        EVENT_XS( state   , si32     ), // Request window state.
                     };
                     SUBSET_XS( ui )
                     {
@@ -818,17 +829,6 @@ namespace netxs::ui
                 parent_ptr->remove(This());
             }
         }
-        // base: Remove visual tree branch.
-        void destroy()
-        {
-            auto lock = bell::sync();
-            auto shadow = This();
-            if (auto parent_ptr = parent())
-            {
-                parent_ptr->destroy();
-            }
-            detach();
-        }
         // base: Recursively calculate global coordinate.
         void global(auto& coor)
         {
@@ -844,28 +844,6 @@ namespace netxs::ui
             auto parent_ptr = parent();
             if (!base::master && parent_ptr) return parent_ptr->gettop();
             else                             return This();
-        }
-        // base: Invoke a lambda with parent as a parameter.
-        // Usage example:
-        //     toboss([&](auto& parent_ptr) { c.fuse(parent.filler); });
-        template<class P>
-        void toboss(P proc)
-        {
-            if (auto parent_ptr = parent())
-            {
-                proc(*parent_ptr);
-            }
-        }
-        // base: Execute the proc along the entire visual tree.
-        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P>>>
-        void diveup(P proc)
-        {
-            if constexpr (Plain) proc();
-            else                 if (!proc()) return;
-            if (auto parent_ptr = parent())
-            {
-                parent_ptr->diveup(proc);
-            }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
@@ -961,8 +939,8 @@ namespace netxs::ui
         }
 
     protected:
-        virtual void deform(rect& /*new_area*/) {}
-        virtual void inform(rect /*new_area*/) {}
+        virtual void deform([[maybe_unused]] rect& new_area) {}
+        virtual void inform([[maybe_unused]] rect  new_area) {}
         // base: Remove nested object.
         virtual void remove(sptr item_ptr)
         {
