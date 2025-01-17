@@ -604,7 +604,7 @@ namespace netxs::ui
     {
         enum type
         {
-            reflow_root = -1,
+            reflow_root = -1, // Object generates (tier::anycast, e2::form::upon::resized) after reflowing.
             client = 0,
             node = 1,
             placeholder = 2,
@@ -709,6 +709,10 @@ namespace netxs::ui
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
             bell::signal(tier::release, e2::area, new_area);
+            if (base::family == base::reflow_root && base::region.size != new_area.size)
+            {
+                bell::signal(tier::anycast, e2::form::upon::resized, new_area);
+            }
             base::region = new_area;
         }
         // base: Notify about appoved area (ext rect) for the object.

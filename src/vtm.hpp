@@ -1408,13 +1408,6 @@ namespace netxs::app::vtm
                             what.menuid = menuid;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::area, new_area)
-                    {
-                        if (new_area.size != boss.base::size())
-                        {
-                            boss.bell::signal(tier::anycast, e2::form::upon::resized, new_area);
-                        }
-                    };
                     auto last_state = ptr::shared(faux);
                     boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (last_state))
                     {

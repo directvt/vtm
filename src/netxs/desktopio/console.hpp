@@ -1184,7 +1184,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
             {
                 auto new_area = rect{ dot_00, new_size };
-                if (applet) applet->bell::signal(tier::anycast, e2::form::upon::resized, new_area);
                 auto old_size = base::size();
                 auto delta = base::resize(new_size).size - old_size;
                 if (delta && direct) paint.cancel();
@@ -1401,10 +1400,11 @@ namespace netxs::ui
         // gate: .
         void inform(rect new_area) override
         {
-            //for (auto& object : subset)
-            //{
-            //    object->base::resize(new_area.size);
-            //}
+            // if (subset.size())
+            // if (auto object = subset.back())
+            // {
+            //     object->base::resize(new_area.size);
+            // }
             if (applet)
             {
                 applet->base::resize(new_area.size);

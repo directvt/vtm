@@ -850,6 +850,7 @@ namespace netxs::app::shared
         log(prompt::gate, "Rendering refresh rate: ", g.maxfps, " fps");
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
+        applet->base::kind(base::reflow_root);
         gate.attach(applet);
         config_lock.unlock();
         gate.launch();
