@@ -746,12 +746,10 @@ namespace netxs::app::vtm
         //todo move to hall
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
-        pro::notes tooltip; // gate: Tooltip for the user shadow on the desktop.
         fp2d       drag_origin{}; // gate: Drag origin.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
-            : ui::gate{ uplink, vtmode, config, userid, session_id, true },
-              tooltip{ *this, ansi::add(prompt::gate, props.title) }
+            : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
             //todo local=>nexthop
             local = faux;
