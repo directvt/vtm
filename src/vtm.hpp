@@ -12,7 +12,7 @@ namespace netxs::app::vtm
     using ui::sptr;
     using ui::wptr;
 
-    struct link
+    struct applink
     {
         text menuid{};
         text kindid{};
@@ -55,23 +55,23 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra::slot1 )
         {
-            EVENT_XS( newapp  , link ), // request: Create new object using specified meniid.
-            EVENT_XS( apptype , link ), // request: Ask app type.
-            EVENT_XS( handoff , link ), // general: Attach spcified intance and return sptr.
-            EVENT_XS( attached, sptr ), // anycast: Inform that the object tree is attached to the world.
-            GROUP_XS( d_n_d   , sptr ), // Drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-            GROUP_XS( gate    , sptr ),
+            EVENT_XS( newapp  , applink ), // request: Create new object using specified meniid.
+            EVENT_XS( apptype , applink ), // request: Ask app type.
+            EVENT_XS( handoff , applink ), // general: Attach spcified intance and return sptr.
+            EVENT_XS( attached, sptr    ), // anycast: Inform that the object tree is attached to the world.
+            GROUP_XS( d_n_d   , sptr    ), // Drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+            GROUP_XS( gate    , sptr    ),
 
             SUBSET_XS(d_n_d)
             {
-                EVENT_XS( ask  , sptr ),
-                EVENT_XS( abort, sptr ),
-                EVENT_XS( drop , link ),
+                EVENT_XS( ask  , sptr    ),
+                EVENT_XS( abort, sptr    ),
+                EVENT_XS( drop , applink ),
             };
             SUBSET_XS(gate)
             {
-                EVENT_XS( fullscreen, link ), // release: Toggle fullscreen mode.
-                EVENT_XS( restore   , link ), // release: Restore from fullscreen.
+                EVENT_XS( fullscreen, applink ), // release: Toggle fullscreen mode.
+                EVENT_XS( restore   , applink ), // release: Restore from fullscreen.
             };
         };
     };
@@ -91,12 +91,12 @@ namespace netxs::app::vtm
 
         public:
             //todo revise
-            wptr& nexthop;
-            wptr saved;
-            link what; // align: Original window properties.
-            rect prev; // align: Window size before the fullscreen has applied.
-            twod coor; // align: Coor tracking.
-            subs maxs; // align: Fullscreen event subscription token.
+            wptr&   nexthop;
+            wptr    saved;
+            applink what; // align: Original app window properties.
+            rect    prev; // align: Window size before the fullscreen has applied.
+            twod    coor; // align: Coor tracking.
+            subs    maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
             align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
@@ -119,7 +119,7 @@ namespace netxs::app::vtm
                 if (what.applet) unbind();
             }
 
-            void follow(vtm::link& new_what, dent pads = {})
+            void follow(applink& new_what, dent pads = {})
             {
                 what = new_what;
                 auto gear_id_list = pro::focus::cut(what.applet);
@@ -743,9 +743,10 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::robot robot{*this }; // gate: Animation controller.
+        //todo move to hall
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
-        pro::notes tooltip; // gate: Tooltips for user.
+        pro::notes tooltip; // gate: Tooltip for the user shadow on the desktop.
         fp2d       drag_origin{}; // gate: Drag origin.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
@@ -850,9 +851,9 @@ namespace netxs::app::vtm
                 auto viewport = this->bell::signal(tier::request, e2::form::prop::viewport);
                 move_viewport(newpos, viewport);
             };
-            LISTEN(tier::release, e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
+            LISTEN(tier::release, e2::render::any, canvas, tokens)
             {
-                if (&canvas != &xmap) // Draw a shadow of user's terminal window for other users (spectators).
+                if (&canvas != &xmap) // Draw a shadow of user's gate for other users.
                 {
                     auto gate_area = canvas.full();
                     if (canvas.cmode != svga::vt16 && canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
@@ -864,14 +865,6 @@ namespace netxs::app::vtm
                     }
                     auto saved_context = canvas.bump(dent{ 0,0,1,0 });
                     canvas.output(uname, dot_00, cell::shaders::contrast);
-                    if (align.what.applet)
-                    {
-                        canvas.bump(dent{ -2,-2,-2,-1 });
-                        canvas.cup(dot_00);
-                        canvas.output(fullscreen_banner);
-                        //todo revise
-                        //canvas.output(title.head_page, cell::shaders::contrast);
-                    }
                     canvas.bump(saved_context);
                 }
             };
@@ -1278,7 +1271,7 @@ namespace netxs::app::vtm
         flag active; // hall: Host is available for connections.
         std::vector<bool> user_numbering; // hall: .
 
-        auto window(link& what)
+        auto window(applink& what)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -1644,7 +1637,7 @@ namespace netxs::app::vtm
                     };
                 });
         }
-        auto create(link& what)
+        auto create(applink& what)
         {
             bell::signal(tier::request, vtm::events::newapp, what);
             auto window_ptr = hall::window(what);
@@ -2230,7 +2223,7 @@ namespace netxs::app::vtm
                 if (fixed) std::swap(appbase, appspec); // Don't modify the base menuitem by the temp appspec.
                 else       appbase = appspec;
 
-                auto what = link{ .menuid = menu_id, .forced = true };
+                auto what = applink{ .menuid = menu_id, .forced = true };
                 auto yield = text{};
                 if (gear_ptr)
                 {
@@ -2271,7 +2264,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 auto& gate = gear.owner;
-                auto what = link{ .square = gear.slot, .forced = gear.slot_forced };
+                auto what = applink{ .square = gear.slot, .forced = gear.slot_forced };
                 gate.bell::signal(tier::request, e2::data::changed, what.menuid);
                 if (auto window = create(what))
                 {
@@ -2359,7 +2352,7 @@ namespace netxs::app::vtm
         void autorun()
         {
             vport = config.take(path::viewport, dot_00);
-            auto what = link{};
+            auto what = applink{};
             auto apps = config.list(path::autorun);
             auto foci = book{};
             foci.reserve(apps.size());
