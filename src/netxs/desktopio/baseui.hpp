@@ -249,7 +249,6 @@ namespace netxs::events::userland
                     EVENT_XS( selected, input::hids ), // Inform if selected.
                     EVENT_XS( shift   , const twod  ), // Request a global shifting with delta.
                     EVENT_XS( jumpto  , ui::base    ), // Fly to the specified object.
-                    EVENT_XS( convey  , cube        ), // Request a global conveying with delta (Inform all children to be conveyed).
                     EVENT_XS( bubble  , rect        ), // Order to popup the requested item through the visual tree.
                     EVENT_XS( expose  , rect        ), // Order to bring the requested item on top of the visual tree.
                     EVENT_XS( appear  , twod        ), // Fly to the specified coords.

@@ -240,14 +240,6 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    parent->LISTEN(tier::preview, e2::form::layout::convey, convey_data, boss.relyon)
-                    {
-                        convey(convey_data.delta, convey_data.stuff);
-                    };
-                    parent->LISTEN(tier::preview, e2::form::layout::shift, delta, boss.relyon)
-                    {
-                        boss.moveby(delta);
-                    };
                     boss.bell::signal(tier::release, e2::form::prop::zorder, seat);
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::zorder, order)
@@ -261,10 +253,12 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
+                    //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::right, gear, memo)
                 {
+                    //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
@@ -351,9 +345,9 @@ namespace netxs::app::vtm
             // pro::frame: Fly to the specified position.
             void appear(twod target)
             {
-                auto& screen = boss.base::area();
-                auto  oldpos = screen.coor;
-                auto  newpos = target - screen.size / 2;
+                auto screen = boss.base::area();
+                auto oldpos = screen.coor;
+                auto newpos = target - screen.size / 2;
 
                 auto path = newpos - oldpos;
                 auto time = datetime::round<si32>(skin::globals().switching);
