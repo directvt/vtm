@@ -743,8 +743,6 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::robot robot{*this }; // gate: Animation controller.
-        //todo move to hall
-        pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         fp2d       drag_origin{}; // gate: Drag origin.
 
@@ -1268,6 +1266,7 @@ namespace netxs::app::vtm
         subs tokens; // hall: Subscription tokens.
         flag active; // hall: Host is available for connections.
         std::vector<bool> user_numbering; // hall: .
+        pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
 
         auto window(applink& what)
         {
