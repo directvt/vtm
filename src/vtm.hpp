@@ -790,7 +790,22 @@ namespace netxs::app::vtm
 
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
             {
-                create_app(gear);
+                static auto offset = dot_00; // static: Share initial offset between all instances.
+                //todo scripting
+                auto inst_id = qiew{};//gear.get_args_or(qiew{});
+                if (auto world_ptr = nexthop.lock())
+                {
+                    if (inst_id)
+                    {
+                        bell::signal(tier::release, e2::data::changed, inst_id); // Inform ui::desk about default has been changed.
+                    }
+                    auto current_viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                    offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
+                    gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
+                    gear.slot.size = current_viewport.size * 3 / 4;
+                    gear.slot_forced = faux;
+                    world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
+                }
                 gear.dismiss(true);
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
@@ -891,26 +906,6 @@ namespace netxs::app::vtm
                     draw_mouse_pointer(parent_canvas);
                 }
             };
-        }
-
-        void create_app(hids& gear)
-        {
-            static auto offset = dot_00; // static: Share initial offset between all instances.
-            //todo scripting
-            auto inst_id = qiew{};//gear.get_args_or(qiew{});
-            if (auto world_ptr = nexthop.lock())
-            {
-                if (inst_id)
-                {
-                    bell::signal(tier::release, e2::data::changed, inst_id); // Inform ui::desk about default has been changed.
-                }
-                auto current_viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
-                offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
-                gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
-                gear.slot.size = current_viewport.size * 3 / 4;
-                gear.slot_forced = faux;
-                world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
-            }
         }
 
         void rebuild_scene(auto& world, bool damaged)
