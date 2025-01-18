@@ -331,7 +331,17 @@ namespace netxs::app::desk
                                 return;
                             }
                             boss.bell::signal(tier::anycast, events::ui::selected, inst_id);
-                            gear.owner.bell::signal(tier::preview, e2::form::proceed::createby, gear);
+                            static auto offset = dot_00; // static: Share initial offset between all instances.
+                            if (auto world_ptr = boss.base::riseup(tier::request, e2::config::creator))
+                            {
+                                auto current_viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                                offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
+                                gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
+                                gear.slot.size = current_viewport.size * 3 / 4;
+                                gear.slot_forced = faux;
+                                world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
+                            }
+                            gear.dismiss(true);
                         };
                     });
                 auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)
