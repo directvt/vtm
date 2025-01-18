@@ -736,7 +736,6 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
-        pro::robot robot{*this }; // gate: Animation controller.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
@@ -747,7 +746,6 @@ namespace netxs::app::vtm
             //todo scripting
             //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
             auto& keybd = plugins<pro::keybd>();
-            auto& mouse = plugins<pro::mouse>();
             auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
             keybd.bind(bindings);
 
@@ -791,71 +789,6 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
             {
                 nexthop = world_ptr;
-            };
-
-            LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
-            {
-                auto viewport = bell::signal(tier::request, e2::form::prop::viewport);
-                auto oldpos = viewport.center();
-                auto path = oldpos - newpos;
-                auto time = datetime::round<si32>(skin::globals().switching);
-                auto init = 0;
-                auto func = constlinearAtoB<twod>(path, time, init);
-                robot.pacify();
-                robot.actify(func, [&](auto& x)
-                {
-                    base::moveby(-x);
-                    base::strike();
-                });
-            };
-            LISTEN(tier::release, e2::form::layout::jumpto, window, tokens)
-            {
-                auto viewport = bell::signal(tier::request, e2::form::prop::viewport);
-                auto object_area = window.bell::signal(tier::request, e2::form::prop::window::fullsize);
-                auto outside = viewport | object_area;
-                if (outside != viewport)
-                {
-                    auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
-                    auto center = viewport.center() + coor - viewport.coor;
-                    bell::signal(tier::release, e2::form::layout::shift, center);
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::click::left, gear, tokens) // Go to another user's viewport.
-            {
-                if (gear.owner.id == this->id) return;
-                auto center = this->base::coor() + gear.owner.base::size() / 2;
-                gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
-            };
-            //todo move it to the desk (dragging)
-            auto drag_origin_ptr = ptr::shared<fp2d>();
-            auto& drag_origin = *drag_origin_ptr;
-            mouse.draggable<hids::buttons::leftright>(true);
-            mouse.draggable<hids::buttons::left>(true);
-            LISTEN(tier::release, e2::form::drag::start::any, gear, tokens, (drag_origin_ptr))
-            {
-                if (gear.owner.id != this->id) return;
-                robot.pacify();
-                drag_origin = gear.coord;
-            };
-            LISTEN(tier::release, e2::form::drag::pull::any, gear, tokens)
-            {
-                if (gear.owner.id != this->id) return;
-                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
-                {
-                    drag_origin = gear.coord;
-                    base::moveby(-delta);
-                    base::deface();
-                }
-            };
-            LISTEN(tier::release, e2::form::drag::stop::any, gear, tokens)
-            {
-                if (gear.owner.id != this->id) return;
-                robot.pacify();
-                robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto& x)
-                {
-                    base::moveby(-x);
-                    base::deface();
-                });
             };
 
             LISTEN(tier::release, e2::render::any, canvas, tokens)
@@ -1233,6 +1166,7 @@ namespace netxs::app::vtm
         flag active; // hall: Host is available for connections.
         std::vector<bool> user_numbering; // hall: .
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
+        pro::robot robot{*this }; // hall: Animation controller.
 
         auto window(applink& what)
         {
@@ -2381,29 +2315,96 @@ namespace netxs::app::vtm
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
-            auto user = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
-            users.append(user);
-            dbase.append(user);
+            auto user_ptr = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
+            auto& user = *user_ptr;
+            users.append(user_ptr);
+            dbase.append(user_ptr);
             os::ipc::users = users.size();
-            user->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            user.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
-            user->LISTEN(tier::release, e2::conio::winsz, new_size)
+
+            user.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
-                user->rebuild_scene(*this, true);
+                auto viewport = user.bell::signal(tier::request, e2::form::prop::viewport);
+                auto oldpos = viewport.center();
+                auto path = oldpos - newpos;
+                auto time = datetime::round<si32>(skin::globals().switching);
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+                robot.pacify(user.id);
+                robot.actify(user.id, func, [&](auto& x)
+                {
+                    user.base::moveby(-x);
+                    user.base::strike();
+                });
             };
-            user->LISTEN(tier::general, e2::timer::any, timestamp)
+            user.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
+            {
+                auto viewport = user.bell::signal(tier::request, e2::form::prop::viewport);
+                auto object_area = window_inst.bell::signal(tier::request, e2::form::prop::window::fullsize);
+                auto outside = viewport | object_area;
+                if (outside != viewport)
+                {
+                    auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
+                    auto center = viewport.center() + coor - viewport.coor;
+                    user.bell::signal(tier::release, e2::form::layout::shift, center);
+                }
+            };
+            user.LISTEN(tier::release, hids::events::mouse::button::click::left, gear) // Go to another user's viewport.
+            {
+                if (gear.owner.id == user.id) return;
+                auto center = user.base::coor() + gear.owner.base::size() / 2;
+                gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
+            };
+            //todo move it to the desk (dragging)
+            auto drag_origin_ptr = ptr::shared<fp2d>();
+            auto& drag_origin = *drag_origin_ptr;
+            auto& user_mouse = user.plugins<pro::mouse>();
+            user_mouse.template draggable<hids::buttons::leftright>(true);
+            user_mouse.template draggable<hids::buttons::left>(true);
+            user.LISTEN(tier::release, e2::form::drag::start::any, gear, -, (drag_origin_ptr))
+            {
+                if (gear.owner.id != user.id) return;
+                robot.pacify(user.id);
+                drag_origin = gear.coord;
+            };
+            user.LISTEN(tier::release, e2::form::drag::pull::any, gear)
+            {
+                if (gear.owner.id != user.id) return;
+                if (auto delta = twod{ gear.coord } - twod{ drag_origin })
+                {
+                    drag_origin = gear.coord;
+                    user.base::moveby(-delta);
+                    user.base::deface();
+                }
+            };
+            user.LISTEN(tier::release, e2::form::drag::stop::any, gear)
+            {
+                if (gear.owner.id != user.id) return;
+                robot.pacify(user.id);
+                robot.actify(user.id, gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                {
+                    user.base::moveby(-x);
+                    user.base::deface();
+                });
+            };
+            user.LISTEN(tier::release, e2::conio::winsz, new_size)
+            {
+                user.rebuild_scene(*this, true);
+            };
+            user.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = base::ruined();//!host::debris.empty();
                 //host::debris.clear();
-                user->rebuild_scene(*this, damaged);
+                user.rebuild_scene(*this, damaged);
             };
-            usrcfg.cfg = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected);
+            usrcfg.cfg = utf::concat(user.id, ";", user.props.os_user_id, ";", user.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            user->attach(deskmenu);
-            user->base::resize(usrcfg.win);
-            if (vport) user->base::moveto(vport); // Restore user's last position.
+            user.attach(deskmenu);
+            user.base::resize(usrcfg.win);
+            if (vport) user.base::moveto(vport); // Restore user's last position.
             lock.unlock();
-            user->launch();
+            user.launch();
         }
         // hall: Detach user/window.
         void remove(sptr item_ptr) override

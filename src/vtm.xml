@@ -548,7 +548,7 @@ R"==(
         </menu>
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop; key* is to clear all previous bindings and start a new list. -->
-        <gate key*>  <!-- Session layer key bindings. Available in standalone mode. -->
+        <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
             <key="CapsLock+UpArrow"                                     action=IncreaseCellHeight/>
             <key="CapsLock+DownArrow"                                   action=DecreaseCellHeight/>
             <key="Ctrl+0"                                               action=ResetCellHeight/>
@@ -558,15 +558,7 @@ R"==(
             <key="Ctrl+Shift+F12"                                       action=RollFontsForward/>
             <key="-Ctrl" preview                                        action=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
-        </gate>
-        <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
-            <key="Shift+F7"                                             action=Disconnect/>
-            <key="F10" preview                                          action=TryToQuit/>
-            <key="Alt+Shift+N"                                          action=RunApplication/>
-            <key="Esc+F1"                                               action=RunInfoPage/>
-
+            <!-- GUI Window key bindings. -->
             <key="Esc+T"                                                action=GuiAlwaysOnTop/>
             <key="Esc+W"                                                action=GuiCloseWindow/>
             <key="Esc+M"                                                action=GuiMinimizeWindow/>
@@ -588,8 +580,16 @@ R"==(
             <key="Esc+RightArrow+LeftArrow"                             action=GuiDecreaseWindowWidth/>
             <key="Esc+UpArrow+DownArrow"                                action=GuiIncreaseWindowHeight/>
             <key="Esc+DownArrow+UpArrow"                                action=GuiDecreaseWindowHeight/>
+        </gate>
+        <desktop key*>  <!-- Desktop key bindings. -->
+            <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
+            <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
+            <key="Shift+F7"                                             action=Disconnect/>
+            <key="F10" preview                                          action=TryToQuit/>
+            <key="Alt+Shift+N"                                          action=RunApplication/>
+            <key="Esc+F1"                                               action=RunInfoPage/>
         </desktop>
-        <window key*>  <!-- Window layer key bindings. -->
+        <window key*>  <!-- TUI Window key bindings. -->
             <key="Esc+T"                                                action=AlwaysOnTop/>
             <key="Esc+W"                                                action=CloseWindow/>
             <key="Esc+M"                                                action=MinimizeWindow/>
@@ -633,7 +633,7 @@ R"==(
                 <key="Tab"                                action=TileFocusNextGrip/>
             </grip>
         </tile>
-        <terminal key*>  <!-- Terminal specific layer key bindings. -->
+        <terminal key*>  <!-- Terminal key bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
