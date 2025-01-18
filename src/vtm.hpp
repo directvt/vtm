@@ -820,37 +820,6 @@ namespace netxs::app::vtm
                 }
             };
         }
-
-        void rebuild_scene(auto& world, bool damaged)
-        {
-            if (damaged)
-            {
-                auto& canvas = xmap;
-                canvas.wipe(world.id);
-                if (align.what.applet)
-                {
-                    if (auto context = canvas.change_basis(base::area()))
-                    {
-                        align.what.applet->render(canvas);
-                    }
-                }
-                else
-                {
-                    if (props.background_image.size())
-                    {
-                        //todo cache background
-                        canvas.tile(props.background_image, cell::shaders::fuse);
-                    }
-                    world.redraw(canvas); // Put the rest of the world on my canvas.
-                    if (applet) // Render main menu/application.
-                    if (auto context = canvas.change_basis(base::area()))
-                    {
-                        applet->render(canvas);
-                    }
-                }
-            }
-            _rebuild_scene(damaged);
-        }
     };
 
     // vtm: Desktop Workspace.
@@ -2390,13 +2359,67 @@ namespace netxs::app::vtm
             };
             user.LISTEN(tier::release, e2::conio::winsz, new_size)
             {
-                user.rebuild_scene(*this, true);
+                // Do not wait timer tick.
+                auto damaged = true;
+                if (damaged)
+                {
+                    auto& canvas = user.xmap;
+                    canvas.wipe(this->id);
+                    if (user.align.what.applet)
+                    {
+                        if (auto context = canvas.change_basis(base::area()))
+                        {
+                            user.align.what.applet->render(canvas);
+                        }
+                    }
+                    else
+                    {
+                        if (user.props.background_image.size())
+                        {
+                            //todo cache background
+                            canvas.tile(user.props.background_image, cell::shaders::fuse);
+                        }
+                        redraw(canvas); // Put the rest of the world on my canvas.
+                        if (user.applet) // Render main menu/application.
+                        if (auto context = canvas.change_basis(user.base::area()))
+                        {
+                            user.applet->render(canvas);
+                        }
+                    }
+                }
+                user.rebuild_scene(damaged);
             };
             user.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = base::ruined();//!host::debris.empty();
                 //host::debris.clear();
-                user.rebuild_scene(*this, damaged);
+                if (damaged)
+                {
+                    auto& canvas = user.xmap;
+                    canvas.wipe(this->id);
+                    if (user.align.what.applet)
+                    {
+                        if (auto context = canvas.change_basis(base::area()))
+                        {
+                            user.align.what.applet->render(canvas);
+                        }
+                    }
+                    else
+                    {
+                        if (user.props.background_image.size())
+                        {
+                            //todo cache background
+                            canvas.tile(user.props.background_image, cell::shaders::fuse);
+                        }
+                        redraw(canvas); // Put the rest of the world on my canvas.
+                        if (user.applet) // Render main menu/application.
+                        if (auto context = canvas.change_basis(user.base::area()))
+                        {
+                            user.applet->render(canvas);
+                        }
+                    }
+                }
+                user.rebuild_scene(damaged);
             };
             usrcfg.cfg = utf::concat(user.id, ";", user.props.os_user_id, ";", user.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);

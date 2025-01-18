@@ -828,11 +828,32 @@ namespace netxs::app::shared
         gate.base::resize(os::dtvt::gridsz);
         gate.LISTEN(tier::general, e2::timer::any, timestamp)
         {
-            gate.rebuild_scene(gate.id, gate.ruined());
+            auto damaged = gate.ruined();
+            if (damaged)
+            {
+                gate.xmap.wipe(gate.id);
+                if (gate.applet)
+                if (auto context = gate.xmap.change_basis(gate.base::area()))
+                {
+                    gate.applet->render(gate.xmap);
+                }
+            }
+            gate.rebuild_scene(damaged);
         };
         gate.LISTEN(tier::release, e2::conio::winsz, new_size)
         {
-            gate.rebuild_scene(gate.id, true);
+            // Do not wait timer tick.
+            auto damaged = true;
+            if (damaged)
+            {
+                gate.xmap.wipe(gate.id);
+                if (gate.applet)
+                if (auto context = gate.xmap.change_basis(gate.base::area()))
+                {
+                    gate.applet->render(gate.xmap);
+                }
+            }
+            gate.rebuild_scene(damaged);
         };
         gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
         //todo deduplicate (vtm::hall)
