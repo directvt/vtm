@@ -738,7 +738,6 @@ namespace netxs::app::vtm
     {
         pro::robot robot{*this }; // gate: Animation controller.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
-        fp2d       drag_origin{}; // gate: Drag origin.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
@@ -788,6 +787,7 @@ namespace netxs::app::vtm
                     }
                 }
             };
+
             LISTEN(tier::preview, e2::form::proceed::createby, gear, tokens)
             {
                 create_app(gear);
@@ -797,9 +797,33 @@ namespace netxs::app::vtm
             {
                 nexthop = world_ptr;
             };
+
+            LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
+            {
+                auto viewport = bell::signal(tier::request, e2::form::prop::viewport);
+                auto oldpos = viewport.center();
+                auto path = oldpos - newpos;
+                auto time = datetime::round<si32>(skin::globals().switching);
+                auto init = 0;
+                auto func = constlinearAtoB<twod>(path, time, init);
+                robot.pacify();
+                robot.actify(func, [&](auto& x)
+                {
+                    base::moveby(-x);
+                    base::strike();
+                });
+            };
             LISTEN(tier::release, e2::form::layout::jumpto, window, tokens)
             {
-                jump_to(window);
+                auto viewport = bell::signal(tier::request, e2::form::prop::viewport);
+                auto object_area = window.bell::signal(tier::request, e2::form::prop::window::fullsize);
+                auto outside = viewport | object_area;
+                if (outside != viewport)
+                {
+                    auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
+                    auto center = viewport.center() + coor - viewport.coor;
+                    bell::signal(tier::release, e2::form::layout::shift, center);
+                }
             };
             LISTEN(tier::release, hids::events::mouse::button::click::left, gear, tokens) // Go to another user's viewport.
             {
@@ -808,9 +832,11 @@ namespace netxs::app::vtm
                 gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
             };
             //todo move it to the desk (dragging)
+            auto drag_origin_ptr = ptr::shared<fp2d>();
+            auto& drag_origin = *drag_origin_ptr;
             mouse.draggable<hids::buttons::leftright>(true);
             mouse.draggable<hids::buttons::left>(true);
-            LISTEN(tier::release, e2::form::drag::start::any, gear, tokens)
+            LISTEN(tier::release, e2::form::drag::start::any, gear, tokens, (drag_origin_ptr))
             {
                 if (gear.owner.id != this->id) return;
                 robot.pacify();
@@ -836,11 +862,7 @@ namespace netxs::app::vtm
                     base::deface();
                 });
             };
-            LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
-            {
-                auto viewport = this->bell::signal(tier::request, e2::form::prop::viewport);
-                move_viewport(newpos, viewport);
-            };
+
             LISTEN(tier::release, e2::render::any, canvas, tokens)
             {
                 if (&canvas != &xmap) // Draw a shadow of user's gate for other users.
@@ -890,32 +912,7 @@ namespace netxs::app::vtm
                 world_ptr->base::riseup(tier::request, e2::form::proceed::createby, gear);
             }
         }
-        void move_viewport(twod newpos, rect viewport)
-        {
-            auto oldpos = viewport.center();
-            auto path = oldpos - newpos;
-            auto time = datetime::round<si32>(skin::globals().switching);
-            auto init = 0;
-            auto func = constlinearAtoB<twod>(path, time, init);
-            robot.pacify();
-            robot.actify(func, [&](auto& x)
-            {
-                base::moveby(-x);
-                base::strike();
-            });
-        }
-        void jump_to(base& window)
-        {
-            auto viewport = bell::signal(tier::request, e2::form::prop::viewport);
-            auto object_area = window.bell::signal(tier::request, e2::form::prop::window::fullsize);
-            auto outside = viewport | object_area;
-            if (outside != viewport)
-            {
-                auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
-                auto center = viewport.center() + coor - viewport.coor;
-                move_viewport(center, viewport);
-            }
-        }
+
         void rebuild_scene(auto& world, bool damaged)
         {
             if (damaged)
