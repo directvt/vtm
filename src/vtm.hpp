@@ -608,19 +608,20 @@ namespace netxs::app::vtm
             static constexpr auto size = __COUNTER__ - _counter;
             static constexpr auto coor = __COUNTER__ - _counter;
         };
-        void follow(applink& new_what, dent pads = {})
+        void follow(applink& new_what)
         {
+            auto gear_id_list = pro::focus::cut(new_what.applet);
+            prev = new_what.applet->base::area();
             what = new_what;
-            auto gear_id_list = pro::focus::cut(what.applet);
-            auto window_ptr = new_what.applet;
-            saved = nexthop;
-            nexthop = new_what.applet;
-            window_ptr->base::detach();
-            prev = window_ptr->base::area();
-            auto new_pos = base::area() + pads;
+            //todo drop window
+
+            auto applet_ptr = what.applet;
+            saved = std::exchange(nexthop, applet_ptr);
+            applet_ptr->base::detach();
+            auto new_pos = base::area();
             new_pos.coor -= base::coor();
-            window_ptr->base::extend(new_pos);
-            coor = window_ptr->base::coor();
+            applet_ptr->base::extend(new_pos);
+            coor = applet_ptr->base::coor();
 
             auto newhead = std::move(what.header);
             auto newfoot = std::move(what.footer);
@@ -637,17 +638,17 @@ namespace netxs::app::vtm
             {
                 unbind();
             };
-            LISTEN(tier::release, e2::area, new_area, memo, (pads))
+            LISTEN(tier::release, e2::area, new_area, memo)
             {
                 if (new_area.coor != base::coor()) unbind();
-                else what.applet->base::resize(new_area.size + pads);
+                else what.applet->base::resize(new_area.size);
             };
             LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
             {
                 unbind();
                 bell::expire(tier::preview);
             };
-            window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
+            applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
             {
                 auto deed = what.applet->bell::protos(tier::preview);
                 if (deed == e2::form::size::enlarge::maximize.id)
@@ -655,34 +656,33 @@ namespace netxs::app::vtm
                     unbind();
                 }
             };
-            window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
+            applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
             {
                 what.applet->bell::expire(tier::release); // Suppress hide/minimization.
                 unbind();
             };
-            window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
+            applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
             {
                 unbind();
-                bell::expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
+                bell::expire(tier::release, true); //todo revise: applet_ptr(what.applet) or boss?
             };
-            window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
+            applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
             {
                 if (coor != new_area.coor) unbind(restoration_type::size);
             };
-            window_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
+            applet_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
             {
                 if (coor != new_area.coor) unbind(restoration_type::size);
             };
 
-            window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-            window_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
-            pro::focus::set(window_ptr, gear_id_list, solo::on, true); // Refocus.
+            applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
+            pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
         }
         void unbind(si32 restore = restoration_type::full)
         {
             if (!memo) return;
-            nexthop = saved;
-            saved.reset();
+            nexthop = std::exchange(saved, wptr{});
             memo.clear();
             auto prev_header = std::move(what.header);
             auto prev_footer = std::move(what.footer);
@@ -690,11 +690,11 @@ namespace netxs::app::vtm
             base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
             base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
             base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
-            auto& window = *what.applet;
             if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
                 world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
             }
+            auto& window = *what.applet;
             switch (restore)
             {
                 case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
@@ -727,8 +727,14 @@ namespace netxs::app::vtm
             LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
             {
                 auto is_new = what.applet != new_what.applet;
-                if (what.applet) unbind();
-                if (is_new) follow(new_what);
+                if (what.applet)
+                {
+                    unbind();
+                }
+                if (is_new)
+                {
+                    follow(new_what);
+                }
             };
             //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
             //{
@@ -1952,6 +1958,8 @@ namespace netxs::app::vtm
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::cut(window_ptr);
                 window_ptr->base::detach();
+
+                // create new window
                 auto& cfg = dbase.menu[what.menuid];
                 branch(what.menuid, window_ptr, !cfg.hidden);
                 pro::focus::set(window_ptr, gear_id_list, solo::on, true);
