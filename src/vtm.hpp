@@ -71,7 +71,7 @@ namespace netxs::app::vtm
             SUBSET_XS(gate)
             {
                 EVENT_XS( fullscreen, applink ), // release: Toggle fullscreen mode.
-                EVENT_XS( restore   , applink ), // release: Restore from fullscreen.
+                //EVENT_XS( restore   , applink ), // release: Restore from fullscreen.
             };
         };
     };
@@ -692,7 +692,10 @@ namespace netxs::app::vtm
             base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
             if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
-                world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
+                auto gear_id_list = pro::focus::cut(what.applet);
+                what.applet->base::detach();
+                world_ptr->bell::signal(tier::request, vtm::events::handoff, what);
+                pro::focus::set(what.applet, gear_id_list, solo::on, true);
             }
             if (auto window_ptr = what.applet->base::parent())
             {
@@ -1956,20 +1959,6 @@ namespace netxs::app::vtm
                 }
             };
 
-            LISTEN(tier::release, vtm::events::gate::restore, what)
-            {
-                //todo unify with vtm::events::handoff
-                auto gear_id_list = pro::focus::cut(what.applet);
-                what.applet->base::detach();
-
-                auto& cfg = dbase.menu[what.menuid];
-                auto window_ptr = window(what);
-                window_ptr->attach(what.applet);
-                branch(what.menuid, window_ptr, !cfg.hidden);
-                window_ptr->bell::signal(tier::anycast, e2::form::upon::started);
-
-                pro::focus::set(what.applet, gear_id_list, solo::on, true);
-            };
             LISTEN(tier::request, vtm::events::apptype, what)
             {
                 auto& setup = dbase.menu[what.menuid];
