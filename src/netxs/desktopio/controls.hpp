@@ -1408,7 +1408,7 @@ namespace netxs::ui
             {
                 auto lock = item_ptr->bell::sync();
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
-                if (auto parent = item_ptr->parent())
+                if (auto parent = item_ptr->base::parent())
                 {
                     parent->base::riseup(tier::request, hids::events::focus::cut, { .item = item_ptr });
                 }
@@ -1418,7 +1418,7 @@ namespace netxs::ui
             static auto hop(sptr prev_item_ptr, sptr next_item_ptr)
             {
                 auto lock = prev_item_ptr->bell::sync();
-                if (auto parent = prev_item_ptr->parent())
+                if (auto parent = prev_item_ptr->base::parent())
                 {
                     parent->base::riseup(tier::request, hids::events::focus::hop, { .item = prev_item_ptr, .next = next_item_ptr });
                 }
@@ -1504,7 +1504,7 @@ namespace netxs::ui
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
                             parent_ptr->bell::signal(tier::release, hids::events::keybd::key::post, gear);
-                            parent_ptr = parent_ptr->parent();
+                            parent_ptr = parent_ptr->base::parent();
                         }
                     }
                 };
@@ -1667,7 +1667,7 @@ namespace netxs::ui
                         }
                         notify_focus_state(state::live, chain, seed.gear_id);
                     }
-                    if (auto parent = boss.parent())
+                    if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
                         parent->base::riseup(tier::preview, hids::events::focus::set::on, seed);
@@ -1705,7 +1705,7 @@ namespace netxs::ui
                         }
                         notify_focus_state(state::idle, chain, seed.gear_id);
                     }
-                    if (auto parent_ptr = boss.parent())
+                    if (auto parent_ptr = boss.base::parent())
                     {
                         seed.item = boss.This();
                         parent_ptr->base::riseup(tier::preview, hids::events::focus::set::off, seed);
@@ -1716,7 +1716,7 @@ namespace netxs::ui
                 {
                     auto& chain = get_chain(seed.gear_id);
                     notify_focus_state(state::live, chain, seed.gear_id);
-                    if (auto parent = boss.parent())
+                    if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
                         parent->base::riseup(tier::preview, hids::events::focus::set::on, seed);
@@ -1729,7 +1729,7 @@ namespace netxs::ui
                     auto boss_ptr = boss.This();
                     if (notify_focus_state(state::idle, chain, seed.gear_id))
                     {
-                        if (auto parent_ptr = boss.parent())
+                        if (auto parent_ptr = boss.base::parent())
                         {
                             seed.item = boss_ptr;
                             parent_ptr->base::riseup(tier::preview, hids::events::focus::set::off, seed);
@@ -1904,7 +1904,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::mouse::any, gear, memo)
                 {
                     auto& offset = boss.base::coor();
-                    gear.pass(tier::preview, boss.parent(), offset);
+                    gear.pass(tier::preview, boss.base::parent(), offset);
 
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(tier::preview);
@@ -1915,7 +1915,7 @@ namespace netxs::ui
                     if ((gear && !gear.captured()) || gear.cause == hids::events::mouse::hover::enter.id || gear.cause == hids::events::mouse::hover::leave.id)
                     {
                         auto& offset = boss.base::coor();
-                        gear.pass(tier::release, boss.parent(), offset);
+                        gear.pass(tier::release, boss.base::parent(), offset);
                     }
                 };
                 // pro::mouse: Amplify mouse hover on any button press.
@@ -2128,7 +2128,8 @@ namespace netxs::ui
                             {
                                 auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
                                 auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
-                                if (auto world_ptr = gear.owner.parent())
+                                //todo cache world_ptr
+                                if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator))
                                 {
                                     world_ptr->bell::signal(tier::preview, e2::runscript, gear);
                                 }
@@ -5098,7 +5099,7 @@ namespace netxs::ui
             {
                 auto fgc = boss.color().fgc();
                 auto src = boss.base::This();
-                while (!fgc && (src = src->parent())) // Detect scrollbar/underline color.
+                while (!fgc && (src = src->base::parent())) // Detect scrollbar/underline color.
                 {
                     fgc = src->color().fgc();
                 }

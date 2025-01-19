@@ -173,7 +173,7 @@ namespace netxs::app::tile
             boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
             {
                 client->clear();
-                if (auto parent_ptr = boss.parent())
+                if (auto parent_ptr = boss.base::parent())
                 {
                     window_state = parent_ptr->base::riseup(tier::request, e2::form::prop::window::state);
                 }
@@ -226,7 +226,7 @@ namespace netxs::app::tile
                                 if (what.header.empty()) what.header = menuid;
 
                                 // Find creator.
-                                auto world_ptr = boss.base::riseup(tier::request, e2::config::creator);
+                                auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
 
                                 // Take coor and detach from the tiling wm.
                                 gear.coord -= applet.base::coor(); // Rebase mouse coor.
@@ -243,7 +243,7 @@ namespace netxs::app::tile
                                 world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
                                 pro::focus::set(applet_ptr, gear.id, solo::on, true);
                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
-                                if (auto new_parent_ptr = applet.parent())
+                                if (auto new_parent_ptr = applet.base::parent())
                                 {
                                     // Redirect this mouse event to the new world's window.
                                     gear.pass(tier::release, new_parent_ptr, dot_00);
@@ -593,7 +593,7 @@ namespace netxs::app::tile
                                 {
                                     if constexpr (debugmode) log(prompt::tile, "Empty slot: defective structure, count=", boss.count());
                                 }
-                                if (auto parent = boss.parent())
+                                if (auto parent = boss.base::parent())
                                 {
                                     parent->bell::expire(tier::request);
                                 }
@@ -649,11 +649,11 @@ namespace netxs::app::tile
                         if (auto deed = boss.bell::protos(tier::release))
                         {
                             auto depth = 0;
-                            auto parent_ptr = boss.parent();
+                            auto parent_ptr = boss.base::parent();
                             while (parent_ptr)
                             {
                                 depth++;
-                                parent_ptr = parent_ptr->parent();
+                                parent_ptr = parent_ptr->base::parent();
                             }
                             if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
                             if (depth > inheritance_limit) return;
@@ -729,7 +729,7 @@ namespace netxs::app::tile
                         auto app = app_window(config);
                         pro::focus::off(boss.back());
                         boss.attach(app);
-                        if (auto world_ptr = gate.parent()) // Finalize app creation.
+                        if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator)) // Finalize app creation.
                         {
                             app->bell::signal(tier::anycast, vtm::events::attached, world_ptr);
                         }

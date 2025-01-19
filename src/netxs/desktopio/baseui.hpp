@@ -790,7 +790,7 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            if (auto parent_ptr = parent())
+            if (auto parent_ptr = base::parent())
             {
                 area.coor += base::region.coor;
                 parent_ptr->deface(area);
@@ -816,7 +816,7 @@ namespace netxs::ui
         template<bool Forced = faux>
         void reflow()
         {
-            auto parent_ptr = parent();
+            auto parent_ptr = base::parent();
             if (parent_ptr && (!base::master || (Forced && (base::family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
                 parent_ptr->reflow<Forced>();
@@ -826,7 +826,7 @@ namespace netxs::ui
         // base: Remove the form from the visual tree.
         void detach()
         {
-            if (auto parent_ptr = parent())
+            if (auto parent_ptr = base::parent())
             {
                 strike();
                 parent_ptr->remove(This());
@@ -836,7 +836,7 @@ namespace netxs::ui
         void global(auto& coor)
         {
             coor -= base::region.coor;
-            if (auto parent_ptr = parent())
+            if (auto parent_ptr = base::parent())
             {
                 parent_ptr->global(coor);
             }
@@ -844,7 +844,7 @@ namespace netxs::ui
         // base: Recursively find the root of the visual tree.
         netxs::sptr<bell> gettop() override
         {
-            auto parent_ptr = parent();
+            auto parent_ptr = base::parent();
             if (!base::master && parent_ptr) return parent_ptr->gettop();
             else                             return This();
         }
@@ -858,21 +858,21 @@ namespace netxs::ui
             bell::signal(Tier, event_id, param);
             if (forced)
             {
-                auto parent_ptr = parent();
+                auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
                     parent_ptr->bell::signal(Tier, event_id, param);
-                    parent_ptr = parent_ptr->parent();
+                    parent_ptr = parent_ptr->base::parent();
                 }
             }
             else if (!bell::accomplished(Tier))
             {
-                auto parent_ptr = parent();
+                auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
                     parent_ptr->bell::signal(Tier, event_id, param);
                     if (parent_ptr->bell::accomplished(Tier)) break;
-                    parent_ptr = parent_ptr->parent();
+                    parent_ptr = parent_ptr->base::parent();
                 }
             }
         }

@@ -7451,7 +7451,7 @@ namespace netxs::ui
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
                     auto& offset = this->base::coor();
-                    gear.pass(tier::release, this->parent(), offset);
+                    gear.pass(tier::release, this->base::parent(), offset);
                 }
             };
             //todo make it configurable

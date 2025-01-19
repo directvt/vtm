@@ -481,7 +481,7 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
                     {
                         if (--count == 0)
-                        if (auto parent = boss.parent())
+                        if (auto parent = boss.base::parent())
                         {
                             parent->base::riseup(tier::release, e2::form::proceed::quit::one, fast);
                         }

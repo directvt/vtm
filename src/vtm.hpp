@@ -691,7 +691,7 @@ namespace netxs::app::vtm
             base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
             base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
             auto& window = *what.applet;
-            if (auto world_ptr = base::parent())
+            if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
                 world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
             }
@@ -730,10 +730,10 @@ namespace netxs::app::vtm
                 if (what.applet) unbind();
                 if (is_new) follow(new_what);
             };
-            LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
-            {
-                ask_what = what;
-            };
+            //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
+            //{
+            //    ask_what = what;
+            //};
 
             LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate's hids::events::focus::any.
             {
@@ -1035,23 +1035,6 @@ namespace netxs::app::vtm
                 items.pop_back();
                 return items.back();
             }
-            auto foreach(hids& gear, auto function)
-            {
-                auto what = gear.owner.bell::signal(tier::request, vtm::events::gate::fullscreen); // Check if there is a fullscreen window.
-                if (what.applet)
-                {
-                    function(what.applet);
-                }
-                else for (auto item : items)
-                {
-                    if (item && pro::focus::is_focused(item->object, gear.id))
-                    {
-                        auto window_ptr = item->object;
-                        function(window_ptr);
-                        if (!window_ptr) break;
-                    }
-                }
-            }
         };
         struct depo // hall: Actors registry.
         {
@@ -1278,7 +1261,7 @@ namespace netxs::app::vtm
                         {
                             boss.hidden = true;
                             auto gear_test = boss.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
-                            if (auto parent = boss.parent())
+                            if (auto parent = boss.base::parent())
                             if (gear_test.second) // If it is focused pass the focus to the next desktop window.
                             {
                                 gear_test = { gear.id, 0 };
@@ -1389,6 +1372,7 @@ namespace netxs::app::vtm
                         pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
                         window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+                        //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
                         gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
                     };
                     boss.LISTEN(tier::release, e2::form::size::restore, item_ptr)
@@ -1922,7 +1906,7 @@ namespace netxs::app::vtm
             {
                 this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
             };
-            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
+            LISTEN(tier::general, e2::config::creator, world_ptr, tokens)
             {
                 world_ptr = base::This();
             };

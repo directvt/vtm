@@ -1041,7 +1041,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::command::run, script)
             {
-                if (auto world_ptr = parent())
+                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
                 {
                     //todo set gear_id
                     world_ptr->bell::signal(tier::release, e2::command::run, script);
