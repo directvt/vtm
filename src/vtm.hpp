@@ -80,147 +80,6 @@ namespace netxs::app::vtm
     {
         using namespace netxs::ui::pro;
 
-        // pro: Fullscreen size-binding functionality.
-        class align
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            enum class type { full, size, coor, };
-
-        public:
-            //todo revise
-            wptr&   nexthop;
-            wptr    saved;
-            applink what; // align: Original app window properties.
-            rect    prev; // align: Window size before the fullscreen has applied.
-            twod    coor; // align: Coor tracking.
-            subs    maxs; // align: Fullscreen event subscription token.
-
-            align(base&&) = delete;
-            align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
-                : skill{ boss },
-                  nexthop{ nexthop }
-            {
-                boss.LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
-                {
-                    auto is_new = what.applet != new_what.applet;
-                    if (what.applet) unbind();
-                    if (is_new) follow(new_what);
-                };
-                boss.LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
-                {
-                    ask_what = what;
-                };
-            }
-           ~align()
-            {
-                if (what.applet) unbind();
-            }
-
-            void follow(applink& new_what, dent pads = {})
-            {
-                what = new_what;
-                auto gear_id_list = pro::focus::cut(what.applet);
-                auto window_ptr = new_what.applet;
-                saved = nexthop;
-                nexthop = new_what.applet;
-                window_ptr->base::detach();
-                prev = window_ptr->base::area();
-                auto new_pos = boss.base::area() + pads;
-                new_pos.coor -= boss.base::coor();
-                window_ptr->base::extend(new_pos);
-                coor = window_ptr->base::coor();
-
-                auto newhead = std::move(what.header);
-                auto newfoot = std::move(what.footer);
-                boss.base::riseup(tier::request, e2::form::prop::ui::header, what.header);
-                boss.base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
-                boss.base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
-                boss.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
-
-                boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
-                {
-                    unbind();
-                };
-                boss.LISTEN(tier::release, e2::area, new_area, memo, (pads))
-                {
-                    if (new_area.coor != boss.base::coor()) unbind();
-                    else what.applet->base::resize(new_area.size + pads);
-                };
-                boss.LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
-                {
-                    unbind();
-                    boss.bell::expire(tier::preview);
-                };
-                window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
-                {
-                    auto deed = what.applet->bell::protos(tier::preview);
-                    if (deed == e2::form::size::enlarge::maximize.id)
-                    {
-                        unbind();
-                    }
-                };
-                window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
-                {
-                    what.applet->bell::expire(tier::release); // Suppress hide/minimization.
-                    unbind();
-                };
-                window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
-                {
-                    unbind();
-                    boss.bell::expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
-                };
-                window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
-                {
-                    if (coor != new_area.coor) unbind(type::size);
-                };
-                window_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
-                {
-                    if (coor != new_area.coor) unbind(type::size);
-                };
-
-                window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.This());
-                window_ptr->bell::signal(tier::anycast, vtm::events::attached, boss.This());
-                pro::focus::set(window_ptr, gear_id_list, solo::on, true); // Refocus.
-            }
-            void unbind(type restore = type::full)
-            {
-                if (!memo) return;
-                nexthop = saved;
-                saved.reset();
-                memo.clear();
-                auto prev_header = std::move(what.header);
-                auto prev_footer = std::move(what.footer);
-                boss.base::riseup(tier::request, e2::form::prop::ui::header, what.header);
-                boss.base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
-                boss.base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
-                boss.base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
-                auto& window = *what.applet;
-                if (auto world_ptr = boss.base::parent())
-                {
-                    world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
-                }
-                switch (restore)
-                {
-                    case type::full: window.base::extend(prev); break; // Restore previous position.
-                    case type::coor: window.base::moveto(prev.coor); break;
-                    case type::size:
-                    {
-                        auto window_size = window.base::size();
-                        auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                        anchor = anchor * prev.size / std::max(dot_11, window_size);
-                        prev.coor = boss.base::coor();
-                        prev.coor += window.base::anchor - anchor; // Follow the mouse cursor. See pro::frame pull.
-                        window.base::extend(prev);
-                        break;
-                    }
-                }
-                what.applet.reset();
-            }
-        };
-
         // pro: Provides functionality for manipulating objects with a frame structure.
         class frame
             : public skill
@@ -736,7 +595,123 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
-        pro::align align{*this, nexthop }; // gate: Fullscreen mode controller.
+        wptr    saved;// align: .
+        applink what; // align: Original app window properties.
+        rect    prev; // align: Window size before the fullscreen has applied.
+        twod    coor; // align: Coor tracking.
+        subs    maxs; // align: Fullscreen event subscription token.
+        subs    memo; // align: .
+        struct restoration_type
+        {
+            static constexpr auto _counter   = __COUNTER__ + 1;
+            static constexpr auto full = __COUNTER__ - _counter;
+            static constexpr auto size = __COUNTER__ - _counter;
+            static constexpr auto coor = __COUNTER__ - _counter;
+        };
+        void follow(applink& new_what, dent pads = {})
+        {
+            what = new_what;
+            auto gear_id_list = pro::focus::cut(what.applet);
+            auto window_ptr = new_what.applet;
+            saved = nexthop;
+            nexthop = new_what.applet;
+            window_ptr->base::detach();
+            prev = window_ptr->base::area();
+            auto new_pos = base::area() + pads;
+            new_pos.coor -= base::coor();
+            window_ptr->base::extend(new_pos);
+            coor = window_ptr->base::coor();
+
+            auto newhead = std::move(what.header);
+            auto newfoot = std::move(what.footer);
+            base::riseup(tier::request, e2::form::prop::ui::header, what.header);
+            base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+            base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
+            base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
+
+            LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
+            {
+                unbind();
+            };
+            LISTEN(tier::release, e2::dtor, p, memo)
+            {
+                unbind();
+            };
+            LISTEN(tier::release, e2::area, new_area, memo, (pads))
+            {
+                if (new_area.coor != base::coor()) unbind();
+                else what.applet->base::resize(new_area.size + pads);
+            };
+            LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
+            {
+                unbind();
+                bell::expire(tier::preview);
+            };
+            window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
+            {
+                auto deed = what.applet->bell::protos(tier::preview);
+                if (deed == e2::form::size::enlarge::maximize.id)
+                {
+                    unbind();
+                }
+            };
+            window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
+            {
+                what.applet->bell::expire(tier::release); // Suppress hide/minimization.
+                unbind();
+            };
+            window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
+            {
+                unbind();
+                bell::expire(tier::release, true); //todo revise: window_ptr(what.applet) or boss?
+            };
+            window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
+            {
+                if (coor != new_area.coor) unbind(restoration_type::size);
+            };
+            window_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
+            {
+                if (coor != new_area.coor) unbind(restoration_type::size);
+            };
+
+            window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            window_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
+            pro::focus::set(window_ptr, gear_id_list, solo::on, true); // Refocus.
+        }
+        void unbind(si32 restore = restoration_type::full)
+        {
+            if (!memo) return;
+            nexthop = saved;
+            saved.reset();
+            memo.clear();
+            auto prev_header = std::move(what.header);
+            auto prev_footer = std::move(what.footer);
+            base::riseup(tier::request, e2::form::prop::ui::header, what.header);
+            base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+            base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
+            base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
+            auto& window = *what.applet;
+            if (auto world_ptr = base::parent())
+            {
+                world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
+            }
+            switch (restore)
+            {
+                case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
+                case restoration_type::coor: window.base::moveto(prev.coor); break;
+                case restoration_type::size:
+                {
+                    auto window_size = window.base::size();
+                    auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
+                    window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
+                    prev.coor = base::coor();
+                    prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
+                    window.base::extend(prev);
+                    break;
+                }
+            }
+            what.applet.reset();
+        }
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
@@ -748,6 +723,17 @@ namespace netxs::app::vtm
             auto& keybd = plugins<pro::keybd>();
             auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
             keybd.bind(bindings);
+
+            LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
+            {
+                auto is_new = what.applet != new_what.applet;
+                if (what.applet) unbind();
+                if (is_new) follow(new_what);
+            };
+            LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
+            {
+                ask_what = what;
+            };
 
             LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate's hids::events::focus::any.
             {
@@ -768,7 +754,7 @@ namespace netxs::app::vtm
             //todo mimic pro::focus
             LISTEN(tier::request, hids::events::focus::cut, seed, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
-                if (align.what.applet)
+                if (what.applet)
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
@@ -779,7 +765,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 seed.gear_id = gear_id;
-                                align.what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
+                                what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -2365,11 +2351,11 @@ namespace netxs::app::vtm
                 {
                     auto& canvas = user.xmap;
                     canvas.wipe(this->id);
-                    if (user.align.what.applet)
+                    if (user.what.applet)
                     {
                         if (auto context = canvas.change_basis(base::area()))
                         {
-                            user.align.what.applet->render(canvas);
+                            user.what.applet->render(canvas);
                         }
                     }
                     else
@@ -2397,11 +2383,11 @@ namespace netxs::app::vtm
                 {
                     auto& canvas = user.xmap;
                     canvas.wipe(this->id);
-                    if (user.align.what.applet)
+                    if (user.what.applet)
                     {
                         if (auto context = canvas.change_basis(base::area()))
                         {
-                            user.align.what.applet->render(canvas);
+                            user.what.applet->render(canvas);
                         }
                     }
                     else
