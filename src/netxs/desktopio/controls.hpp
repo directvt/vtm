@@ -2065,7 +2065,7 @@ namespace netxs::ui
                   skill::memo;
 
             netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
-            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<action>>, preview>>.
+            std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<script>>, preview>>.
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;
             text boss_name_str;
@@ -2112,7 +2112,7 @@ namespace netxs::ui
                 auto iter = handlers.find(chord);
                 if (iter != handlers.end())
                 {
-                    auto& [actions, run_preview] = iter->second;
+                    auto& [scripts, run_preview] = iter->second;
                     if (!preview_mode || run_preview)
                     {
                         if (!scripting_context_ptr) // Restore scripting context.
@@ -2122,17 +2122,17 @@ namespace netxs::ui
                             boss.base::riseup(tier::request, e2::runscript, gear, true);
                             std::swap(gear.scripting_context_ptr, scripting_context_ptr);
                         }
-                        for (auto& action_ptr : actions)
+                        for (auto& script_ptr : scripts)
                         {
                             if (!gear.interrupt_key_proc)
                             {
-                                auto temp_action_ptr = std::exchange(gear.action_ptr, action_ptr);
+                                auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
                                 auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
                                 if (auto world_ptr = gear.owner.parent())
                                 {
                                     world_ptr->bell::signal(tier::preview, e2::runscript, gear);
                                 }
-                                gear.action_ptr = temp_action_ptr;
+                                gear.script_ptr = temp_script_ptr;
                                 gear.scripting_context_ptr = temp_scripting_context_ptr;
                             }
                         }
@@ -2207,20 +2207,20 @@ namespace netxs::ui
                 //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); gear.interrupt_key_proc = true; }});
             }
 
-            auto bind(qiew chord_str, auto&& actions, bool preview = faux)
+            auto bind(qiew chord_str, auto&& scripts, bool preview = faux)
             {
                 if (!chord_str) return;
                 if (auto chord_list = _get_chords(chord_str))
                 {
                     auto& chords = chord_list.value();
-                    auto set = [&](netxs::sptr<text> action_ptr)
+                    auto set = [&](netxs::sptr<text> script_ptr)
                     {
-                        if (action_ptr && action_ptr->size())
+                        if (script_ptr && script_ptr->size())
                         {
                             for (auto& chord : chords)
                             {
                                 auto& r = handlers[chord];
-                                r.first.emplace_back(action_ptr);
+                                r.first.emplace_back(script_ptr);
                                 r.second = preview;
                             }
                         }
@@ -2232,16 +2232,16 @@ namespace netxs::ui
                             }
                         }
                     };
-                    if constexpr (std::is_same_v<char, std::decay_t<decltype(actions[0])>>) // The case it is a plain string.
+                    if constexpr (std::is_same_v<char, std::decay_t<decltype(scripts[0])>>) // The case it is a plain string.
                     {
-                        auto action_ptr = ptr::shared(text{ actions });
-                        set(action_ptr);
+                        auto script_ptr = ptr::shared(text{ scripts });
+                        set(script_ptr);
                     }
                     else
                     {
-                        for (auto& action_ptr : actions)
+                        for (auto& script_ptr : scripts)
                         {
-                            set(action_ptr);
+                            set(script_ptr);
                         }
                     }
                 }
@@ -2250,7 +2250,7 @@ namespace netxs::ui
             {
                 for (auto& r : bindings)
                 {
-                    bind(r.chord, r.actions, r.preview);
+                    bind(r.chord, r.scripts, r.preview);
                 }
             }
             static auto load(xmls& config, qiew section)
@@ -2264,14 +2264,14 @@ namespace netxs::ui
                     {
                         auto chord = config.expand(keybind_ptr);
                         auto preview = keybind_ptr->take("preview", faux);
-                        auto action_ptr_list = keybind_ptr->list("action");
+                        auto script_ptr_list = keybind_ptr->list("script");
                         bindings.push_back({ .chord = chord, .preview = preview });
                         auto& rec = bindings.back();
                         //if constexpr (debugmode) log("chord=%% preview=%%", chord, (si32)preview);
-                        for (auto action_ptr : action_ptr_list)
+                        for (auto script_ptr : script_ptr_list)
                         {
-                            rec.actions.push_back(ptr::shared(config.expand(action_ptr)));
-                            //if constexpr (debugmode) log("  action=", *rec.actions.back());
+                            rec.scripts.push_back(ptr::shared(config.expand(script_ptr)));
+                            //if constexpr (debugmode) log("  script=", *rec.scripts.back());
                         }
                     }
                 }

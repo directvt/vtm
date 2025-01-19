@@ -549,139 +549,139 @@ R"==(
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop; key* is to clear all previous bindings and start a new list. -->
         <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
-            <key="CapsLock+UpArrow"                                     action=IncreaseCellHeight/>
-            <key="CapsLock+DownArrow"                                   action=DecreaseCellHeight/>
-            <key="Ctrl+0"                                               action=ResetCellHeight/>
-            <key="Alt+Enter"                                            action=ToggleFullscreenMode/>
-            <key="Ctrl+CapsLock"                                        action=ToggleAntialiasingMode/>
-            <key="Ctrl+Shift+F11"                                       action=RollFontsBackward/>
-            <key="Ctrl+Shift+F12"                                       action=RollFontsForward/>
-            <key="-Ctrl" preview                                        action=ResetWheelAccumulator/>
-            <key="Space-Backspace | Backspace-Space"                    action=ToggleDebugOverlay/>
+            <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
+            <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
+            <key="Ctrl+0"                                               script=ResetCellHeight/>
+            <key="Alt+Enter"                                            script=ToggleFullscreenMode/>
+            <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
+            <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
+            <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
+            <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
+            <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
             <!-- GUI Window key bindings. -->
-            <key="Esc+T"                                                action=GuiAlwaysOnTop/>
-            <key="Esc+W"                                                action=GuiCloseWindow/>
-            <key="Esc+M"                                                action=GuiMinimizeWindow/>
-            <key="Esc+F11"                                              action=GuiMaximizeWindow/>
-            <key="Esc+F12"                                              action=GuiFullscreenWindow/>
-            <key="Esc+Shift+LeftArrow"                                  action=GuiMoveWindowLeftByPx/>
-            <key="Esc+Shift+RightArrow"                                 action=GuiMoveWindowRightByPx/>
-            <key="Esc+Shift+UpArrow"                                    action=GuiMoveWindowUpByPx/>
-            <key="Esc+Shift+DownArrow"                                  action=GuiMoveWindowDownByPx/>
-            <key="Esc+LeftArrow"                                        action=GuiMoveWindowLeft/>
-            <key="Esc+RightArrow"                                       action=GuiMoveWindowRight/>
-            <key="Esc+UpArrow"                                          action=GuiMoveWindowUp/>
-            <key="Esc+DownArrow"                                        action=GuiMoveWindowDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     action=GuiMoveWindowTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   action=GuiMoveWindowBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    action=GuiMoveWindowTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  action=GuiMoveWindowBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             action=GuiIncreaseWindowWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             action=GuiDecreaseWindowWidth/>
-            <key="Esc+UpArrow+DownArrow"                                action=GuiIncreaseWindowHeight/>
-            <key="Esc+DownArrow+UpArrow"                                action=GuiDecreaseWindowHeight/>
+            <key="Esc+T"                                                script=GuiAlwaysOnTop/>
+            <key="Esc+W"                                                script=GuiCloseWindow/>
+            <key="Esc+M"                                                script=GuiMinimizeWindow/>
+            <key="Esc+F11"                                              script=GuiMaximizeWindow/>
+            <key="Esc+F12"                                              script=GuiFullscreenWindow/>
+            <key="Esc+Shift+LeftArrow"                                  script=GuiMoveWindowLeftByPx/>
+            <key="Esc+Shift+RightArrow"                                 script=GuiMoveWindowRightByPx/>
+            <key="Esc+Shift+UpArrow"                                    script=GuiMoveWindowUpByPx/>
+            <key="Esc+Shift+DownArrow"                                  script=GuiMoveWindowDownByPx/>
+            <key="Esc+LeftArrow"                                        script=GuiMoveWindowLeft/>
+            <key="Esc+RightArrow"                                       script=GuiMoveWindowRight/>
+            <key="Esc+UpArrow"                                          script=GuiMoveWindowUp/>
+            <key="Esc+DownArrow"                                        script=GuiMoveWindowDown/>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=GuiMoveWindowTopLeft/>
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=GuiMoveWindowBottomLeft/>
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=GuiMoveWindowTopRight/>
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=GuiMoveWindowBottomRight/>
+            <key="Esc+LeftArrow+RightArrow"                             script=GuiIncreaseWindowWidth/>
+            <key="Esc+RightArrow+LeftArrow"                             script=GuiDecreaseWindowWidth/>
+            <key="Esc+UpArrow+DownArrow"                                script=GuiIncreaseWindowHeight/>
+            <key="Esc+DownArrow+UpArrow"                                script=GuiDecreaseWindowHeight/>
         </gate>
         <desktop key*>  <!-- Desktop key bindings. -->
-            <key="Ctrl+PageUp"                                          action=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        action=FocusNextWindow/>
-            <key="Shift+F7"                                             action=Disconnect/>
-            <key="F10" preview                                          action=TryToQuit/>
-            <key="Alt+Shift+N"                                          action=RunApplication/>
-            <key="Esc+F1"                                               action=RunInfoPage/>
+            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
+            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
+            <key="Shift+F7"                                             script=Disconnect/>
+            <key="F10" preview                                          script=TryToQuit/>
+            <key="Alt+Shift+N"                                          script=RunApplication/>
+            <key="Esc+F1"                                               script=RunInfoPage/>
         </desktop>
         <window key*>  <!-- TUI Window key bindings. -->
-            <key="Esc+T"                                                action=AlwaysOnTop/>
-            <key="Esc+W"                                                action=CloseWindow/>
-            <key="Esc+M"                                                action=MinimizeWindow/>
-            <key="Esc+F11"                                              action=MaximizeWindow/>
-            <key="Esc+F12"                                              action=FullscreenWindow/>
-            <key="Esc+LeftArrow"                                        action=MoveWindowLeft/>
-            <key="Esc+RightArrow"                                       action=MoveWindowRight/>
-            <key="Esc+UpArrow"                                          action=MoveWindowUp/>
-            <key="Esc+DownArrow"                                        action=MoveWindowDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     action=MoveWindowTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   action=MoveWindowBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    action=MoveWindowTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  action=MoveWindowBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             action=IncreaseWindowWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             action=DecreaseWindowWidth/>
-            <key="Esc+UpArrow+DownArrow"                                action=IncreaseWindowHeight/>
-            <key="Esc+DownArrow+UpArrow"                                action=DecreaseWindowHeight/>
+            <key="Esc+T"                                                script=AlwaysOnTop/>
+            <key="Esc+W"                                                script=CloseWindow/>
+            <key="Esc+M"                                                script=MinimizeWindow/>
+            <key="Esc+F11"                                              script=MaximizeWindow/>
+            <key="Esc+F12"                                              script=FullscreenWindow/>
+            <key="Esc+LeftArrow"                                        script=MoveWindowLeft/>
+            <key="Esc+RightArrow"                                       script=MoveWindowRight/>
+            <key="Esc+UpArrow"                                          script=MoveWindowUp/>
+            <key="Esc+DownArrow"                                        script=MoveWindowDown/>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveWindowTopLeft/>
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveWindowBottomLeft/>
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveWindowTopRight/>
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveWindowBottomRight/>
+            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseWindowWidth/>
+            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseWindowWidth/>
+            <key="Esc+UpArrow+DownArrow"                                script=IncreaseWindowHeight/>
+            <key="Esc+DownArrow+UpArrow"                                script=DecreaseWindowHeight/>
         </window>
         <tile key*>
-            <key="Ctrl+PageUp"     action=TileFocusPrev/>
-            <key="Ctrl+PageDown"   action=TileFocusNext/>
-            <key=""                action=TileFocusPrevPane/>
-            <key=""                action=TileFocusNextPane/>
-            <key="Alt+Shift+N"     action=TileRunApplication/>
-            <key="Alt+Shift+A"     action=TileSelectAllPanes/>
-            <key="Alt+Shift+'|'"   action=TileSplitHorizontally/>
-            <key="Alt+Shift+Minus" action=TileSplitVertically/>
-            <key="Alt+Shift+R"     action=TileSplitOrientation/>
-            <key="Alt+Shift+S"     action=TileSwapPanes/>
-            <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>
-            <key="Alt+Shift+F2"    action=TileSetManagerTitle/>
-            <key="Alt+Shift+W"     action=TileClosePane/>
+            <key="Ctrl+PageUp"     script=TileFocusPrev/>
+            <key="Ctrl+PageDown"   script=TileFocusNext/>
+            <key=""                script=TileFocusPrevPane/>
+            <key=""                script=TileFocusNextPane/>
+            <key="Alt+Shift+N"     script=TileRunApplication/>
+            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
+            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
+            <key="Alt+Shift+Minus" script=TileSplitVertically/>
+            <key="Alt+Shift+R"     script=TileSplitOrientation/>
+            <key="Alt+Shift+S"     script=TileSwapPanes/>
+            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
+            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
+            <key="Alt+Shift+W"     script=TileClosePane/>
             <grip key*>
-                <key="LeftArrow"                          action=TileMoveGripLeft/>
-                <key="RightArrow"                         action=TileMoveGripRight/>
-                <key="UpArrow"                            action=TileMoveGripUp/>
-                <key="DownArrow"                          action=TileMoveGripDown/>
-                <key="'-'"                                action=TileDecreaseGripWidth/>
-                <key="Shift+'+' | '+' | '=' | NumpadPlus" action=TileIncreaseGripWidth/>
-                <key="Shift+Tab"                          action=TileFocusPrevGrip/>
-                <key="Tab"                                action=TileFocusNextGrip/>
+                <key="LeftArrow"                          script=TileMoveGripLeft/>
+                <key="RightArrow"                         script=TileMoveGripRight/>
+                <key="UpArrow"                            script=TileMoveGripUp/>
+                <key="DownArrow"                          script=TileMoveGripDown/>
+                <key="'-'"                                script=TileDecreaseGripWidth/>
+                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
+                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
+                <key="Tab"                                script=TileFocusNextGrip/>
             </grip>
         </tile>
         <terminal key*>  <!-- Terminal key bindings. -->
 )=="
 #if defined (WIN32)
 R"==(
-            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>
+            <key="Ctrl-Alt | Alt-Ctrl" preview script=ExclusiveKeyboardMode/>
 )=="
 #else
 R"==(
-            <key="Alt+Shift+B" preview         action=ExclusiveKeyboardMode/>
+            <key="Alt+Shift+B" preview         script=ExclusiveKeyboardMode/>
 )=="
 #endif
 R"==(
-            <key="Alt+RightArrow"        action=TerminalFindNext/>
-            <key="Alt+LeftArrow"         action=TerminalFindPrev/>
-            <key="Shift+Ctrl+PageUp"     action=TerminalScrollViewportOnePageUp/>
-            <key="Shift+Ctrl+PageDown"   action=TerminalScrollViewportOnePageDown/>
-            <key="Shift+Alt+LeftArrow"   action=TerminalScrollViewportOnePageLeft/>
-            <key="Shift+Alt+RightArrow"  action=TerminalScrollViewportOnePageRight/>
-            <key="Shift+Ctrl+UpArrow"    action=TerminalScrollViewportOneLineUp/>
-            <key="Shift+Ctrl+DownArrow"  action=TerminalScrollViewportOneLineDown/>
-            <key="Shift+Ctrl+LeftArrow"  action=TerminalScrollViewportOneCellLeft/>
-            <key="Shift+Ctrl+RightArrow" action=TerminalScrollViewportOneCellRight/>
-            <key="Shift+Ctrl+Home"       action=TerminalScrollViewportToTop/>
-            <key="Shift+Ctrl+End"        action=TerminalScrollViewportToEnd/>
-            <key=""                      action=TerminalSendKey/>
-            <key=""                      action=TerminalOutput/>
-            <key=""                      action=TerminalCopyViewport/>
-            <key="Ctrl+Insert"  preview  action=TerminalCopySelection/>
-            <key="Shift+Insert" preview  action=TerminalClipboardPaste/>
-            <key=""                      action=TerminalClipboardWipe/>
-            <key=""                      action=TerminalClipboardFormat/>
-            <key=""                      action=TerminalSelectionRect/>
-            <key="Esc" preview           action=TerminalSelectionCancel/>
-            <key=""                      action=TerminalSelectionOneShot/>
-            <key=""                      action=TerminalUndo/>
-            <key=""                      action=TerminalRedo/>
-            <key=""                      action=TerminalCwdSync/>
-            <key=""                      action=TerminalWrapMode/>
-            <key=""                      action=TerminalAlignMode/>
-            <key=""                      action=TerminalFullscreen/>
-            <key=""                      action=TerminalMaximize/>
-            <key=""                      action=TerminalMinimize/>
-            <key=""                      action=TerminalStdioLog/>
-            <key=""                      action=TerminalRestart/>
-            <key=""                      action=TerminalQuit/>
+            <key="Alt+RightArrow"        script=TerminalFindNext/>
+            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
+            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
+            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
+            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
+            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
+            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
+            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
+            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
+            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
+            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
+            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
+            <key=""                      script=TerminalSendKey/>
+            <key=""                      script=TerminalOutput/>
+            <key=""                      script=TerminalCopyViewport/>
+            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
+            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
+            <key=""                      script=TerminalClipboardWipe/>
+            <key=""                      script=TerminalClipboardFormat/>
+            <key=""                      script=TerminalSelectionRect/>
+            <key="Esc" preview           script=TerminalSelectionCancel/>
+            <key=""                      script=TerminalSelectionOneShot/>
+            <key=""                      script=TerminalUndo/>
+            <key=""                      script=TerminalRedo/>
+            <key=""                      script=TerminalCwdSync/>
+            <key=""                      script=TerminalWrapMode/>
+            <key=""                      script=TerminalAlignMode/>
+            <key=""                      script=TerminalFullscreen/>
+            <key=""                      script=TerminalMaximize/>
+            <key=""                      script=TerminalMinimize/>
+            <key=""                      script=TerminalStdioLog/>
+            <key=""                      script=TerminalRestart/>
+            <key=""                      script=TerminalQuit/>
         </terminal>
         <defapp key*>
-            <key="Esc"  action=ShowClosingPreview/>
-            <key="-Esc" action=CloseWindow/>
+            <key="Esc"  script=ShowClosingPreview/>
+            <key="-Esc" script=CloseWindow/>
         </defapp>
     </events>
 </config>)=="

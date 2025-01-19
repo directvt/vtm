@@ -736,7 +736,7 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
-        pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
+        pro::align align{*this, nexthop }; // gate: Fullscreen mode controller.
 
         gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
@@ -1918,9 +1918,9 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, e2::runscript, gear)
             {
-                if (!gear.action_ptr) return;
+                if (!gear.script_ptr) return;
                 if (!gear.scripting_context_ptr) return;
-                auto& script_body = *gear.action_ptr;
+                auto& script_body = *gear.script_ptr;
                 auto& scripting_context = *gear.scripting_context_ptr;
                 luafx.set_object(gear.This(), "gear");
                 luafx.run_script(script_body, scripting_context);

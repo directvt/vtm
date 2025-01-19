@@ -713,7 +713,7 @@ namespace netxs::input
         {
             text chord;
             bool preview{};
-            std::vector<netxs::sptr<text>> actions;
+            std::vector<netxs::sptr<text>> scripts;
         };
         using keybind_list_t = std::vector<keybind_t>;
 
@@ -1500,7 +1500,7 @@ namespace netxs::input
 
         //todo unify
         bool interrupt_key_proc{}; // hids: .
-        netxs::sptr<text> action_ptr; // hids: A script body passed by pro::keybd/ui::menu.
+        netxs::sptr<text> script_ptr; // hids: A script body passed by pro::keybd/ui::menu.
         netxs::sptr<std::unordered_map<text, wptr>> scripting_context_ptr; // hids: Script execution context: sptr<map<$object_name_str, $object_wptr>>.
         qiew call_proc; // hids: .
 
