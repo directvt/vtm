@@ -610,11 +610,12 @@ namespace netxs::app::vtm
         };
         void follow(applink& new_what)
         {
+            if (new_what.applet->subset.empty()) return;
             auto gear_id_list = pro::focus::cut(new_what.applet);
             prev = new_what.applet->base::area();
+            auto window_ptr = std::exchange(new_what.applet, new_what.applet->subset.front()); // Drop hosting window.
+            window_ptr->base::detach();
             what = new_what;
-            //todo drop window
-
             auto applet_ptr = what.applet;
             saved = std::exchange(nexthop, applet_ptr);
             applet_ptr->base::detach();
@@ -674,7 +675,6 @@ namespace netxs::app::vtm
             {
                 if (coor != new_area.coor) unbind(restoration_type::size);
             };
-
             applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
             pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
@@ -694,20 +694,23 @@ namespace netxs::app::vtm
             {
                 world_ptr->bell::signal(tier::release, vtm::events::gate::restore, what);
             }
-            auto& window = *what.applet;
-            switch (restore)
+            if (auto window_ptr = what.applet->base::parent())
             {
-                case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
-                case restoration_type::coor: window.base::moveto(prev.coor); break;
-                case restoration_type::size:
+                auto& window = *window_ptr;
+                switch (restore)
                 {
-                    auto window_size = window.base::size();
-                    auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                    window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
-                    prev.coor = base::coor();
-                    prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
-                    window.base::extend(prev);
-                    break;
+                    case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
+                    case restoration_type::coor: window.base::moveto(prev.coor); break;
+                    case restoration_type::size:
+                    {
+                        auto window_size = window.base::size();
+                        auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
+                        window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
+                        prev.coor = base::coor();
+                        prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
+                        window.base::extend(prev);
+                        break;
+                    }
                 }
             }
             what.applet.reset();
@@ -1955,14 +1958,17 @@ namespace netxs::app::vtm
 
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
-                auto window_ptr = what.applet;
-                auto gear_id_list = pro::focus::cut(window_ptr);
-                window_ptr->base::detach();
+                //todo unify with vtm::events::handoff
+                auto gear_id_list = pro::focus::cut(what.applet);
+                what.applet->base::detach();
 
-                // create new window
                 auto& cfg = dbase.menu[what.menuid];
+                auto window_ptr = window(what);
+                window_ptr->attach(what.applet);
                 branch(what.menuid, window_ptr, !cfg.hidden);
-                pro::focus::set(window_ptr, gear_id_list, solo::on, true);
+                window_ptr->bell::signal(tier::anycast, e2::form::upon::started);
+
+                pro::focus::set(what.applet, gear_id_list, solo::on, true);
             };
             LISTEN(tier::request, vtm::events::apptype, what)
             {
@@ -2127,12 +2133,11 @@ namespace netxs::app::vtm
             LISTEN(tier::request, vtm::events::handoff, what)
             {
                 auto& cfg = dbase.menu[what.menuid];
-                auto slot = window(what);
-                slot->extend(what.square);
-                slot->attach(what.applet);
-                log("%%Attach type=%itemtype% menuid=%id%", prompt::hall, utf::debase(cfg.type), utf::debase(what.menuid));
-                this->branch(what.menuid, slot, !cfg.hidden);
-                slot->bell::signal(tier::anycast, e2::form::upon::started);
+                auto window_ptr = window(what);
+                if (what.square) window_ptr->extend(what.square);
+                window_ptr->attach(what.applet);
+                this->branch(what.menuid, window_ptr, !cfg.hidden);
+                window_ptr->bell::signal(tier::anycast, e2::form::upon::started);
             };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
             {
