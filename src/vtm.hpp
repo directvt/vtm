@@ -732,12 +732,11 @@ namespace netxs::app::vtm
 
             LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
             {
-                auto is_new = what.applet != new_what.applet;
                 if (what.applet)
                 {
                     unbind();
                 }
-                if (is_new)
+                if (new_what.applet)
                 {
                     follow(new_what);
                 }
