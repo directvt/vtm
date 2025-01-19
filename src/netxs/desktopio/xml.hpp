@@ -1408,11 +1408,11 @@ namespace netxs::xml
             {
                 if (is_like_variable()) // Try to find variable if it is not quoted and its len < 128.
                 {
-                    return take<Quiet>(crop.front() == '/' ? crop : "/config/set/" + crop, crop, primary_value - 1);
+                    return take<Quiet>(crop.front() == '/' ? crop : "/config/variables/" + crop, crop, primary_value - 1);
                 }
             }
             if (auto result = xml::take<T>(crop)) return result.value();
-            if (is_like_variable())               return take<Quiet>(crop.front() == '/' ? crop : "/config/set/" + crop, defval, primary_value - 1);
+            if (is_like_variable())               return take<Quiet>(crop.front() == '/' ? crop : "/config/variables/" + crop, defval, primary_value - 1);
             else                                  return defval;
         }
         auto expand(document::sptr item_ptr, si32 primary_value = 3)
@@ -1422,7 +1422,7 @@ namespace netxs::xml
             auto is_like_variable = !is_quoted && primary_value && crop.size() && (crop.front() == '/' || crop.size() < 128);
             if (is_like_variable) // Try to find variable if it is not quoted and its len < 128.
             {
-                return take<true>(crop.front() == '/' ? crop : "/config/set/" + crop, crop, primary_value - 1);
+                return take<true>(crop.front() == '/' ? crop : "/config/variables/" + crop, crop, primary_value - 1);
             }
             return crop;
         }

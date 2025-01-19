@@ -215,12 +215,12 @@ The following declarations have the same meaning:
 <file= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
 ...
 <config>  <!-- Global configuration. -->
-    <set>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <variable = value/>  <!-- Globally referenced variable. -->
+    <variables>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
+        <variable_name = variable_value/>  <!-- Globally referenced variable. -->
         ...  <!-- Set of global variables. -->
-    </set>
+    </variables>
     ...
-    <object1=variable/>           <!-- object1 references the value of /config/set/variable (/config/set is a default namespace). -->
+    <object1=variable_name/>           <!-- object1 references the value of /config/variables/variable_name (/config/variables is a default namespace). -->
     <object2=/config/object1/>    <!-- object2 references the value of /config/object1 using an absolute reference (three levels of indirection allowed). -->
     <object3="/config/object1"/>  <!-- object3 contains the string value "/config/object1". -->
     ...
@@ -613,7 +613,7 @@ Notes
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+                            <mode=selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
                     </terminal>
                 </config>
@@ -733,7 +733,7 @@ Notes
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
         <colors>  <!-- Terminal colors. -->
-            <color0  = pureblack  />  <!-- Link to global <config/set/*/> namespace. -->
+            <color0  = pureblack  />
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -750,7 +750,7 @@ Notes
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
+            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color/default) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -764,8 +764,8 @@ Notes
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
             <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
@@ -874,8 +874,8 @@ Notes
     </tile>
     <defapp>
         <menu>
-            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
         </menu>
     </defapp>
     <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->

@@ -72,8 +72,8 @@ R"==(<!-- Ordered list of paths to settings files. -->
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
+    <variables>  <!-- Global variables - Unresolved literals will try to be resolved from here. -->
+        <blackdk     = 0xFF101010 />
         <reddk       = 0xFFc40f1f />
         <greendk     = 0xFF12a10e />
         <yellowdk    = 0xFFc09c00 />
@@ -247,7 +247,7 @@ R"==(
         <ScrollEnd         ="vtm.defapp.ScrollViewportToEnd()"/>        <!--  -->
 )=="
 R"==(
-    </set>
+    </variables>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
@@ -274,7 +274,7 @@ R"==(
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+                            <mode=selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
                     </terminal>
                 </config>
@@ -400,7 +400,7 @@ R"==(
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
         <colors>  <!-- Terminal colors. -->
-            <color0  = pureblack  />  <!-- Link to global <config/set/*/> namespace. -->
+            <color0  = pureblack  />
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -417,7 +417,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
+            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color/default) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -431,8 +431,8 @@ R"==(
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
             <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
@@ -543,8 +543,8 @@ R"==(
     </tile>
     <defapp>
         <menu>
-            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
         </menu>
     </defapp>
     <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop; key* is to clear all previous bindings and start a new list. -->
