@@ -2353,7 +2353,7 @@ namespace netxs::app::vtm
                     canvas.wipe(this->id);
                     if (user.what.applet)
                     {
-                        if (auto context = canvas.change_basis(base::area()))
+                        if (auto context = canvas.change_basis(user.base::area()))
                         {
                             user.what.applet->render(canvas);
                         }
@@ -2385,7 +2385,7 @@ namespace netxs::app::vtm
                     canvas.wipe(this->id);
                     if (user.what.applet)
                     {
-                        if (auto context = canvas.change_basis(base::area()))
+                        if (auto context = canvas.change_basis(user.base::area()))
                         {
                             user.what.applet->render(canvas);
                         }
