@@ -819,7 +819,7 @@ namespace netxs::app::vtm
         }
     };
 
-    // vtm: Desktop Workspace.
+    // vtm: Borderless container of floating windows.
     struct hall
         : public form<hall>
     {
@@ -2255,149 +2255,151 @@ namespace netxs::app::vtm
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
             auto user_ptr = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
-            auto& user = *user_ptr;
+            auto& usergate = *user_ptr;
             users.append(user_ptr);
             dbase.append(user_ptr);
             os::ipc::users = users.size();
-            user.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
 
-            user.LISTEN(tier::release, e2::form::layout::shift, newpos)
+            usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
-                auto viewport = user.bell::signal(tier::request, e2::form::prop::viewport);
+                auto viewport = usergate.bell::signal(tier::request, e2::form::prop::viewport);
                 auto oldpos = viewport.center();
                 auto path = oldpos - newpos;
                 auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
-                robot.pacify(user.id);
-                robot.actify(user.id, func, [&](auto& x)
+                robot.pacify(usergate.id);
+                robot.actify(usergate.id, func, [&](auto& x)
                 {
-                    user.base::moveby(-x);
-                    user.base::strike();
+                    usergate.base::moveby(-x);
+                    usergate.base::strike();
                 });
             };
-            user.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
+            usergate.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
             {
-                auto viewport = user.bell::signal(tier::request, e2::form::prop::viewport);
+                auto viewport = usergate.bell::signal(tier::request, e2::form::prop::viewport);
                 auto object_area = window_inst.bell::signal(tier::request, e2::form::prop::window::fullsize);
                 auto outside = viewport | object_area;
                 if (outside != viewport)
                 {
                     auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
                     auto center = viewport.center() + coor - viewport.coor;
-                    user.bell::signal(tier::release, e2::form::layout::shift, center);
+                    usergate.bell::signal(tier::release, e2::form::layout::shift, center);
                 }
             };
-            user.LISTEN(tier::release, hids::events::mouse::button::click::left, gear) // Go to another user's viewport.
+            usergate.LISTEN(tier::release, hids::events::mouse::button::click::left, gear) // Fly to another user's viewport.
             {
-                if (gear.owner.id == user.id) return;
-                auto center = user.base::coor() + gear.owner.base::size() / 2;
+                if (gear.owner.id == usergate.id) return;
+                auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
             };
             //todo move it to the desk (dragging)
             auto drag_origin_ptr = ptr::shared<fp2d>();
             auto& drag_origin = *drag_origin_ptr;
-            auto& user_mouse = user.plugins<pro::mouse>();
+            auto& user_mouse = usergate.plugins<pro::mouse>();
             user_mouse.template draggable<hids::buttons::leftright>(true);
             user_mouse.template draggable<hids::buttons::left>(true);
-            user.LISTEN(tier::release, e2::form::drag::start::any, gear, -, (drag_origin_ptr))
+            usergate.LISTEN(tier::release, e2::form::drag::start::any, gear, -, (drag_origin_ptr))
             {
-                if (gear.owner.id != user.id) return;
-                robot.pacify(user.id);
-                drag_origin = gear.coord;
+                if (gear.owner.id == usergate.id)
+                {
+                    robot.pacify(usergate.id);
+                    drag_origin = gear.coord;
+                }
             };
-            user.LISTEN(tier::release, e2::form::drag::pull::any, gear)
+            usergate.LISTEN(tier::release, e2::form::drag::pull::any, gear)
             {
-                if (gear.owner.id != user.id) return;
+                if (gear.owner.id != usergate.id) return;
                 if (auto delta = twod{ gear.coord } - twod{ drag_origin })
                 {
                     drag_origin = gear.coord;
-                    user.base::moveby(-delta);
-                    user.base::deface();
+                    usergate.base::moveby(-delta);
+                    usergate.base::deface();
                 }
             };
-            user.LISTEN(tier::release, e2::form::drag::stop::any, gear)
+            usergate.LISTEN(tier::release, e2::form::drag::stop::any, gear)
             {
-                if (gear.owner.id != user.id) return;
-                robot.pacify(user.id);
-                robot.actify(user.id, gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                if (gear.owner.id != usergate.id) return;
+                robot.pacify(usergate.id);
+                robot.actify(usergate.id, gear.fader<quadratic<twod>>(2s), [&](auto& x)
                 {
-                    user.base::moveby(-x);
-                    user.base::deface();
+                    usergate.base::moveby(-x);
+                    usergate.base::deface();
                 });
             };
-            user.LISTEN(tier::release, e2::conio::winsz, new_size)
+            usergate.LISTEN(tier::release, e2::conio::winsz, new_size)
             {
                 // Do not wait timer tick.
                 auto damaged = true;
                 if (damaged)
                 {
-                    auto& canvas = user.xmap;
+                    auto& canvas = usergate.xmap;
                     canvas.wipe(this->id);
-                    if (user.what.applet)
+                    if (usergate.what.applet)
                     {
-                        if (auto context = canvas.change_basis(user.base::area()))
+                        if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            user.what.applet->render(canvas);
+                            usergate.what.applet->render(canvas);
                         }
                     }
                     else
                     {
-                        if (user.props.background_image.size())
+                        if (usergate.props.background_image.size())
                         {
                             //todo cache background
-                            canvas.tile(user.props.background_image, cell::shaders::fuse);
+                            canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
                         redraw(canvas); // Put the rest of the world on my canvas.
-                        if (user.applet) // Render main menu/application.
-                        if (auto context = canvas.change_basis(user.base::area()))
+                        if (usergate.applet) // Render main menu/application.
+                        if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            user.applet->render(canvas);
+                            usergate.applet->render(canvas);
                         }
                     }
                 }
-                user.rebuild_scene(damaged);
+                usergate.rebuild_scene(damaged);
             };
-            user.LISTEN(tier::general, e2::timer::any, timestamp)
+            usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = base::ruined();//!host::debris.empty();
                 //host::debris.clear();
                 if (damaged)
                 {
-                    auto& canvas = user.xmap;
+                    auto& canvas = usergate.xmap;
                     canvas.wipe(this->id);
-                    if (user.what.applet)
+                    if (usergate.what.applet)
                     {
-                        if (auto context = canvas.change_basis(user.base::area()))
+                        if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            user.what.applet->render(canvas);
+                            usergate.what.applet->render(canvas);
                         }
                     }
                     else
                     {
-                        if (user.props.background_image.size())
+                        if (usergate.props.background_image.size())
                         {
                             //todo cache background
-                            canvas.tile(user.props.background_image, cell::shaders::fuse);
+                            canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
                         redraw(canvas); // Put the rest of the world on my canvas.
-                        if (user.applet) // Render main menu/application.
-                        if (auto context = canvas.change_basis(user.base::area()))
+                        if (usergate.applet) // Render main menu/application.
+                        if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            user.applet->render(canvas);
+                            usergate.applet->render(canvas);
                         }
                     }
                 }
-                user.rebuild_scene(damaged);
+                usergate.rebuild_scene(damaged);
             };
-            usrcfg.cfg = utf::concat(user.id, ";", user.props.os_user_id, ";", user.props.selected);
+            usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            user.attach(deskmenu);
-            user.base::resize(usrcfg.win);
-            if (vport) user.base::moveto(vport); // Restore user's last position.
+            usergate.attach(deskmenu);
+            usergate.base::resize(usrcfg.win);
+            if (vport) usergate.base::moveto(vport); // Restore user's last position.
             lock.unlock();
-            user.launch();
+            usergate.launch();
         }
         // hall: Detach user/window.
         void remove(sptr item_ptr) override
