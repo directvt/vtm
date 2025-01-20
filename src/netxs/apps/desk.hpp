@@ -111,7 +111,7 @@ namespace netxs::app::desk
                         disabled = check_id(boss, gear_id);
                         oneshot->reset();
                     };
-                    data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.tracker, (data_src_shadow))
+                    data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.sensors, (data_src_shadow))
                     {
                         disabled = check_id(boss, gear_id);
                     };
@@ -220,9 +220,9 @@ namespace netxs::app::desk
                             boss.base::reflow();
                         }
                     };
-                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_src_shadow))
+                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.sensors, (data_src_shadow))
                     {
-                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.tracker, (data_src_shadow))
+                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors, (data_src_shadow))
                         {
                             if (disabled) return;
                             if (auto data_src = data_src_shadow.lock())
@@ -420,7 +420,7 @@ namespace netxs::app::desk
                     {
                         auto& window = *inst_ptr;
                         auto& boss = *block;
-                        boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
+                        boss.LISTEN(tier::release, events::ui::focus::any, gear, window.sensors)
                         {
                             auto deed = boss.bell::protos(tier::release);
                                  if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, solo::off);

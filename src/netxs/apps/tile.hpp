@@ -137,11 +137,11 @@ namespace netxs::app::tile
                             {
                                 if (parent) parent->resize(); // Rebuild list.
                             };
-                            data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, events::delist, object, boss.sensors)
                             {
                                 boss.base::detach(); // Destroy itself.
                             };
-                            boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, boss.sensors, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -150,7 +150,7 @@ namespace netxs::app::tile
                                     gear.dismiss();
                                 }
                             };
-                            boss.LISTEN(tier::release, e2::form::state::mouse, active, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, e2::form::state::mouse, active, boss.sensors, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {

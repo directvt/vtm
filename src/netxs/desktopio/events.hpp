@@ -474,8 +474,8 @@ namespace netxs::events
 
         auth&        indexer;
         reactor&     general;
-        const id_t   id;
-        subs         tracker;
+        const id_t   id;      // bell: Object id.
+        subs         sensors; // bell: Event subscriptions.
 
     private:
         reactor release{ true };
@@ -526,7 +526,7 @@ namespace netxs::events
         void submit(si32 Tier, Event, std::function<void(typename Event::type&)> handler)
         {
             auto lock = indexer.sync();
-            tracker.admit(reactors[Tier]->subscribe(Event::id, handler));
+            sensors.admit(reactors[Tier]->subscribe(Event::id, handler));
         }
         template<class Event>
         void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type&)> handler)

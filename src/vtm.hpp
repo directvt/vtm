@@ -1111,7 +1111,6 @@ namespace netxs::app::vtm
         std::unordered_map<id_t, si32> switch_counter; // hall: Focus switch counter.
         input::key::keybind_list_t window_bindings;
         xmls config; // hall: Resultant settings.
-        subs tokens; // hall: Subscription tokens.
         flag active; // hall: Host is available for connections.
         std::vector<bool> user_numbering; // hall: .
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
@@ -1907,28 +1906,28 @@ namespace netxs::app::vtm
                 luafx.run_script(script_body, scripting_context);
             };
 
-            LISTEN(tier::general, e2::shutdown, msg, tokens)
+            LISTEN(tier::general, e2::shutdown, msg)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
                 active.exchange(faux); // To prevent new applications from launching.
                 canal.stop();
             };
-            LISTEN(tier::general, e2::cleanup, counter, tokens)
+            LISTEN(tier::general, e2::cleanup, counter)
             {
                 this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
             };
-            LISTEN(tier::general, e2::config::creator, world_ptr, tokens)
+            LISTEN(tier::general, e2::config::creator, world_ptr)
             {
                 world_ptr = base::This();
             };
-            LISTEN(tier::general, hids::events::device::user::login, props, tokens)
+            LISTEN(tier::general, hids::events::device::user::login, props)
             {
                 props = 0;
                 while (props < user_numbering.size() && user_numbering[props]) { props++; }
                 if (props == user_numbering.size()) user_numbering.push_back(true);
                 else                                user_numbering[props] = true;
             };
-            LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
+            LISTEN(tier::general, hids::events::device::user::logout, props)
             {
                 if (props < user_numbering.size()) user_numbering[props] = faux;
                 else
@@ -1936,7 +1935,7 @@ namespace netxs::app::vtm
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
                 }
             };
-            LISTEN(tier::request, hids::events::focus::set::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            LISTEN(tier::request, hids::events::focus::set::any, seed, -, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
             {
                 auto is_recursive = faux;
                 if (seed.treeid)
@@ -2449,7 +2448,7 @@ namespace netxs::app::vtm
             bell::dequeue(); // Wait until all cleanups are completed.
             auto lock = bell::sync();
             plugins<pro::mouse>().reset(); // Release the captured mouse.
-            tokens.reset();
+            bell::sensors.reset();
             dbase.reset();
             items.reset();
         }
