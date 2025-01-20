@@ -876,7 +876,6 @@ namespace netxs::app::shared
         config_lock.unlock();
         gate.launch();
         gate.bell::dequeue();
-        gate.bell::signal(tier::general, e2::config::fps, 0);
         config_lock.lock();
         gate.plugins<pro::mouse>().reset();
         gate_ptr.reset();

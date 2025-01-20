@@ -2447,10 +2447,8 @@ namespace netxs::app::vtm
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             bell::dequeue(); // Wait until all cleanups are completed.
-            bell::signal(tier::general, e2::config::fps, 0);
             auto lock = bell::sync();
-            auto& mouse = plugins<pro::mouse>();
-            mouse.reset(); // Release the captured mouse.
+            plugins<pro::mouse>().reset(); // Release the captured mouse.
             tokens.reset();
             dbase.reset();
             items.reset();

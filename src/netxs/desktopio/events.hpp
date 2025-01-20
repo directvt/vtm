@@ -355,9 +355,11 @@ namespace netxs::events
             });
         }
         // auth: .
-        void dequeue()
+        void stop()
         {
             agent.stop();
+            auto lock = sync();
+            quartz.stop();
         }
         // auth: .
         template<class T, class P>
@@ -598,7 +600,7 @@ namespace netxs::events
         // bell: .
         void dequeue()
         {
-            indexer.agent.stop();
+            indexer.stop();
         }
         // bell: .
         template<bool Sync = true, class ...Args>
