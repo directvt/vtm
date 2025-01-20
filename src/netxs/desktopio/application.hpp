@@ -831,11 +831,11 @@ namespace netxs::app::shared
             auto damaged = gate.ruined();
             if (damaged)
             {
-                gate.xmap.wipe(gate.id);
+                gate.canvas.wipe(gate.id);
                 if (gate.applet)
-                if (auto context = gate.xmap.change_basis(gate.base::area()))
+                if (auto context = gate.canvas.change_basis(gate.base::area()))
                 {
-                    gate.applet->render(gate.xmap);
+                    gate.applet->render(gate.canvas);
                 }
             }
             gate.rebuild_scene(damaged);
@@ -846,11 +846,11 @@ namespace netxs::app::shared
             auto damaged = true;
             if (damaged)
             {
-                gate.xmap.wipe(gate.id);
+                gate.canvas.wipe(gate.id);
                 if (gate.applet)
-                if (auto context = gate.xmap.change_basis(gate.base::area()))
+                if (auto context = gate.canvas.change_basis(gate.base::area()))
                 {
-                    gate.applet->render(gate.xmap);
+                    gate.applet->render(gate.canvas);
                 }
             }
             gate.rebuild_scene(damaged);

@@ -788,26 +788,26 @@ namespace netxs::app::vtm
                 nexthop = world_ptr;
             };
 
-            LISTEN(tier::release, e2::render::any, canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (&canvas != &xmap) // Draw a shadow of user's gate for other users.
+                if (&parent_canvas != &canvas) // Draw a shadow of user's gate for other users.
                 {
-                    auto gate_area = canvas.full();
-                    if (canvas.cmode != svga::vt16 && canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
+                    auto gate_area = parent_canvas.full();
+                    if (parent_canvas.cmode != svga::vt16 && parent_canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
                     {
                         //todo revise
                         auto mark = skin::color(tone::shadower);
                         mark.bga(mark.bga() / 2);
-                        canvas.fill(gate_area, [&](cell& c){ c.fuse(mark); });
+                        parent_canvas.fill(gate_area, [&](cell& c){ c.fuse(mark); });
                     }
-                    auto saved_context = canvas.bump(dent{ 0,0,1,0 });
-                    canvas.output(uname, dot_00, cell::shaders::contrast);
-                    canvas.bump(saved_context);
+                    auto saved_context = parent_canvas.bump(dent{ 0,0,1,0 });
+                    parent_canvas.output(uname, dot_00, cell::shaders::contrast);
+                    parent_canvas.bump(saved_context);
                 }
             };
             LISTEN(tier::release, e2::postrender, parent_canvas)
             {
-                if (&parent_canvas != &xmap)
+                if (&parent_canvas != &canvas)
                 {
                     if (uname.lyric) // Render foreign user names at their place.
                     {
@@ -2335,7 +2335,7 @@ namespace netxs::app::vtm
                 auto damaged = true;
                 if (damaged)
                 {
-                    auto& canvas = usergate.xmap;
+                    auto& canvas = usergate.canvas;
                     canvas.wipe(this->id);
                     if (usergate.what.applet)
                     {
@@ -2367,7 +2367,7 @@ namespace netxs::app::vtm
                 //host::debris.clear();
                 if (damaged)
                 {
-                    auto& canvas = usergate.xmap;
+                    auto& canvas = usergate.canvas;
                     canvas.wipe(this->id);
                     if (usergate.what.applet)
                     {

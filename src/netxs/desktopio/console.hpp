@@ -483,7 +483,7 @@ namespace netxs::ui
         text       uname_txt; // gate: Client name (original).
         sptr       applet; // gate: Standalone application.
         wptr       nexthop; // gate: .
-        face       xmap; // gate: .
+        face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
 
         void forward(auto& device)
@@ -491,7 +491,7 @@ namespace netxs::ui
             auto gear_it = gears.find(device.gear_id);
             if (gear_it == gears.end())
             {
-                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, xmap)).first;
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
                 auto& gear = *(gear_it->second);
                 gear.tooltip_timeout = props.tooltip_timeout;
                 gear.board::ghost = props.clip_preview_glow;
@@ -558,7 +558,7 @@ namespace netxs::ui
                 parent_canvas.fill(header, cell::shaders::fuse);
             }
         }
-        void draw_mouse_pointer(face& canvas)
+        void draw_mouse_pointer(face& parent_canvas)
         {
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
@@ -570,10 +570,10 @@ namespace netxs::ui
                 area.coor = gear.coord;
                 auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
                                                 : idle;
-                canvas.fill(area, cell::shaders::fuse(brush));
+                parent_canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clipboard_preview(face& canvas, time const& stamp)
+        void draw_clipboard_preview(time const& stamp)
         {
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
@@ -590,7 +590,7 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(face& canvas, time const& stamp)
+        void draw_tooltips(time const& stamp)
         {
             auto full = canvas.full();
             auto area = canvas.area();
@@ -661,21 +661,21 @@ namespace netxs::ui
             {
                 if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
                 {
-                    draw_mouse_pointer(xmap);
+                    draw_mouse_pointer(canvas);
                 }
                 if (!direct && props.clip_preview_show)
                 {
-                    draw_clipboard_preview(xmap, stamp);
+                    draw_clipboard_preview(stamp);
                 }
                 if (props.tooltip_enabled)
                 {
                     if (direct) send_tooltips();
-                    else        draw_tooltips(xmap, stamp);
+                    else        draw_tooltips(stamp);
                 }
                 if (props.debug_overlay)
                 {
                     auto& debug = plugins<pro::debug>();
-                    debug.output(xmap);
+                    debug.output(canvas);
                     if constexpr (debugmode) // Red channel histogram.
                     if (gears.size())
                     {
@@ -684,31 +684,31 @@ namespace netxs::ui
                         {
                             auto hist = page{};
                             hist.brush.bgc(0x80ffffff);
-                            auto full = xmap.full();
-                            auto area = xmap.area();
-                            xmap.area({ dot_00, area.size });
+                            auto full = canvas.full();
+                            auto area = canvas.area();
+                            canvas.area({ dot_00, area.size });
                             auto coor = gear_ptr->coord;
                             for (auto x = 0; x < area.size.y; x++)
                             {
                                 auto xy = coor + twod{ x - area.size.y/2, 0 };
-                                auto has_value = xy.x > 0 && xy.x < xmap.size().x;
-                                if (has_value) utf::repeat(" ", xmap[xy].bgc().chan.r);
+                                auto has_value = xy.x > 0 && xy.x < canvas.size().x;
+                                if (has_value) utf::repeat(" ", canvas[xy].bgc().chan.r);
                                 hist += "\n"s;
                             }
                             auto full_area = full;
                             full_area.coor = {};
                             full_area.size.x = dot_mx.x; // Prevent line wrapping.
-                            xmap.full(full_area);
-                            xmap.cup(dot_00);
-                            xmap.output(hist, cell::shaders::blend);
-                            xmap.area(area);
-                            xmap.full(full);
+                            canvas.full(full_area);
+                            canvas.cup(dot_00);
+                            canvas.output(hist, cell::shaders::blend);
+                            canvas.area(area);
+                            canvas.full(full);
                         }
                     }
                 }
                 if (props.show_regions)
                 {
-                    xmap.each([](cell& c)
+                    canvas.each([](cell& c)
                     {
                         auto mark = argb{ argb::vt256[c.link() % 256] };
                         auto bgc = c.bgc();
@@ -745,7 +745,7 @@ namespace netxs::ui
                 debug.bypass = true;
                 fire(hids::events::mouse::move.id);
                 debug.bypass = faux;
-                yield = paint.commit(xmap);
+                yield = paint.commit(canvas);
                 if (yield)
                 {
                     auto d = paint.status();
@@ -756,7 +756,7 @@ namespace netxs::ui
             else
             {
                 fire(hids::events::mouse::move.id);
-                yield = paint.commit(xmap); // Try to output a fresh xmap if it is not busy.
+                yield = paint.commit(canvas); // Try to output a fresh canvas if it is not busy.
             }
         }
         // gate: Rx loop.
@@ -1001,13 +1001,13 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
 
-            xmap.cmode = props.vtmode;
-            xmap.mark(props.background_color.txt(whitespace).link(bell::id));
-            xmap.face::area(base::area());
+            canvas.cmode = props.vtmode;
+            canvas.mark(props.background_color.txt(whitespace).link(bell::id));
+            canvas.face::area(base::area());
             LISTEN(tier::release, e2::command::printscreen, gear)
             {
                 auto data = escx{};
-                data.s11n(xmap, gear.slot);
+                data.s11n(canvas, gear.slot);
                 if (data.length())
                 {
                     if (props.clip_prtscrn_mime != mime::disabled)
@@ -1018,11 +1018,11 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::prop::filler, new_filler)
             {
-                xmap.mark(new_filler);
+                canvas.mark(new_filler);
             };
             LISTEN(tier::release, e2::area, new_area)
             {
-                xmap.face::area(new_area);
+                canvas.face::area(new_area);
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
