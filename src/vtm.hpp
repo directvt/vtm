@@ -2254,7 +2254,7 @@ namespace netxs::app::vtm
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
-            auto usergate_ptr = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
+            auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
             users.append(usergate_ptr);
             dbase.append(usergate_ptr);
