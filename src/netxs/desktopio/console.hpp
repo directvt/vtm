@@ -469,8 +469,6 @@ namespace netxs::ui
             }
         };
 
-        using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
-
     public:
         pipe&      canal; // gate: Channel to outside.
         props_t    props; // gate: Input gate properties.
@@ -484,10 +482,9 @@ namespace netxs::ui
         para       uname; // gate: Client name.
         text       uname_txt; // gate: Client name (original).
         sptr       applet; // gate: Standalone application.
-        subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
         face       xmap; // gate: .
-        depo       gears; // gate: .
+        std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
 
         void forward(auto& device)
         {
@@ -1007,7 +1004,7 @@ namespace netxs::ui
             xmap.cmode = props.vtmode;
             xmap.mark(props.background_color.txt(whitespace).link(bell::id));
             xmap.face::area(base::area());
-            LISTEN(tier::release, e2::command::printscreen, gear, tokens)
+            LISTEN(tier::release, e2::command::printscreen, gear)
             {
                 auto data = escx{};
                 data.s11n(xmap, gear.slot);
@@ -1019,15 +1016,15 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, e2::form::prop::filler, new_filler, tokens)
+            LISTEN(tier::release, e2::form::prop::filler, new_filler)
             {
                 xmap.mark(new_filler);
             };
-            LISTEN(tier::release, e2::area, new_area, tokens)
+            LISTEN(tier::release, e2::area, new_area)
             {
                 xmap.face::area(new_area);
             };
-            LISTEN(tier::preview, e2::command::gui, gui_cmd, tokens)
+            LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
                 if (gui_cmd.gear_id)
                 {
@@ -1047,7 +1044,7 @@ namespace netxs::ui
                     world_ptr->bell::signal(tier::release, e2::command::run, script);
                 }
             };
-            LISTEN(tier::release, e2::conio::mouse, m, tokens)
+            LISTEN(tier::release, e2::conio::mouse, m)
             {
                 if (m.enabled != hids::stat::ok)
                 {
@@ -1065,19 +1062,19 @@ namespace netxs::ui
                 }
                 else forward(m);
             };
-            LISTEN(tier::release, e2::conio::keybd, k, tokens)
+            LISTEN(tier::release, e2::conio::keybd, k)
             {
                 forward(k);
             };
-            LISTEN(tier::release, e2::conio::focus, f, tokens)
+            LISTEN(tier::release, e2::conio::focus, f)
             {
                 forward(f);
             };
-            LISTEN(tier::release, e2::conio::board, c, tokens)
+            LISTEN(tier::release, e2::conio::board, c)
             {
                 forward(c);
             };
-            LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
+            LISTEN(tier::preview, hids::events::focus::set::any, seed)
             {
                 if (seed.gear_id)
                 {
@@ -1091,7 +1088,7 @@ namespace netxs::ui
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::release, hids::events::focus::any, seed, tokens)
+            LISTEN(tier::release, hids::events::focus::any, seed)
             {
                 if (auto target = nexthop.lock())
                 {
@@ -1102,19 +1099,19 @@ namespace netxs::ui
             //todo mimic pro::focus
             //if (standalone)
             {
-                LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, tokens)
+                LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr)
                 {
                     owner_ptr = This();
                 };
             }
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Start of kb event propagation.
             {
                 if (auto target = nexthop.lock())
                 {
                     target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::release, hids::events::keybd::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
+            LISTEN(tier::release, hids::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (!gear.handled)
                 {
@@ -1126,35 +1123,35 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
+            LISTEN(tier::release, e2::form::proceed::quit::any, fast)
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
                 disconnect();
             };
-            LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
+            LISTEN(tier::release, e2::form::prop::name, user_name)
             {
                 uname = uname_txt = user_name;
             };
-            LISTEN(tier::request, e2::form::prop::name, user_name, tokens)
+            LISTEN(tier::request, e2::form::prop::name, user_name)
             {
                 user_name = uname_txt;
             };
-            LISTEN(tier::request, e2::form::prop::viewport, viewport, tokens)
+            LISTEN(tier::request, e2::form::prop::viewport, viewport)
             {
                 viewport = base::area();
             };
             //todo unify creation (delete simple create wo gear)
-            LISTEN(tier::preview, e2::form::proceed::create, dest_region, tokens)
+            LISTEN(tier::preview, e2::form::proceed::create, dest_region)
             {
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
-            LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
+            LISTEN(tier::release, e2::form::proceed::onbehalf, proc)
             {
                 //todo hids
                 //proc(gear);
             };
-            LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
+            LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
                 if (gear.clear_clipboard())
                 {
@@ -1162,35 +1159,35 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
+            LISTEN(tier::release, e2::conio::winsz, new_size)
             {
                 auto new_area = rect{ dot_00, new_size };
                 auto old_size = base::size();
                 auto delta = base::resize(new_size).size - old_size;
                 if (delta && direct) paint.cancel();
             };
-            LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
+            LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
             };
-            LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
+            LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
             {
                 this->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                base::detach();
-                tokens.reset();
+                base::detach(); //todo move to hall
+                bell::tracker.reset();
             };
-            LISTEN(tier::preview, e2::conio::quit, deal, tokens) // Disconnect.
+            LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
             {
                 disconnect();
             };
-            LISTEN(tier::general, e2::conio::quit, deal, tokens) // Shutdown.
+            LISTEN(tier::general, e2::conio::quit, deal) // Shutdown.
             {
                 disconnect();
             };
-            LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
+            LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
             {
                 if (props.debug_overlay) debug.start();
                 this->bell::signal(tier::release, e2::form::prop::name, props.title);
@@ -1200,7 +1197,7 @@ namespace netxs::ui
                     this->base::riseup(tier::preview, e2::form::prop::ui::header, props.title);
                 }
             };
-            LISTEN(tier::request, e2::form::prop::ui::footer, f, tokens)
+            LISTEN(tier::request, e2::form::prop::ui::footer, f)
             {
                 auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
@@ -1208,7 +1205,7 @@ namespace netxs::ui
                 footer.wait();
                 f = footer.thing.utf8;
             };
-            LISTEN(tier::request, e2::form::prop::ui::header, h, tokens)
+            LISTEN(tier::request, e2::form::prop::ui::header, h)
             {
                 auto window_id = id_t{};
                 auto header = conio.header.freeze();
@@ -1216,17 +1213,17 @@ namespace netxs::ui
                 header.wait();
                 h = header.thing.utf8;
             };
-            LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter, tokens)
+            LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter)
             {
                 auto window_id = id_t{};
                 conio.footer.send(canal, window_id, newfooter);
             };
-            LISTEN(tier::preview, e2::form::prop::ui::header, newheader, tokens)
+            LISTEN(tier::preview, e2::form::prop::ui::header, newheader)
             {
                 auto window_id = id_t{};
                 conio.header.send(canal, window_id, newheader);
             };
-            LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
+            LISTEN(tier::release, hids::events::clipboard, from_gear)
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
@@ -1235,7 +1232,7 @@ namespace netxs::ui
                 auto& data = gear.board::cargo;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
-            LISTEN(tier::request, hids::events::clipboard, from_gear, tokens)
+            LISTEN(tier::request, hids::events::clipboard, from_gear)
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
@@ -1250,7 +1247,7 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
+            LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear)
             {
                 if (props.debug_overlay)
                 {
@@ -1274,25 +1271,25 @@ namespace netxs::ui
             };
             if (props.tooltip_enabled)
             {
-                LISTEN(tier::general, e2::timer::any, now, tokens)
+                LISTEN(tier::general, e2::timer::any, now)
                 {
                     check_tooltips(now);
                 };
             }
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
+                LISTEN(tier::release, e2::form::size::minimize, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
+                LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
-                LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
+                LISTEN(tier::release, hids::events::mouse::button::any, gear, -, (isvtm))
                 {
                     using button = hids::events::mouse::button;
                     auto forward = faux;
@@ -1303,7 +1300,7 @@ namespace netxs::ui
                     {
                         return; // Pass event to the hall.
                     }
-                    if (fullscreen && events::subevent(cause, button::drag::any.id)) // Enable left drag in fullscreen mode.
+                    if (fullscreen && events::subevent(cause, button::drag::any.id)) // Enable left drag in GUI fullscreen mode.
                     {
                         return; // Pass event to the hall.
                     }
@@ -1332,36 +1329,36 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                LISTEN(tier::release, e2::config::fps, fps, tokens)
+                LISTEN(tier::release, e2::config::fps, fps)
                 {
                     if (fps > 0) this->bell::signal(tier::general, e2::config::fps, fps);
                 };
-                LISTEN(tier::preview, e2::config::fps, fps, tokens)
+                LISTEN(tier::preview, e2::config::fps, fps)
                 {
                     conio.fps.send(canal, fps);
                 };
-                LISTEN(tier::preview, e2::form::prop::cwd, path, tokens)
+                LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     conio.cwd.send(canal, path);
                 };
-                LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
+                LISTEN(tier::preview, hids::events::mouse::button::click::any, gear)
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::preview, e2::form::layout::expose, item, tokens)
+                LISTEN(tier::preview, e2::form::layout::expose, item)
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::preview, e2::form::layout::swarp, warp, tokens)
+                LISTEN(tier::preview, e2::form::layout::swarp, warp)
                 {
                     conio.warping.send(canal, 0, warp);
                 };
-                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);

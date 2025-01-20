@@ -746,7 +746,7 @@ namespace netxs::app::vtm
             //    ask_what = what;
             //};
 
-            LISTEN(tier::release, hids::events::focus::set::any, seed, tokens) // Any: To run prior the ui::gate's hids::events::focus::any.
+            LISTEN(tier::release, hids::events::focus::set::any, seed) // Any: To run prior the ui::gate's hids::events::focus::any.
             {
                 if (seed.treeid)
                 {
@@ -763,7 +763,7 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::request, hids::events::focus::cut, seed, tokens, (treeid = datetime::uniqueid(), digest = ui64{}))
+            LISTEN(tier::request, hids::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
                 if (what.applet)
                 {
@@ -783,12 +783,12 @@ namespace netxs::app::vtm
                 }
             };
 
-            LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr, tokens)
+            LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
             {
                 nexthop = world_ptr;
             };
 
-            LISTEN(tier::release, e2::render::any, canvas, tokens)
+            LISTEN(tier::release, e2::render::any, canvas)
             {
                 if (&canvas != &xmap) // Draw a shadow of user's gate for other users.
                 {
@@ -805,7 +805,7 @@ namespace netxs::app::vtm
                     canvas.bump(saved_context);
                 }
             };
-            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
+            LISTEN(tier::release, e2::postrender, parent_canvas)
             {
                 if (&parent_canvas != &xmap)
                 {

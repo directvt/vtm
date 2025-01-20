@@ -878,11 +878,10 @@ namespace netxs::app::shared
         gate.bell::dequeue();
         gate.bell::signal(tier::general, e2::config::fps, 0);
         config_lock.lock();
-        auto& mouse = gate.plugins<pro::mouse>();
-        mouse.reset();
-        gate.tokens.reset();
+        gate.plugins<pro::mouse>().reset();
+        gate_ptr.reset();
         server->shut();
-        client->shut(); //todo revise deadlock when closing term inside desktop by X close button.
+        client->shut();
         thread.join();
     }
 }
