@@ -592,7 +592,7 @@ namespace netxs::app::vtm
     }
 
     // vtm: User gate.
-    struct gate
+    struct user
         : public ui::gate
     {
         wptr    saved;// align: .
@@ -719,7 +719,7 @@ namespace netxs::app::vtm
             what.applet.reset();
         }
 
-        gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+        user(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
             //todo local=>nexthop
@@ -1056,9 +1056,9 @@ namespace netxs::app::vtm
             desk::usrs& usrs = *usrs_ptr;
             desk::menu& menu = *menu_ptr;
 
-            void append(sptr user)
+            void append(sptr usergate_ptr)
             {
-                usrs.push_back(user);
+                usrs.push_back(usergate_ptr);
             }
             auto remove(sptr item_ptr)
             {
@@ -1556,9 +1556,9 @@ namespace netxs::app::vtm
             if (args)
             {
                 selected_item = args;
-                for (auto user : dbase.usrs)
+                for (auto usergate_ptr : dbase.usrs)
                 {
-                    user->bell::signal(tier::release, e2::data::changed, selected_item);
+                    usergate_ptr->bell::signal(tier::release, e2::data::changed, selected_item);
                 }
                 return "ok"s;
             }
@@ -2254,10 +2254,10 @@ namespace netxs::app::vtm
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
-            auto user_ptr = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
-            auto& usergate = *user_ptr;
-            users.append(user_ptr);
-            dbase.append(user_ptr);
+            auto usergate_ptr = hall::ctor<gate>(client, userid, vtmode, app_config, session_id);
+            auto& usergate = *usergate_ptr;
+            users.append(usergate_ptr);
+            dbase.append(usergate_ptr);
             os::ipc::users = users.size();
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
