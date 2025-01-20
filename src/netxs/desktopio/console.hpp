@@ -659,6 +659,12 @@ namespace netxs::ui
         {
             if (damaged)
             {
+                if (applet) // Render taskbar/standalone app.
+                if (auto context = canvas.change_basis(base::area()))
+                {
+                    applet->render(canvas);
+                }
+
                 if (!direct && props.clip_preview_show)
                 {
                     draw_clipboard_preview(stamp);

@@ -2334,66 +2334,46 @@ namespace netxs::app::vtm
                 auto timestamp = datetime::now();
                 // Do not wait timer tick.
                 auto damaged = true;
+                auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
                 if (damaged)
                 {
-                    auto& canvas = usergate.canvas;
-                    canvas.wipe(this->id);
-                    if (usergate.fullscreen.applet)
-                    {
-                        if (auto context = canvas.change_basis(usergate.base::area()))
-                        {
-                            usergate.fullscreen.applet->render(canvas);
-                        }
-                    }
-                    else
+                    usergate.canvas.wipe(this->id);
+                    if (!fullscreen_mode)
                     {
                         if (usergate.props.background_image.size())
                         {
                             //todo cache background
-                            canvas.tile(usergate.props.background_image, cell::shaders::fuse);
+                            usergate.canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
-                        redraw(canvas); // Draw the hall to the canvas.
-                        if (usergate.applet) // Render main menu/application.
-                        if (auto context = canvas.change_basis(usergate.base::area()))
-                        {
-                            usergate.applet->render(canvas);
-                        }
+                        redraw(usergate.canvas); // Draw the hall to the canvas.
                     }
                 }
+                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
+                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = base::ruined();//!host::debris.empty();
+                base::ruined(faux);
                 //host::debris.clear();
+                auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
                 if (damaged)
                 {
-                    auto& canvas = usergate.canvas;
-                    canvas.wipe(this->id);
-                    if (usergate.fullscreen.applet)
-                    {
-                        if (auto context = canvas.change_basis(usergate.base::area()))
-                        {
-                            usergate.fullscreen.applet->render(canvas);
-                        }
-                    }
-                    else
+                    usergate.canvas.wipe(this->id);
+                    if (!fullscreen_mode)
                     {
                         if (usergate.props.background_image.size())
                         {
                             //todo cache background
-                            canvas.tile(usergate.props.background_image, cell::shaders::fuse);
+                            usergate.canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
-                        redraw(canvas); // Draw the hall to the canvas.
-                        if (usergate.applet) // Render main menu/application.
-                        if (auto context = canvas.change_basis(usergate.base::area()))
-                        {
-                            usergate.applet->render(canvas);
-                        }
+                        redraw(usergate.canvas); // Draw the hall to the canvas.
                     }
                 }
+                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
-                base::ruined(faux);
+                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);

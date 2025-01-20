@@ -829,15 +829,7 @@ namespace netxs::app::shared
         gate.LISTEN(tier::general, e2::timer::any, timestamp)
         {
             auto damaged = gate.ruined();
-            if (damaged)
-            {
-                gate.canvas.wipe(gate.id);
-                if (gate.applet)
-                if (auto context = gate.canvas.change_basis(gate.base::area()))
-                {
-                    gate.applet->render(gate.canvas);
-                }
-            }
+            if (damaged) gate.canvas.wipe(gate.id);
             gate.rebuild_scene(damaged, timestamp);
         };
         gate.LISTEN(tier::release, e2::conio::winsz, new_size)
@@ -845,15 +837,7 @@ namespace netxs::app::shared
             auto timestamp = datetime::now();
             // Do not wait timer tick.
             auto damaged = true;
-            if (damaged)
-            {
-                gate.canvas.wipe(gate.id);
-                if (gate.applet)
-                if (auto context = gate.canvas.change_basis(gate.base::area()))
-                {
-                    gate.applet->render(gate.canvas);
-                }
-            }
+            if (damaged) gate.canvas.wipe(gate.id);
             gate.rebuild_scene(damaged, timestamp);
         };
         gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
