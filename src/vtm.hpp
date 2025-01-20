@@ -2348,9 +2348,9 @@ namespace netxs::app::vtm
                         redraw(usergate.canvas); // Draw the hall to the canvas.
                     }
                 }
-                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
+                if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
-                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
+                if (fullscreen_mode) usergate.subset.pop_back();
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
@@ -2371,13 +2371,13 @@ namespace netxs::app::vtm
                         redraw(usergate.canvas); // Draw the hall to the canvas.
                     }
                 }
-                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
+                if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
-                if (fullscreen_mode) std::swap(usergate.applet, usergate.fullscreen.applet);
+                if (fullscreen_mode) usergate.subset.pop_back();
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            usergate.attach(deskmenu);
+            usergate.attach(std::move(deskmenu));
             usergate.base::resize(usrcfg.win);
             if (vport) usergate.base::moveto(vport); // Restore user's last position.
             lock.unlock();

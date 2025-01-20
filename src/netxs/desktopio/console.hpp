@@ -481,7 +481,6 @@ namespace netxs::ui
         bool       fullscreen; // gate: .
         para       uname; // gate: Client name.
         text       uname_txt; // gate: Client name (original).
-        sptr       applet; // gate: Standalone application.
         wptr       nexthop; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
@@ -648,21 +647,22 @@ namespace netxs::ui
         }
 
         // gate: Attach a new item.
-        auto attach(sptr& item)
+        auto attach(sptr object)
         {
-            std::swap(applet, item);
-            if (local) nexthop = applet;
-            applet->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            base::subset.push_back(object);
+            object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            if (local) nexthop = object;
         }
         // gate: .
         void rebuild_scene(bool damaged, time stamp)
         {
             if (damaged)
             {
-                if (applet) // Render taskbar/standalone app.
+                if (base::subset.size()) // Render taskbar/standalone app.
                 if (auto context = canvas.change_basis(base::area()))
+                if (auto object = base::subset.back())
                 {
-                    applet->render(canvas);
+                    object->render(canvas);
                 }
 
                 if (!direct && props.clip_preview_show)
@@ -1346,14 +1346,10 @@ namespace netxs::ui
         // gate: .
         void inform(rect new_area) override
         {
-            // if (subset.size())
-            // if (auto object = subset.back())
-            // {
-            //     object->base::resize(new_area.size);
-            // }
-            if (applet)
+            if (base::subset.size())
+            if (auto object = base::subset.back())
             {
-                applet->base::resize(new_area.size);
+                object->base::resize(new_area.size);
             }
         }
     };

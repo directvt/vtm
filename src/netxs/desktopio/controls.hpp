@@ -4072,9 +4072,9 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
+                if (subset.size())
                 if (auto context = form::nested_context(parent_canvas))
                 {
-                    if (subset.size())
                     if (auto object = subset.back())
                     {
                         object->render(parent_canvas);
