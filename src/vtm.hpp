@@ -596,7 +596,7 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         wptr    saved;// align: .
-        applink what; // align: Original app window properties.
+        applink fullscreen; // align: Original app window properties.
         rect    prev; // align: Window size before the fullscreen has applied.
         twod    coor; // align: Coor tracking.
         subs    maxs; // align: Fullscreen event subscription token.
@@ -608,15 +608,15 @@ namespace netxs::app::vtm
             static constexpr auto size = __COUNTER__ - _counter;
             static constexpr auto coor = __COUNTER__ - _counter;
         };
-        void follow(applink& new_what)
+        void follow(applink& new_fullscreen)
         {
-            if (new_what.applet->subset.empty()) return;
-            auto gear_id_list = pro::focus::cut(new_what.applet);
-            prev = new_what.applet->base::area();
-            auto window_ptr = std::exchange(new_what.applet, new_what.applet->subset.front()); // Drop hosting window.
+            if (new_fullscreen.applet->subset.empty()) return;
+            auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
+            prev = new_fullscreen.applet->base::area();
+            auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
             window_ptr->base::detach();
-            what = new_what;
-            auto applet_ptr = what.applet;
+            fullscreen = new_fullscreen;
+            auto applet_ptr = fullscreen.applet;
             saved = std::exchange(nexthop, applet_ptr);
             applet_ptr->base::detach();
             auto new_pos = base::area();
@@ -624,10 +624,10 @@ namespace netxs::app::vtm
             applet_ptr->base::extend(new_pos);
             coor = applet_ptr->base::coor();
 
-            auto newhead = std::move(what.header);
-            auto newfoot = std::move(what.footer);
-            base::riseup(tier::request, e2::form::prop::ui::header, what.header);
-            base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+            auto newhead = std::move(fullscreen.header);
+            auto newfoot = std::move(fullscreen.footer);
+            base::riseup(tier::request, e2::form::prop::ui::header, fullscreen.header);
+            base::riseup(tier::request, e2::form::prop::ui::footer, fullscreen.footer);
             base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
             base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
@@ -642,7 +642,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::area, new_area, memo)
             {
                 if (new_area.coor != base::coor()) unbind();
-                else what.applet->base::resize(new_area.size);
+                else fullscreen.applet->base::resize(new_area.size);
             };
             LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
             {
@@ -651,7 +651,7 @@ namespace netxs::app::vtm
             };
             applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
             {
-                auto deed = what.applet->bell::protos(tier::preview);
+                auto deed = fullscreen.applet->bell::protos(tier::preview);
                 if (deed == e2::form::size::enlarge::maximize.id)
                 {
                     unbind();
@@ -659,13 +659,13 @@ namespace netxs::app::vtm
             };
             applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
             {
-                what.applet->bell::expire(tier::release); // Suppress hide/minimization.
+                fullscreen.applet->bell::expire(tier::release); // Suppress hide/minimization.
                 unbind();
             };
             applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
             {
                 unbind();
-                bell::expire(tier::release, true); //todo revise: applet_ptr(what.applet) or boss?
+                bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
             };
             applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
             {
@@ -684,20 +684,20 @@ namespace netxs::app::vtm
             if (!memo) return;
             nexthop = std::exchange(saved, wptr{});
             memo.clear();
-            auto prev_header = std::move(what.header);
-            auto prev_footer = std::move(what.footer);
-            base::riseup(tier::request, e2::form::prop::ui::header, what.header);
-            base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
+            auto prev_header = std::move(fullscreen.header);
+            auto prev_footer = std::move(fullscreen.footer);
+            base::riseup(tier::request, e2::form::prop::ui::header, fullscreen.header);
+            base::riseup(tier::request, e2::form::prop::ui::footer, fullscreen.footer);
             base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
             base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
             if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
-                auto gear_id_list = pro::focus::cut(what.applet);
-                what.applet->base::detach();
-                world_ptr->bell::signal(tier::request, vtm::events::handoff, what);
-                pro::focus::set(what.applet, gear_id_list, solo::on, true);
+                auto gear_id_list = pro::focus::cut(fullscreen.applet);
+                fullscreen.applet->base::detach();
+                world_ptr->bell::signal(tier::request, vtm::events::handoff, fullscreen);
+                pro::focus::set(fullscreen.applet, gear_id_list, solo::on, true);
             }
-            if (auto window_ptr = what.applet->base::parent())
+            if (auto window_ptr = fullscreen.applet->base::parent())
             {
                 auto& window = *window_ptr;
                 switch (restore)
@@ -716,7 +716,7 @@ namespace netxs::app::vtm
                     }
                 }
             }
-            what.applet.reset();
+            fullscreen.applet.reset();
         }
 
         user(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
@@ -730,20 +730,20 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
             keybd.bind(bindings);
 
-            LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
+            LISTEN(tier::release, vtm::events::gate::fullscreen, new_fullscreen, maxs)
             {
-                if (what.applet)
+                if (fullscreen.applet)
                 {
                     unbind();
                 }
-                if (new_what.applet)
+                if (new_fullscreen.applet)
                 {
-                    follow(new_what);
+                    follow(new_fullscreen);
                 }
             };
-            //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_what, maxs)
+            //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_fullscreen, maxs)
             //{
-            //    ask_what = what;
+            //    ask_fullscreen = fullscreen;
             //};
 
             LISTEN(tier::release, hids::events::focus::set::any, seed) // Any: To run prior the ui::gate's hids::events::focus::any.
@@ -765,7 +765,7 @@ namespace netxs::app::vtm
             //todo mimic pro::focus
             LISTEN(tier::request, hids::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
-                if (what.applet)
+                if (fullscreen.applet)
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
@@ -776,7 +776,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 seed.gear_id = gear_id;
-                                what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
+                                fullscreen.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -2331,17 +2331,18 @@ namespace netxs::app::vtm
             };
             usergate.LISTEN(tier::release, e2::conio::winsz, new_size)
             {
+                auto timestamp = datetime::now();
                 // Do not wait timer tick.
                 auto damaged = true;
                 if (damaged)
                 {
                     auto& canvas = usergate.canvas;
                     canvas.wipe(this->id);
-                    if (usergate.what.applet)
+                    if (usergate.fullscreen.applet)
                     {
                         if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            usergate.what.applet->render(canvas);
+                            usergate.fullscreen.applet->render(canvas);
                         }
                     }
                     else
@@ -2351,7 +2352,7 @@ namespace netxs::app::vtm
                             //todo cache background
                             canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
-                        redraw(canvas); // Put the rest of the world on my canvas.
+                        redraw(canvas); // Draw the hall to the canvas.
                         if (usergate.applet) // Render main menu/application.
                         if (auto context = canvas.change_basis(usergate.base::area()))
                         {
@@ -2359,7 +2360,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                usergate.rebuild_scene(damaged);
+                usergate.rebuild_scene(damaged, timestamp);
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
@@ -2369,11 +2370,11 @@ namespace netxs::app::vtm
                 {
                     auto& canvas = usergate.canvas;
                     canvas.wipe(this->id);
-                    if (usergate.what.applet)
+                    if (usergate.fullscreen.applet)
                     {
                         if (auto context = canvas.change_basis(usergate.base::area()))
                         {
-                            usergate.what.applet->render(canvas);
+                            usergate.fullscreen.applet->render(canvas);
                         }
                     }
                     else
@@ -2383,7 +2384,7 @@ namespace netxs::app::vtm
                             //todo cache background
                             canvas.tile(usergate.props.background_image, cell::shaders::fuse);
                         }
-                        redraw(canvas); // Put the rest of the world on my canvas.
+                        redraw(canvas); // Draw the hall to the canvas.
                         if (usergate.applet) // Render main menu/application.
                         if (auto context = canvas.change_basis(usergate.base::area()))
                         {
@@ -2391,7 +2392,8 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                usergate.rebuild_scene(damaged);
+                usergate.rebuild_scene(damaged, timestamp);
+                base::ruined(faux);
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);

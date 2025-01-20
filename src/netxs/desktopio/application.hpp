@@ -838,10 +838,11 @@ namespace netxs::app::shared
                     gate.applet->render(gate.canvas);
                 }
             }
-            gate.rebuild_scene(damaged);
+            gate.rebuild_scene(damaged, timestamp);
         };
         gate.LISTEN(tier::release, e2::conio::winsz, new_size)
         {
+            auto timestamp = datetime::now();
             // Do not wait timer tick.
             auto damaged = true;
             if (damaged)
@@ -853,7 +854,7 @@ namespace netxs::app::shared
                     gate.applet->render(gate.canvas);
                 }
             }
-            gate.rebuild_scene(damaged);
+            gate.rebuild_scene(damaged, timestamp);
         };
         gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
         //todo deduplicate (vtm::hall)

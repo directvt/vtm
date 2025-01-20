@@ -2721,7 +2721,6 @@ namespace netxs::ui
             cell  stress;
             page  status;
             escx  coder;
-            bool  bypass = faux;
 
             struct
             {
@@ -2819,7 +2818,6 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {
-                    if (bypass) return;
                     shadow();
                     status[prop::last_event].set(stress) = "mouse";
                     status[prop::mouse_pos ].set(stress) =

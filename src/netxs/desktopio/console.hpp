@@ -311,8 +311,8 @@ namespace netxs::ui
             {
                 abort = true;
             }
-            // diff: Obtain new content to render.
-            auto commit(core const& canvas)
+            // diff: Try to add the touched canvas image to the queue for analysis and sending detected differences.
+            auto send(core const& canvas)
             {
                 if (abort)
                 {
@@ -485,6 +485,7 @@ namespace netxs::ui
         wptr       nexthop; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
+        pro::debug debug{ *this };
 
         void forward(auto& device)
         {
@@ -654,15 +655,10 @@ namespace netxs::ui
             applet->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
         }
         // gate: .
-        void rebuild_scene(bool damaged)
+        void rebuild_scene(bool damaged, time stamp)
         {
-            auto stamp = datetime::now();
             if (damaged)
             {
-                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
-                {
-                    draw_mouse_pointer(canvas);
-                }
                 if (!direct && props.clip_preview_show)
                 {
                     draw_clipboard_preview(stamp);
@@ -674,8 +670,11 @@ namespace netxs::ui
                 }
                 if (props.debug_overlay)
                 {
-                    auto& debug = plugins<pro::debug>();
                     debug.output(canvas);
+                }
+                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
+                {
+                    draw_mouse_pointer(canvas);
                 }
                 if (props.show_regions)
                 {
@@ -705,18 +704,10 @@ namespace netxs::ui
                 }
                 if (yield) return;
             }
+            yield = paint.send(canvas); // Try to output updated canvas if paint is not busy.
 
-            // Note: We have to fire a mouse move event every frame,
-            //       because in the global frame the mouse can stand still,
-            //       but any form can move under the cursor, so for the form itself,
-            //       the mouse cursor moves inside the form.
-            if (props.debug_overlay)
+            if (props.debug_overlay) // Get rendering stats.
             {
-                auto& debug = plugins<pro::debug>();
-                debug.bypass = true;
-                fire(hids::events::mouse::move.id);
-                debug.bypass = faux;
-                yield = paint.commit(canvas);
                 if (yield)
                 {
                     auto d = paint.status();
@@ -724,11 +715,12 @@ namespace netxs::ui
                 }
                 debug.update(stamp);
             }
-            else
-            {
-                fire(hids::events::mouse::move.id);
-                yield = paint.commit(canvas); // Try to output a fresh canvas if it is not busy.
-            }
+            // Note: We have to fire a mouse move event every frame,
+            //       because in the global frame the mouse can stand still,
+            //       but any form can move under the cursor, so for the form itself,
+            //       the mouse cursor moves inside the form.
+            base::ruined(faux);
+            fire(hids::events::mouse::move.id);
         }
         // gate: Rx loop.
         void launch()
@@ -757,7 +749,6 @@ namespace netxs::ui
 
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
-            auto& debug = plugins<pro::debug>();
             auto& luafx = plugins<pro::luafx>();
             auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
