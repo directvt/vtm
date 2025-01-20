@@ -545,8 +545,8 @@ namespace netxs::ui
         }
         void draw_foreign_names(face& parent_canvas)
         {
-            auto& header = *uname.lyric;
-            auto  half_x = header.size().x / 2;
+            auto& user_name = *uname.lyric;
+            auto  half_x = user_name.size().x / 2;
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
@@ -554,8 +554,8 @@ namespace netxs::ui
                 auto coor = twod{ gear.coord };
                 coor.y -= 1;
                 coor.x -= half_x;
-                header.move(coor);
-                parent_canvas.fill(header, cell::shaders::fuse);
+                user_name.move(coor);
+                parent_canvas.fill(user_name, cell::shaders::fuse);
             }
         }
         void draw_mouse_pointer(face& parent_canvas)
@@ -676,35 +676,6 @@ namespace netxs::ui
                 {
                     auto& debug = plugins<pro::debug>();
                     debug.output(canvas);
-                    if constexpr (debugmode) // Red channel histogram.
-                    if (gears.size())
-                    {
-                        auto& [gear_id, gear_ptr] = *gears.begin();
-                        if (gear_ptr->meta(hids::ScrlLock)) 
-                        {
-                            auto hist = page{};
-                            hist.brush.bgc(0x80ffffff);
-                            auto full = canvas.full();
-                            auto area = canvas.area();
-                            canvas.area({ dot_00, area.size });
-                            auto coor = gear_ptr->coord;
-                            for (auto x = 0; x < area.size.y; x++)
-                            {
-                                auto xy = coor + twod{ x - area.size.y/2, 0 };
-                                auto has_value = xy.x > 0 && xy.x < canvas.size().x;
-                                if (has_value) utf::repeat(" ", canvas[xy].bgc().chan.r);
-                                hist += "\n"s;
-                            }
-                            auto full_area = full;
-                            full_area.coor = {};
-                            full_area.size.x = dot_mx.x; // Prevent line wrapping.
-                            canvas.full(full_area);
-                            canvas.cup(dot_00);
-                            canvas.output(hist, cell::shaders::blend);
-                            canvas.area(area);
-                            canvas.full(full);
-                        }
-                    }
                 }
                 if (props.show_regions)
                 {
