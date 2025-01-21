@@ -660,38 +660,39 @@ namespace netxs::ui
             {
                 if (base::subset.size()) // Render taskbar/standalone app.
                 if (auto context = canvas.change_basis(base::area()))
-                if (auto object = base::subset.back())
                 {
-                    object->render(canvas);
-                }
-
-                if (!direct && props.clip_preview_show)
-                {
-                    draw_clipboard_preview(stamp);
-                }
-                if (props.tooltip_enabled)
-                {
-                    if (direct) send_tooltips();
-                    else        draw_tooltips(stamp);
-                }
-                if (props.debug_overlay)
-                {
-                    debug.output(canvas);
-                }
-                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
-                {
-                    draw_mouse_pointer(canvas);
-                }
-                if (props.show_regions)
-                {
-                    canvas.each([](cell& c)
+                    if (auto object = base::subset.back())
                     {
-                        auto mark = argb{ argb::vt256[c.link() % 256] };
-                        auto bgc = c.bgc();
-                        mark.alpha(64);
-                        bgc.mix(mark);
-                        c.bgc(bgc);
-                    });
+                        object->render(canvas);
+                    }
+                    if (!direct && props.clip_preview_show)
+                    {
+                        draw_clipboard_preview(stamp);
+                    }
+                    if (props.tooltip_enabled)
+                    {
+                        if (direct) send_tooltips();
+                        else        draw_tooltips(stamp);
+                    }
+                    if (props.debug_overlay)
+                    {
+                        debug.output(canvas);
+                    }
+                    if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
+                    {
+                        draw_mouse_pointer(canvas);
+                    }
+                    if (props.show_regions)
+                    {
+                        canvas.each([](cell& c)
+                        {
+                            auto mark = argb{ argb::vt256[c.link() % 256] };
+                            auto bgc = c.bgc();
+                            mark.alpha(64);
+                            bgc.mix(mark);
+                            c.bgc(bgc);
+                        });
+                    }
                 }
             }
             else
