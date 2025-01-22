@@ -3406,14 +3406,14 @@ namespace netxs::ui
     class fork
         : public form<fork>
     {
-        sptr& object_1; // fork: 1st object.
-        sptr& object_2; // fork: 2nd object.
-        sptr& splitter; // fork: Resizing grip object.
         rect  griparea; // fork: Resizing grip region.
         axis  rotation; // fork: Fork orientation.
         si32  fraction; // fork: Ratio between objects.
         bool  adaptive; // fork: Fixed ratio.
 
+        auto& object_1() { assert(base::subset.size() > 2); return base::subset[0]; } // fork: 1st object.
+        auto& object_2() { assert(base::subset.size() > 2); return base::subset[1]; } // fork: 2nd object.
+        auto& splitter() { assert(base::subset.size() > 2); return base::subset[2]; } // fork: Resizing grip object.
         auto xpose(twod p)
         {
             return rotation == axis::X ? p : twod{ p.y, p.x };
@@ -3457,9 +3457,9 @@ namespace netxs::ui
                 {
                     size1_x = split_x;
                     size1_y = newsz_y;
-                    if (object_1)
+                    if (auto& o = object_1())
                     {
-                        object_1->base::recalc(region_1);
+                        o->base::recalc(region_1);
                         split_x = size1_x;
                         newsz_y = size1_y;
                     }
@@ -3468,9 +3468,9 @@ namespace netxs::ui
                     coor2_x = split_x + size3_x;
                     coor2_y = 0;
                     auto test_size2 = region_2.size;
-                    if (object_2)
+                    if (auto& o = object_2())
                     {
-                        object_2->base::recalc(region_2);
+                        o->base::recalc(region_2);
                         newsz_y = size2_y;
                     }
                     return test_size2 == region_2.size;
@@ -3487,7 +3487,7 @@ namespace netxs::ui
             auto& new_size = new_area.size;
             rotation == axis::X ? meter(new_size.x, new_size.y, region_1.size.x, region_1.size.y, region_2.coor.x, region_2.coor.y, region_2.size.x, region_2.size.y, region_3.coor.x, region_3.coor.y, region_3.size.x, region_3.size.y)
                                 : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
-            if (splitter) splitter->base::recalc(region_3);
+            if (auto& o = splitter()) o->base::recalc(region_3);
             griparea = region_3;
         }
         // fork: .
@@ -3500,21 +3500,18 @@ namespace netxs::ui
             region_1.coor += new_area.coor;
             region_2.coor += new_area.coor;
             region_3.coor += new_area.coor;
-            if (object_1) object_1->base::notify(region_1);
-            if (object_2) object_2->base::notify(region_2);
-            if (splitter) splitter->base::notify(region_3);
+            if (auto& o = object_1()) o->base::notify(region_1);
+            if (auto& o = object_2()) o->base::notify(region_2);
+            if (auto& o = splitter()) o->base::notify(region_3);
             adaptive = faux;
         }
 
     public:
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
             : form{ 3 },
-              object_1{ base::subset[0] },
-              object_2{ base::subset[1] },
-              splitter{ base::subset[2] },
-              rotation{ },
-              fraction{ },
-              adaptive{ }
+              rotation{},
+              fraction{},
+              adaptive{}
         {
             _config(orientation, grip_width, s1, s2);
             LISTEN(tier::preview, e2::form::layout::swarp, warp)
@@ -3526,9 +3523,9 @@ namespace netxs::ui
             {
                 if (auto context = form::nested_context(parent_canvas))
                 {
-                    if (splitter) splitter->render(parent_canvas);
-                    if (object_1) object_1->render(parent_canvas);
-                    if (object_2) object_2->render(parent_canvas);
+                    if (auto& o = splitter()) o->render(parent_canvas);
+                    if (auto& o = object_1()) o->render(parent_canvas);
+                    if (auto& o = object_2()) o->render(parent_canvas);
                 }
             };
         }
@@ -3583,16 +3580,16 @@ namespace netxs::ui
         // fork: .
         void swap()
         {
-            std::swap(object_1, object_2);
+            std::swap(object_1(), object_2());
             base::reflow();
         }
         // fork: .
         void move_slider(si32 step)
         {
-            if (splitter)
+            if (auto& o = splitter())
             {
                 auto delta = std::max(dot_11, griparea.size) * xpose({ step, 0 });
-                splitter->bell::signal(tier::preview, e2::form::upon::changed, delta);
+                o->bell::signal(tier::preview, e2::form::upon::changed, delta);
             }
         }
         // fork: .
@@ -3600,19 +3597,19 @@ namespace netxs::ui
         {
             if (Slot == slot::_1)
             {
-                if (object_1) remove(object_1);
-                object_1 = item_ptr;
+                if (auto& o = object_1()) remove(o);
+                object_1() = item_ptr;
             }
             else if (Slot == slot::_2)
             {
-                if (object_2) remove(object_2);
-                object_2 = item_ptr;
+                if (auto& o = object_2()) remove(o);
+                object_2() = item_ptr;
             }
             else if (Slot == slot::_I)
             {
-                if (splitter) remove(splitter);
-                splitter = item_ptr;
-                splitter->LISTEN(tier::preview, e2::form::upon::changed, delta)
+                if (auto& o = splitter()) remove(o);
+                splitter() = item_ptr;
+                item_ptr->LISTEN(tier::preview, e2::form::upon::changed, delta)
                 {
                     auto split = xpose(griparea.coor + delta).x;
                     auto limit = xpose(base::size() - griparea.size).x;
@@ -3626,9 +3623,9 @@ namespace netxs::ui
         // fork: Remove nested object by it's ptr.
         void remove(sptr item_ptr) override
         {
-            if (object_1 == item_ptr ? ((void)object_1.reset(), true) :
-                object_2 == item_ptr ? ((void)object_2.reset(), true) :
-                splitter == item_ptr ? ((void)splitter.reset(), true) : faux)
+            if (object_1() == item_ptr ? ((void)object_1().reset(), true) :
+                object_2() == item_ptr ? ((void)object_2().reset(), true) :
+                splitter() == item_ptr ? ((void)splitter().reset(), true) : faux)
             {
                 auto backup = This();
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);

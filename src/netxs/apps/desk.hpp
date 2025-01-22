@@ -557,7 +557,12 @@ namespace netxs::app::desk
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }, usrcfg))
                 {
                     if (!parent_ptr) return;
-                    auto& parent = *parent_ptr;
+                    auto& parent = *parent_ptr; //todo This is ui::gate.
+                    auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
+                    assert(boss.subset.size() == 3);
+                    //todo revise (focus tree)
+                    //boss.subset.push_back(world_ptr);
+                    auto& world = *world_ptr;
                     current_default  = selected;
                     previous_default = selected;
                     ground->bell::signal(tier::release, e2::form::upon::vtree::attached, parent_ptr);
@@ -583,21 +588,33 @@ namespace netxs::app::desk
                             current_default = new_default;
                         }
                     };
-                    parent.LISTEN(tier::release, e2::area, new_area, boss.relyon)
+                    boss.LISTEN(tier::release, e2::area, new_area)
                     {
                         if (ground->size() != new_area.size)
                         {
                             ground->base::resize(new_area.size);
                         }
                         auto viewport = new_area - dent{ menu_min_size };
-                        parent.bell::signal(tier::release, e2::form::prop::viewport, viewport);
+                        boss.base::riseup(tier::release, e2::form::prop::viewport, viewport);
                     };
-                    parent.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, boss.relyon)
+                    boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
                     {
-                        if (parent.id == parent_canvas.mark().link())
-                        {
-                            ground->render(parent_canvas);
-                        }
+                        ground->render(parent_canvas);
+                        //todo unify
+                        auto area = parent_canvas.area();
+                        auto clip = parent_canvas.clip();
+                        auto full = parent_canvas.full();
+                        auto temp_area = std::exchange(world.region.size, parent.region.size);
+                        parent_canvas.move(parent.region.coor);
+                        parent_canvas.clip(parent.region);
+                        parent_canvas.full(parent.region);
+                        //world.render(parent_canvas);
+                        world.bell::signal(tier::release, e2::render::background::prerender, parent_canvas);
+                        world.bell::signal(tier::release, e2::postrender, parent_canvas);
+                        world.region.size = temp_area;
+                        parent_canvas.area(area);
+                        parent_canvas.clip(clip);
+                        parent_canvas.full(full);
                     };
                     parent.LISTEN(tier::request, e2::form::prop::viewport, viewport, boss.relyon)
                     {

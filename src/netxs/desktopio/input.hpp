@@ -1616,9 +1616,7 @@ namespace netxs::input
         auto tooltip_check(time now) // Called every timer tick.
         {
             if (tooltip_stop) return faux;
-            if (!tooltip_show
-             &&  tooltip_time < now
-             && !captured())
+            if (!tooltip_show && tooltip_time < now && !captured())
             {
                 tooltip_show = true;
                 if (tooltip_digest != digest)

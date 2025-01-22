@@ -286,8 +286,6 @@ namespace netxs::app::vtm
             using skill::boss,
                   skill::memo;
 
-            cell mark;
-
             struct slot_t
             {
                 rect slot{};
@@ -317,7 +315,6 @@ namespace netxs::app::vtm
                     auto& slot = data.slot;
                     auto& init = data.init;
                     auto& step = data.step;
-
                     data.ctrl = gear.meta(hids::anyCtrl);
                     slot.coor = init = step = gear.click;
                     slot.size = dot_00;
@@ -361,7 +358,6 @@ namespace netxs::app::vtm
                     if (data.slot)
                     {
                         gear.slot = data.slot;
-                        gear.slot.coor += boss.base::coor();
                         gear.slot_forced = true;
                         if (gear.meta(hids::anyCtrl))
                         {
@@ -383,8 +379,7 @@ namespace netxs::app::vtm
         public:
             maker(base&&) = delete;
             maker(base& boss)
-                : skill{ boss },
-                   mark{ cell{ skin::color(tone::brighter) }.txt(" ") }
+                : skill{ boss }
             {
                 using drag = hids::events::mouse::button::drag;
 
@@ -439,7 +434,6 @@ namespace netxs::app::vtm
 
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
-                    //todo Highlighted area drawn twice
                     for (auto const& [key, data] : slots)
                     {
                         auto slot = data.slot;
@@ -458,23 +452,24 @@ namespace netxs::app::vtm
                                 auto caption = para(coder);
                                 coder.clear();
                                 auto header = *caption.lyric;
-                                auto coor = area.coor + canvas.coor();
+                                auto coor = area.coor;
                                 coor.y--;
                                 header.move(coor);
                                 canvas.fill(header, cell::shaders::contrast);
                             }
                             else
                             {
+                                auto mark = cell{ skin::color(tone::brighter) }.txt(" ");
                                 auto temp = canvas.clip();
                                 canvas.clip(area);
                                 canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
                                 canvas.blur(5, cache);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
-                                auto caption = para(coder);
+                                auto caption = para{ coder };
                                 coder.clear();
                                 auto header = *caption.lyric;
-                                auto coor = area.coor + area.size + canvas.coor();
+                                auto coor = area.coor + area.size;
                                 coor.x -= caption.length() - 1;
                                 header.move(coor);
                                 canvas.fill(header, cell::shaders::contrast);
@@ -787,35 +782,6 @@ namespace netxs::app::vtm
             {
                 nexthop = world_ptr;
             };
-
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                if (&parent_canvas != &canvas) // Draw a shadow of user's gate for other users.
-                {
-                    auto gate_area = parent_canvas.full();
-                    if (parent_canvas.cmode != svga::vt16 && parent_canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
-                    {
-                        //todo revise
-                        auto mark = skin::color(tone::shadower);
-                        mark.bga(mark.bga() / 2);
-                        parent_canvas.fill(gate_area, [&](cell& c){ c.fuse(mark); });
-                    }
-                    auto saved_context = parent_canvas.bump(dent{ 0,0,1,0 });
-                    parent_canvas.output(uname, dot_00, cell::shaders::contrast);
-                    parent_canvas.bump(saved_context);
-                }
-            };
-            LISTEN(tier::release, e2::postrender, parent_canvas)
-            {
-                if (&parent_canvas != &canvas)
-                {
-                    if (uname.lyric) // Render foreign user names at their place.
-                    {
-                        draw_foreign_names(parent_canvas);
-                    }
-                    draw_mouse_pointer(parent_canvas);
-                }
-            };
         }
     };
 
@@ -833,6 +799,10 @@ namespace netxs::app::vtm
             zpos z_order = zpos::plain;
             id_t monoid = {};
             subs tokens;
+
+            //todo usergate specific
+            para uname; // : Client name.
+            text uname_txt; // : Client name (original).
 
             node(sptr item)
                 : object{ item }
@@ -864,33 +834,16 @@ namespace netxs::app::vtm
                 };
                 inst.bell::signal(tier::request, e2::form::state::mouse, active);
                 inst.bell::signal(tier::request, e2::form::state::color, color);
-            }
-            // hall::node: Draw a navigation string.
-            void fasten(face& canvas)
-            {
-                auto window = canvas.area();
-                auto center = object->region.center();
-                if (window.hittest(center) || object->hidden) return;
-                auto origin = window.size / 2;
-                center -= window.coor;
-                //auto origin = twod{ 6, window.size.y - 3 };
-                //header.usable = window.overlap(region);
-                auto is_active = active || highlighted;
-                auto& grade = skin::grade(is_active ? color.active
-                                                    : color.passive);
-                auto obj_id = object->id;
-                auto pset = [&](twod p, si32 k)
+
+                //todo usergate specific
+                inst.LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
                 {
-                    //canvas[p].fuse(grade[k], obj_id, p - offset);
-                    //canvas[p].fuse(grade[k], obj_id);
-                    auto g = grade[k & 0xFF].bgc();
-                    auto& c = canvas[p];
-                    c.link(obj_id);
-                    c.bgc().mix_one(g);
-                    c.fgc().mix_one(g);
+                    uname = uname_txt = user_name;
                 };
-                window.coor = dot_00;
-                netxs::online(window, origin, center, pset);
+                inst.LISTEN(tier::request, e2::form::prop::name, user_name, tokens)
+                {
+                    user_name = uname_txt;
+                };
             }
         };
         struct list // hall: List of objects that can be reordered, etc.
@@ -925,51 +878,6 @@ namespace netxs::app::vtm
                     if (area) window.base::riseup(tier::release, e2::form::layout::bubble, area);
                 };
                 items.push_back(ptr::shared<node>(window_ptr));
-            }
-            //hall::list: Draw backpane for spectators.
-            void prerender(face& canvas)
-            {
-                if (size() > 1)
-                for (auto& item : items) item->fasten(canvas); // Draw strings.
-                for (auto& item : items) item->object->render(canvas, true, true, faux); // Draw shadows without postrendering.
-            }
-            //hall::list: .
-            auto visible(auto& item, face& canvas)
-            {
-                return !item->monoid || item->monoid == canvas.link();
-            }
-            //hall::list: .
-            auto maximized(auto& item, face& canvas)
-            {
-                return item->monoid == canvas.link();
-            }
-            //hall::list: Draw windows.
-            void render(face& canvas)
-            {
-                if (items.empty()) return;
-                auto head = items.begin();
-                auto tail = items.end();
-                auto iter = items.end();
-                while (iter != head)
-                {
-                    auto& item = *--iter;
-                    if (maximized(item, canvas)) break;
-                }
-                // Hide all windows behind maximized window.
-                auto has_maximized = head != iter || maximized(*iter, canvas);
-                if (!has_maximized)
-                {
-                    head = iter;
-                    while (head != tail) { auto& item = *head++; if (visible(item, canvas)) item->fasten(canvas); }
-                }
-                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render<true>(canvas); }
-                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render<true>(canvas); }
-                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render<true>(canvas); }
-            }
-            //hall::list: Draw spectator's mouse pointers.
-            void postrender(face& canvas)
-            {
-                for (auto& item : items) if (visible(item, canvas)) item->object->render(canvas, true, faux, true);
             }
             //hall::list: Delete all items.
             void reset()
@@ -1643,6 +1551,33 @@ namespace netxs::app::vtm
             bell::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
+        // hall: Draw a navigation string.
+        void fasten(sptr object, auto& highlighted, auto& item_is_active, auto& color, face& canvas)
+        {
+            auto window = canvas.area();
+            auto center = object->region.center();
+            if (window.hittest(center) || object->hidden) return;
+            auto origin = window.size / 2;
+            center -= window.coor;
+            //auto origin = twod{ 6, window.size.y - 3 };
+            //header.usable = window.overlap(region);
+            auto is_active = item_is_active || highlighted;
+            auto& grade = skin::grade(is_active ? color.active
+                                                : color.passive);
+            auto obj_id = object->id;
+            auto pset = [&](twod p, si32 k)
+            {
+                //canvas[p].fuse(grade[k], obj_id, p - offset);
+                //canvas[p].fuse(grade[k], obj_id);
+                auto g = grade[k & 0xFF].bgc();
+                auto& c = canvas[p];
+                c.link(obj_id);
+                c.bgc().mix_one(g);
+                c.fgc().mix_one(g);
+            };
+            window.coor = dot_00;
+            netxs::online(window, origin, center, pset);
+        }
 
     public:
         hall(xipc server, xmls def_config)
@@ -2181,6 +2116,101 @@ namespace netxs::app::vtm
                     fps = g.maxfps;
                 }
             };
+            LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                if (base::ruined()) // Force all gates to redraw.
+                {
+                    for (auto usergate_ptr : dbase.usrs)
+                    {
+                        usergate_ptr->base::ruined(true);
+                    }
+                    base::ruined(faux);
+                }
+            };
+            LISTEN(tier::release, e2::render::any, parent_canvas)
+            {
+                if (users.size() > 1) // Draw backpane for spectators.
+                {
+                    for (auto& item : users.items)
+                    {
+                        fasten(item->object, item->highlighted, item->active, item->color, parent_canvas); // Draw strings.
+                    }
+                    for (auto& item : users.items) // Draw shadows.
+                    {
+                        if (item->object->id != parent_canvas.link()) // Draw a shadow of user's gate for other users.
+                        {
+                            auto gate_area = item->object->area();
+                            if (parent_canvas.cmode != svga::vt16 && parent_canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
+                            {
+                                auto mark = skin::color(tone::shadower);
+                                mark.bga(mark.bga() / 2);
+                                parent_canvas.fill(gate_area, [&](cell& c){ c.blend(mark); });
+                            }
+                            gate_area.coor -= dot_01 + parent_canvas.coor();
+                            parent_canvas.output(item->uname, gate_area.coor, cell::shaders::contrast);
+                        }
+                    }
+                }
+                if (items.items.size()) // Draw objects of the world.
+                {
+                    auto visible = [&](auto& item)
+                    {
+                        return !item->monoid || item->monoid == parent_canvas.link();
+                    };
+                    auto maximized = [&](auto& item)
+                    {
+                        return item->monoid && item->monoid == parent_canvas.link();
+                    };
+                    auto head = items.items.begin();
+                    auto tail = items.items.end();
+                    auto iter = items.items.end();
+                    while (iter != head)
+                    {
+                        auto& item = *--iter;
+                        if (maximized(item)) break;
+                    }
+                    // Hide all windows behind maximized window.
+                    auto has_maximized = head != iter || maximized(*iter);
+                    if (!has_maximized)
+                    {
+                        head = iter;
+                        while (head != tail)
+                        {
+                            auto& item = *head++;
+                            if (visible(item))
+                            {
+                                fasten(item->object, item->highlighted, item->active, item->color, parent_canvas);
+                            }
+                        }
+                    }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::backmost) item->object->render<true>(parent_canvas); }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->object->render<true>(parent_canvas); }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->object->render<true>(parent_canvas); }
+                }
+                for (auto& item : users.items) // Draw user mouse pointers.
+                {
+                    if (item->object->id != parent_canvas.link())
+                    {
+                        auto& usergate = *(std::static_pointer_cast<gate>(item->object));
+                        if (item->uname.lyric) // Render foreign user names at their place.
+                        {
+                            auto& user_name = *item->uname.lyric;
+                            auto  half_x = user_name.size().x / 2;
+                            for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
+                            {
+                                auto& gear = *gear_ptr;
+                                if (gear.mouse_disabled) continue;
+                                auto coor = twod{ gear.coord } + gear.owner.coor();
+                                coor.y -= 1;
+                                coor.x -= half_x;
+                                user_name.move(coor);
+                                parent_canvas.fill(user_name, cell::shaders::fuse);
+                                usergate.fill_pointer(gear, parent_canvas);
+                            }
+                        }
+                    }
+                }
+            };
             bell::signal(tier::general, e2::config::fps, g.maxfps);
         }
 
@@ -2224,13 +2254,6 @@ namespace netxs::app::vtm
             }
         }
         // hall: .
-        void redraw(face& canvas)
-        {
-            users.prerender(canvas);  // Draw backpane for spectators.
-            items.render(canvas);     // Draw objects of the world.
-            users.postrender(canvas); // Draw spectator's mouse pointers.
-        }
-        // hall: .
         template<class P>
         void run(P process)
         {
@@ -2259,6 +2282,8 @@ namespace netxs::app::vtm
             users.append(usergate_ptr);
             dbase.append(usergate_ptr);
             os::ipc::users = users.size();
+            usergate.props.background_color.link(bell::id);
+            //todo revise (now world is not a parent for usergate)
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
 
@@ -2295,7 +2320,6 @@ namespace netxs::app::vtm
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
             };
-            //todo move it to the desk (dragging)
             auto drag_origin_ptr = ptr::shared<fp2d>();
             auto& drag_origin = *drag_origin_ptr;
             auto& user_mouse = usergate.plugins<pro::mouse>();
@@ -2332,45 +2356,17 @@ namespace netxs::app::vtm
             usergate.LISTEN(tier::release, e2::conio::winsz, new_size)
             {
                 auto timestamp = datetime::now();
-                // Do not wait timer tick.
+                // Do not wait next timer tick.
                 auto damaged = true;
                 auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
-                if (damaged)
-                {
-                    usergate.canvas.wipe(this->id);
-                    if (!fullscreen_mode)
-                    {
-                        if (usergate.props.background_image.size())
-                        {
-                            //todo cache background
-                            usergate.canvas.tile(usergate.props.background_image, cell::shaders::fuse);
-                        }
-                        redraw(usergate.canvas); // Draw the hall to the canvas.
-                    }
-                }
                 if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
-                auto damaged = base::ruined();//!host::debris.empty();
-                base::ruined(faux);
-                //host::debris.clear();
+                auto damaged = usergate.base::ruined();
                 auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
-                if (damaged)
-                {
-                    usergate.canvas.wipe(this->id);
-                    if (!fullscreen_mode)
-                    {
-                        if (usergate.props.background_image.size())
-                        {
-                            //todo cache background
-                            usergate.canvas.tile(usergate.props.background_image, cell::shaders::fuse);
-                        }
-                        redraw(usergate.canvas); // Draw the hall to the canvas.
-                    }
-                }
                 if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();

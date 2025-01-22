@@ -479,8 +479,6 @@ namespace netxs::ui
         bool       local; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         bool       fullscreen; // gate: .
-        para       uname; // gate: Client name.
-        text       uname_txt; // gate: Client name (original).
         wptr       nexthop; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
@@ -543,34 +541,22 @@ namespace netxs::ui
             if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
             return int_gear_id;
         }
-        void draw_foreign_names(face& parent_canvas)
-        {
-            auto& user_name = *uname.lyric;
-            auto  half_x = user_name.size().x / 2;
-            for (auto& [ext_gear_id, gear_ptr] : gears)
-            {
-                auto& gear = *gear_ptr;
-                if (gear.mouse_disabled) continue;
-                auto coor = twod{ gear.coord };
-                coor.y -= 1;
-                coor.x -= half_x;
-                user_name.move(coor);
-                parent_canvas.fill(user_name, cell::shaders::fuse);
-            }
-        }
-        void draw_mouse_pointer(face& parent_canvas)
+        void fill_pointer(hids& gear, face& parent_canvas)
         {
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
-            auto area = rect_11;
+            auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
+                                            : idle;
+            auto area = rect{ gear.owner.coor() + gear.coord, dot_11 };
+            parent_canvas.fill(area, cell::shaders::fuse(brush));
+        }
+        void draw_mouse_pointer(face& parent_canvas)
+        {
             for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                area.coor = gear.coord;
-                auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
-                                                : idle;
-                parent_canvas.fill(area, cell::shaders::fuse(brush));
+                fill_pointer(gear, parent_canvas);
             }
         }
         void draw_clipboard_preview(time const& stamp)
@@ -634,7 +620,7 @@ namespace netxs::ui
             }
             list.thing.sendby<true>(canal);
         }
-        void check_tooltips(time now)
+        auto check_tooltips(time now)
         {
             auto result = faux;
             for (auto& [ext_gear_id, gear_ptr] : gears)
@@ -643,7 +629,7 @@ namespace netxs::ui
                 if (gear.mouse_disabled) continue;
                 result |= gear.tooltip_check(now);
             }
-            if (result) base::strike();
+            return result;
         }
 
         // gate: Attach a new item.
@@ -656,14 +642,23 @@ namespace netxs::ui
         // gate: .
         void rebuild_scene(bool damaged, time stamp)
         {
+            if (props.tooltip_enabled)
+            {
+                damaged |= check_tooltips(stamp);
+            }
             if (damaged)
             {
-                if (base::subset.size()) // Render taskbar/standalone app.
                 if (auto context = canvas.change_basis(base::area()))
                 {
-                    if (auto object = base::subset.back())
+                    canvas.wipe(props.background_color);
+                    if (base::subset.size() == 1 && props.background_image.size()) // Taskbar only (no full screen app on top).
                     {
-                        object->render(canvas);
+                        //todo cache background
+                        canvas.tile(props.background_image, cell::shaders::fuse);
+                    }
+                    if (base::subset.size())
+                    {
+                        base::subset.back()->render(canvas);
                     }
                     if (!direct && props.clip_preview_show)
                     {
@@ -969,9 +964,9 @@ namespace netxs::ui
 
             base::root(true);
             base::limits(dot_11);
-
+            props.background_color.txt(whitespace).link(bell::id);
+            canvas.link(bell::id); // See hall::list::monoid.
             canvas.cmode = props.vtmode;
-            canvas.mark(props.background_color.txt(whitespace).link(bell::id));
             canvas.face::area(base::area());
             LISTEN(tier::release, e2::command::printscreen, gear)
             {
@@ -1096,14 +1091,6 @@ namespace netxs::ui
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
                 disconnect();
-            };
-            LISTEN(tier::release, e2::form::prop::name, user_name)
-            {
-                uname = uname_txt = user_name;
-            };
-            LISTEN(tier::request, e2::form::prop::name, user_name)
-            {
-                user_name = uname_txt;
             };
             LISTEN(tier::request, e2::form::prop::viewport, viewport)
             {
@@ -1238,13 +1225,6 @@ namespace netxs::ui
                 }
                 gear.dismiss();
             };
-            if (props.tooltip_enabled)
-            {
-                LISTEN(tier::general, e2::timer::any, now)
-                {
-                    check_tooltips(now);
-                };
-            }
             if (direct) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear)
