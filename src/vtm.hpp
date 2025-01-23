@@ -124,10 +124,6 @@ namespace netxs::app::vtm
                 {
                     appear(newpos);
                 };
-                //boss.LISTEN(tier::preview, e2::form::upon::moved, delta, memo)
-                //{
-                //    bubble();
-                //};
                 boss.LISTEN(tier::preview, e2::form::upon::changed, delta, memo)
                 {
                     boss.base::riseup(tier::preview, e2::form::layout::bubble);
@@ -867,15 +863,29 @@ namespace netxs::app::vtm
             void append(sptr window_ptr)
             {
                 auto& window = *window_ptr;
-                window.LISTEN(tier::preview, e2::form::layout::expose, area, -)
+                window.LISTEN(tier::preview, e2::form::layout::expose, area)
                 {
                     area = expose(window.id);
                     if (area) window.base::riseup(tier::release, e2::form::layout::expose, area);
                 };
-                window.LISTEN(tier::preview, e2::form::layout::bubble, area, -)
+                window.LISTEN(tier::preview, e2::form::layout::bubble, area)
                 {
-                    area = bubble(window.id);
-                    if (area) window.base::riseup(tier::release, e2::form::layout::bubble, area);
+                    auto head = items.rbegin();
+                    auto tail = items.rend();
+                    auto item = search(head, tail, window.id);
+                    if (item != head && item != tail)
+                    {
+                        area = (**item).object->region;
+                        if (!area.trim((**std::prev(item)).object->region))
+                        {
+                            auto shadow = *item;
+                            items.erase(std::next(item).base());
+                            while (--item != head && !area.trim((**std::prev(item)).object->region))
+                            { }
+                            items.insert(item.base(), shadow);
+                            window.base::strike();
+                        }
+                    }
                 };
                 items.push_back(ptr::shared<node>(window_ptr));
             }
@@ -896,31 +906,6 @@ namespace netxs::app::vtm
                     items.erase(item);
                 }
                 return area;
-            }
-            rect bubble(id_t item_id)
-            {
-                auto head = items.rbegin();
-                auto tail = items.rend();
-                auto item = search(head, tail, item_id);
-
-                if (item != head && item != tail)
-                {
-                    auto area = (**item).object->region;
-                    if (!area.trim((**std::prev(item)).object->region))
-                    {
-                        auto shadow = *item;
-                        items.erase(std::next(item).base());
-
-                        while (--item != head
-                            && !area.trim((**std::prev(item)).object->region))
-                        { }
-
-                        items.insert(item.base(), shadow);
-                        return area;
-                    }
-                }
-
-                return rect_00;
             }
             rect expose(id_t item_id)
             {
@@ -1909,16 +1894,8 @@ namespace netxs::app::vtm
             {
                 log<faux>(utf8);
             };
-            LISTEN(tier::release, e2::form::layout::bubble, area)
-            {
-                //auto region = items.bubble(inst.bell::id);
-                //host::denote(area);
-                base::deface();
-            };
             LISTEN(tier::release, e2::form::layout::expose, area)
             {
-                //auto area = items.expose(inst.bell::id);
-                //host::denote(area);
                 base::deface();
             };
             LISTEN(tier::request, desk::events::usrs, usrs_ptr)
