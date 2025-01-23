@@ -846,17 +846,6 @@ namespace netxs::app::vtm
         {
             std::list<netxs::sptr<node>> items;
 
-            template<class D>
-            auto search(D head, D tail, id_t id)
-            {
-                if (items.size())
-                {
-                    auto test = [id](auto& a){ return a->object->id == id; };
-                    return std::find_if(head, tail, test);
-                }
-                return tail;
-            }
-
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
             auto back()      { return items.back()->object; }
@@ -866,7 +855,7 @@ namespace netxs::app::vtm
                 auto iter_ptr = ptr::shared(std::prev(items.end()));
                 auto& iter = *iter_ptr;
                 auto& window = *window_ptr;
-                window.LISTEN(tier::preview, e2::form::layout::expose, area, -, (iter_ptr))
+                window.LISTEN(tier::preview, e2::form::layout::expose, r, -, (iter_ptr))
                 {
                     if (iter != std::prev(items.end()))
                     {
@@ -881,23 +870,18 @@ namespace netxs::app::vtm
                         else window.base::strike();
                     }
                 };
-                window.LISTEN(tier::preview, e2::form::layout::bubble, area)
+                window.LISTEN(tier::preview, e2::form::layout::bubble, r)
                 {
-                    auto head = items.rbegin();
-                    auto tail = items.rend();
-                    auto item = search(head, tail, window.id);
-                    if (item != head && item != tail)
+                    auto area = window.region;
+                    auto next = iter;
+                    if (++next != items.end() && !area.trim((*next)->object->region))
                     {
-                        area = window.region;
-                        if (!area.trim((**std::prev(item)).object->region))
-                        {
-                            auto shadow = *item;
-                            items.erase(std::next(item).base());
-                            while (--item != head && !area.trim((**std::prev(item)).object->region))
-                            { }
-                            iter = items.insert(item.base(), shadow);
-                            window.base::strike();
-                        }
+                        auto backup_ptr = *iter;
+                        items.erase(iter);
+                        while (++next != items.end() && !area.trim((*next)->object->region))
+                        { }
+                        iter = items.insert(next, backup_ptr);
+                        window.base::strike();
                     }
                 };
             }
@@ -911,7 +895,7 @@ namespace netxs::app::vtm
                 auto area = rect{};
                 auto head = items.begin();
                 auto tail = items.end();
-                auto item = search(head, tail, item_id);
+                auto item = std::find_if(head, tail, [&](auto& a){ return a->object->id == item_id; });
                 if (item != tail)
                 {
                     area = (**item).object->region;
