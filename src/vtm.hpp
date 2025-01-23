@@ -862,20 +862,20 @@ namespace netxs::app::vtm
             auto back()      { return items.back()->object; }
             void append(sptr window_ptr)
             {
+                items.emplace_back(ptr::shared<node>(window_ptr));
+                auto iter_ptr = ptr::shared(std::prev(items.end()));
+                auto& iter = *iter_ptr;
                 auto& window = *window_ptr;
-                window.LISTEN(tier::preview, e2::form::layout::expose, area)
+                window.LISTEN(tier::preview, e2::form::layout::expose, area, -, (iter_ptr))
                 {
-                    auto head = items.rbegin();
-                    auto tail = items.rend();
-                    auto item = search(head, tail, window.id);
-                    if (item != head && item != tail)
+                    if (iter != std::prev(items.end()))
                     {
-                        auto shadow = *item;
-                        items.erase(std::next(item).base());
-                        items.push_back(shadow);
-                        if (shadow->object->hidden) // Restore if window minimized.
+                        items.push_back(*iter);
+                        items.erase(iter);
+                        iter = std::prev(items.end());
+                        if (window.hidden) // Restore if window minimized.
                         {
-                            shadow->object->hidden = faux;
+                            window.hidden = faux;
                             window.base::deface();
                         }
                         else window.base::strike();
@@ -888,19 +888,18 @@ namespace netxs::app::vtm
                     auto item = search(head, tail, window.id);
                     if (item != head && item != tail)
                     {
-                        area = (**item).object->region;
+                        area = window.region;
                         if (!area.trim((**std::prev(item)).object->region))
                         {
                             auto shadow = *item;
                             items.erase(std::next(item).base());
                             while (--item != head && !area.trim((**std::prev(item)).object->region))
                             { }
-                            items.insert(item.base(), shadow);
+                            iter = items.insert(item.base(), shadow);
                             window.base::strike();
                         }
                     }
                 };
-                items.push_back(ptr::shared<node>(window_ptr));
             }
             //hall::list: Delete all items.
             void reset()
