@@ -865,8 +865,21 @@ namespace netxs::app::vtm
                 auto& window = *window_ptr;
                 window.LISTEN(tier::preview, e2::form::layout::expose, area)
                 {
-                    area = expose(window.id);
-                    if (area) window.base::riseup(tier::release, e2::form::layout::expose, area);
+                    auto head = items.rbegin();
+                    auto tail = items.rend();
+                    auto item = search(head, tail, window.id);
+                    if (item != head && item != tail)
+                    {
+                        auto shadow = *item;
+                        items.erase(std::next(item).base());
+                        items.push_back(shadow);
+                        if (shadow->object->hidden) // Restore if window minimized.
+                        {
+                            shadow->object->hidden = faux;
+                            window.base::deface();
+                        }
+                        else window.base::strike();
+                    }
                 };
                 window.LISTEN(tier::preview, e2::form::layout::bubble, area)
                 {
@@ -906,26 +919,6 @@ namespace netxs::app::vtm
                     items.erase(item);
                 }
                 return area;
-            }
-            rect expose(id_t item_id)
-            {
-                auto head = items.rbegin();
-                auto tail = items.rend();
-                auto item = search(head, tail, item_id);
-
-                if (item != head && item != tail)
-                {
-                    auto shadow = *item;
-                    items.erase(std::next(item).base());
-                    items.push_back(shadow);
-                    if (shadow->object->hidden) // Restore if window minimized.
-                    {
-                        shadow->object->hidden = faux;
-                    }
-                    return shadow->object->region;
-                }
-
-                return rect_00;
             }
             auto rotate_next()
             {
@@ -1893,10 +1886,6 @@ namespace netxs::app::vtm
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {
                 log<faux>(utf8);
-            };
-            LISTEN(tier::release, e2::form::layout::expose, area)
-            {
-                base::deface();
             };
             LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {
