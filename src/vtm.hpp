@@ -912,7 +912,7 @@ namespace netxs::app::vtm
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
 
-        auto window(applink& what)
+        auto window(applink& what, bool fixed)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -1031,6 +1031,7 @@ namespace netxs::app::vtm
                     luafx.activate(proc_map);
 
                     boss.base::kind(base::reflow_root);
+                    boss.base::root(true);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
                         if (boss.subset.size())
@@ -1269,22 +1270,23 @@ namespace netxs::app::vtm
                                                : winstate::normal;
                     };
 
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+                    this->LISTEN(tier::preview, e2::form::prop::cwd, path_utf8, boss.relyon)
                     {
-                        auto& parent = *parent_ptr;
-                        parent.LISTEN(tier::preview, e2::form::prop::cwd, path_utf8, boss.relyon)
-                        {
-                            boss.bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
-                        };
+                        boss.bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                     };
+                    auto new_window = boss.This();
+                    new_object(new_window);
+                    auto& [stat, inst_list] = dbase.apps[what.menuid];
+                    stat = fixed;
+                    inst_list.push_back(new_window);
+                    boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                 });
         }
         auto create(applink& what)
         {
             bell::signal(tier::request, vtm::events::newapp, what);
             auto& cfg = dbase.menu[what.menuid];
-            auto window_ptr = window(what);
-            this->branch(what.menuid, window_ptr, !cfg.hidden);
+            auto window_ptr = window(what, !cfg.hidden);
             if (cfg.winsize && !what.forced) window_ptr->extend({ what.square.coor, cfg.winsize });
             else                             window_ptr->extend(what.square);
             window_ptr->attach(what.applet);
@@ -1942,8 +1944,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, vtm::events::handoff, what)
             {
                 auto& cfg = dbase.menu[what.menuid];
-                auto window_ptr = window(what);
-                this->branch(what.menuid, window_ptr, !cfg.hidden);
+                auto window_ptr = window(what, !cfg.hidden);
                 if (what.square) window_ptr->extend(what.square);
                 window_ptr->attach(what.applet);
                 //window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
@@ -2210,17 +2211,6 @@ namespace netxs::app::vtm
                 }
                 tokens_ptr.reset();
             };
-        }
-        // hall: Attach a new item to the scene.
-        void branch(text const& menuid, sptr item_ptr, bool fixed = true)
-        {
-            if (!active) return;
-            new_object(item_ptr);
-            item_ptr->base::root(true);
-            auto& [stat, inst_list] = dbase.apps[menuid];
-            stat = fixed;
-            inst_list.push_back(item_ptr);
-            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
         }
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
