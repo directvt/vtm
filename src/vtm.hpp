@@ -853,10 +853,6 @@ namespace netxs::app::vtm
             desk::usrs& usrs = *usrs_ptr;
             desk::menu& menu = *menu_ptr;
 
-            void append(sptr usergate_ptr)
-            {
-                usrs.push_back(usergate_ptr);
-            }
             auto remove(sptr item_ptr)
             {
                 auto found = faux;
@@ -2210,12 +2206,13 @@ namespace netxs::app::vtm
             auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
             users.emplace_back(ptr::shared<node>(usergate_ptr));
-            dbase.append(usergate_ptr);
+            dbase.usrs.push_back(usergate_ptr);
             os::ipc::users = users.size();
             usergate.props.background_color.link(bell::id);
             //todo revise (now world is not a parent for usergate)
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-            this->bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
+
+            bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
 
             usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
