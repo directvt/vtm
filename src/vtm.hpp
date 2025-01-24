@@ -1271,10 +1271,6 @@ namespace netxs::app::vtm
                                                : winstate::normal;
                     };
 
-                    this->LISTEN(tier::preview, e2::form::prop::cwd, path_utf8, boss.relyon)
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
-                    };
                     auto& node_ptr = items.emplace_back(ptr::shared<node>(boss.This()));
                     node_ptr->iter = std::prev(items.end());
                     auto& iter = node_ptr->iter;
@@ -1341,8 +1337,8 @@ namespace netxs::app::vtm
                     else if (what.square)            boss.extend(what.square);
 
                     boss.attach(what.applet);
-                    boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
 
+                    boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                     boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
                     bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
                 });
@@ -1898,6 +1894,13 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::layout::go::item, current_item)
             {
                 if (items.size()) current_item = items.back()->object;
+            };
+            LISTEN(tier::preview, e2::form::prop::cwd, path_utf8)
+            {
+                for (auto w : items)
+                {
+                    w->object->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
+                }
             };
             LISTEN(tier::request, desk::events::exec, appspec)
             {
