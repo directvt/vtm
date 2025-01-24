@@ -787,7 +787,7 @@ namespace netxs::app::vtm
         : public form<hall>
     {
     private:
-        struct node // hall: Adapter for the object that going to be attached to the world.
+        struct node // hall: Adapter for the object that going to be attached to the hall.
         {
             bool highlighted = faux;
             si32 active = 0;
@@ -844,23 +844,12 @@ namespace netxs::app::vtm
                 };
             }
         };
-        struct depo // hall: Actors registry.
-        {
-            netxs::sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
-            netxs::sptr<desk::usrs> usrs_ptr = ptr::shared(desk::usrs{});
-            netxs::sptr<desk::menu> menu_ptr = ptr::shared(desk::menu{});
-            desk::apps& apps = *apps_ptr;
-            desk::usrs& usrs = *usrs_ptr;
-            desk::menu& menu = *menu_ptr;
-
-        };
 
         using idls = std::vector<id_t>;
         using pool = netxs::generics::pool;
 
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
         std::list<netxs::sptr<node>> users; // hall: Desktop users.
-        depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
         id_t focus; // hall: Last active gear id.
@@ -872,6 +861,13 @@ namespace netxs::app::vtm
         std::vector<bool> user_numbering; // hall: .
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
+
+        netxs::sptr<desk::apps> apps_list_ptr = ptr::shared<desk::apps>();
+        netxs::sptr<desk::usrs> usrs_list_ptr = ptr::shared<desk::usrs>();
+        netxs::sptr<desk::menu> menu_list_ptr = ptr::shared<desk::menu>();
+        desk::apps& apps_list = *apps_list_ptr;
+        desk::usrs& usrs_list = *usrs_list_ptr;
+        desk::menu& menu_list = *menu_list_ptr;
 
         auto window(applink& what, bool is_handoff)
         {
@@ -1287,8 +1283,8 @@ namespace netxs::app::vtm
                         }
                     };
 
-                    auto& cfg = dbase.menu[what.menuid];
-                    auto& [fixed_menu_item, inst_list] = dbase.apps[what.menuid];
+                    auto& cfg = menu_list[what.menuid];
+                    auto& [fixed_menu_item, inst_list] = apps_list[what.menuid];
                     fixed_menu_item = !cfg.hidden;
                     inst_list.push_back(boss.This());
                     if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
@@ -1300,7 +1296,7 @@ namespace netxs::app::vtm
 
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                     boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
-                    bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+                    bell::signal(tier::release, desk::events::apps, apps_list_ptr);
                 });
         }
         auto create(applink& what)
@@ -1369,7 +1365,7 @@ namespace netxs::app::vtm
             if (args)
             {
                 selected_item = args;
-                for (auto usergate_ptr : dbase.usrs)
+                for (auto usergate_ptr : usrs_list)
                 {
                     usergate_ptr->bell::signal(tier::release, e2::data::changed, selected_item);
                 }
@@ -1396,11 +1392,11 @@ namespace netxs::app::vtm
                 hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
                 if (!appspec.hidden)
                 {
-                    auto& [stat, list] = dbase.apps[menuid];
+                    auto& [stat, list] = apps_list[menuid];
                     stat = true;
                 }
-                dbase.menu[menuid] = appspec;
-                bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+                menu_list[menuid] = appspec;
+                bell::signal(tier::release, desk::events::apps, apps_list_ptr);
                 return "ok"s;
             }
         }
@@ -1408,32 +1404,32 @@ namespace netxs::app::vtm
         {
             if (args.empty())
             {
-                for (auto& [menuid, conf] : dbase.menu)
+                for (auto& [menuid, conf] : menu_list)
                 {
-                    if (dbase.apps.contains(menuid))
+                    if (apps_list.contains(menuid))
                     {
-                        auto& [stat, list] = dbase.apps[menuid];
-                        if (list.empty()) dbase.apps.erase(menuid);
+                        auto& [stat, list] = apps_list[menuid];
+                        if (list.empty()) apps_list.erase(menuid);
                         else              stat = faux;
                     }
                 }
-                dbase.menu.clear();
-                bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+                menu_list.clear();
+                bell::signal(tier::release, desk::events::apps, apps_list_ptr);
                 return "ok"s;
             }
             else
             {
                 auto menuid = text{ args };
-                if (dbase.menu.contains(menuid))
+                if (menu_list.contains(menuid))
                 {
-                    if (dbase.apps.contains(menuid))
+                    if (apps_list.contains(menuid))
                     {
-                        auto& [stat, list] = dbase.apps[menuid];
-                        if (list.empty()) dbase.apps.erase(menuid);
+                        auto& [stat, list] = apps_list[menuid];
+                        if (list.empty()) apps_list.erase(menuid);
                         else              stat = faux;
                     }
-                    dbase.menu.erase(menuid);
-                    bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+                    menu_list.erase(menuid);
+                    bell::signal(tier::release, desk::events::apps, apps_list_ptr);
                     return "ok"s;
                 }
                 else
@@ -1536,7 +1532,7 @@ namespace netxs::app::vtm
                                                 if (gear_ptr)
                                                 {
                                                     auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
-                                                    appspec = boss.dbase.menu[menuid];
+                                                    appspec = boss.menu_list[menuid];
                                                     appspec.fixed = faux;
                                                     appspec.menuid = menuid;
                                                     appspec.gear_id = gear_id;
@@ -1561,9 +1557,9 @@ namespace netxs::app::vtm
                                                 appconf.cd("item");
                                                 auto itemptr = appconf.homelist.front();
                                                 auto menuid = itemptr->take(attr::id, ""s);
-                                                if (boss.dbase.menu.contains(menuid))
+                                                if (boss.menu_list.contains(menuid))
                                                 {
-                                                    auto& appbase = boss.dbase.menu[menuid];
+                                                    auto& appbase = boss.menu_list[menuid];
                                                     if (appbase.fixed) boss.hall::loadspec(appspec, appbase, *itemptr, menuid);
                                                     else               boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
@@ -1648,8 +1644,6 @@ namespace netxs::app::vtm
             luafx.activate(proc_map);
 
             auto current_module_file = os::process::binary();
-            auto& apps_list = dbase.apps;
-            auto& menu_list = dbase.menu;
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
@@ -1799,12 +1793,12 @@ namespace netxs::app::vtm
 
             LISTEN(tier::request, vtm::events::apptype, what)
             {
-                auto& setup = dbase.menu[what.menuid];
+                auto& setup = menu_list[what.menuid];
                 what.kindid = setup.type;
             };
             LISTEN(tier::request, vtm::events::newapp, what)
             {
-                auto& setup = dbase.menu[what.menuid];
+                auto& setup = menu_list[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
                 what.header = setup.title;
@@ -1816,15 +1810,15 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {
-                usrs_ptr = dbase.usrs_ptr;
+                usrs_ptr = usrs_list_ptr;
             };
             LISTEN(tier::request, desk::events::apps, apps_ptr)
             {
-                apps_ptr = dbase.apps_ptr;
+                apps_ptr = apps_list_ptr;
             };
             LISTEN(tier::request, desk::events::menu, menu_ptr)
             {
-                menu_ptr = dbase.menu_ptr;
+                menu_ptr = menu_list_ptr;
             };
             //todo unify
             LISTEN(tier::request, e2::form::layout::go::next, next)
@@ -1897,8 +1891,8 @@ namespace netxs::app::vtm
                 auto wincoor = appspec.wincoor;
                 auto winsize = appspec.winsize;
 
-                dbase.apps[menu_id];
-                auto& appbase = dbase.menu[menu_id];
+                apps_list[menu_id];
+                auto& appbase = menu_list[menu_id];
                 auto fixed = appbase.fixed && !appspec.fixed;
                 if (fixed) std::swap(appbase, appspec); // Don't modify the base menuitem by the temp appspec.
                 else       appbase = appspec;
@@ -1954,7 +1948,7 @@ namespace netxs::app::vtm
                     //};
                     pro::focus::set(window, gear.id, solo::on);
                     window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                    auto& cfg = dbase.menu[what.menuid];
+                    auto& cfg = menu_list[what.menuid];
                          if (cfg.winform == winstate::maximized)  window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                     else if (cfg.winform == winstate::fullscreen) window->bell::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
                     else if (cfg.winform == winstate::minimized)  window->bell::signal(tier::release, e2::form::size::minimize, gear);
@@ -2023,7 +2017,7 @@ namespace netxs::app::vtm
             {
                 if (base::ruined()) // Force all gates to redraw.
                 {
-                    for (auto usergate_ptr : dbase.usrs)
+                    for (auto usergate_ptr : usrs_list)
                     {
                         usergate_ptr->base::ruined(true);
                     }
@@ -2170,13 +2164,13 @@ namespace netxs::app::vtm
             auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
             users.emplace_back(ptr::shared<node>(usergate_ptr));
-            dbase.usrs.push_back(usergate_ptr);
+            usrs_list.push_back(usergate_ptr);
             os::ipc::users = users.size();
             usergate.props.background_color.link(bell::id);
             //todo revise (now world is not a parent for usergate)
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
 
-            bell::signal(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
             usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
@@ -2281,7 +2275,7 @@ namespace netxs::app::vtm
             auto& inst = *item_ptr;
 
             auto found = faux;
-            for (auto& [class_id, fxd_app_list] : dbase.apps) // Remove app.
+            for (auto& [class_id, fxd_app_list] : apps_list) // Remove app.
             {
                 auto& [fixed, app_list] = fxd_app_list;
                 auto head = app_list.begin();
@@ -2292,7 +2286,7 @@ namespace netxs::app::vtm
                     app_list.erase(iter);
                     if (app_list.empty() && !fixed)
                     {
-                        dbase.apps.erase(class_id);
+                        apps_list.erase(class_id);
                     }
                     found = true;
                     break;
@@ -2300,12 +2294,12 @@ namespace netxs::app::vtm
             }
             if (!found) // Remove user.
             {
-                auto head = dbase.usrs.begin();
-                auto tail = dbase.usrs.end();
+                auto head = usrs_list.begin();
+                auto tail = usrs_list.end();
                 auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
                 if (iter != tail)
                 {
-                    dbase.usrs.erase(iter);
+                    usrs_list.erase(iter);
                     found = true;
                 }
             }
@@ -2315,7 +2309,7 @@ namespace netxs::app::vtm
             }
 
             os::ipc::users = users.size();
-            bell::signal(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
+            bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
         }
         // hall: Shutdown.
         void stop()
@@ -2328,7 +2322,7 @@ namespace netxs::app::vtm
             auto lock = bell::sync();
             plugins<pro::mouse>().reset(); // Release the captured mouse.
             bell::sensors.reset();
-            dbase.apps.clear();
+            apps_list.clear();
             items.clear();
         }
     };
