@@ -1059,11 +1059,11 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::form::size::minimize, gear)
                     {
-                        auto This = boss.This();
+                        auto window_ptr = boss.This();
                         if (boss.hidden) // Restore if it is hidden.
                         {
                             boss.hidden = faux;
-                            pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
+                            pro::focus::set(window_ptr, gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
                         }
                         else // Hide if visible and refocus.
                         {
@@ -1077,27 +1077,27 @@ namespace netxs::app::vtm
                                 if (gear_test.second == 1) // If it is the last focused item.
                                 {
                                     auto viewport = gear.owner.base::area();
-                                    auto window = e2::form::layout::go::prev.param();
+                                    auto prev_ptr = e2::form::layout::go::prev.param();
                                     auto hidden = true;
                                     auto gear_id = id_t{};
                                     do
                                     {
-                                        parent->bell::signal(tier::request, e2::form::layout::go::prev, window);
-                                        if (window)
+                                        parent->bell::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
+                                        if (prev_ptr)
                                         {
-                                            window->bell::signal(tier::request, e2::form::state::maximized, gear_id);
-                                            hidden = window->hidden;
+                                            prev_ptr->bell::signal(tier::request, e2::form::state::maximized, gear_id);
+                                            hidden = prev_ptr->hidden;
                                         }
                                         else hidden = true;
                                     }
-                                    while (window != This && ((gear_id && gear_id != gear.owner.id) || (hidden == true || !viewport.hittest(window->center()))));
-                                    if (window != This)
+                                    while (prev_ptr != window_ptr && ((gear_id && gear_id != gear.owner.id) || (hidden == true || !viewport.hittest(prev_ptr->center()))));
+                                    if (prev_ptr != window_ptr)
                                     {
-                                        pro::focus::set(window, gear.id, solo::on);
-                                        This.reset();
+                                        pro::focus::set(prev_ptr, gear.id, solo::on);
+                                        window_ptr.reset();
                                     }
                                 }
-                                if (This) pro::focus::off(This, gear.id);
+                                if (window_ptr) pro::focus::off(window_ptr, gear.id);
                             }
                         }
                     };
