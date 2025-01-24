@@ -885,10 +885,6 @@ namespace netxs::app::vtm
                 }
                 return found;
             }
-            void reset()
-            {
-                apps.clear();
-            }
         };
 
         using idls = std::vector<id_t>;
@@ -2333,7 +2329,7 @@ namespace netxs::app::vtm
             auto lock = bell::sync();
             plugins<pro::mouse>().reset(); // Release the captured mouse.
             bell::sensors.reset();
-            dbase.reset();
+            dbase.apps.clear();
             items.clear();
         }
     };
