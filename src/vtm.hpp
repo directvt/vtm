@@ -853,38 +853,6 @@ namespace netxs::app::vtm
             desk::usrs& usrs = *usrs_ptr;
             desk::menu& menu = *menu_ptr;
 
-            auto remove(sptr item_ptr)
-            {
-                auto found = faux;
-                for (auto& [class_id, fxd_app_list] : apps) // Remove app.
-                {
-                    auto& [fixed, app_list] = fxd_app_list;
-                    auto head = app_list.begin();
-                    auto tail = app_list.end();
-                    auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                    if (iter != tail)
-                    {
-                        app_list.erase(iter);
-                        if (app_list.empty() && !fixed)
-                        {
-                            apps.erase(class_id);
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                { // Remove user.
-                    auto head = usrs.begin();
-                    auto tail = usrs.end();
-                    auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                    if (iter != tail)
-                    {
-                        usrs.erase(iter);
-                        found = true;
-                    }
-                }
-                return found;
-            }
         };
 
         using idls = std::vector<id_t>;
@@ -2311,10 +2279,41 @@ namespace netxs::app::vtm
         void remove(sptr item_ptr) override
         {
             auto& inst = *item_ptr;
-            if (dbase.remove(item_ptr))
+
+            auto found = faux;
+            for (auto& [class_id, fxd_app_list] : dbase.apps) // Remove app.
             {
-                inst.bell::signal(tier::release, e2::form::upon::vtree::detached, This());
+                auto& [fixed, app_list] = fxd_app_list;
+                auto head = app_list.begin();
+                auto tail = app_list.end();
+                auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                if (iter != tail)
+                {
+                    app_list.erase(iter);
+                    if (app_list.empty() && !fixed)
+                    {
+                        dbase.apps.erase(class_id);
+                    }
+                    found = true;
+                    break;
+                }
             }
+            if (!found) // Remove user.
+            {
+                auto head = dbase.usrs.begin();
+                auto tail = dbase.usrs.end();
+                auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                if (iter != tail)
+                {
+                    dbase.usrs.erase(iter);
+                    found = true;
+                }
+            }
+            if (found)
+            {
+                inst.bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
+            }
+
             os::ipc::users = users.size();
             bell::signal(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
         }
