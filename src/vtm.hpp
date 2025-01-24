@@ -843,93 +843,6 @@ namespace netxs::app::vtm
                 };
             }
         };
-        struct list // hall: List of objects that can be reordered, etc.
-        {
-            std::list<netxs::sptr<node>> items;
-
-            operator bool () { return items.size(); }
-            auto size()      { return items.size(); }
-            auto back()      { return items.back()->object; }
-            void append(sptr window_ptr)
-            {
-                auto& node_ptr = items.emplace_back(ptr::shared<node>(window_ptr));
-                node_ptr->iter = std::prev(items.end());
-                auto& iter = node_ptr->iter;
-                auto& window = *window_ptr;
-                auto tokens_ptr = ptr::shared<subs>();
-                auto& tokens = *tokens_ptr;
-                window.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
-                {
-                    if (iter != std::prev(items.end()))
-                    {
-                        items.push_back(*iter);
-                        items.erase(iter);
-                        iter = std::prev(items.end());
-                        if (window.hidden) // Restore if window minimized.
-                        {
-                            window.hidden = faux;
-                            window.base::deface();
-                        }
-                        else window.base::strike();
-                    }
-                };
-                window.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
-                {
-                    auto area = window.region;
-                    auto next = iter;
-                    if (++next != items.end() && !area.trim((*next)->object->region))
-                    {
-                        auto backup_ptr = *iter;
-                        items.erase(iter);
-                        while (++next != items.end() && !area.trim((*next)->object->region))
-                        { }
-                        iter = items.insert(next, backup_ptr);
-                        window.base::strike();
-                    }
-                };
-                window.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
-                {
-                    auto item_ptr = (*iter)->object;
-                    items.erase(iter);
-                    if (items.size()) // Pass focus to the top most object.
-                    {
-                        auto last_ptr = items.back()->object;
-                        auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
-                        for (auto gear_id : gear_id_list)
-                        {
-                            if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
-                            {
-                                auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
-                                if (gear_test.second == 1) // If it is the last focused item.
-                                {
-                                    auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
-                                    if (owner_id && owner_id != gear_ptr->owner.id) continue;
-                                    pro::focus::set(last_ptr, gear_id, solo::off);
-                                }
-                            }
-                        }
-                    }
-                    tokens_ptr.reset();
-                };
-            }
-            //hall::list: Delete all items.
-            void reset()
-            {
-                items.clear();
-            }
-            auto rotate_next()
-            {
-                items.push_back(items.front());
-                items.pop_front();
-                return items.back();
-            }
-            auto rotate_prev()
-            {
-                items.push_front(items.back());
-                items.pop_back();
-                return items.back();
-            }
-        };
         struct depo // hall: Actors registry.
         {
             netxs::sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
@@ -984,8 +897,8 @@ namespace netxs::app::vtm
         using idls = std::vector<id_t>;
         using pool = netxs::generics::pool;
 
-        list items; // hall: Child visual tree.
-        list users; // hall: Scene spectators.
+        std::list<netxs::sptr<node>> items; // hall: Desktop windows.
+        std::list<netxs::sptr<node>> users; // hall: Desktop users.
         depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
@@ -1899,23 +1812,31 @@ namespace netxs::app::vtm
             //todo unify
             LISTEN(tier::request, e2::form::layout::go::next, next)
             {
-                if (items)
-                if (auto next_ptr = items.rotate_next())
+                if (items.size())
                 {
-                    next = next_ptr->object;
+                    items.push_back(items.front());
+                    items.pop_front();
+                    if (auto next_ptr = items.back())
+                    {
+                        next = next_ptr->object;
+                    }
                 }
             };
             LISTEN(tier::request, e2::form::layout::go::prev, prev)
             {
-                if (items)
-                if (auto prev_ptr = items.rotate_prev())
+                if (items.size())
                 {
-                    prev = prev_ptr->object;
+                    items.push_front(items.back());
+                    items.pop_back();
+                    if (auto prev_ptr = items.back())
+                    {
+                        prev = prev_ptr->object;
+                    }
                 }
             };
             LISTEN(tier::request, e2::form::layout::go::item, current_item)
             {
-                if (items) current_item = items.back();
+                if (items.size()) current_item = items.back()->object;
             };
             LISTEN(tier::request, desk::events::exec, appspec)
             {
@@ -1934,7 +1855,7 @@ namespace netxs::app::vtm
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
                     {
-                        auto gate_ptr = bell::getref<gate>(users.back()->id);
+                        auto gate_ptr = bell::getref<gate>(users.back()->object->id);
                         auto& gears = gate_ptr->gears;
                         for (auto& [ext_gear_id, _gear_ptr] : gears)
                         {
@@ -2094,11 +2015,11 @@ namespace netxs::app::vtm
             {
                 if (users.size() > 1) // Draw backpane for spectators.
                 {
-                    for (auto& item : users.items)
+                    for (auto& item : users)
                     {
                         fasten(item->object, item->highlighted, item->active, item->color, parent_canvas); // Draw strings.
                     }
-                    for (auto& item : users.items) // Draw shadows.
+                    for (auto& item : users) // Draw shadows.
                     {
                         if (item->object->id != parent_canvas.link()) // Draw a shadow of user's gate for other users.
                         {
@@ -2114,7 +2035,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                if (items.items.size()) // Draw objects of the world.
+                if (items.size()) // Draw objects of the world.
                 {
                     auto visible = [&](auto& item)
                     {
@@ -2124,9 +2045,9 @@ namespace netxs::app::vtm
                     {
                         return item->monoid && item->monoid == parent_canvas.link();
                     };
-                    auto head = items.items.begin();
-                    auto tail = items.items.end();
-                    auto iter = items.items.end();
+                    auto head = items.begin();
+                    auto tail = items.end();
+                    auto iter = items.end();
                     while (iter != head)
                     {
                         auto& item = *--iter;
@@ -2150,7 +2071,7 @@ namespace netxs::app::vtm
                     head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->object->render<true>(parent_canvas); }
                     head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->object->render<true>(parent_canvas); }
                 }
-                for (auto& item : users.items) // Draw user mouse pointers.
+                for (auto& item : users) // Draw user mouse pointers.
                 {
                     if (item->object->id != parent_canvas.link())
                     {
@@ -2222,17 +2143,80 @@ namespace netxs::app::vtm
         {
             async.run(process);
         }
+        // hall: .
+        void new_object(sptr window_ptr)
+        {
+            auto& node_ptr = items.emplace_back(ptr::shared<node>(window_ptr));
+            node_ptr->iter = std::prev(items.end());
+            auto& iter = node_ptr->iter;
+            auto& window = *window_ptr;
+            auto tokens_ptr = ptr::shared<subs>();
+            auto& tokens = *tokens_ptr;
+            window.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
+            {
+                if (iter != std::prev(items.end()))
+                {
+                    items.push_back(*iter);
+                    items.erase(iter);
+                    iter = std::prev(items.end());
+                    if (window.hidden) // Restore if window minimized.
+                    {
+                        window.hidden = faux;
+                        window.base::deface();
+                    }
+                    else window.base::strike();
+                }
+            };
+            window.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
+            {
+                auto area = window.region;
+                auto next = iter;
+                if (++next != items.end() && !area.trim((*next)->object->region))
+                {
+                    auto backup_ptr = *iter;
+                    items.erase(iter);
+                    while (++next != items.end() && !area.trim((*next)->object->region))
+                    { }
+                    iter = items.insert(next, backup_ptr);
+                    window.base::strike();
+                }
+            };
+            window.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
+            {
+                auto item_ptr = (*iter)->object;
+                items.erase(iter);
+                if (items.size()) // Pass focus to the top most object.
+                {
+                    auto last_ptr = items.back()->object;
+                    auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                    for (auto gear_id : gear_id_list)
+                    {
+                        if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
+                        {
+                            auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                            if (gear_test.second == 1) // If it is the last focused item.
+                            {
+                                auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
+                                if (owner_id && owner_id != gear_ptr->owner.id) continue;
+                                pro::focus::set(last_ptr, gear_id, solo::off);
+                            }
+                        }
+                    }
+                }
+                tokens_ptr.reset();
+            };
+        }
         // hall: Attach a new item to the scene.
-        void branch(text const& menuid, sptr item, bool fixed = true)
+        void branch(text const& menuid, sptr item_ptr, bool fixed = true)
         {
             if (!active) return;
-            items.append(item);
-            item->base::root(true);
-            auto& [stat, list] = dbase.apps[menuid];
+            new_object(item_ptr);
+            item_ptr->base::root(true);
+            auto& [stat, inst_list] = dbase.apps[menuid];
             stat = fixed;
-            list.push_back(item);
-            item->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-            item->bell::signal(tier::anycast, vtm::events::attached, base::This());
+            inst_list.push_back(item_ptr);
+            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            item_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
             this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
@@ -2242,7 +2226,7 @@ namespace netxs::app::vtm
             auto lock = bell::unique_lock();
             auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
-            users.append(usergate_ptr);
+            users.emplace_back(ptr::shared<node>(usergate_ptr));
             dbase.append(usergate_ptr);
             os::ipc::users = users.size();
             usergate.props.background_color.link(bell::id);
@@ -2371,7 +2355,7 @@ namespace netxs::app::vtm
             plugins<pro::mouse>().reset(); // Release the captured mouse.
             bell::sensors.reset();
             dbase.reset();
-            items.reset();
+            items.clear();
         }
     };
 }
