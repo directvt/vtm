@@ -590,9 +590,9 @@ namespace netxs::gui
                                                      &script_opt,             //_In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                                                      fcache.oslocale.data(),  //_In_opt_z_ WCHAR const* localeName,
                                                      nullptr,                 //_In_opt_ IDWriteNumberSubstitution* numberSubstitution,
-                                                     nullptr,//&f.feat_table, //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                     nullptr,//&feat_table,   //_In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                                                      &wide_count,             //_In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                     0,//f.features.size(),   //UINT32 featureRanges,
+                                                     0,//features.size(),     //UINT32 featureRanges,
                                                      glyf_count,              //UINT32 maxGlyphCount,
                                                      clustermap.data(),       //_Out_writes_(textLength) UINT16* clusterMap,
                                                      text_props.data(),       //_Out_writes_(textLength) DWRITE_SHAPING_TEXT_PROPERTIES* textProps,
@@ -616,9 +616,9 @@ namespace netxs::gui
                                                          is_rtl,                  // BOOL isRightToLeft,
                                                          &script_opt,             // _In_ DWRITE_SCRIPT_ANALYSIS const* scriptAnalysis,
                                                          fcache.oslocale.data(),  // _In_opt_z_ WCHAR const* localeName,
-                                                         nullptr,//&f.feat_table, // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
+                                                         nullptr,//&feat_table,   // _In_reads_opt_(featureRanges) DWRITE_TYPOGRAPHIC_FEATURES const** features,
                                                          &wide_count,             // _In_reads_opt_(featureRanges) UINT32 const* featureRangeLengths,
-                                                         0,//f.features.size(),   // UINT32 featureRanges,
+                                                         0,//features.size(),     // UINT32 featureRanges,
                                                          glyf_steps.data(),       // _Out_writes_(glyphCount) FLOAT* glyphAdvances,
                                                          glyf_align.data());      // _Out_writes_(glyphCount) DWRITE_GLYPH_OFFSET* glyphOffsets
                 if (hr != S_OK) return 0;

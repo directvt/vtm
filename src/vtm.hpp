@@ -795,6 +795,7 @@ namespace netxs::app::vtm
             zpos z_order = zpos::plain;
             id_t monoid = {};
             subs tokens;
+            std::list<netxs::sptr<node>>::iterator iter;
 
             //todo usergate specific
             para uname; // : Client name.
@@ -851,11 +852,13 @@ namespace netxs::app::vtm
             auto back()      { return items.back()->object; }
             void append(sptr window_ptr)
             {
-                items.emplace_back(ptr::shared<node>(window_ptr));
-                auto iter_ptr = ptr::shared(std::prev(items.end()));
-                auto& iter = *iter_ptr;
+                auto& node_ptr = items.emplace_back(ptr::shared<node>(window_ptr));
+                node_ptr->iter = std::prev(items.end());
+                auto& iter = node_ptr->iter;
                 auto& window = *window_ptr;
-                window.LISTEN(tier::preview, e2::form::layout::expose, r, -, (iter_ptr))
+                auto tokens_ptr = ptr::shared<subs>();
+                auto& tokens = *tokens_ptr;
+                window.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
                 {
                     if (iter != std::prev(items.end()))
                     {
@@ -870,7 +873,7 @@ namespace netxs::app::vtm
                         else window.base::strike();
                     }
                 };
-                window.LISTEN(tier::preview, e2::form::layout::bubble, r)
+                window.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
                 {
                     auto area = window.region;
                     auto next = iter;
@@ -884,24 +887,35 @@ namespace netxs::app::vtm
                         window.base::strike();
                     }
                 };
+                window.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
+                {
+                    auto item_ptr = (*iter)->object;
+                    items.erase(iter);
+                    if (items.size()) // Pass focus to the top most object.
+                    {
+                        auto last_ptr = items.back()->object;
+                        auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                        for (auto gear_id : gear_id_list)
+                        {
+                            if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
+                            {
+                                auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                                if (gear_test.second == 1) // If it is the last focused item.
+                                {
+                                    auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
+                                    if (owner_id && owner_id != gear_ptr->owner.id) continue;
+                                    pro::focus::set(last_ptr, gear_id, solo::off);
+                                }
+                            }
+                        }
+                    }
+                    tokens_ptr.reset();
+                };
             }
             //hall::list: Delete all items.
             void reset()
             {
                 items.clear();
-            }
-            rect remove(id_t item_id)
-            {
-                auto area = rect{};
-                auto head = items.begin();
-                auto tail = items.end();
-                auto item = std::find_if(head, tail, [&](auto& a){ return a->object->id == item_id; });
-                if (item != tail)
-                {
-                    area = (**item).object->region;
-                    items.erase(item);
-                }
-                return area;
             }
             auto rotate_next()
             {
@@ -2320,6 +2334,11 @@ namespace netxs::app::vtm
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };
+            usergate.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr)
+            {
+                base::deface();
+                vport = usergate.base::coor();
+            };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             usergate.attach(std::move(deskmenu));
@@ -2332,39 +2351,12 @@ namespace netxs::app::vtm
         void remove(sptr item_ptr) override
         {
             auto& inst = *item_ptr;
-            auto del1 = items.remove(inst.id);
-            //host::denote(del1);
-            base::deface();
-            auto block = users.remove(inst.id);
-            os::ipc::users = users.size();
-            if (block) // Save user's viewport last position.
-            {
-                //host::denote(block);
-                base::deface();
-                vport = block.coor;
-            }
             if (dbase.remove(item_ptr))
             {
+                inst.bell::signal(tier::preview, e2::form::upon::vtree::detached, This());
                 inst.bell::signal(tier::release, e2::form::upon::vtree::detached, This());
             }
-            if (items.size() && !block/*don't refocus on user disconnect*/) // Pass focus to the top most object.
-            {
-                auto last_ptr = items.back();
-                auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
-                for (auto gear_id : gear_id_list)
-                {
-                    if (auto gear_ptr = bell::getref<hids>(gear_id))
-                    {
-                        auto gear_test = bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
-                        if (gear_test.second == 1) // If it is the last focused item.
-                        {
-                            auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
-                            if (owner_id && owner_id != gear_ptr->owner.id) continue;
-                            pro::focus::set(last_ptr, gear_id, solo::off);
-                        }
-                    }
-                }
-            }
+            os::ipc::users = users.size();
             bell::signal(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
         }
         // hall: Shutdown.
