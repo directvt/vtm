@@ -1277,9 +1277,7 @@ namespace netxs::app::vtm
                     auto& node_ptr = items.emplace_back(ptr::shared<node>(boss.This()));
                     node_ptr->iter = std::prev(items.end());
                     auto& iter = node_ptr->iter;
-                    auto tokens_ptr = ptr::shared<subs>();
-                    auto& tokens = *tokens_ptr;
-                    boss.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
+                    boss.LISTEN(tier::preview, e2::form::layout::expose, r)
                     {
                         if (iter != std::prev(items.end()))
                         {
@@ -1294,7 +1292,7 @@ namespace netxs::app::vtm
                             else boss.base::strike();
                         }
                     };
-                    boss.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
+                    boss.LISTEN(tier::preview, e2::form::layout::bubble, r)
                     {
                         auto area = boss.region;
                         auto next = iter;
@@ -1308,7 +1306,7 @@ namespace netxs::app::vtm
                             boss.base::strike();
                         }
                     };
-                    boss.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
+                    boss.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr)
                     {
                         auto item_ptr = (*iter)->object;
                         items.erase(iter);
@@ -1330,7 +1328,6 @@ namespace netxs::app::vtm
                                 }
                             }
                         }
-                        tokens_ptr.reset();
                     };
                     auto& [stat, inst_list] = dbase.apps[what.menuid];
                     stat = fixed;
