@@ -1274,11 +1274,67 @@ namespace netxs::app::vtm
                     {
                         boss.bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                     };
-                    auto new_window = boss.This();
-                    new_object(new_window);
+                    auto& node_ptr = items.emplace_back(ptr::shared<node>(boss.This()));
+                    node_ptr->iter = std::prev(items.end());
+                    auto& iter = node_ptr->iter;
+                    auto tokens_ptr = ptr::shared<subs>();
+                    auto& tokens = *tokens_ptr;
+                    boss.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
+                    {
+                        if (iter != std::prev(items.end()))
+                        {
+                            items.push_back(*iter);
+                            items.erase(iter);
+                            iter = std::prev(items.end());
+                            if (boss.hidden) // Restore if window minimized.
+                            {
+                                boss.hidden = faux;
+                                boss.base::deface();
+                            }
+                            else boss.base::strike();
+                        }
+                    };
+                    boss.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
+                    {
+                        auto area = boss.region;
+                        auto next = iter;
+                        if (++next != items.end() && !area.trim((*next)->object->region))
+                        {
+                            auto backup_ptr = *iter;
+                            items.erase(iter);
+                            while (++next != items.end() && !area.trim((*next)->object->region))
+                            { }
+                            iter = items.insert(next, backup_ptr);
+                            boss.base::strike();
+                        }
+                    };
+                    boss.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
+                    {
+                        auto item_ptr = (*iter)->object;
+                        items.erase(iter);
+                        if (items.size()) // Pass focus to the top most object.
+                        {
+                            auto last_ptr = items.back()->object;
+                            auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                            for (auto gear_id : gear_id_list)
+                            {
+                                if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
+                                {
+                                    auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                                    if (gear_test.second == 1) // If it is the last focused item.
+                                    {
+                                        auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
+                                        if (owner_id && owner_id != gear_ptr->owner.id) continue;
+                                        pro::focus::set(last_ptr, gear_id, solo::off);
+                                    }
+                                }
+                            }
+                        }
+                        tokens_ptr.reset();
+                    };
                     auto& [stat, inst_list] = dbase.apps[what.menuid];
                     stat = fixed;
-                    inst_list.push_back(new_window);
+                    inst_list.push_back(boss.This());
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                 });
         }
@@ -2148,69 +2204,6 @@ namespace netxs::app::vtm
         void run(P process)
         {
             async.run(process);
-        }
-        // hall: .
-        void new_object(sptr window_ptr)
-        {
-            auto& node_ptr = items.emplace_back(ptr::shared<node>(window_ptr));
-            node_ptr->iter = std::prev(items.end());
-            auto& iter = node_ptr->iter;
-            auto& window = *window_ptr;
-            auto tokens_ptr = ptr::shared<subs>();
-            auto& tokens = *tokens_ptr;
-            window.LISTEN(tier::preview, e2::form::layout::expose, r, tokens)
-            {
-                if (iter != std::prev(items.end()))
-                {
-                    items.push_back(*iter);
-                    items.erase(iter);
-                    iter = std::prev(items.end());
-                    if (window.hidden) // Restore if window minimized.
-                    {
-                        window.hidden = faux;
-                        window.base::deface();
-                    }
-                    else window.base::strike();
-                }
-            };
-            window.LISTEN(tier::preview, e2::form::layout::bubble, r, tokens)
-            {
-                auto area = window.region;
-                auto next = iter;
-                if (++next != items.end() && !area.trim((*next)->object->region))
-                {
-                    auto backup_ptr = *iter;
-                    items.erase(iter);
-                    while (++next != items.end() && !area.trim((*next)->object->region))
-                    { }
-                    iter = items.insert(next, backup_ptr);
-                    window.base::strike();
-                }
-            };
-            window.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr, tokens, (tokens_ptr))
-            {
-                auto item_ptr = (*iter)->object;
-                items.erase(iter);
-                if (items.size()) // Pass focus to the top most object.
-                {
-                    auto last_ptr = items.back()->object;
-                    auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
-                    for (auto gear_id : gear_id_list)
-                    {
-                        if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
-                        {
-                            auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
-                            if (gear_test.second == 1) // If it is the last focused item.
-                            {
-                                auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
-                                if (owner_id && owner_id != gear_ptr->owner.id) continue;
-                                pro::focus::set(last_ptr, gear_id, solo::off);
-                            }
-                        }
-                    }
-                }
-                tokens_ptr.reset();
-            };
         }
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
