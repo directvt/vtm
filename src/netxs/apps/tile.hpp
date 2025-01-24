@@ -933,6 +933,13 @@ namespace netxs::app::tile
                         }
                         oneoff.reset();
                     };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
+                    {
+                        if (parent_ptr)
+                        {
+                            boss.bell::signal(tier::anycast, vtm::events::attached, parent_ptr);
+                        }
+                    };
                     boss.LISTEN(tier::request, e2::form::prop::window::state, state)
                     {
                         state = winstate::tiled;

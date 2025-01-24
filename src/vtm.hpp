@@ -913,7 +913,7 @@ namespace netxs::app::vtm
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
 
-        auto window(applink& what)
+        auto window(applink& what, bool is_handoff)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -1342,15 +1342,15 @@ namespace netxs::app::vtm
 
                     boss.attach(what.applet);
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+
+                    boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
+                    bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
                 });
         }
         auto create(applink& what)
         {
             bell::signal(tier::request, vtm::events::newapp, what);
-            auto window_ptr = window(what);
-            window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This()); // Required by ui::tile.
-            window_ptr->bell::signal(tier::anycast, e2::form::upon::started, base::This());
-            bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+            auto window_ptr = window(what, faux);
             return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
@@ -1999,10 +1999,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, vtm::events::handoff, what)
             {
-                auto window_ptr = window(what);
-                //window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
-                window_ptr->bell::signal(tier::anycast, e2::form::upon::started); // We do not use parent_ptr on handoff.
-                this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+                window(what, true);
             };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
             {
