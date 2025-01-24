@@ -1070,11 +1070,11 @@ namespace netxs::app::vtm
                             boss.hidden = true;
                             auto gear_test = boss.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
                             if (auto parent = boss.base::parent())
-                            if (gear_test.second) // If it is focused pass the focus to the next desktop window.
+                            if (gear_test.second) // Pass the focus to the next desktop window if boss is focused.
                             {
                                 gear_test = { gear.id, 0 };
                                 parent->bell::signal(tier::request, e2::form::state::keybd::next, gear_test);
-                                if (gear_test.second == 1) // If it is the last focused item.
+                                if (gear_test.second == 1) // If it is the solo focused window.
                                 {
                                     auto viewport = gear.owner.base::area();
                                     auto prev_ptr = e2::form::layout::go::prev.param();
@@ -1303,7 +1303,7 @@ namespace netxs::app::vtm
                             boss.base::strike();
                         }
                     };
-                    boss.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr)
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
                     {
                         auto item_ptr = (*iter)->object;
                         items.erase(iter);
@@ -2301,7 +2301,7 @@ namespace netxs::app::vtm
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };
-            usergate.LISTEN(tier::preview, e2::form::upon::vtree::detached, world_ptr)
+            usergate.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
             {
                 base::deface();
                 vport = usergate.base::coor();
@@ -2320,7 +2320,6 @@ namespace netxs::app::vtm
             auto& inst = *item_ptr;
             if (dbase.remove(item_ptr))
             {
-                inst.bell::signal(tier::preview, e2::form::upon::vtree::detached, This());
                 inst.bell::signal(tier::release, e2::form::upon::vtree::detached, This());
             }
             os::ipc::users = users.size();
