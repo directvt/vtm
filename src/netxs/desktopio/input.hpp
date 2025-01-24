@@ -1496,7 +1496,7 @@ namespace netxs::input
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
-        bool slot_forced = faux; // .
+        bool slot_forced = faux; // slot is preferred over cfg.winsize.
 
         //todo unify
         bool interrupt_key_proc{}; // hids: .

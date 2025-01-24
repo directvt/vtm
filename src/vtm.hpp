@@ -685,6 +685,7 @@ namespace netxs::app::vtm
             {
                 auto gear_id_list = pro::focus::cut(fullscreen.applet);
                 fullscreen.applet->base::detach();
+                fullscreen.forced = true;
                 world_ptr->bell::signal(tier::request, vtm::events::handoff, fullscreen);
                 pro::focus::set(fullscreen.applet, gear_id_list, solo::on, true);
             }
@@ -912,7 +913,7 @@ namespace netxs::app::vtm
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
 
-        auto window(applink& what, bool fixed)
+        auto window(applink& what)
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
@@ -1329,25 +1330,27 @@ namespace netxs::app::vtm
                             }
                         }
                     };
-                    auto& [stat, inst_list] = dbase.apps[what.menuid];
-                    stat = fixed;
+
+                    auto& cfg = dbase.menu[what.menuid];
+                    auto& [fixed_menu_item, inst_list] = dbase.apps[what.menuid];
+                    fixed_menu_item = !cfg.hidden;
                     inst_list.push_back(boss.This());
+                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+
+                    if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
+                    else if (what.square)            boss.extend(what.square);
+
+                    boss.attach(what.applet);
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                 });
         }
         auto create(applink& what)
         {
             bell::signal(tier::request, vtm::events::newapp, what);
-            auto& cfg = dbase.menu[what.menuid];
-            auto window_ptr = window(what, !cfg.hidden);
-            if (cfg.winsize && !what.forced) window_ptr->extend({ what.square.coor, cfg.winsize });
-            else                             window_ptr->extend(what.square);
-            window_ptr->attach(what.applet);
-            if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
-
-            window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This()); // Required by tile.
-            window_ptr->bell::signal(tier::anycast, e2::form::upon::started, this->This());
-            this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
+            auto window_ptr = window(what);
+            window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This()); // Required by ui::tile.
+            window_ptr->bell::signal(tier::anycast, e2::form::upon::started, base::This());
+            bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
             return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
@@ -1996,12 +1999,9 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, vtm::events::handoff, what)
             {
-                auto& cfg = dbase.menu[what.menuid];
-                auto window_ptr = window(what, !cfg.hidden);
-                if (what.square) window_ptr->extend(what.square);
-                window_ptr->attach(what.applet);
+                auto window_ptr = window(what);
                 //window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
-                window_ptr->bell::signal(tier::anycast, e2::form::upon::started);
+                window_ptr->bell::signal(tier::anycast, e2::form::upon::started); // We do not use parent_ptr on handoff.
                 this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
             };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
