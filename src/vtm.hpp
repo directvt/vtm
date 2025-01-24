@@ -667,7 +667,7 @@ namespace netxs::app::vtm
                 if (coor != new_area.coor) unbind(restoration_type::size);
             };
             applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-            applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
+            //applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
             pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
         }
         void unbind(si32 restore = restoration_type::full)
@@ -1282,14 +1282,17 @@ namespace netxs::app::vtm
         auto create(applink& what)
         {
             bell::signal(tier::request, vtm::events::newapp, what);
-            auto window_ptr = hall::window(what);
             auto& cfg = dbase.menu[what.menuid];
+            auto window_ptr = window(what);
+            this->branch(what.menuid, window_ptr, !cfg.hidden);
             if (cfg.winsize && !what.forced) window_ptr->extend({ what.square.coor, cfg.winsize });
             else                             window_ptr->extend(what.square);
             window_ptr->attach(what.applet);
             if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
-            this->branch(what.menuid, window_ptr, !cfg.hidden);
+
+            window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This()); // Required by tile.
             window_ptr->bell::signal(tier::anycast, e2::form::upon::started, this->This());
+            this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
             return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
@@ -1940,10 +1943,12 @@ namespace netxs::app::vtm
             {
                 auto& cfg = dbase.menu[what.menuid];
                 auto window_ptr = window(what);
+                this->branch(what.menuid, window_ptr, !cfg.hidden);
                 if (what.square) window_ptr->extend(what.square);
                 window_ptr->attach(what.applet);
-                this->branch(what.menuid, window_ptr, !cfg.hidden);
+                //window_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
                 window_ptr->bell::signal(tier::anycast, e2::form::upon::started);
+                this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
             };
             LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
             {
@@ -2216,8 +2221,6 @@ namespace netxs::app::vtm
             stat = fixed;
             inst_list.push_back(item_ptr);
             item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-            item_ptr->bell::signal(tier::anycast, vtm::events::attached, base::This());
-            this->bell::signal(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
