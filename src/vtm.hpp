@@ -1259,7 +1259,20 @@ namespace netxs::app::vtm
                             boss.base::strike();
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
+
+                    auto& cfg = menu_list[what.menuid];
+                    auto& [fixed_menu_item, inst_list] = apps_list[what.menuid];
+                    fixed_menu_item = !cfg.hidden;
+                    inst_list.push_back(boss.This());
+                    auto inst_list_iter_ptr = ptr::shared(std::prev(inst_list.end()));
+                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+
+                    if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
+                    else if (what.square)            boss.extend(what.square);
+
+                    boss.attach(what.applet);
+
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr, -, (inst_list_iter_ptr))
                     {
                         auto item_ptr = (*iter)->object;
                         items.erase(iter);
@@ -1281,19 +1294,9 @@ namespace netxs::app::vtm
                                 }
                             }
                         }
+                        inst_list.erase(*inst_list_iter_ptr);
+                        bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
                     };
-
-                    auto& cfg = menu_list[what.menuid];
-                    auto& [fixed_menu_item, inst_list] = apps_list[what.menuid];
-                    fixed_menu_item = !cfg.hidden;
-                    inst_list.push_back(boss.This());
-                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
-
-                    if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
-                    else if (what.square)            boss.extend(what.square);
-
-                    boss.attach(what.applet);
-
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
                     boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
                     bell::signal(tier::release, desk::events::apps, apps_list_ptr);
@@ -2262,6 +2265,7 @@ namespace netxs::app::vtm
                 base::deface();
                 vport = usergate.base::coor();
                 usrs_list.erase(usrs_list_iter);
+                os::ipc::users = users.size();
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
@@ -2274,30 +2278,7 @@ namespace netxs::app::vtm
         // hall: Detach user/window.
         void remove(sptr item_ptr) override
         {
-            auto& inst = *item_ptr;
-
-            auto found = faux;
-            for (auto& [class_id, fxd_app_list] : apps_list) // Remove app.
-            {
-                auto& [fixed, app_list] = fxd_app_list;
-                auto head = app_list.begin();
-                auto tail = app_list.end();
-                auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                if (iter != tail)
-                {
-                    app_list.erase(iter);
-                    if (app_list.empty() && !fixed)
-                    {
-                        apps_list.erase(class_id);
-                    }
-                    found = true;
-                    break;
-                }
-            }
-            inst.bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
-
-            os::ipc::users = users.size();
-            bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
+            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
         }
         // hall: Shutdown.
         void stop()
