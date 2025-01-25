@@ -2165,6 +2165,7 @@ namespace netxs::app::vtm
             auto& usergate = *usergate_ptr;
             users.emplace_back(ptr::shared<node>(usergate_ptr));
             usrs_list.push_back(usergate_ptr);
+            auto usrs_list_iter = std::prev(usrs_list.end());
             os::ipc::users = users.size();
             usergate.props.background_color.link(bell::id);
             //todo revise (now world is not a parent for usergate)
@@ -2260,6 +2261,7 @@ namespace netxs::app::vtm
             {
                 base::deface();
                 vport = usergate.base::coor();
+                usrs_list.erase(usrs_list_iter);
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
@@ -2292,21 +2294,7 @@ namespace netxs::app::vtm
                     break;
                 }
             }
-            if (!found) // Remove user.
-            {
-                auto head = usrs_list.begin();
-                auto tail = usrs_list.end();
-                auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-                if (iter != tail)
-                {
-                    usrs_list.erase(iter);
-                    found = true;
-                }
-            }
-            if (found)
-            {
-                inst.bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
-            }
+            inst.bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
 
             os::ipc::users = users.size();
             bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
