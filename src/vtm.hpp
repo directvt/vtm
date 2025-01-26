@@ -2167,6 +2167,7 @@ namespace netxs::app::vtm
             auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
             users.emplace_back(ptr::shared<node>(usergate_ptr));
+            auto users_iter = std::prev(users.end());
             usrs_list.push_back(usergate_ptr);
             auto usrs_list_iter = std::prev(usrs_list.end());
             os::ipc::users = users.size();
@@ -2265,6 +2266,7 @@ namespace netxs::app::vtm
                 base::deface();
                 vport = usergate.base::coor();
                 usrs_list.erase(usrs_list_iter);
+                users.erase(users_iter);
                 os::ipc::users = users.size();
             };
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
