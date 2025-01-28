@@ -88,27 +88,27 @@ namespace netxs::app::vtm
                   skill::memo;
 
             robot robo;
-            zpos  seat;
+            zpos  z_order;
             fp2d  drag_origin;
 
         public:
             frame(base&&) = delete;
-            frame(base& boss, zpos z_order = zpos::plain) : skill{ boss },
+            frame(base& boss) : skill{ boss },
                 robo{ boss    },
-                seat{ z_order }
+                z_order{ zpos::plain }
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    boss.bell::signal(tier::release, e2::form::prop::zorder, seat);
+                    boss.bell::signal(tier::release, e2::form::prop::zorder, z_order);
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::zorder, order)
                 {
-                    seat = order;
-                    boss.bell::signal(tier::release, e2::form::prop::zorder, seat);
+                    z_order = order;
+                    boss.bell::signal(tier::release, e2::form::prop::zorder, z_order);
                 };
                 boss.LISTEN(tier::request, e2::form::prop::zorder, order)
                 {
-                    order = seat;
+                    order = z_order;
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
