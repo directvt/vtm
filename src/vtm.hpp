@@ -1829,6 +1829,7 @@ namespace netxs::app::vtm
                 if (items.size())
                 {
                     items.push_back(items.front());
+                    items.back()->iter = std::prev(items.end());
                     items.pop_front();
                     if (auto next_ptr = items.back())
                     {
@@ -1841,6 +1842,7 @@ namespace netxs::app::vtm
                 if (items.size())
                 {
                     items.push_front(items.back());
+                    items.front()->iter = items.begin();
                     items.pop_back();
                     if (auto prev_ptr = items.back())
                     {
