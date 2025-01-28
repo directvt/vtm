@@ -898,7 +898,7 @@ namespace netxs::app::vtm
                                                                       luafx.get_args_or(2, 0),   //
                                                                       luafx.get_args_or(3, 0),   //
                                                                       luafx.get_args_or(4, 0) }; //
-                                                    boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing key events.
+                                                    boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
                                                     {
                                                         boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
                                                     });
@@ -923,7 +923,7 @@ namespace netxs::app::vtm
                                                 }},
                         { "Close",              [](auto& boss, auto& luafx)
                                                 {
-                                                    boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing key events.
+                                                    boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
                                                     {
                                                         boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
                                                     });
@@ -941,7 +941,7 @@ namespace netxs::app::vtm
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {
                                                         gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
@@ -957,7 +957,7 @@ namespace netxs::app::vtm
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {
                                                         gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
@@ -973,7 +973,7 @@ namespace netxs::app::vtm
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {
                                                         gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing key events.
+                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                         {
                                                             if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                             {
@@ -1610,7 +1610,7 @@ namespace netxs::app::vtm
                                             gear.owner.bell::signal(tier::preview, e2::form::proceed::action::restore, gear);
 
                                             auto window_ptr = boss.bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
-                                            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear);
+                                            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
 
                                             auto current = window_ptr; 
                                             auto maximized = faux;
@@ -1635,7 +1635,7 @@ namespace netxs::app::vtm
                                                 {
                                                     gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
                                                 }
-                                                boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing key events.
+                                                boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                                 {
                                                     pro::focus::set(window.This(), gear_id, solo::on);
                                                 });
