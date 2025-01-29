@@ -49,7 +49,7 @@ namespace netxs::ui
 
             skill(base&&) = delete;
             skill(base& boss) : boss{ boss } { }
-            virtual ~skill() = default; // In order to allow man derived class via base ptr.
+            virtual ~skill() = default; // Advertise polymorphicity.
 
             template<class T>
             struct socks
@@ -3089,6 +3089,42 @@ namespace netxs::ui
                 ::lua_pushnil(lua);
                 ::lua_setglobal(lua, "vtm"); // Wipe global context.
                 return result;
+            }
+        };
+
+
+        // pro: Extra properties.
+        class props
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> vars;
+
+        public:
+            props(base&&) = delete;
+            props(base& boss)
+                : skill{ boss }
+            {
+                boss.LISTEN(tier::request, e2::property, get, memo)
+                {
+                    if (auto iter = vars.find(get.var); iter != vars.end())
+                    {
+                        get.val = iter->second;
+                    }
+                };
+                boss.LISTEN(tier::release, e2::property, set, memo)
+                {
+                    if (set.val)
+                    {
+                        vars[set.var] = set.val;
+                    }
+                    else
+                    {
+                        vars.erase(set.var);
+                    }
+                };
             }
         };
     }

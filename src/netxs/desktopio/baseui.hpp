@@ -90,10 +90,22 @@ namespace netxs::events::userland
         static constexpr auto cascade = netxs::events::userland::root::cascade;
         static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
+        struct prop_t
+        {
+            qiew                  var;
+            netxs::sptr<std::any> val;
+
+            template<class T>
+            auto& get()
+            {
+                return *(std::any_cast<T>(val.get()));
+            }
+        };
+
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
+            EVENT_XS( property  , prop_t         ), // request: get property; release: set property.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
             EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.

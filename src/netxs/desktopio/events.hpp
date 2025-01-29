@@ -104,7 +104,7 @@ namespace netxs::events
 
     struct handler
     {
-        virtual ~handler() { }
+        virtual ~handler() = default;
     };
     struct hook : sptr<handler>
     {

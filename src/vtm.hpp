@@ -1123,6 +1123,22 @@ namespace netxs::app::vtm
                     auto& saved_area = *saved_area_ptr;
                     auto what_copy = what;
                     what_copy.applet = {};
+                    auto applet_area_prop = what.applet->bell::signal(tier::request, e2::property, { "window.area" });
+                    if (!applet_area_prop.val)// || !(applet_area_prop.val->has_value() && applet_area_prop.val->type() == typeid(rect)))
+                    {
+                        applet_area_prop.val = ptr::shared(std::make_any<rect>());
+                        what.applet->plugin<pro::props>();
+                        what.applet->bell::signal(tier::release, e2::property, applet_area_prop);
+                    }
+                    auto& applet_area = applet_area_prop.get<rect>();
+                    boss.LISTEN(tier::release, e2::area, new_area)
+                    {
+                        if (applet_area != new_area)
+                        {
+                            applet_area = new_area;
+                            log("applet_area = %new_area%", new_area);
+                        }
+                    };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
                     {
                         auto window_ptr = boss.This();
@@ -2294,6 +2310,7 @@ namespace netxs::app::vtm
             bell::dequeue(); // Wait until all cleanups are completed.
             auto lock = bell::sync();
             plugins<pro::mouse>().reset(); // Release the captured mouse.
+            this->bell::signal(tier::release, e2::dtor, bell::id);
             bell::sensors.reset();
             apps_list.clear();
             items.clear();
