@@ -3109,20 +3109,25 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::request, e2::property, get, memo)
                 {
-                    if (auto iter = vars.find(get.var); iter != vars.end())
+                    if (auto iter = vars.find(get.var_name); iter != vars.end())
                     {
-                        get.val = iter->second;
+                        get.value_ptr = iter->second;
+                    }
+                    else if (get.init.has_value())
+                    {
+                        get.value_ptr = ptr::shared(std::move(get.init));
+                        vars[get.var_name] = get.value_ptr;
                     }
                 };
                 boss.LISTEN(tier::release, e2::property, set, memo)
                 {
-                    if (set.val)
+                    if (set.value_ptr)
                     {
-                        vars[set.var] = set.val;
+                        vars[set.var_name] = set.value_ptr;
                     }
                     else
                     {
-                        vars.erase(set.var);
+                        vars.erase(set.var_name);
                     }
                 };
             }

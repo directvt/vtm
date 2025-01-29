@@ -92,13 +92,14 @@ namespace netxs::events::userland
 
         struct prop_t
         {
-            qiew                  var;
-            netxs::sptr<std::any> val;
+            qiew                  var_name;
+            std::any              init;
+            netxs::sptr<std::any> value_ptr;
 
             template<class T>
             auto& get()
             {
-                return *(std::any_cast<T>(val.get()));
+                return *(std::any_cast<T>(value_ptr.get()));
             }
         };
 
@@ -940,6 +941,13 @@ namespace netxs::ui
             }
             auto ptr = static_cast<S*>(it->second.get());
             return *ptr;
+        }
+        // base: Request/register and return object property.
+        template<class T>
+        auto& property(qiew prop_name, T&& init_value = {})
+        {
+            auto prop = bell::signal(tier::request, e2::property, { prop_name, std::forward<T>(init_value) });
+            return prop.get<T>();
         }
         // base: Render to the canvas. Trim = trim viewport to the nested object region.
         template<bool Forced = faux>

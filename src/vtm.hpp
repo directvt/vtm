@@ -1123,20 +1123,12 @@ namespace netxs::app::vtm
                     auto& saved_area = *saved_area_ptr;
                     auto what_copy = what;
                     what_copy.applet = {};
-                    auto applet_area_prop = what.applet->bell::signal(tier::request, e2::property, { "window.area" });
-                    if (!applet_area_prop.val)// || !(applet_area_prop.val->has_value() && applet_area_prop.val->type() == typeid(rect)))
-                    {
-                        applet_area_prop.val = ptr::shared(std::make_any<rect>());
-                        what.applet->plugin<pro::props>();
-                        what.applet->bell::signal(tier::release, e2::property, applet_area_prop);
-                    }
-                    auto& applet_area = applet_area_prop.get<rect>();
+                    auto& applet_area = what.applet->base::property<rect>("window.area");
                     boss.LISTEN(tier::release, e2::area, new_area)
                     {
                         if (applet_area != new_area)
                         {
                             applet_area = new_area;
-                            log("applet_area = %new_area%", new_area);
                         }
                     };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
@@ -1283,8 +1275,9 @@ namespace netxs::app::vtm
                     auto inst_list_iter_ptr = ptr::shared(std::prev(inst_list.end()));
                     if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
 
-                    if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
-                    else if (what.square)            boss.extend(what.square);
+                         if (applet_area)                 boss.extend({ what.square.coor, applet_area.size });
+                    else if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
+                    else if (what.square)                 boss.extend(what.square);
 
                     boss.attach(what.applet);
 
@@ -1820,6 +1813,7 @@ namespace netxs::app::vtm
                 auto& setup = menu_list[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
+                what.applet->plugin<pro::props>();
                 what.header = setup.title;
                 what.footer = setup.footer;
             };
