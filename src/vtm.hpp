@@ -1123,14 +1123,9 @@ namespace netxs::app::vtm
                     auto& saved_area = *saved_area_ptr;
                     auto what_copy = what;
                     what_copy.applet = {};
-                    auto& applet_area = what.applet->base::property<rect>("window.area");
-                    boss.LISTEN(tier::release, e2::area, new_area)
-                    {
-                        if (applet_area != new_area)
-                        {
-                            applet_area = new_area;
-                        }
-                    };
+                    auto& applet_area = what.applet->base::bind_property("window.area", boss, e2::area);
+                    //auto& applet_header = what.applet->base::bind_property("window.header", boss, e2::form::prop::ui::header);
+                    //auto& applet_footer = what.applet->base::bind_property("window.footer", boss, e2::form::prop::ui::footer);
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
                     {
                         auto window_ptr = boss.This();

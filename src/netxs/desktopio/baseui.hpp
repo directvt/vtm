@@ -949,6 +949,20 @@ namespace netxs::ui
             auto prop = bell::signal(tier::request, e2::property, { prop_name, std::forward<T>(init_value) });
             return prop.get<T>();
         }
+        // base: Bind and return object property.
+        template<class Event, si32 Tier = tier::release>
+        auto& bind_property(qiew prop_name, base& boss, Event event)
+        {
+            auto& prop = base::property<typename Event::type>(prop_name);
+            boss.LISTEN(Tier, event, new_value)
+            {
+                if (prop != new_value)
+                {
+                    prop = new_value;
+                }
+            };
+            return prop;
+        }
         // base: Render to the canvas. Trim = trim viewport to the nested object region.
         template<bool Forced = faux>
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
