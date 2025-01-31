@@ -947,7 +947,7 @@ namespace netxs::ui
         auto& property(qiew prop_name, T&& init_value = {})
         {
             auto prop = bell::signal(tier::request, e2::property, { prop_name, std::forward<T>(init_value) });
-            return prop.get<T>();
+            return prop.get<std::decay_t<T>>();
         }
         // base: Bind and return object property.
         template<si32 Tier = tier::release, class Event>

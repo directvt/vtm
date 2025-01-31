@@ -983,13 +983,12 @@ namespace netxs::app::vtm
 
                     boss.base::kind(base::reflow_root);
                     boss.base::root(true);
-                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
+                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                     {
                         if (boss.subset.size())
                         if (auto applet = boss.subset.back())
                         {
                             what.applet = applet;
-                            what.menuid = menuid;
                         }
                     };
                     auto last_state = ptr::shared(faux);
@@ -1251,12 +1250,13 @@ namespace netxs::app::vtm
                         }
                     };
 
-                    auto& cfg = menu_list[what.menuid];
-                    auto& [fixed_menu_item, inst_list] = apps_list[what.menuid];
+                    auto& menuid = what.applet->property<text>("window.menuid");
+                    auto& cfg = menu_list[menuid];
+                    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
                     fixed_menu_item = !cfg.hidden;
                     inst_list.push_back(boss.This());
                     auto inst_list_iter_ptr = ptr::shared(std::prev(inst_list.end()));
-                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
 
                          if (applet_area)                 boss.extend({ what.square.coor, applet_area.size });
                     else if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
@@ -1797,6 +1797,7 @@ namespace netxs::app::vtm
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
                 what.applet->plugin<pro::props>();
+                what.applet->base::property("window.menuid", what.menuid);
                 what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header, setup.title);
                 what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer, setup.footer);
             };

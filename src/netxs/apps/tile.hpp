@@ -205,7 +205,7 @@ namespace netxs::app::tile
                         mouse_subs(boss);
                         if (what.applet->size() != dot_00) boss.resize(what.applet->size() + dot_01/*approx title height*/);
                         auto applet_shadow = ptr::shadow(what.applet);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, menuid = what.menuid))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow))
                         {
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
@@ -220,9 +220,9 @@ namespace netxs::app::tile
                                 boss.bell::signal(tier::release, e2::form::size::restore);
 
                                 // Take current title.
-                                auto what = vtm::events::handoff.param({ .menuid = menuid });
+                                auto what = vtm::events::handoff.param();
                                 auto& header = applet.property<text>("window.header");
-                                if (header.empty()) header = menuid;
+                                if (header.empty()) header = applet.property<text>("window.menuid");
 
                                 // Find creator.
                                 auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
