@@ -69,7 +69,7 @@ namespace netxs::app::vtm
             SUBSET_XS(gate)
             {
                 EVENT_XS( fullscreen, applink ), // release: Toggle fullscreen mode.
-                //EVENT_XS( restore   , applink ), // release: Restore from fullscreen.
+                EVENT_XS( restore   , si32    ), // release: Restore from fullscreen. args: restore mode.
             };
         };
     };
@@ -580,203 +580,18 @@ namespace netxs::app::vtm
         };
     }
 
-    // vtm: User gate.
-    struct user
-        : public ui::gate
-    {
-        wptr    saved;// align: .
-        applink fullscreen; // align: Original app window properties.
-        rect    prev; // align: Window size before the fullscreen has applied.
-        twod    coor; // align: Coor tracking.
-        subs    maxs; // align: Fullscreen event subscription token.
-        subs    memo; // align: .
-        struct restoration_type
-        {
-            static constexpr auto _counter   = __COUNTER__ + 1;
-            static constexpr auto full = __COUNTER__ - _counter;
-            static constexpr auto size = __COUNTER__ - _counter;
-            static constexpr auto coor = __COUNTER__ - _counter;
-        };
-
-        user(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
-            : ui::gate{ uplink, vtmode, config, userid, session_id, true }
-        {
-            //todo local=>nexthop
-            local = faux;
-            //todo scripting
-            //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
-            auto& keybd = plugins<pro::keybd>();
-            auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
-            keybd.bind(bindings);
-
-            LISTEN(tier::release, e2::form::proceed::action::unbind, restore_mode, memo)
-            {
-                if (!memo) return;
-                nexthop = std::exchange(saved, wptr{});
-                memo.clear();
-                base::riseup(tier::preview, e2::form::prop::ui::header, std::move(base::get("window.saved_header")));
-                base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(base::get("window.saved_footer")));
-                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
-                {
-                    auto gear_id_list = pro::focus::cut(fullscreen.applet);
-                    fullscreen.applet->base::detach();
-                    fullscreen.forced = true;
-                    world_ptr->bell::signal(tier::request, vtm::events::handoff, fullscreen);
-                    pro::focus::set(fullscreen.applet, gear_id_list, solo::on, true);
-                }
-                if (auto window_ptr = fullscreen.applet->base::parent())
-                {
-                    auto& window = *window_ptr;
-                    switch (restore_mode)
-                    {
-                        case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
-                        case restoration_type::coor: window.base::moveto(prev.coor); break;
-                        case restoration_type::size:
-                        {
-                            auto window_size = window.base::size();
-                            auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                            window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
-                            prev.coor = base::coor();
-                            prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
-                            window.base::extend(prev);
-                            break;
-                        }
-                    }
-                }
-                fullscreen.applet.reset();
-            };
-            LISTEN(tier::release, vtm::events::gate::fullscreen, new_fullscreen, maxs)
-            {
-                if (fullscreen.applet)
-                {
-                    this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                }
-                if (new_fullscreen.applet)
-                {
-                    if (new_fullscreen.applet->subset.empty()) return;
-                    auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
-                    prev = new_fullscreen.applet->base::area();
-                    auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
-                    window_ptr->base::detach();
-                    fullscreen = new_fullscreen;
-                    auto applet_ptr = fullscreen.applet;
-                    saved = std::exchange(nexthop, applet_ptr);
-                    applet_ptr->base::detach();
-                    auto new_pos = base::area();
-                    new_pos.coor -= base::coor();
-                    applet_ptr->base::extend(new_pos);
-                    coor = applet_ptr->base::coor();
-
-                    auto newhead = fullscreen.applet->base::get("window.header");
-                    auto newfoot = fullscreen.applet->base::get("window.footer");
-                    base::get("window.saved_header") = base::riseup(tier::request, e2::form::prop::ui::header);
-                    base::get("window.saved_footer") = base::riseup(tier::request, e2::form::prop::ui::footer);
-                    base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
-                    base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
-
-                    LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
-                    {
-                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                    };
-                    LISTEN(tier::release, e2::dtor, p, memo)
-                    {
-                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                    };
-                    LISTEN(tier::release, e2::area, new_area, memo)
-                    {
-                        if (new_area.coor != base::coor()) this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                        else fullscreen.applet->base::resize(new_area.size);
-                    };
-                    LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
-                    {
-                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                        bell::expire(tier::preview);
-                    };
-                    applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
-                    {
-                        auto deed = fullscreen.applet->bell::protos(tier::preview);
-                        if (deed == e2::form::size::enlarge::maximize.id)
-                        {
-                            this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                        }
-                    };
-                    applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
-                    {
-                        fullscreen.applet->bell::expire(tier::release); // Suppress hide/minimization.
-                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                    };
-                    applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
-                    {
-                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
-                        bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
-                    };
-                    applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
-                    {
-                        if (coor != new_area.coor) this->bell::signal(tier::release, e2::form::proceed::action::unbind, restoration_type::size);
-                    };
-                    applet_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
-                    {
-                        if (coor != new_area.coor) this->bell::signal(tier::release, e2::form::proceed::action::unbind, restoration_type::size);
-                    };
-                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-                    //applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
-                    pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
-                }
-            };
-            //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_fullscreen, maxs)
-            //{
-            //    ask_fullscreen = fullscreen;
-            //};
-
-            LISTEN(tier::release, hids::events::focus::set::any, seed) // Any: To run prior the ui::gate's hids::events::focus::any.
-            {
-                if (seed.treeid)
-                {
-                    if (auto target = nexthop.lock())
-                    {
-                        auto deed = this->bell::protos(tier::release);
-                        target->bell::signal(tier::request, deed, seed); // Request to filter recursive loops.
-                        this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
-                    }
-                }
-                else
-                {
-                    this->bell::expire(tier::release, true);
-                }
-            };
-            //todo mimic pro::focus
-            LISTEN(tier::request, hids::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
-            {
-                if (fullscreen.applet)
-                {
-                    seed.treeid = treeid;
-                    seed.digest = ++digest;
-                    for (auto& [ext_gear_id, gear_ptr] : gears)
-                    {
-                        if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
-                        {
-                            if (auto gear_id = gear_ptr->id)
-                            {
-                                seed.gear_id = gear_id;
-                                fullscreen.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
-                            }
-                        }
-                    }
-                }
-            };
-
-            LISTEN(tier::release, e2::form::upon::vtree::attached, world_ptr)
-            {
-                nexthop = world_ptr;
-            };
-        }
-    };
-
     // vtm: Borderless container of floating windows.
     struct hall
         : public form<hall>
     {
     private:
+        struct restoration_type
+        {
+            static constexpr auto _counter = __COUNTER__ + 1;
+            static constexpr auto full = __COUNTER__ - _counter;
+            static constexpr auto size = __COUNTER__ - _counter;
+            static constexpr auto coor = __COUNTER__ - _counter;
+        };
         struct node // hall: Adapter for the object that going to be attached to the hall.
         {
             bool highlighted = faux;
@@ -2143,8 +1958,17 @@ namespace netxs::app::vtm
         {
             if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
-            auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
+            auto usergate_ptr = hall::ctor<gate>(client, vtmode, app_config, userid, session_id, true);
             auto& usergate = *usergate_ptr;
+
+            //todo local=>nexthop
+            usergate.local = faux;
+            //todo scripting
+            //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
+            auto& keybd = usergate.plugins<pro::keybd>();
+            auto bindings = pro::keybd::load(app_config, "desktop"); //todo rename "desktop" to "gate"?
+            keybd.bind(bindings);
+
             auto& [user_ptr, uname] = users.emplace_back(usergate_ptr, para{});
             auto users_iter = std::prev(users.end());
             usrs_list.push_back(usergate_ptr);
@@ -2153,8 +1977,169 @@ namespace netxs::app::vtm
             usergate.props.background_color.link(bell::id);
             //todo revise (now world is not a parent for usergate)
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            usergate.nexthop = base::This();
 
             bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
+
+            auto& saved = base::get<wptr>();// align: .
+            auto& what = base::get<applink>(); // align: Original app window properties.
+            auto& prev = base::get<rect>(); // align: Window size before the fullscreen has applied.
+            auto& coor = base::get<twod>(); // align: Coor tracking.
+            auto& memo = base::get<subs>(); // align: .
+            usergate.LISTEN(tier::release, vtm::events::gate::restore, restore_mode)
+            {
+                if (!memo) return;
+                usergate.nexthop = std::exchange(saved, wptr{});
+                memo.clear();
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::get("window.saved_header")));
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::get("window.saved_footer")));
+                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
+                {
+                    auto gear_id_list = pro::focus::cut(what.applet);
+                    what.applet->base::detach();
+                    what.forced = true;
+                    world_ptr->bell::signal(tier::request, vtm::events::handoff, what);
+                    pro::focus::set(what.applet, gear_id_list, solo::on, true);
+                }
+                if (auto window_ptr = what.applet->base::parent())
+                {
+                    auto& window = *window_ptr;
+                    switch (restore_mode)
+                    {
+                        case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
+                        case restoration_type::coor: window.base::moveto(prev.coor); break;
+                        case restoration_type::size:
+                        {
+                            auto window_size = window.base::size();
+                            auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
+                            window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
+                            prev.coor = usergate.base::coor();
+                            prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
+                            window.base::extend(prev);
+                            break;
+                        }
+                    }
+                }
+                what.applet.reset();
+            };
+            usergate.LISTEN(tier::release, vtm::events::gate::fullscreen, new_fullscreen)
+            {
+                if (what.applet)
+                {
+                    usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                }
+                if (new_fullscreen.applet && !new_fullscreen.applet->subset.empty())
+                {
+                    auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
+                    prev = new_fullscreen.applet->base::area();
+                    auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
+                    window_ptr->base::detach();
+                    what = new_fullscreen;
+                    auto applet_ptr = what.applet;
+                    saved = std::exchange(usergate.nexthop, applet_ptr);
+                    applet_ptr->base::detach();
+                    auto new_pos = usergate.base::area();
+                    new_pos.coor -= usergate.base::coor();
+                    applet_ptr->base::extend(new_pos);
+                    coor = applet_ptr->base::coor();
+
+                    auto newhead = what.applet->base::get("window.header");
+                    auto newfoot = what.applet->base::get("window.footer");
+                    usergate.base::get("window.saved_header") = usergate.base::riseup(tier::request, e2::form::prop::ui::header);
+                    usergate.base::get("window.saved_footer") = usergate.base::riseup(tier::request, e2::form::prop::ui::footer);
+                    usergate.base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
+                    usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
+
+                    usergate.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
+                    {
+                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                    };
+                    usergate.LISTEN(tier::release, e2::dtor, p, memo)
+                    {
+                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                    };
+                    usergate.LISTEN(tier::release, e2::area, new_area, memo)
+                    {
+                        if (new_area.coor != base::coor()) usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        else what.applet->base::resize(new_area.size);
+                    };
+                    usergate.LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
+                    {
+                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.bell::expire(tier::preview);
+                    };
+                    applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
+                    {
+                        auto deed = what.applet->bell::protos(tier::preview);
+                        if (deed == e2::form::size::enlarge::maximize.id)
+                        {
+                            usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        }
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
+                    {
+                        what.applet->bell::expire(tier::release); // Suppress hide/minimization.
+                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
+                    {
+                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
+                    {
+                        if (coor != new_area.coor) usergate.bell::signal(tier::release, vtm::events::gate::restore, restoration_type::size);
+                    };
+                    applet_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
+                    {
+                        if (coor != new_area.coor) usergate.bell::signal(tier::release, vtm::events::gate::restore, restoration_type::size);
+                    };
+                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+                    //applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
+                    pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
+                }
+            };
+            //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_fullscreen)
+            //{
+            //    ask_fullscreen = what;
+            //};
+
+            usergate.LISTEN(tier::release, hids::events::focus::set::any, seed) // Any: To run prior the ui::gate's hids::events::focus::any.
+            {
+                if (seed.treeid)
+                {
+                    if (auto target = usergate.nexthop.lock())
+                    {
+                        auto deed = this->bell::protos(tier::release);
+                        target->bell::signal(tier::request, deed, seed); // Request to filter recursive loops.
+                        this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
+                    }
+                }
+                else
+                {
+                    usergate.bell::expire(tier::release, true);
+                }
+            };
+            //todo mimic pro::focus
+            usergate.LISTEN(tier::request, hids::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
+            {
+                if (what.applet)
+                {
+                    seed.treeid = treeid;
+                    seed.digest = ++digest;
+                    for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
+                    {
+                        if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
+                        {
+                            if (auto gear_id = gear_ptr->id)
+                            {
+                                seed.gear_id = gear_id;
+                                what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
+                            }
+                        }
+                    }
+                }
+            };
 
             usergate.LISTEN(tier::release, e2::form::prop::name, user_name_utf8)
             {
@@ -2235,16 +2220,16 @@ namespace netxs::app::vtm
                 auto timestamp = datetime::now();
                 // Do not wait next timer tick.
                 auto damaged = true;
-                auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
-                if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
+                auto fullscreen_mode = damaged && !!what.applet;
+                if (fullscreen_mode) usergate.subset.push_back(what.applet);
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = usergate.base::ruined();
-                auto fullscreen_mode = damaged && !!usergate.fullscreen.applet;
-                if (fullscreen_mode) usergate.subset.push_back(usergate.fullscreen.applet);
+                auto fullscreen_mode = damaged && !!what.applet;
+                if (fullscreen_mode) usergate.subset.push_back(what.applet);
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };

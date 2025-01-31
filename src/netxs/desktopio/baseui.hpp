@@ -361,7 +361,6 @@ namespace netxs::events::userland
                     SUBSET_XS( action )
                     {
                         EVENT_XS( restore  , input::hids ),
-                        EVENT_XS( unbind   , si32        ), // release: Restore from fullscreen.
                     };
                 };
                 SUBSET_XS( cursor )
@@ -933,6 +932,16 @@ namespace netxs::ui
             {
                 iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
             }
+            return *(std::any_cast<T>(iter->second.get()));
+        }
+        // base: Allocate an anonymous property.
+        template<class T = text>
+        auto& get()
+        {
+            static auto i = 0;
+            auto value_ptr = ptr::shared(std::make_any<T>());
+            auto property_name = qiew{ (char*)value_ptr.get(), sizeof(std::any) };
+            auto iter = fields.emplace(property_name, value_ptr).first;
             return *(std::any_cast<T>(iter->second.get()));
         }
         // base: Get object property reference.
