@@ -911,10 +911,10 @@ namespace netxs::ui
             base::extpad = new_extpad;
         }
         // base: Detach the specified plugin.
-        template<class S>
+        template<class T>
         void unplug()
         {
-            vars.erase(std::type_index(typeid(S)).name());
+            vars.erase(std::type_index(typeid(T)).name());
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
