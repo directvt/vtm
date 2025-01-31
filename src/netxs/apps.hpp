@@ -637,24 +637,24 @@ namespace netxs::app::shared
                     ->invoke([&](auto& boss)
                     {
                         boss.base::hidden = true;
-                        auto backup = ptr::shared<text>();
-                        boss.LISTEN(tier::release, hids::events::mouse::any, gear, -, (backup))
+                        auto& backup = boss.base::field<text>();
+                        boss.LISTEN(tier::release, hids::events::mouse::any, gear)
                         {
                             if (events::subevent(gear.cause, hids::events::mouse::button::down::any.id))
                             {
-                                if (backup->empty())
+                                if (backup.empty())
                                 {
                                     gear.capture(boss.bell::id);
-                                    *backup = boss.get_source();
-                                    gear.set_clipboard({ (si32)backup->length(), 1 }, *backup, mime::textonly);
+                                    backup = boss.get_source();
+                                    gear.set_clipboard({ (si32)backup.length(), 1 }, backup, mime::textonly);
                                     boss.set("<copied>");
                                 }
                             }
-                            else if (backup->size() && gear.pressed_count == 0)
+                            else if (backup.size() && gear.pressed_count == 0)
                             {
                                 gear.setfree();
-                                boss.set(*backup);
-                                backup->clear();
+                                boss.set(backup);
+                                backup.clear();
                             }
                         };
                     });

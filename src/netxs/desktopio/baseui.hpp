@@ -936,13 +936,13 @@ namespace netxs::ui
         }
         // base: Allocate an anonymous property.
         template<class T = text>
-        auto& field()
+        auto& field()//T&& init = {})
         {
-            static auto i = 0;
-            auto value_ptr = ptr::shared(std::make_any<T>());
+            //auto value_ptr = ptr::shared(std::make_any(std::forward<T>(init)));
+            auto value_ptr = ptr::shared(std::make_any<std::decay_t<T>>());
             auto property_name = qiew{ (char*)value_ptr.get(), sizeof(std::any) };
             auto iter = fields.emplace(property_name, value_ptr).first;
-            return *(std::any_cast<T>(iter->second.get()));
+            return *(std::any_cast<std::decay_t<T>>(iter->second.get()));
         }
         // base: Get object property reference.
         template<class T = text>
