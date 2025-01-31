@@ -674,7 +674,7 @@ namespace netxs::app::shared
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;;
-            auto update_ptr = ptr::shared([pressed, released](auto& boss, hids& gear, bool is_key_event)
+            auto& update = window->base::newfield([pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
                 //    input::key::map::data(gear.keycode).name,
@@ -730,9 +730,9 @@ namespace netxs::app::shared
             }
             items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update_ptr))
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
                 {
-                    (*update_ptr)(boss, gear, faux);
+                    update(boss, gear, faux);
                 };
             });
             window->invoke([&](auto& boss)
@@ -742,15 +742,15 @@ namespace netxs::app::shared
                 //auto& state_inst = *state_state;
                 auto& keybd = boss.template plugins<pro::keybd>();
                 app::shared::base_kb_navigation(keybd, scroll, boss);
-                //keybd.proc("UpdateChordPreview", [&, update_ptr](hids& gear)
+                //keybd.proc("UpdateChordPreview", [&](hids& gear)
                 //{
-                //    if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
+                //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                 //    if (rawkbd) gear.set_handled();
                 //});
-                //keybd.proc("ExclusiveKeyboardMode", [&, update_ptr](hids& gear)
+                //keybd.proc("ExclusiveKeyboardMode", [&](hids& gear)
                 //{
                 //    state_inst.bell::signal(tier::release, ui::term::events::rawkbd);
-                //    if (gear.keystat != input::key::repeated) (*update_ptr)(items_inst, gear, true);
+                //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                 //    gear.set_handled();
                 //});
                 keybd.bind("Any", "UpdateChordPreview");
