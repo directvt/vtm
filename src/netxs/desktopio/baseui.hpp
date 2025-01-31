@@ -627,7 +627,6 @@ namespace netxs::ui
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        std::map<std::type_index, uptr<pro::skill>> depo;
         std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> vars;
 
         template<class T = base>
@@ -915,19 +914,19 @@ namespace netxs::ui
         template<class S>
         void unplug()
         {
-            depo.erase(std::type_index(typeid(S)));
+            vars.erase(std::type_index(typeid(S)).name());
         }
-        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin (using the specified arguments) if it does not exist.
-        template<class S, class ...Args>
+        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
+        template<class T, class ...Args>
         auto& plugin(Args&&... args)
         {
-            auto it = depo.find(std::type_index(typeid(S)));
-            if (it == depo.end())
+            auto plugin_name = std::type_index(typeid(T)).name();
+            auto iter = vars.find(plugin_name);
+            if (iter == vars.end())
             {
-                it = depo.emplace(std::type_index(typeid(S)), std::make_unique<S>(*this, std::forward<Args>(args)...)).first;
+                iter = vars.emplace(plugin_name, ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
             }
-            auto ptr = static_cast<S*>(it->second.get());
-            return *ptr;
+            return *(std::any_cast<T>(iter->second.get()));
         }
         // base: Get object property reference.
         template<class T = text>
