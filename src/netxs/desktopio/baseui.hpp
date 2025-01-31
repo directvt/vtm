@@ -628,7 +628,7 @@ namespace netxs::ui
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> vars;
+        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -911,21 +911,27 @@ namespace netxs::ui
             base::intpad = new_intpad;
             base::extpad = new_extpad;
         }
+        template<class T>
+        auto plugin_name()
+        {
+            static auto name = []{ auto name_ptr = std::type_index(typeid(T)).name();
+                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include trailing null*/ }; }();
+            return name;
+        }
         // base: Detach the specified plugin.
         template<class T>
         void unplug()
         {
-            vars.erase(std::type_index(typeid(T)).name());
+            fields.erase(plugin_name<T>());
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
         auto& plugin(Args&&... args)
         {
-            auto plugin_name = std::type_index(typeid(T)).name();
-            auto iter = vars.find(plugin_name);
-            if (iter == vars.end())
+            auto iter = fields.find(plugin_name<T>());
+            if (iter == fields.end())
             {
-                iter = vars.emplace(plugin_name, ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
+                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
         }
@@ -933,10 +939,10 @@ namespace netxs::ui
         template<class T = text>
         auto& get(qiew property_name)
         {
-            auto iter = vars.find(property_name);
-            if (iter == vars.end())
+            auto iter = fields.find(property_name);
+            if (iter == fields.end())
             {
-                iter = vars.emplace(property_name, ptr::shared(std::make_any<T>())).first;
+                iter = fields.emplace(property_name, ptr::shared(std::make_any<T>())).first;
             }
             return *(std::any_cast<T>(iter->second.get()));
         }
