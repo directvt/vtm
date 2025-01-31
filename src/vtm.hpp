@@ -2020,9 +2020,6 @@ namespace netxs::app::vtm
                     for (auto& [user_ptr, uname] : users)
                     {
                         fasten(user_ptr, faux, 0, color, parent_canvas); // Draw strings.
-                    }
-                    for (auto& [user_ptr, uname] : users) // Draw shadows.
-                    {
                         if (user_ptr->id != parent_canvas.link()) // Draw a shadow of user's gate for other users.
                         {
                             auto gate_area = user_ptr->area();
