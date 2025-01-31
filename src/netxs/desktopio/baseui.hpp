@@ -936,7 +936,7 @@ namespace netxs::ui
         }
         // base: Allocate an anonymous property.
         template<class T = text>
-        auto& get()
+        auto& field()
         {
             static auto i = 0;
             auto value_ptr = ptr::shared(std::make_any<T>());
@@ -946,7 +946,7 @@ namespace netxs::ui
         }
         // base: Get object property reference.
         template<class T = text>
-        auto& get(qiew property_name)
+        auto& field(qiew property_name)
         {
             auto iter = fields.find(property_name);
             if (iter == fields.end())
@@ -959,7 +959,7 @@ namespace netxs::ui
         template<si32 Tier = tier::release, class Event>
         auto& bind_property(qiew property_name, base& boss, Event event)
         {
-            auto& prop = base::get<typename Event::type>(property_name);
+            auto& prop = base::field<typename Event::type>(property_name);
             boss.LISTEN(Tier, event, new_value)
             {
                 if (prop != new_value)
