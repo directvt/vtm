@@ -613,10 +613,10 @@ namespace netxs::app::vtm
             applet_ptr->base::extend(new_pos);
             coor = applet_ptr->base::coor();
 
-            auto newhead = fullscreen.applet->property<text>("window.header");
-            auto newfoot = fullscreen.applet->property<text>("window.footer");
-            property<text>("window.saved_header", base::riseup(tier::request, e2::form::prop::ui::header));
-            property<text>("window.saved_footer", base::riseup(tier::request, e2::form::prop::ui::footer));
+            auto newhead = fullscreen.applet->base::get("window.header");
+            auto newfoot = fullscreen.applet->base::get("window.footer");
+            base::get("window.saved_header") = base::riseup(tier::request, e2::form::prop::ui::header);
+            base::get("window.saved_footer") = base::riseup(tier::request, e2::form::prop::ui::footer);
             base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
             base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
@@ -673,8 +673,8 @@ namespace netxs::app::vtm
             if (!memo) return;
             nexthop = std::exchange(saved, wptr{});
             memo.clear();
-            base::riseup(tier::preview, e2::form::prop::ui::header, std::move(property<text>("window.saved_header")));
-            base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(property<text>("window.saved_footer")));
+            base::riseup(tier::preview, e2::form::prop::ui::header, std::move(base::get("window.saved_header")));
+            base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(base::get("window.saved_footer")));
             if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
                 auto gear_id_list = pro::focus::cut(fullscreen.applet);
@@ -868,8 +868,8 @@ namespace netxs::app::vtm
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::ghost>()
-                ->plugin<pro::title>(what.applet->property<text>("window.header"), what.applet->property<text>("window.footer"))
-                ->plugin<pro::notes>(what.applet->property<text>("window.footer"), dent{ 2,2,1,1 })
+                ->plugin<pro::title>(what.applet->base::get("window.header"), what.applet->base::get("window.footer"))
+                ->plugin<pro::notes>(what.applet->base::get("window.footer"), dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
@@ -1250,7 +1250,7 @@ namespace netxs::app::vtm
                         }
                     };
 
-                    auto& menuid = what.applet->property<text>("window.menuid");
+                    auto& menuid = what.applet->base::get("window.menuid");
                     auto& cfg = menu_list[menuid];
                     auto& [fixed_menu_item, inst_list] = apps_list[menuid];
                     fixed_menu_item = !cfg.hidden;
@@ -1796,10 +1796,9 @@ namespace netxs::app::vtm
                 auto& setup = menu_list[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
-                what.applet->plugin<pro::props>();
-                what.applet->base::property("window.menuid", what.menuid);
-                what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header, setup.title);
-                what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer, setup.footer);
+                what.applet->base::get("window.menuid") = what.menuid;
+                what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header) = setup.title;
+                what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {

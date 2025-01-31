@@ -751,7 +751,6 @@ namespace netxs::ui
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
             auto& luafx = plugins<pro::luafx>();
-            plugins<pro::props>();
             auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
 

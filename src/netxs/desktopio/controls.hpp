@@ -3091,47 +3091,6 @@ namespace netxs::ui
                 return result;
             }
         };
-
-
-        // pro: Extra properties.
-        class props
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> vars;
-
-        public:
-            props(base&&) = delete;
-            props(base& boss)
-                : skill{ boss }
-            {
-                boss.LISTEN(tier::request, e2::property, get, memo)
-                {
-                    if (auto iter = vars.find(get.var_name); iter != vars.end())
-                    {
-                        get.value_ptr = iter->second;
-                    }
-                    else if (get.init.has_value())
-                    {
-                        get.value_ptr = ptr::shared(std::move(get.init));
-                        vars[get.var_name] = get.value_ptr;
-                    }
-                };
-                boss.LISTEN(tier::release, e2::property, set, memo)
-                {
-                    if (set.value_ptr)
-                    {
-                        vars[set.var_name] = set.value_ptr;
-                    }
-                    else
-                    {
-                        vars.erase(set.var_name);
-                    }
-                };
-            }
-        };
     }
 
     // console: Lua scripting.

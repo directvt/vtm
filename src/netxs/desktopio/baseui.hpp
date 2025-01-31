@@ -90,23 +90,9 @@ namespace netxs::events::userland
         static constexpr auto cascade = netxs::events::userland::root::cascade;
         static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
-        struct prop_t
-        {
-            qiew                  var_name;
-            std::any              init;
-            netxs::sptr<std::any> value_ptr;
-
-            template<class T>
-            auto& get()
-            {
-                return *(std::any_cast<T>(value_ptr.get()));
-            }
-        };
-
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( property  , prop_t         ), // request: get property; release: set property.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
             EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
@@ -642,6 +628,7 @@ namespace netxs::ui
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         std::map<std::type_index, uptr<pro::skill>> depo;
+        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> vars;
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -942,18 +929,22 @@ namespace netxs::ui
             auto ptr = static_cast<S*>(it->second.get());
             return *ptr;
         }
-        // base: Request/register and return object property.
-        template<class T>
-        auto& property(qiew prop_name, T&& init_value = {})
+        // base: Get object property reference.
+        template<class T = text>
+        auto& get(qiew property_name)
         {
-            auto prop = bell::signal(tier::request, e2::property, { prop_name, std::forward<T>(init_value) });
-            return prop.get<std::decay_t<T>>();
+            auto iter = vars.find(property_name);
+            if (iter == vars.end())
+            {
+                iter = vars.emplace(property_name, ptr::shared(std::make_any<T>())).first;
+            }
+            return *(std::any_cast<T>(iter->second.get()));
         }
-        // base: Bind and return object property.
+        // base: Bind object property to event.
         template<si32 Tier = tier::release, class Event>
-        auto& bind_property(qiew prop_name, base& boss, Event event, typename Event::type init_value = {})
+        auto& bind_property(qiew property_name, base& boss, Event event)
         {
-            auto& prop = base::property(prop_name, std::move(init_value));
+            auto& prop = base::get<typename Event::type>(property_name);
             boss.LISTEN(Tier, event, new_value)
             {
                 if (prop != new_value)
