@@ -1,3 +1,5 @@
+> 1/30/2025: The project is in the process of deep revision. This will take a while.
+
 # vtm
 
 It is a text-based application where the entire user interface is represented by a mosaic of text cells forming a TUI matrix. The resulting TUI matrix is ​​just rendered either into its own GUI window or into a compatible text console.
