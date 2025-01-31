@@ -792,15 +792,15 @@ namespace netxs::app::vtm
                             what.applet = applet;
                         }
                     };
-                    auto last_state = ptr::shared(faux);
-                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (last_state))
+                    auto& last_state = boss.base::field<bool>();
+                    boss.LISTEN(tier::release, e2::form::layout::selected, gear)
                     {
-                        *last_state = boss.hidden;
+                        last_state = boss.hidden;
                         boss.hidden = faux; // Restore if it is hidden.
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (last_state))
+                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear)
                     {
-                        if (*last_state == true) // Return to hidden state.
+                        if (last_state == true) // Return to hidden state.
                         {
                             boss.hidden = true;
                         }
@@ -907,16 +907,14 @@ namespace netxs::app::vtm
                                                     "\n\tdels ", counter.del_count);
                     };
 
-                    auto maximize_token_ptr = ptr::shared<subs>();
-                    auto viewport_area_ptr = ptr::shared<rect>();
-                    auto saved_area_ptr = ptr::shared<rect>();
-                    auto& maximize_token = *maximize_token_ptr;
-                    auto& viewport_area = *viewport_area_ptr;
-                    auto& saved_area = *saved_area_ptr;
-                    auto what_copy = what;
+                    auto& maximize_token = boss.base::field<subs>();
+                    auto& viewport_area = boss.base::field<rect>();
+                    auto& saved_area = boss.base::field<rect>();
+                    auto& what_copy = boss.base::field<applink>();
+                    what_copy = what;
                     what_copy.applet = {};
                     auto& applet_area = what.applet->base::bind_property("window.area", boss, e2::area);
-                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
                     {
                         auto window_ptr = boss.This();
                         if (maximize_token) // Restore maximized window.
@@ -2182,12 +2180,11 @@ namespace netxs::app::vtm
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
             };
-            auto drag_origin_ptr = ptr::shared<fp2d>();
-            auto& drag_origin = *drag_origin_ptr;
-            auto& user_mouse = usergate.plugins<pro::mouse>();
+            auto& drag_origin = usergate.base::field<fp2d>();
+            auto& user_mouse = usergate.base::plugin<pro::mouse>();
             user_mouse.template draggable<hids::buttons::leftright>(true);
             user_mouse.template draggable<hids::buttons::left>(true);
-            usergate.LISTEN(tier::release, e2::form::drag::start::any, gear, -, (drag_origin_ptr))
+            usergate.LISTEN(tier::release, e2::form::drag::start::any, gear)
             {
                 if (gear.owner.id == usergate.id)
                 {
