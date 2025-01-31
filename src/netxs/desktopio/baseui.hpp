@@ -940,9 +940,11 @@ namespace netxs::ui
         {
             //auto value_ptr = ptr::shared(std::make_any(std::forward<T>(init)));
             auto value_ptr = ptr::shared(std::make_any<std::decay_t<T>>());
-            auto property_name = qiew{ (char*)value_ptr.get(), sizeof(std::any) };
+            auto& value = *(std::any_cast<std::decay_t<T>>(value_ptr.get()));
+            auto addr = (ui64)&value;
+            auto property_name = qiew{ (char*)(&addr), sizeof(ui64) };
             auto iter = fields.emplace(property_name, value_ptr).first;
-            return *(std::any_cast<std::decay_t<T>>(iter->second.get()));
+            return value;
         }
         // base: Get object property reference.
         template<class T = text>
