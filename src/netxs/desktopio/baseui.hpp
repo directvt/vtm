@@ -950,16 +950,17 @@ namespace netxs::ui
             return prop.get<T>();
         }
         // base: Bind and return object property.
-        template<class Event, si32 Tier = tier::release>
-        auto& bind_property(qiew prop_name, base& boss, Event event)
+        template<si32 Tier = tier::release, class Event>
+        auto& bind_property(qiew prop_name, base& boss, Event event, typename Event::type init_value = {})
         {
-            auto& prop = base::property<typename Event::type>(prop_name);
+            auto& prop = base::property(prop_name, std::move(init_value));
             boss.LISTEN(Tier, event, new_value)
             {
                 if (prop != new_value)
                 {
                     prop = new_value;
                 }
+                boss.bell::expire(Tier, true);
             };
             return prop;
         }

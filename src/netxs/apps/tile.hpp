@@ -194,7 +194,7 @@ namespace netxs::app::tile
         auto app_window = [](auto& what)
         {
             return ui::fork::ctor(axis::Y)
-                    ->template plugin<pro::title>(what.header, what.footer, true, faux, true)
+                    ->template plugin<pro::title>(what.applet->property<text>("window.header"), what.applet->property<text>("window.footer"), true, faux, true)
                     ->template plugin<pro::light>()
                     ->template plugin<pro::focus>()
                     ->limits({ 10,-1 }, { -1,-1 })
@@ -221,9 +221,8 @@ namespace netxs::app::tile
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param({ .menuid = menuid });
-                                boss.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
-                                boss.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
-                                if (what.header.empty()) what.header = menuid;
+                                auto& header = applet.property<text>("window.header");
+                                if (header.empty()) header = menuid;
 
                                 // Find creator.
                                 auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
@@ -271,7 +270,7 @@ namespace netxs::app::tile
                         };
                     })
                     ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
-                        ->upload(what.header)
+                        ->upload(what.applet->property<text>("window.header"))
                         ->invoke([&](auto& boss)
                         {
                             boss.color(0, 0);

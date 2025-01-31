@@ -16,8 +16,6 @@ namespace netxs::app::vtm
     {
         text menuid{};
         text kindid{};
-        text header{};
-        text footer{};
         rect square{};
         bool forced{};
         sptr applet{};
@@ -615,10 +613,10 @@ namespace netxs::app::vtm
             applet_ptr->base::extend(new_pos);
             coor = applet_ptr->base::coor();
 
-            auto newhead = std::move(fullscreen.header);
-            auto newfoot = std::move(fullscreen.footer);
-            base::riseup(tier::request, e2::form::prop::ui::header, fullscreen.header);
-            base::riseup(tier::request, e2::form::prop::ui::footer, fullscreen.footer);
+            auto newhead = fullscreen.applet->property<text>("window.header");
+            auto newfoot = fullscreen.applet->property<text>("window.footer");
+            property<text>("window.saved_header", base::riseup(tier::request, e2::form::prop::ui::header));
+            property<text>("window.saved_footer", base::riseup(tier::request, e2::form::prop::ui::footer));
             base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
             base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
@@ -675,12 +673,8 @@ namespace netxs::app::vtm
             if (!memo) return;
             nexthop = std::exchange(saved, wptr{});
             memo.clear();
-            auto prev_header = std::move(fullscreen.header);
-            auto prev_footer = std::move(fullscreen.footer);
-            base::riseup(tier::request, e2::form::prop::ui::header, fullscreen.header);
-            base::riseup(tier::request, e2::form::prop::ui::footer, fullscreen.footer);
-            base::riseup(tier::preview, e2::form::prop::ui::header, prev_header);
-            base::riseup(tier::preview, e2::form::prop::ui::footer, prev_footer);
+            base::riseup(tier::preview, e2::form::prop::ui::header, std::move(property<text>("window.saved_header")));
+            base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(property<text>("window.saved_footer")));
             if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
             {
                 auto gear_id_list = pro::focus::cut(fullscreen.applet);
@@ -874,8 +868,8 @@ namespace netxs::app::vtm
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::ghost>()
-                ->plugin<pro::title>(what.header, what.footer)
-                ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
+                ->plugin<pro::title>(what.applet->property<text>("window.header"), what.applet->property<text>("window.footer"))
+                ->plugin<pro::notes>(what.applet->property<text>("window.footer"), dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
@@ -994,8 +988,6 @@ namespace netxs::app::vtm
                         if (boss.subset.size())
                         if (auto applet = boss.subset.back())
                         {
-                            boss.bell::signal(tier::request, e2::form::prop::ui::header, what.header);
-                            boss.bell::signal(tier::request, e2::form::prop::ui::footer, what.footer);
                             what.applet = applet;
                             what.menuid = menuid;
                         }
@@ -1124,8 +1116,6 @@ namespace netxs::app::vtm
                     auto what_copy = what;
                     what_copy.applet = {};
                     auto& applet_area = what.applet->base::bind_property("window.area", boss, e2::area);
-                    //auto& applet_header = what.applet->base::bind_property("window.header", boss, e2::form::prop::ui::header);
-                    //auto& applet_footer = what.applet->base::bind_property("window.footer", boss, e2::form::prop::ui::footer);
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
                     {
                         auto window_ptr = boss.This();
@@ -1137,8 +1127,6 @@ namespace netxs::app::vtm
                         auto what = what_copy;
                         what.applet = window_ptr;
                         pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
-                        window_ptr->base::riseup(tier::request, e2::form::prop::ui::header, what.header);
-                        window_ptr->base::riseup(tier::request, e2::form::prop::ui::footer, what.footer);
                         //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
                         gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
                     };
@@ -1212,10 +1200,10 @@ namespace netxs::app::vtm
                                     {
                                         auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
                                         anchor = anchor * saved_area.size / std::max(dot_11, new_area.size);
-                                        saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensating header height.
+                                        saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensate header height.
                                         saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
                                     }
-                                    else saved_area = {}; // Preserve current window layout.
+                                    else saved_area = {}; // Preserve current window size.
                                     boss.bell::signal(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
@@ -1809,8 +1797,8 @@ namespace netxs::app::vtm
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
                 what.applet->plugin<pro::props>();
-                what.header = setup.title;
-                what.footer = setup.footer;
+                what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header, setup.title);
+                what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer, setup.footer);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {
