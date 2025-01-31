@@ -826,16 +826,6 @@ namespace netxs::app::vtm
                 };
                 inst.bell::signal(tier::request, e2::form::state::mouse, active);
                 inst.bell::signal(tier::request, e2::form::state::color, color);
-
-                //todo usergate specific
-                inst.LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
-                {
-                    uname = uname_txt = user_name;
-                };
-                inst.LISTEN(tier::request, e2::form::prop::name, user_name, tokens)
-                {
-                    user_name = uname_txt;
-                };
             }
         };
 
@@ -843,7 +833,7 @@ namespace netxs::app::vtm
         using pool = netxs::generics::pool;
 
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
-        std::list<netxs::sptr<node>> users; // hall: Desktop users.
+        std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
         id_t focus; // hall: Last active gear id.
@@ -1448,7 +1438,7 @@ namespace netxs::app::vtm
             return "ok " + appspec.appcfg.cmd;
         }
         // hall: Draw a navigation string.
-        void fasten(sptr object, auto& highlighted, auto& item_is_active, auto& color, face& canvas)
+        void fasten(sptr object, auto highlighted, auto item_is_active, auto& color, face& canvas)
         {
             auto window = canvas.area();
             auto center = object->region.center();
@@ -1871,7 +1861,7 @@ namespace netxs::app::vtm
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
                     {
-                        auto gate_ptr = bell::getref<gate>(users.back()->object->id);
+                        auto gate_ptr = bell::getref<gate>(users.back().first->id);
                         auto& gears = gate_ptr->gears;
                         for (auto& [ext_gear_id, _gear_ptr] : gears)
                         {
@@ -2026,15 +2016,16 @@ namespace netxs::app::vtm
             {
                 if (users.size() > 1) // Draw backpane for spectators.
                 {
-                    for (auto& item : users)
+                    static auto color = tone{ tone::brighter, tone::shadower };
+                    for (auto& [user_ptr, uname] : users)
                     {
-                        fasten(item->object, item->highlighted, item->active, item->color, parent_canvas); // Draw strings.
+                        fasten(user_ptr, faux, 0, color, parent_canvas); // Draw strings.
                     }
-                    for (auto& item : users) // Draw shadows.
+                    for (auto& [user_ptr, uname] : users) // Draw shadows.
                     {
-                        if (item->object->id != parent_canvas.link()) // Draw a shadow of user's gate for other users.
+                        if (user_ptr->id != parent_canvas.link()) // Draw a shadow of user's gate for other users.
                         {
-                            auto gate_area = item->object->area();
+                            auto gate_area = user_ptr->area();
                             if (parent_canvas.cmode != svga::vt16 && parent_canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
                             {
                                 auto mark = skin::color(tone::shadower);
@@ -2042,7 +2033,7 @@ namespace netxs::app::vtm
                                 parent_canvas.fill(gate_area, [&](cell& c){ c.blend(mark); });
                             }
                             gate_area.coor -= dot_01 + parent_canvas.coor();
-                            parent_canvas.output(item->uname, gate_area.coor, cell::shaders::contrast);
+                            parent_canvas.output(uname, gate_area.coor, cell::shaders::contrast);
                         }
                     }
                 }
@@ -2082,14 +2073,14 @@ namespace netxs::app::vtm
                     head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->object->render<true>(parent_canvas); }
                     head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->object->render<true>(parent_canvas); }
                 }
-                for (auto& item : users) // Draw user mouse pointers.
+                for (auto& [user_ptr, uname] : users) // Draw user mouse pointers.
                 {
-                    if (item->object->id != parent_canvas.link())
+                    if (user_ptr->id != parent_canvas.link())
                     {
-                        auto& usergate = *(std::static_pointer_cast<gate>(item->object));
-                        if (item->uname.lyric) // Render foreign user names at their place.
+                        auto& usergate = *(std::static_pointer_cast<gate>(user_ptr));
+                        if (uname.lyric) // Render foreign user names at their place.
                         {
-                            auto& user_name = *item->uname.lyric;
+                            auto& user_name = *uname.lyric;
                             auto  half_x = user_name.size().x / 2;
                             for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
                             {
@@ -2161,7 +2152,7 @@ namespace netxs::app::vtm
             auto lock = bell::unique_lock();
             auto usergate_ptr = hall::ctor<user>(client, userid, vtmode, app_config, session_id);
             auto& usergate = *usergate_ptr;
-            users.emplace_back(ptr::shared<node>(usergate_ptr));
+            auto& [user_ptr, uname] = users.emplace_back(usergate_ptr, para{});
             auto users_iter = std::prev(users.end());
             usrs_list.push_back(usergate_ptr);
             auto usrs_list_iter = std::prev(usrs_list.end());
@@ -2172,6 +2163,14 @@ namespace netxs::app::vtm
 
             bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
+            usergate.LISTEN(tier::release, e2::form::prop::name, user_name_utf8)
+            {
+                uname = user_name_utf8;
+            };
+            usergate.LISTEN(tier::request, e2::form::prop::name, user_name_utf8)
+            {
+                user_name_utf8 = uname.lyric->utf8();
+            };
             usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
                 auto viewport = usergate.bell::signal(tier::request, e2::form::prop::viewport);
