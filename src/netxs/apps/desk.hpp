@@ -105,11 +105,11 @@ namespace netxs::app::desk
                     {
                         disabled = check_id(boss, gear_id); // On title update.
                     };
-                    auto oneshot = ptr::shared(hook{});
-                    boss.LISTEN(tier::anycast, events::ui::recalc, state, *oneshot, (oneshot, gear_id, data_src_shadow)) // On session start.
+                    auto& oneshot = boss.base::newfield<hook>();
+                    boss.LISTEN(tier::anycast, events::ui::recalc, state, oneshot, (gear_id, data_src_shadow)) // On session start.
                     {
                         disabled = check_id(boss, gear_id);
-                        oneshot->reset();
+                        boss.base::unfield(oneshot);
                     };
                     data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.sensors, (data_src_shadow))
                     {
@@ -624,13 +624,13 @@ namespace netxs::app::desk
                     {
                         owner_id = parent.id;
                     };
-                    auto oneshot = ptr::shared(hook{});
-                    parent.LISTEN(tier::release, hids::events::focus::set::any, seed, *oneshot, (oneshot, usrcfg))
+                    auto& oneshot = boss.base::newfield<hook>();
+                    parent.LISTEN(tier::release, hids::events::focus::set::any, seed, oneshot, (usrcfg))
                     {
                         usrcfg.win = {};
                         usrcfg.gear_id = seed.gear_id;
                         boss.base::riseup(tier::release, e2::command::run, usrcfg);
-                        oneshot->reset();
+                        boss.base::unfield(oneshot);
                     };
                 };
             });

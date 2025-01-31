@@ -921,7 +921,12 @@ namespace netxs::ui
         template<class T>
         void unplug()
         {
-            fields.erase(plugin_name<T>());
+            //todo std::unordered_map::erase calls text::ctor until C++23
+            //fields.erase(plugin_name<T>());
+            if (auto iter = fields.find(plugin_name<T>()); iter != fields.end())
+            {
+                fields.erase(iter);
+            }
         }
         // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
         template<class T, class ...Args>
@@ -947,11 +952,16 @@ namespace netxs::ui
         }
         // base: Remove an anonymous property.
         template<class T>
-        auto& delfield(T& value)
+        void unfield(T& value)
         {
             auto addr = (ui64)&value;
             auto property_name = qiew{ (char*)(&addr), sizeof(addr) };
-            fields.erase(property_name);
+            //todo std::unordered_map::erase calls text::ctor until C++23
+            //fields.erase(property_name);
+            if (auto iter = fields.find(property_name); iter != fields.end())
+            {
+                fields.erase(iter);
+            }
         }
         // base: Get object property reference.
         template<class T = text>
