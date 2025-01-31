@@ -597,113 +597,6 @@ namespace netxs::app::vtm
             static constexpr auto size = __COUNTER__ - _counter;
             static constexpr auto coor = __COUNTER__ - _counter;
         };
-        void follow(applink& new_fullscreen)
-        {
-            if (new_fullscreen.applet->subset.empty()) return;
-            auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
-            prev = new_fullscreen.applet->base::area();
-            auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
-            window_ptr->base::detach();
-            fullscreen = new_fullscreen;
-            auto applet_ptr = fullscreen.applet;
-            saved = std::exchange(nexthop, applet_ptr);
-            applet_ptr->base::detach();
-            auto new_pos = base::area();
-            new_pos.coor -= base::coor();
-            applet_ptr->base::extend(new_pos);
-            coor = applet_ptr->base::coor();
-
-            auto newhead = fullscreen.applet->base::get("window.header");
-            auto newfoot = fullscreen.applet->base::get("window.footer");
-            base::get("window.saved_header") = base::riseup(tier::request, e2::form::prop::ui::header);
-            base::get("window.saved_footer") = base::riseup(tier::request, e2::form::prop::ui::footer);
-            base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
-            base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
-
-            LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
-            {
-                unbind();
-            };
-            LISTEN(tier::release, e2::dtor, p, memo)
-            {
-                unbind();
-            };
-            LISTEN(tier::release, e2::area, new_area, memo)
-            {
-                if (new_area.coor != base::coor()) unbind();
-                else fullscreen.applet->base::resize(new_area.size);
-            };
-            LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
-            {
-                unbind();
-                bell::expire(tier::preview);
-            };
-            applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
-            {
-                auto deed = fullscreen.applet->bell::protos(tier::preview);
-                if (deed == e2::form::size::enlarge::maximize.id)
-                {
-                    unbind();
-                }
-            };
-            applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
-            {
-                fullscreen.applet->bell::expire(tier::release); // Suppress hide/minimization.
-                unbind();
-            };
-            applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
-            {
-                unbind();
-                bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
-            };
-            applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
-            {
-                if (coor != new_area.coor) unbind(restoration_type::size);
-            };
-            applet_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
-            {
-                if (coor != new_area.coor) unbind(restoration_type::size);
-            };
-            applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-            //applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
-            pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
-        }
-        void unbind(si32 restore = restoration_type::full)
-        {
-            if (!memo) return;
-            nexthop = std::exchange(saved, wptr{});
-            memo.clear();
-            base::riseup(tier::preview, e2::form::prop::ui::header, std::move(base::get("window.saved_header")));
-            base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(base::get("window.saved_footer")));
-            if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
-            {
-                auto gear_id_list = pro::focus::cut(fullscreen.applet);
-                fullscreen.applet->base::detach();
-                fullscreen.forced = true;
-                world_ptr->bell::signal(tier::request, vtm::events::handoff, fullscreen);
-                pro::focus::set(fullscreen.applet, gear_id_list, solo::on, true);
-            }
-            if (auto window_ptr = fullscreen.applet->base::parent())
-            {
-                auto& window = *window_ptr;
-                switch (restore)
-                {
-                    case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
-                    case restoration_type::coor: window.base::moveto(prev.coor); break;
-                    case restoration_type::size:
-                    {
-                        auto window_size = window.base::size();
-                        auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
-                        window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
-                        prev.coor = base::coor();
-                        prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
-                        window.base::extend(prev);
-                        break;
-                    }
-                }
-            }
-            fullscreen.applet.reset();
-        }
 
         user(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
@@ -716,15 +609,118 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop"); //todo rename "desktop" to "gate"?
             keybd.bind(bindings);
 
+            LISTEN(tier::release, e2::form::proceed::action::unbind, restore_mode, memo)
+            {
+                if (!memo) return;
+                nexthop = std::exchange(saved, wptr{});
+                memo.clear();
+                base::riseup(tier::preview, e2::form::prop::ui::header, std::move(base::get("window.saved_header")));
+                base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(base::get("window.saved_footer")));
+                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
+                {
+                    auto gear_id_list = pro::focus::cut(fullscreen.applet);
+                    fullscreen.applet->base::detach();
+                    fullscreen.forced = true;
+                    world_ptr->bell::signal(tier::request, vtm::events::handoff, fullscreen);
+                    pro::focus::set(fullscreen.applet, gear_id_list, solo::on, true);
+                }
+                if (auto window_ptr = fullscreen.applet->base::parent())
+                {
+                    auto& window = *window_ptr;
+                    switch (restore_mode)
+                    {
+                        case restoration_type::full: window.base::extend(prev); break; // Restore previous position.
+                        case restoration_type::coor: window.base::moveto(prev.coor); break;
+                        case restoration_type::size:
+                        {
+                            auto window_size = window.base::size();
+                            auto window_anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
+                            window_anchor = window_anchor * prev.size / std::max(dot_11, window_size);
+                            prev.coor = base::coor();
+                            prev.coor += window.base::anchor - window_anchor; // Follow the mouse cursor. See pro::frame pull.
+                            window.base::extend(prev);
+                            break;
+                        }
+                    }
+                }
+                fullscreen.applet.reset();
+            };
             LISTEN(tier::release, vtm::events::gate::fullscreen, new_fullscreen, maxs)
             {
                 if (fullscreen.applet)
                 {
-                    unbind();
+                    this->bell::signal(tier::release, e2::form::proceed::action::unbind);
                 }
                 if (new_fullscreen.applet)
                 {
-                    follow(new_fullscreen);
+                    if (new_fullscreen.applet->subset.empty()) return;
+                    auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
+                    prev = new_fullscreen.applet->base::area();
+                    auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
+                    window_ptr->base::detach();
+                    fullscreen = new_fullscreen;
+                    auto applet_ptr = fullscreen.applet;
+                    saved = std::exchange(nexthop, applet_ptr);
+                    applet_ptr->base::detach();
+                    auto new_pos = base::area();
+                    new_pos.coor -= base::coor();
+                    applet_ptr->base::extend(new_pos);
+                    coor = applet_ptr->base::coor();
+
+                    auto newhead = fullscreen.applet->base::get("window.header");
+                    auto newfoot = fullscreen.applet->base::get("window.footer");
+                    base::get("window.saved_header") = base::riseup(tier::request, e2::form::prop::ui::header);
+                    base::get("window.saved_footer") = base::riseup(tier::request, e2::form::prop::ui::footer);
+                    base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
+                    base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
+
+                    LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
+                    {
+                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                    };
+                    LISTEN(tier::release, e2::dtor, p, memo)
+                    {
+                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                    };
+                    LISTEN(tier::release, e2::area, new_area, memo)
+                    {
+                        if (new_area.coor != base::coor()) this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                        else fullscreen.applet->base::resize(new_area.size);
+                    };
+                    LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
+                    {
+                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                        bell::expire(tier::preview);
+                    };
+                    applet_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
+                    {
+                        auto deed = fullscreen.applet->bell::protos(tier::preview);
+                        if (deed == e2::form::size::enlarge::maximize.id)
+                        {
+                            this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                        }
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
+                    {
+                        fullscreen.applet->bell::expire(tier::release); // Suppress hide/minimization.
+                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
+                    {
+                        this->bell::signal(tier::release, e2::form::proceed::action::unbind);
+                        bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
+                    };
+                    applet_ptr->LISTEN(tier::release, e2::area, new_area, memo)
+                    {
+                        if (coor != new_area.coor) this->bell::signal(tier::release, e2::form::proceed::action::unbind, restoration_type::size);
+                    };
+                    applet_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
+                    {
+                        if (coor != new_area.coor) this->bell::signal(tier::release, e2::form::proceed::action::unbind, restoration_type::size);
+                    };
+                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+                    //applet_ptr->bell::signal(tier::anycast, vtm::events::attached, This());
+                    pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
                 }
             };
             //LISTEN(tier::request, vtm::events::gate::fullscreen, ask_fullscreen, maxs)

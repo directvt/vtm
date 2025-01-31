@@ -361,6 +361,7 @@ namespace netxs::events::userland
                     SUBSET_XS( action )
                     {
                         EVENT_XS( restore  , input::hids ),
+                        EVENT_XS( unbind   , si32        ), // release: Restore from fullscreen.
                     };
                 };
                 SUBSET_XS( cursor )
