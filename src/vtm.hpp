@@ -642,7 +642,6 @@ namespace netxs::app::vtm
 
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
-        twod vport; // hall: Last user's viewport position.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         text selected_item; // hall: Override default menu item (if not empty).
         xmls config; // hall: Resultant settings.
@@ -1906,7 +1905,6 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
-            vport = config.take(path::viewport, dot_00);
             auto what = applink{};
             auto apps = config.list(path::autorun);
             auto foci = book{};
@@ -2227,6 +2225,9 @@ namespace netxs::app::vtm
                 usergate.rebuild_scene(damaged, timestamp);
                 if (fullscreen_mode) usergate.subset.pop_back();
             };
+
+            auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
+            if (!vport) vport = config.take(path::viewport, dot_00);
             usergate.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
             {
                 base::deface();
