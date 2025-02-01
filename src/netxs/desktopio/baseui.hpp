@@ -965,7 +965,7 @@ namespace netxs::ui
         }
         // base: Get object property reference.
         template<class T = text>
-        auto& field(qiew property_name)
+        auto& property(qiew property_name)
         {
             auto iter = fields.find(property_name);
             if (iter == fields.end())
@@ -978,7 +978,7 @@ namespace netxs::ui
         template<si32 Tier = tier::release, class Event>
         auto& bind_property(qiew property_name, base& boss, Event event)
         {
-            auto& prop = base::field<typename Event::type>(property_name);
+            auto& prop = base::property<typename Event::type>(property_name);
             boss.LISTEN(Tier, event, new_value)
             {
                 if (prop != new_value)

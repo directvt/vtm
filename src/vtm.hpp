@@ -661,8 +661,8 @@ namespace netxs::app::vtm
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::ghost>()
-                ->plugin<pro::title>(what.applet->base::field("window.header"), what.applet->base::field("window.footer"))
-                ->plugin<pro::notes>(what.applet->base::field("window.footer"), dent{ 2,2,1,1 })
+                ->plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"))
+                ->plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
@@ -675,7 +675,7 @@ namespace netxs::app::vtm
                     auto& mouse = boss.template plugins<pro::mouse>();
                     auto& keybd = boss.template plugins<pro::keybd>();
                     auto& luafx = boss.template plugins<pro::luafx>();
-                    auto& window_bindings = base::field<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
+                    auto& window_bindings = base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                     if (window_bindings.empty()) window_bindings = pro::keybd::load(config, "window");
                     keybd.bind(window_bindings);
 
@@ -1043,7 +1043,7 @@ namespace netxs::app::vtm
                         }
                     };
 
-                    auto& menuid = what.applet->base::field("window.menuid");
+                    auto& menuid = what.applet->base::property("window.menuid");
                     auto& cfg = menu_list[menuid];
                     auto& [fixed_menu_item, inst_list] = apps_list[menuid];
                     fixed_menu_item = !cfg.hidden;
@@ -1587,7 +1587,7 @@ namespace netxs::app::vtm
                 auto& setup = menu_list[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
                 what.applet = maker(setup.appcfg, config);
-                what.applet->base::field("window.menuid") = what.menuid;
+                what.applet->base::property("window.menuid") = what.menuid;
                 what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header) = setup.title;
                 what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
             };
@@ -1986,8 +1986,8 @@ namespace netxs::app::vtm
                 if (!memo) return;
                 usergate.nexthop = std::exchange(saved, wptr{});
                 memo.clear();
-                usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::field("window.saved_header")));
-                usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::field("window.saved_footer")));
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::property("window.saved_header")));
+                usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::property("window.saved_footer")));
                 if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
                 {
                     auto gear_id_list = pro::focus::cut(what.applet);
@@ -2038,10 +2038,10 @@ namespace netxs::app::vtm
                     applet_ptr->base::extend(new_pos);
                     coor = applet_ptr->base::coor();
 
-                    auto newhead = what.applet->base::field("window.header");
-                    auto newfoot = what.applet->base::field("window.footer");
-                    usergate.base::field("window.saved_header") = usergate.base::riseup(tier::request, e2::form::prop::ui::header);
-                    usergate.base::field("window.saved_footer") = usergate.base::riseup(tier::request, e2::form::prop::ui::footer);
+                    auto newhead = what.applet->base::property("window.header");
+                    auto newfoot = what.applet->base::property("window.footer");
+                    usergate.base::property("window.saved_header") = usergate.base::riseup(tier::request, e2::form::prop::ui::header);
+                    usergate.base::property("window.saved_footer") = usergate.base::riseup(tier::request, e2::form::prop::ui::footer);
                     usergate.base::riseup(tier::preview, e2::form::prop::ui::header, newhead);
                     usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
