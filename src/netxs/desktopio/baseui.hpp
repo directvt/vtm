@@ -90,7 +90,7 @@ namespace netxs::events::userland
         static constexpr auto cascade = netxs::events::userland::root::cascade;
         static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
-        EVENTPACK( e2, netxs::events::userland::root::base )
+        EVENTPACK( netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.

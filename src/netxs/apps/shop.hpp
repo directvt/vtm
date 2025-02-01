@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     struct shop
     {
-        EVENTPACK( shop, netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 

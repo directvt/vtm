@@ -9,7 +9,7 @@ namespace netxs::events::userland
 {
     struct uiterm
     {
-        EVENTPACK( uiterm, ui::e2::extra::slot5 )
+        EVENTPACK( ui::e2::extra::slot5 )
         {
             EVENT_XS( io_log, bool ),
             EVENT_XS( selmod, si32 ),

@@ -51,7 +51,7 @@ namespace netxs::app::vtm
 
     struct events
     {
-        EVENTPACK( events, ui::e2::extra::slot1 )
+        EVENTPACK( ui::e2::extra::slot1 )
         {
             EVENT_XS( newapp  , applink ), // request: Create new object using specified meniid.
             EVENT_XS( apptype , applink ), // request: Ask app type.

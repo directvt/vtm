@@ -10,7 +10,7 @@ namespace netxs::scripting
 
     struct events
     {
-        EVENTPACK( events, netxs::events::userland::root::scripting )
+        EVENTPACK( netxs::events::userland::root::scripting )
         {
             EVENT_XS( invoke, eccc ), // Invoke script.
         };

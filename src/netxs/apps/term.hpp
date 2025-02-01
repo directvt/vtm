@@ -10,7 +10,7 @@ namespace netxs::events::userland
 {
     struct terminal
     {
-        EVENTPACK( terminal, ui::e2::extra::slot3 )
+        EVENTPACK( ui::e2::extra::slot3 )
         {
             EVENT_XS( cmd    , si32 ),
             GROUP_XS( preview, si32 ),

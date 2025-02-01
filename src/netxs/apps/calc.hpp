@@ -9,7 +9,7 @@ namespace netxs::events::userland
 {
     struct calc
     {
-        EVENTPACK( calc, netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 

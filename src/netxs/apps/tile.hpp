@@ -7,7 +7,7 @@ namespace netxs::events::userland
 {
     struct tile
     {
-        EVENTPACK( tile, ui::e2::extra::slot4 )
+        EVENTPACK( ui::e2::extra::slot4 )
         {
             EVENT_XS( enlist, ui::sptr           ),
             EVENT_XS( delist, bool               ),

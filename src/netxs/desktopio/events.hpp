@@ -408,11 +408,10 @@ namespace netxs::events
         void  merge(subs const& m) {        tokens.insert( tokens.end(), m.tokens.begin(), m.tokens.end() ); }
     };
 
-    template<class Parent_t, class Object_t, auto Event_id>
+    template<class Object_t, auto Event_id>
     struct type_clue
     {
         using type = Object_t;
-        using base = Parent_t;
         static constexpr auto id = Event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
@@ -432,12 +431,11 @@ namespace netxs::events
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define EVENTPACK( name, base ) using _group_type = name; \
-                                    static constexpr auto _counter_base = __COUNTER__; \
-                                    public: static constexpr auto any = netxs::events::type_clue<_group_type, decltype(base)::type, decltype(base)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
+    #define EVENTPACK( name )       static constexpr auto _counter_base = __COUNTER__; \
+                                    public: static constexpr auto any = netxs::events::type_clue<decltype(name)::type, decltype(name)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
-    #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
+    #define SUBSET_XS( name )       }; class name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
@@ -454,8 +452,8 @@ namespace netxs::events
     {
         struct root
         {
-            static constexpr auto root_event = type_clue<root, si32, 0>{};
-            EVENTPACK( root, root_event )
+            static constexpr auto root_event = type_clue<si32, 0>{};
+            EVENTPACK( root_event )
             {
                 EVENT_XS( dtor     , const id_t ),
                 EVENT_XS( cascade  , ftor ),
