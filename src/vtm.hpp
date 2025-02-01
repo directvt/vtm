@@ -640,20 +640,12 @@ namespace netxs::app::vtm
             }
         };
 
-        using idls = std::vector<id_t>;
-        using pool = netxs::generics::pool;
-
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         twod vport; // hall: Last user's viewport position.
-        pool async; // hall: Thread pool for parallel task execution.
-        id_t focus; // hall: Last active gear id.
+        netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         text selected_item; // hall: Override default menu item (if not empty).
-        std::unordered_map<id_t, si32> switch_counter; // hall: Focus switch counter.
-        input::key::keybind_list_t window_bindings;
         xmls config; // hall: Resultant settings.
-        flag active; // hall: Host is available for connections.
-        std::vector<bool> user_numbering; // hall: .
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
 
@@ -683,6 +675,8 @@ namespace netxs::app::vtm
                     auto& mouse = boss.template plugins<pro::mouse>();
                     auto& keybd = boss.template plugins<pro::keybd>();
                     auto& luafx = boss.template plugins<pro::luafx>();
+                    auto& window_bindings = base::field<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
+                    if (window_bindings.empty()) window_bindings = pro::keybd::load(config, "window");
                     keybd.bind(window_bindings);
 
                     static auto proc_map = pro::luafx::fxmap<base>
@@ -1276,9 +1270,7 @@ namespace netxs::app::vtm
 
     public:
         hall(xipc server, xmls def_config)
-            : focus{ id_t{} },
-              config{ def_config },
-              active{ true }
+            : config{ def_config }
         {
             auto& canal = *server;
 
@@ -1287,7 +1279,6 @@ namespace netxs::app::vtm
 
             plugins<pro::focus>(pro::focus::mode::focusable, faux);
             plugins<pro::keybd>("desktop");
-            window_bindings = pro::keybd::load(config, "window");
             auto& luafx = base::plugin<pro::luafx>();
             static auto proc_map = pro::luafx::fxmap<hall>
             {
@@ -1537,7 +1528,6 @@ namespace netxs::app::vtm
             LISTEN(tier::general, e2::shutdown, msg)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
-                active.exchange(faux); // To prevent new applications from launching.
                 canal.stop();
             };
             LISTEN(tier::general, e2::cleanup, counter)
@@ -1548,6 +1538,8 @@ namespace netxs::app::vtm
             {
                 world_ptr = base::This();
             };
+
+            auto& user_numbering = base::newfield<std::vector<bool>>();
             LISTEN(tier::general, input::events::device::user::login, props)
             {
                 props = 0;
@@ -1653,19 +1645,21 @@ namespace netxs::app::vtm
                     w->object->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                 }
             };
+
+            auto& hall_focus = base::newfield<id_t>(); // Last active gear id.
+            auto& offset = base::newfield<twod>(); // Last created window coords.
             LISTEN(tier::request, desk::events::exec, appspec)
             {
-                static auto offset = dot_00;
                 auto gear_ptr = netxs::sptr<hids>{};
                 if (appspec.gear_id == id_t{})
                 {
                     //todo revise
-                    if (hall::focus) // Take the last active keyboard.
+                    if (hall_focus) // Take the last active keyboard.
                     {
-                        gear_ptr = bell::getref<hids>(hall::focus);
+                        gear_ptr = bell::getref<hids>(hall_focus);
                         //if (gear_ptr)
                         //{
-                        //    appspec.gear_id = hall::focus;
+                        //    appspec.gear_id = hall_focus;
                         //}
                     }
                     if (!gear_ptr && users.size()) // Take any existing.
@@ -1755,9 +1749,10 @@ namespace netxs::app::vtm
             {
                 window(what, true);
             };
+
             LISTEN(tier::preview, input::events::keybd::key::post, gear) // Track last active gear.
             {
-                hall::focus = gear.id;
+                hall_focus = gear.id;
             };
             //todo mimic pro::focus
             LISTEN(tier::release, input::events::keybd::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
@@ -1780,6 +1775,8 @@ namespace netxs::app::vtm
                     }
                 }
             };
+
+            auto& switch_counter = base::newfield<std::unordered_map<id_t, si32>>(); // hall: Focus switch counter.
             LISTEN(tier::release, input::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
             {
                 switch_counter[seed.gear_id] = {};
