@@ -49,7 +49,7 @@ namespace netxs::app::vtm
         static constexpr auto viewport = "/config/desktop/viewport/coor";
     }
 
-    struct events
+    namespace events
     {
         EVENTPACK( ui::e2::extra::slot1 )
         {
@@ -108,12 +108,12 @@ namespace netxs::app::vtm
                 {
                     order = z_order;
                 };
-                boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
+                boss.LISTEN(tier::preview, input2::events::mouse::button::click::left, gear, memo)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
                 };
-                boss.LISTEN(tier::preview, hids::events::mouse::button::click::right, gear, memo)
+                boss.LISTEN(tier::preview, input2::events::mouse::button::click::right, gear, memo)
                 {
                     //todo window.events(onclick)
                     boss.base::riseup(tier::preview, e2::form::layout::expose);
@@ -126,7 +126,7 @@ namespace netxs::app::vtm
                 {
                     boss.base::riseup(tier::preview, e2::form::layout::bubble);
                 };
-                boss.LISTEN(tier::preview, hids::events::mouse::button::down::any, gear, memo)
+                boss.LISTEN(tier::preview, input2::events::mouse::button::down::any, gear, memo)
                 {
                     robo.pacify();
                 };
@@ -180,7 +180,7 @@ namespace netxs::app::vtm
                         });
                     }
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::click::right, gear, memo)
                 {
                     auto owner_id = boss.bell::signal(tier::request, e2::form::state::maximized);
                     if (owner_id) return; // Don't move maximized window.
@@ -375,9 +375,9 @@ namespace netxs::app::vtm
             maker(base& boss)
                 : skill{ boss }
             {
-                using drag = hids::events::mouse::button::drag;
+                namespace drag = input2::events::mouse::button::drag;
 
-                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo)
+                boss.LISTEN(tier::preview, input2::events::keybd::key::post, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
@@ -421,7 +421,7 @@ namespace netxs::app::vtm
                     handle_stop(gear);
                 };
 
-                boss.LISTEN(tier::general, hids::events::halt, gear, memo)
+                boss.LISTEN(tier::general, input2::events::halt, gear, memo)
                 {
                     handle_drop(gear);
                 };
@@ -520,7 +520,7 @@ namespace netxs::app::vtm
                   drags{ faux },
                   under{      }
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::drag::start::any, gear, memo)
                 {
                     if (boss.size().inside(gear.coord) && !gear.meta(hids::anyMod))
                     if (drags || !gear.capture(boss.id)) return;
@@ -530,20 +530,20 @@ namespace netxs::app::vtm
                         under = {};
                     }
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::drag::pull::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         coord = gear.coord - gear.delta.get();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::drag::stop::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
                     else                         proceed(true, gear);
                     gear.setfree();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.meta(hids::anyMod)) proceed(faux, gear);
@@ -854,7 +854,7 @@ namespace netxs::app::vtm
                         auto tooltip_body = " " + title + " ";
                         boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::dblclick::left, gear)
                     {
                         boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
@@ -870,7 +870,7 @@ namespace netxs::app::vtm
                         auto b = std::max(1, title.foot_size.y);
                         object_area = boss.base::area() + dent{ 2, 2, t, b };
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                     {
                         auto home = rect{ -dot_21, boss.base::size() + dot_21 * 2 }; // Including resizer grips.
                         if (!home.hittest(gear.coord))
@@ -878,11 +878,11 @@ namespace netxs::app::vtm
                             gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, boss);
                         }
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::click::right, gear)
                     {
                         pro::focus::set(boss.This(), gear.id, solo::on);
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::click::middle, gear)
                     {
                         pro::focus::set(boss.This(), gear.id, solo::on);
                     };
@@ -1548,14 +1548,14 @@ namespace netxs::app::vtm
             {
                 world_ptr = base::This();
             };
-            LISTEN(tier::general, hids::events::device::user::login, props)
+            LISTEN(tier::general, input2::events::device::user::login, props)
             {
                 props = 0;
                 while (props < user_numbering.size() && user_numbering[props]) { props++; }
                 if (props == user_numbering.size()) user_numbering.push_back(true);
                 else                                user_numbering[props] = true;
             };
-            LISTEN(tier::general, hids::events::device::user::logout, props)
+            LISTEN(tier::general, input2::events::device::user::logout, props)
             {
                 if (props < user_numbering.size()) user_numbering[props] = faux;
                 else
@@ -1563,7 +1563,7 @@ namespace netxs::app::vtm
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
                 }
             };
-            LISTEN(tier::request, hids::events::focus::set::any, seed, -, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
+            LISTEN(tier::request, input2::events::focus::set::any, seed, -, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
             {
                 auto is_recursive = faux;
                 if (seed.treeid)
@@ -1755,20 +1755,20 @@ namespace netxs::app::vtm
             {
                 window(what, true);
             };
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
+            LISTEN(tier::preview, input2::events::keybd::key::post, gear) // Track last active gear.
             {
                 hall::focus = gear.id;
             };
             //todo mimic pro::focus
-            LISTEN(tier::release, hids::events::keybd::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
+            LISTEN(tier::release, input2::events::keybd::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
             {
                 if (!gear.handled)
                 {
-                    gear.owner.bell::signal(tier::release, hids::events::keybd::key::post, gear);
+                    gear.owner.bell::signal(tier::release, input2::events::keybd::key::post, gear);
                 }
             };
             //todo mimic pro::focus (hall has no parent)
-            LISTEN(tier::preview, hids::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
+            LISTEN(tier::preview, input2::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
             {
                 if (seed.gear_id)
                 {
@@ -1780,7 +1780,7 @@ namespace netxs::app::vtm
                     }
                 }
             };
-            LISTEN(tier::release, hids::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
+            LISTEN(tier::release, input2::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
             {
                 switch_counter[seed.gear_id] = {};
             };
@@ -2102,7 +2102,7 @@ namespace netxs::app::vtm
             //    ask_fullscreen = what;
             //};
 
-            usergate.LISTEN(tier::release, hids::events::focus::set::any, seed) // Any: To run prior the ui::gate's hids::events::focus::any.
+            usergate.LISTEN(tier::release, input2::events::focus::set::any, seed) // Any: To run prior the ui::gate's input2::events::focus::any.
             {
                 if (seed.treeid)
                 {
@@ -2119,7 +2119,7 @@ namespace netxs::app::vtm
                 }
             };
             //todo mimic pro::focus
-            usergate.LISTEN(tier::request, hids::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
+            usergate.LISTEN(tier::request, input2::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
             {
                 if (what.applet)
                 {
@@ -2132,7 +2132,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 seed.gear_id = gear_id;
-                                what.applet->bell::signal(tier::release, hids::events::focus::set::off, seed);
+                                what.applet->bell::signal(tier::release, input2::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -2174,7 +2174,7 @@ namespace netxs::app::vtm
                     usergate.bell::signal(tier::release, e2::form::layout::shift, center);
                 }
             };
-            usergate.LISTEN(tier::release, hids::events::mouse::button::click::left, gear) // Fly to another user's viewport.
+            usergate.LISTEN(tier::release, input2::events::mouse::button::click::left, gear) // Fly to another user's viewport.
             {
                 if (gear.owner.id == usergate.id) return;
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;

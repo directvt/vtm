@@ -5,7 +5,7 @@
 
 namespace netxs::events::userland
 {
-    struct textancy
+    namespace textancy
     {
         EVENTPACK(netxs::events::userland::root::custom )
         {
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // text: Text editor.
@@ -31,7 +31,7 @@ namespace netxs::app::textancy
     static constexpr auto id = "text";
     static constexpr auto name = "Text Editor (DEMO)";
 
-    using events = netxs::events::userland::textancy;
+    namespace events = netxs::events::userland::textancy;
 
     namespace
     {

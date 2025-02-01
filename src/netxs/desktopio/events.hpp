@@ -432,13 +432,13 @@ namespace netxs::events
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
     #define EVENTPACK( name )       static constexpr auto _counter_base = __COUNTER__; \
-                                    public: static constexpr auto any = netxs::events::type_clue<decltype(name)::type, decltype(name)::id>
+                                    static constexpr auto any = netxs::events::type_clue<decltype(name)::type, decltype(name)::id>
     #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
-    #define SUBSET_XS( name )       }; class name { EVENTPACK( _##name )
+    #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
-                                    private: static constexpr auto _dummy = { 777
+                                    static constexpr auto _dummy = { 777
 
     struct ref_count_t
     {
@@ -450,19 +450,19 @@ namespace netxs::events
     //todo unify seeding
     namespace userland
     {
-        struct root
+        namespace root
         {
             static constexpr auto root_event = type_clue<si32, 0>{};
             EVENTPACK( root_event )
             {
                 EVENT_XS( dtor     , const id_t ),
                 EVENT_XS( cascade  , ftor ),
-                EVENT_XS( base     , root ),
-                EVENT_XS( hids     , root ),
-                EVENT_XS( custom   , root ),
+                EVENT_XS( base     , si32 ),
+                EVENT_XS( hids     , si32 ),
+                EVENT_XS( custom   , si32 ),
                 EVENT_XS( cleanup  , ref_count_t ), // Garbage collection.
             };
-        };
+        }
     }
 
     // events: Event x-mitter.

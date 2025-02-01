@@ -7,7 +7,7 @@
 
 namespace netxs::events::userland
 {
-    struct calc
+    namespace calc
     {
         EVENTPACK( netxs::events::userland::root::custom )
         {
@@ -24,7 +24,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 namespace netxs::ui
@@ -121,7 +121,7 @@ namespace netxs::ui
                         }
                     });
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -131,7 +131,7 @@ namespace netxs::ui
                     }
                     recalc();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::button::dblclick::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.base::size();
@@ -141,18 +141,18 @@ namespace netxs::ui
                     recalc();
                     gear.dismiss();
                 };
-                boss.LISTEN(tier::general, hids::events::die, gear, memo)
+                boss.LISTEN(tier::general, input2::events::die, gear, memo)
                 {
                     recalc();
                     boss.deface();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::hover::any, gear, memo)
                 {
-                    if (gear.cause == hids::events::mouse::hover::enter.id)
+                    if (gear.cause == input2::events::mouse::hover::enter.id)
                     {
                         items.add(gear);
                     }
-                    else if (gear.cause == hids::events::mouse::hover::leave.id)
+                    else if (gear.cause == input2::events::mouse::hover::leave.id)
                     {
                         auto& item = items.take(gear);
                         if (item.region.size)
@@ -203,7 +203,7 @@ namespace netxs::ui
             void engage()
             {
                 boss.bell::signal(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
+                boss.LISTEN(tier::release, input2::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
@@ -246,7 +246,7 @@ namespace netxs::app::calc
     static constexpr auto id = "calc";
     static constexpr auto name = "Spreadsheet calculator (DEMO)";
 
-    using events = ::netxs::events::userland::calc;
+    namespace events = ::netxs::events::userland::calc;
 
     namespace
     {

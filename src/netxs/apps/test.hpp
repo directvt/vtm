@@ -5,7 +5,7 @@
 
 namespace netxs::events::userland
 {
-    struct test
+    namespace test
     {
         EVENTPACK( netxs::events::userland::root::custom )
         {
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // test: Test window.
@@ -31,7 +31,7 @@ namespace netxs::app::test
     static constexpr auto id = "test";
     static constexpr auto name = "Text Layout Test (DEMO)";
 
-    using events = netxs::events::userland::test;
+    namespace events = netxs::events::userland::test;
 
     namespace
     {

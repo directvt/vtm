@@ -84,7 +84,7 @@ namespace netxs::ui
 
 namespace netxs::events::userland
 {
-    struct e2
+    namespace e2
     {
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
@@ -498,12 +498,12 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 namespace netxs::ui
 {
-    using e2 = netxs::events::userland::e2;
+    namespace e2 = netxs::events::userland::e2;
 
     // controls: UI extensions.
     namespace pro

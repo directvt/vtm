@@ -283,7 +283,7 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 //todo reimplement (tiling/window)
-                //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                //boss.LISTEN(tier::release, input2::events::mouse::button::dblclick::left, gear)
                 //{
                 //    auto outer = e2::config::plugins::sizer::outer.param();
                 //    boss.base::riseup(tier::request, e2::config::plugins::sizer::outer, outer);
@@ -329,7 +329,7 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
                     boss.base::riseup(tier::preview, e2::form::prop::zorder, zpos::backmost);
-                    parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                    parent.LISTEN(tier::release, input2::events::mouse::button::click::right, gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
                         if (area.hittest(gear.coord))
@@ -540,7 +540,7 @@ namespace netxs::app::shared
                 [window, c1](auto& boss, auto& /*item*/)
                 {
                     boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close, boss.This());
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                     {
                         auto backup = boss.This();
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -614,16 +614,16 @@ namespace netxs::app::shared
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, ui::term::events::rawkbd, state, -, (rawkbd_ptr))
+                    boss.LISTEN(tier::release, ui::tty::events::rawkbd, state, -, (rawkbd_ptr))
                     {
                         rawkbd = !rawkbd;
                         boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")
                                         : ansi::bgc(reddk).fgx(0)        .add("█off "));
                         boss.base::reflow();
                     };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                     {
-                        boss.bell::signal(tier::release, ui::term::events::rawkbd);
+                        boss.bell::signal(tier::release, ui::tty::events::rawkbd);
                         gear.dismiss_dblclick();
                     };
                 });
@@ -638,9 +638,9 @@ namespace netxs::app::shared
                     {
                         boss.base::hidden = true;
                         auto& backup = boss.base::newfield<text>();
-                        boss.LISTEN(tier::release, hids::events::mouse::any, gear)
+                        boss.LISTEN(tier::release, input2::events::mouse::any, gear)
                         {
-                            if (events::subevent(gear.cause, hids::events::mouse::button::down::any.id))
+                            if (netxs::events::subevent(gear.cause, input2::events::mouse::button::down::any.id))
                             {
                                 if (backup.empty())
                                 {
@@ -730,7 +730,7 @@ namespace netxs::app::shared
             }
             items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
+                boss.LISTEN(tier::release, input2::events::mouse::button::down::any, gear)
                 {
                     update(boss, gear, faux);
                 };
@@ -749,7 +749,7 @@ namespace netxs::app::shared
                 //});
                 //keybd.proc("ExclusiveKeyboardMode", [&](hids& gear)
                 //{
-                //    state_inst.bell::signal(tier::release, ui::term::events::rawkbd);
+                //    state_inst.bell::signal(tier::release, ui::tty::events::rawkbd);
                 //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                 //    gear.set_handled();
                 //});

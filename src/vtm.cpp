@@ -447,7 +447,7 @@ int main(int argc, char* argv[])
         signal->bell(); // Signal we are started and ready for connections.
         signal.reset();
 
-        using e2 = ui::e2;
+        namespace e2 = ui::e2;
         auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
         auto domain = app::vtm::hall::ctor(server, config);
         domain->autorun();

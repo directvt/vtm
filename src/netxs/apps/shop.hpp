@@ -5,7 +5,7 @@
 
 namespace netxs::events::userland
 {
-    struct shop
+    namespace shop
     {
         EVENTPACK( netxs::events::userland::root::custom )
         {
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // shop: App manager.
@@ -31,7 +31,7 @@ namespace netxs::app::shop
     static constexpr auto id = "gems";
     static constexpr auto name = "Application Distribution Hub (DEMO)";
 
-    using events = netxs::events::userland::shop;
+    namespace events = netxs::events::userland::shop;
 
     namespace
     {

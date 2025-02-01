@@ -8,7 +8,7 @@
 
 namespace netxs::events::userland
 {
-    struct terminal
+    namespace terminal
     {
         EVENTPACK( ui::e2::extra::slot3 )
         {
@@ -77,7 +77,7 @@ namespace netxs::events::userland
                 EVENT_XS( status , si32        ),
             };
         };
-    };
+    }
 }
 
 // term: Teletype Console.
@@ -98,7 +98,7 @@ namespace netxs::app::terminal
         static constexpr auto borders   = "/config/terminal/border";
     }
 
-    using events = netxs::events::userland::terminal;
+    namespace events = netxs::events::userland::terminal;
 
     namespace
     {
@@ -127,7 +127,7 @@ namespace netxs::app::terminal
             if (item.type == menu::type::Repeat)
             {
                 auto& tick = boss.plugins<pro::timer>();
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::left, gear, -, (proc))
+                boss.LISTEN(tier::release, input2::events::mouse::button::down::left, gear, -, (proc))
                 {
                     if (item.views.size())
                     {
@@ -153,7 +153,7 @@ namespace netxs::app::terminal
                         _update_gear(boss, item, gear);
                     }
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::up::left, gear)
+                boss.LISTEN(tier::release, input2::events::mouse::button::up::left, gear)
                 {
                     tick.pacify();
                     gear.setfree();
@@ -179,7 +179,7 @@ namespace netxs::app::terminal
             }
             else
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (proc))
+                boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear, -, (proc))
                 {
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)
@@ -196,8 +196,8 @@ namespace netxs::app::terminal
             //auto c3 = highlight_color;
 
             using term = ui::term;
-            using preview = terminal::events::preview;
-            using release = terminal::events::release;
+            namespace preview = terminal::events::preview;
+            namespace release = terminal::events::release;
 
             static const auto proc_map = menu::action_map_t
             {
@@ -783,7 +783,7 @@ namespace netxs::app::terminal
                 auto cwd_path_ptr = ptr::shared<os::fs::path>();
                 auto& cwd_sync = *cwd_sync_ptr;
                 auto& cwd_path = *cwd_path_ptr;
-                boss.LISTEN(tier::preview, ui::term::events::toggle::cwdsync, state, -)
+                boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state, -)
                 {
                     boss.bell::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
                 };
@@ -910,16 +910,16 @@ namespace netxs::app::terminal
             };
         });
 
-        term->attach_property(ui::term::events::colors::bg,      terminal::events::release::colors::bg)
-            ->attach_property(ui::term::events::colors::fg,      terminal::events::release::colors::fg)
-            ->attach_property(ui::term::events::selmod,          terminal::events::release::selection::mode)
-            ->attach_property(ui::term::events::onesht,          terminal::events::release::selection::shot)
-            ->attach_property(ui::term::events::selalt,          terminal::events::release::selection::box)
-            ->attach_property(ui::term::events::rawkbd,          terminal::events::release::rawkbd)
-            ->attach_property(ui::term::events::io_log,          terminal::events::release::io_log)
-            ->attach_property(ui::term::events::layout::wrapln,  terminal::events::release::wrapln)
-            ->attach_property(ui::term::events::layout::align,   terminal::events::release::align)
-            ->attach_property(ui::term::events::search::status,  terminal::events::search::status)
+        term->attach_property(ui::tty::events::colors::bg,      terminal::events::release::colors::bg)
+            ->attach_property(ui::tty::events::colors::fg,      terminal::events::release::colors::fg)
+            ->attach_property(ui::tty::events::selmod,          terminal::events::release::selection::mode)
+            ->attach_property(ui::tty::events::onesht,          terminal::events::release::selection::shot)
+            ->attach_property(ui::tty::events::selalt,          terminal::events::release::selection::box)
+            ->attach_property(ui::tty::events::rawkbd,          terminal::events::release::rawkbd)
+            ->attach_property(ui::tty::events::io_log,          terminal::events::release::io_log)
+            ->attach_property(ui::tty::events::layout::wrapln,  terminal::events::release::wrapln)
+            ->attach_property(ui::tty::events::layout::align,   terminal::events::release::align)
+            ->attach_property(ui::tty::events::search::status,  terminal::events::search::status)
             ->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);

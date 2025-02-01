@@ -38,13 +38,13 @@ namespace netxs::app::shared
     };
     const auto closing_by_gesture = [](auto& boss)
     {
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
+        boss.LISTEN(tier::release, input2::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+        boss.LISTEN(tier::release, input2::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -88,7 +88,7 @@ namespace netxs::app::shared
     const auto set_title = [](base& boss, input::hids& gear, bias alignment = bias::left)
     {
         auto old_title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
-        gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
+        gear.owner.base::riseup(tier::request, input2::events::clipboard, gear);
         auto& data = gear.board::cargo;
         if (data.utf8.empty())
         {
@@ -337,7 +337,7 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .tooltip = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                         {
                             boss.base::riseup(tier::release, e2::form::size::minimize, gear);
                             gear.dismiss();
@@ -346,7 +346,7 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .tooltip = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
@@ -356,7 +356,7 @@ namespace netxs::app::shared
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                         {
                             auto backup = boss.This();
                             boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
@@ -484,7 +484,7 @@ namespace netxs::app::shared
                 {
                     if (item.type == menu::type::Option)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear)
                         {
                             item.taken = (item.taken + 1) % item.views.size();
                         };
