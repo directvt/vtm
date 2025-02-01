@@ -941,7 +941,7 @@ namespace netxs::ui
         }
         // base: Allocate an anonymous property.
         template<class T = text>
-        auto& newfield(T&& init = {})
+        auto& field(T&& init = {})
         {
             auto value_ptr = ptr::shared(std::make_any<std::decay_t<T>>(std::forward<T>(init)));
             auto& value = *(std::any_cast<std::decay_t<T>>(value_ptr.get()));

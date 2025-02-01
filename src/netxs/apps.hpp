@@ -637,7 +637,7 @@ namespace netxs::app::shared
                     ->invoke([&](auto& boss)
                     {
                         boss.base::hidden = true;
-                        auto& backup = boss.base::newfield<text>();
+                        auto& backup = boss.base::field<text>();
                         boss.LISTEN(tier::release, input::events::mouse::any, gear)
                         {
                             if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id))
@@ -674,7 +674,7 @@ namespace netxs::app::shared
                                                  pressed_label, pressed[0],       pressed[1],       pressed[2],        pressed[3],
                                                 released_label, released[0],      released[1],      released[2],       released[3] });
             released[0]->set("<Press any keys>")->hidden = faux;;
-            auto& update = window->base::newfield([pressed, released](auto& boss, hids& gear, bool is_key_event)
+            auto& update = window->base::field([pressed, released](auto& boss, hids& gear, bool is_key_event)
             {
                 //log("vkchord=%% keyid=%% hexvkchord=%% hexscchord=%% hexchchord=%%", input::key::kmap::to_string(gear.vkchord, faux),
                 //    input::key::map::data(gear.keycode).name,

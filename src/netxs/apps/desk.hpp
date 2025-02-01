@@ -105,7 +105,7 @@ namespace netxs::app::desk
                     {
                         disabled = check_id(boss, gear_id); // On title update.
                     };
-                    auto& oneshot = boss.base::newfield<hook>();
+                    auto& oneshot = boss.base::field<hook>();
                     boss.LISTEN(tier::anycast, desk::events::ui::recalc, state, oneshot, (gear_id, data_src_shadow)) // On session start.
                     {
                         disabled = check_id(boss, gear_id);
@@ -624,7 +624,7 @@ namespace netxs::app::desk
                     {
                         owner_id = parent.id;
                     };
-                    auto& oneshot = boss.base::newfield<hook>();
+                    auto& oneshot = boss.base::field<hook>();
                     parent.LISTEN(tier::release, input::events::focus::set::any, seed, oneshot, (usrcfg))
                     {
                         usrcfg.win = {};

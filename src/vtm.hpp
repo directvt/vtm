@@ -786,7 +786,7 @@ namespace netxs::app::vtm
                             what.applet = applet;
                         }
                     };
-                    auto& last_state = boss.base::newfield(faux);
+                    auto& last_state = boss.base::field(faux);
                     boss.LISTEN(tier::release, e2::form::layout::selected, gear)
                     {
                         last_state = boss.hidden;
@@ -901,10 +901,10 @@ namespace netxs::app::vtm
                                                     "\n\tdels ", counter.del_count);
                     };
 
-                    auto& maximize_token = boss.base::newfield<subs>();
-                    auto& viewport_area = boss.base::newfield<rect>();
-                    auto& saved_area = boss.base::newfield<rect>();
-                    auto& what_copy = boss.base::newfield<applink>();
+                    auto& maximize_token = boss.base::field<subs>();
+                    auto& viewport_area = boss.base::field<rect>();
+                    auto& saved_area = boss.base::field<rect>();
+                    auto& what_copy = boss.base::field<applink>();
                     what_copy = what;
                     what_copy.applet = {};
                     auto& applet_area = what.applet->base::bind_property("window.area", boss, e2::area);
@@ -1539,7 +1539,7 @@ namespace netxs::app::vtm
                 world_ptr = base::This();
             };
 
-            auto& user_numbering = base::newfield<std::vector<bool>>();
+            auto& user_numbering = base::field<std::vector<bool>>();
             LISTEN(tier::general, input::events::device::user::login, props)
             {
                 props = 0;
@@ -1646,8 +1646,8 @@ namespace netxs::app::vtm
                 }
             };
 
-            auto& hall_focus = base::newfield<id_t>(); // Last active gear id.
-            auto& offset = base::newfield<twod>(); // Last created window coords.
+            auto& hall_focus = base::field<id_t>(); // Last active gear id.
+            auto& offset = base::field<twod>(); // Last created window coords.
             LISTEN(tier::request, desk::events::exec, appspec)
             {
                 auto gear_ptr = netxs::sptr<hids>{};
@@ -1776,7 +1776,7 @@ namespace netxs::app::vtm
                 }
             };
 
-            auto& switch_counter = base::newfield<std::unordered_map<id_t, si32>>(); // hall: Focus switch counter.
+            auto& switch_counter = base::field<std::unordered_map<id_t, si32>>(); // hall: Focus switch counter.
             LISTEN(tier::release, input::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
             {
                 switch_counter[seed.gear_id] = {};
@@ -1976,11 +1976,11 @@ namespace netxs::app::vtm
 
             bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
-            auto& saved = base::newfield<wptr>();// align: .
-            auto& what = base::newfield<applink>(); // align: Original app window properties.
-            auto& prev = base::newfield<rect>(); // align: Window size before the fullscreen has applied.
-            auto& coor = base::newfield<twod>(); // align: Coor tracking.
-            auto& memo = base::newfield<subs>(); // align: .
+            auto& saved = base::field<wptr>();// align: .
+            auto& what = base::field<applink>(); // align: Original app window properties.
+            auto& prev = base::field<rect>(); // align: Window size before the fullscreen has applied.
+            auto& coor = base::field<twod>(); // align: Coor tracking.
+            auto& memo = base::field<subs>(); // align: .
             usergate.LISTEN(tier::release, vtm::events::gate::restore, restore_mode)
             {
                 if (!memo) return;
@@ -2177,7 +2177,7 @@ namespace netxs::app::vtm
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
             };
-            auto& drag_origin = usergate.base::newfield<fp2d>();
+            auto& drag_origin = usergate.base::field<fp2d>();
             auto& user_mouse = usergate.base::plugin<pro::mouse>();
             user_mouse.template draggable<hids::buttons::leftright>(true);
             user_mouse.template draggable<hids::buttons::left>(true);
