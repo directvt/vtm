@@ -127,7 +127,7 @@ namespace netxs::app::terminal
             if (item.type == menu::type::Repeat)
             {
                 auto& tick = boss.plugins<pro::timer>();
-                boss.LISTEN(tier::release, input2::events::mouse::button::down::left, gear, -, (proc))
+                boss.LISTEN(tier::release, input::events::mouse::button::down::left, gear, -, (proc))
                 {
                     if (item.views.size())
                     {
@@ -153,7 +153,7 @@ namespace netxs::app::terminal
                         _update_gear(boss, item, gear);
                     }
                 };
-                boss.LISTEN(tier::release, input2::events::mouse::button::up::left, gear)
+                boss.LISTEN(tier::release, input::events::mouse::button::up::left, gear)
                 {
                     tick.pacify();
                     gear.setfree();
@@ -179,7 +179,7 @@ namespace netxs::app::terminal
             }
             else
             {
-                boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear, -, (proc))
+                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (proc))
                 {
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)

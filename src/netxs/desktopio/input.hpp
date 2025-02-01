@@ -188,11 +188,6 @@ namespace netxs::events::userland
     }
 }
 
-namespace netxs::input2
-{
-    namespace events = netxs::events::userland::hids;
-}
-
 namespace netxs::input
 {
     using ui::sptr;
@@ -780,12 +775,12 @@ namespace netxs::input
         };
         enum buttons
         {
-            left      = input2::events::mouse::button::click::left     .index(),
-            right     = input2::events::mouse::button::click::right    .index(),
-            middle    = input2::events::mouse::button::click::middle   .index(),
-            xbutton1  = input2::events::mouse::button::click::xbutton1 .index(),
-            xbutton2  = input2::events::mouse::button::click::xbutton2 .index(),
-            leftright = input2::events::mouse::button::click::leftright.index(),
+            left      = input::events::mouse::button::click::left     .index(),
+            right     = input::events::mouse::button::click::right    .index(),
+            middle    = input::events::mouse::button::click::middle   .index(),
+            xbutton1  = input::events::mouse::button::click::xbutton1 .index(),
+            xbutton2  = input::events::mouse::button::click::xbutton2 .index(),
+            leftright = input::events::mouse::button::click::leftright.index(),
             numofbuttons,
         };
 
@@ -817,17 +812,17 @@ namespace netxs::input
         using knob = std::array<knob_t, numofbuttons>;
         using tail = netxs::datetime::tail<fp2d>;
 
-        static constexpr auto dragstrt = input2::events::mouse::button::drag::start:: any.group<numofbuttons>();
-        static constexpr auto dragpull = input2::events::mouse::button::drag::pull::  any.group<numofbuttons>();
-        static constexpr auto dragcncl = input2::events::mouse::button::drag::cancel::any.group<numofbuttons>();
-        static constexpr auto dragstop = input2::events::mouse::button::drag::stop::  any.group<numofbuttons>();
-        static constexpr auto released = input2::events::mouse::button::up::          any.group<numofbuttons>();
-        static constexpr auto pushdown = input2::events::mouse::button::down::        any.group<numofbuttons>();
-        static constexpr auto sglclick = input2::events::mouse::button::click::       any.group<numofbuttons>();
-        static constexpr auto dblclick = input2::events::mouse::button::dblclick::    any.group<numofbuttons>();
-        static constexpr auto tplclick = input2::events::mouse::button::tplclick::    any.group<numofbuttons>();
-        static constexpr auto wheeling = input2::events::mouse::scroll::act.id;
-        static constexpr auto movement = input2::events::mouse::move.id;
+        static constexpr auto dragstrt = input::events::mouse::button::drag::start:: any.group<numofbuttons>();
+        static constexpr auto dragpull = input::events::mouse::button::drag::pull::  any.group<numofbuttons>();
+        static constexpr auto dragcncl = input::events::mouse::button::drag::cancel::any.group<numofbuttons>();
+        static constexpr auto dragstop = input::events::mouse::button::drag::stop::  any.group<numofbuttons>();
+        static constexpr auto released = input::events::mouse::button::up::          any.group<numofbuttons>();
+        static constexpr auto pushdown = input::events::mouse::button::down::        any.group<numofbuttons>();
+        static constexpr auto sglclick = input::events::mouse::button::click::       any.group<numofbuttons>();
+        static constexpr auto dblclick = input::events::mouse::button::dblclick::    any.group<numofbuttons>();
+        static constexpr auto tplclick = input::events::mouse::button::tplclick::    any.group<numofbuttons>();
+        static constexpr auto wheeling = input::events::mouse::scroll::act.id;
+        static constexpr auto movement = input::events::mouse::move.id;
         static constexpr auto noactive = si32{ -1 };
         static constexpr auto drag_threshold = 0.3f; // mouse: Mouse drag threshold (to support jittery clicks).
 
@@ -1529,17 +1524,17 @@ namespace netxs::input
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             keybd::gear_id = bell::id;
-            bell::signal(tier::general, input2::events::device::user::login, user_index);
+            bell::signal(tier::general, input::events::device::user::login, user_index);
         }
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
             release_if_captured();
-            bell::signal(tier::release, input2::events::halt, *this);
-            bell::signal(tier::general, input2::events::halt, *this);
-            bell::signal(tier::release, input2::events::die, *this);
-            bell::signal(tier::general, input2::events::die, *this);
-            bell::signal(tier::general, input2::events::device::user::logout, user_index);
+            bell::signal(tier::release, input::events::halt, *this);
+            bell::signal(tier::general, input::events::halt, *this);
+            bell::signal(tier::release, input::events::die, *this);
+            bell::signal(tier::general, input::events::die, *this);
+            bell::signal(tier::general, input::events::device::user::logout, user_index);
         }
 
         // hids: Whether event processing is complete.
@@ -1591,7 +1586,7 @@ namespace netxs::input
         }
         void tooltip_recalc(hint deed)
         {
-            if (deed == input2::events::mouse::move.id)
+            if (deed == input::events::mouse::move.id)
             {
                 if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
                 {
@@ -1605,7 +1600,7 @@ namespace netxs::input
                     }
                 }
             }
-            else if (deed == input2::events::mouse::scroll::act.id) // Drop tooltip away.
+            else if (deed == input::events::mouse::scroll::act.id) // Drop tooltip away.
             {
                 tooltip_stop = true;
             }
@@ -1645,8 +1640,8 @@ namespace netxs::input
 
         void replay(hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
-            static constexpr auto mask = netxs::events::level_mask(input2::events::mouse::button::any.id);
-            static constexpr auto base = mask & input2::events::mouse::button::any.id;
+            static constexpr auto mask = netxs::events::level_mask(input::events::mouse::button::any.id);
+            static constexpr auto base = mask & input::events::mouse::button::any.id;
             alive = true;
             keybd::ctlstat = new_ctlstate;
             mouse::coord = new_coord;
@@ -1750,7 +1745,7 @@ namespace netxs::input
                 if (auto last = bell::getref<base>(last_id))
                 {
                     auto saved_start = std::exchange(mouse::start, start_id);
-                    auto saved_cause = std::exchange(mouse::cause, input2::events::mouse::hover::leave.id);
+                    auto saved_cause = std::exchange(mouse::cause, input::events::mouse::hover::leave.id);
                     last->base::signal(tier::release, mouse::cause, *this);
                     mouse::start = saved_start;
                     mouse::cause = saved_cause;
@@ -1777,7 +1772,7 @@ namespace netxs::input
                 // to avoid flickering the parent object state when focus
                 // acquired by children.
                 auto start_leave = std::exchange(mouse::start, 0); // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                auto saved_cause = std::exchange(mouse::cause, input2::events::mouse::hover::enter.id);
+                auto saved_cause = std::exchange(mouse::cause, input::events::mouse::hover::enter.id);
                 boss.base::signal(tier::release, mouse::cause, *this);
                 mouse_leave(mouse::hover, start_leave);
                 mouse::hover = boss.id;
@@ -1798,7 +1793,7 @@ namespace netxs::input
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
             release_if_captured();
-            bell::signal(tier::general, input2::events::halt, *this);
+            bell::signal(tier::general, input::events::halt, *this);
             mouse_disabled = true;
             keybd_disabled = true;
         }
@@ -1870,7 +1865,7 @@ namespace netxs::input
                     auto  temp = m_sys.coordxy;
                     m_sys.coordxy += idmap.coor();
                     next.global(m_sys.coordxy);
-                    next.bell::signal(tier::release, input2::events::device::mouse::on, *this);
+                    next.bell::signal(tier::release, input::events::device::mouse::on, *this);
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
@@ -1886,17 +1881,17 @@ namespace netxs::input
         }
         void fire_keybd()
         {
-            owner.bell::signal(tier::preview, input2::events::keybd::key::post, *this);
+            owner.bell::signal(tier::preview, input::events::keybd::key::post, *this);
         }
         void fire_board()
         {
-            owner.bell::signal(tier::release, input2::events::clipboard, *this);
+            owner.bell::signal(tier::release, input::events::clipboard, *this);
             mouse::delta.set(); // Update time stamp.
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, input2::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
-                         : owner.bell::signal(tier::release, input2::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
+            focus::state ? owner.bell::signal(tier::release, input::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
+                         : owner.bell::signal(tier::release, input::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
         }
         text interpret(bool decckm)
         {

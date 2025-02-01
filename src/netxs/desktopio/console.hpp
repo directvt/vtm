@@ -722,7 +722,7 @@ namespace netxs::ui
             //       but any form can move under the cursor, so for the form itself,
             //       the mouse cursor moves inside the form.
             base::ruined(faux);
-            fire(input2::events::mouse::move.id);
+            fire(input::events::mouse::move.id);
         }
         // gate: Rx loop.
         void launch()
@@ -1037,7 +1037,7 @@ namespace netxs::ui
             {
                 forward(c);
             };
-            LISTEN(tier::preview, input2::events::focus::set::any, seed)
+            LISTEN(tier::preview, input::events::focus::set::any, seed)
             {
                 if (seed.gear_id)
                 {
@@ -1045,13 +1045,13 @@ namespace netxs::ui
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
-                        auto state = deed == input2::events::focus::set::on.id;
+                        auto state = deed == input::events::focus::set::on.id;
                         conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
             };
             //todo mimic pro::focus
-            LISTEN(tier::release, input2::events::focus::any, seed)
+            LISTEN(tier::release, input::events::focus::any, seed)
             {
                 if (auto target = nexthop.lock())
                 {
@@ -1067,14 +1067,14 @@ namespace netxs::ui
                     owner_ptr = This();
                 };
             }
-            LISTEN(tier::preview, input2::events::keybd::key::post, gear) // Start of kb event propagation.
+            LISTEN(tier::preview, input::events::keybd::key::post, gear) // Start of kb event propagation.
             {
                 if (auto target = nexthop.lock())
                 {
-                    target->bell::signal(tier::preview, input2::events::keybd::key::post, gear);
+                    target->bell::signal(tier::preview, input::events::keybd::key::post, gear);
                 }
             };
-            LISTEN(tier::release, input2::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
+            LISTEN(tier::release, input::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (!gear.handled)
                 {
@@ -1106,7 +1106,7 @@ namespace netxs::ui
                 //todo hids
                 //proc(gear);
             };
-            LISTEN(tier::preview, input2::events::mouse::button::click::leftright, gear)
+            LISTEN(tier::preview, input::events::mouse::button::click::leftright, gear)
             {
                 if (gear.clear_clipboard())
                 {
@@ -1179,7 +1179,7 @@ namespace netxs::ui
                 auto window_id = id_t{};
                 conio.header.send(canal, window_id, newheader);
             };
-            LISTEN(tier::release, input2::events::clipboard, from_gear)
+            LISTEN(tier::release, input::events::clipboard, from_gear)
             {
                 auto myid = from_gear.id;
                 auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
@@ -1188,7 +1188,7 @@ namespace netxs::ui
                 auto& data = gear.board::cargo;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
-            LISTEN(tier::request, input2::events::clipboard, from_gear)
+            LISTEN(tier::request, input::events::clipboard, from_gear)
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
@@ -1203,7 +1203,7 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::preview, input2::events::mouse::button::tplclick::leftright, gear)
+            LISTEN(tier::preview, input::events::mouse::button::tplclick::leftright, gear)
             {
                 if (props.debug_overlay)
                 {
@@ -1232,15 +1232,15 @@ namespace netxs::ui
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, input2::events::mouse::scroll::any, gear)
+                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
-                LISTEN(tier::release, input2::events::mouse::button::any, gear, -, (isvtm))
+                LISTEN(tier::release, input::events::mouse::button::any, gear, -, (isvtm))
                 {
-                    namespace button = input2::events::mouse::button;
+                    namespace button = input::events::mouse::button;
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
                     if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
@@ -1290,7 +1290,7 @@ namespace netxs::ui
                 {
                     conio.cwd.send(canal, path);
                 };
-                LISTEN(tier::preview, input2::events::mouse::button::click::any, gear)
+                LISTEN(tier::preview, input::events::mouse::button::click::any, gear)
                 {
                     conio.expose.send(canal);
                 };

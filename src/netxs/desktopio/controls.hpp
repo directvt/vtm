@@ -72,14 +72,14 @@ namespace netxs::ui
 
                 socks(base& boss)
                 {
-                    boss.LISTEN(tier::general, input2::events::die, gear, token)
+                    boss.LISTEN(tier::general, input::events::die, gear, token)
                     {
                         del(gear);
                     };
-                    boss.LISTEN(tier::release, input2::events::mouse::hover::any, gear, token)
+                    boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, token)
                     {
-                             if (gear.cause == input2::events::mouse::hover::enter.id) add(gear);
-                        else if (gear.cause == input2::events::mouse::hover::leave.id) dec(gear);
+                             if (gear.cause == input::events::mouse::hover::enter.id) add(gear);
+                        else if (gear.cause == input::events::mouse::hover::leave.id) dec(gear);
                     };
                 }
                 template<bool ConstWarn = true>
@@ -167,7 +167,7 @@ namespace netxs::ui
                   alive{ true          }
             {
                 // Drop it in favor of changing the cell size in GUI mode.
-                //boss.LISTEN(tier::release, input2::events::mouse::scroll::act, gear, memo)
+                //boss.LISTEN(tier::release, input::events::mouse::scroll::act, gear, memo)
                 //{
                 //    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock) && gear.whlsi)
                 //    {
@@ -239,7 +239,7 @@ namespace netxs::ui
                 {
                     outer_rect = outer;
                 };
-                boss.LISTEN(tier::release, input2::events::mouse::move, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
                 {
                     auto& g = items.take(gear);
                     if (g.zoomon && !gear.meta(hids::anyCtrl))
@@ -488,21 +488,21 @@ namespace netxs::ui
                   alive{ true }
             {
                 // Keybd focus.
-                //boss.LISTEN(tier::release, input2::events::focus::set::on, seed, memo)
+                //boss.LISTEN(tier::release, input::events::focus::set::on, seed, memo)
                 //{
                 //    add_keybd(seed.gear_id);
                 //};
-                //boss.LISTEN(tier::release, input2::events::focus::set::off, seed, memo)
+                //boss.LISTEN(tier::release, input::events::focus::set::off, seed, memo)
                 //{
                 //    del_keybd(seed.gear_id);
                 //};
-                //boss.LISTEN(tier::release, input2::events::die, gear, memo) // Gen by pro::focus.
+                //boss.LISTEN(tier::release, input::events::die, gear, memo) // Gen by pro::focus.
                 //{
                 //    del_keybd(gear.id);
                 //};
                 // Mouse focus.
                 //if (!skin::globals().tracking) return;
-                boss.LISTEN(tier::release, input2::events::mouse::move, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                 };
@@ -1179,7 +1179,7 @@ namespace netxs::ui
                 stop = datetime::now() + limit;
 
                 // No mouse events watchdog.
-                boss.LISTEN(tier::preview, input2::events::mouse::any, something, pong)
+                boss.LISTEN(tier::preview, input::events::mouse::any, something, pong)
                 {
                     stop = datetime::now() + limit;
                 };
@@ -1289,7 +1289,7 @@ namespace netxs::ui
                     if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                     {
                         auto& chain = iter->second;
-                        gear_ptr->LISTEN(tier::release, input2::events::die, gear, chain.token)
+                        gear_ptr->LISTEN(tier::release, input::events::die, gear, chain.token)
                         {
                             auto iter = gears.find(gear.id);
                             if (iter != gears.end()) // Make the current branch default.
@@ -1301,7 +1301,7 @@ namespace netxs::ui
                                     chain.active = state::live; // Keep chain state.
                                 }
                                 gears[id_t{}] = std::move(chain);
-                                boss.bell::signal(tier::release, input2::events::die, gear); // Notify pro::keybd.
+                                boss.bell::signal(tier::release, input::events::die, gear); // Notify pro::keybd.
                                 gears.erase(iter);
                             }
                         };
@@ -1355,7 +1355,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
-                    item_ptr->base::riseup(tier::preview, input2::events::focus::set::on, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
+                    item_ptr->base::riseup(tier::preview, input::events::focus::set::on, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
                 {
@@ -1375,7 +1375,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
-                    item_ptr->base::riseup(tier::preview, input2::events::focus::set::off, { .gear_id = id });
+                    item_ptr->base::riseup(tier::preview, input::events::focus::set::off, { .gear_id = id });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
                 {
@@ -1410,7 +1410,7 @@ namespace netxs::ui
                 auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
                 if (auto parent = item_ptr->base::parent())
                 {
-                    parent->base::riseup(tier::request, input2::events::focus::cut, { .item = item_ptr });
+                    parent->base::riseup(tier::request, input::events::focus::cut, { .item = item_ptr });
                 }
                 return gear_id_list;
             }
@@ -1420,7 +1420,7 @@ namespace netxs::ui
                 auto lock = prev_item_ptr->bell::sync();
                 if (auto parent = prev_item_ptr->base::parent())
                 {
-                    parent->base::riseup(tier::request, input2::events::focus::hop, { .item = prev_item_ptr, .next = next_item_ptr });
+                    parent->base::riseup(tier::request, input::events::focus::hop, { .item = prev_item_ptr, .next = next_item_ptr });
                 }
             }
             static auto test(base& item, input::hids& gear)
@@ -1461,7 +1461,7 @@ namespace netxs::ui
                     owner_ptr = boss.This();
                 };
                 // pro::focus: Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.LISTEN(tier::release, input2::events::mouse::button::click::left, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, memo)
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
@@ -1481,7 +1481,7 @@ namespace netxs::ui
                     gear.dismiss();
                 };
                 // pro::focus: Subscribe on keybd events.
-                boss.LISTEN(tier::preview, input2::events::keybd::key::post, gear, memo) // preview: Run after any.
+                boss.LISTEN(tier::preview, input::events::keybd::key::post, gear, memo) // preview: Run after any.
                 {
                     auto sent = faux;
                     auto& chain = get_chain(gear.id);
@@ -1493,7 +1493,7 @@ namespace netxs::ui
                         {
                             sent = true;
                             gear.handled = handled;
-                            nexthop->bell::signal(tier::preview, input2::events::keybd::key::post, gear);
+                            nexthop->bell::signal(tier::preview, input::events::keybd::key::post, gear);
                             new_handled |= gear.handled;
                         }
                     });
@@ -1503,7 +1503,7 @@ namespace netxs::ui
                         auto parent_ptr = boss.This();
                         while ((!gear.handled || gear.keystat == input::key::released) && parent_ptr) // Always pass released key events.
                         {
-                            parent_ptr->bell::signal(tier::release, input2::events::keybd::key::post, gear);
+                            parent_ptr->bell::signal(tier::release, input::events::keybd::key::post, gear);
                             parent_ptr = parent_ptr->base::parent();
                         }
                     }
@@ -1511,7 +1511,7 @@ namespace netxs::ui
                 // all tier::previews going to outside (upstream)
                 // all tier::releases going to inside (downstream)
                 // pro::focus: Off focus to inside.
-                boss.LISTEN(tier::release, input2::events::focus::set::off, seed, memo)
+                boss.LISTEN(tier::release, input::events::focus::set::off, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
                     if (notify_focus_state(state::idle, chain, seed.gear_id))
@@ -1521,13 +1521,13 @@ namespace netxs::ui
                             if (status == state::live)
                             {
                                 status = state::idle;
-                                nexthop->bell::signal(tier::release, input2::events::focus::set::off, seed);
+                                nexthop->bell::signal(tier::release, input::events::focus::set::off, seed);
                             }
                         });
                     }
                 };
                 // pro::focus: Make copy from default.
-                boss.LISTEN(tier::request, input2::events::focus::dup, seed, memo)
+                boss.LISTEN(tier::request, input::events::focus::dup, seed, memo)
                 {
                     auto iter = gears.find(id_t{});
                     if (iter != gears.end())
@@ -1541,17 +1541,17 @@ namespace netxs::ui
                             if (node_type == mode::relay)
                             {
                                 seed.item = boss.This();
-                                boss.bell::signal(tier::release, input2::events::focus::set::on, seed);
+                                boss.bell::signal(tier::release, input::events::focus::set::on, seed);
                             }
                         }
                         chain.foreach([&](auto& nexthop, auto& /*status*/)
                         {
-                            nexthop->bell::signal(tier::request, input2::events::focus::dup, seed);
+                            nexthop->bell::signal(tier::request, input::events::focus::dup, seed);
                         });
                     }
                 };
                 // pro::focus: Set focus to inside.
-                boss.LISTEN(tier::release, input2::events::focus::set::on, seed, memo)
+                boss.LISTEN(tier::release, input::events::focus::set::on, seed, memo)
                 {
                     auto iter = gears.find(seed.gear_id);
                     if (iter == gears.end()) // No route to inside.
@@ -1559,7 +1559,7 @@ namespace netxs::ui
                         auto first_step = !seed.item; // No focused item yet. We are in the the first riseup iteration (pro::focus::set just called and catched the first plugin<pro::focus> owner). A focus leaf is not necessarily a visual tree leaf.
                         if (seed.gear_id && first_step && (iter = gears.find(id_t{}), iter != gears.end())) // Check if the default chain exists.
                         {
-                            boss.bell::signal(tier::request, input2::events::focus::dup, seed);
+                            boss.bell::signal(tier::request, input::events::focus::dup, seed);
                             return;
                         }
                         else
@@ -1579,13 +1579,13 @@ namespace netxs::ui
                             {
                                 status = state::live;
                                 seed.item = boss.This();
-                                nexthop->bell::signal(tier::release, input2::events::focus::set::on, seed);
+                                nexthop->bell::signal(tier::release, input::events::focus::set::on, seed);
                             }
                         });
                     }
                 };
                 // pro::focus: Set focus to outside.
-                boss.LISTEN(tier::preview, input2::events::focus::set::on, seed, memo)
+                boss.LISTEN(tier::preview, input::events::focus::set::on, seed, memo)
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
@@ -1596,7 +1596,7 @@ namespace netxs::ui
                         if (seed.gear_id && (!allow_focusize || seed.focus_type != solo::on)) // Hub or group focus.
                         {
                             auto release_seed = seed;
-                            boss.bell::signal(tier::release, input2::events::focus::set::on, release_seed); // Turn on a default downstream branch.
+                            boss.bell::signal(tier::release, input::events::focus::set::on, release_seed); // Turn on a default downstream branch.
                         }
                         else
                         {
@@ -1608,7 +1608,7 @@ namespace netxs::ui
                                     if (status == state::live)
                                     {
                                         status = state::dead;
-                                        nexthop->bell::signal(tier::release, input2::events::focus::set::off, seed);
+                                        nexthop->bell::signal(tier::release, input::events::focus::set::off, seed);
                                     }
                                 });
                             }
@@ -1631,7 +1631,7 @@ namespace netxs::ui
                                 else
                                 {
                                     status = state::dead;
-                                    nexthop->bell::signal(tier::release, input2::events::focus::set::off, seed);
+                                    nexthop->bell::signal(tier::release, input::events::focus::set::off, seed);
                                 }
                             });
                             if (!exists)
@@ -1670,11 +1670,11 @@ namespace netxs::ui
                     if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
-                        parent->base::riseup(tier::preview, input2::events::focus::set::on, seed);
+                        parent->base::riseup(tier::preview, input::events::focus::set::on, seed);
                     }
                 };
                 // pro::focus: Off focus to outside. Truncate the maximum path without branches.
-                boss.LISTEN(tier::preview, input2::events::focus::set::off, seed, memo)
+                boss.LISTEN(tier::preview, input::events::focus::set::off, seed, memo)
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
@@ -1684,7 +1684,7 @@ namespace netxs::ui
                     {
                         if (chain.active == state::live)
                         {
-                            boss.bell::signal(tier::release, input2::events::focus::set::off, seed);
+                            boss.bell::signal(tier::release, input::events::focus::set::off, seed);
                         }
                     }
                     else //if (!first_step)
@@ -1708,22 +1708,22 @@ namespace netxs::ui
                     if (auto parent_ptr = boss.base::parent())
                     {
                         seed.item = boss.This();
-                        parent_ptr->base::riseup(tier::preview, input2::events::focus::set::off, seed);
+                        parent_ptr->base::riseup(tier::preview, input::events::focus::set::off, seed);
                     }
                 };
                 // pro::focus: Initiate focus setting toward outside (used by gui and dtvt).
-                boss.LISTEN(tier::request, input2::events::focus::add, seed, memo)
+                boss.LISTEN(tier::request, input::events::focus::add, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
                     notify_focus_state(state::live, chain, seed.gear_id);
                     if (auto parent = boss.base::parent())
                     {
                         seed.item = boss.This();
-                        parent->base::riseup(tier::preview, input2::events::focus::set::on, seed);
+                        parent->base::riseup(tier::preview, input::events::focus::set::on, seed);
                     }
                 };
                 // pro::focus: Initiate focus unsetting toward outside (used by gui and dtvt).
-                boss.LISTEN(tier::request, input2::events::focus::rem, seed, memo)
+                boss.LISTEN(tier::request, input::events::focus::rem, seed, memo)
                 {
                     auto& chain = get_chain(seed.gear_id);
                     auto boss_ptr = boss.This();
@@ -1732,12 +1732,12 @@ namespace netxs::ui
                         if (auto parent_ptr = boss.base::parent())
                         {
                             seed.item = boss_ptr;
-                            parent_ptr->base::riseup(tier::preview, input2::events::focus::set::off, seed);
+                            parent_ptr->base::riseup(tier::preview, input::events::focus::set::off, seed);
                         }
                     }
                 };
                 // pro::focus: Drop all downlinks (toward inside) from the boss and unfocus boss. Return dropped active gears.
-                boss.LISTEN(tier::request, input2::events::focus::cut, seed, memo)
+                boss.LISTEN(tier::request, input::events::focus::cut, seed, memo)
                 {
                     seed.treeid = treeid;
                     seed.digest = ++digest;
@@ -1749,14 +1749,14 @@ namespace netxs::ui
                             if (match && gear_id && next.status == state::live)
                             {
                                 seed.gear_id = gear_id;
-                                seed.item->bell::signal(tier::release, input2::events::focus::set::off, seed);
+                                seed.item->bell::signal(tier::release, input::events::focus::set::off, seed);
                             }
                             return match;
                         });
                     }
                 };
                 // pro::focus: Switch all foci from the prev_ptr to the next_ptr (which must have a pro::focus on board).
-                boss.LISTEN(tier::request, input2::events::focus::hop, seed, memo)
+                boss.LISTEN(tier::request, input::events::focus::hop, seed, memo)
                 {
                     auto prev_ptr = seed.item;
                     auto next_ptr = seed.next;
@@ -1776,8 +1776,8 @@ namespace netxs::ui
                                 r.next_wptr = next_ptr;
                                 if (gear_id && r.status == state::live)
                                 {
-                                    prev_ptr->bell::signal(tier::release, input2::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
-                                    next_ptr->bell::signal(tier::release, input2::events::focus::set::on,  { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
+                                    prev_ptr->bell::signal(tier::release, input::events::focus::set::off, { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
+                                    next_ptr->bell::signal(tier::release, input::events::focus::set::on,  { .gear_id = gear_id, .treeid = treeid, .digest = ++digest });
                                 }
                             }
                         }
@@ -1901,7 +1901,7 @@ namespace netxs::ui
                     }
                 };
                 // pro::mouse: Forward preview to all parents.
-                boss.LISTEN(tier::preview, input2::events::mouse::any, gear, memo)
+                boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
                     auto& offset = boss.base::coor();
                     gear.pass(tier::preview, boss.base::parent(), offset);
@@ -1910,27 +1910,27 @@ namespace netxs::ui
                     else      boss.bell::expire(tier::preview);
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.LISTEN(tier::release, input2::events::mouse::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::any, gear, memo)
                 {
-                    if ((gear && !gear.captured()) || gear.cause == input2::events::mouse::hover::enter.id || gear.cause == input2::events::mouse::hover::leave.id)
+                    if ((gear && !gear.captured()) || gear.cause == input::events::mouse::hover::enter.id || gear.cause == input::events::mouse::hover::leave.id)
                     {
                         auto& offset = boss.base::coor();
                         gear.pass(tier::release, boss.base::parent(), offset);
                     }
                 };
                 // pro::mouse: Amplify mouse hover on any button press.
-                boss.LISTEN(tier::release, input2::events::mouse::button::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::button::any, gear, memo)
                 {
-                    if (netxs::events::subevent(gear.cause, input2::events::mouse::button::down::any.id)
-                     || netxs::events::subevent(gear.cause, input2::events::mouse::button::up::any.id))
+                    if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id)
+                     || netxs::events::subevent(gear.cause, input::events::mouse::button::up::any.id))
                     {
                         boss.bell::signal(tier::release, e2::form::state::hover, rent + gear.mouse::pressed_count);
                     }
                 };
                 // pro::mouse: Notify about change in number of mouse hovering clients.
-                boss.LISTEN(tier::release, input2::events::mouse::hover::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
                 {
-                    if (gear.cause == input2::events::mouse::hover::enter.id) // Notify when the number of clients is positive.
+                    if (gear.cause == input::events::mouse::hover::enter.id) // Notify when the number of clients is positive.
                     {
                         if (!full++)
                         {
@@ -1945,7 +1945,7 @@ namespace netxs::ui
                             boss.bell::signal(tier::release, e2::form::state::hover, rent);
                         }
                     }
-                    else if (gear.cause == input2::events::mouse::hover::leave.id) // Notify when the number of clients is zero.
+                    else if (gear.cause == input::events::mouse::hover::leave.id) // Notify when the number of clients is zero.
                     {
                         if (gear.direct<faux>(boss.bell::id) || omni)
                         {
@@ -2009,8 +2009,8 @@ namespace netxs::ui
                 else if (!(drag & 1 << Button))
                 {
                     drag |= 1 << Button;
-                    //namespace bttn = input2::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.LISTEN(tier::release, input2::events::mouse::button::drag::start::_<Button>, gear, dragmemo[Button])
+                    //namespace bttn = input::events::mouse::button; //MSVC 16.9.4 don't get it
+                    boss.LISTEN(tier::release, input::events::mouse::button::drag::start::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -2018,7 +2018,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::release, input2::events::mouse::button::drag::pull::_<Button>, gear, dragmemo[Button])
+                    boss.LISTEN(tier::release, input::events::mouse::button::drag::pull::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2026,7 +2026,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::release, input2::events::mouse::button::drag::cancel::_<Button>, gear, dragmemo[Button])
+                    boss.LISTEN(tier::release, input::events::mouse::button::drag::cancel::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2035,7 +2035,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::general, input2::events::halt, gear, dragmemo[Button])
+                    boss.LISTEN(tier::general, input::events::halt, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2044,7 +2044,7 @@ namespace netxs::ui
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::release, input2::events::mouse::button::drag::stop::_<Button>, gear, dragmemo[Button])
+                    boss.LISTEN(tier::release, input::events::mouse::button::drag::stop::_<Button>, gear, dragmemo[Button])
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -2167,11 +2167,11 @@ namespace netxs::ui
                         scripting_context_ptr.reset();
                     }
                 };
-                boss.LISTEN(tier::general, input2::events::die, gear, memo)
+                boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {
                     last_key.erase(gear.id);
                 };
-                boss.LISTEN(tier::release, input2::events::keybd::key::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::keybd::key::any, gear, memo)
                 {
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     auto& timecod = last_key[gear.id];
@@ -2192,7 +2192,7 @@ namespace netxs::ui
                         gear.set_handled();
                     }
                 };
-                boss.LISTEN(tier::preview, input2::events::keybd::key::any, gear, memo)
+                boss.LISTEN(tier::preview, input::events::keybd::key::any, gear, memo)
                 {
                     gear.shared_event = gear.touched && gear.touched != instance_id;
                     if (gear.payload == input::keybd::type::keypress)
@@ -2607,7 +2607,7 @@ namespace netxs::ui
                     draw_shadow(parent_canvas);
                 };
                 //test
-                //boss.LISTEN(tier::release, input2::events::mouse::scroll::any, gear)
+                //boss.LISTEN(tier::release, input::events::mouse::scroll::any, gear)
                 //{
                 //    boss.base::deface();
                 //};
@@ -2645,7 +2645,7 @@ namespace netxs::ui
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, input2::events::mouse::hover::enter, gear, memo, (wrap, full = wrap.l == si32max))
+                boss.LISTEN(tier::release, input::events::mouse::hover::enter, gear, memo, (wrap, full = wrap.l == si32max))
                 {
                     if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
@@ -4348,8 +4348,8 @@ namespace netxs::ui
                 req_scinfo = scinfo;
             };
 
-            namespace button = input2::events::mouse::button;
-            LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+            namespace button = input::events::mouse::button;
+            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi)
@@ -4400,7 +4400,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             };
-            LISTEN(tier::general, input2::events::halt, gear)
+            LISTEN(tier::general, input::events::halt, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4837,7 +4837,7 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (this->form::protos(tier::release, input2::events::mouse::button::drag::cancel::right))
+                    if (this->form::protos(tier::release, input::events::mouse::button::drag::cancel::right))
                     {
                         send<e2::form::upon::scroll::cancel::_<Axis>>();
                     }
@@ -4885,22 +4885,22 @@ namespace netxs::ui
                 base::deface();
             };
 
-            namespace bttn = input2::events::mouse::button;
-            LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+            namespace bttn = input::events::mouse::button;
+            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi) pager(gear.whlsi > 0 ? 1 : -1);
                 gear.dismiss();
             };
-            LISTEN(tier::release, input2::events::mouse::move, gear)
+            LISTEN(tier::release, input::events::mouse::move, gear)
             {
                 calc.cursor_pos = twod{ gear.coord }[Axis];
             };
-            LISTEN(tier::release, input2::events::mouse::button::dblclick::left, gear)
+            LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            LISTEN(tier::release, input2::events::mouse::button::down::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
                 if (this->form::protos(tier::release, bttn::down::left)
@@ -4927,7 +4927,7 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, input2::events::mouse::button::up::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -4942,7 +4942,7 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, input2::events::mouse::button::up::right, gear)
+            LISTEN(tier::release, input::events::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -4951,7 +4951,7 @@ namespace netxs::ui
                 }
             };
 
-            LISTEN(tier::release, input2::events::mouse::button::drag::start::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager)
                 {
@@ -4966,7 +4966,7 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, input2::events::mouse::button::drag::pull::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager)
                 {
@@ -4986,15 +4986,15 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, input2::events::mouse::button::drag::cancel::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::drag::cancel::any, gear)
             {
                 giveup(gear);
             };
-            LISTEN(tier::general, input2::events::halt, gear)
+            LISTEN(tier::general, input::events::halt, gear)
             {
                 giveup(gear);
             };
-            LISTEN(tier::release, input2::events::mouse::button::drag::stop::any, gear)
+            LISTEN(tier::release, input::events::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager)
                 {
@@ -5031,7 +5031,7 @@ namespace netxs::ui
                 if (active) apply(activity::mouse_hover);
                 else timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
             };
-            //LISTEN(tier::release, input2::events::mouse::move, gear)
+            //LISTEN(tier::release, input::events::mouse::move, gear)
             //{
             //    auto apply = [&](auto active)
             //    {
@@ -5474,7 +5474,7 @@ namespace netxs::ui
                 grip_ctl = stem_rate_grip::ctor(grip_suffix);
                 grip_ctl->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
 
-                grip_ctl->LISTEN(tier::release, input2::events::mouse::button::drag::start::left, gear)
+                grip_ctl->LISTEN(tier::release, input::events::mouse::button::drag::start::left, gear)
                 {
                     if (gear.capture(grip_ctl->id))
                     {
@@ -5483,7 +5483,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->LISTEN(tier::release, input2::events::mouse::button::drag::pull::left, gear)
+                grip_ctl->LISTEN(tier::release, input::events::mouse::button::drag::pull::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -5496,15 +5496,15 @@ namespace netxs::ui
                         }
                     }
                 };
-                grip_ctl->LISTEN(tier::release, input2::events::mouse::button::drag::cancel::left, gear)
+                grip_ctl->LISTEN(tier::release, input::events::mouse::button::drag::cancel::left, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->LISTEN(tier::general, input2::events::halt, gear)
+                grip_ctl->LISTEN(tier::general, input::events::halt, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->LISTEN(tier::release, input2::events::mouse::button::drag::stop::left, gear)
+                grip_ctl->LISTEN(tier::release, input::events::mouse::button::drag::stop::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -5518,7 +5518,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+                grip_ctl->LISTEN(tier::release, input::events::mouse::scroll::act, gear)
                 {
                     if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     if (gear.whlsi) move_grip(cur_val - gear.whlsi);
@@ -5526,13 +5526,13 @@ namespace netxs::ui
                 };
                 recalc();
             };
-            LISTEN(tier::release, input2::events::mouse::button::click::right, gear)
+            LISTEN(tier::release, input::events::mouse::button::click::right, gear)
             {
                 base::color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
                 base::deface();
                 gear.dismiss();
             };
-            LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whlsi) move_grip(cur_val - 10 * gear.whlsi);

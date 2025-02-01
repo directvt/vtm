@@ -1788,7 +1788,7 @@ namespace netxs::gui
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        owner.bell::signal(tier::request, input2::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.bell::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else owner.window_post_command(ipc::take_focus);
                     if (f.focus_type == solo::on) // Set solo focus.
@@ -1798,7 +1798,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    owner.bell::signal(tier::request, input2::events::focus::rem, { .gear_id = f.gear_id });
+                    owner.bell::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
                 }
             }
             void handle(s11n::xs::syskeybd         lock)
@@ -1808,7 +1808,7 @@ namespace netxs::gui
                 auto guard = owner.sync();
                 auto& gear = *gears;
                 keybd.syncto(gear);
-                owner.bell::signal(tier::release, input2::events::keybd::key::post, gear);
+                owner.bell::signal(tier::release, input::events::keybd::key::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {
@@ -3084,7 +3084,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        bell::signal(tier::release, input2::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
+                        bell::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3098,7 +3098,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, input2::events::focus::set::off, { .gear_id = stream.gears->id });
+                        auto seed = bell::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                     });
                 }
             }
@@ -3258,7 +3258,7 @@ namespace netxs::gui
                 update_gui();
                 window_initilize();
 
-                LISTEN(tier::release, input2::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
+                LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)//, -, (accum_ptr))
                 {
                     if (fsmode != winstate::normal) return;
                     moving = true;
@@ -3267,19 +3267,19 @@ namespace netxs::gui
                     move_window(dxdy);
                     sync_pixel_layout(); // Align grips and shadow.
                 };
-                LISTEN(tier::release, input2::events::mouse::button::dblclick::left, gear)
+                LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
                 {
                          if (fsmode == winstate::maximized) set_state(winstate::normal);
                     else if (fsmode == winstate::normal)    set_state(winstate::maximized);
                 };
-                LISTEN(tier::release, input2::events::mouse::scroll::any, gear)
+                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
                 {
                     zoom_by_wheel(gear.whlfp, faux);
                 };
-                LISTEN(tier::release, input2::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
+                LISTEN(tier::release, input::events::focus::set::any, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
                 {
                     auto deed = this->bell::protos(tier::release);
-                    auto state = deed == input2::events::focus::set::on.id;
+                    auto state = deed == input::events::focus::set::on.id;
                     stream.sysfocus.send(stream.intio, seed.gear_id, state, seed.focus_type, treeid, ++digest);
                 };
                 LISTEN(tier::release, e2::form::prop::ui::title, head_foci)

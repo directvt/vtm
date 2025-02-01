@@ -423,7 +423,7 @@ namespace netxs::ui
                 state = (mode)(state | m);
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.LISTEN(tier::release, input2::events::device::mouse::any, gear, token)
+                    owner.LISTEN(tier::release, input::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
                         if (owner.selmod == mime::disabled)
@@ -7227,7 +7227,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            gear.owner.base::riseup(tier::request, input2::events::clipboard, gear);
+            gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
             {
@@ -7450,7 +7450,7 @@ namespace netxs::ui
         void selection_submit()
         {
             bell::signal(tier::release, e2::form::draggable::left, selection_passed());
-            LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
                 {
@@ -7463,12 +7463,12 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::drag::pull                 ::left,  gear) { if (selection_passed()) selection_extend(gear); };
             LISTEN(tier::release, e2::form::drag::stop                 ::left,  gear) {                         selection_finish(gear); };
             LISTEN(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel();     };
-            LISTEN(tier::release, input2::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
-            LISTEN(tier::release, input2::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
-            LISTEN(tier::release, input2::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
-            LISTEN(tier::release, input2::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
-            LISTEN(tier::release, input2::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
-            LISTEN(tier::release, input2::events::mouse::scroll::act, gear)
+            LISTEN(tier::release, input::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
+            LISTEN(tier::release, input::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
+            LISTEN(tier::release, input::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
+            LISTEN(tier::release, input::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
+            LISTEN(tier::release, input::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
+            LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (altscr && target == &altbuf)
@@ -7500,7 +7500,7 @@ namespace netxs::ui
             }
             else
             {
-                gear.owner.base::riseup(tier::request, input2::events::clipboard, gear);
+                gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
                 auto& data = gear.board::cargo;
                 if (data.utf8.size())
                 {
@@ -7655,7 +7655,7 @@ namespace netxs::ui
                     auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
                                          .add("\n");
                     ondata(byemsg);
-                    this->LISTEN(tier::release, input2::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, input::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.keystat)
                         {
@@ -8169,7 +8169,7 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
-            LISTEN(tier::release, input2::events::keybd::key::post, gear)
+            LISTEN(tier::release, input::events::keybd::key::post, gear)
             {
                 if (gear.touched && !rawkbd && gear.keystat != input::key::released) return;
                 switch (gear.payload)
@@ -8397,11 +8397,11 @@ namespace netxs::ui
                     auto owner_ptr = owner.This();
                     if (f.state)
                     {
-                        owner.bell::signal(tier::request, input2::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.bell::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else
                     {
-                        owner.bell::signal(tier::request, input2::events::focus::rem, { .gear_id = f.gear_id });
+                        owner.bell::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
                     }
                 }
             }
@@ -8416,7 +8416,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         k.syncto(gear);
-                        owner.base::riseup(tier::release, input2::events::keybd::key::post, gear, true);
+                        owner.base::riseup(tier::release, input::events::keybd::key::post, gear, true);
                     }
                 }
             };
@@ -8480,7 +8480,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.owner.base::riseup(tier::request, input2::events::clipboard, gear);
+                        gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {
@@ -8741,7 +8741,7 @@ namespace netxs::ui
               opaque{ 0xFF },
               nodata{      }
         {
-            LISTEN(tier::release, input2::events::device::mouse::any, gear)
+            LISTEN(tier::release, input::events::device::mouse::any, gear)
             {
                 if (gear.captured(base::id))
                 {
@@ -8752,32 +8752,32 @@ namespace netxs::ui
                 stream.sysmouse.send(*this, gear.m_sys);
                 gear.dismiss();
             };
-            LISTEN(tier::general, input2::events::die, gear)
+            LISTEN(tier::general, input::events::die, gear)
             {
                 gear.setfree(true);
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::die;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::general, input2::events::halt, gear)
+            LISTEN(tier::general, input::events::halt, gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, input2::events::mouse::hover::leave, gear)
+            LISTEN(tier::release, input::events::mouse::hover::leave, gear)
             {
                 gear.m_sys.gear_id = gear.id;
                 gear.m_sys.enabled = hids::stat::halt;
                 stream.sysmouse.send(*this, gear.m_sys);
             };
-            LISTEN(tier::release, input2::events::focus::set::any, seed)
+            LISTEN(tier::release, input::events::focus::set::any, seed)
             {
                 auto deed = this->bell::protos(tier::release);
-                auto state = deed == input2::events::focus::set::on.id;
+                auto state = deed == input::events::focus::set::on.id;
                 stream.sysfocus.send(*this, seed.gear_id, state, seed.focus_type, seed.treeid, seed.digest);
             };
-            LISTEN(tier::preview, input2::events::keybd::key::any, gear)
+            LISTEN(tier::preview, input::events::keybd::key::any, gear)
             {
                 gear.gear_id = gear.id;
                 stream.syskeybd.send(*this, gear);
