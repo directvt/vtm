@@ -601,40 +601,11 @@ namespace netxs::app::vtm
             sptr object;
             zpos z_order = zpos::plain;
             id_t monoid = {};
-            subs tokens;
             std::list<netxs::sptr<node>>::iterator iter;
 
             node(sptr item)
                 : object{ item }
-            {
-                auto& inst = *item;
-                inst.LISTEN(tier::release, e2::form::state::maximized, gear_id, tokens)
-                {
-                    monoid = gear_id;
-                };
-                inst.LISTEN(tier::request, e2::form::state::maximized, gear_id, tokens)
-                {
-                    gear_id = monoid;
-                };
-                inst.LISTEN(tier::release, e2::form::prop::zorder, order, tokens)
-                {
-                    z_order = order;
-                };
-                inst.LISTEN(tier::release, e2::form::state::mouse, state, tokens)
-                {
-                    active = state;
-                };
-                inst.LISTEN(tier::release, e2::form::state::highlight, state, tokens)
-                {
-                    highlighted = state;
-                };
-                inst.LISTEN(tier::release, e2::form::state::color, new_color, tokens)
-                {
-                    color = new_color;
-                };
-                inst.bell::signal(tier::request, e2::form::state::mouse, active);
-                inst.bell::signal(tier::request, e2::form::state::color, color);
-            }
+            { }
         };
 
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
@@ -1005,9 +976,16 @@ namespace netxs::app::vtm
                                                : winstate::normal;
                     };
 
+
+
                     auto& node_ptr = items.emplace_back(ptr::shared<node>(boss.This()));
-                    node_ptr->iter = std::prev(items.end());
-                    auto& iter = node_ptr->iter;
+                    auto& n_highlighted = node_ptr->highlighted;
+                    auto& n_active      = node_ptr->active;
+                    auto& n_color       = node_ptr->color;
+                    auto& n_z_order     = node_ptr->z_order;
+                    auto& n_monoid      = node_ptr->monoid;
+                    auto& iter          = node_ptr->iter;
+                    iter = std::prev(items.end());
                     boss.LISTEN(tier::preview, e2::form::layout::expose, r)
                     {
                         if (iter != std::prev(items.end()))
@@ -1038,12 +1016,38 @@ namespace netxs::app::vtm
                         }
                     };
 
+
+                    boss.LISTEN(tier::release, e2::form::state::maximized, gear_id)
+                    {
+                        n_monoid = gear_id;
+                    };
+                    boss.LISTEN(tier::request, e2::form::state::maximized, gear_id)
+                    {
+                        gear_id = n_monoid;
+                    };
+                    boss.LISTEN(tier::release, e2::form::prop::zorder, order)
+                    {
+                        n_z_order = order;
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    {
+                        n_active = state;
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::highlight, state)
+                    {
+                        n_highlighted = state;
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::color, new_color)
+                    {
+                        n_color = new_color;
+                    };
+
                     auto& menuid = what.applet->base::property("window.menuid");
                     auto& cfg = menu_list[menuid];
                     auto& [fixed_menu_item, inst_list] = apps_list[menuid];
                     fixed_menu_item = !cfg.hidden;
                     inst_list.push_back(boss.This());
-                    auto inst_list_iter_ptr = ptr::shared(std::prev(inst_list.end()));
+                    auto& inst_list_iter = boss.base::field(std::prev(inst_list.end()));
                     if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
 
                          if (applet_area)                 boss.extend({ what.square.coor, applet_area.size });
@@ -1052,14 +1056,14 @@ namespace netxs::app::vtm
 
                     boss.attach(what.applet);
 
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr, -, (inst_list_iter_ptr))
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
                     {
-                        auto item_ptr = (*iter)->object;
+                        auto item_ptr = boss.This();
                         items.erase(iter);
                         if (items.size()) // Pass focus to the top most object.
                         {
                             auto last_ptr = items.back()->object;
-                            auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                            auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
                             for (auto gear_id : gear_id_list)
                             {
                                 if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
@@ -1074,7 +1078,7 @@ namespace netxs::app::vtm
                                 }
                             }
                         }
-                        inst_list.erase(*inst_list_iter_ptr);
+                        inst_list.erase(inst_list_iter);
                         bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
                     };
                     boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());

@@ -965,14 +965,14 @@ namespace netxs::ui
         }
         // base: Get object property reference.
         template<class T = text>
-        auto& property(qiew property_name)
+        auto& property(qiew property_name, T&& init = {})
         {
             auto iter = fields.find(property_name);
             if (iter == fields.end())
             {
-                iter = fields.emplace(property_name, ptr::shared(std::make_any<T>())).first;
+                iter = fields.emplace(property_name, ptr::shared(std::make_any<std::decay_t<T>>(std::forward<T>(init)))).first;
             }
-            return *(std::any_cast<T>(iter->second.get()));
+            return *(std::any_cast<std::decay_t<T>>(iter->second.get()));
         }
         // base: Bind object property to event.
         template<si32 Tier = tier::release, class Event>
