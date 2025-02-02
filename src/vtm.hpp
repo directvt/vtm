@@ -597,7 +597,7 @@ namespace netxs::app::vtm
         // hall: Desktop window.
         struct window_t : ui::form<window_t>
         {
-            hall& owner;
+            hall& world;
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
@@ -626,9 +626,417 @@ namespace netxs::app::vtm
             }
 
         public:
-            window_t(hall& owner)
-                : owner{ owner }
+            // window: .
+            auto attach(auto applet_ptr)
             {
+                if (applet_ptr)
+                {
+                    subset.push_back(applet_ptr);
+                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+                }
+                return applet_ptr;
+            }
+
+            window_t(hall& owner, applink& what)
+                : world{ owner }
+            {
+                base::plugin<pro::d_n_d>();
+                base::plugin<pro::ghost>();
+                auto& title = base::plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"));
+                base::plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 });
+                base::plugin<pro::sizer>();
+                base::plugin<pro::frame>();
+                base::plugin<pro::light>();
+                base::plugin<pro::focus>();
+                auto& mouse = base::plugin<pro::mouse>();
+                auto& keybd = base::plugin<pro::keybd>("window");
+                auto& luafx = base::plugin<pro::luafx>();
+                base::limits(dot_11);
+                base::kind(base::reflow_root);
+                base::root(true);
+
+                auto& window_bindings = base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
+                if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
+                keybd.bind(window_bindings);
+
+                static auto proc_map = pro::luafx::fxmap<base>
+                {
+                    { "WarpWindow",         [](auto& boss, auto& luafx)
+                                            {
+                                                auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
+                                                                  luafx.get_args_or(2, 0),   //
+                                                                  luafx.get_args_or(3, 0),   //
+                                                                  luafx.get_args_or(4, 0) }; //
+                                                boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
+                                                {
+                                                    boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                                                });
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                                luafx.set_return(); // No returns.
+                                            }},
+                    { "AlwaysOnTop",        [](auto& boss, auto& luafx)
+                                            {
+                                                auto args_count = luafx.args_count();
+                                                auto zorder = zpos::plain;
+                                                if (args_count == 0) // Request zpos.
+                                                {
+                                                    zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
+                                                }
+                                                else // Set zpos.
+                                                {
+                                                    zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
+                                                    boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                }
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                                luafx.set_return(zorder == zpos::topmost);
+                                            }},
+                    { "Close",              [](auto& boss, auto& luafx)
+                                            {
+                                                boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                                {
+                                                    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                                });
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                                luafx.set_return();
+                                            }},
+                    { "ShowClosingPreview", [](auto& boss, auto& luafx)
+                                            {
+                                                auto preview_state = luafx.get_args_or(1, faux);
+                                                boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
+                                                luafx.set_return();
+                                            }},
+                    { "MinimizeWindow",     [](auto& boss, auto& luafx)
+                                            {
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                {
+                                                    gear_ptr->set_handled();
+                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    {
+                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                        {
+                                                            auto& gear = *gear_ptr;
+                                                            boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                                        }
+                                                    });
+                                                }
+                                                luafx.set_return();
+                                            }},
+                    { "MaximizeWindow",     [](auto& boss, auto& luafx)
+                                            {
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                {
+                                                    gear_ptr->set_handled();
+                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    {
+                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                        {
+                                                            auto& gear = *gear_ptr;
+                                                            boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                                                        }
+                                                    });
+                                                }
+                                                luafx.set_return();
+                                            }},
+                    { "Fullscreen",         [](auto& boss, auto& luafx)
+                                            {
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                {
+                                                    gear_ptr->set_handled();
+                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    {
+                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                                                        {
+                                                            auto& gear = *gear_ptr;
+                                                            boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                                                        }
+                                                    });
+                                                }
+                                                luafx.set_return();
+                                            }},
+                };
+                luafx.activate(proc_map);
+
+                LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
+                {
+                    if (subset.size())
+                    if (auto applet_ptr = subset.back())
+                    {
+                        what.applet = applet_ptr;
+                    }
+                };
+                auto& last_state = base::field(faux);
+                LISTEN(tier::release, e2::form::layout::selected, gear)
+                {
+                    last_state = base::hidden;
+                    base::hidden = faux; // Restore if it is hidden.
+                };
+                LISTEN(tier::release, e2::form::layout::unselect, gear)
+                {
+                    if (last_state == true) // Return to hidden state.
+                    {
+                        base::hidden = true;
+                    }
+                };
+                LISTEN(tier::release, e2::form::size::minimize, gear)
+                {
+                    auto window_ptr = This();
+                    if (base::hidden) // Restore if it is hidden.
+                    {
+                        base::hidden = faux;
+                        pro::focus::set(window_ptr, gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
+                    }
+                    else // Hide if visible and refocus.
+                    {
+                        base::hidden = true;
+                        auto gear_test = base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
+                        if (auto parent = base::parent())
+                        if (gear_test.second) // Pass the focus to the next desktop window if boss is focused.
+                        {
+                            gear_test = { gear.id, 0 };
+                            parent->bell::signal(tier::request, e2::form::state::keybd::next, gear_test);
+                            if (gear_test.second == 1) // If it is the solo focused window.
+                            {
+                                auto viewport = gear.owner.base::area();
+                                auto prev_ptr = e2::form::layout::go::prev.param();
+                                auto is_hidden = true;
+                                auto gear_id = id_t{};
+                                do
+                                {
+                                    parent->bell::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
+                                    if (prev_ptr)
+                                    {
+                                        prev_ptr->bell::signal(tier::request, e2::form::state::maximized, gear_id);
+                                        is_hidden = prev_ptr->hidden;
+                                    }
+                                    else is_hidden = true;
+                                }
+                                while (prev_ptr != window_ptr && ((gear_id && gear_id != gear.owner.id) || (is_hidden == true || !viewport.hittest(prev_ptr->center()))));
+                                if (prev_ptr != window_ptr)
+                                {
+                                    pro::focus::set(prev_ptr, gear.id, solo::on);
+                                    window_ptr.reset();
+                                }
+                            }
+                            if (window_ptr) pro::focus::off(window_ptr, gear.id);
+                        }
+                    }
+                };
+                LISTEN(tier::release, e2::form::prop::ui::header, new_title)
+                {
+                    auto tooltip_body = " " + new_title + " ";
+                    bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
+                };
+                LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
+                {
+                    base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    gear.dismiss();
+                };
+                LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
+                {
+                    window_ptr = This();
+                };
+                LISTEN(tier::request, e2::form::prop::window::fullsize, object_area)
+                {
+                    auto t = std::max(1, title.head_size.y);
+                    auto b = std::max(1, title.foot_size.y);
+                    object_area = base::area() + dent{ 2, 2, t, b };
+                };
+                LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                {
+                    auto home = rect{ -dot_21, base::size() + dot_21 * 2 }; // Including resizer grips.
+                    if (!home.hittest(gear.coord))
+                    {
+                        gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, *this);
+                    }
+                };
+                LISTEN(tier::release, input::events::mouse::button::click::right, gear)
+                {
+                    pro::focus::set(This(), gear.id, solo::on);
+                };
+                LISTEN(tier::release, input::events::mouse::button::click::middle, gear)
+                {
+                    pro::focus::set(This(), gear.id, solo::on);
+                };
+                LISTEN(tier::release, e2::form::proceed::quit::any, fast)
+                {
+                    mouse.reset();
+                    base::detach(); // The object kills itself.
+                };
+                LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
+                {
+                    bell::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
+                };
+                LISTEN(tier::release, e2::dtor, p)
+                {
+                    auto start = datetime::now();
+                    auto counter = bell::signal(tier::general, e2::cleanup);
+                    auto stop = datetime::now() - start;
+                    if constexpr (debugmode) log(prompt::hall, "Garbage collection",
+                                                "\n\ttime ", utf::format(stop.count()), "ns",
+                                                "\n\tobjs ", counter.obj_count,
+                                                "\n\trefs ", counter.ref_count,
+                                                "\n\tdels ", counter.del_count);
+                };
+
+                auto& maximize_token = base::field<subs>();
+                auto& viewport_area = base::field<rect>();
+                auto& saved_area = base::field<rect>();
+                auto& what_copy = base::field<applink>();
+                what_copy = what;
+                what_copy.applet = {};
+                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
+                {
+                    auto window_ptr = This();
+                    if (maximize_token) // Restore maximized window.
+                    {
+                        bell::signal(tier::release, e2::form::size::restore, window_ptr);
+                    }
+                    pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
+                    auto what = what_copy;
+                    what.applet = window_ptr;
+                    pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
+                    //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
+                    gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
+                };
+                LISTEN(tier::release, e2::form::size::restore, item_ptr)
+                {
+                    if (maximize_token)
+                    {
+                        if (saved_area)
+                        {
+                            saved_area.coor += viewport_area.coor;
+                            base::extend(saved_area); // Restore window size and relative coor.
+                        }
+                        maximize_token.reset();
+                        bell::signal(tier::release, e2::form::state::maximized, id_t{});
+                    }
+                };
+                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
+                {
+                    auto order = base::riseup(tier::request, e2::form::prop::zorder);
+                    auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                    auto recalc = [&](auto viewport)
+                    {
+                        auto new_area = viewport;
+                        if (title.live)
+                        {
+                            title.recalc(viewport.size);
+                            auto t = title.head_size.y;
+                            auto b = title.foot_size.y;
+                            new_area -= dent{ 0, 0, t, b };
+                        }
+                        if (base::area() != new_area)
+                        {
+                            base::extend(new_area);
+                        }
+                    };
+                    if (order == zpos::backmost) // It is a region view. Just resize it.
+                    {
+                        recalc(viewport - dent{ 2, 2, 0, 0 });
+                        return;
+                    }
+
+                    auto window_ptr = This();
+                    if (maximize_token) // Restore maximized window.
+                    {
+                        bell::signal(tier::release, e2::form::size::restore, window_ptr);
+                    }
+                    else
+                    {
+                        base::riseup(tier::preview, e2::form::layout::expose); // Multiple windows coubld be maximized at the same time.
+                        pro::focus::set(window_ptr, gear.id, solo::on, true);
+                        auto owner_id = gear.owner.id;
+                        saved_area = base::area();
+                        saved_area.coor -= viewport.coor;
+                        viewport_area = viewport;
+                        recalc(viewport);
+                        gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
+                        {
+                            viewport_area = viewport;
+                            recalc(viewport);
+                        };
+                        gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
+                        {
+                            bell::signal(tier::release, e2::form::size::restore, This());
+                        };
+                        LISTEN(tier::preview, e2::area, new_area, maximize_token)
+                        {
+                            if (new_area != base::area())
+                            {
+                                if (new_area.size == base::size()) // Restore saved size.
+                                {
+                                    auto anchor = std::clamp(base::anchor, dot_00, std::max(dot_00, new_area.size));
+                                    anchor = anchor * saved_area.size / std::max(dot_11, new_area.size);
+                                    saved_area.coor = base::coor() - viewport_area.coor; // Compensate header height.
+                                    saved_area.coor += base::anchor - anchor; // Follow the mouse cursor.
+                                }
+                                else saved_area = {}; // Preserve current window size.
+                                bell::signal(tier::release, e2::form::size::restore, This());
+                            }
+                        };
+                        bell::signal(tier::release, e2::form::state::maximized, owner_id);
+                    }
+                };
+                LISTEN(tier::request, e2::form::prop::window::state, state)
+                {
+                    //todo unify (+fullscreen)
+                    state = maximize_token ? winstate::maximized
+                            : base::hidden ? winstate::minimized
+                                           : winstate::normal;
+                };
+                LISTEN(tier::preview, e2::form::layout::expose, r)
+                {
+                    if (iter != std::prev(world.items.end()))
+                    {
+                        world.items.push_back(*iter);
+                        world.items.erase(iter);
+                        iter = std::prev(world.items.end());
+                        if (base::hidden) // Restore if window minimized.
+                        {
+                            base::hidden = faux;
+                            base::deface();
+                        }
+                        else base::strike();
+                    }
+                };
+                LISTEN(tier::preview, e2::form::layout::bubble, r)
+                {
+                    auto area = base::region;
+                    auto next = iter;
+                    if (++next != world.items.end() && !area.trim((*next)->region))
+                    {
+                        auto backup_ptr = *iter;
+                        world.items.erase(iter);
+                        while (++next != world.items.end() && !area.trim((*next)->region))
+                        { }
+                        iter = world.items.insert(next, backup_ptr);
+                        base::strike();
+                    }
+                };
+                LISTEN(tier::release, e2::form::state::maximized, gear_id)
+                {
+                    monoid = gear_id;
+                };
+                LISTEN(tier::request, e2::form::state::maximized, gear_id)
+                {
+                    gear_id = monoid;
+                };
+                LISTEN(tier::release, e2::form::prop::zorder, order)
+                {
+                    z_order = order;
+                };
+                LISTEN(tier::release, e2::form::state::mouse, state)
+                {
+                    active = state;
+                };
+                LISTEN(tier::release, e2::form::state::highlight, state)
+                {
+                    highlighted = state;
+                };
+                LISTEN(tier::release, e2::form::state::color, new_color)
+                {
+                    color = new_color;
+                };
                 LISTEN(tier::release, e2::render::any, parent_canvas)
                 {
                     if (auto context = form::nested_context(parent_canvas))
@@ -640,16 +1048,6 @@ namespace netxs::app::vtm
                         }
                     }
                 };
-            }
-            // window: .
-            auto attach(auto applet_ptr)
-            {
-                if (applet_ptr)
-                {
-                    subset.push_back(applet_ptr);
-                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-                }
-                return applet_ptr;
             }
         };
 
@@ -673,467 +1071,57 @@ namespace netxs::app::vtm
             {
                 bell::signal(tier::request, vtm::events::newapp, what);
             }
-            return window_t::ctor(*this)
-                ->plugin<pro::d_n_d>()
-                ->plugin<pro::ghost>()
-                ->plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"))
-                ->plugin<pro::notes>(what.applet->base::property("window.footer"), dent{ 2,2,1,1 })
-                ->plugin<pro::sizer>()
-                ->plugin<pro::frame>()
-                ->plugin<pro::light>()
-                ->plugin<pro::focus>()
-                ->plugin<pro::keybd>("window")
-                ->plugin<pro::luafx>()
-                ->limits(dot_11)
-                ->invoke([&](auto& boss)
+            auto window_ptr = window_t::ctor(*this, what);
+
+            items.emplace_back(window_ptr);
+            window_ptr->iter = std::prev(items.end());
+
+            auto& menuid = what.applet->base::property("window.menuid");
+            auto& cfg = menu_list[menuid];
+            auto& [fixed_menu_item, inst_list] = apps_list[menuid];
+            fixed_menu_item = !cfg.hidden;
+            inst_list.push_back(window_ptr);
+            auto& inst_list_iter = window_ptr->base::field(std::prev(inst_list.end()));
+            if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
+
+            auto& applet_area = what.applet->base::bind_property("window.area", *window_ptr, e2::area);
+                 if (applet_area)                 window_ptr->base::extend({ what.square.coor, applet_area.size });
+            else if (cfg.winsize && !what.forced) window_ptr->base::extend({ what.square.coor, cfg.winsize });
+            else if (what.square)                 window_ptr->base::extend(what.square);
+
+            window_ptr->attach(what.applet);
+
+            auto& iter = window_ptr->iter;
+            window_ptr->LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
+            {
+                auto item_ptr = *(iter);
+                items.erase(item_ptr->iter);
+                if (items.size()) // Pass focus to the top most object.
                 {
-                    auto& mouse = boss.template plugins<pro::mouse>();
-                    auto& keybd = boss.template plugins<pro::keybd>();
-                    auto& luafx = boss.template plugins<pro::luafx>();
-                    auto& window_bindings = base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
-                    if (window_bindings.empty()) window_bindings = pro::keybd::load(config, "window");
-                    keybd.bind(window_bindings);
-
-                    static auto proc_map = pro::luafx::fxmap<base>
+                    auto last_ptr = items.back();
+                    auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                    for (auto gear_id : gear_id_list)
                     {
-                        { "WarpWindow",         [](auto& boss, auto& luafx)
-                                                {
-                                                    auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
-                                                                      luafx.get_args_or(2, 0),   //
-                                                                      luafx.get_args_or(3, 0),   //
-                                                                      luafx.get_args_or(4, 0) }; //
-                                                    boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
-                                                    {
-                                                        boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
-                                                    });
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                                    luafx.set_return(); // No returns.
-                                                }},
-                        { "AlwaysOnTop",        [](auto& boss, auto& luafx)
-                                                {
-                                                    auto args_count = luafx.args_count();
-                                                    auto zorder = zpos::plain;
-                                                    if (args_count == 0) // Request zpos.
-                                                    {
-                                                        zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
-                                                    }
-                                                    else // Set zpos.
-                                                    {
-                                                        zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                                        boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
-                                                    }
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                                    luafx.set_return(zorder == zpos::topmost);
-                                                }},
-                        { "Close",              [](auto& boss, auto& luafx)
-                                                {
-                                                    boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
-                                                    {
-                                                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                                                    });
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                                    luafx.set_return();
-                                                }},
-                        { "ShowClosingPreview", [](auto& boss, auto& luafx)
-                                                {
-                                                    auto preview_state = luafx.get_args_or(1, faux);
-                                                    boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
-                                                    luafx.set_return();
-                                                }},
-                        { "MinimizeWindow",     [](auto& boss, auto& luafx)
-                                                {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                                    {
-                                                        gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                        {
-                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                            {
-                                                                auto& gear = *gear_ptr;
-                                                                boss.bell::signal(tier::release, e2::form::size::minimize, gear);
-                                                            }
-                                                        });
-                                                    }
-                                                    luafx.set_return();
-                                                }},
-                        { "MaximizeWindow",     [](auto& boss, auto& luafx)
-                                                {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                                    {
-                                                        gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                        {
-                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                            {
-                                                                auto& gear = *gear_ptr;
-                                                                boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                                                            }
-                                                        });
-                                                    }
-                                                    luafx.set_return();
-                                                }},
-                        { "Fullscreen",         [](auto& boss, auto& luafx)
-                                                {
-                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                                    {
-                                                        gear_ptr->set_handled();
-                                                        boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                        {
-                                                            if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                            {
-                                                                auto& gear = *gear_ptr;
-                                                                boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                                                            }
-                                                        });
-                                                    }
-                                                    luafx.set_return();
-                                                }},
-                    };
-                    luafx.activate(proc_map);
-
-                    boss.base::kind(base::reflow_root);
-                    boss.base::root(true);
-                    boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
-                    {
-                        if (boss.subset.size())
-                        if (auto applet = boss.subset.back())
+                        if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
-                            what.applet = applet;
-                        }
-                    };
-                    auto& last_state = boss.base::field(faux);
-                    boss.LISTEN(tier::release, e2::form::layout::selected, gear)
-                    {
-                        last_state = boss.hidden;
-                        boss.hidden = faux; // Restore if it is hidden.
-                    };
-                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear)
-                    {
-                        if (last_state == true) // Return to hidden state.
-                        {
-                            boss.hidden = true;
-                        }
-                    };
-                    boss.LISTEN(tier::release, e2::form::size::minimize, gear)
-                    {
-                        auto window_ptr = boss.This();
-                        if (boss.hidden) // Restore if it is hidden.
-                        {
-                            boss.hidden = faux;
-                            pro::focus::set(window_ptr, gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
-                        }
-                        else // Hide if visible and refocus.
-                        {
-                            boss.hidden = true;
-                            auto gear_test = boss.base::riseup(tier::request, e2::form::state::keybd::find, { gear.id, 0 });
-                            if (auto parent = boss.base::parent())
-                            if (gear_test.second) // Pass the focus to the next desktop window if boss is focused.
+                            auto gear_test = bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                            if (gear_test.second == 1) // If it is the last focused item.
                             {
-                                gear_test = { gear.id, 0 };
-                                parent->bell::signal(tier::request, e2::form::state::keybd::next, gear_test);
-                                if (gear_test.second == 1) // If it is the solo focused window.
-                                {
-                                    auto viewport = gear.owner.base::area();
-                                    auto prev_ptr = e2::form::layout::go::prev.param();
-                                    auto hidden = true;
-                                    auto gear_id = id_t{};
-                                    do
-                                    {
-                                        parent->bell::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
-                                        if (prev_ptr)
-                                        {
-                                            prev_ptr->bell::signal(tier::request, e2::form::state::maximized, gear_id);
-                                            hidden = prev_ptr->hidden;
-                                        }
-                                        else hidden = true;
-                                    }
-                                    while (prev_ptr != window_ptr && ((gear_id && gear_id != gear.owner.id) || (hidden == true || !viewport.hittest(prev_ptr->center()))));
-                                    if (prev_ptr != window_ptr)
-                                    {
-                                        pro::focus::set(prev_ptr, gear.id, solo::on);
-                                        window_ptr.reset();
-                                    }
-                                }
-                                if (window_ptr) pro::focus::off(window_ptr, gear.id);
+                                auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
+                                if (owner_id && owner_id != gear_ptr->owner.id) continue;
+                                pro::focus::set(last_ptr, gear_id, solo::off);
                             }
                         }
-                    };
-                    boss.LISTEN(tier::release, e2::form::prop::ui::header, title)
-                    {
-                        auto tooltip_body = " " + title + " ";
-                        boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
-                    {
-                        boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        gear.dismiss();
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
-                    {
-                        window_ptr = boss.This();
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::window::fullsize, object_area)
-                    {
-                        auto& title = boss.template plugins<pro::title>();
-                        auto t = std::max(1, title.head_size.y);
-                        auto b = std::max(1, title.foot_size.y);
-                        object_area = boss.base::area() + dent{ 2, 2, t, b };
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
-                    {
-                        auto home = rect{ -dot_21, boss.base::size() + dot_21 * 2 }; // Including resizer grips.
-                        if (!home.hittest(gear.coord))
-                        {
-                            gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, boss);
-                        }
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
-                    {
-                        pro::focus::set(boss.This(), gear.id, solo::on);
-                    };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::middle, gear)
-                    {
-                        pro::focus::set(boss.This(), gear.id, solo::on);
-                    };
-                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
-                    {
-                        mouse.reset();
-                        boss.base::detach(); // The object kills itself.
-                    };
-                    boss.LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
-                    {
-                        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
-                    };
-                    boss.LISTEN(tier::release, e2::dtor, p)
-                    {
-                        auto start = datetime::now();
-                        auto counter = boss.bell::signal(tier::general, e2::cleanup);
-                        auto stop = datetime::now() - start;
-                        if constexpr (debugmode) log(prompt::hall, "Garbage collection",
-                                                    "\n\ttime ", utf::format(stop.count()), "ns",
-                                                    "\n\tobjs ", counter.obj_count,
-                                                    "\n\trefs ", counter.ref_count,
-                                                    "\n\tdels ", counter.del_count);
-                    };
+                    }
+                }
+                inst_list.erase(inst_list_iter);
+                bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
+            };
 
-                    auto& maximize_token = boss.base::field<subs>();
-                    auto& viewport_area = boss.base::field<rect>();
-                    auto& saved_area = boss.base::field<rect>();
-                    auto& what_copy = boss.base::field<applink>();
-                    what_copy = what;
-                    what_copy.applet = {};
-                    auto& applet_area = what.applet->base::bind_property("window.area", boss, e2::area);
-                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
-                    {
-                        auto window_ptr = boss.This();
-                        if (maximize_token) // Restore maximized window.
-                        {
-                            boss.bell::signal(tier::release, e2::form::size::restore, window_ptr);
-                        }
-                        pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
-                        auto what = what_copy;
-                        what.applet = window_ptr;
-                        pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
-                        //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
-                        gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
-                    };
-                    boss.LISTEN(tier::release, e2::form::size::restore, item_ptr)
-                    {
-                        if (maximize_token)
-                        {
-                            if (saved_area)
-                            {
-                                saved_area.coor += viewport_area.coor;
-                                boss.base::extend(saved_area); // Restore window size and relative coor.
-                            }
-                            maximize_token.reset();
-                            boss.bell::signal(tier::release, e2::form::state::maximized, id_t{});
-                        }
-                    };
-                    boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
-                    {
-                        auto order = boss.base::riseup(tier::request, e2::form::prop::zorder);
-                        auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
-                        auto recalc = [](auto& boss, auto viewport)
-                        {
-                            auto new_area = viewport;
-                            auto& title = boss.template plugins<pro::title>();
-                            if (title.live)
-                            {
-                                title.recalc(viewport.size);
-                                auto t = title.head_size.y;
-                                auto b = title.foot_size.y;
-                                new_area -= dent{ 0, 0, t, b };
-                            }
-                            if (boss.base::area() != new_area)
-                            {
-                                boss.base::extend(new_area);
-                            }
-                        };
-                        if (order == zpos::backmost) // It is a region view. Just resize it.
-                        {
-                            recalc(boss, viewport - dent{ 2, 2, 0, 0 });
-                            return;
-                        }
-
-                        auto window_ptr = boss.This();
-                        if (maximize_token) // Restore maximized window.
-                        {
-                            boss.bell::signal(tier::release, e2::form::size::restore, window_ptr);
-                        }
-                        else
-                        {
-                            boss.base::riseup(tier::preview, e2::form::layout::expose); // Multiple windows coubld be maximized at the same time.
-                            pro::focus::set(window_ptr, gear.id, solo::on, true);
-                            auto owner_id = gear.owner.id;
-                            saved_area = boss.base::area();
-                            saved_area.coor -= viewport.coor;
-                            viewport_area = viewport;
-                            recalc(boss, viewport);
-                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
-                            {
-                                viewport_area = viewport;
-                                recalc(boss, viewport);
-                            };
-                            gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
-                            {
-                                boss.bell::signal(tier::release, e2::form::size::restore, boss.This());
-                            };
-                            boss.LISTEN(tier::preview, e2::area, new_area, maximize_token)
-                            {
-                                if (new_area != boss.base::area())
-                                {
-                                    if (new_area.size == boss.base::size()) // Restore saved size.
-                                    {
-                                        auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
-                                        anchor = anchor * saved_area.size / std::max(dot_11, new_area.size);
-                                        saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensate header height.
-                                        saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
-                                    }
-                                    else saved_area = {}; // Preserve current window size.
-                                    boss.bell::signal(tier::release, e2::form::size::restore, boss.This());
-                                }
-                            };
-                            boss.bell::signal(tier::release, e2::form::state::maximized, owner_id);
-                        }
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::window::state, state)
-                    {
-                        //todo unify (+fullscreen)
-                        state = maximize_token ? winstate::maximized
-                                 : boss.hidden ? winstate::minimized
-                                               : winstate::normal;
-                    };
-
-
-
-                    auto& node_ptr = items.emplace_back(boss.This());
-                    auto& n_highlighted = node_ptr->highlighted;
-                    auto& n_active      = node_ptr->active;
-                    auto& n_color       = node_ptr->color;
-                    auto& n_z_order     = node_ptr->z_order;
-                    auto& n_monoid      = node_ptr->monoid;
-                    auto& iter          = node_ptr->iter;
-                    iter = std::prev(items.end());
-                    boss.LISTEN(tier::preview, e2::form::layout::expose, r)
-                    {
-                        if (iter != std::prev(items.end()))
-                        {
-                            items.push_back(*iter);
-                            items.erase(iter);
-                            iter = std::prev(items.end());
-                            if (boss.hidden) // Restore if window minimized.
-                            {
-                                boss.hidden = faux;
-                                boss.base::deface();
-                            }
-                            else boss.base::strike();
-                        }
-                    };
-                    boss.LISTEN(tier::preview, e2::form::layout::bubble, r)
-                    {
-                        auto area = boss.region;
-                        auto next = iter;
-                        if (++next != items.end() && !area.trim((*next)->region))
-                        {
-                            auto backup_ptr = *iter;
-                            items.erase(iter);
-                            while (++next != items.end() && !area.trim((*next)->region))
-                            { }
-                            iter = items.insert(next, backup_ptr);
-                            boss.base::strike();
-                        }
-                    };
-
-
-                    boss.LISTEN(tier::release, e2::form::state::maximized, gear_id)
-                    {
-                        n_monoid = gear_id;
-                    };
-                    boss.LISTEN(tier::request, e2::form::state::maximized, gear_id)
-                    {
-                        gear_id = n_monoid;
-                    };
-                    boss.LISTEN(tier::release, e2::form::prop::zorder, order)
-                    {
-                        n_z_order = order;
-                    };
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
-                    {
-                        n_active = state;
-                    };
-                    boss.LISTEN(tier::release, e2::form::state::highlight, state)
-                    {
-                        n_highlighted = state;
-                    };
-                    boss.LISTEN(tier::release, e2::form::state::color, new_color)
-                    {
-                        n_color = new_color;
-                    };
-
-                    auto& menuid = what.applet->base::property("window.menuid");
-                    auto& cfg = menu_list[menuid];
-                    auto& [fixed_menu_item, inst_list] = apps_list[menuid];
-                    fixed_menu_item = !cfg.hidden;
-                    inst_list.push_back(boss.This());
-                    auto& inst_list_iter = boss.base::field(std::prev(inst_list.end()));
-                    if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(menuid));
-
-                         if (applet_area)                 boss.extend({ what.square.coor, applet_area.size });
-                    else if (cfg.winsize && !what.forced) boss.extend({ what.square.coor, cfg.winsize });
-                    else if (what.square)                 boss.extend(what.square);
-
-                    boss.attach(what.applet);
-
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
-                    {
-                        auto item_ptr = boss.This();
-                        items.erase(iter);
-                        if (items.size()) // Pass focus to the top most object.
-                        {
-                            auto last_ptr = items.back();
-                            auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
-                            for (auto gear_id : gear_id_list)
-                            {
-                                if (auto gear_ptr = world_ptr->bell::getref<hids>(gear_id))
-                                {
-                                    auto gear_test = world_ptr->bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
-                                    if (gear_test.second == 1) // If it is the last focused item.
-                                    {
-                                        auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
-                                        if (owner_id && owner_id != gear_ptr->owner.id) continue;
-                                        pro::focus::set(last_ptr, gear_id, solo::off);
-                                    }
-                                }
-                            }
-                        }
-                        inst_list.erase(inst_list_iter);
-                        bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
-                    };
-                    boss.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-                    boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
-                    bell::signal(tier::release, desk::events::apps, apps_list_ptr);
-                });
+            window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            window_ptr->bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
+            bell::signal(tier::release, desk::events::apps, apps_list_ptr);
+            return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
         {
