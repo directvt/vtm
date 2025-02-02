@@ -593,22 +593,67 @@ namespace netxs::app::vtm
             static constexpr auto size = __COUNTER__ - _counter;
             static constexpr auto coor = __COUNTER__ - _counter;
         };
-        struct node // hall: Adapter for the object that going to be attached to the hall.
+
+        // hall: Desktop window.
+        struct window_t : ui::form<window_t>
         {
+            hall& owner;
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
-            sptr object;
             zpos z_order = zpos::plain;
             id_t monoid = {};
-            std::list<netxs::sptr<node>>::iterator iter;
+            std::list<netxs::sptr<window_t>>::iterator iter;
 
-            node(sptr item)
-                : object{ item }
-            { }
+        protected: 
+            // window: .
+            void deform(rect& new_area) override
+            {
+                if (subset.size())
+                if (auto& applet_ptr = subset.back())
+                {
+                    applet_ptr->base::recalc(new_area);
+                }
+            }
+            // window: .
+            void inform(rect new_area) override
+            {
+                if (subset.size())
+                if (auto& applet_ptr = subset.back())
+                {
+                    applet_ptr->base::notify(new_area);
+                }
+            }
+
+        public:
+            window_t(hall& owner)
+                : owner{ owner }
+            {
+                LISTEN(tier::release, e2::render::any, parent_canvas)
+                {
+                    if (auto context = form::nested_context(parent_canvas))
+                    {
+                        if (subset.size())
+                        if (auto& applet_ptr = subset.back())
+                        {
+                            applet_ptr->render(parent_canvas);
+                        }
+                    }
+                };
+            }
+            // window: .
+            auto attach(auto applet_ptr)
+            {
+                if (applet_ptr)
+                {
+                    subset.push_back(applet_ptr);
+                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+                }
+                return applet_ptr;
+            }
         };
 
-        std::list<netxs::sptr<node>> items; // hall: Desktop windows.
+        std::list<netxs::sptr<window_t>> items; // hall: Desktop windows.
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         xmls config; // hall: Resultant settings.
@@ -628,7 +673,7 @@ namespace netxs::app::vtm
             {
                 bell::signal(tier::request, vtm::events::newapp, what);
             }
-            return ui::cake::ctor()
+            return window_t::ctor(*this)
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::ghost>()
                 ->plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"))
@@ -982,7 +1027,7 @@ namespace netxs::app::vtm
 
 
 
-                    auto& node_ptr = items.emplace_back(ptr::shared<node>(boss.This()));
+                    auto& node_ptr = items.emplace_back(boss.This());
                     auto& n_highlighted = node_ptr->highlighted;
                     auto& n_active      = node_ptr->active;
                     auto& n_color       = node_ptr->color;
@@ -1009,11 +1054,11 @@ namespace netxs::app::vtm
                     {
                         auto area = boss.region;
                         auto next = iter;
-                        if (++next != items.end() && !area.trim((*next)->object->region))
+                        if (++next != items.end() && !area.trim((*next)->region))
                         {
                             auto backup_ptr = *iter;
                             items.erase(iter);
-                            while (++next != items.end() && !area.trim((*next)->object->region))
+                            while (++next != items.end() && !area.trim((*next)->region))
                             { }
                             iter = items.insert(next, backup_ptr);
                             boss.base::strike();
@@ -1066,7 +1111,7 @@ namespace netxs::app::vtm
                         items.erase(iter);
                         if (items.size()) // Pass focus to the top most object.
                         {
-                            auto last_ptr = items.back()->object;
+                            auto last_ptr = items.back();
                             auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
                             for (auto gear_id : gear_id_list)
                             {
@@ -1239,11 +1284,11 @@ namespace netxs::app::vtm
             return "ok " + appspec.appcfg.cmd;
         }
         // hall: Draw a navigation string.
-        void fasten(sptr object, auto highlighted, auto item_is_active, auto& color, face& canvas)
+        void fasten(sptr object_ptr, auto highlighted, auto item_is_active, auto& color, face& canvas)
         {
             auto window = canvas.area();
-            auto center = object->region.center();
-            if (window.hittest(center) || object->hidden) return;
+            auto center = object_ptr->region.center();
+            if (window.hittest(center) || object_ptr->hidden) return;
             auto origin = window.size / 2;
             center -= window.coor;
             //auto origin = twod{ 6, window.size.y - 3 };
@@ -1251,7 +1296,7 @@ namespace netxs::app::vtm
             auto is_active = item_is_active || highlighted;
             auto& grade = skin::grade(is_active ? color.active
                                                 : color.passive);
-            auto obj_id = object->id;
+            auto obj_id = object_ptr->id;
             auto pset = [&](twod p, si32 k)
             {
                 //canvas[p].fuse(grade[k], obj_id, p - offset);
@@ -1615,7 +1660,7 @@ namespace netxs::app::vtm
                     items.pop_front();
                     if (auto next_ptr = items.back())
                     {
-                        next = next_ptr->object;
+                        next = next_ptr;
                     }
                 }
             };
@@ -1628,19 +1673,19 @@ namespace netxs::app::vtm
                     items.pop_back();
                     if (auto prev_ptr = items.back())
                     {
-                        prev = prev_ptr->object;
+                        prev = prev_ptr;
                     }
                 }
             };
             LISTEN(tier::request, e2::form::layout::go::item, current_item)
             {
-                if (items.size()) current_item = items.back()->object;
+                if (items.size()) current_item = items.back();
             };
             LISTEN(tier::preview, e2::form::prop::cwd, path_utf8)
             {
                 for (auto w : items)
                 {
-                    w->object->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
+                    w->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                 }
             };
 
@@ -1866,13 +1911,13 @@ namespace netxs::app::vtm
                             auto& item = *head++;
                             if (visible(item))
                             {
-                                fasten(item->object, item->highlighted, item->active, item->color, parent_canvas);
+                                fasten(item, item->highlighted, item->active, item->color, parent_canvas);
                             }
                         }
                     }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::backmost) item->object->render<true>(parent_canvas); }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->object->render<true>(parent_canvas); }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->object->render<true>(parent_canvas); }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::backmost) item->render<true>(parent_canvas); }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->render<true>(parent_canvas); }
+                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->render<true>(parent_canvas); }
                 }
                 for (auto& [user_ptr, uname] : users) // Draw user mouse pointers.
                 {

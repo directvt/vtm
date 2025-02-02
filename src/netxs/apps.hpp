@@ -311,12 +311,8 @@ namespace netxs::app::shared
                     auto& parent = *parent_ptr;
                     closing_by_gesture(parent);
 
-                    //todo too hacky
-                    if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
-                    {
-                        form_ptr->unplug<pro::ghost>();
-                        form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
-                    }
+                    parent_ptr->unplug<pro::ghost>();
+                    parent_ptr->plugin<pro::notes>().update(" Right click to set title from clipboard. Left+Right to close. ");
 
                     if (cmd.starts_with("@"))
                     {
