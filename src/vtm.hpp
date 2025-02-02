@@ -604,10 +604,6 @@ namespace netxs::app::vtm
             subs tokens;
             std::list<netxs::sptr<node>>::iterator iter;
 
-            //todo usergate specific
-            para uname; // : Client name.
-            text uname_txt; // : Client name (original).
-
             node(sptr item)
                 : object{ item }
             {
