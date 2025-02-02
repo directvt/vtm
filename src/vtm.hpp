@@ -46,6 +46,7 @@ namespace netxs::app::vtm
     {
         static constexpr auto item     = "/config/desktop/taskbar/item";
         static constexpr auto autorun  = "/config/desktop/taskbar/autorun/item";
+        static constexpr auto selected = "/config/desktop/taskbar/selected";
         static constexpr auto viewport = "/config/desktop/viewport/coor";
     }
 
@@ -643,7 +644,6 @@ namespace netxs::app::vtm
         std::list<netxs::sptr<node>> items; // hall: Desktop windows.
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
-        text selected_item; // hall: Override default menu item (if not empty).
         xmls config; // hall: Resultant settings.
         pro::maker maker{*this }; // hall: Window creator using drag and drop (right drag).
         pro::robot robot{*this }; // hall: Animation controller.
@@ -1147,11 +1147,12 @@ namespace netxs::app::vtm
                 }
             }
         }
+        //todo use for specified usergate
         auto vtm_selected(eccc& /*script*/, qiew args)
         {
             if (args)
             {
-                selected_item = args;
+                auto selected_item = args.str();
                 for (auto usergate_ptr : usrs_list)
                 {
                     usergate_ptr->bell::signal(tier::release, e2::data::changed, selected_item);
@@ -1949,7 +1950,6 @@ namespace netxs::app::vtm
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
-            if (selected_item.size()) app_config.set("/config/desktop/taskbar/selected", selected_item);
             auto lock = bell::unique_lock();
             auto usergate_ptr = hall::ctor<gate>(client, vtmode, app_config, userid, session_id, true);
             auto& usergate = *usergate_ptr;
@@ -2227,20 +2227,26 @@ namespace netxs::app::vtm
             };
 
             auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
+            auto& selected_item = base::property<text>("desktop.selected"); // hall: Last user's selected menu item.
+            auto& usergate_selected_item = usergate.base::property<text>("desktop.selected");
             if (!vport) vport = config.take(path::viewport, dot_00);
+            if (selected_item.empty()) selected_item = config.take(path::selected, selected_item);
+            usergate_selected_item = selected_item;
             usergate.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
             {
                 base::deface();
                 vport = usergate.base::coor();
+                selected_item = usergate_selected_item;
                 usrs_list.erase(usrs_list_iter);
                 users.erase(users_iter);
                 os::ipc::users = users.size();
             };
-            usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id, ";", usergate.props.selected);
+            //auto& usergate_id = usergate.base::property<id_t>("gate.id");
+            //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
+            usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             usergate.attach(std::move(deskmenu));
-            usergate.base::resize(usrcfg.win);
-            if (vport) usergate.base::moveto(vport); // Restore user's last position.
+            usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();
             usergate.launch();
         }

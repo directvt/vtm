@@ -491,14 +491,8 @@ namespace netxs::app::desk
             auto my_id = id_t{};
 
             auto user_info = utf::split(usrcfg.cfg, ";");
-            if (user_info.size() < 2)
-            {
-                log(prompt::desk, "Bad window arguments: args=", utf::debase(usrcfg.cfg));
-                return window;
-            }
             auto& user_id__view = user_info[0];
             auto& username_view = user_info[1];
-            auto& menu_selected = user_info[2];
             log("%%User %name% connected", prompt::desk, username_view);
 
             if (auto value = utf::to_int(user_id__view)) my_id = value.value();
@@ -540,21 +534,20 @@ namespace netxs::app::desk
                 return users;
             };
 
-            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux });
-            auto& size_config = *size_config_ptr;
+            auto& size_config = window->base::field(std::tuple{ menu_max_conf, menu_min_conf, faux });
             //todo Apple Clang don't get it.
             //auto& [menu_max_size, menu_min_size, active] = size_config;
             auto& menu_max_size = std::get<0>(size_config);
             auto& menu_min_size = std::get<1>(size_config);
             auto& active        = std::get<2>(size_config);
 
-            window->invoke([&, menu_selected](auto& boss) mutable
+            window->invoke([&](auto& boss) mutable
             {
                 auto appid = "info"s;
                 auto label = "Info"s;
                 auto title = ansi::add(label);
                 auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }, usrcfg))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (ground, usrcfg))
                 {
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
@@ -563,8 +556,9 @@ namespace netxs::app::desk
                     //todo revise (focus tree)
                     //boss.subset.push_back(world_ptr);
                     auto& world = *world_ptr;
-                    current_default  = selected;
-                    previous_default = selected;
+                    auto& current_default = parent.base::property<text>("desktop.selected");
+                    auto& previous_default = parent.base::property<text>("desktop.prev_selected");
+                    previous_default = current_default;
                     ground->bell::signal(tier::release, e2::form::upon::vtree::attached, parent_ptr);
                     parent.bell::signal(tier::anycast, desk::events::ui::selected, current_default);
                     parent.LISTEN(tier::request, e2::data::changed, data, boss.relyon)

@@ -389,7 +389,6 @@ namespace netxs::ui
             //todo revise
             text os_user_id;
             text title;
-            text selected;
             span clip_preview_time;
             cell clip_preview_clrs;
             byte clip_preview_alfa;
@@ -437,7 +436,6 @@ namespace netxs::ui
                     this->session_id  = session_id;
                     os_user_id        = utf::concat("[", userid, ":", session_id, "]");
                     title             = os_user_id;
-                    selected          = config.take("/config/desktop/taskbar/selected", ""s);
                     background_color  = config.take("/config/desktop/background/color", cell{}.fgc(whitedk).bgc(0xFF000000));
                     auto utf8_tile    = config.take("/config/desktop/background/tile", ""s);
                     if (utf8_tile.size())
