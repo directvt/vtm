@@ -622,8 +622,12 @@ namespace netxs::app::vtm
         desk::usrs& usrs_list = *usrs_list_ptr;
         desk::menu& menu_list = *menu_list_ptr;
 
-        auto window(applink& what, bool is_handoff)
+        auto create_window(applink& what, bool is_handoff = faux)
         {
+            if (!is_handoff)
+            {
+                bell::signal(tier::request, vtm::events::newapp, what);
+            }
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::ghost>()
@@ -1085,12 +1089,6 @@ namespace netxs::app::vtm
                     boss.bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
                     bell::signal(tier::release, desk::events::apps, apps_list_ptr);
                 });
-        }
-        auto create(applink& what)
-        {
-            bell::signal(tier::request, vtm::events::newapp, what);
-            auto window_ptr = window(what, faux);
-            return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
         {
@@ -1701,7 +1699,7 @@ namespace netxs::app::vtm
                     }
                     what.square.coor = wincoor;
                     what.square.size = winsize ? winsize : viewport.size * 3 / 4;
-                    if (auto window = create(what))
+                    if (auto window = create_window(what))
                     {
                         //todo revise: Should the requester set focus on their own behalf?
                         pro::focus::set(window, gear_id/*requested focus*/, solo::on); // Notify pro::focus owners.
@@ -1717,7 +1715,7 @@ namespace netxs::app::vtm
                     if (winsize == dot_00) winsize = { 80, 27 };
                     what.square.coor = wincoor;
                     what.square.size = winsize;
-                    if (auto window = create(what))
+                    if (auto window = create_window(what))
                     {
                         pro::focus::set(window, id_t{}, solo::on);
                         yield = utf::concat(window->id);
@@ -1731,7 +1729,7 @@ namespace netxs::app::vtm
                 auto& gate = gear.owner;
                 auto what = applink{ .square = gear.slot, .forced = gear.slot_forced };
                 gate.bell::signal(tier::request, e2::data::changed, what.menuid);
-                if (auto window = create(what))
+                if (auto window = create_window(what))
                 {
                     //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
                     //{
@@ -1747,7 +1745,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, vtm::events::handoff, what)
             {
-                window(what, true);
+                create_window(what, true);
             };
 
             LISTEN(tier::preview, input::events::keybd::key::post, gear) // Track last active gear.
@@ -1923,7 +1921,7 @@ namespace netxs::app::vtm
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
-                        auto window_ptr = create(what);
+                        auto window_ptr = create_window(what);
                         if (winform == winstate::minimized) window_ptr->base::hidden = true;
                         else if (focused) foci.push_back(window_ptr);
                     }
