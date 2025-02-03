@@ -723,7 +723,7 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         auto current_default = gate.bell::signal(tier::request, e2::data::changed);
                         auto config = gate.base::riseup(tier::request, vtm::events::apptype, { .menuid = current_default });
-                        if (config.kindid == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
+                        if (config.type == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
 
                         gate.base::riseup(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);

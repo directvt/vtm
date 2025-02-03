@@ -15,7 +15,7 @@ namespace netxs::app::vtm
     struct applink
     {
         text menuid{};
-        text kindid{};
+        text type{};
         rect square{};
         bool forced{};
         sptr applet{};
@@ -1611,7 +1611,7 @@ namespace netxs::app::vtm
             LISTEN(tier::request, vtm::events::apptype, what)
             {
                 auto& setup = menu_list[what.menuid];
-                what.kindid = setup.type;
+                what.type = setup.type;
             };
             LISTEN(tier::request, vtm::events::newapp, what)
             {
