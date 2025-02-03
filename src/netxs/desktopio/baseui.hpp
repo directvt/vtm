@@ -610,6 +610,7 @@ namespace netxs::ui
 
         std::list<sptr> subset; // base: List of nested objects.
         wptr father; // base: Reference to parent.
+        std::list<sptr>::iterator holder; // base: Iterator on parent list (for instant deletion).
         subs relyon; // base: Subscription on parent events.
         rect region; // base: The region occupied by the object.
         rect socket; // base: The region provided for the object.
@@ -1000,46 +1001,78 @@ namespace netxs::ui
                 if (post) bell::signal(tier::release, e2::postrender, canvas);
             }
         }
-
-    protected:
-        virtual void deform([[maybe_unused]] rect& new_area) {}
-        virtual void inform([[maybe_unused]] rect  new_area) {}
+        // base: Attach nested object.
+        template<sort Order = sort::forward>
+        auto attach(auto item_ptr)
+        {
+            if constexpr (Order == sort::reverse)
+            {
+                base::subset.push_front(item_ptr);
+                item_ptr->holder = base::subset.begin();
+                item_ptr->father = This();
+            }
+            else
+            {
+                base::subset.push_back(item_ptr);
+                item_ptr->holder = std::prev(base::subset.end());
+                item_ptr->father = This();
+            }
+            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
+        }
         // base: Remove nested object.
         virtual void remove(sptr item_ptr)
         {
-            //todo use std::list + stored iterator
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (iter != tail)
+            if (item_ptr && item_ptr->holder != subset.end())
             {
                 auto backup = This();
-                subset.erase(iter);
+                subset.erase(std::exchange(item_ptr->holder, subset.end()));
+                item_ptr->father = {};
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // base: Update nested object.
         virtual void replace(sptr old_item_ptr, sptr new_item_ptr)
         {
-            //todo use std::list + stored iterator
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c == old_item_ptr; });
-            if (iter != tail)
+            if (old_item_ptr && old_item_ptr->holder != subset.end())
             {
                 auto backup = This();
-                auto pos = subset.erase(iter);
+                *(old_item_ptr->holder) = new_item_ptr;
+                new_item_ptr->holder = std::exchange(old_item_ptr->holder, subset.end());
+                old_item_ptr->father = {};
                 old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, new_item_ptr);
                 new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
+        // base: Remove the last nested object. Return the object refrence.
+        auto pop_back()
+        {
+            if (base::subset.size())
+            {
+                auto item_ptr = base::subset.back();
+                remove(item_ptr);
+                return item_ptr;
+            }
+            return sptr{};
+        }
+        // base: Remove all nested objects.
+        void clear()
+        {
+            auto backup = This();
+            while (base::subset.size())
+            {
+                pop_back();
+            }
+        }
+
+    protected:
+        virtual void deform([[maybe_unused]] rect& new_area) {}
+        virtual void inform([[maybe_unused]] rect  new_area) {}
         virtual ~base() = default;
 
     public:
-        base(auth& indexer, size_t nested_count = 0)
+        base(auth& indexer)
             : bell{ indexer },
-              subset{ nested_count },
               min_sz{ skin::globals().min_value },
               max_sz{ skin::globals().max_value },
               wasted{ true },
@@ -1048,12 +1081,14 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
+            //todo drop
             LISTEN(tier::release, e2::cascade, proc)
             {
                 auto backup = This();
                 auto keepon = proc(backup);
                 if (!keepon) this->bell::expire(tier::release);
             };
+            //todo drop
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
                 if (!master)
@@ -1064,10 +1099,6 @@ namespace netxs::ui
                         backup->bell::signal(tier::release, e2::cascade, proc);
                     };
                 }
-                father = parent_ptr;
-                // Propagate form events up to the visual branch ends (children).
-                // Exec after all subscriptions.
-                //todo implement via e2::cascade
             };
             LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
             {

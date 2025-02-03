@@ -552,7 +552,6 @@ namespace netxs::app::desk
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
                     auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
-                    assert(boss.base::subset.size() == 3);
                     //todo revise (focus tree)
                     //boss.base::subset.push_back(world_ptr);
                     auto& world = *world_ptr;

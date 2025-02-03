@@ -922,7 +922,8 @@ namespace netxs::app::tile
                     {
                         auto& gate = gear.owner;
                         auto& current_default = gate.base::property("desktop.selected");
-                        auto conf_list_ptr = gate.base::riseup(tier::request, desk::events::menu);
+                        auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
+                        auto conf_list_ptr = world_ptr->bell::signal(tier::request, desk::events::menu);
                         auto& conf_list = *conf_list_ptr;
                         auto& config = conf_list[current_default];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.

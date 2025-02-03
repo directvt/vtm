@@ -630,13 +630,6 @@ namespace netxs::ui
             return result;
         }
 
-        // gate: Attach a new item.
-        auto attach(sptr object)
-        {
-            base::subset.push_back(object);
-            object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-            if (local) nexthop = object;
-        }
         // gate: .
         void rebuild_scene(bool damaged, time stamp)
         {

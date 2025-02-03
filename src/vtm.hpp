@@ -626,17 +626,6 @@ namespace netxs::app::vtm
             }
 
         public:
-            // window: .
-            auto attach(auto applet_ptr)
-            {
-                if (applet_ptr)
-                {
-                    base::subset.push_back(applet_ptr);
-                    applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-                }
-                return applet_ptr;
-            }
-
             window_t(hall& owner, applink& what)
                 : world{ owner }
             {
@@ -2277,7 +2266,9 @@ namespace netxs::app::vtm
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            usergate.attach(std::move(deskmenu));
+            usergate.attach(deskmenu);
+            if (usergate.local) usergate.nexthop = deskmenu;
+            deskmenu.reset();
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();
             usergate.launch();

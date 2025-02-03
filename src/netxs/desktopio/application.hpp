@@ -855,7 +855,9 @@ namespace netxs::app::shared
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         applet->base::kind(base::reflow_root);
-        gate.attach(std::move(applet));
+        gate.attach(applet);
+        if (gate.local) gate.nexthop = applet;
+        applet.reset();
         config_lock.unlock();
         gate.launch();
         gate.bell::dequeue();
