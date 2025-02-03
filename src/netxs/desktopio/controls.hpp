@@ -3411,9 +3411,9 @@ namespace netxs::ui
         si32  fraction; // fork: Ratio between objects.
         bool  adaptive; // fork: Fixed ratio.
 
-        auto& object_1() { assert(base::subset.size() > 2); return base::subset[0]; } // fork: 1st object.
-        auto& object_2() { assert(base::subset.size() > 2); return base::subset[1]; } // fork: 2nd object.
-        auto& splitter() { assert(base::subset.size() > 2); return base::subset[2]; } // fork: Resizing grip object.
+        auto& object_1() { assert(base::subset.size() > 2); return base::subset.front(); } // fork: 1st object.
+        auto& object_2() { assert(base::subset.size() > 2); return *(std::next(base::subset.begin())); } // fork: 2nd object.
+        auto& splitter() { assert(base::subset.size() > 2); return *(std::next(std::next(base::subset.begin()))); } // fork: Resizing grip object.
         auto xpose(twod p)
         {
             return rotation == axis::X ? p : twod{ p.y, p.x };

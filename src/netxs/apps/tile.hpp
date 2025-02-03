@@ -837,7 +837,7 @@ namespace netxs::app::tile
                     }
                     else if (item_ptr->root()) // App window.
                     {
-                        auto applet_ptr = item_ptr->base::subset[1];
+                        auto applet_ptr = *(std::next(item_ptr->base::subset.begin()));
                         if (pro::focus::is_focused(applet_ptr, gear_id))
                         {
                             proc(applet_ptr, item_type::applet, node_veer_ptr); // Applet.
@@ -849,11 +849,11 @@ namespace netxs::app::tile
                     }
                     else // if (!item_ptr->root()) // Node.
                     {
-                        root_veer_ptr = item_ptr->base::subset[0];
+                        root_veer_ptr = item_ptr->base::subset.front();
                         _foreach(_foreach, root_veer_ptr, gear_id, proc);
                         if (!root_veer_ptr) return;
 
-                        auto grip_ptr = item_ptr->base::subset[2];
+                        auto grip_ptr = *(std::next(std::next(item_ptr->base::subset.begin())));
                         if (pro::focus::is_focused(grip_ptr, gear_id))
                         {
                             proc(grip_ptr, item_type::grip, node_veer_ptr); // Grip.
@@ -864,7 +864,7 @@ namespace netxs::app::tile
                             }
                         }
 
-                        root_veer_ptr = item_ptr->base::subset[1];
+                        root_veer_ptr = *(std::next(item_ptr->base::subset.begin()));
                         _foreach(_foreach, root_veer_ptr, gear_id, proc);
                         if (!root_veer_ptr) return;
                     }
@@ -1050,7 +1050,7 @@ namespace netxs::app::tile
 
                     boss.LISTEN(tier::preview, app::tile::events::ui::any, gear)
                     {
-                        auto root_veer_ptr = std::dynamic_pointer_cast<ui::veer>(boss.base::subset[1]);
+                        auto root_veer_ptr = std::dynamic_pointer_cast<ui::veer>(*(std::next(boss.base::subset.begin())));
                         if (root_veer_ptr->count() > 2)
                         {
                             root_veer_ptr->base::riseup(tier::release, e2::form::proceed::attach); // Restore the window before any action if maximized.
@@ -1065,7 +1065,7 @@ namespace netxs::app::tile
                     //todo generalize refocusing
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (switch_counter_ptr))
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
@@ -1103,7 +1103,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::next, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
@@ -1149,7 +1149,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear, -, (switch_counter_ptr))
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
@@ -1190,7 +1190,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextpane, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_item_ptr = sptr{};
@@ -1239,7 +1239,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevgrip, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_grip_ptr = sptr{};
@@ -1271,7 +1271,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto prev_grip_ptr = sptr{};
@@ -1311,7 +1311,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::swap, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
                         if (nothing_to_iterate) return;
                         auto node_veer_list = std::vector<netxs::sptr<ui::veer>>{};
@@ -1392,7 +1392,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::create, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type == item_type::empty_slot)
@@ -1404,7 +1404,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::select, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, id_t{}, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type != item_type::grip) pro::focus::set(item_ptr, gear.id, solo::off);
@@ -1415,7 +1415,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, app::tile::events::ui::split::any, gear)
                     {
                         auto deed = boss.bell::protos(tier::preview);
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto node_veer_ptr)
                         {
                             auto room = node_veer_ptr->base::size() / 3;
@@ -1435,7 +1435,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::rotate, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             item_ptr->base::riseup(tier::release, app::tile::events::ui::rotate, gear);
@@ -1444,7 +1444,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::equalize, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 /*item_type*/, auto)
                         {
                             item_ptr->base::riseup(tier::release, app::tile::events::ui::equalize, gear);
@@ -1458,7 +1458,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, app::tile::events::ui::close, gear)
                     {
-                        auto root_veer_ptr = boss.base::subset[1];
+                        auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         foreach(root_veer_ptr, gear.id, [&](auto& item_ptr, si32 item_type, auto)
                         {
                             if (item_type != item_type::grip)
