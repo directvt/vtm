@@ -3786,7 +3786,7 @@ namespace netxs::ui
             return twod{ x, y };
         }
         std::vector<cell> widths;  // grid: Grid cell metrics.
-        std::vector<elem> blocks;  // grid: Geometry of stored objects.
+        std::list<elem>   blocks;  // grid: Geometry of stored objects.
 
     protected:
         // grid: .
@@ -3911,6 +3911,8 @@ namespace netxs::ui
         auto attach(auto object, elem conf = { .span = dot_11 })
         {
             blocks.push_back(conf);
+            auto blocks_iter = std::prev(blocks.end());
+            object->base::property("grid.blocks_iter", blocks_iter);
             base::subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
@@ -3940,8 +3942,8 @@ namespace netxs::ui
             if (iter != tail)
             {
                 auto backup = This();
-                //todo adapt it for std::list (store grid.blocks_iter as base::property)
-                blocks.erase(blocks.begin() + std::distance(base::subset.begin(), iter));
+                auto blocks_iter = (*iter)->base::property<decltype(blocks.begin())>("grid.blocks_iter");
+                blocks.erase(blocks_iter);
                 base::subset.erase(iter);
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
