@@ -3711,8 +3711,10 @@ namespace netxs::ui
                     auto min_y = frame.coor[updown] - basis.coor[updown];
                     auto max_y = frame.size[updown] + min_y;
                     auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
+                    //todo optimize for large lists
                     //todo adapt it for std::list (use stored iterator)
-                    auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
+                    //auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
+                    auto start = base::subset.begin();
                     while (start != base::subset.end())
                     {
                         if (auto& object = *start++)
@@ -3753,7 +3755,6 @@ namespace netxs::ui
         auto attach(auto object)
         {
             auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
-            //todo adapt it for std::list
             if (order == sort::reverse) base::subset.insert(base::subset.begin(), object);
             else                        base::subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
