@@ -1007,6 +1007,7 @@ namespace netxs::ui
         // base: Remove nested object.
         virtual void remove(sptr item_ptr)
         {
+            //todo use std::list + stored iterator
             auto head = subset.begin();
             auto tail = subset.end();
             auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
@@ -1020,6 +1021,7 @@ namespace netxs::ui
         // base: Update nested object.
         virtual void replace(sptr old_item_ptr, sptr new_item_ptr)
         {
+            //todo use std::list + stored iterator
             auto head = subset.begin();
             auto tail = subset.end();
             auto iter = std::find_if(head, tail, [&](auto& c){ return c == old_item_ptr; });

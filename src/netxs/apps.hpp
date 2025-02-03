@@ -714,7 +714,7 @@ namespace netxs::app::shared
             });
             for (auto& item : body)
             {
-                auto stats = items->subset.size() < 3;
+                auto stats = items->base::subset.size() < 3;
                 auto block = items->attach(ui::post::ctor())
                     ->setpad({ 2, 2, 0, 2 })
                     ->upload(item, stats ? -1 : 0)

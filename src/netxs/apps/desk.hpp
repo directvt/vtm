@@ -552,9 +552,9 @@ namespace netxs::app::desk
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
                     auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
-                    assert(boss.subset.size() == 3);
+                    assert(boss.base::subset.size() == 3);
                     //todo revise (focus tree)
-                    //boss.subset.push_back(world_ptr);
+                    //boss.base::subset.push_back(world_ptr);
                     auto& world = *world_ptr;
                     auto& current_default = parent.base::property<text>("desktop.selected");
                     auto& previous_default = parent.base::property<text>("desktop.prev_selected");

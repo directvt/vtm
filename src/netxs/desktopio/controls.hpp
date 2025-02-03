@@ -3654,7 +3654,7 @@ namespace netxs::ui
             auto meter = [&]
             {
                 height = start;
-                for (auto& object : subset)
+                for (auto& object : base::subset)
                 {
                     if (!object || object->base::hidden) continue;
                     auto& entry = *object;
@@ -3665,7 +3665,7 @@ namespace netxs::ui
                     height += entry.base::socket.size[updown];
                 }
             };
-            meter(); if (subset.size() > 1 && x_temp != x_size) meter();
+            meter(); if (base::subset.size() > 1 && x_temp != x_size) meter();
             y_size = height;
         }
         // list: .
@@ -3676,7 +3676,7 @@ namespace netxs::ui
             auto& coor_y = object_area.coor[updown];
             auto& lock_y = base::anchor[updown];
             auto found = faux;
-            for (auto& object : subset)
+            for (auto& object : base::subset)
             {
                 if (!object || object->base::hidden) continue;
                 auto& entry = *object;
@@ -3711,6 +3711,7 @@ namespace netxs::ui
                     auto min_y = frame.coor[updown] - basis.coor[updown];
                     auto max_y = frame.size[updown] + min_y;
                     auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
+                    //todo adapt it for std::list (use stored iterator)
                     auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
                     while (start != base::subset.end())
                     {
@@ -3727,21 +3728,21 @@ namespace netxs::ui
         void clear()
         {
             auto backup = This();
-            while (subset.size())
+            while (base::subset.size())
             {
-                auto item_ptr = subset.back();
-                subset.pop_back();
+                auto item_ptr = base::subset.back();
+                base::subset.pop_back();
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // list: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
-            if (subset.size())
+            if (base::subset.size())
             {
-                auto object = subset.back();
+                auto object = base::subset.back();
                 auto backup = This();
-                subset.pop_back();
+                base::subset.pop_back();
                 object->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 return object;
             }
@@ -3752,8 +3753,9 @@ namespace netxs::ui
         auto attach(auto object)
         {
             auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
-            if (order == sort::reverse) subset.insert(subset.begin(), object);
-            else                        subset.push_back(object);
+            //todo adapt it for std::list
+            if (order == sort::reverse) base::subset.insert(base::subset.begin(), object);
+            else                        base::subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
         }
@@ -3863,16 +3865,16 @@ namespace netxs::ui
                     object.base::recalc(elem.area);
                 }
             };
-            while (recalc(subset.rbegin(), subset.rend(), blocks.rbegin()))
+            while (recalc(base::subset.rbegin(), base::subset.rend(), blocks.rbegin()))
             { }
-            recoor(subset.begin(), subset.end(), blocks.begin());
+            recoor(base::subset.begin(), base::subset.end(), blocks.begin());
             new_area.size = std::max(new_area.size, cellsz(dot_00, m));
         }
         // grid: .
         void inform([[maybe_unused]] rect new_area) override
         {
             auto elem_ptr = blocks.begin();
-            for (auto& object : subset)
+            for (auto& object : base::subset)
             {
                 auto& elem = *elem_ptr++;
                 object->base::notify(elem.area);
@@ -3886,7 +3888,7 @@ namespace netxs::ui
             {
                 if (auto context = form::nested_context(parent_canvas))
                 {
-                    for (auto& object : subset)
+                    for (auto& object : base::subset)
                     {
                         object->render(parent_canvas);
                     }
@@ -3897,42 +3899,19 @@ namespace netxs::ui
         void clear()
         {
             auto backup = This();
-            while (subset.size())
+            while (base::subset.size())
             {
-                auto item_ptr = subset.back();
-                subset.pop_back();
+                auto item_ptr = base::subset.back();
+                base::subset.pop_back();
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
             blocks.clear();
-        }
-        // grid: Remove specified object by index.
-        //auto remove_by_index(si32 index)
-        //{
-        //    if (index < subset.size())
-        //    {
-        //        auto object = subset[index];
-        //        auto backup = This();
-        //        subset.erase(subset.begin() + index);
-        //        blocks.erase(blocks.begin() + index);
-        //        object->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
-        //        return object;
-        //    }
-        //    return sptr{};
-        //}
-        // grid: Return specified object with its geometry by index.
-        auto get_item(si32 index)
-        {
-            if (index < (si32)subset.size())
-            {
-                return std::pair{ subset[index], blocks[index] };
-            }
-            return std::pair{ sptr{}, elem{} };
         }
         // grid: Attach specified item.
         auto attach(auto object, elem conf = { .span = dot_11 })
         {
             blocks.push_back(conf);
-            subset.push_back(object);
+            base::subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
         }
@@ -3955,14 +3934,15 @@ namespace netxs::ui
         // grid: Remove nested object.
         void remove(sptr item_ptr) override
         {
-            auto head = subset.begin();
-            auto tail = subset.end();
+            auto head = base::subset.begin();
+            auto tail = base::subset.end();
             auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
             if (iter != tail)
             {
                 auto backup = This();
-                blocks.erase(blocks.begin() + std::distance(subset.begin(), iter));
-                subset.erase(iter);
+                //todo adapt it for std::list (store grid.blocks_iter as base::property)
+                blocks.erase(blocks.begin() + std::distance(base::subset.begin(), iter));
+                base::subset.erase(iter);
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -3980,14 +3960,14 @@ namespace netxs::ui
             auto new_size = new_area.size;
             auto meter = [&]
             {
-                for (auto& object : subset)
+                for (auto& object : base::subset)
                 {
                     object->base::recalc(new_area);
                     new_area.coor = new_coor;
                 }
             };
             meter();
-            if (subset.size() > 1 && new_size != new_area.size)
+            if (base::subset.size() > 1 && new_size != new_area.size)
             {
                 meter();
             }
@@ -3995,7 +3975,7 @@ namespace netxs::ui
         // cake: .
         void inform(rect new_area) override
         {
-            for (auto& object : subset)
+            for (auto& object : base::subset)
             {
                 object->base::notify(new_area);
             }
@@ -4008,7 +3988,7 @@ namespace netxs::ui
             {
                 if (auto context = form::nested_context(parent_canvas))
                 {
-                    for (auto& object : subset)
+                    for (auto& object : base::subset)
                     {
                         object->render(parent_canvas);
                     }
@@ -4018,11 +3998,11 @@ namespace netxs::ui
         // cake: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
-            if (subset.size())
+            if (base::subset.size())
             {
-                auto object = subset.back();
+                auto object = base::subset.back();
                 auto backup = This();
-                subset.pop_back();
+                base::subset.pop_back();
                 object->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 return object;
             }
@@ -4033,7 +4013,7 @@ namespace netxs::ui
         {
             if (object)
             {
-                subset.push_back(object);
+                base::subset.push_back(object);
                 object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             }
             return object;
@@ -4048,8 +4028,8 @@ namespace netxs::ui
         // veer: .
         void deform(rect& new_area) override
         {
-            if (subset.size())
-            if (auto object = subset.back())
+            if (base::subset.size())
+            if (auto object = base::subset.back())
             {
                 object->base::recalc(new_area);
             }
@@ -4057,8 +4037,8 @@ namespace netxs::ui
         // veer: .
         void inform(rect new_area) override
         {
-            if (subset.size())
-            if (auto object = subset.back())
+            if (base::subset.size())
+            if (auto object = base::subset.back())
             {
                 object->base::notify(new_area);
             }
@@ -4069,10 +4049,10 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (subset.size())
+                if (base::subset.size())
                 if (auto context = form::nested_context(parent_canvas))
                 {
-                    if (auto object = subset.back())
+                    if (auto object = base::subset.back())
                     {
                         object->render(parent_canvas);
                     }
@@ -4082,33 +4062,33 @@ namespace netxs::ui
         // veer: Return the last object or empty sptr.
         auto back()
         {
-            return subset.size() ? subset.back()
-                                 : sptr{};
+            return base::subset.size() ? base::subset.back()
+                                       : sptr{};
         }
         // veer: Return the first object or empty sptr.
         auto front()
         {
-            return subset.size() ? subset.front()
-                                 : sptr{};
+            return base::subset.size() ? base::subset.front()
+                                       : sptr{};
         }
         // veer: Return nested objects count.
         auto count()
         {
-            return subset.size();
+            return base::subset.size();
         }
         // veer: Return true if empty.
         auto empty()
         {
-            return subset.empty();
+            return base::subset.empty();
         }
         // veer: Remove the last object. Return the object refrence.
         auto pop_back()
         {
-            if (subset.size())
+            if (base::subset.size())
             {
-                auto object = subset.back();
+                auto object = base::subset.back();
                 auto backup = This();
-                subset.pop_back();
+                base::subset.pop_back();
                 object->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 return object;
             }
@@ -4117,24 +4097,25 @@ namespace netxs::ui
         // veer: Roll objects.
         void roll(si32 dt = 1)
         {
-            if (dt && subset.size() > 1)
+            //todo adapt it..
+            if (dt && base::subset.size() > 1)
             {
                 if (dt > 0) while (dt--)
                 {
-                    subset.insert(subset.begin(), subset.back());
-                    subset.pop_back();
+                    base::subset.insert(base::subset.begin(), base::subset.back());
+                    base::subset.pop_back();
                 }
                 else while (dt++)
                 {
-                    subset.push_back(subset.front());
-                    subset.erase(subset.begin());
+                    base::subset.push_back(base::subset.front());
+                    base::subset.erase(base::subset.begin());
                 }
             }
         }
         // veer: Create a new item of the specified subtype and attach it.
         auto attach(auto object)
         {
-            subset.push_back(object);
+            base::subset.push_back(object);
             object->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
             return object;
         }

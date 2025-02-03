@@ -609,8 +609,8 @@ namespace netxs::app::vtm
             // window: .
             void deform(rect& new_area) override
             {
-                if (subset.size())
-                if (auto& applet_ptr = subset.back())
+                if (base::subset.size())
+                if (auto& applet_ptr = base::subset.back())
                 {
                     applet_ptr->base::recalc(new_area);
                 }
@@ -618,8 +618,8 @@ namespace netxs::app::vtm
             // window: .
             void inform(rect new_area) override
             {
-                if (subset.size())
-                if (auto& applet_ptr = subset.back())
+                if (base::subset.size())
+                if (auto& applet_ptr = base::subset.back())
                 {
                     applet_ptr->base::notify(new_area);
                 }
@@ -631,7 +631,7 @@ namespace netxs::app::vtm
             {
                 if (applet_ptr)
                 {
-                    subset.push_back(applet_ptr);
+                    base::subset.push_back(applet_ptr);
                     applet_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
                 }
                 return applet_ptr;
@@ -758,8 +758,8 @@ namespace netxs::app::vtm
 
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                 {
-                    if (subset.size())
-                    if (auto applet_ptr = subset.back())
+                    if (base::subset.size())
+                    if (auto applet_ptr = base::subset.back())
                     {
                         what.applet = applet_ptr;
                     }
@@ -1041,8 +1041,8 @@ namespace netxs::app::vtm
                 {
                     if (auto context = form::nested_context(parent_canvas))
                     {
-                        if (subset.size())
-                        if (auto& applet_ptr = subset.back())
+                        if (base::subset.size())
+                        if (auto& applet_ptr = base::subset.back())
                         {
                             applet_ptr->render(parent_canvas);
                         }
@@ -1873,6 +1873,7 @@ namespace netxs::app::vtm
                 }
                 if (items.size()) // Draw objects of the world.
                 {
+                    //todo use three baskets
                     auto visible = [&](auto& item)
                     {
                         return !item->monoid || item->monoid == parent_canvas.link();
@@ -2052,11 +2053,11 @@ namespace netxs::app::vtm
                 {
                     usergate.bell::signal(tier::release, vtm::events::gate::restore);
                 }
-                if (new_fullscreen.applet && !new_fullscreen.applet->subset.empty())
+                if (new_fullscreen.applet && !new_fullscreen.applet->base::subset.empty())
                 {
                     auto gear_id_list = pro::focus::cut(new_fullscreen.applet);
                     prev = new_fullscreen.applet->base::area();
-                    auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->subset.front()); // Drop hosting window.
+                    auto window_ptr = std::exchange(new_fullscreen.applet, new_fullscreen.applet->base::subset.front()); // Drop hosting window.
                     window_ptr->base::detach();
                     what = new_fullscreen;
                     auto applet_ptr = what.applet;
@@ -2244,17 +2245,17 @@ namespace netxs::app::vtm
                 // Do not wait next timer tick.
                 auto damaged = true;
                 auto fullscreen_mode = damaged && !!what.applet;
-                if (fullscreen_mode) usergate.subset.push_back(what.applet);
+                if (fullscreen_mode) usergate.base::subset.push_back(what.applet);
                 usergate.rebuild_scene(damaged, timestamp);
-                if (fullscreen_mode) usergate.subset.pop_back();
+                if (fullscreen_mode) usergate.base::subset.pop_back();
             };
             usergate.LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 auto damaged = usergate.base::ruined();
                 auto fullscreen_mode = damaged && !!what.applet;
-                if (fullscreen_mode) usergate.subset.push_back(what.applet);
+                if (fullscreen_mode) usergate.base::subset.push_back(what.applet);
                 usergate.rebuild_scene(damaged, timestamp);
-                if (fullscreen_mode) usergate.subset.pop_back();
+                if (fullscreen_mode) usergate.base::subset.pop_back();
             };
 
             auto& vport = base::property<twod>("desktop.viewport"); // hall: Last user's viewport position.
