@@ -721,28 +721,27 @@ namespace netxs::app::tile
 
                         if (boss.count() != 1) return; // Create new apps at the empty slots only.
                         auto& gate = gear.owner;
-                        auto current_default = gate.bell::signal(tier::request, e2::data::changed);
-                        auto config = gate.base::riseup(tier::request, vtm::events::apptype, { .menuid = current_default });
-                        if (config.type == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
-
-                        gate.base::riseup(tier::request, vtm::events::newapp, config);
-                        auto app = app_window(config);
-                        pro::focus::off(boss.back());
-                        boss.attach(app);
+                        auto& current_default = gate.base::property("desktop.selected");
                         if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator)) // Finalize app creation.
                         {
+                            auto config = world_ptr->bell::signal(tier::request, vtm::events::apptype, { .menuid = current_default });
+                            if (config.type == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
+                            world_ptr->bell::signal(tier::request, vtm::events::newapp, config);
+                            auto app = app_window(config);
+                            pro::focus::off(boss.back());
+                            boss.attach(app);
                             app->bell::signal(tier::anycast, vtm::events::attached, world_ptr);
+
+                            insts_count++; //todo unify, demo limits
+                            config.applet->LISTEN(tier::release, e2::dtor, applet_id)
+                            {
+                                insts_count--;
+                                if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
+                            };
+
+                            app->bell::signal(tier::anycast, e2::form::upon::started, app);
+                            pro::focus::set(app, gear.id, solo::off);
                         }
-
-                        insts_count++; //todo unify, demo limits
-                        config.applet->LISTEN(tier::release, e2::dtor, applet_id)
-                        {
-                            insts_count--;
-                            if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
-                        };
-
-                        app->bell::signal(tier::anycast, e2::form::upon::started, app);
-                        pro::focus::set(app, gear.id, solo::off);
                     };
                 })
                 ->branch(empty_slot());
@@ -922,14 +921,15 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
                     {
                         auto& gate = gear.owner;
-                        auto menuid = gate.bell::signal(tier::request, e2::data::changed);
+                        auto& current_default = gate.base::property("desktop.selected");
                         auto conf_list_ptr = gate.base::riseup(tier::request, desk::events::menu);
                         auto& conf_list = *conf_list_ptr;
-                        auto& config = conf_list[menuid];
+                        auto& config = conf_list[current_default];
                         if (config.type == app::tile::id) // Reset the currently selected application to the previous one.
                         {
-                            gate.bell::signal(tier::preview, e2::data::changed, menuid); // Get previous default;
-                            gate.bell::signal(tier::release, e2::data::changed, menuid); // Set current  default;
+                            auto& previous_default = gate.base::property("desktop.prev_selected");
+                            current_default = previous_default;
+                            gate.bell::signal(tier::release, e2::data::changed, previous_default); // Signal to update UI.
                         }
                         oneoff.reset();
                     };

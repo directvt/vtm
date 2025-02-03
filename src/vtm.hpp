@@ -1347,10 +1347,10 @@ namespace netxs::app::vtm
                                             {
                                                 if (gear_ptr)
                                                 {
-                                                    auto menuid = gear_ptr->owner.bell::signal(tier::request, e2::data::changed);
-                                                    appspec = boss.menu_list[menuid];
+                                                    auto& current_default = gear_ptr->owner.base::property("desktop.selected");
+                                                    appspec = boss.menu_list[current_default];
                                                     appspec.fixed = faux;
-                                                    appspec.menuid = menuid;
+                                                    appspec.menuid = current_default;
                                                     appspec.gear_id = gear_id;
                                                 }
                                             }
@@ -1761,7 +1761,7 @@ namespace netxs::app::vtm
             {
                 auto& gate = gear.owner;
                 auto what = applink{ .square = gear.slot, .forced = gear.slot_forced };
-                gate.bell::signal(tier::request, e2::data::changed, what.menuid);
+                what.menuid = gate.base::property("desktop.selected");
                 if (auto window = create_window(what))
                 {
                     //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)

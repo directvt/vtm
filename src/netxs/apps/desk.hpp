@@ -565,21 +565,15 @@ namespace netxs::app::desk
                     {
                         data = current_default;
                     };
-                    parent.LISTEN(tier::preview, e2::data::changed, data, boss.relyon)
+                    parent.LISTEN(tier::release, e2::data::changed, new_default, boss.relyon)
                     {
-                        data = previous_default;
+                        boss.bell::signal(tier::anycast, desk::events::ui::selected, new_default);
                     };
-                    parent.LISTEN(tier::release, e2::data::changed, data, boss.relyon)
+                    parent.LISTEN(tier::anycast, desk::events::ui::selected, new_default, boss.relyon)
                     {
-                        boss.bell::signal(tier::anycast, desk::events::ui::selected, data);
-                    };
-                    parent.LISTEN(tier::anycast, desk::events::ui::selected, data, boss.relyon)
-                    {
-                        auto new_default = data;
                         if (current_default != new_default)
                         {
-                            previous_default = current_default;
-                            current_default = new_default;
+                            previous_default = std::exchange(current_default, new_default);
                         }
                     };
                     boss.LISTEN(tier::release, e2::area, new_area)

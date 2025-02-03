@@ -184,7 +184,7 @@ namespace netxs::events::userland
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
-                EVENT_XS( changed, text       ), // release/preview/request: Current menu item id(text).
+                EVENT_XS( changed, text       ), // release/request: Current menu item id(text).
                 EVENT_XS( request, si32       ),
                 EVENT_XS( disable, si32       ),
                 EVENT_XS( flush  , si32       ),
