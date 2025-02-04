@@ -103,6 +103,7 @@ namespace netxs::app::tile
               window_state{ winstate::undefined }
         {
             client = ui::list::ctor(axis::Y, sort::reverse);
+            //todo attached
             client->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.This());
 
             boss.LISTEN(tier::release, e2::area, new_area, memo)

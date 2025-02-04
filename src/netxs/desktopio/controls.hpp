@@ -5395,6 +5395,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 grip_ctl = stem_rate_grip::ctor(grip_suffix);
+                //todo attached
                 grip_ctl->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
 
                 grip_ctl->LISTEN(tier::release, input::events::mouse::button::drag::start::left, gear)

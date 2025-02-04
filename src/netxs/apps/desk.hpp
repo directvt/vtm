@@ -558,6 +558,7 @@ namespace netxs::app::desk
                     auto& current_default = parent.base::property<text>("desktop.selected");
                     auto& previous_default = parent.base::property<text>("desktop.prev_selected");
                     previous_default = current_default;
+                    //todo attached: parent_ptr.attach(ground);
                     ground->bell::signal(tier::release, e2::form::upon::vtree::attached, parent_ptr);
                     parent.bell::signal(tier::anycast, desk::events::ui::selected, current_default);
                     parent.LISTEN(tier::request, e2::data::changed, data, boss.relyon)

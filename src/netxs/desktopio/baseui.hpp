@@ -1039,6 +1039,7 @@ namespace netxs::ui
                 auto backup = This();
                 *(old_item_ptr->holder) = new_item_ptr;
                 new_item_ptr->holder = std::exchange(old_item_ptr->holder, subset.end());
+                new_item_ptr->father = This();
                 old_item_ptr->father = {};
                 old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
@@ -1099,6 +1100,8 @@ namespace netxs::ui
                         backup->bell::signal(tier::release, e2::cascade, proc);
                     };
                 }
+                //todo attached
+                father = parent_ptr;
             };
             LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
             {
