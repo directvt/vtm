@@ -33,6 +33,11 @@ namespace netxs::app::info
     static constexpr auto id = "info";
     static constexpr auto name = "Desktop Status";
 }
+namespace netxs::app::app1
+{
+    static constexpr auto id = "app1.vtmx";
+    static constexpr auto name = "Application";
+}
 
 #include "apps/term.hpp"
 
@@ -264,11 +269,79 @@ namespace netxs::app::shared
             });
             return window;
         };
+        auto build_app1          = [](eccc /*appcfg*/, xmls& /*config*/)
+        {
+            auto window = ui::cake::ctor()
+                ->active()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->plugin<pro::keybd>("defapp")
+                //->plugin<pro::acryl>()
+                //->plugin<pro::cache>()
+                ->alignment({ snap::both, snap::both })
+                ->invoke([](auto& boss)
+                {
+                    closing_on_quit(boss);
+                });
+            auto basis = window->attach(ui::fork::ctor(axis::Y))
+                ->alignment({ snap::both, snap::both });
+            auto header = basis->attach(slot::_1, ui::fork::ctor(axis::X))
+                                ->alignment({ snap::both, snap::both })
+                                ->colors(yellowlt, pureblue);
+            auto title = header->attach(slot::_1, ui::post::ctor()->upload(" Application Title "));
+            auto close_btn = header->attach(slot::_2, ui::post::ctor()->upload(" x ")->limits(-dot_11, { 3, 1 }))
+                ->active()
+                ->colors(purewhite, purered)
+                ->shader(cell::shaders::xlight, e2::form::state::hover)
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    {
+                        boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
+                        gear.dismiss();
+                    };
+                });
+            auto body = basis->attach(slot::_2, ui::fork::ctor(axis::X, 1))
+                                ->colors(whitelt, bluedk);
+            auto scrl_left = body->attach(slot::_1, ui::rail::ctor())
+                ->active()
+                ->shader(cell::shaders::xlight, e2::form::state::hover);
+            auto left = scrl_left->attach(ui::post::ctor()->upload("Left side."));
+                //->active()
+                //->alignment({ snap::both, snap::head })
+            auto scroll = body->attach(slot::_2, ui::rail::ctor())
+                ->limits(-dot_11, { 20, -1 })
+                ->active()
+                ->shader(cell::shaders::xlight, e2::form::state::hover);
+            auto right = scroll->attach(ui::list::ctor())
+                ->active();
+                //->alignment({ snap::tail, snap::head });
+            right->attach(ui::item::ctor("Right side:"))->setpad({ 1, 1, 0, 1 });
+            right->attach(ui::item::ctor(" Hello! "))
+                ->active()
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
+            right->attach(ui::item::ctor(" World! "))
+                ->active()
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
+            right->attach(ui::item::ctor(" Click me to exit. "))
+                ->active()
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    {
+                        boss.base::riseup(tier::anycast, e2::form::proceed::quit::one, true);
+                        gear.dismiss();
+                    };
+                });
+            return window;
+        };
 
         app::shared::initialize builder_strobe    { app::strobe::id   , build_strobe     };
         app::shared::initialize builder_settings  { app::settings::id , build_settings   };
         app::shared::initialize builder_empty     { app::empty::id    , build_empty      };
         app::shared::initialize builder_truecolor { app::truecolor::id, build_truecolor  };
+
+        app::shared::initialize builder_app1 { app::app1::id, build_app1 };
     }
 }
 //#endif
