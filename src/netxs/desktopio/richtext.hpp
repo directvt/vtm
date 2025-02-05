@@ -45,6 +45,7 @@ namespace netxs::ui
     class flow
         : protected ansi::runtime
     {
+    protected:
         rect textline{ }; // flow: Textline placeholder.
         si32 textsize{ }; // flow: Full textline length (1D).
         rect boundary{ }; // flow: Affected area by the text output.
@@ -2844,6 +2845,12 @@ namespace netxs::ui
                 return context;
             }
             return ctx{ *this };
+        }
+        auto move_basis(twod new_coor)
+        {
+            region.coor = new_coor;
+            client.coor = new_coor;
+            pagerect.coor = new_coor;
         }
         // Use a two letter function if we don't need to return *this
         face& cup(twod p)     { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.

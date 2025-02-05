@@ -1838,6 +1838,11 @@ namespace netxs::app::vtm
                     base::ruined(faux);
                 }
             };
+            LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync hall basis with current gate.
+            {
+                auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link());
+                parent_canvas.move_basis(gate_ptr->region.coor);
+            };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (users.size() > 1) // Draw backpane for spectators.

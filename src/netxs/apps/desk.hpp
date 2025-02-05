@@ -246,12 +246,10 @@ namespace netxs::app::desk
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
-            //auto highlight_color = skin::globals().winfocus;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
             auto c1 = danger_color;
-            //auto c3 = highlight_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
 
@@ -431,40 +429,13 @@ namespace netxs::app::desk
             }
             return apps;
         };
-        auto background = [](auto appid, auto label, auto title)
-        {
-            auto highlight_color = skin::color(tone::winfocus);
-            auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
-                ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
-                ->shader(c8, e2::form::state::hover)
-                ->limits({}, { -1, 1 })
-                ->alignment({ snap::tail, snap::tail });
-            return ui::cake::ctor()
-                ->branch(ver_label)
-                ->template plugin<pro::notes>(" Info ")
-                ->invoke([&](auto& boss)
-                {
-                    auto infospec = spec{ .hidden = true, .label = label, .title = title, .type = appid };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (infospec))
-                    {
-                        infospec.gear_id = gear.id;
-                        gear.owner.base::riseup(tier::request, desk::events::exec, infospec);
-                        gear.dismiss(true);
-                    };
-                });
-        };
 
         auto build = [](eccc usrcfg, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
-            //auto highlight_color = skin::globals().winfocus;
-            //auto warning_color   = skin::globals().warning;
             auto inactive_color  = skin::globals().inactive;
             auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
-            //auto c3 = highlight_color;
-            //auto c2 = warning_color;
             auto c1 = danger_color;
 
             auto menu_bg_color = config.take("/config/desktop/taskbar/colors/bground", cell{}.fgc(whitedk).bgc(0x60202020));
@@ -488,13 +459,33 @@ namespace netxs::app::desk
                 panel->limits({ -1, panel_top }, { -1, panel_top })
                      ->attach(app::shared::builder(app::vtty::id)(panel_cfg, config));
             }
-            auto my_id = id_t{};
+
+            auto highlight_color = skin::color(tone::winfocus);
+            auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
+            auto ground = window->attach(slot::_2, ui::cake::ctor())
+                ->template plugin<pro::notes>(" Info ")
+                ->invoke([&](auto& boss)
+                {
+                    auto infospec = spec{ .hidden = true, .label = "Info", .title = "Info", .type = "info" };
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (infospec))
+                    {
+                        infospec.gear_id = gear.id;
+                        gear.owner.base::riseup(tier::request, desk::events::exec, infospec);
+                        gear.dismiss(true);
+                    };
+                });
+            auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
+                ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
+                ->shader(c8, e2::form::state::hover)
+                ->limits({}, { -1, 1 })
+                ->alignment({ snap::tail, snap::tail });
 
             auto user_info = utf::split(usrcfg.cfg, ";");
             auto& user_id__view = user_info[0];
             auto& username_view = user_info[1];
             log("%%User %name% connected", prompt::desk, username_view);
 
+            auto my_id = id_t{};
             if (auto value = utf::to_int(user_id__view)) my_id = value.value();
             else
             {
@@ -502,20 +493,11 @@ namespace netxs::app::desk
                 return window;
             }
 
-            auto client = window->bell::getref(my_id);
-            if (!client)
-            {
-                log(prompt::desk, "Non-existent user ID=", my_id);
-                return window;
-            }
-
             auto user_template = [my_id](auto& data_src, auto const& utf8)
             {
                 auto tall = si32{ skin::globals().menuwide };
-                //auto highlight_color = skin::color(tone::highlight);
                 auto active_color    = skin::globals().active;
                 auto cE = active_color;
-                //auto c3 = highlight_color;
                 auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : argb{}).add(utf8).nil())
                     ->flexible()
@@ -543,23 +525,13 @@ namespace netxs::app::desk
 
             window->invoke([&](auto& boss) mutable
             {
-                auto appid = "info"s;
-                auto label = "Info"s;
-                auto title = ansi::add(label);
-                auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (ground, usrcfg))
                 {
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
-                    auto world_ptr = boss.bell::signal(tier::general, e2::config::creator);
-                    //todo revise (focus tree)
-                    //boss.base::subset.push_back(world_ptr);
-                    auto& world = *world_ptr;
                     auto& current_default = parent.base::property<text>("desktop.selected");
                     auto& previous_default = parent.base::property<text>("desktop.prev_selected");
                     previous_default = current_default;
-                    //todo attached: parent_ptr.attach(ground);
-                    ground->bell::signal(tier::release, e2::form::upon::vtree::attached, parent_ptr);
                     parent.bell::signal(tier::anycast, desk::events::ui::selected, current_default);
                     parent.LISTEN(tier::request, e2::data::changed, data, boss.relyon)
                     {
@@ -578,31 +550,8 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::area, new_area)
                     {
-                        if (ground->size() != new_area.size)
-                        {
-                            ground->base::resize(new_area.size);
-                        }
                         auto viewport = new_area - dent{ menu_min_size };
                         boss.base::riseup(tier::release, e2::form::prop::viewport, viewport);
-                    };
-                    boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
-                    {
-                        ground->render(parent_canvas);
-                        //todo unify
-                        auto area = parent_canvas.area();
-                        auto clip = parent_canvas.clip();
-                        auto full = parent_canvas.full();
-                        auto temp_area = std::exchange(world.region.size, parent.region.size);
-                        parent_canvas.move(parent.region.coor);
-                        parent_canvas.clip(parent.region);
-                        parent_canvas.full(parent.region);
-                        //world.render(parent_canvas);
-                        world.bell::signal(tier::release, e2::render::background::prerender, parent_canvas);
-                        world.bell::signal(tier::release, e2::postrender, parent_canvas);
-                        world.region.size = temp_area;
-                        parent_canvas.area(area);
-                        parent_canvas.clip(clip);
-                        parent_canvas.full(full);
                     };
                     parent.LISTEN(tier::request, e2::form::prop::viewport, viewport, boss.relyon)
                     {
@@ -622,7 +571,10 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto taskbar_viewport = window->attach(slot::_2, ui::fork::ctor(axis::X));
+            auto world_ptr = window->bell::signal(tier::general, e2::config::creator);
+            ground->attach(world_ptr);
+            world_ptr->father = {}; //todo attached
+            auto taskbar_viewport = ground->attach(ui::fork::ctor(axis::X));
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 ->plugin<pro::timer>()
