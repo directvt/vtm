@@ -2331,6 +2331,7 @@ namespace netxs::os
     {
         static const auto elevated = []
         {
+            std::setlocale(LC_CTYPE, ".UTF8"); // Set the UTF-8 character classification for STL.
             #if defined(_WIN32)
                 //todo Workaround for https://github.com/PowerShell/Win32-OpenSSH/issues/2037
                 os::env::unset("c28fc6f98a2c44abbbd89d6a3037d0d9_POSIX_FD_STATE");
@@ -3066,7 +3067,7 @@ namespace netxs::os
                         ok(::chmod(dest.string().c_str(), 0755), "Failed to set a file's mode bits for '%path%'.", dest.string());
                     #endif
                 }
-                else log("Failed to copy process image to '%path%'.", dest.string());
+                else log("Failed to copy process image (%file%) to '%path%'.", file.string(), dest.string());
                 return done;
             };
             auto done = getpaths(file, dest) && create_reg_keys(file) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
