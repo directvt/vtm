@@ -20,11 +20,11 @@ namespace netxs
         dtvt ,
     };
 
-    enum class zpos : si32
+    namespace zpos
     {
-        backmost = -1,
-        plain    =  0,
-        topmost  =  1,
+        static constexpr auto plain    = 0;
+        static constexpr auto backmost = 1;
+        static constexpr auto topmost  = 2;
     };
 
     namespace unln

@@ -87,7 +87,7 @@ namespace netxs::app::vtm
                   skill::memo;
 
             robot robo;
-            zpos  z_order;
+            si32  z_order;
             fp2d  drag_origin;
 
         public:
@@ -601,7 +601,7 @@ namespace netxs::app::vtm
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
-            zpos z_order = zpos::plain;
+            si32 z_order = zpos::plain;
             id_t monoid = {};
             std::list<netxs::sptr<window_t>>::iterator iter;
 
@@ -1843,9 +1843,10 @@ namespace netxs::app::vtm
                 auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link());
                 parent_canvas.move_basis(gate_ptr->region.coor);
             };
+            auto& layers = base::field<std::array<std::vector<sptr>, 3>>();
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (users.size() > 1) // Draw backpane for spectators.
+                if (users.size() > 1) // Draw users.
                 {
                     static auto color = tone{ tone::brighter, tone::shadower };
                     for (auto& [user_ptr, uname] : users)
@@ -1865,42 +1866,22 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                if (items.size()) // Draw objects of the world.
+                if (items.size()) // Draw windows.
                 {
-                    //todo use three baskets
-                    auto visible = [&](auto& item)
+                    for (auto& item_ptr : items)
                     {
-                        return !item->monoid || item->monoid == parent_canvas.link();
-                    };
-                    auto maximized = [&](auto& item)
-                    {
-                        return item->monoid && item->monoid == parent_canvas.link();
-                    };
-                    auto head = items.begin();
-                    auto tail = items.end();
-                    auto iter = items.end();
-                    while (iter != head)
-                    {
-                        auto& item = *--iter;
-                        if (maximized(item)) break;
+                        fasten(item_ptr, item_ptr->highlighted, item_ptr->active, item_ptr->color, parent_canvas);
+                        layers[std::clamp(item_ptr->z_order, zpos::plain, zpos::topmost)].push_back(item_ptr);
                     }
-                    // Hide all windows behind maximized window.
-                    auto has_maximized = head != iter || maximized(*iter);
-                    if (!has_maximized)
+                    for (auto l : { zpos::backmost, zpos::plain, zpos::topmost })
                     {
-                        head = iter;
-                        while (head != tail)
+                        auto& layer = layers[l];
+                        for (auto& item_ptr : layer)
                         {
-                            auto& item = *head++;
-                            if (visible(item))
-                            {
-                                fasten(item, item->highlighted, item->active, item->color, parent_canvas);
-                            }
+                            item_ptr->render<true>(parent_canvas);
                         }
+                        layer.clear();
                     }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::backmost) item->render<true>(parent_canvas); }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::plain   ) item->render<true>(parent_canvas); }
-                    head = iter; while (head != tail) { auto& item = *head++; if (visible(item) && item->z_order == zpos::topmost ) item->render<true>(parent_canvas); }
                 }
                 for (auto& [user_ptr, uname] : users) // Draw user mouse pointers.
                 {
