@@ -998,6 +998,7 @@ namespace netxs::app::vtm
                         world.items.erase(iter);
                         while (++next != world.items.end() && !area.trim((*next)->region))
                         { }
+                        //base::holder = world.base::subset.insert(next, backup_ptr);
                         iter = world.items.insert(next, backup_ptr);
                         base::strike();
                     }
@@ -1081,14 +1082,14 @@ namespace netxs::app::vtm
             window_ptr->attach(what.applet);
 
             auto& iter = window_ptr->iter;
-            window_ptr->LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
+            auto& window = *window_ptr;
+            window.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
             {
-                auto item_ptr = *(iter);
-                items.erase(item_ptr->iter);
+                items.erase(iter);
                 if (items.size()) // Pass focus to the top most object.
                 {
                     auto last_ptr = items.back();
-                    auto gear_id_list = item_ptr->base::riseup(tier::request, e2::form::state::keybd::enlist);
+                    auto gear_id_list = window.base::riseup(tier::request, e2::form::state::keybd::enlist);
                     for (auto gear_id : gear_id_list)
                     {
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
@@ -1870,8 +1871,11 @@ namespace netxs::app::vtm
                 {
                     for (auto& item_ptr : items)
                     {
-                        fasten(item_ptr, item_ptr->highlighted, item_ptr->active, item_ptr->color, parent_canvas);
-                        layers[std::clamp(item_ptr->z_order, zpos::plain, zpos::topmost)].push_back(item_ptr);
+                        if (auto window_ptr = std::dynamic_pointer_cast<window_t>(item_ptr))
+                        {
+                            fasten(window_ptr, window_ptr->highlighted, window_ptr->active, window_ptr->color, parent_canvas);
+                            layers[std::clamp(window_ptr->z_order, zpos::plain, zpos::topmost)].push_back(item_ptr);
+                        }
                     }
                     for (auto l : { zpos::backmost, zpos::plain, zpos::topmost })
                     {
