@@ -130,7 +130,7 @@ namespace netxs::app::tile
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
-                            auto data_shadow = ptr::shadow(data_src_sptr);
+                            auto& data_shadow = boss.base::field(ptr::shadow(data_src_sptr));
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 parent->resize();
@@ -143,7 +143,7 @@ namespace netxs::app::tile
                             {
                                 boss.base::detach(); // Destroy itself.
                             };
-                            boss.LISTEN(tier::release, input::events::mouse::button::any, gear, boss.sensors, (data_shadow))
+                            boss.LISTEN(tier::release, input::events::mouse::button::any, gear)
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -152,7 +152,7 @@ namespace netxs::app::tile
                                     gear.dismiss();
                                 }
                             };
-                            boss.LISTEN(tier::release, e2::form::state::mouse, active, boss.sensors, (data_shadow))
+                            boss.LISTEN(tier::release, e2::form::state::mouse, active)
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
