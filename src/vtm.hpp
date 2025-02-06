@@ -603,7 +603,6 @@ namespace netxs::app::vtm
             tone color = { tone::brighter, tone::shadower };
             si32 z_order = zpos::plain;
             id_t monoid = {};
-            std::list<netxs::sptr<window_t>>::iterator iter;
 
         protected: 
             // window: .
@@ -975,11 +974,11 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::preview, e2::form::layout::expose, r)
                 {
-                    if (iter != std::prev(world.items.end()))
+                    if (base::holder != std::prev(world.base::subset.end()))
                     {
-                        world.items.push_back(*iter);
-                        world.items.erase(iter);
-                        iter = std::prev(world.items.end());
+                        world.base::subset.push_back(this->This());
+                        world.base::subset.erase(base::holder);
+                        base::holder = std::prev(world.base::subset.end());
                         if (base::hidden) // Restore if window minimized.
                         {
                             base::hidden = faux;
@@ -991,15 +990,13 @@ namespace netxs::app::vtm
                 LISTEN(tier::preview, e2::form::layout::bubble, r)
                 {
                     auto area = base::region;
-                    auto next = iter;
-                    if (++next != world.items.end() && !area.trim((*next)->region))
+                    auto next = base::holder;
+                    if (++next != world.base::subset.end() && !area.trim((*next)->region))
                     {
-                        auto backup_ptr = *iter;
-                        world.items.erase(iter);
-                        while (++next != world.items.end() && !area.trim((*next)->region))
+                        world.base::subset.erase(base::holder);
+                        while (++next != world.base::subset.end() && !area.trim((*next)->region))
                         { }
-                        //base::holder = world.base::subset.insert(next, backup_ptr);
-                        iter = world.items.insert(next, backup_ptr);
+                        base::holder = world.base::subset.insert(next, this->This());
                         base::strike();
                     }
                 };
@@ -1041,7 +1038,6 @@ namespace netxs::app::vtm
             }
         };
 
-        std::list<netxs::sptr<window_t>> items; // hall: Desktop windows.
         std::list<std::pair<sptr, para>> users; // hall: Desktop users.
         netxs::generics::pool async; // hall: Thread pool for parallel task execution.
         xmls config; // hall: Resultant settings.
@@ -1063,8 +1059,7 @@ namespace netxs::app::vtm
             }
             auto window_ptr = window_t::ctor(*this, what);
 
-            items.emplace_back(window_ptr);
-            window_ptr->iter = std::prev(items.end());
+            attach(window_ptr);
 
             auto& menuid = what.applet->base::property("window.menuid");
             auto& cfg = menu_list[menuid];
@@ -1081,14 +1076,12 @@ namespace netxs::app::vtm
 
             window_ptr->attach(what.applet);
 
-            auto& iter = window_ptr->iter;
             auto& window = *window_ptr;
             window.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
             {
-                items.erase(iter);
-                if (items.size()) // Pass focus to the top most object.
+                if (base::subset.size()) // Pass focus to the top most object.
                 {
-                    auto last_ptr = items.back();
+                    auto last_ptr = base::subset.back();
                     auto gear_id_list = window.base::riseup(tier::request, e2::form::state::keybd::enlist);
                     for (auto gear_id : gear_id_list)
                     {
@@ -1631,12 +1624,12 @@ namespace netxs::app::vtm
             //todo unify
             LISTEN(tier::request, e2::form::layout::go::next, next)
             {
-                if (items.size())
+                if (base::subset.size())
                 {
-                    items.push_back(items.front());
-                    items.back()->iter = std::prev(items.end());
-                    items.pop_front();
-                    if (auto next_ptr = items.back())
+                    base::subset.push_back(base::subset.front());
+                    base::subset.back()->base::holder = std::prev(base::subset.end());
+                    base::subset.pop_front();
+                    if (auto next_ptr = base::subset.back())
                     {
                         next = next_ptr;
                     }
@@ -1644,12 +1637,12 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, e2::form::layout::go::prev, prev)
             {
-                if (items.size())
+                if (base::subset.size())
                 {
-                    items.push_front(items.back());
-                    items.front()->iter = items.begin();
-                    items.pop_back();
-                    if (auto prev_ptr = items.back())
+                    base::subset.push_front(base::subset.back());
+                    base::subset.front()->base::holder = base::subset.begin();
+                    base::subset.pop_back();
+                    if (auto prev_ptr = base::subset.back())
                     {
                         prev = prev_ptr;
                     }
@@ -1657,11 +1650,11 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, e2::form::layout::go::item, current_item)
             {
-                if (items.size()) current_item = items.back();
+                if (base::subset.size()) current_item = base::subset.back();
             };
             LISTEN(tier::preview, e2::form::prop::cwd, path_utf8)
             {
-                for (auto w : items)
+                for (auto w : base::subset)
                 {
                     w->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                 }
@@ -1756,7 +1749,7 @@ namespace netxs::app::vtm
                 {
                     //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
                     //{
-                    //    log(prompt::hall, "Objects count: ", items.size());
+                    //    log(prompt::hall, "Objects count: ", base::subset.size());
                     //};
                     pro::focus::set(window, gear.id, solo::on);
                     window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
@@ -1809,7 +1802,7 @@ namespace netxs::app::vtm
                 auto forward = deed == e2::form::layout::focus::next.id;
                 if (forward != (counter > 0)) counter = {}; // Reset if direction has changed.
                 forward ? counter++ : counter--;
-                if (std::abs(counter) >= (si32)items.size())
+                if (std::abs(counter) >= (si32)base::subset.size())
                 {
                     counter = {};
                     gear_id = {};
@@ -1867,9 +1860,9 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                if (items.size()) // Draw windows.
+                if (base::subset.size()) // Draw windows.
                 {
-                    for (auto& item_ptr : items)
+                    for (auto& item_ptr : base::subset)
                     {
                         if (auto window_ptr = std::dynamic_pointer_cast<window_t>(item_ptr))
                         {
@@ -2243,15 +2236,6 @@ namespace netxs::app::vtm
             if (!vport) vport = config.take(path::viewport, dot_00);
             if (selected_item.empty()) selected_item = config.take(path::selected, selected_item);
             usergate_selected_item = selected_item;
-            usergate.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
-            {
-                base::deface();
-                vport = usergate.base::coor();
-                selected_item = usergate_selected_item;
-                usrs_list.erase(usrs_list_iter);
-                users.erase(users_iter);
-                os::ipc::users = users.size();
-            };
             //auto& usergate_id = usergate.base::property<id_t>("gate.id");
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
@@ -2262,11 +2246,12 @@ namespace netxs::app::vtm
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();
             usergate.launch();
-        }
-        // hall: Detach user/window.
-        void remove(sptr item_ptr) override
-        {
-            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, base::This());
+            base::deface();
+            vport = usergate.base::coor();
+            selected_item = usergate_selected_item;
+            usrs_list.erase(usrs_list_iter);
+            users.erase(users_iter);
+            os::ipc::users = users.size();
         }
         // hall: Shutdown.
         void stop()
@@ -2281,7 +2266,7 @@ namespace netxs::app::vtm
             this->bell::signal(tier::release, e2::dtor, bell::id);
             bell::sensors.reset();
             apps_list.clear();
-            items.clear();
+            base::clear();
         }
     };
 }

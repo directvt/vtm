@@ -1007,14 +1007,14 @@ namespace netxs::ui
         {
             if constexpr (Order == sort::reverse)
             {
-                base::subset.push_front(item_ptr);
-                item_ptr->holder = base::subset.begin();
+                subset.push_front(item_ptr);
+                item_ptr->holder = subset.begin();
                 item_ptr->father = This();
             }
             else
             {
-                base::subset.push_back(item_ptr);
-                item_ptr->holder = std::prev(base::subset.end());
+                subset.push_back(item_ptr);
+                item_ptr->holder = std::prev(subset.end());
                 item_ptr->father = This();
             }
             item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
@@ -1048,9 +1048,9 @@ namespace netxs::ui
         // base: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
-            if (base::subset.size())
+            if (subset.size())
             {
-                auto item_ptr = base::subset.back();
+                auto item_ptr = subset.back();
                 remove(item_ptr);
                 return item_ptr;
             }
@@ -1060,7 +1060,7 @@ namespace netxs::ui
         void clear()
         {
             auto backup = This();
-            while (base::subset.size())
+            while (subset.size())
             {
                 pop_back();
             }
