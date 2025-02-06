@@ -778,16 +778,14 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
-                auto cwd_commands = config.take(attr::cwdsync, ""s);
-                auto cwd_sync_ptr = ptr::shared<bool>();
-                auto cwd_path_ptr = ptr::shared<os::fs::path>();
-                auto& cwd_sync = *cwd_sync_ptr;
-                auto& cwd_path = *cwd_path_ptr;
-                boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state, -)
+                auto& cwd_commands = boss.base::field(config.take(attr::cwdsync, ""s));
+                auto& cwd_sync = boss.base::field<bool>();
+                auto& cwd_path = boss.base::field<os::fs::path>();
+                boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
                 {
                     boss.bell::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
                 };
-                boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state, -, (cwd_commands))
+                boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
                 {
                     if (cwd_sync != state)
                     {
@@ -801,7 +799,7 @@ namespace netxs::app::terminal
                         }
                     }
                 };
-                boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr, cwd_path_ptr))
+                boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     if (cwd_sync)
                     {
@@ -811,7 +809,7 @@ namespace netxs::app::terminal
                 };
                 if (cwd_commands.size())
                 {
-                    boss.LISTEN(tier::anycast, e2::form::prop::cwd, path, -, (cwd_commands))
+                    boss.LISTEN(tier::anycast, e2::form::prop::cwd, path)
                     {
                         if (cwd_sync && path.size() && cwd_path != path)
                         {
@@ -871,41 +869,40 @@ namespace netxs::app::terminal
             });
         cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
-            auto bar = cell{ "▀"sv }.link(slot1->id);
-            auto term_bgc_ptr = ptr::shared(term->color().bgc());
-            auto& term_bgc = *term_bgc_ptr;
-            auto winsz = ptr::shared(dot_00);
-            auto visible = ptr::shared(slot1->back() != boss.This());
-            auto check_state = ptr::function([state = true, winsz, visible](base& boss) mutable
+            auto& bar = boss.base::field(cell{ "▀"sv }.link(slot1->id));
+            auto& term_bgc = boss.base::field(term->color().bgc());
+            auto& winsz = boss.base::field(dot_00);
+            auto& visible = boss.base::field(slot1->back() != boss.This());
+            auto& check_state = boss.base::field([state = true, &winsz, &visible](base& boss) mutable
             {
-                if (std::exchange(state, *visible || winsz->y != 1) != state)
+                if (std::exchange(state, visible || winsz.y != 1) != state)
                 {
                     boss.base::riseup(tier::preview, e2::form::prop::ui::cache, state);
                 }
             });
-            boss.LISTEN(tier::release, e2::form::state::visible, menu_visible, -, (visible, check_state))
+            boss.LISTEN(tier::release, e2::form::state::visible, menu_visible)
             {
-                *visible = menu_visible;
-                (*check_state)(boss);
+                visible = menu_visible;
+                check_state(boss);
             };
-            boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (winsz, check_state))
+            boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area)
             {
-                *winsz = new_area.size;
-                (*check_state)(boss);
+                winsz = new_area.size;
+                check_state(boss);
             };
-            term->LISTEN(tier::release, e2::form::prop::filler, clr, -, (term_bgc_ptr))
+            term->LISTEN(tier::release, e2::form::prop::filler, clr)
             {
                 term_bgc = clr.bgc();
             };
-            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, term_bgc_ptr, borders))
+            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (borders))
             {
                 auto full = parent_canvas.full();
-                if (winsz->y != 1 && borders)
+                if (winsz.y != 1 && borders)
                 {
                     parent_canvas.cage(full, borders, [&](cell& c){ c.txt(whitespace).link(bar); });
                     full -= borders;
                 }
-                auto bgc = winsz->y != 1 ? term_bgc : 0;
+                auto bgc = winsz.y != 1 ? term_bgc : 0;
                 parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
