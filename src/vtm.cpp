@@ -451,8 +451,8 @@ int main(int argc, char* argv[])
 
         namespace e2 = ui::e2;
         auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
-        auto domain = app::vtm::hall::ctor(server, config);
-        domain->autorun();
+        auto desktop = app::vtm::hall::ctor(server, config);
+        desktop->autorun();
         auto settings = config.utf8();
         config_lock.unlock();
 
@@ -464,7 +464,7 @@ int main(int argc, char* argv[])
         {
             while (auto monitor = srvlog->meet())
             {
-                domain->run([&, monitor](auto /*task_id*/)
+                desktop->run([&, monitor](auto /*task_id*/)
                 {
                     auto id = text{};
                     auto active = faux;
@@ -475,7 +475,7 @@ int main(int argc, char* argv[])
                         if (active)
                         {
                             onecmd.cmd = cmd;
-                            domain->bell::signal(tier::release, e2::command::run, onecmd);
+                            desktop->bell::signal(tier::release, e2::command::run, onecmd);
                         }
                         else
                         {
@@ -495,7 +495,7 @@ int main(int argc, char* argv[])
                     {
                         events.logs.send(monitor, ui32{}, datetime::now(), text{ utf8 });
                     });
-                    domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
+                    desktop->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
                     os::ipc::monitors++;
                     directvt::binary::stream::reading_loop(monitor, [&](view data){ events.s11n::sync(data); });
                     os::ipc::monitors--;
@@ -504,15 +504,15 @@ int main(int argc, char* argv[])
             }
         }};
 
-        auto execline = [&](qiew line){ domain->bell::signal(tier::release, e2::command::run, { .cmd = line }); };
-        auto shutdown = [&]{ domain->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::main, "Shutdown on signal")); };
+        auto execline = [&](qiew line){ desktop->bell::signal(tier::release, e2::command::run, { .cmd = line }); };
+        auto shutdown = [&]{ desktop->bell::signal(tier::general, e2::shutdown, utf::concat(prompt::main, "Shutdown on signal")); };
         execline(script);
         auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
         {
             if (user->auth(userid.second))
             {
-                domain->run([&, user, settings](auto session_id)
+                desktop->run([&, user, settings](auto session_id)
                 {
                     auto userinit = directvt::binary::init{};
                     if (auto packet = userinit.recv(user))
@@ -522,7 +522,9 @@ int main(int argc, char* argv[])
                         auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
                         auto config = xmls{ settings };
                         config.fuse(packet.cfg);
-                        domain->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
+                        os::ipc::users++;
+                        desktop->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
+                        os::ipc::users--;
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
                 });
@@ -531,7 +533,7 @@ int main(int argc, char* argv[])
         readline.stop();
         srvlog->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
         stdlog.join();
-        domain->stop();
+        desktop->stop();
     }
 
     os::release();

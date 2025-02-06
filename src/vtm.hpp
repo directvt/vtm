@@ -1970,7 +1970,6 @@ namespace netxs::app::vtm
             auto users_iter = std::prev(users.end());
             usrs_list.push_back(usergate_ptr);
             auto usrs_list_iter = std::prev(usrs_list.end());
-            os::ipc::users = users.size();
             usergate.props.background_color.link(bell::id);
             //todo revise (now world is not a parent for usergate)
             usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
@@ -2251,7 +2250,6 @@ namespace netxs::app::vtm
             selected_item = usergate_selected_item;
             usrs_list.erase(usrs_list_iter);
             users.erase(users_iter);
-            os::ipc::users = users.size();
         }
         // hall: Shutdown.
         void stop()
