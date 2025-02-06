@@ -2263,10 +2263,6 @@ namespace netxs::app::vtm
             bell::dequeue(); // Wait until all cleanups are completed.
             auto lock = bell::sync();
             plugins<pro::mouse>().reset(); // Release the captured mouse.
-            this->bell::signal(tier::release, e2::dtor, bell::id);
-            bell::sensors.reset();
-            apps_list.clear();
-            base::clear();
         }
     };
 }

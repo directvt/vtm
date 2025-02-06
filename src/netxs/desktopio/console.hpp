@@ -1122,8 +1122,7 @@ namespace netxs::ui
                 disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                //base::detach(); //todo move to hall
-                this->bell::signal(tier::release, e2::dtor, bell::id);
+                this->bell::signal(tier::release, e2::dtor, bell::id); // Restore maximized window.
                 bell::sensors.reset();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.

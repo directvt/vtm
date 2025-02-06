@@ -309,12 +309,8 @@ namespace netxs::app::shared
                     ->setpad({ 2, 2, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
-                        auto props_shadow = ptr::shared(std::move(props));
-                        setup(boss, *props_shadow);
-                        boss.LISTEN(tier::release, e2::dtor, v, -, (props_shadow))
-                        {
-                            props_shadow.reset();
-                        };
+                        auto& item_props = boss.base::field(std::move(props));
+                        setup(boss, item_props);
                     });
                 return button;
             };
