@@ -389,10 +389,10 @@ namespace netxs::app::shared
             auto menucake = menuveer->attach(ui::cake::ctor()->branch(menufork))
                 ->invoke([&](auto& boss)
                 {
-                    auto slim_status = ptr::shared(slimsize);
-                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (slim_status))
+                    auto& slim_status = boss.base::field(slimsize);
+                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area)
                     {
-                        if (!*slim_status)
+                        if (!slim_status)
                         {
                             auto height = boss.base::min_sz.y;
                             if (new_area.size.y < 3)
@@ -408,9 +408,9 @@ namespace netxs::app::shared
                             }
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (slim_status))
+                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim)
                     {
-                        *slim_status = slim;
+                        slim_status = slim;
                         auto height = slim ? 1 : 3;
                         boss.base::limits({ -1, height }, { -1, height });
                         boss.reflow();
@@ -421,26 +421,27 @@ namespace netxs::app::shared
             menuveer->limits({ -1, slimsize ? 1 : 3 }, { -1, slimsize ? 1 : 3 })
                 ->invoke([&](auto& boss)
                 {
-                    auto menutent_shadow = ptr::shadow(menutent);
-                    auto menucake_shadow = ptr::shadow(menucake);
-                    auto autohide_shadow = ptr::shared(autohide);
-                    boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, autohide_shadow, menutent_shadow))
+                    if (autohide)
                     {
-                        if (*autohide_shadow)
-                        if (auto menucake = menucake_shadow.lock())
+                        auto menutent_shadow = ptr::shadow(menutent);
+                        auto menucake_shadow = ptr::shadow(menucake);
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, menutent_shadow))
                         {
-                            auto menu_visible = boss.back() != menucake;
-                            if (!!hits == menu_visible)
+                            if (auto menucake = menucake_shadow.lock())
                             {
-                                boss.roll();
-                                boss.reflow();
-                                if (auto menutent = menutent_shadow.lock())
+                                auto menu_visible = boss.back() != menucake;
+                                if (!!hits == menu_visible)
                                 {
-                                    menutent->bell::signal(tier::release, e2::form::state::visible, menu_visible);
+                                    boss.roll();
+                                    boss.reflow();
+                                    if (auto menutent = menutent_shadow.lock())
+                                    {
+                                        menutent->bell::signal(tier::release, e2::form::state::visible, menu_visible);
+                                    }
                                 }
                             }
-                        }
-                    };
+                        };
+                    }
                 });
 
             return std::tuple{ menuveer, menutent, menucake };
