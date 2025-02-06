@@ -114,27 +114,27 @@ namespace netxs::app::shared
     {
         //todo scripting
         //auto& scroll_inst = *scroll;
-        auto esc_pressed = ptr::shared(faux);
-        //keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+        //auto& esc_pressed = boss.base::property("keybd.esc_pressed", faux);
+        //keybd.proc("WindowClose", [&](hids& gear)
         //{
-        //    if (*esc_pressed)
+        //    if (esc_pressed)
         //    {
         //        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
         //        gear.set_handled();
         //    }
         //});
-        //keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+        //keybd.proc("WindowClosePreview", [&](hids& /*gear*/)
         //{
-        //    if (std::exchange(*esc_pressed, true) != *esc_pressed)
+        //    if (std::exchange(esc_pressed, true) != esc_pressed)
         //    {
-        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
+        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
         //    }
         //});
-        //keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
+        //keybd.proc("CancelWindowClose", [&](hids& /*gear*/)
         //{
-        //    if (std::exchange(*esc_pressed, faux) != *esc_pressed)
+        //    if (std::exchange(esc_pressed, faux) != esc_pressed)
         //    {
-        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
+        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
         //    }
         //});
         //keybd.proc("ScrollPageUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });

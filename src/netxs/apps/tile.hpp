@@ -1059,14 +1059,13 @@ namespace netxs::app::tile
                             root_veer_ptr->base::riseup(tier::release, e2::form::proceed::attach); // Restore the window before any action if maximized.
                         }
                     };
-                    auto switch_counter_ptr = ptr::shared<std::unordered_map<id_t, feed>>();
-                    auto& switch_counter = *switch_counter_ptr;
-                    boss.LISTEN(tier::release, input::events::focus::set::any, seed, -, (switch_counter_ptr)) // Reset the focus switch counter when it is focused from outside.
+                    auto& switch_counter = boss.base::field<std::unordered_map<id_t, feed>>();
+                    boss.LISTEN(tier::release, input::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
                     {
                         switch_counter[seed.gear_id] = {};
                     };
                     //todo generalize refocusing
-                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear, -, (switch_counter_ptr))
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prev, gear)
                     {
                         auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
@@ -1150,7 +1149,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear, -, (switch_counter_ptr))
+                    boss.LISTEN(tier::preview, app::tile::events::ui::focus::prevpane, gear)
                     {
                         auto root_veer_ptr = *(std::next(boss.base::subset.begin()));
                         auto nothing_to_iterate = std::dynamic_pointer_cast<ui::veer>(root_veer_ptr)->back()->root();
