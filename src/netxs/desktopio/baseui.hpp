@@ -206,7 +206,6 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<core>  ), // Request global canvas.
                 GROUP_XS( size     , input::hids ), // Window size manipulation.
                 GROUP_XS( layout   , const twod  ),
                 GROUP_XS( draggable, bool        ), // Signal to the form to enable draggablity for specified mouse button.

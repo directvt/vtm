@@ -1038,14 +1038,14 @@ namespace netxs::ui
                 foot_text = foots;
                 head_page = head_text;
                 foot_page = foot_text;
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo, (subs_ptr = ptr::shared<subs>()))
+                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo, (tokens = subs{}))
                 {
                     if (head_live) header(head_text);
                     if (foot_live) footer(foot_text);
-                    subs_ptr->clear();
+                    tokens.clear();
                     if (auto focusable_parent = boss.base::riseup(tier::request, e2::config::plugins::focus::owner))
                     {
-                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::on, gear_id, *subs_ptr)
+                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::on, gear_id, tokens)
                         {
                             if (!gear_id) return;
                             auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
@@ -1059,7 +1059,7 @@ namespace netxs::ui
                                 rebuild();
                             }
                         };
-                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::off, gear_id, *subs_ptr)
+                        focusable_parent->LISTEN(tier::release, e2::form::state::focus::off, gear_id, tokens)
                         {
                             if (!gear_id) return;
                             auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
@@ -2412,16 +2412,14 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<face> coreface; //todo revise necessity
-            face&             bosscopy; // cache: Boss bitmap cache.
-            bool              usecache; // cacheL .
-            si32              lucidity; // cacheL .
+            face bosscopy; // cache: Boss bitmap cache.
+            bool usecache; // cacheL .
+            si32 lucidity; // cacheL .
 
         public:
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
-                  bosscopy{*(coreface = ptr::shared<face>())},
                   usecache{ true },
                   lucidity{ 0xFF }
             {
@@ -2448,10 +2446,6 @@ namespace netxs::ui
                     {
                         bosscopy.size(new_area.size);
                     }
-                };
-                boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo)
-                {
-                    canvas_ptr = coreface;
                 };
                 if (rendered)
                 {
@@ -5213,7 +5207,6 @@ namespace netxs::ui
                     canvas.size(new_area.size);
                 }
             };
-            LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
 
@@ -5367,7 +5360,6 @@ namespace netxs::ui
                 }
                 recalc();
             };
-            LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
             base::riseup(Tier, Event{}, cur_val);
