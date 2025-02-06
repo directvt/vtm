@@ -8594,11 +8594,11 @@ namespace netxs::ui
                   input_fields_handler{ owner },
                   owner{ owner }
             {
-                auto oneshot = ptr::shared(hook{});
-                owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, *oneshot, (oneshot))
+                auto& oneshot = owner.base::field<hook>();
+                owner.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, oneshot)
                 {
                     owner_wptr = owner.This();
-                    oneshot->reset();
+                    owner.base::unfield(oneshot);
                 };
             }
         };

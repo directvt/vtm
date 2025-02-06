@@ -749,9 +749,9 @@ namespace netxs::app::tile
         };
         auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio, auto grip_bindings_ptr) -> netxs::sptr<ui::veer>
         {
-            auto slot = node_veer(node_veer, min_ratio, grip_bindings_ptr);
+            auto slot_ptr = node_veer(node_veer, min_ratio, grip_bindings_ptr);
             utf::trim_front(utf8, ", ");
-            if (utf8.empty()) return slot;
+            if (utf8.empty()) return slot_ptr;
             auto tag = utf8.front();
             if ((tag == 'h' || tag == 'v') && utf8.find('(') < utf8.find(','))
             {
@@ -764,7 +764,7 @@ namespace netxs::app::tile
                 if (auto l = utf::to_int(utf8)) // Left side ratio
                 {
                     s1 = std::abs(l.value());
-                    if (utf8.empty() || utf8.front() != ':') return slot;
+                    if (utf8.empty() || utf8.front() != ':') return slot_ptr;
                     utf8.remove_prefix(1);
                     if (auto r = utf::to_int(utf8)) // Right side ratio
                     {
@@ -780,36 +780,37 @@ namespace netxs::app::tile
                             }
                         }
                     }
-                    else return slot;
+                    else return slot_ptr;
                 }
-                if (utf8.empty() || utf8.front() != '(') return slot;
+                if (utf8.empty() || utf8.front() != '(') return slot_ptr;
                 utf8.remove_prefix(1);
                 auto node = build_node(tag, s1, s2, w, grip_bindings_ptr);
                 auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio, grip_bindings_ptr));
                 auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio, grip_bindings_ptr));
-                slot->attach(node);
+                slot_ptr->attach(node);
                 utf::trim_front(utf8, ") ");
             }
             else  // Add application.
             {
                 utf::trim_front(utf8, " ");
                 auto menuid = utf::take_front(utf8, " ,)").str();
-                if (menuid.empty()) return slot;
+                if (menuid.empty()) return slot_ptr;
 
                 utf::trim_front(utf8, " ,");
                 if (utf8.size() && utf8.front() == ')') utf8.remove_prefix(1); // pop ')';
 
-                auto oneoff = ptr::shared(hook{});
-                slot->LISTEN(tier::anycast, vtm::events::attached, world_ptr, *oneoff, (oneoff, menuid, slot))
+                auto& s = *slot_ptr;
+                auto& oneshot = s.base::field<hook>();
+                s.LISTEN(tier::anycast, vtm::events::attached, world_ptr, oneshot, (menuid))
                 {
                     auto what = world_ptr->bell::signal(tier::request, vtm::events::newapp, { .menuid = menuid });
-                    auto inst = app_window(what);
-                    slot->attach(inst);
-                    inst->bell::signal(tier::anycast, vtm::events::attached, world_ptr);
-                    oneoff.reset();
+                    auto inst_ptr = app_window(what);
+                    s.attach(inst_ptr);
+                    inst_ptr->bell::signal(tier::anycast, vtm::events::attached, world_ptr);
+                    s.base::unfield(oneshot);
                 };
             }
-            return slot;
+            return slot_ptr;
         };
         namespace item_type
         {
@@ -918,8 +919,8 @@ namespace netxs::app::tile
                 ->plugin<pro::luafx>()
                 ->invoke([&](auto& boss)
                 {
-                    auto oneoff = ptr::shared(hook{});
-                    boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
+                    auto& oneshot = boss.base::field<hook>();
+                    boss.LISTEN(tier::anycast, e2::form::upon::created, gear, oneshot)
                     {
                         auto& gate = gear.owner;
                         auto& current_default = gate.base::property("desktop.selected");
@@ -933,7 +934,7 @@ namespace netxs::app::tile
                             current_default = previous_default;
                             gate.bell::signal(tier::release, e2::data::changed, previous_default); // Signal to update UI.
                         }
-                        oneoff.reset();
+                        boss.base::unfield(oneshot);
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
                     {
