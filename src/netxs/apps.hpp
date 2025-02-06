@@ -675,15 +675,14 @@ namespace netxs::app::shared
                 ->template plugin<pro::grade>();
             auto state_block = title_grid_state->attach(ui::fork::ctor());
             auto state_label = state_block->attach(slot::_1, ui::item::ctor("Exclusive keyboard mode:")->setpad({ 2, 1, 0, 0 }));
-            auto rawkbd_ptr = ptr::shared(faux);
-            auto& rawkbd = *rawkbd_ptr;
+            auto& rawkbd = window->base::field(faux);
             auto state_state = state_block->attach(slot::_2, ui::item::ctor(ansi::bgc(reddk).fgx(0).add("█off ")))
                 ->setpad({ 1, 1, 0, 0 })
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, ui::tty::events::rawkbd, state, -, (rawkbd_ptr))
+                    boss.LISTEN(tier::release, ui::tty::events::rawkbd, state)
                     {
                         rawkbd = !rawkbd;
                         boss.set(rawkbd ? ansi::bgc(greendk).fgc(whitelt).add(" on █")

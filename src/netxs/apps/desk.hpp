@@ -74,31 +74,30 @@ namespace netxs::app::desk
             auto cE = active_color;
             auto c1 = danger_color;
             auto cF = focused_color;
-            auto disabled_ptr = ptr::shared(faux);
-            auto& disabled = *disabled_ptr;
-            auto item_area = ui::fork::ctor(axis::X, 0, 1, 0)
-                ->active(cE)
+            auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
+            auto& disabled = item_area->base::field(faux);
+            auto& src_wptr = item_area->base::field(ptr::shadow(data_src));
+            item_area->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->shader<tier::release, e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
                 ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->invoke([&](auto& boss)
                 {
-                    auto data_src_shadow = ptr::shadow(data_src);
                     auto check_id = [](auto& boss, auto gear_id)
                     {
                         auto owner_id = boss.base::riseup(tier::request, desk::events::ui::id);
-                        auto disabled = gear_id && gear_id != owner_id;
-                        boss.bell::signal(tier::release, e2::form::state::disabled, disabled);
+                        auto locked = gear_id && gear_id != owner_id;
+                        boss.bell::signal(tier::release, e2::form::state::disabled, locked);
                         auto& tooltip = boss.template plugins<pro::notes>();
-                        tooltip.update(disabled ? " Window is locked by another user "
-                                                : " Application window:                   \n"
-                                                  "   LeftClick to set exclusive focus    \n"
-                                                  "   Ctrl+LeftClick to set group focus   \n"
-                                                  "   DoubleLeftClick to go to the window \n"
-                                                  "   Alt+DblLeftClick to pull the window \n"
-                                                  "   LeftDrag to move desktop viewport   ");
-                        return disabled;
+                        tooltip.update(locked ? " Window is locked by another user "
+                                              : " Application window:                   \n"
+                                                "   LeftClick to set exclusive focus    \n"
+                                                "   Ctrl+LeftClick to set group focus   \n"
+                                                "   DoubleLeftClick to go to the window \n"
+                                                "   Alt+DblLeftClick to pull the window \n"
+                                                "   LeftDrag to move desktop viewport   ");
+                        return locked;
                     };
                     auto gear_id = data_src->bell::signal(tier::request, e2::form::state::maximized);
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (gear_id))
@@ -106,19 +105,19 @@ namespace netxs::app::desk
                         disabled = check_id(boss, gear_id); // On title update.
                     };
                     auto& oneshot = boss.base::field<hook>();
-                    boss.LISTEN(tier::anycast, desk::events::ui::recalc, state, oneshot, (gear_id, data_src_shadow)) // On session start.
+                    boss.LISTEN(tier::anycast, desk::events::ui::recalc, state, oneshot, (gear_id)) // On session start.
                     {
                         disabled = check_id(boss, gear_id);
                         boss.base::unfield(oneshot);
                     };
-                    data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.sensors, (data_src_shadow))
+                    data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.sensors)
                     {
                         disabled = check_id(boss, gear_id);
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear, -, (data_src_shadow, disabled_ptr/*owns*/))
+                    boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
                     {
                         if (disabled) { gear.dismiss(true); return; }
-                        if (auto data_src = data_src_shadow.lock())
+                        if (auto data_src = src_wptr.lock())
                         {
                             auto& window = *data_src;
                             if (gear.meta(hids::anyAlt)) // Pull window.
@@ -139,10 +138,10 @@ namespace netxs::app::desk
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (data_src_shadow, disabled_ptr/*owns*/))
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
                         if (disabled) { gear.dismiss(true); return; }
-                        if (auto data_src = data_src_shadow.lock())
+                        if (auto data_src = src_wptr.lock())
                         {
                             auto& window = *data_src;
                             if (gear.meta(hids::anyCtrl)) // Toggle group focus.
@@ -178,14 +177,14 @@ namespace netxs::app::desk
                             }
                         }
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear, -, (data_src_shadow))
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
                     {
                         // Reserved for context menu.
                     };
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (data_src_shadow))
+                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
                         if (disabled) return;
-                        if (auto data_src = data_src_shadow.lock())
+                        if (auto data_src = src_wptr.lock())
                         {
                             data_src->bell::signal(tier::release, e2::form::state::highlight, !!state);
                         }
@@ -204,9 +203,7 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = true;
-                    auto data_src_shadow = ptr::shadow(data_src);
-                    //auto& item_area_inst = *item_area;
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, hover, -)
+                    item_area->LISTEN(tier::release, e2::form::state::mouse, hover)
                     {
                         if (disabled) return;
                         //auto unfolded = boss.base::riseup(tier::request, desk::events::ui::toggle);
@@ -220,21 +217,21 @@ namespace netxs::app::desk
                             boss.base::reflow();
                         }
                     };
-                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.sensors, (data_src_shadow))
+                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.sensors)
                     {
-                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors, (data_src_shadow))
+                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors)
                         {
                             if (disabled) return;
-                            if (auto data_src = data_src_shadow.lock())
+                            if (auto data_src = src_wptr.lock())
                             {
                                 data_src->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
                             }
                         };
                     };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (data_src_shadow))
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
                         if (disabled) { gear.dismiss(true); return; }
-                        if (auto data_src = data_src_shadow.lock())
+                        if (auto data_src = src_wptr.lock())
                         {
                             data_src->bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
                             gear.dismiss(true);
@@ -628,18 +625,18 @@ namespace netxs::app::desk
                 ->active()
                 ->invoke([&](auto& boss)
                 {
-                    auto drag_origin = ptr::shared<fp2d>();
+                    auto& drag_origin = boss.base::field<fp2d>();
                     auto& mouse = boss.template plugins<pro::mouse>();
                     mouse.template draggable<hids::buttons::left>(true);
-                    boss.LISTEN(tier::release, e2::form::drag::start::_<hids::buttons::left>, gear, -, (drag_origin))
+                    boss.LISTEN(tier::release, e2::form::drag::start::_<hids::buttons::left>, gear)
                     {
-                        *drag_origin = gear.coord;
+                        drag_origin = gear.coord;
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (drag_origin))
+                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
                     {
                         if (auto taskbar_grips = boss.base::parent())
                         {
-                            if (auto delta = (twod{ gear.coord } - twod{ *drag_origin })[axis::X])
+                            if (auto delta = (twod{ gear.coord } - twod{ drag_origin })[axis::X])
                             {
                                 taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + delta);
                                 taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
