@@ -823,18 +823,6 @@ namespace netxs::app::shared
         auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
-        gate.LISTEN(tier::general, e2::timer::any, timestamp)
-        {
-            auto damaged = gate.ruined();
-            gate.rebuild_scene(damaged, timestamp);
-        };
-        gate.LISTEN(tier::release, e2::conio::winsz, new_size)
-        {
-            auto timestamp = datetime::now();
-            // Do not wait next timer tick.
-            auto damaged = true;
-            gate.rebuild_scene(damaged, timestamp);
-        };
         gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
         //todo deduplicate (vtm::hall)
         gate.LISTEN(tier::general, e2::config::fps, fps)

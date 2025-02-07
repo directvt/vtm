@@ -631,8 +631,9 @@ namespace netxs::ui
         }
 
         // gate: .
-        void rebuild_scene(bool damaged, time stamp)
+        void rebuild_scene(time stamp)
         {
+            auto damaged = base::ruined();
             if (props.tooltip_enabled)
             {
                 damaged |= check_tooltips(stamp);
@@ -1105,13 +1106,6 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::conio::winsz, new_size)
-            {
-                auto new_area = rect{ dot_00, new_size };
-                auto old_size = base::size();
-                auto delta = base::resize(new_size).size - old_size;
-                if (delta && direct) paint.cancel();
-            };
             LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
@@ -1303,6 +1297,21 @@ namespace netxs::ui
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
+            LISTEN(tier::release, e2::conio::winsz, new_size)
+            {
+                auto delta = base::sizeby(new_size - base::size());
+                if (delta && direct)
+                {
+                    base::ruined(true);
+                    paint.cancel();
+                }
+                auto timestamp = datetime::now(); // Do not wait next timer tick.
+                rebuild_scene(timestamp);
+            };
+            LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                rebuild_scene(timestamp);
+            };
             conio.sysstart.send(canal);
         }
         // gate: Notify environment to disconnect.
