@@ -3308,10 +3308,8 @@ namespace netxs::ui
         template<class Property, class Sptr, class P>
         auto attach_element(Property, Sptr data_src_sptr, P item_template)
         {
-            auto arg_value = typename Property::type{};
-
             auto backup = This();
-            data_src_sptr->bell::signal(tier::request, Property{}, arg_value);
+            auto arg_value = data_src_sptr->bell::signal(tier::request, Property{});
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);
             auto item_shadow = ptr::shadow(new_item);
@@ -3355,12 +3353,9 @@ namespace netxs::ui
         template<class BackendProp, class FrontendProp>
         auto attach_property(BackendProp, FrontendProp)
         {
-            auto property_value = typename BackendProp::type{};
-
             auto backup = This();
-            bell::signal(tier::request, BackendProp{},  property_value);
+            auto property_value = bell::signal(tier::request, BackendProp{});
             bell::signal(tier::anycast, FrontendProp{}, property_value);
-
             LISTEN(tier::release, BackendProp{}, property_value)
             {
                 this->bell::signal(tier::anycast, FrontendProp{}, property_value);
@@ -3643,12 +3638,10 @@ namespace netxs::ui
         // fork: Remove nested object by it's ptr.
         void remove(sptr item_ptr) override
         {
-            if (object_1 == item_ptr->holder ? (object_1 = base::subset.end(), true) :
-                object_2 == item_ptr->holder ? (object_2 = base::subset.end(), true) :
-                splitter == item_ptr->holder ? (splitter = base::subset.end(), true) : faux)
-            {
-                base::remove(item_ptr);
-            }
+                 if (object_1 == item_ptr->holder) object_1 = base::subset.end();
+            else if (object_2 == item_ptr->holder) object_2 = base::subset.end();
+            else if (splitter == item_ptr->holder) splitter = base::subset.end();
+            base::remove(item_ptr);
         }
     };
 

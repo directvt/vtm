@@ -1026,7 +1026,8 @@ namespace netxs::ui
             {
                 auto backup = This();
                 subset.erase(std::exchange(item_ptr->holder, subset.end()));
-                item_ptr->father = {};
+                //todo revise (see pro::mouse::reset(soul))
+                //item_ptr->father = {};
                 item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -1039,7 +1040,8 @@ namespace netxs::ui
                 *(old_item_ptr->holder) = new_item_ptr;
                 new_item_ptr->holder = std::exchange(old_item_ptr->holder, subset.end());
                 new_item_ptr->father = This();
-                old_item_ptr->father = {};
+                //todo revise (see pro::mouse::reset(soul))
+                //old_item_ptr->father = {};
                 old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
                 new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }

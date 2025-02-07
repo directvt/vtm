@@ -100,23 +100,16 @@ namespace netxs::app::tile
         items(base&&) = delete;
         items(base& boss)
             : skill{ boss },
+              client{ boss.attach(ui::list::ctor(axis::Y, sort::reverse)) },
               window_state{ winstate::undefined }
         {
-            client = ui::list::ctor(axis::Y, sort::reverse);
-            //todo attached
-            client->bell::signal(tier::release, e2::form::upon::vtree::attached, boss.This());
-
             boss.LISTEN(tier::release, e2::area, new_area, memo)
             {
-                if (client)
-                {
-                    auto coor = twod{ new_area.size.x + 2/*resize grip width*/, 0 };
-                    client->base::moveto(coor);
-                }
+                auto coor = twod{ new_area.size.x + 2/*resize grip width*/, 0 };
+                client->base::moveto(coor);
             };
             boss.LISTEN(tier::release, tile::events::enlist, object, memo)
             {
-                if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
                 {
                     auto active_color = skin::color(tone::active);
@@ -139,7 +132,7 @@ namespace netxs::app::tile
                             {
                                 if (parent) parent->resize(); // Rebuild list.
                             };
-                            data_src_sptr->LISTEN(tier::release, tile::events::delist, object, boss.sensors)
+                            data_src_sptr->LISTEN(tier::release, tile::events::delist, f, boss.sensors)
                             {
                                 boss.base::detach(); // Destroy itself.
                             };
@@ -165,7 +158,7 @@ namespace netxs::app::tile
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
             {
-                if (window_state == winstate::normal && client)
+                if (window_state == winstate::normal)
                 {
                     auto context = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
                     client->render(parent_canvas);
@@ -243,6 +236,10 @@ namespace netxs::app::tile
                                 applet.moveto(dot_00);
                                 world_ptr->bell::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
                                 pro::focus::set(applet_ptr, gear.id, solo::on, true);
+                                //todo revise (soul)
+                                //boss.base::detach();
+                                //auto& m = boss.base::plugin<pro::mouse>();
+                                //m.reset();
                                 boss.base::riseup(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 if (auto new_parent_ptr = applet.base::parent())
                                 {
