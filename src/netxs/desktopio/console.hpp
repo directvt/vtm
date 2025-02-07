@@ -117,7 +117,7 @@ namespace netxs::ui
                  canal{ canal },
                  owner{ owner }
             {
-                auto& oneshot = owner.base::template field<hook>();
+                auto& oneshot = owner.base::field<hook>();
                 owner.LISTEN(tier::anycast, e2::form::upon::started, root, oneshot)
                 {
                     owner_wptr = owner.This();

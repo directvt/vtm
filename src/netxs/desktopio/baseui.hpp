@@ -947,7 +947,7 @@ namespace netxs::ui
             auto& value = *(std::any_cast<std::decay_t<T>>(value_ptr.get()));
             auto addr = (ui64)&value;
             auto property_name = qiew{ (char*)(&addr), sizeof(addr) };
-            fields.emplace(property_name, value_ptr).first;
+            fields.emplace(property_name, value_ptr);
             return value;
         }
         // base: Remove an anonymous property.
