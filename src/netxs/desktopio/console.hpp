@@ -117,7 +117,7 @@ namespace netxs::ui
                  canal{ canal },
                  owner{ owner }
             {
-                auto& oneshot = owner.base::field<hook>();
+                auto& oneshot = owner.base::template field<hook>();
                 owner.LISTEN(tier::anycast, e2::form::upon::started, root, oneshot)
                 {
                     owner_wptr = owner.This();
@@ -503,7 +503,7 @@ namespace netxs::ui
                                            luafx.set_return(repeated);
                                        }},
                 };
-                gear.base::plugin<pro::luafx>().activate(proc_map);
+                gear.base::template plugin<pro::luafx>().activate(proc_map); //todo apple clang requires template keyword
             }
             auto& [_id, gear_ptr] = *gear_it;
             gear_ptr->hids::take(device);

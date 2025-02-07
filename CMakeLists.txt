@@ -24,7 +24,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft-
     set(WIN32_RESOURCES ".resources/images/vtm.rc")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_POSIX")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_POSIX -lm")
     # Static linkage
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
 endif()
