@@ -3643,6 +3643,14 @@ namespace netxs::ui
             else if (splitter == item_ptr->holder) splitter = base::subset.end();
             base::remove(item_ptr);
         }
+        // fork: .
+        auto get(slot Slot)
+        {
+                 if (Slot == slot::_1 && object_1 != base::subset.end()) return *object_1;
+            else if (Slot == slot::_2 && object_2 != base::subset.end()) return *object_2;
+            else if (Slot == slot::_I && splitter != base::subset.end()) return *splitter;
+            else return sptr{};
+        }
     };
 
     // controls: Vertical/horizontal list.
