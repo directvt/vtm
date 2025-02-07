@@ -1100,8 +1100,6 @@ namespace netxs::app::vtm
                 inst_list.erase(inst_list_iter);
                 bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
             };
-
-            window_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             window_ptr->bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
             bell::signal(tier::release, desk::events::apps, apps_list_ptr);
             return window_ptr;
