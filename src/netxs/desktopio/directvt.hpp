@@ -249,12 +249,10 @@ namespace netxs::directvt
                 return *this;
             }
             // stream: .
-            template<class T, bool PeekOnly = faux>
-            static auto _take_item(view& data)
+            template<class T, bool PeekOnly = faux, class D = std::remove_cv_t<std::remove_reference_t<T>>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
+            static R _take_item(view& data)
             {
-                using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                if constexpr (std::is_same_v<D, view>
-                           || std::is_same_v<D, text>)
+                if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
                 {
                     if (data.size() < sizeof(sz_t))
                     {

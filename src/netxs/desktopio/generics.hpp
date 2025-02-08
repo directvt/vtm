@@ -728,7 +728,7 @@ namespace netxs::generics
         {
             auto head = begin() + from;
             auto tail = begin() + upto;
-            if constexpr (std::is_same_v< decltype(proc(*head)), bool >)
+            if constexpr (std::is_same_v<decltype(proc(*head)), bool>)
             {
                      if (from < upto) while (proc(*head) && ++head != tail);
                 else if (from > upto) while (proc(*head) && --head != tail);
