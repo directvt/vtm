@@ -779,8 +779,8 @@ namespace netxs::app::terminal
             ->invoke([&](auto& boss)
             {
                 auto& cwd_commands = boss.base::field(config.take(attr::cwdsync, ""s));
-                auto& cwd_sync = boss.base::field<bool>();
-                auto& cwd_path = boss.base::field<os::fs::path>();
+                auto& cwd_sync = boss.base::template field<bool>();         //todo Apple clang reqires template
+                auto& cwd_path = boss.base::template field<os::fs::path>(); //
                 boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
                 {
                     boss.bell::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
