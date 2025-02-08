@@ -558,7 +558,7 @@ namespace netxs::app::desk
                     {
                         owner_id = parent.id;
                     };
-                    auto& oneshot = boss.base::field<hook>();
+                    auto& oneshot = boss.base::template field<hook>();
                     parent.LISTEN(tier::release, input::events::focus::set::any, seed, oneshot, (usrcfg))
                     {
                         usrcfg.win = {};
@@ -625,7 +625,7 @@ namespace netxs::app::desk
                 ->active()
                 ->invoke([&](auto& boss)
                 {
-                    auto& drag_origin = boss.base::field<fp2d>();
+                    auto& drag_origin = boss.base::template field<fp2d>();
                     auto& mouse = boss.template plugins<pro::mouse>();
                     mouse.template draggable<hids::buttons::left>(true);
                     boss.LISTEN(tier::release, e2::form::drag::start::_<hids::buttons::left>, gear)
