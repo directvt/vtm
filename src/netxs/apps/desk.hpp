@@ -104,7 +104,7 @@ namespace netxs::app::desk
                     {
                         disabled = check_id(boss, gear_id); // On title update.
                     };
-                    auto& oneshot = boss.base::field<hook>();
+                    auto& oneshot = boss.base::template field<hook>();
                     boss.LISTEN(tier::anycast, desk::events::ui::recalc, state, oneshot, (gear_id)) // On session start.
                     {
                         disabled = check_id(boss, gear_id);
