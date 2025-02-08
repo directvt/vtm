@@ -705,7 +705,7 @@ namespace netxs::app::shared
                     ->invoke([&](auto& boss)
                     {
                         boss.base::hidden = true;
-                        auto& backup = boss.base::field<text>();
+                        auto& backup = boss.base::template field<text>();
                         boss.LISTEN(tier::release, input::events::mouse::any, gear)
                         {
                             if (netxs::events::subevent(gear.cause, input::events::mouse::button::down::any.id))
