@@ -43,9 +43,9 @@ jobs:
             cc: gcc
           - os: ubuntu-latest
             cpu: x86
-            apt: g++-14-i686-linux-gnu gcc-14-i686-linux-gnu
-            cxx: /bin/i686-linux-gnu-g++-14
-            cc: /bin/i686-linux-gnu-gcc-14
+            apt: g++-12-i686-linux-gnu gcc-12-i686-linux-gnu
+            cxx: /bin/i686-linux-gnu-g++-12
+            cc: /bin/i686-linux-gnu-gcc-12
           - os: ubuntu-latest
             cpu: arm
             apt: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf
