@@ -2493,11 +2493,10 @@ namespace netxs::ui
                          && owner.selmod == mime::textonly;
                 canvas.move(full.coor - dest.coor());
                 dest.plot(canvas, cell::shaders::fuse);
-                if (find)
+                if (auto area = canvas.area())
                 {
-                    if (auto area = canvas.area())
+                    if (find)
                     {
-                        dest.full(area);
                         auto offset = si32{};
                         auto work = [&](auto shader)
                         {
@@ -2509,10 +2508,9 @@ namespace netxs::ui
                             }
                         };
                         _shade(owner.config.def_find_f, owner.config.def_find_c, work);
-                        dest.full(full);
                     }
+                    selection_render(dest);
                 }
-                selection_render(dest);
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -2688,11 +2686,10 @@ namespace netxs::ui
             // alt_screen: Highlight selection.
             void selection_render(face& dest) override
             {
-                auto full = dest.full();
-                auto cntx = dest.change_basis(full);
+                auto clip = dest.clip();
                 auto limits = panel - dot_11;
-                auto curtop = std::clamp(seltop, dot_00, limits);
-                auto curend = std::clamp(selend, dot_00, limits);
+                auto curtop = std::clamp(seltop, dot_00, limits) - twod{ clip.coor.x, 0 }; // Compensate scrollback's hz movement.
+                auto curend = std::clamp(selend, dot_00, limits) - twod{ clip.coor.x, 0 }; //
                 selection_raster(dest, curtop, curend);
             }
             // alt_screen: Update selection status.
@@ -7459,10 +7456,10 @@ namespace netxs::ui
                 }
             };
             //todo make it configurable
-            LISTEN(tier::release, e2::form::drag::start                ::left,  gear) { if (selection_passed()) selection_create(gear); };
-            LISTEN(tier::release, e2::form::drag::pull                 ::left,  gear) { if (selection_passed()) selection_extend(gear); };
-            LISTEN(tier::release, e2::form::drag::stop                 ::left,  gear) {                         selection_finish(gear); };
-            LISTEN(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel();     };
+            LISTEN(tier::release, e2::form::drag::start                 ::left,  gear) { if (selection_passed()) selection_create(gear); };
+            LISTEN(tier::release, e2::form::drag::pull                  ::left,  gear) { if (selection_passed()) selection_extend(gear); };
+            LISTEN(tier::release, e2::form::drag::stop                  ::left,  gear) {                         selection_finish(gear); };
+            LISTEN(tier::release, e2::form::drag::cancel                ::left,  gear) {                         selection_cancel();     };
             LISTEN(tier::release, input::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
             LISTEN(tier::release, input::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
             LISTEN(tier::release, input::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
