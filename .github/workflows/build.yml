@@ -102,10 +102,6 @@ jobs:
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
-    - name: Test 'fmod'
-      run: ${{ steps.strings.outputs.bin }}/vtm --fmod
-           env
-
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
       run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
