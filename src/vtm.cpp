@@ -38,11 +38,6 @@ int main(int argc, char* argv[])
                 else                    log("%%Failed to set current working directory to '%path%'", prompt::os, ansi::err(path));
             }
         }
-        else if (getopt.match("--fmod"))
-        {
-            log("fmod(23.3, 11.3)=", ::fmod(23.3, 11.3));
-            log("fmod(23.3f, 11.3f)=", ::fmod(23.3f, 11.3f));
-        }
         else if (getopt.match("--env"))
         {
             auto var_val = getopt.next();
