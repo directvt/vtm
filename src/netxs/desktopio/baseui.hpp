@@ -831,10 +831,11 @@ namespace netxs::ui
                 parent_ptr->remove(This());
             }
         }
+        //todo make it flat
         // base: Recursively calculate global coordinate.
         void global(auto& coor)
         {
-            coor -= base::region.coor;
+            coor -= base::region.coor + base::intpad.corner();
             if (auto parent_ptr = base::parent())
             {
                 parent_ptr->global(coor);

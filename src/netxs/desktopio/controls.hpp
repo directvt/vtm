@@ -1903,7 +1903,7 @@ namespace netxs::ui
                 // pro::mouse: Forward preview to all parents.
                 boss.LISTEN(tier::preview, input::events::mouse::any, gear, memo)
                 {
-                    auto& offset = boss.base::coor();
+                    auto offset = boss.base::coor() + boss.base::intpad.corner();
                     gear.pass(tier::preview, boss.base::parent(), offset);
 
                     if (gear) gear.okay(boss);
@@ -1914,7 +1914,7 @@ namespace netxs::ui
                 {
                     if ((gear && !gear.captured()) || gear.cause == input::events::mouse::hover::enter.id || gear.cause == input::events::mouse::hover::leave.id)
                     {
-                        auto& offset = boss.base::coor();
+                        auto offset = boss.base::coor() + boss.base::intpad.corner();
                         gear.pass(tier::release, boss.base::parent(), offset);
                     }
                 };
