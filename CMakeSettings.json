@@ -98,12 +98,12 @@
         },
         {
           "name": "CMAKE_CXX_COMPILER",
-          "value": "/bin/i686-linux-gnu-g++-12",
+          "value": "/bin/i686-linux-gnu-g++",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "/bin/i686-linux-gnu-gcc-12",
+          "value": "/bin/i686-linux-gnu-gcc",
           "type": "STRING"
         },
         {
