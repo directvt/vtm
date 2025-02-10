@@ -15,6 +15,13 @@
 #include <thread>
 #include <condition_variable>
 
+//todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
+#if defined(__i386__) && defined(__linux__)
+    extern long double fmodl(long double a, long double b);
+    double fmod(double a, double b) { return fmodl(a, b); }
+    float  fmod(float  a, float  b) { return fmodl(a, b); }
+#endif
+
 namespace netxs::events
 {
     struct tier
