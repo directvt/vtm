@@ -831,14 +831,15 @@ namespace netxs::ui
                 parent_ptr->remove(This());
             }
         }
-        //todo make it flat
         // base: Recursively calculate global coordinate.
         void global(auto& coor)
         {
             coor -= base::region.coor + base::intpad.corner();
-            if (auto parent_ptr = base::parent())
+            auto parent_ptr = base::parent();
+            while (parent_ptr)
             {
-                parent_ptr->global(coor);
+                coor -= parent_ptr->base::region.coor + parent_ptr->base::intpad.corner();
+                parent_ptr = parent_ptr->base::parent();
             }
         }
         // base: Recursively find the root of the visual tree.
