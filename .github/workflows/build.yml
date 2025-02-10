@@ -104,6 +104,7 @@ jobs:
 
     - name: Test 'fmod'
       run: ${{ steps.strings.outputs.bin }}/vtm --fmod
+           env
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
