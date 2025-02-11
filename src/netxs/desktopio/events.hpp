@@ -447,13 +447,6 @@ namespace netxs::events
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     static constexpr auto _dummy = { 777
 
-    struct ref_count_t
-    {
-        ui64 obj_count{};
-        ui64 ref_count{};
-        ui64 del_count{};
-    };
-
     //todo unify seeding
     namespace userland
     {
@@ -467,7 +460,6 @@ namespace netxs::events
                 EVENT_XS( base     , si32 ),
                 EVENT_XS( hids     , si32 ),
                 EVENT_XS( custom   , si32 ),
-                EVENT_XS( cleanup  , ref_count_t ), // Garbage collection.
             };
         }
     }
@@ -634,25 +626,32 @@ namespace netxs::events
         {
             return indexer.getref<T>(id);
         }
+        // bell: Cleanup weak references.
+        auto cleanup()
+        {
+            auto ref_count = ui64{};
+            auto del_count = ui64{};
+            for (auto& [item_id, item_wptr] : indexer.store)
+            {
+                if (auto item_ptr = item_wptr.lock())
+                {
+                    auto& item = *item_ptr;
+                    item.preview.cleanup(ref_count, del_count);
+                    item.request.cleanup(ref_count, del_count);
+                    item.release.cleanup(ref_count, del_count);
+                    item.anycast.cleanup(ref_count, del_count);
+                }
+            }
+            general.cleanup(ref_count, del_count);
+            return std::pair{ ref_count, del_count };
+        }
 
         bell(auth& indexer)
             : indexer{ indexer },
               general{ indexer.general },
               id{ indexer.new_id() }
-        {
-            LISTEN(tier::general, userland::root::cleanup, counter)
-            {
-                counter.obj_count++;
-                preview.cleanup(counter.ref_count, counter.del_count);
-                request.cleanup(counter.ref_count, counter.del_count);
-                release.cleanup(counter.ref_count, counter.del_count);
-                anycast.cleanup(counter.ref_count, counter.del_count);
-            };
-        }
-       ~bell()
-        {
-            signal(tier::release, userland::root::dtor, id);
-        }
+        { }
+
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 }

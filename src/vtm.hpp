@@ -856,14 +856,18 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::release, e2::dtor, p)
                 {
-                    auto start = datetime::now();
-                    auto counter = bell::signal(tier::general, e2::cleanup);
-                    auto stop = datetime::now() - start;
-                    if constexpr (debugmode) log(prompt::hall, "Garbage collection",
-                                                "\n\ttime ", utf::format(stop.count()), "ns",
-                                                "\n\tobjs ", counter.obj_count,
-                                                "\n\trefs ", counter.ref_count,
-                                                "\n\tdels ", counter.del_count);
+                    if constexpr (debugmode)
+                    {
+                        auto start = datetime::now();
+                        auto [ref_count, del_count] = bell::cleanup();
+                        auto stop = datetime::now() - start;
+                        log(prompt::hall, "Garbage collection",
+                            "\n\ttime ", utf::format(stop.count()), "ns",
+                            "\n\tobjs ", bell::indexer.store.size(),
+                            "\n\trefs ", ref_count,
+                            "\n\tdels ", del_count);
+                    }
+                    else bell::cleanup();
                 };
 
                 auto& maximize_token = base::field<subs>();
@@ -1542,10 +1546,6 @@ namespace netxs::app::vtm
                 if constexpr (debugmode) log(prompt::host, msg);
                 canal.stop();
             };
-            LISTEN(tier::general, e2::cleanup, counter)
-            {
-                this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
-            };
             LISTEN(tier::general, e2::config::creator, world_ptr)
             {
                 world_ptr = base::This();
@@ -1969,8 +1969,11 @@ namespace netxs::app::vtm
             usrs_list.push_back(usergate_ptr);
             auto usrs_list_iter = std::prev(usrs_list.end());
             usergate.props.background_color.link(bell::id);
+
             //todo revise (now world is not a parent for usergate)
-            usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            //usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            usergate.father = base::This();
+
             usergate.nexthop = base::This();
 
             bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
