@@ -52,11 +52,6 @@ namespace netxs::app::strobe
     static constexpr auto id = "strobe";
     static constexpr auto name = "strobe";
 }
-namespace netxs::app::settings
-{
-    static constexpr auto id = "settings";
-    static constexpr auto name = "Desktop Settings";
-}
 namespace netxs::app::empty
 {
     static constexpr auto id = "empty";
@@ -95,22 +90,6 @@ namespace netxs::app::shared
                     strob->base::deface();
                 }
             };
-            return window;
-        };
-        auto build_settings      = [](eccc /*appcfg*/, xmls& /*config*/)
-        {
-            auto window = ui::cake::ctor();
-            auto colors = cell{}.bgc(bluedk).fgc(cyanlt);
-            window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::cache>()
-                  ->plugin<pro::notes>(" Left+Right click to close ")
-                  ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
-                  ->active(colors)
-                  ->invoke([&](auto& boss)
-                  {
-                        closing_by_gesture(boss);
-                        closing_on_quit(boss);
-                  });
             return window;
         };
         auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
@@ -337,7 +316,6 @@ namespace netxs::app::shared
         };
 
         app::shared::initialize builder_strobe    { app::strobe::id   , build_strobe     };
-        app::shared::initialize builder_settings  { app::settings::id , build_settings   };
         app::shared::initialize builder_empty     { app::empty::id    , build_empty      };
         app::shared::initialize builder_truecolor { app::truecolor::id, build_truecolor  };
 
