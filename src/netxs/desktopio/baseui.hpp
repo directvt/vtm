@@ -815,12 +815,13 @@ namespace netxs::ui
         template<bool Forced = faux>
         void reflow()
         {
-            auto parent_ptr = base::parent();
-            if (parent_ptr && (!base::master || (Forced && (base::family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            auto parent_ptr = This();
+            while ((Forced || !parent_ptr->base::master) && parent_ptr->base::family != base::reflow_root)
             {
-                parent_ptr->reflow<Forced>();
+                if (auto next_parent_ptr = parent_ptr->base::parent()) parent_ptr = next_parent_ptr;
+                else break;
             }
-            else change(base::region + base::extpad);
+            parent_ptr->change(parent_ptr->base::region + parent_ptr->base::extpad);
         }
         // base: Remove the form from the visual tree.
         void detach()
@@ -848,9 +849,8 @@ namespace netxs::ui
             auto parent_ptr = This();
             while (!parent_ptr->base::master)
             {
-                auto next_parent_ptr = parent_ptr->base::parent();
-                if (!next_parent_ptr) break;
-                parent_ptr = next_parent_ptr;
+                if (auto next_parent_ptr = parent_ptr->base::parent()) parent_ptr = next_parent_ptr;
+                else break;
             }
             return parent_ptr;
         }
