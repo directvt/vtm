@@ -88,7 +88,7 @@ namespace netxs::app::desk
                     {
                         auto owner_id = boss.base::riseup(tier::request, desk::events::ui::id);
                         auto locked = gear_id && gear_id != owner_id;
-                        boss.bell::signal(tier::release, e2::form::state::disabled, locked);
+                        boss.base::signal(tier::release, e2::form::state::disabled, locked);
                         auto& tooltip = boss.template plugins<pro::notes>();
                         tooltip.update(locked ? " Window is locked by another user "
                                               : " Application window:                   \n"
@@ -99,7 +99,7 @@ namespace netxs::app::desk
                                                 "   LeftDrag to move desktop viewport   ");
                         return locked;
                     };
-                    auto gear_id = data_src->bell::signal(tier::request, e2::form::state::maximized);
+                    auto gear_id = data_src->base::signal(tier::request, e2::form::state::maximized);
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (gear_id))
                     {
                         disabled = check_id(boss, gear_id); // On title update.
@@ -123,17 +123,17 @@ namespace netxs::app::desk
                             if (gear.meta(hids::anyAlt)) // Pull window.
                             {
                                 window.base::riseup(tier::preview, e2::form::layout::expose);
-                                auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
-                                window.bell::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
+                                auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
+                                window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
                                 if (window.hidden) // Restore if minimized.
                                 {
-                                    window.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                    window.base::signal(tier::release, e2::form::size::minimize, gear);
                                 }
                                 else pro::focus::set(data_src, gear.id, solo::on);
                             }
                             else // Jump to window.
                             {
-                                gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
+                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
                             }
                             gear.dismiss();
                         }
@@ -155,7 +155,7 @@ namespace netxs::app::desk
                                     window.base::riseup(tier::preview, e2::form::layout::expose);
                                     if (window.hidden) // Restore if minimized.
                                     {
-                                        window.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                        window.base::signal(tier::release, e2::form::size::minimize, gear);
                                     }
                                     pro::focus::set(data_src, gear.id, solo::off);
                                 }
@@ -170,7 +170,7 @@ namespace netxs::app::desk
                                 window.base::riseup(tier::preview, e2::form::layout::expose);
                                 if (window.hidden) // Restore if minimized.
                                 {
-                                    window.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                    window.base::signal(tier::release, e2::form::size::minimize, gear);
                                 }
                                 else pro::focus::set(data_src, gear.id, solo::on);
                                 gear.dismiss();
@@ -186,7 +186,7 @@ namespace netxs::app::desk
                         if (disabled) return;
                         if (auto data_src = src_wptr.lock())
                         {
-                            data_src->bell::signal(tier::release, e2::form::state::highlight, !!state);
+                            data_src->base::signal(tier::release, e2::form::state::highlight, !!state);
                         }
                     };
                 });
@@ -224,7 +224,7 @@ namespace netxs::app::desk
                             if (disabled) return;
                             if (auto data_src = src_wptr.lock())
                             {
-                                data_src->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
+                                data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
                             }
                         };
                     };
@@ -233,7 +233,7 @@ namespace netxs::app::desk
                         if (disabled) { gear.dismiss(true); return; }
                         if (auto data_src = src_wptr.lock())
                         {
-                            data_src->bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
+                            data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
                             gear.dismiss(true);
                         }
                     };
@@ -256,7 +256,7 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
                         auto current_default = boss.base::riseup(tier::request, e2::data::changed);
-                        boss.bell::signal(tier::anycast, desk::events::ui::selected, current_default);
+                        boss.base::signal(tier::anycast, desk::events::ui::selected, current_default);
                         //todo combine anycasts (update on user disconnect)
                         auto state = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         boss.base::riseup(tier::anycast, desk::events::ui::recalc, state);
@@ -309,7 +309,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear, -, (inst_id))
                         {
-                            boss.bell::signal(tier::anycast, desk::events::ui::selected, inst_id);
+                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             gear.dismiss(true);
                         };
                         boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux))
@@ -319,17 +319,17 @@ namespace netxs::app::desk
                                 if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                                 {
                                     group_focus = !group_focus;
-                                    if (group_focus) boss.bell::signal(tier::release, desk::events::ui::focus::set, gear);
-                                    else             boss.bell::signal(tier::release, desk::events::ui::focus::off, gear);
+                                    if (group_focus) boss.base::signal(tier::release, desk::events::ui::focus::set, gear);
+                                    else             boss.base::signal(tier::release, desk::events::ui::focus::off, gear);
                                 }
                                 gear.dismiss(true);
                                 return;
                             }
-                            boss.bell::signal(tier::anycast, desk::events::ui::selected, inst_id);
+                            boss.base::signal(tier::anycast, desk::events::ui::selected, inst_id);
                             static auto offset = dot_00; // static: Share initial offset between all instances.
-                            if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator))
+                            if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
                             {
-                                auto current_viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                                auto current_viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                                 offset = (offset + dot_21 * 2) % std::max(dot_11, current_viewport.size * 7 / 32);
                                 gear.slot.coor = current_viewport.coor + offset + current_viewport.size * 1 / 32 + dot_11;
                                 gear.slot.size = current_viewport.size * 3 / 4;
@@ -406,7 +406,7 @@ namespace netxs::app::desk
                             {
                                 if (auto insts = insts_shadow.lock())
                                 {
-                                    insts->bell::signal(tier::release, desk::events::quit, faux); // Show closing process.
+                                    insts->base::signal(tier::release, desk::events::quit, faux); // Show closing process.
                                 }
                                 gear.dismiss(true);
                             };
@@ -529,14 +529,14 @@ namespace netxs::app::desk
                     auto& current_default = parent.base::property<text>("desktop.selected");
                     auto& previous_default = parent.base::property<text>("desktop.prev_selected");
                     previous_default = current_default;
-                    parent.bell::signal(tier::anycast, desk::events::ui::selected, current_default);
+                    parent.base::signal(tier::anycast, desk::events::ui::selected, current_default);
                     parent.LISTEN(tier::request, e2::data::changed, data, boss.relyon)
                     {
                         data = current_default;
                     };
                     parent.LISTEN(tier::release, e2::data::changed, new_default, boss.relyon)
                     {
-                        boss.bell::signal(tier::anycast, desk::events::ui::selected, new_default);
+                        boss.base::signal(tier::anycast, desk::events::ui::selected, new_default);
                     };
                     parent.LISTEN(tier::anycast, desk::events::ui::selected, new_default, boss.relyon)
                     {
@@ -568,7 +568,7 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto world_ptr = window->bell::signal(tier::general, e2::config::creator);
+            auto world_ptr = window->base::signal(tier::general, e2::config::creator);
             ground->attach(world_ptr);
             world_ptr->father = {}; //todo attached
             auto taskbar_viewport = ground->attach(ui::fork::ctor(axis::X));
@@ -591,7 +591,7 @@ namespace netxs::app::desk
                                            : menu_min_size;
                         auto lims = twod{ size, -1 };
                         boss.base::limits(lims, lims);
-                        boss.bell::signal(tier::anycast, desk::events::ui::recalc, state);
+                        boss.base::signal(tier::anycast, desk::events::ui::recalc, state);
                         boss.base::deface();
                         boss.base::reflow();
                     };
@@ -656,11 +656,11 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear)
                     {
-                        boss.bell::signal(tier::release, desk::events::ui::sync, true);
+                        boss.base::signal(tier::release, desk::events::ui::sync, true);
                     };
                     boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear)
                     {
-                        boss.bell::signal(tier::release, desk::events::ui::sync, true);
+                        boss.base::signal(tier::release, desk::events::ui::sync, true);
                     };
                 });
             auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor());
@@ -677,7 +677,7 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
                     {
-                        if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator))
+                        if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
                         {
                             auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
                         }
@@ -705,7 +705,7 @@ namespace netxs::app::desk
                     boss.base::hidden = userlist_hidden;
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
                     {
-                        if (auto world_ptr = boss.bell::signal(tier::general, e2::config::creator))
+                        if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
                         {
                             auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
                         }
@@ -753,7 +753,7 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (name))
                     {
                         log("%%User %name% disconnected", prompt::desk, name);
-                        gear.owner.bell::signal(tier::preview, e2::conio::quit);
+                        gear.owner.base::signal(tier::preview, e2::conio::quit);
                         gear.dismiss(true);
                     };
                 });
@@ -768,7 +768,7 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
-                        boss.bell::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
+                        boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::desk, "Server shutdown"));
                         gear.dismiss(true);
                     };
                 });

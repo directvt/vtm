@@ -342,7 +342,7 @@ namespace netxs::app::shared
                 //    if (actual_rect.hittest(gear.coord))
                 //    {
                 //        rect viewport;
-                //        gate.owner.bell::signal(tier::request, e2::form::prop::viewport, viewport);
+                //        gate.owner.base::signal(tier::request, e2::form::prop::viewport, viewport);
                 //        boss.base::extend(viewport);
                 //        gear.dismiss();
                 //    }
@@ -390,7 +390,7 @@ namespace netxs::app::shared
                         if (auto gear_ptr = parent.bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, parent);
+                            gear.owner.base::signal(tier::release, e2::form::layout::jumpto, parent);
                         }
                     };
                 };
@@ -421,7 +421,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -457,7 +457,7 @@ namespace netxs::app::shared
                     }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -478,7 +478,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
+                        boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
@@ -508,7 +508,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
-                        boss.bell::signal(tier::release, e2::form::upon::started, root);
+                        boss.base::signal(tier::release, e2::form::upon::started, root);
                     };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
@@ -669,7 +669,7 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
-                        boss.bell::signal(tier::release, ui::tty::events::rawkbd);
+                        boss.base::signal(tier::release, ui::tty::events::rawkbd);
                         gear.dismiss_dblclick();
                     };
                 });
@@ -795,7 +795,7 @@ namespace netxs::app::shared
                 //});
                 //keybd.proc("ExclusiveKeyboardMode", [&](hids& gear)
                 //{
-                //    state_inst.bell::signal(tier::release, ui::tty::events::rawkbd);
+                //    state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
                 //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
                 //    gear.set_handled();
                 //});

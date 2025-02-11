@@ -98,12 +98,12 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    boss.bell::signal(tier::release, e2::form::prop::zorder, z_order);
+                    boss.base::signal(tier::release, e2::form::prop::zorder, z_order);
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::zorder, order)
                 {
                     z_order = order;
-                    boss.bell::signal(tier::release, e2::form::prop::zorder, z_order);
+                    boss.base::signal(tier::release, e2::form::prop::zorder, z_order);
                 };
                 boss.LISTEN(tier::request, e2::form::prop::zorder, order)
                 {
@@ -149,9 +149,9 @@ namespace netxs::app::vtm
                                 {
                                     boss.base::anchor = drag_origin; // See pro::align unbind.
                                     auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
-                                    boss.bell::signal(tier::preview, e2::area, preview_area);
+                                    boss.base::signal(tier::preview, e2::area, preview_area);
                                     boss.base::moveby(delta);
-                                    boss.bell::signal(tier::preview, e2::form::upon::changed, delta);
+                                    boss.base::signal(tier::preview, e2::form::upon::changed, delta);
                                 }
                                 gear.dismiss();
                                 break;
@@ -172,7 +172,7 @@ namespace netxs::app::vtm
                     }
                     else
                     {
-                        auto boundary = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                        auto boundary = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
                         {
                             //todo revise: crash after window closed (bad weak ptr)
@@ -183,7 +183,7 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear, memo)
                 {
-                    auto owner_id = boss.bell::signal(tier::request, e2::form::state::maximized);
+                    auto owner_id = boss.base::signal(tier::request, e2::form::state::maximized);
                     if (owner_id) return; // Don't move maximized window.
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
@@ -357,7 +357,7 @@ namespace netxs::app::vtm
                         if (gear.meta(hids::anyCtrl))
                         {
                             log(prompt::hall, "Area copied to clipboard ", gear.slot);
-                            gear.owner.bell::signal(tier::release, e2::command::printscreen, gear);
+                            gear.owner.base::signal(tier::release, e2::command::printscreen, gear);
                         }
                         else
                         {
@@ -491,24 +491,24 @@ namespace netxs::app::vtm
             void proceed(bool keep, hids& gear)
             {
                 drags = faux;
-                boss.bell::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
+                boss.base::signal(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
                 auto boss_ptr = boss.This();
                 if (auto dest_ptr = cover.lock())
                 {
                     auto& dest = *dest_ptr;
                     if (keep)
                     {
-                        auto what = boss.bell::signal(tier::preview, vtm::events::d_n_d::drop); // Take core.
+                        auto what = boss.base::signal(tier::preview, vtm::events::d_n_d::drop); // Take core.
                         if (what.applet)
                         {
                             auto gear_id_list = pro::focus::cut(what.applet);
                             what.applet->base::detach();
-                            dest.bell::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
+                            dest.base::signal(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
                             pro::focus::set(what.applet, gear.id, solo::on, true); // Set unique focus.
                             boss.base::detach(); // The object kills itself.
                         }
                     }
-                    else dest.bell::signal(tier::release, vtm::events::d_n_d::abort, boss.This());
+                    else dest.base::signal(tier::release, vtm::events::d_n_d::abort, boss.This());
                 }
                 cover.reset();
                 under = {};
@@ -571,7 +571,7 @@ namespace netxs::app::vtm
                             {
                                 new_object->base::riseup(tier::release, vtm::events::d_n_d::ask, object);
                             }
-                            boss.bell::signal(tier::anycast, e2::form::prop::lucidity, object ? 0x80 : 0xFF); // Make it semi-transparent on success and opaque otherwise.
+                            boss.base::signal(tier::anycast, e2::form::prop::lucidity, object ? 0x80 : 0xFF); // Make it semi-transparent on success and opaque otherwise.
                             cover = object;
                             under = new_under;
                         }
@@ -657,7 +657,7 @@ namespace netxs::app::vtm
                                                                   luafx.get_args_or(4, 0) }; //
                                                 boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
                                                 {
-                                                    boss.bell::signal(tier::preview, e2::form::layout::swarp, warp);
+                                                    boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
                                                 });
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
@@ -668,12 +668,12 @@ namespace netxs::app::vtm
                                                 auto zorder = zpos::plain;
                                                 if (args_count == 0) // Request zpos.
                                                 {
-                                                    zorder = boss.bell::signal(tier::request, e2::form::prop::zorder);
+                                                    zorder = boss.base::signal(tier::request, e2::form::prop::zorder);
                                                 }
                                                 else // Set zpos.
                                                 {
                                                     zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                                    boss.bell::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                    boss.base::signal(tier::preview, e2::form::prop::zorder, zorder);
                                                 }
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(zorder == zpos::topmost);
@@ -682,7 +682,7 @@ namespace netxs::app::vtm
                                             {
                                                 boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
                                                 {
-                                                    boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                                                    boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
                                                 });
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return();
@@ -690,7 +690,7 @@ namespace netxs::app::vtm
                     { "ShowClosingPreview", [](auto& boss, auto& luafx)
                                             {
                                                 auto preview_state = luafx.get_args_or(1, faux);
-                                                boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
+                                                boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
                                                 luafx.set_return();
                                             }},
                     { "MinimizeWindow",     [](auto& boss, auto& luafx)
@@ -703,7 +703,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
-                                                            boss.bell::signal(tier::release, e2::form::size::minimize, gear);
+                                                            boss.base::signal(tier::release, e2::form::size::minimize, gear);
                                                         }
                                                     });
                                                 }
@@ -719,7 +719,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
-                                                            boss.bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                                                            boss.base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                                                         }
                                                     });
                                                 }
@@ -735,7 +735,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
-                                                            boss.bell::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                                                            boss.base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                                                         }
                                                     });
                                                 }
@@ -781,7 +781,7 @@ namespace netxs::app::vtm
                         if (gear_test.second) // Pass the focus to the next desktop window if boss is focused.
                         {
                             gear_test = { gear.id, 0 };
-                            parent->bell::signal(tier::request, e2::form::state::keybd::next, gear_test);
+                            parent->base::signal(tier::request, e2::form::state::keybd::next, gear_test);
                             if (gear_test.second == 1) // If it is the solo focused window.
                             {
                                 auto viewport = gear.owner.base::area();
@@ -790,10 +790,10 @@ namespace netxs::app::vtm
                                 auto gear_id = id_t{};
                                 do
                                 {
-                                    parent->bell::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
+                                    parent->base::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
                                     if (prev_ptr)
                                     {
-                                        prev_ptr->bell::signal(tier::request, e2::form::state::maximized, gear_id);
+                                        prev_ptr->base::signal(tier::request, e2::form::state::maximized, gear_id);
                                         is_hidden = prev_ptr->hidden;
                                     }
                                     else is_hidden = true;
@@ -812,7 +812,7 @@ namespace netxs::app::vtm
                 LISTEN(tier::release, e2::form::prop::ui::header, new_title)
                 {
                     auto tooltip_body = " " + new_title + " ";
-                    bell::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
+                    base::signal(tier::preview, e2::form::prop::ui::tooltip, tooltip_body);
                 };
                 LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
                 {
@@ -834,7 +834,7 @@ namespace netxs::app::vtm
                     auto home = rect{ -dot_21, base::size() + dot_21 * 2 }; // Including resizer grips.
                     if (!home.hittest(gear.coord))
                     {
-                        gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, *this);
+                        gear.owner.base::signal(tier::release, e2::form::layout::jumpto, *this);
                     }
                 };
                 LISTEN(tier::release, input::events::mouse::button::click::right, gear)
@@ -852,14 +852,14 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
                 {
-                    bell::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
+                    base::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
                 };
                 LISTEN(tier::release, e2::dtor, p)
                 {
                     if constexpr (debugmode)
                     {
                         auto start = datetime::now();
-                        auto [ref_count, del_count] = bell::cleanup();
+                        auto [ref_count, del_count] = base::cleanup();
                         auto stop = datetime::now() - start;
                         log(prompt::hall, "Garbage collection",
                             "\n\ttime ", utf::format(stop.count()), "ns",
@@ -867,7 +867,7 @@ namespace netxs::app::vtm
                             "\n\trefs ", ref_count,
                             "\n\tdels ", del_count);
                     }
-                    else bell::cleanup();
+                    else base::cleanup();
                 };
 
                 auto& maximize_token = base::field<subs>();
@@ -881,14 +881,14 @@ namespace netxs::app::vtm
                     auto window_ptr = This();
                     if (maximize_token) // Restore maximized window.
                     {
-                        bell::signal(tier::release, e2::form::size::restore, window_ptr);
+                        base::signal(tier::release, e2::form::size::restore, window_ptr);
                     }
                     pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
                     auto what = what_copy;
                     what.applet = window_ptr;
                     pro::focus::set(window_ptr, gear.id, solo::on, true); // Refocus to demultifocus.
                     //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
-                    gear.owner.bell::signal(tier::release, vtm::events::gate::fullscreen, what);
+                    gear.owner.base::signal(tier::release, vtm::events::gate::fullscreen, what);
                 };
                 LISTEN(tier::release, e2::form::size::restore, item_ptr)
                 {
@@ -900,13 +900,13 @@ namespace netxs::app::vtm
                             base::extend(saved_area); // Restore window size and relative coor.
                         }
                         maximize_token.reset();
-                        bell::signal(tier::release, e2::form::state::maximized, id_t{});
+                        base::signal(tier::release, e2::form::state::maximized, id_t{});
                     }
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                 {
                     auto order = base::riseup(tier::request, e2::form::prop::zorder);
-                    auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                    auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                     auto recalc = [&](auto viewport)
                     {
                         auto new_area = viewport;
@@ -931,7 +931,7 @@ namespace netxs::app::vtm
                     auto window_ptr = This();
                     if (maximize_token) // Restore maximized window.
                     {
-                        bell::signal(tier::release, e2::form::size::restore, window_ptr);
+                        base::signal(tier::release, e2::form::size::restore, window_ptr);
                     }
                     else
                     {
@@ -949,7 +949,7 @@ namespace netxs::app::vtm
                         };
                         gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
                         {
-                            bell::signal(tier::release, e2::form::size::restore, This());
+                            base::signal(tier::release, e2::form::size::restore, This());
                         };
                         LISTEN(tier::preview, e2::area, new_area, maximize_token)
                         {
@@ -963,10 +963,10 @@ namespace netxs::app::vtm
                                     saved_area.coor += base::anchor - anchor; // Follow the mouse cursor.
                                 }
                                 else saved_area = {}; // Preserve current window size.
-                                bell::signal(tier::release, e2::form::size::restore, This());
+                                base::signal(tier::release, e2::form::size::restore, This());
                             }
                         };
-                        bell::signal(tier::release, e2::form::state::maximized, owner_id);
+                        base::signal(tier::release, e2::form::state::maximized, owner_id);
                     }
                 };
                 LISTEN(tier::request, e2::form::prop::window::state, state)
@@ -1059,7 +1059,7 @@ namespace netxs::app::vtm
         {
             if (!is_handoff)
             {
-                bell::signal(tier::request, vtm::events::newapp, what);
+                base::signal(tier::request, vtm::events::newapp, what);
             }
             auto window_ptr = window_t::ctor(*this, what);
 
@@ -1091,10 +1091,10 @@ namespace netxs::app::vtm
                     {
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
-                            auto gear_test = bell::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
+                            auto gear_test = base::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
                             if (gear_test.second == 1) // If it is the last focused item.
                             {
-                                auto owner_id = last_ptr->bell::signal(tier::request, e2::form::state::maximized);
+                                auto owner_id = last_ptr->base::signal(tier::request, e2::form::state::maximized);
                                 if (owner_id && owner_id != gear_ptr->owner.id) continue;
                                 pro::focus::set(last_ptr, gear_id, solo::off);
                             }
@@ -1102,10 +1102,10 @@ namespace netxs::app::vtm
                     }
                 }
                 inst_list.erase(inst_list_iter);
-                bell::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
+                base::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
             };
-            window_ptr->bell::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
-            bell::signal(tier::release, desk::events::apps, apps_list_ptr);
+            window_ptr->base::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
+            base::signal(tier::release, desk::events::apps, apps_list_ptr);
             return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
@@ -1171,7 +1171,7 @@ namespace netxs::app::vtm
                 auto selected_item = args.str();
                 for (auto usergate_ptr : usrs_list)
                 {
-                    usergate_ptr->bell::signal(tier::release, e2::data::changed, selected_item);
+                    usergate_ptr->base::signal(tier::release, e2::data::changed, selected_item);
                 }
                 return "ok"s;
             }
@@ -1200,7 +1200,7 @@ namespace netxs::app::vtm
                     stat = true;
                 }
                 menu_list[menuid] = appspec;
-                bell::signal(tier::release, desk::events::apps, apps_list_ptr);
+                base::signal(tier::release, desk::events::apps, apps_list_ptr);
                 return "ok"s;
             }
         }
@@ -1218,7 +1218,7 @@ namespace netxs::app::vtm
                     }
                 }
                 menu_list.clear();
-                bell::signal(tier::release, desk::events::apps, apps_list_ptr);
+                base::signal(tier::release, desk::events::apps, apps_list_ptr);
                 return "ok"s;
             }
             else
@@ -1233,7 +1233,7 @@ namespace netxs::app::vtm
                         else              stat = faux;
                     }
                     menu_list.erase(menuid);
-                    bell::signal(tier::release, desk::events::apps, apps_list_ptr);
+                    base::signal(tier::release, desk::events::apps, apps_list_ptr);
                     return "ok"s;
                 }
                 else
@@ -1253,7 +1253,7 @@ namespace netxs::app::vtm
             appspec.title = args;
             appspec.label = args;
             appspec.tooltip = args;
-            bell::signal(tier::request, desk::events::exec, appspec);
+            base::signal(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
         // hall: Draw a navigation string.
@@ -1301,10 +1301,10 @@ namespace netxs::app::vtm
                 { "Shutdown",           [](auto& boss, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto ok = !args_count || !boss.bell::signal(tier::request, e2::form::layout::go::item);
+                                            auto ok = !args_count || !boss.base::signal(tier::request, e2::form::layout::go::item);
                                             if (ok)
                                             {
-                                                boss.bell::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                                boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
                                             }
                                             luafx.set_return(ok);
                                         }},
@@ -1314,7 +1314,7 @@ namespace netxs::app::vtm
                                             auto ok = !!gear_ptr;
                                             if (ok)
                                             {
-                                                gear_ptr->owner.bell::signal(tier::preview, e2::conio::quit);
+                                                gear_ptr->owner.base::signal(tier::preview, e2::conio::quit);
                                                 gear_ptr->set_handled();
                                             }
                                             luafx.set_return(ok);
@@ -1376,7 +1376,7 @@ namespace netxs::app::vtm
                                             if (appspec.title.empty()) appspec.title = title;
                                             if (appspec.label.empty()) appspec.label = title;
                                             if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
-                                            boss.bell::signal(tier::request, desk::events::exec, appspec);
+                                            boss.base::signal(tier::request, desk::events::exec, appspec);
                                             if (gear_ptr) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
@@ -1397,18 +1397,18 @@ namespace netxs::app::vtm
                                                                        .gear_id = gear_id };
                                             if (gear.shared_event) // Give another process a chance to handle this event.
                                             {
-                                                go_forward ? boss.bell::signal(tier::request, e2::form::layout::focus::next, gear_id)
-                                                           : boss.bell::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                                                go_forward ? boss.base::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                                                           : boss.base::signal(tier::request, e2::form::layout::focus::prev, gear_id);
                                                 if (!gear_id)
                                                 {
                                                     luafx.set_return();
                                                     return;
                                                 }
                                             }
-                                            gear.owner.bell::signal(tier::preview, e2::form::proceed::action::restore, gear);
+                                            gear.owner.base::signal(tier::preview, e2::form::proceed::action::restore, gear);
 
-                                            auto window_ptr = boss.bell::signal(tier::request, e2::form::layout::go::item); // Take current window.
-                                            if (window_ptr) window_ptr->bell::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
+                                            auto window_ptr = boss.base::signal(tier::request, e2::form::layout::go::item); // Take current window.
+                                            if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
 
                                             auto current = window_ptr; 
                                             auto maximized = faux;
@@ -1417,9 +1417,9 @@ namespace netxs::app::vtm
                                             {
                                                 window_ptr.reset();
                                                 owner_id = id_t{};
-                                                if (go_forward) boss.bell::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                                                else            boss.bell::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                                                if (window_ptr) window_ptr->bell::signal(tier::request, e2::form::state::maximized, owner_id);
+                                                if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                                                else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                                                if (window_ptr) window_ptr->base::signal(tier::request, e2::form::state::maximized, owner_id);
                                                 maximized = owner_id == gear.owner.id;
                                                 if (!owner_id || maximized) break;
                                             }
@@ -1428,10 +1428,10 @@ namespace netxs::app::vtm
                                             if (window_ptr && (!owner_id || maximized))
                                             {
                                                 auto& window = *window_ptr;
-                                                window.bell::signal(tier::release, e2::form::layout::selected, gear);
+                                                window.base::signal(tier::release, e2::form::layout::selected, gear);
                                                 if (!maximized)
                                                 {
-                                                    gear.owner.bell::signal(tier::release, e2::form::layout::jumpto, window);
+                                                    gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
                                                 }
                                                 boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                                 {
@@ -1585,7 +1585,7 @@ namespace netxs::app::vtm
                 if (!is_recursive)
                 {
                     auto deed = this->bell::protos(tier::request);
-                    this->bell::signal(tier::release, deed, seed);
+                    this->base::signal(tier::release, deed, seed);
                 }
             };
 
@@ -1654,7 +1654,7 @@ namespace netxs::app::vtm
             {
                 for (auto w : base::subset)
                 {
-                    w->bell::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
+                    w->base::signal(tier::anycast, e2::form::prop::cwd, path_utf8);
                 }
             };
 
@@ -1705,7 +1705,7 @@ namespace netxs::app::vtm
                 if (gear_ptr)
                 {
                     auto& gear = *gear_ptr;
-                    auto viewport = gear.owner.bell::signal(tier::request, e2::form::prop::viewport);
+                    auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                     if (wincoor == dot_00)
                     {
                         offset = (offset + dot_21 * 2) % std::max(dot_11, viewport.size * 7 / 32);
@@ -1717,10 +1717,10 @@ namespace netxs::app::vtm
                     {
                         //todo revise: Should the requester set focus on their own behalf?
                         pro::focus::set(window, gear_id/*requested focus*/, solo::on); // Notify pro::focus owners.
-                        window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                             if (appbase.winform == winstate::maximized)  window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == winstate::fullscreen) window->bell::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
-                        else if (appbase.winform == winstate::minimized)  window->bell::signal(tier::release, e2::form::size::minimize, gear);
+                        window->base::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                             if (appbase.winform == winstate::maximized)  window->base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (appbase.winform == winstate::fullscreen) window->base::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                        else if (appbase.winform == winstate::minimized)  window->base::signal(tier::release, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -1750,11 +1750,11 @@ namespace netxs::app::vtm
                     //    log(prompt::hall, "Objects count: ", base::subset.size());
                     //};
                     pro::focus::set(window, gear.id, solo::on);
-                    window->bell::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                    window->base::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     auto& cfg = menu_list[what.menuid];
-                         if (cfg.winform == winstate::maximized)  window->bell::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    else if (cfg.winform == winstate::fullscreen) window->bell::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
-                    else if (cfg.winform == winstate::minimized)  window->bell::signal(tier::release, e2::form::size::minimize, gear);
+                         if (cfg.winform == winstate::maximized)  window->base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                    else if (cfg.winform == winstate::fullscreen) window->base::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                    else if (cfg.winform == winstate::minimized)  window->base::signal(tier::release, e2::form::size::minimize, gear);
                 }
             };
             LISTEN(tier::request, vtm::events::handoff, what)
@@ -1771,7 +1771,7 @@ namespace netxs::app::vtm
             {
                 if (!gear.handled)
                 {
-                    gear.owner.bell::signal(tier::release, input::events::keybd::key::post, gear);
+                    gear.owner.base::signal(tier::release, input::events::keybd::key::post, gear);
                 }
             };
             //todo mimic pro::focus (hall has no parent)
@@ -1783,7 +1783,7 @@ namespace netxs::app::vtm
                     {
                         auto& gear = *gear_ptr;
                         auto deed = this->bell::protos(tier::preview);
-                        gear.owner.bell::signal(tier::preview, deed, seed);
+                        gear.owner.base::signal(tier::preview, deed, seed);
                     }
                 }
             };
@@ -1902,7 +1902,7 @@ namespace netxs::app::vtm
                     }
                 }
             };
-            bell::signal(tier::general, e2::config::fps, g.maxfps);
+            base::signal(tier::general, e2::config::fps, g.maxfps);
         }
 
         // hall: Autorun apps from config.
@@ -1939,7 +1939,7 @@ namespace netxs::app::vtm
             }
             if constexpr (debugmode)
             {
-                auto gear_test = bell::signal(tier::request, e2::form::state::keybd::next);
+                auto gear_test = base::signal(tier::request, e2::form::state::keybd::next);
                 if (gear_test.second) log(prompt::hall, "Autofocused items count: ", gear_test.second);
             }
         }
@@ -1971,12 +1971,12 @@ namespace netxs::app::vtm
             usergate.props.background_color.link(bell::id);
 
             //todo revise (now world is not a parent for usergate)
-            //usergate.bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
+            //usergate.base::signal(tier::release, e2::form::upon::vtree::attached, base::This());
             usergate.father = base::This();
 
             usergate.nexthop = base::This();
 
-            bell::signal(tier::release, desk::events::usrs, usrs_list_ptr);
+            base::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
             auto& saved = base::field<wptr>();
             auto& memo = base::field<subs>();
@@ -1991,9 +1991,9 @@ namespace netxs::app::vtm
                 auto applet_ptr = usergate.base::subset.back();
                 auto gear_id_list = pro::focus::cut(applet_ptr);
                 applet_ptr->base::detach();
-                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
+                if (auto world_ptr = base::signal(tier::general, e2::config::creator))
                 {
-                    world_ptr->bell::signal(tier::request, vtm::events::handoff, { .applet = applet_ptr });
+                    world_ptr->base::signal(tier::request, vtm::events::handoff, { .applet = applet_ptr });
                 }
                 pro::focus::set(applet_ptr, gear_id_list, solo::on, true);
             };
@@ -2001,7 +2001,7 @@ namespace netxs::app::vtm
             {
                 if (usergate.base::subset.size() > 1)
                 {
-                    usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                    usergate.base::signal(tier::release, vtm::events::gate::restore);
                 }
                 if (new_fullscreen.applet && !new_fullscreen.applet->base::subset.empty())
                 {
@@ -2026,15 +2026,15 @@ namespace netxs::app::vtm
 
                     usergate.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                     {
-                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, vtm::events::gate::restore);
                     };
                     usergate.LISTEN(tier::release, e2::dtor, p, memo)
                     {
-                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, vtm::events::gate::restore);
                     };
                     usergate.LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
                     {
-                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, vtm::events::gate::restore);
                         usergate.bell::expire(tier::preview);
                     };
                     applet.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
@@ -2042,17 +2042,17 @@ namespace netxs::app::vtm
                         auto deed = applet.bell::protos(tier::preview);
                         if (deed == e2::form::size::enlarge::maximize.id)
                         {
-                            usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                            usergate.base::signal(tier::release, vtm::events::gate::restore);
                         }
                     };
                     applet.LISTEN(tier::release, e2::form::size::minimize, gear, memo)
                     {
                         applet.bell::expire(tier::release); // Suppress hide/minimization.
-                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, vtm::events::gate::restore);
                     };
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                     {
-                        usergate.bell::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, vtm::events::gate::restore);
                         usergate.bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
                     };
                     usergate.attach(applet_ptr);
@@ -2066,7 +2066,7 @@ namespace netxs::app::vtm
                     if (auto target = usergate.nexthop.lock())
                     {
                         auto deed = this->bell::protos(tier::release);
-                        target->bell::signal(tier::request, deed, seed); // Request to filter recursive loops.
+                        target->base::signal(tier::request, deed, seed); // Request to filter recursive loops.
                         this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
                     }
                 }
@@ -2089,7 +2089,7 @@ namespace netxs::app::vtm
                             if (auto gear_id = gear_ptr->id)
                             {
                                 seed.gear_id = gear_id;
-                                usergate.base::subset.back()->bell::signal(tier::release, input::events::focus::set::off, seed);
+                                usergate.base::subset.back()->base::signal(tier::release, input::events::focus::set::off, seed);
                             }
                         }
                     }
@@ -2106,7 +2106,7 @@ namespace netxs::app::vtm
             };
             usergate.LISTEN(tier::release, e2::form::layout::shift, newpos)
             {
-                auto viewport = usergate.bell::signal(tier::request, e2::form::prop::viewport);
+                auto viewport = usergate.base::signal(tier::request, e2::form::prop::viewport);
                 auto oldpos = viewport.center();
                 auto path = oldpos - newpos;
                 auto time = datetime::round<si32>(skin::globals().switching);
@@ -2121,21 +2121,21 @@ namespace netxs::app::vtm
             };
             usergate.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
             {
-                auto viewport = usergate.bell::signal(tier::request, e2::form::prop::viewport);
-                auto object_area = window_inst.bell::signal(tier::request, e2::form::prop::window::fullsize);
+                auto viewport = usergate.base::signal(tier::request, e2::form::prop::viewport);
+                auto object_area = window_inst.base::signal(tier::request, e2::form::prop::window::fullsize);
                 auto outside = viewport | object_area;
                 if (outside != viewport)
                 {
                     auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
                     auto center = viewport.center() + coor - viewport.coor;
-                    usergate.bell::signal(tier::release, e2::form::layout::shift, center);
+                    usergate.base::signal(tier::release, e2::form::layout::shift, center);
                 }
             };
             usergate.LISTEN(tier::release, input::events::mouse::button::click::left, gear) // Fly to another user's viewport.
             {
                 if (gear.owner.id == usergate.id) return;
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
-                gear.owner.bell::signal(tier::release, e2::form::layout::shift, center);
+                gear.owner.base::signal(tier::release, e2::form::layout::shift, center);
             };
             auto& drag_origin = usergate.base::field<fp2d>();
             auto& user_mouse = usergate.base::plugin<pro::mouse>();
@@ -2196,7 +2196,7 @@ namespace netxs::app::vtm
         void stop()
         {
             log(prompt::hall, "Server shutdown");
-            bell::signal(tier::general, e2::conio::quit); // Trigger to disconnect all users and monitors.
+            base::signal(tier::general, e2::conio::quit); // Trigger to disconnect all users and monitors.
             async.stop(); // Wait until all users and monitors are disconnected.
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             bell::dequeue(); // Wait until all cleanups are completed.

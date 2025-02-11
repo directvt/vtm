@@ -106,8 +106,8 @@ namespace netxs::app::terminal
         auto _update(ui::item& boss, menu::item& item)
         {
             auto& look = item.views[item.taken];
-            boss.bell::signal(tier::release, e2::data::utf8,              look.label);
-            boss.bell::signal(tier::preview, e2::form::prop::ui::tooltip, look.tooltip);
+            boss.base::signal(tier::release, e2::data::utf8,              look.label);
+            boss.base::signal(tier::preview, e2::form::prop::ui::tooltip, look.tooltip);
             boss.reflow();
         }
         auto _update_gear(ui::item& boss, menu::item& item, hids& gear)
@@ -207,7 +207,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take_or<bool>(utf8, faux); });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::rawkbd, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::rawkbd, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::rawkbd, state)
                     {
@@ -219,7 +219,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value() ? wrap::on : wrap::off; });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::wrapln, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::wrapln, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::wrapln, wrapln)
                     {
@@ -231,7 +231,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::align, utf8, bias::left); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::align, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::align, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::align, align)
                     {
@@ -243,7 +243,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::search::reverse, gear);
+                        boss.base::signal(tier::anycast, terminal::events::search::reverse, gear);
                     });
                     boss.LISTEN(tier::anycast, terminal::events::search::status, status)
                     {
@@ -255,7 +255,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::search::forward, gear);
+                        boss.base::signal(tier::anycast, terminal::events::search::forward, gear);
                     });
                     boss.LISTEN(tier::anycast, terminal::events::search::status, status)
                     {
@@ -266,21 +266,21 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].data });
+                        boss.base::signal(tier::anycast, terminal::events::data::in, view{ item.views[item.taken].data });
                     });
                 }},
                 { term::action::TerminalSendKey, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].data });
+                        boss.base::signal(tier::anycast, terminal::events::data::out, view{ item.views[item.taken].data });
                     });
                 }},
                 { term::action::TerminalQuit, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
+                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::sighup);
                     });
                 }},
                 { term::action::TerminalFullscreen, [](ui::item& boss, menu::item& item)
@@ -308,28 +308,28 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::restart);
+                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::restart);
                     });
                 }},
                 { term::action::TerminalUndo, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::undo);
+                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::undo);
                     });
                 }},
                 { term::action::TerminalRedo, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::redo);
+                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::redo);
                     });
                 }},
                 { term::action::TerminalClipboardPaste, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::paste, gear);
+                        boss.base::signal(tier::anycast, terminal::events::data::paste, gear);
                     });
                 }},
                 { term::action::TerminalClipboardWipe, [](ui::item& boss, menu::item& item)
@@ -343,7 +343,7 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::copy, gear);
+                        boss.base::signal(tier::anycast, terminal::events::data::copy, gear);
                     });
                 }},
                 { term::action::TerminalClipboardFormat, [](ui::item& boss, menu::item& item)
@@ -351,7 +351,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::selection::mode, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::selection::mode, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::selection::mode, mode)
                     {
@@ -363,7 +363,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::selection::shot, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::selection::shot, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::selection::shot, mode)
                     {
@@ -375,7 +375,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::selection::box, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::selection::box, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::selection::box, selbox)
                     {
@@ -386,14 +386,14 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::deselect);
+                        boss.base::signal(tier::anycast, terminal::events::cmd, ui::term::commands::ui::commands::deselect);
                     });
                 }},
                 { term::action::TerminalViewportCopy, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.bell::signal(tier::anycast, terminal::events::data::prnscrn, gear);
+                        boss.base::signal(tier::anycast, terminal::events::data::prnscrn, gear);
                     });
                 }},
                 { term::action::TerminalScrollViewportByPage, [](ui::item& boss, menu::item& item)
@@ -401,7 +401,7 @@ namespace netxs::app::terminal
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bypage::v, { .vector = delta });
+                        boss.base::signal(tier::anycast, e2::form::upon::scroll::bypage::v, { .vector = delta });
                     });
                 }},
                 { term::action::TerminalScrollViewportByCell, [](ui::item& boss, menu::item& item)
@@ -409,21 +409,21 @@ namespace netxs::app::terminal
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
                         auto delta = xml::take_or<twod>(item.views[item.taken].data, dot_00);
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::bystep::v, { .vector = delta });
+                        boss.base::signal(tier::anycast, e2::form::upon::scroll::bystep::v, { .vector = delta });
                     });
                 }},
                 { term::action::TerminalScrollViewportToTop, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_top::y);
+                        boss.base::signal(tier::anycast, e2::form::upon::scroll::to_top::y);
                     });
                 }},
                 { term::action::TerminalScrollViewportToEnd, [](ui::item& boss, menu::item& item)
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, e2::form::upon::scroll::to_end::y);
+                        boss.base::signal(tier::anycast, e2::form::upon::scroll::to_end::y);
                     });
                 }},
                 { term::action::TerminalStdioLog, [](ui::item& boss, menu::item& item)
@@ -431,7 +431,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit<true>(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::io_log, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::io_log, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::io_log, state)
                     {
@@ -443,7 +443,7 @@ namespace netxs::app::terminal
                     item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
                     _submit(boss, item, [](auto& boss, auto& item, auto& /*gear*/)
                     {
-                        boss.bell::signal(tier::anycast, preview::cwdsync, item.views[item.taken].value);
+                        boss.base::signal(tier::anycast, preview::cwdsync, item.views[item.taken].value);
                     });
                     boss.LISTEN(tier::anycast, release::cwdsync, state)
                     {
@@ -529,7 +529,7 @@ namespace netxs::app::terminal
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
-            boss.bell::signal(tier::preview, e2::form::proceed::quit::one, fast);
+            boss.base::signal(tier::preview, e2::form::proceed::quit::one, fast);
         };
         boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
         {
@@ -559,8 +559,8 @@ namespace netxs::app::terminal
         boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
         {
             auto deed = boss.bell::protos(tier::anycast);
-                 if (deed == e2::form::prop::colors::bg.id) boss.bell::signal(tier::anycast, terminal::events::preview::colors::bg, clr);
-            else if (deed == e2::form::prop::colors::fg.id) boss.bell::signal(tier::anycast, terminal::events::preview::colors::fg, clr);
+                 if (deed == e2::form::prop::colors::bg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::bg, clr);
+            else if (deed == e2::form::prop::colors::fg.id) boss.base::signal(tier::anycast, terminal::events::preview::colors::fg, clr);
         };
         boss.LISTEN(tier::anycast, terminal::events::preview::selection::mode, selmod)
         {
@@ -599,7 +599,7 @@ namespace netxs::app::terminal
         };
         boss.LISTEN(tier::anycast, e2::form::upon::started, root)
         {
-            boss.bell::signal(tier::release, e2::form::upon::started, root);
+            boss.base::signal(tier::release, e2::form::upon::started, root);
         };
         boss.LISTEN(tier::anycast, terminal::events::search::forward, gear)
         {
@@ -748,9 +748,9 @@ namespace netxs::app::terminal
                     {
                         auto gates = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
                         if (gates.size())
-                        if (auto gate_ptr = boss.bell::getref(gates.back()))
+                        if (auto gate_ptr = boss.bell::getref<base>(gates.back()))
                         {
-                            gate_ptr->bell::signal(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
+                            gate_ptr->base::signal(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                             {
                                 boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                             });
@@ -783,14 +783,14 @@ namespace netxs::app::terminal
                 auto& cwd_path = boss.base::template field<os::fs::path>(); //
                 boss.LISTEN(tier::preview, ui::tty::events::toggle::cwdsync, state)
                 {
-                    boss.bell::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
+                    boss.base::signal(tier::anycast, terminal::events::preview::cwdsync, !cwd_sync);
                 };
                 boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
                 {
                     if (cwd_sync != state)
                     {
                         cwd_sync = state;
-                        boss.bell::signal(tier::anycast, terminal::events::release::cwdsync, state);
+                        boss.base::signal(tier::anycast, terminal::events::release::cwdsync, state);
                         if (cwd_sync)
                         {
                             auto cmd = cwd_commands;

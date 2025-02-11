@@ -119,7 +119,7 @@ namespace netxs::app::shared
         //{
         //    if (esc_pressed)
         //    {
-        //        boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
+        //        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
         //        gear.set_handled();
         //    }
         //});
@@ -127,14 +127,14 @@ namespace netxs::app::shared
         //{
         //    if (std::exchange(esc_pressed, true) != esc_pressed)
         //    {
-        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
+        //        boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
         //    }
         //});
         //keybd.proc("CancelWindowClose", [&](hids& /*gear*/)
         //{
         //    if (std::exchange(esc_pressed, faux) != esc_pressed)
         //    {
-        //        boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
+        //        boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
         //    }
         //});
         //keybd.proc("ScrollPageUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
@@ -355,7 +355,7 @@ namespace netxs::app::shared
                         boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
                             auto backup = boss.This();
-                            boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
                             gear.dismiss();
                         };
                     }},
@@ -436,7 +436,7 @@ namespace netxs::app::shared
                                     boss.reflow();
                                     if (auto menutent = menutent_shadow.lock())
                                     {
-                                        menutent->bell::signal(tier::release, e2::form::state::visible, menu_visible);
+                                        menutent->base::signal(tier::release, e2::form::state::visible, menu_visible);
                                     }
                                 }
                             }
@@ -823,7 +823,7 @@ namespace netxs::app::shared
         auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
-        gate.bell::signal(tier::general, e2::config::fps, g.maxfps);
+        gate.base::signal(tier::general, e2::config::fps, g.maxfps);
         //todo deduplicate (vtm::hall)
         gate.LISTEN(tier::general, e2::config::fps, fps)
         {

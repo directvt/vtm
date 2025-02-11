@@ -1524,17 +1524,17 @@ namespace netxs::input
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             keybd::gear_id = bell::id;
-            bell::signal(tier::general, input::events::device::user::login, user_index);
+            base::signal(tier::general, input::events::device::user::login, user_index);
         }
         virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
             release_if_captured();
-            bell::signal(tier::release, input::events::halt, *this);
-            bell::signal(tier::general, input::events::halt, *this);
-            bell::signal(tier::release, input::events::die, *this);
-            bell::signal(tier::general, input::events::die, *this);
-            bell::signal(tier::general, input::events::device::user::logout, user_index);
+            base::signal(tier::release, input::events::halt, *this);
+            base::signal(tier::general, input::events::halt, *this);
+            base::signal(tier::release, input::events::die, *this);
+            base::signal(tier::general, input::events::die, *this);
+            base::signal(tier::general, input::events::device::user::logout, user_index);
         }
 
         // hids: Whether event processing is complete.
@@ -1733,7 +1733,7 @@ namespace netxs::input
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object->bell::signal(Tier, mouse::cause, *this);
+                object->base::signal(Tier, mouse::cause, *this);
                 mouse::coord = temp_coord;
                 mouse::click = temp_click;
             }
@@ -1793,7 +1793,7 @@ namespace netxs::input
             mouse::m_sys.buttons = {};
             redirect_mouse_focus(owner);
             release_if_captured();
-            bell::signal(tier::general, input::events::halt, *this);
+            base::signal(tier::general, input::events::halt, *this);
             mouse_disabled = true;
             keybd_disabled = true;
         }
@@ -1802,7 +1802,7 @@ namespace netxs::input
             if (boss.id == relay)
             {
                 redirect_mouse_focus(boss);
-                boss.bell::signal(tier::release, mouse::cause, *this);
+                boss.base::signal(tier::release, mouse::cause, *this);
             }
         }
         void fire(hint new_cause, si32 new_index = mouse::noactive)
@@ -1826,7 +1826,7 @@ namespace netxs::input
 
                     if (alive && !captured()) // Pass unhandled event to the gate.
                     {
-                        owner.bell::signal(tier::release, new_cause, *this);
+                        owner.base::signal(tier::release, new_cause, *this);
                     }
                 }
                 else mouse::setfree();
@@ -1834,7 +1834,7 @@ namespace netxs::input
             else
             {
                 if (!tooltip_stop) tooltip_recalc(new_cause);
-                owner.bell::signal(tier::preview, new_cause, *this);
+                owner.base::signal(tier::preview, new_cause, *this);
 
                 if (!alive) return;
 
@@ -1848,7 +1848,7 @@ namespace netxs::input
                     if (!alive) return;
                 }
 
-                owner.bell::signal(tier::release, new_cause, *this); // Pass unhandled event to the gate.
+                owner.base::signal(tier::release, new_cause, *this); // Pass unhandled event to the gate.
             }
         }
         bool fire_fast()
@@ -1865,7 +1865,7 @@ namespace netxs::input
                     auto  temp = m_sys.coordxy;
                     m_sys.coordxy += idmap.coor();
                     next.global(m_sys.coordxy);
-                    next.bell::signal(tier::release, input::events::device::mouse::on, *this);
+                    next.base::signal(tier::release, input::events::device::mouse::on, *this);
                     m_sys.coordxy = temp;
                     if (!alive) // Clear one-shot events on success.
                     {
@@ -1881,17 +1881,17 @@ namespace netxs::input
         }
         void fire_keybd()
         {
-            owner.bell::signal(tier::preview, input::events::keybd::key::post, *this);
+            owner.base::signal(tier::preview, input::events::keybd::key::post, *this);
         }
         void fire_board()
         {
-            owner.bell::signal(tier::release, input::events::clipboard, *this);
+            owner.base::signal(tier::release, input::events::clipboard, *this);
             mouse::delta.set(); // Update time stamp.
         }
         void fire_focus()
         {
-            focus::state ? owner.bell::signal(tier::release, input::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
-                         : owner.bell::signal(tier::release, input::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
+            focus::state ? owner.base::signal(tier::release, input::events::focus::set::on,  { .gear_id = id, .just_activate_only = true, .treeid = focus::treeid, .digest = focus::digest })
+                         : owner.base::signal(tier::release, input::events::focus::set::off, { .gear_id = id,                             .treeid = focus::treeid, .digest = focus::digest });
         }
         text interpret(bool decckm)
         {

@@ -481,7 +481,7 @@ namespace netxs::ui
                         if (!focused && owner.ime_on) owner.ime_on = faux;
                     }
                 };
-                state = owner.bell::signal(tier::request, e2::form::state::focus::count);
+                state = owner.base::signal(tier::request, e2::form::state::focus::count);
             }
 
             operator bool () { return state; }
@@ -1379,14 +1379,14 @@ namespace netxs::ui
                 {
                     auto w = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                : (si32)parser::style.wrp();
-                    owner.bell::signal(tier::release, ui::tty::events::layout::wrapln, w);
+                    owner.base::signal(tier::release, ui::tty::events::layout::wrapln, w);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto a = parser::style.jet() == bias::none ? (si32)bias::left
                                                                : (si32)parser::style.jet();
-                    owner.bell::signal(tier::release, ui::tty::events::layout::align, a);
+                    owner.base::signal(tier::release, ui::tty::events::layout::align, a);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -7165,22 +7165,22 @@ namespace netxs::ui
         void selection_selmod(si32 newmod)
         {
             selmod = newmod;
-            bell::signal(tier::release, e2::form::draggable::left, selection_passed());
-            bell::signal(tier::release, ui::tty::events::selmod, selmod);
+            base::signal(tier::release, e2::form::draggable::left, selection_passed());
+            base::signal(tier::release, ui::tty::events::selmod, selmod);
         }
         // term: Run one-shot selection.
         void selection_oneshot(si32 newmod)
         {
             onesht = newmod;
-            bell::signal(tier::release, ui::tty::events::onesht, onesht);
+            base::signal(tier::release, ui::tty::events::onesht, onesht);
             selection_selmod(newmod);
         }
         // term: Set selection form.
         void selection_selalt(bool boxed)
         {
             selalt = boxed;
-            bell::signal(tier::release, e2::form::draggable::left, selection_passed());
-            bell::signal(tier::release, ui::tty::events::selalt, selalt);
+            base::signal(tier::release, e2::form::draggable::left, selection_passed());
+            base::signal(tier::release, ui::tty::events::selalt, selalt);
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -7292,7 +7292,7 @@ namespace netxs::ui
             auto canvas = e2::render::any.param();
             canvas.size(square);
             canvas.full({ origin, square });
-            bell::signal(tier::release, e2::render::any, canvas);
+            base::signal(tier::release, e2::render::any, canvas);
             target->bufferbase::selection_pickup(buffer, canvas, seltop, selend, selmod, selbox);
             if (buffer.size()) buffer.eol();
             _copy(gear, buffer);
@@ -7446,7 +7446,7 @@ namespace netxs::ui
         }
         void selection_submit()
         {
-            bell::signal(tier::release, e2::form::draggable::left, selection_passed());
+            base::signal(tier::release, e2::form::draggable::left, selection_passed());
             LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.captured()) // Forward mouse wheel events to all parents. Wheeling while button pressed.
@@ -7509,7 +7509,7 @@ namespace netxs::ui
                                   :  console.arena;
                 }
             }
-            bell::signal(tier::release, ui::tty::events::search::status, console.selection_button(delta));
+            base::signal(tier::release, ui::tty::events::search::status, console.selection_button(delta));
             if (target == &normal && delta)
             {
                 selection_moveto(delta);
@@ -7540,7 +7540,7 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            bell::signal(tier::release, ui::tty::events::colors::bg, bg);
+            base::signal(tier::release, ui::tty::events::colors::bg, bg);
         }
         void set_fg_color(argb fg)
         {
@@ -7551,13 +7551,13 @@ namespace netxs::ui
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
-            bell::signal(tier::release, ui::tty::events::colors::fg, fg);
+            base::signal(tier::release, ui::tty::events::colors::fg, fg);
         }
         void set_rawkbd(si32 state = {})
         {
             if (!state) rawkbd = !rawkbd;
             else        rawkbd = state - 1;
-            bell::signal(tier::release, ui::tty::events::rawkbd, rawkbd);
+            base::signal(tier::release, ui::tty::events::rawkbd, rawkbd);
         }
         void set_wrapln(si32 wrapln = {})
         {
@@ -7594,7 +7594,7 @@ namespace netxs::ui
             if (config.allow_logs)
             {
                 io_log = state;
-                bell::signal(tier::release, ui::tty::events::io_log, state);
+                base::signal(tier::release, ui::tty::events::io_log, state);
             }
         }
         void exec_cmd(commands::ui::commands cmd)
@@ -7713,7 +7713,7 @@ namespace netxs::ui
         }
         void close(bool fast = true, bool notify = true)
         {
-            if (notify) this->bell::signal(tier::request, e2::form::proceed::quit::one, fast);
+            if (notify) this->base::signal(tier::request, e2::form::proceed::quit::one, fast);
             forced = fast;
             if (ipccon)
             {
@@ -8131,7 +8131,7 @@ namespace netxs::ui
                      || adjust_pads)
                     {
                         auto new_area = rect{ scroll_coor, scroll_size };
-                        this->bell::signal(tier::release, e2::area, new_area);
+                        this->base::signal(tier::release, e2::area, new_area);
                         base::region = new_area;
                     }
                     base::deface();
@@ -8394,11 +8394,11 @@ namespace netxs::ui
                     auto owner_ptr = owner.This();
                     if (f.state)
                     {
-                        owner.bell::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.base::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else
                     {
-                        owner.bell::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
+                        owner.base::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
                     }
                 }
             }
@@ -8539,7 +8539,7 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
-                    owner.bell::signal(tier::general, e2::config::fps, fps);
+                    owner.base::signal(tier::general, e2::config::fps, fps);
                 });
             }
             void handle(s11n::xs::logs                lock)
@@ -8581,7 +8581,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
                     {
-                        gear_ptr->owner.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                        gear_ptr->owner.base::signal(tier::preview, e2::command::gui, gui_cmd);
                     }
                 });
             }
@@ -8672,7 +8672,7 @@ namespace netxs::ui
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)
         {
-            if (notify) this->bell::signal(tier::request, e2::form::proceed::quit::one, fast);
+            if (notify) this->base::signal(tier::request, e2::form::proceed::quit::one, fast);
             auto nodtvt = [&]
             {
                 auto lock = stream.bitmap_dtvt.freeze();

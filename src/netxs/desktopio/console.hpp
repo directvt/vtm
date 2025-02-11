@@ -131,7 +131,7 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner_wptr, [Tier, d = data](auto& boss) mutable
                 {
-                    boss.bell::signal(Tier, E::id, d);
+                    boss.base::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
@@ -140,7 +140,7 @@ namespace netxs::ui
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
-                    auto inputfield_request = owner.bell::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
+                    auto inputfield_request = owner.base::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
                     auto field_list = inputfield_request.wait_for();
                     for (auto& f : field_list) f.coor -= owner.coor();
                     s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
@@ -719,11 +719,11 @@ namespace netxs::ui
         // gate: Rx loop.
         void launch()
         {
-            bell::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
+            base::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
             conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
             if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
-            bell::signal(tier::release, e2::form::upon::stopped, true);
+            base::signal(tier::release, e2::form::upon::stopped, true);
         }
 
         //todo revise
@@ -756,7 +756,7 @@ namespace netxs::ui
                                                 {
                                                     gear_ptr->set_handled();
                                                 }
-                                                boss.bell::signal(tier::preview, e2::conio::quit);
+                                                boss.base::signal(tier::preview, e2::conio::quit);
                                                 luafx.set_return();
                                             }},
                 { "DebugOverlay",           [](auto& boss, auto& luafx)
@@ -784,7 +784,7 @@ namespace netxs::ui
                                                 }
                                                 gui_cmd.cmd_id = syscmd::tunecellheight;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "RollFonts",              [](auto& boss, auto& luafx)
@@ -799,7 +799,7 @@ namespace netxs::ui
                                                 }
                                                 gui_cmd.cmd_id = syscmd::rollfontlist;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "WheelAccumReset",        [](auto& boss, auto& luafx)
@@ -812,7 +812,7 @@ namespace netxs::ui
                                                     gui_cmd.gear_id = gear_ptr->id;
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetwheelaccum;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "CellHeightReset",        [](auto& boss, auto& luafx)
@@ -826,7 +826,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::resetcellheight;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "Fullscreen",             [](auto& boss, auto& luafx)
@@ -841,7 +841,7 @@ namespace netxs::ui
                                                 }
                                                 //todo args
                                                 gui_cmd.cmd_id = syscmd::togglefsmode;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "AntialiasingMode",       [](auto& boss, auto& luafx)
@@ -856,7 +856,7 @@ namespace netxs::ui
                                                 }
                                                 //todo args
                                                 gui_cmd.cmd_id = syscmd::toggleaamode;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "MoveWindow",             [](auto& boss, auto& luafx)
@@ -872,7 +872,7 @@ namespace netxs::ui
                                                 gui_cmd.cmd_id = syscmd::move;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "WarpWindow",             [](auto& boss, auto& luafx)
@@ -890,7 +890,7 @@ namespace netxs::ui
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "MaximizeWindow",         [](auto& boss, auto& luafx)
@@ -904,7 +904,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::maximize;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "MinimizeWindow",         [](auto& boss, auto& luafx)
@@ -918,7 +918,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::minimize;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "AlwaysOnTop",            [](auto& boss, auto& luafx)
@@ -932,7 +932,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 gui_cmd.cmd_id = syscmd::alwaysontop;
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
                 { "FocusNextWindow",        [](auto& boss, auto& luafx)
@@ -947,7 +947,7 @@ namespace netxs::ui
                                                 }
                                                 gui_cmd.cmd_id = syscmd::focusnextwindow;
                                                 gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                                boss.bell::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
             };
@@ -993,10 +993,10 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::command::run, script)
             {
-                if (auto world_ptr = bell::signal(tier::general, e2::config::creator))
+                if (auto world_ptr = base::signal(tier::general, e2::config::creator))
                 {
                     //todo set gear_id
-                    world_ptr->bell::signal(tier::release, e2::command::run, script);
+                    world_ptr->base::signal(tier::release, e2::command::run, script);
                 }
             };
             LISTEN(tier::release, e2::conio::mouse, m)
@@ -1048,7 +1048,7 @@ namespace netxs::ui
                 if (auto target = nexthop.lock())
                 {
                     auto deed = bell::protos(tier::release);
-                    target->bell::signal(tier::release, deed, seed);
+                    target->base::signal(tier::release, deed, seed);
                 }
             };
             //todo mimic pro::focus
@@ -1063,7 +1063,7 @@ namespace netxs::ui
             {
                 if (auto target = nexthop.lock())
                 {
-                    target->bell::signal(tier::preview, input::events::keybd::key::post, gear);
+                    target->base::signal(tier::preview, input::events::keybd::key::post, gear);
                 }
             };
             LISTEN(tier::release, input::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
@@ -1112,11 +1112,11 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
             {
-                this->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast);
+                this->base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
                 disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                this->bell::signal(tier::release, e2::dtor, bell::id); // Restore maximized window.
+                this->base::signal(tier::release, e2::dtor, bell::id); // Restore maximized window.
                 bell::sensors.reset();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
@@ -1130,7 +1130,7 @@ namespace netxs::ui
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
             {
                 if (props.debug_overlay) debug.start();
-                this->bell::signal(tier::release, e2::form::prop::name, props.title);
+                this->base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise
                 if (props.title.length())
                 {
@@ -1264,7 +1264,7 @@ namespace netxs::ui
                 };
                 LISTEN(tier::release, e2::config::fps, fps)
                 {
-                    if (fps > 0) this->bell::signal(tier::general, e2::config::fps, fps);
+                    if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
                 };
                 LISTEN(tier::preview, e2::config::fps, fps)
                 {

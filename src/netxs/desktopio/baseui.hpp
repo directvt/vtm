@@ -133,7 +133,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( background )
                 {
-                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt bell::signal) and any kind of highlighters.
+                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt base::signal) and any kind of highlighters.
                 };
             };
             SUBSET_XS( config )
@@ -641,6 +641,70 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
+        // base: Cleanup weak references.
+        auto cleanup()
+        {
+            auto ref_count = ui64{};
+            auto del_count = ui64{};
+            for (auto& [item_id, item_wptr] : indexer.store)
+            {
+                if (auto item_ptr = item_wptr.lock())
+                {
+                    auto& item = *item_ptr;
+                    item.preview.cleanup(ref_count, del_count);
+                    item.request.cleanup(ref_count, del_count);
+                    item.release.cleanup(ref_count, del_count);
+                    item.anycast.cleanup(ref_count, del_count);
+                }
+            }
+            general.cleanup(ref_count, del_count);
+            return std::pair{ ref_count, del_count };
+        }
+        // base: Recursively find the root of the visual tree.
+        auto gettop()
+        {
+            auto parent_ptr = This();
+            while (!parent_ptr->base::master)
+            {
+                if (auto next_parent_ptr = parent_ptr->father.lock()) parent_ptr = next_parent_ptr;
+                else break;
+            }
+            return parent_ptr;
+        }
+        auto signal(si32 Tier, hint event, auto& param)
+        {
+            auto lock = bell::sync();
+            if (Tier == tier::anycast)
+            {
+                auto root = gettop();
+                auto proc = netxs::events::ftor{ [&](auto boss_ptr)
+                {
+                    boss_ptr->anycast.notify(event, param);
+                    return true;
+                }};
+                root->release.notify(e2::cascade.id, proc);
+            }
+            else reactors[Tier]->notify(event, param);
+        }
+        // base: Fire an event.
+        // Usage example:
+        //          base::signal(tier::preview, e2::form::prop::ui::header, txt);
+        template<class Event>
+        auto signal(si32 Tier, Event, Event::type&& param = {})
+        {
+            signal(Tier, Event::id, param);
+            return param;
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type& param)
+        {
+            signal(Tier, Event::id, param);
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type const& param)
+        {
+            signal(Tier, Event::id, param);
+        }
         template<bool Absolute = true>
         auto actual_area() const
         {
@@ -654,12 +718,12 @@ namespace netxs::ui
             base::filler.bgc(bg_color)
                         .fgc(fg_color)
                         .txt(whitespace);
-            bell::signal(tier::release, e2::form::prop::filler, filler);
+            base::signal(tier::release, e2::form::prop::filler, filler);
         }
         void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
         {
             base::filler = new_filler;
-            bell::signal(tier::release, e2::form::prop::filler, filler);
+            base::signal(tier::release, e2::form::prop::filler, filler);
         }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
@@ -705,10 +769,10 @@ namespace netxs::ui
             xform(atcrop.y, atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
-            bell::signal(tier::release, e2::area, new_area);
+            base::signal(tier::release, e2::area, new_area);
             if (base::family == base::reflow_root && base::region.size != new_area.size)
             {
-                bell::signal(tier::anycast, e2::form::upon::resized, new_area);
+                base::signal(tier::anycast, e2::form::upon::resized, new_area);
             }
             base::region = new_area;
         }
@@ -749,7 +813,7 @@ namespace netxs::ui
             base::socket.size = base::region.size;
             auto new_area = base::socket;
             auto old_coor = base::region.coor;
-            bell::signal(tier::release, e2::area, new_area);
+            base::signal(tier::release, e2::area, new_area);
             base::region.coor = new_area.coor;
             return base::region.coor - old_coor;
         }
@@ -844,17 +908,6 @@ namespace netxs::ui
                 parent_ptr = parent_ptr->base::parent();
             }
         }
-        // base: Recursively find the root of the visual tree.
-        netxs::sptr<bell> gettop() override
-        {
-            auto parent_ptr = This();
-            while (!parent_ptr->base::master)
-            {
-                if (auto next_parent_ptr = parent_ptr->base::parent()) parent_ptr = next_parent_ptr;
-                else break;
-            }
-            return parent_ptr;
-        }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
         // Usage example:
@@ -862,13 +915,13 @@ namespace netxs::ui
         void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
             auto lock = bell::sync();
-            bell::signal(Tier, event_id, param);
+            base::signal(Tier, event_id, param);
             if (forced)
             {
                 auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
-                    parent_ptr->bell::signal(Tier, event_id, param);
+                    parent_ptr->base::signal(Tier, event_id, param);
                     parent_ptr = parent_ptr->base::parent();
                 }
             }
@@ -877,7 +930,7 @@ namespace netxs::ui
                 auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
-                    parent_ptr->bell::signal(Tier, event_id, param);
+                    parent_ptr->base::signal(Tier, event_id, param);
                     if (parent_ptr->bell::accomplished(Tier)) break;
                     parent_ptr = parent_ptr->base::parent();
                 }
@@ -1004,8 +1057,8 @@ namespace netxs::ui
             if (hidden) return;
             if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
             {
-                if (pred) bell::signal(tier::release, e2::render::background::prerender, canvas);
-                if (post) bell::signal(tier::release, e2::postrender, canvas);
+                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
+                if (post) base::signal(tier::release, e2::postrender, canvas);
             }
         }
         // base: Attach nested object.
@@ -1024,7 +1077,7 @@ namespace netxs::ui
                 item_ptr->holder = std::prev(subset.end());
                 item_ptr->father = This();
             }
-            item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
+            item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
         // base: Remove nested object.
@@ -1036,7 +1089,7 @@ namespace netxs::ui
                 subset.erase(std::exchange(item_ptr->holder, subset.end()));
                 //todo revise (see pro::mouse::reset(soul))
                 //item_ptr->father = {};
-                item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // base: Update nested object.
@@ -1050,8 +1103,8 @@ namespace netxs::ui
                 new_item_ptr->father = This();
                 //todo revise (see pro::mouse::reset(soul))
                 //old_item_ptr->father = {};
-                old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
-                new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
+                old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
         // base: Remove the last nested object. Return the object refrence.
@@ -1105,7 +1158,7 @@ namespace netxs::ui
                     parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
                     {
                         auto backup = This(); // Object can be deleted inside proc.
-                        backup->bell::signal(tier::release, e2::cascade, proc);
+                        backup->base::signal(tier::release, e2::cascade, proc);
                     };
                 }
             };

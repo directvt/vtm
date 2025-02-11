@@ -22,6 +22,11 @@
     float  fmod(float  a, float  b) { return fmodl(a, b); }
 #endif
 
+namespace netxs::ui
+{
+    struct base;
+}
+
 namespace netxs::events
 {
     struct tier
@@ -106,8 +111,7 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    struct bell;
-    using ftor = std::function<bool(sptr<bell>)>;
+    using ftor = std::function<bool(sptr<ui::base>)>;
 
     struct handler
     {
@@ -252,10 +256,10 @@ namespace netxs::events
     struct auth
     {
         id_t                       newid;
-        wptr<bell>                 empty;
+        wptr<ui::base>             empty;
         std::recursive_mutex       mutex;
-        std::map<id_t, wptr<bell>> store;
-        generics::jobs<wptr<bell>> agent;
+        std::map<id_t, wptr<ui::base>> store;
+        generics::jobs<wptr<ui::base>> agent;
         reactor                    general{ true };
         lua_State*                 lua;
         si32                       fps{};
@@ -311,7 +315,7 @@ namespace netxs::events
             general.notify(e2_timer_tick_id, now);
         }
         // auth: Return sptr of the object by its id.
-        template<class T = bell>
+        template<class T = ui::base>
         auto getref(id_t id)
         {
             auto lock = sync();
@@ -348,7 +352,7 @@ namespace netxs::events
         }
         // auth: .
         template<bool Sync = true, class T>
-        void enqueue(wptr<bell> object_wptr, T&& proc)
+        void enqueue(wptr<ui::base> object_wptr, T&& proc)
         {
             agent.add(object_wptr, [&, proc](auto& object_wptr) mutable
             {
@@ -474,7 +478,7 @@ namespace netxs::events
         const id_t   id;      // bell: Object id.
         subs         sensors; // bell: Event subscriptions.
 
-    private:
+    //private:
         reactor release{ true };
         reactor preview{ faux };
         reactor request{ true };
@@ -535,40 +539,6 @@ namespace netxs::events
         {
             return reactors[Tier]->handled;
         }
-        auto signal(si32 Tier, hint event, auto& param)
-        {
-            auto lock = indexer.sync();
-            if (Tier == tier::anycast)
-            {
-                auto root = gettop();
-                auto proc = ftor{ [&](auto boss_ptr)
-                {
-                    boss_ptr->anycast.notify(event, param);
-                    return true;
-                }};
-                root->release.notify(userland::root::cascade.id, proc);
-            }
-            else reactors[Tier]->notify(event, param);
-        }
-        // bell: Fire an event.
-        // Usage example:
-        //          bell::signal(tier::preview, e2::form::prop::ui::header, txt);
-        template<class Event>
-        auto signal(si32 Tier, Event, Event::type&& param = {})
-        {
-            signal(Tier, Event::id, param);
-            return param;
-        }
-        template<class Event>
-        void signal(si32 Tier, Event, Event::type& param)
-        {
-            signal(Tier, Event::id, param);
-        }
-        template<class Event>
-        void signal(si32 Tier, Event, Event::type const& param)
-        {
-            signal(Tier, Event::id, param);
-        }
         // bell: Return initial event of the current event execution branch.
         auto protos(si32 Tier)
         {
@@ -626,33 +596,13 @@ namespace netxs::events
         {
             return indexer.getref<T>(id);
         }
-        // bell: Cleanup weak references.
-        auto cleanup()
-        {
-            auto ref_count = ui64{};
-            auto del_count = ui64{};
-            for (auto& [item_id, item_wptr] : indexer.store)
-            {
-                if (auto item_ptr = item_wptr.lock())
-                {
-                    auto& item = *item_ptr;
-                    item.preview.cleanup(ref_count, del_count);
-                    item.request.cleanup(ref_count, del_count);
-                    item.release.cleanup(ref_count, del_count);
-                    item.anycast.cleanup(ref_count, del_count);
-                }
-            }
-            general.cleanup(ref_count, del_count);
-            return std::pair{ ref_count, del_count };
-        }
 
         bell(auth& indexer)
             : indexer{ indexer },
               general{ indexer.general },
               id{ indexer.new_id() }
         { }
-
-        virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
+        virtual ~bell() = default;
     };
 }
 namespace netxs

@@ -1788,7 +1788,7 @@ namespace netxs::gui
                 {
                     if (owner.mfocus.focused()) // We are the focus tree endpoint.
                     {
-                        owner.bell::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
+                        owner.base::signal(tier::request, input::events::focus::add, { .gear_id = f.gear_id, .focus_type = f.focus_type });
                     }
                     else owner.window_post_command(ipc::take_focus);
                     if (f.focus_type == solo::on) // Set solo focus.
@@ -1798,7 +1798,7 @@ namespace netxs::gui
                 }
                 else
                 {
-                    owner.bell::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
+                    owner.base::signal(tier::request, input::events::focus::rem, { .gear_id = f.gear_id });
                 }
             }
             void handle(s11n::xs::syskeybd         lock)
@@ -1808,7 +1808,7 @@ namespace netxs::gui
                 auto guard = owner.sync();
                 auto& gear = *gears;
                 keybd.syncto(gear);
-                owner.bell::signal(tier::release, input::events::keybd::key::post, gear);
+                owner.base::signal(tier::release, input::events::keybd::key::post, gear);
             };
             void handle(s11n::xs::mouse_event      lock)
             {
@@ -1833,7 +1833,7 @@ namespace netxs::gui
                 //todo revise
                 //owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 //{
-                //    owner.bell::signal(tier::general, e2::config::fps, fps);
+                //    owner.base::signal(tier::general, e2::config::fps, fps);
                 //});
             }
             void handle(s11n::xs::logs             lock)
@@ -3084,7 +3084,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        bell::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
+                        base::signal(tier::release, input::events::focus::set::on, { .gear_id = stream.gears->id, .focus_type = solo::on });
                         if (mfocus.wheel) window_post_command(ipc::sync_state);
                     });
                 }
@@ -3098,7 +3098,7 @@ namespace netxs::gui
                 {
                     bell::enqueue(This(), [&](auto& /*boss*/)
                     {
-                        auto seed = bell::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
+                        auto seed = base::signal(tier::release, input::events::focus::set::off, { .gear_id = stream.gears->id });
                     });
                 }
             }
@@ -3231,7 +3231,7 @@ namespace netxs::gui
             auto inputfield_request = ui::e2::command::request::inputfields.param({ .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd });
             stream.send_input_fields_request(*this, inputfield_request);
             // We can't sync with the ui here. This causes a deadlock.
-            //auto inputfield_request = bell::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
+            //auto inputfield_request = base::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = stream.gears->id, .acpStart = acpStart, .acpEnd = acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
             fields = inputfield_request.wait_for();
             auto win_area = blinky.area;
             if (fields.empty()) fields.push_back(win_area);
@@ -3298,7 +3298,7 @@ namespace netxs::gui
                 {
                     update_footer();
                 };
-                bell::signal(tier::anycast, e2::form::upon::started, This());
+                base::signal(tier::anycast, e2::form::upon::started, This());
             }
             auto winio = std::thread{ [&]
             {
