@@ -144,7 +144,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {
                     recalc();
-                    boss.deface();
+                    boss.base::deface();
                 };
                 boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
                 {

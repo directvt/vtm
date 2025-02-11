@@ -350,7 +350,7 @@ namespace netxs::app::desk
                             auto selected = inst_id == data;
                             boss.brush(selected ? c9 : cell{});
                             boss.set(obj_desc);
-                            boss.deface();
+                            boss.base::deface();
                         };
                     });
                 if (auto count = inst_ptr_list.size())

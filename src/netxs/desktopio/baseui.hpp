@@ -792,7 +792,7 @@ namespace netxs::ui
             if (auto parent_ptr = base::parent())
             {
                 area.coor += base::region.coor;
-                parent_ptr->deface(area);
+                parent_ptr->base::deface(area);
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
@@ -801,15 +801,15 @@ namespace netxs::ui
             strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
-        virtual void deface(rect area)
+        void deface(rect area)
         {
             base::wasted = true;
-            strike(area);
+            base::strike(area);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
         {
-            deface(base::region);
+            base::deface(base::region);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         template<bool Forced = faux>

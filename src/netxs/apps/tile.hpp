@@ -497,7 +497,7 @@ namespace netxs::app::tile
                         auto c3 = highlight_color.alpha(0x70);
                         auto c = state ? c3 : window_clr;
                         boss.front()->color(c.fgc(), c.bgc());
-                        boss.deface();
+                        boss.base::deface();
                     };
                     boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
                     {
@@ -711,7 +711,7 @@ namespace netxs::app::tile
                                     parent->base::riseup(tier::release, e2::form::proceed::swap, item_ptr);
                                 }
                             }
-                            boss.deface();
+                            boss.base::deface();
                         }
                     };
                     boss.LISTEN(tier::request, e2::form::proceed::createby, gear)

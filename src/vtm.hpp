@@ -299,7 +299,7 @@ namespace netxs::app::vtm
                 if (data.ctrl != state)
                 {
                     data.ctrl = state;
-                    boss.deface(data.slot);
+                    boss.base::deface(data.slot);
                 }
             }
             void handle_init(hids& gear)
@@ -313,7 +313,7 @@ namespace netxs::app::vtm
                     data.ctrl = gear.meta(hids::anyCtrl);
                     slot.coor = init = step = gear.click;
                     slot.size = dot_00;
-                    boss.deface(slot);
+                    boss.base::deface(slot);
                     gear.dismiss();
                 }
             }
@@ -330,7 +330,7 @@ namespace netxs::app::vtm
                     auto moved = slot.coor(std::min(init, step));
                     auto dsize = twod{ step } - twod{ init };
                     auto sized = slot.size(std::max(std::abs(dsize), dot_00));
-                    if (moved || sized) boss.deface(slot);
+                    if (moved || sized) boss.base::deface(slot);
                     gear.dismiss();
                 }
             }

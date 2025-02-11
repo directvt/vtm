@@ -1846,7 +1846,7 @@ namespace netxs::gui
                 //owner.bell::enqueue(owner_wptr, [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 //{
                 //    owner.errmsg = owner.genmsg(utf8);
-                //    owner.deface();
+                //    owner.base::deface();
                 //});
             }
             void handle(s11n::xs::sysclose       /*lock*/)

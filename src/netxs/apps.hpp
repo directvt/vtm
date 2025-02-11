@@ -92,7 +92,7 @@ namespace netxs::app::shared
                 if (auto strob = strob_shadow.lock())
                 {
                     strob->color(0x00, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
-                    strob->deface();
+                    strob->base::deface();
                 }
             };
             return window;
@@ -541,8 +541,8 @@ namespace netxs::app::shared
                             auto next_ptr = boss.back();
                             pro::focus::hop(prev_ptr, next_ptr);
                             boss.back()->base::riseup(tier::preview, e2::form::prop::ui::footer);
-                            boss.back()->reflow();
-                            boss.back()->deface();
+                            boss.back()->base::reflow();
+                            boss.back()->base::deface();
                             order = !order;
                         }
                         boss.bell::expire(tier::release, true);

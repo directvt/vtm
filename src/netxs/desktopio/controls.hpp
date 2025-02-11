@@ -430,7 +430,7 @@ namespace netxs::ui
                     if (iter == focus.end())
                     {
                         focus.push_back(gear_id);
-                        if (stat) boss.deface();
+                        if (stat) boss.base::deface();
                     }
                 }
             }
@@ -443,7 +443,7 @@ namespace netxs::ui
                     if (iter != focus.end())
                     {
                         focus.erase(iter);
-                        if (stat) boss.deface();
+                        if (stat) boss.base::deface();
                     }
                 }
             }
@@ -845,7 +845,7 @@ namespace netxs::ui
                             {
                                 next = timestamp + step;
                                 live = !live;
-                                boss.deface(body);
+                                boss.base::deface(body);
                             }
                         };
                     }
@@ -929,7 +929,7 @@ namespace netxs::ui
                     memo.clear();
                     if (done)
                     {
-                        boss.deface(body);
+                        boss.base::deface(body);
                         done = faux;
                     }
                 }
@@ -5184,7 +5184,7 @@ namespace netxs::ui
             topic.reindex();
 
             base::resize(box_len);
-            deface();
+            base::deface();
         }
         auto set_val(si32 new_val, view pin_chr)
         {
