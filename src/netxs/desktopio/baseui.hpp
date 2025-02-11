@@ -622,7 +622,7 @@ namespace netxs::ui
         dent intpad; // base: Pads inside object.
         bind atgrow; // base: Bindings on enlarging.
         bind atcrop; // base: Bindings on shrinking.
-        bool wasted; // base: Should the object be redrawn.
+        bool wasted; // base: Should the object be redrawn. //todo make it rect{}
         bool hidden; // base: Ignore rendering and resizing.
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
@@ -789,22 +789,23 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            if (auto parent_ptr = base::parent())
+            auto parent_ptr = This();
+            while (auto next_parent_ptr = parent_ptr->base::parent())
             {
-                area.coor += base::region.coor;
-                parent_ptr->base::wasted = true;
-                parent_ptr->base::strike(area);
+                area.coor += parent_ptr->base::region.coor + parent_ptr->base::intpad.corner();
+                parent_ptr = next_parent_ptr;
+                parent_ptr->base::wasted = true; //todo parent_ptr->base::wasted = area;
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
         void strike()
         {
-            strike(base::region);
+            base::strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface(rect area)
         {
-            base::wasted = true;
+            base::wasted = true; //todo base::wasted = area;
             base::strike(area);
         }
         // base: Mark the form and its subtree as requiring redrawing.
@@ -829,7 +830,7 @@ namespace netxs::ui
         {
             if (auto parent_ptr = base::parent())
             {
-                strike();
+                base::strike();
                 parent_ptr->remove(This());
             }
         }

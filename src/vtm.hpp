@@ -167,7 +167,7 @@ namespace netxs::app::vtm
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
                         {
                             boss.base::moveby(x);
-                            boss.strike();
+                            boss.base::strike();
                         });
                     }
                     else
@@ -177,7 +177,7 @@ namespace netxs::app::vtm
                         {
                             //todo revise: crash after window closed (bad weak ptr)
                             convey(x, boundary);
-                            boss.strike();
+                            boss.base::strike();
                         });
                     }
                 };
@@ -209,7 +209,7 @@ namespace netxs::app::vtm
                 auto func = constlinearAtoB<twod>(path, time, init);
 
                 robo.pacify();
-                robo.actify(func, [&](twod& x){ boss.base::moveby(x); boss.strike(); });
+                robo.actify(func, [&](twod& x){ boss.base::moveby(x); boss.base::strike(); });
             }
             /*
             // pro::frame: Search for a non-overlapping form position in
