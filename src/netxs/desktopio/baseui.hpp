@@ -792,7 +792,8 @@ namespace netxs::ui
             if (auto parent_ptr = base::parent())
             {
                 area.coor += base::region.coor;
-                parent_ptr->base::deface(area);
+                parent_ptr->base::wasted = true;
+                parent_ptr->base::strike(area);
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
