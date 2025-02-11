@@ -660,7 +660,7 @@ namespace netxs::ui
             general.cleanup(ref_count, del_count);
             return std::pair{ ref_count, del_count };
         }
-        // base: Recursively find the root of the visual tree.
+        // base: Find the root of the visual tree.
         auto gettop()
         {
             auto parent_ptr = This();
@@ -677,6 +677,7 @@ namespace netxs::ui
             if (Tier == tier::anycast)
             {
                 auto root = gettop();
+                //todo BFS for a graph
                 auto proc = netxs::events::ftor{ [&](auto boss_ptr)
                 {
                     boss_ptr->anycast.notify(event, param);
@@ -897,7 +898,7 @@ namespace netxs::ui
                 parent_ptr->remove(This());
             }
         }
-        // base: Recursively calculate global coordinate.
+        // base: Calculate global coordinate.
         void global(auto& coor)
         {
             coor -= base::region.coor + base::intpad.corner();
