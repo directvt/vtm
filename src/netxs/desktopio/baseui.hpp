@@ -845,9 +845,14 @@ namespace netxs::ui
         // base: Recursively find the root of the visual tree.
         netxs::sptr<bell> gettop() override
         {
-            auto parent_ptr = base::parent();
-            if (!base::master && parent_ptr) return parent_ptr->gettop();
-            else                             return This();
+            auto parent_ptr = This();
+            while (!parent_ptr->base::master)
+            {
+                auto next_parent_ptr = parent_ptr->base::parent();
+                if (!next_parent_ptr) break;
+                parent_ptr = next_parent_ptr;
+            }
+            return parent_ptr;
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
