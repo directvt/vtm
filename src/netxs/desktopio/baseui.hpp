@@ -1082,6 +1082,7 @@ namespace netxs::ui
                 item_ptr->father = This();
             }
             item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
+            //if (!hidden) base::reflow();
             return item_ptr;
         }
         // base: Remove nested object.
@@ -1094,6 +1095,8 @@ namespace netxs::ui
                 //todo revise (see pro::mouse::reset(soul))
                 //item_ptr->father = {};
                 item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                item_ptr->relyon.clear();
+                //if (!hidden) base::reflow();
             }
         }
         // base: Update nested object.
@@ -1108,7 +1111,9 @@ namespace netxs::ui
                 //todo revise (see pro::mouse::reset(soul))
                 //old_item_ptr->father = {};
                 old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                old_item_ptr->relyon.clear();
                 new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
+                //if (!hidden) base::reflow();
             }
         }
         // base: Remove the last nested object. Return the object refrence.
@@ -1147,14 +1152,6 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
-            LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
-            {
-                if (this->bell::protos(tier::release, e2::form::upon::vtree::detached))
-                {
-                    relyon.clear();
-                }
-                if (parent_ptr && !hidden) parent_ptr->base::reflow();
-            };
             LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
                      if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
