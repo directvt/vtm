@@ -75,7 +75,6 @@ namespace netxs::app::desk
             auto c1 = danger_color;
             auto cF = focused_color;
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0);
-            auto& disabled = item_area->base::field(faux);
             auto& src_wptr = item_area->base::field(ptr::shadow(data_src));
             item_area->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -84,39 +83,8 @@ namespace netxs::app::desk
                 ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->invoke([&](auto& boss)
                 {
-                    auto check_id = [](auto& boss, auto gear_id)
-                    {
-                        auto owner_id = boss.base::riseup(tier::request, desk::events::ui::id);
-                        auto locked = gear_id && gear_id != owner_id;
-                        boss.base::signal(tier::release, e2::form::state::disabled, locked);
-                        auto& tooltip = boss.template plugins<pro::notes>();
-                        tooltip.update(locked ? " Window is locked by another user "
-                                              : " Application window:                   \n"
-                                                "   LeftClick to set exclusive focus    \n"
-                                                "   Ctrl+LeftClick to set group focus   \n"
-                                                "   DoubleLeftClick to go to the window \n"
-                                                "   Alt+DblLeftClick to pull the window \n"
-                                                "   LeftDrag to move desktop viewport   ");
-                        return locked;
-                    };
-                    auto gear_id = data_src->base::signal(tier::request, e2::form::state::maximized);
-                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (gear_id))
-                    {
-                        disabled = check_id(boss, gear_id); // On title update.
-                    };
-                    auto& oneshot = boss.base::template field<hook>();
-                    boss.LISTEN(tier::anycast, desk::events::ui::recalc, state, oneshot, (gear_id)) // On session start.
-                    {
-                        disabled = check_id(boss, gear_id);
-                        boss.base::unfield(oneshot);
-                    };
-                    data_src->LISTEN(tier::release, e2::form::state::maximized, gear_id, boss.sensors)
-                    {
-                        disabled = check_id(boss, gear_id);
-                    };
                     boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear)
                     {
-                        if (disabled) { gear.dismiss(true); return; }
                         if (auto data_src = src_wptr.lock())
                         {
                             auto& window = *data_src;
@@ -140,7 +108,6 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
-                        if (disabled) { gear.dismiss(true); return; }
                         if (auto data_src = src_wptr.lock())
                         {
                             auto& window = *data_src;
@@ -183,7 +150,6 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
-                        if (disabled) return;
                         if (auto data_src = src_wptr.lock())
                         {
                             data_src->base::signal(tier::release, e2::form::state::highlight, !!state);
@@ -205,7 +171,6 @@ namespace netxs::app::desk
                     boss.base::hidden = true;
                     item_area->LISTEN(tier::release, e2::form::state::mouse, hover)
                     {
-                        if (disabled) return;
                         //auto unfolded = boss.base::riseup(tier::request, desk::events::ui::toggle);
                         //auto hidden = !unfolded || !hover;
                         //auto folded = item_area_inst.base::size().x <= boss.base::size().x * 2;
@@ -221,7 +186,6 @@ namespace netxs::app::desk
                     {
                         parent->LISTEN(tier::release, desk::events::quit, fast, boss.sensors)
                         {
-                            if (disabled) return;
                             if (auto data_src = src_wptr.lock())
                             {
                                 data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
@@ -230,7 +194,6 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                     {
-                        if (disabled) { gear.dismiss(true); return; }
                         if (auto data_src = src_wptr.lock())
                         {
                             data_src->base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.

@@ -183,8 +183,6 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear, memo)
                 {
-                    auto owner_id = boss.base::signal(tier::request, e2::form::state::maximized);
-                    if (owner_id) return; // Don't move maximized window.
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
                     if (!area.hittest(coord))
@@ -602,7 +600,6 @@ namespace netxs::app::vtm
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
             si32 z_order = zpos::plain;
-            id_t monoid = {};
 
         protected: 
             // window: .
@@ -787,18 +784,12 @@ namespace netxs::app::vtm
                                 auto viewport = gear.owner.base::area();
                                 auto prev_ptr = e2::form::layout::go::prev.param();
                                 auto is_hidden = true;
-                                auto gear_id = id_t{};
                                 do
                                 {
                                     parent->base::signal(tier::request, e2::form::layout::go::prev, prev_ptr);
-                                    if (prev_ptr)
-                                    {
-                                        prev_ptr->base::signal(tier::request, e2::form::state::maximized, gear_id);
-                                        is_hidden = prev_ptr->hidden;
-                                    }
-                                    else is_hidden = true;
+                                    is_hidden = prev_ptr ? prev_ptr->hidden : true;
                                 }
-                                while (prev_ptr != window_ptr && ((gear_id && gear_id != gear.owner.id) || (is_hidden == true || !viewport.hittest(prev_ptr->center()))));
+                                while (prev_ptr != window_ptr && (is_hidden == true || !viewport.hittest(prev_ptr->center())));
                                 if (prev_ptr != window_ptr)
                                 {
                                     pro::focus::set(prev_ptr, gear.id, solo::on);
@@ -900,7 +891,6 @@ namespace netxs::app::vtm
                             base::extend(saved_area); // Restore window size and relative coor.
                         }
                         maximize_token.reset();
-                        base::signal(tier::release, e2::form::state::maximized, id_t{});
                     }
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
@@ -937,7 +927,6 @@ namespace netxs::app::vtm
                     {
                         base::riseup(tier::preview, e2::form::layout::expose); // Multiple windows coubld be maximized at the same time.
                         pro::focus::set(window_ptr, gear.id, solo::on, true);
-                        auto owner_id = gear.owner.id;
                         saved_area = base::area();
                         saved_area.coor -= viewport.coor;
                         viewport_area = viewport;
@@ -966,7 +955,6 @@ namespace netxs::app::vtm
                                 base::signal(tier::release, e2::form::size::restore, This());
                             }
                         };
-                        base::signal(tier::release, e2::form::state::maximized, owner_id);
                     }
                 };
                 LISTEN(tier::request, e2::form::prop::window::state, state)
@@ -1003,14 +991,6 @@ namespace netxs::app::vtm
                         base::holder = world.base::subset.insert(next, this->This());
                         base::strike();
                     }
-                };
-                LISTEN(tier::release, e2::form::state::maximized, gear_id)
-                {
-                    monoid = gear_id;
-                };
-                LISTEN(tier::request, e2::form::state::maximized, gear_id)
-                {
-                    gear_id = monoid;
                 };
                 LISTEN(tier::release, e2::form::prop::zorder, order)
                 {
@@ -1094,8 +1074,6 @@ namespace netxs::app::vtm
                             auto gear_test = base::signal(tier::request, e2::form::state::keybd::next, { gear_id, 0 });
                             if (gear_test.second == 1) // If it is the last focused item.
                             {
-                                auto owner_id = last_ptr->base::signal(tier::request, e2::form::state::maximized);
-                                if (owner_id && owner_id != gear_ptr->owner.id) continue;
                                 pro::focus::set(last_ptr, gear_id, solo::off);
                             }
                         }
@@ -1419,9 +1397,6 @@ namespace netxs::app::vtm
                                                 owner_id = id_t{};
                                                 if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
                                                 else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                                                if (window_ptr) window_ptr->base::signal(tier::request, e2::form::state::maximized, owner_id);
-                                                maximized = owner_id == gear.owner.id;
-                                                if (!owner_id || maximized) break;
                                             }
                                             while (window_ptr != current); // Skip all foreign maximized windows.
 

@@ -956,7 +956,7 @@ namespace netxs::ui
             base::root(true);
             base::limits(dot_11);
             props.background_color.txt(whitespace).link(bell::id);
-            canvas.link(bell::id); // See hall::list::monoid.
+            canvas.link(bell::id);
             canvas.cmode = props.vtmode;
             canvas.face::area(base::area());
             LISTEN(tier::release, e2::command::printscreen, gear)
