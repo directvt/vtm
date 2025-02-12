@@ -459,7 +459,6 @@ namespace netxs::events
             static constexpr auto root_event = type_clue<si32, 0>{};
             EVENTPACK( root_event )
             {
-                EVENT_XS( dtor     , const id_t ),
                 EVENT_XS( cascade  , ftor ),
                 EVENT_XS( base     , si32 ),
                 EVENT_XS( hids     , si32 ),

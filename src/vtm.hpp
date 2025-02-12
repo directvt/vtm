@@ -854,7 +854,7 @@ namespace netxs::app::vtm
                 {
                     base::signal(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
                 };
-                LISTEN(tier::release, e2::dtor, p)
+                LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr)
                 {
                     if constexpr (debugmode)
                     {
@@ -942,12 +942,12 @@ namespace netxs::app::vtm
                         saved_area.coor -= viewport.coor;
                         viewport_area = viewport;
                         recalc(viewport);
-                        gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
+                        gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token, (recalc))
                         {
                             viewport_area = viewport;
                             recalc(viewport);
                         };
-                        gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
+                        gear.owner.LISTEN(tier::release, vtm::events::gate::restore, p, maximize_token)
                         {
                             base::signal(tier::release, e2::form::size::restore, This());
                         };
@@ -2025,10 +2025,6 @@ namespace netxs::app::vtm
                     usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, newfoot);
 
                     usergate.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
-                    {
-                        usergate.base::signal(tier::release, vtm::events::gate::restore);
-                    };
-                    usergate.LISTEN(tier::release, e2::dtor, p, memo)
                     {
                         usergate.base::signal(tier::release, vtm::events::gate::restore);
                     };

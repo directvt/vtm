@@ -634,7 +634,7 @@ namespace netxs::app::tile
                                     boss.base::reflow();
                                     oneoff.reset();
                                 };
-                                fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
+                                fullscreen_item->LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, oneoff)
                                 {
                                     oneoff.reset();
                                 };
@@ -716,8 +716,6 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::request, e2::form::proceed::createby, gear)
                     {
-                        static auto insts_count = 0;
-
                         if (boss.count() != 1) return; // Create new apps at the empty slots only.
                         auto& gate = gear.owner;
                         auto& current_default = gate.base::property("desktop.selected");
@@ -730,18 +728,18 @@ namespace netxs::app::tile
                             pro::focus::off(boss.back());
                             boss.attach(app);
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
-
-                            insts_count++; //todo unify, demo limits
-                            config.applet->LISTEN(tier::release, e2::dtor, applet_id)
-                            {
-                                insts_count--;
-                                if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
-                            };
-
                             app->base::signal(tier::anycast, e2::form::upon::started, app);
                             pro::focus::set(app, gear.id, solo::off);
                         }
                     };
+                    //todo unify, demo limits
+                    //static auto insts_count = 0;
+                    //insts_count++;
+                    //boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr)
+                    //{
+                    //    insts_count--;
+                    //    if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
+                    //};
                 })
                 ->branch(empty_slot());
         };

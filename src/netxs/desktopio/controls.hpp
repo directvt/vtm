@@ -3281,11 +3281,11 @@ namespace netxs::ui
             backup->T::attach(std::forward<Args>(args)...);
             return backup;
         }
-        // form: UI-control will be detached upon destruction of the master.
+        // form: UI-control will be detached along with the master.
         auto depend(sptr master_ptr)
         {
             auto& master_inst = *master_ptr;
-            master_inst.LISTEN(tier::release, e2::dtor, master_id, memomap[master_inst.id])
+            master_inst.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memomap[master_inst.id])
             {
                 auto backup = This();
                 memomap.erase(master_inst.id);
