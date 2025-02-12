@@ -394,10 +394,8 @@ namespace netxs::events
         }
     };
 
-    struct subs : std::vector<hook>
-    {
-        auto& operator - (si32) { return *this; }
-    };
+    using subs = std::vector<hook>;
+    constexpr auto& operator - (subs& tokens, si32) { return tokens; }
 
     template<class Object_t, auto Event_id>
     struct type_clue
