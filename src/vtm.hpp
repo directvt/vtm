@@ -2024,7 +2024,7 @@ namespace netxs::app::vtm
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                     {
                         usergate.base::signal(tier::release, vtm::events::gate::restore);
-                        usergate.bell::expire(tier::release, true); //todo revise: applet_ptr(fullscreen.applet) or boss?
+                        applet.bell::expire(tier::release, true); // Continue event riseup().
                     };
                     usergate.attach(applet_ptr);
                     pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
