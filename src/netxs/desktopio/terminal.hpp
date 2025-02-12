@@ -421,7 +421,7 @@ namespace netxs::ui
             void enable(mode m)
             {
                 state = (mode)(state | m);
-                if (state && !token.count()) // Do not subscribe if it is already subscribed.
+                if (state && !token.size()) // Do not subscribe if it is already subscribed.
                 {
                     owner.LISTEN(tier::release, input::events::device::mouse::any, gear, token)
                     {

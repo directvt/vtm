@@ -1151,7 +1151,7 @@ namespace netxs::ui
             {
                 if (this->bell::protos(tier::release, e2::form::upon::vtree::detached))
                 {
-                    relyon.reset();
+                    relyon.clear();
                 }
                 if (parent_ptr && !hidden) parent_ptr->base::reflow();
             };

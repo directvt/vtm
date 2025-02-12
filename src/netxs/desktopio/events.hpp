@@ -167,14 +167,6 @@ namespace netxs::events
             ref_count += lref;
             del_count += ldel;
         }
-        void merge(reactor const& r)
-        {
-            for (auto& [event, src_subs] : r.stock)
-            {
-                auto& dst_subs = stock[event];
-                dst_subs.insert( dst_subs.end(), src_subs.begin(), src_subs.end() );
-            }
-        }
         template<class F>
         hook subscribe(hint event, hndl<F> proc)
         {
@@ -402,19 +394,9 @@ namespace netxs::events
         }
     };
 
-    class subs
+    struct subs : std::vector<hook>
     {
-        std::vector<hook> tokens;
-
-    public:
-        auto& operator - (si32)    { return *this;                                                           }
-        operator bool () const     { return tokens.size();                                                   }
-        void  admit(hook&& t)      {        tokens.push_back(std::forward<hook>(t));                         }
-        hook& extra()              { return tokens.emplace_back();                                           }
-        auto  count() const        { return tokens.size();                                                   }
-        void  clear()              {        tokens.clear();                                                  }
-        void  reset()              {        tokens.clear();                                                  }
-        void  merge(subs const& m) {        tokens.insert( tokens.end(), m.tokens.begin(), m.tokens.end() ); }
+        auto& operator - (si32) { return *this; }
     };
 
     template<class Object_t, auto Event_id>
@@ -515,15 +497,15 @@ namespace netxs::events
         };
 
     public:
-        template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                 }
-        template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                 }
-        template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);          }
-        template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.extra()); }
+        template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                        }
+        template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                        }
+        template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);                 }
+        template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.emplace_back()); }
         template<class Event>
         void submit(si32 Tier, Event, std::function<void(typename Event::type&)> handler)
         {
             auto lock = indexer.sync();
-            sensors.admit(reactors[Tier]->subscribe(Event::id, handler));
+            sensors.push_back(reactors[Tier]->subscribe(Event::id, handler));
         }
         template<class Event>
         void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type&)> handler)

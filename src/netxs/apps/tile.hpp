@@ -613,7 +613,7 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
                         pro::focus::set(boss.This(), gear.id, solo::off);
-                        if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
+                        if (boss.count() > 2 || oneoff.size()) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
                             boss.base::riseup(tier::release, e2::form::proceed::attach);
                         }
@@ -632,11 +632,11 @@ namespace netxs::app::tile
                                     boss.attach(item_ptr);
                                     pro::focus::set(item_ptr, gear_id_list, solo::off);
                                     boss.base::reflow();
-                                    oneoff.reset();
+                                    oneoff.clear();
                                 };
                                 fullscreen_item->LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, oneoff)
                                 {
-                                    oneoff.reset();
+                                    oneoff.clear();
                                 };
                                 boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
                                 boss.base::reflow();

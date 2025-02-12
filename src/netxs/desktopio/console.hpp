@@ -158,7 +158,7 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::conio::winsz, item.winsize);
             }
-            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
+            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/minimized
             void handle(s11n::xs::fullscrn  /*lock*/)
             {
                 owner.fullscreen = true;
@@ -1116,7 +1116,7 @@ namespace netxs::ui
                 disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                bell::sensors.reset();
+                bell::sensors.clear();
             };
             LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
             {

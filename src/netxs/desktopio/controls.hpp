@@ -713,7 +713,7 @@ namespace netxs::ui
                 if (visible) show();
             }
 
-            operator bool () const { return memo.count(); }
+            operator bool () const { return memo.size(); }
 
             // pro::caret: Set cursor background color.
             void bgc(argb c)

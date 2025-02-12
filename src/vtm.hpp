@@ -870,7 +870,7 @@ namespace netxs::app::vtm
                 LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
                 {
                     auto window_ptr = This();
-                    if (maximize_token) // Restore maximized window.
+                    if (maximize_token.size()) // Restore maximized window.
                     {
                         base::signal(tier::release, e2::form::size::restore, window_ptr);
                     }
@@ -883,14 +883,14 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::release, e2::form::size::restore, item_ptr)
                 {
-                    if (maximize_token)
+                    if (maximize_token.size())
                     {
                         if (saved_area)
                         {
                             saved_area.coor += viewport_area.coor;
                             base::extend(saved_area); // Restore window size and relative coor.
                         }
-                        maximize_token.reset();
+                        maximize_token.clear();
                     }
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
@@ -919,7 +919,7 @@ namespace netxs::app::vtm
                     }
 
                     auto window_ptr = This();
-                    if (maximize_token) // Restore maximized window.
+                    if (maximize_token.size()) // Restore maximized window.
                     {
                         base::signal(tier::release, e2::form::size::restore, window_ptr);
                     }
@@ -960,9 +960,9 @@ namespace netxs::app::vtm
                 LISTEN(tier::request, e2::form::prop::window::state, state)
                 {
                     //todo unify (+fullscreen)
-                    state = maximize_token ? winstate::maximized
-                            : base::hidden ? winstate::minimized
-                                           : winstate::normal;
+                    state = maximize_token.size() ? winstate::maximized
+                                   : base::hidden ? winstate::minimized
+                                                  : winstate::normal;
                 };
                 LISTEN(tier::preview, e2::form::layout::expose, r)
                 {
@@ -1928,10 +1928,9 @@ namespace netxs::app::vtm
         auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
             auto lock = bell::unique_lock();
-            auto usergate_ptr = hall::ctor<gate>(client, vtmode, app_config, userid, session_id, true);
+            auto usergate_ptr = ui::gate::ctor(client, vtmode, app_config, userid, session_id, true);
             auto& usergate = *usergate_ptr;
 
-            //todo local=>nexthop
             usergate.local = faux;
             //todo scripting
             //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
@@ -1957,7 +1956,7 @@ namespace netxs::app::vtm
             auto& memo = base::field<subs>();
             usergate.LISTEN(tier::release, vtm::events::gate::restore, restore_mode)
             {
-                if (!memo) return;
+                if (memo.empty()) return;
                     //todo revise
                     usergate.nexthop = std::exchange(saved, wptr{});
                 memo.clear();
