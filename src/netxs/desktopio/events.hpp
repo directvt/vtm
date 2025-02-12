@@ -111,8 +111,6 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    using ftor = std::function<bool(sptr<ui::base>)>;
-
     struct handler
     {
         virtual ~handler() = default;
@@ -459,7 +457,6 @@ namespace netxs::events
             static constexpr auto root_event = type_clue<si32, 0>{};
             EVENTPACK( root_event )
             {
-                EVENT_XS( cascade  , ftor ),
                 EVENT_XS( base     , si32 ),
                 EVENT_XS( hids     , si32 ),
                 EVENT_XS( custom   , si32 ),

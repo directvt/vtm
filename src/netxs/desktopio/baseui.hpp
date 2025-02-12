@@ -86,8 +86,6 @@ namespace netxs::events::userland
 {
     namespace e2
     {
-        static constexpr auto cascade = netxs::events::userland::root::cascade;
-
         EVENTPACK( netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
@@ -670,19 +668,25 @@ namespace netxs::ui
             }
             return parent_ptr;
         }
+        void broadcast(hint event, auto& param)
+        {
+            auto lock = bell::sync();
+            anycast.notify(event, param);
+            for (auto item_ptr : base::subset)
+            {
+                if (item_ptr && !item_ptr->master)
+                {
+                    item_ptr->broadcast(event, param);
+                }
+            }
+        }
         auto signal(si32 Tier, hint event, auto& param)
         {
             auto lock = bell::sync();
             if (Tier == tier::anycast)
             {
-                auto root = gettop();
-                //todo BFS for a graph
-                auto proc = netxs::events::ftor{ [&](auto boss_ptr)
-                {
-                    boss_ptr->anycast.notify(event, param);
-                    return true;
-                }};
-                root->release.notify(e2::cascade.id, proc);
+                auto root_ptr = gettop();
+                root_ptr->broadcast(event, param);
             }
             else reactors[Tier]->notify(event, param);
         }
@@ -1143,25 +1147,6 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
-            //todo drop
-            LISTEN(tier::release, e2::cascade, proc)
-            {
-                auto backup = This();
-                auto keepon = proc(backup);
-                if (!keepon) this->bell::expire(tier::release);
-            };
-            //todo drop
-            LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-            {
-                if (!master)
-                {
-                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
-                    {
-                        auto backup = This(); // Object can be deleted inside proc.
-                        backup->base::signal(tier::release, e2::cascade, proc);
-                    };
-                }
-            };
             LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
             {
                 if (this->bell::protos(tier::release, e2::form::upon::vtree::detached))
