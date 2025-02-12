@@ -69,27 +69,26 @@ namespace netxs::app::shared
     {
         auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
-            auto window = ui::cake::ctor();
-            auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
-                               ->plugin<pro::notes>(" Left+Right click to close ")
-                               ->active()
-                               ->invoke([](auto& boss)
-                                {
-                                    closing_by_gesture(boss);
-                                    closing_on_quit(boss);
-                                })
-                               ->attach(ui::mock::ctor());
-            auto strob_shadow = ptr::shadow(strob);
-            auto stobe_state = true;
-            strob->LISTEN(tier::general, e2::timer::any, now, -, (strob_shadow, stobe_state))
-            {
-                stobe_state = !stobe_state;
-                if (auto strob = strob_shadow.lock())
+             auto window = ui::cake::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->plugin<pro::notes>(" Left+Right click to close ")
+                ->active()
+                ->invoke([](auto& boss)
                 {
-                    strob->color(0x00, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
-                    strob->base::deface();
-                }
-            };
+                    closing_by_gesture(boss);
+                    closing_on_quit(boss);
+                })
+                ->attach(ui::mock::ctor()
+                ->invoke([](auto& boss)
+                {
+                    //todo shader<tier::general, e2::timer::any>(...)
+                    boss.LISTEN(tier::general, e2::timer::any, now, -, (stobe_state = true))
+                    {
+                        stobe_state = !stobe_state;
+                        boss.color(0x00, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                        boss.base::deface();
+                    };
+                }));
             return window;
         };
         auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)

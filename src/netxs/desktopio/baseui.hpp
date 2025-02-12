@@ -1154,6 +1154,7 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
+                //todo drop filler, use shader()
                      if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
                 else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(bell::id));
             };
