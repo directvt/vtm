@@ -1084,6 +1084,7 @@ namespace netxs::app::vtm
             };
             window_ptr->base::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
             base::signal(tier::release, desk::events::apps, apps_list_ptr);
+            window_ptr->base::reflow();
             return window_ptr;
         }
         auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})

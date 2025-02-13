@@ -548,6 +548,7 @@ namespace netxs::app::tile
                             auto app = app_window(what);
                             boss.attach(app);
                             app->base::signal(tier::anycast, e2::form::upon::started);
+                            app->base::reflow();
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
@@ -730,6 +731,7 @@ namespace netxs::app::tile
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
                             app->base::signal(tier::anycast, e2::form::upon::started, app);
                             pro::focus::set(app, gear.id, solo::off);
+                            app->base::reflow();
                         }
                     };
                     //todo unify, demo limits
