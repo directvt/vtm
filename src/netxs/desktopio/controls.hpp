@@ -3338,6 +3338,7 @@ namespace netxs::ui
                                          ->depend(data_src);
                     item_shadow = ptr::shadow(new_item); // Update current item shadow.
                     boss_ptr->replace(old_item, new_item);
+                    boss_ptr->base::reflow();
                 }
             };
             branch(new_item);
