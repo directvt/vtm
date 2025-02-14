@@ -160,10 +160,10 @@ namespace netxs::app::desk
                 ->setpad({ tall + 1, 0, tall, tall })
                 ->flexible()
                 ->drawdots()
-                ->shader(cF, e2::form::state::focus::count, data_src);
+                ->shader(cell::shaders::color(cF), e2::form::state::focus::count, data_src);
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
-                ->shader(c1, e2::form::state::hover)
+                ->shader(cell::shaders::color(c1), e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(" Close application window ")
                 ->invoke([&](auto& boss)
@@ -360,7 +360,7 @@ namespace netxs::app::desk
                     auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
-                        ->shader(c1, e2::form::state::hover)
+                        ->shader(cell::shaders::color(c1), e2::form::state::hover)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
                         {
@@ -436,7 +436,7 @@ namespace netxs::app::desk
                 });
             auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
-                ->shader(c8, e2::form::state::hover)
+                ->shader(cell::shaders::color(c8), e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
 
@@ -583,7 +583,7 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
-                //->shader(c3, e2::form::state::focus::count)
+                //->shader(cell::shaders::color(c3), e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->active()
                 ->invoke([&](auto& boss)
@@ -725,7 +725,7 @@ namespace netxs::app::desk
                 ->alignment({ snap::head, snap::center });
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
-                ->shader(c1, e2::form::state::hover)
+                ->shader(cell::shaders::color(c1), e2::form::state::hover)
                 ->plugin<pro::notes>(" Disconnect all users and shutdown ")
                 ->invoke([&](auto& boss)
                 {

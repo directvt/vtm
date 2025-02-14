@@ -69,7 +69,7 @@ namespace netxs::app::shared
     {
         auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
-             auto window = ui::cake::ctor()
+            auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->plugin<pro::notes>(" Left+Right click to close ")
                 ->active()
@@ -77,18 +77,20 @@ namespace netxs::app::shared
                 {
                     closing_by_gesture(boss);
                     closing_on_quit(boss);
-                })
-                ->attach(ui::mock::ctor()
-                ->invoke([](auto& boss)
+                });
+            auto body = window->attach(ui::mock::ctor());
+            auto& color = body->base::field(cell{ whitespace });
+            auto& state = body->base::field(true);
+            body->shader(color)
+                ->invoke([&](auto& boss)
                 {
-                    //todo shader<tier::general, e2::timer::any>(...)
-                    boss.LISTEN(tier::general, e2::timer::any, now, -, (stobe_state = true))
+                    boss.LISTEN(tier::general, e2::timer::any, now)
                     {
-                        stobe_state = !stobe_state;
-                        boss.color(0x00, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                        state = !state;
+                        color.bgc(state ? 0xFF000000 : 0xFFFFFFFF);
                         boss.base::deface();
                     };
-                }));
+                });
             return window;
         };
         auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
@@ -296,13 +298,13 @@ namespace netxs::app::shared
             right->attach(ui::item::ctor("Right side:"))->setpad({ 1, 1, 0, 1 });
             right->attach(ui::item::ctor(" Hello! "))
                 ->active()
-                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
+                ->shader(cell::shaders::color(cell{}.bgc(whitelt).fgc(bluedk)), e2::form::state::hover);
             right->attach(ui::item::ctor(" World! "))
                 ->active()
-                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
+                ->shader(cell::shaders::color(cell{}.bgc(whitelt).fgc(bluedk)), e2::form::state::hover);
             right->attach(ui::item::ctor(" Click me to exit. "))
                 ->active()
-                ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
+                ->shader(cell::shaders::mimic(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line)), e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)

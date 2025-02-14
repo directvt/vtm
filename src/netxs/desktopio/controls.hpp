@@ -3211,10 +3211,21 @@ namespace netxs::ui
             auto& tokens = tokens_ptr ? *tokens_ptr : bell::sensors;
             if constexpr (fixed)
             {
-                LISTEN(tier::release, RenderOrder, parent_canvas, tokens, (fx))
+                if constexpr (is_cell && std::is_reference_v<Fx>)
                 {
-                    parent_canvas.fill(fx);
-                };
+                    LISTEN(tier::release, RenderOrder, parent_canvas, tokens)
+                    {
+                             if (fx.xy())   parent_canvas.fill(cell::shaders::fusefull(fx));
+                        else if (fx.link()) parent_canvas.fill(cell::shaders::onlyid(fx.link()));
+                    };
+                }
+                else
+                {
+                    LISTEN(tier::release, RenderOrder, parent_canvas, tokens, (fx))
+                    {
+                        parent_canvas.fill(fx);
+                    };
+                }
             }
             else
             {
@@ -3231,11 +3242,13 @@ namespace netxs::ui
                 LISTEN(tier::release, RenderOrder, parent_canvas, tokens, (fx))
                 {
                     static constexpr auto is_func = requires{ fx(parent_canvas, param, *this); };
+                    static constexpr auto is_fade = requires{ fx[param]; };
                     if (param)
                     {
                              if constexpr (is_func) fx(parent_canvas, param, *this);
                         else if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
-                        else                        parent_canvas.fill(fx[param]);
+                        else if constexpr (is_fade) parent_canvas.fill(fx[param]);
+                        else                        parent_canvas.fill(fx);
                     }
                 };
             }

@@ -119,7 +119,7 @@ namespace netxs::app::tile
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
                         ->active(cE)
-                        ->shader(cF, e2::form::state::focus::count, data_src_sptr)
+                        ->shader(cell::shaders::color(cF), e2::form::state::focus::count, data_src_sptr)
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
@@ -339,7 +339,7 @@ namespace netxs::app::tile
                     ->template plugin<pro::focus>(pro::focus::mode::focusable)
                     ->template plugin<pro::keybd>("grip")
                     ->template plugin<pro::luafx>()
-                    ->shader(c3, e2::form::state::focus::count)
+                    ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
                     ->template plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
                     {
@@ -461,7 +461,7 @@ namespace netxs::app::tile
                 ->active(window_clr)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
-                ->shader(c3, e2::form::state::focus::count)
+                ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
