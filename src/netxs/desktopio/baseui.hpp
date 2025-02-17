@@ -1068,7 +1068,7 @@ namespace netxs::ui
         }
         // base: Attach nested object.
         template<sort Order = sort::forward>
-        auto attach(auto item_ptr)
+        auto _attach(auto item_ptr)
         {
             if constexpr (Order == sort::reverse)
             {
@@ -1082,7 +1082,14 @@ namespace netxs::ui
                 item_ptr->holder = std::prev(subset.end());
                 item_ptr->father = This();
             }
+        }
+        // base: Attach nested object.
+        template<sort Order = sort::forward>
+        auto attach(auto item_ptr)
+        {
+            _attach<Order>(item_ptr);
             item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
+            base::resize(); // Fit item_ptr to parent size.
             return item_ptr;
         }
         // base: Remove nested object.

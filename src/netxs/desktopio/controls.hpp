@@ -3617,7 +3617,7 @@ namespace netxs::ui
                 {
                     remove(o);
                 }
-                base::attach(item_ptr);
+                base::_attach(item_ptr);
                 object_1 = item_ptr->holder;
             }
             else if (Slot == slot::_2)
@@ -3627,7 +3627,7 @@ namespace netxs::ui
                 {
                     remove(o);
                 }
-                base::attach(item_ptr);
+                base::_attach(item_ptr);
                 object_2 = item_ptr->holder;
             }
             else if (Slot == slot::_I)
@@ -3637,7 +3637,7 @@ namespace netxs::ui
                 {
                     remove(o);
                 }
-                base::attach(item_ptr);
+                base::_attach(item_ptr);
                 splitter = item_ptr->holder;
                 item_ptr->LISTEN(tier::preview, e2::form::upon::changed, delta, item_ptr->relyon)
                 {
@@ -3647,6 +3647,7 @@ namespace netxs::ui
                     this->base::reflow();
                 };
             }
+            item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
         // fork: Remove nested object by it's ptr.

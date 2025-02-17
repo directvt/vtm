@@ -298,13 +298,13 @@ namespace netxs::app::shared
             right->attach(ui::item::ctor("Right side:"))->setpad({ 1, 1, 0, 1 });
             right->attach(ui::item::ctor(" Hello! "))
                 ->active()
-                ->shader(cell::shaders::color(cell{}.bgc(whitelt).fgc(bluedk)), e2::form::state::hover);
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
             right->attach(ui::item::ctor(" World! "))
                 ->active()
-                ->shader(cell::shaders::color(cell{}.bgc(whitelt).fgc(bluedk)), e2::form::state::hover);
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk), e2::form::state::hover);
             right->attach(ui::item::ctor(" Click me to exit. "))
                 ->active()
-                ->shader(cell::shaders::mimic(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line)), e2::form::state::hover)
+                ->shader(cell{}.bgc(whitelt).fgc(bluedk).und(unln::line), e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)

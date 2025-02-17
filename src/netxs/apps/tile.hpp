@@ -119,7 +119,7 @@ namespace netxs::app::tile
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
                         ->active(cE)
-                        ->shader(cell::shaders::color(cF), e2::form::state::focus::count, data_src_sptr)
+                        ->shader(cF, e2::form::state::focus::count, data_src_sptr)
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
@@ -130,7 +130,7 @@ namespace netxs::app::tile
                             };
                             boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent)
                             {
-                                if (parent) parent->resize(); // Rebuild list.
+                                parent->resize(); // Rebuild list.
                             };
                             data_src_sptr->LISTEN(tier::release, tile::events::delist, f, boss.sensors)
                             {
@@ -339,7 +339,7 @@ namespace netxs::app::tile
                     ->template plugin<pro::focus>(pro::focus::mode::focusable)
                     ->template plugin<pro::keybd>("grip")
                     ->template plugin<pro::luafx>()
-                    ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
+                    ->shader(c3, e2::form::state::focus::count)
                     ->template plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
                     {
@@ -461,7 +461,7 @@ namespace netxs::app::tile
                 ->active(window_clr)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
-                ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
+                ->shader(c3, e2::form::state::focus::count)
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
@@ -564,6 +564,10 @@ namespace netxs::app::tile
                             if (item_ptr)
                             {
                                 boss.attach(item_ptr);
+                                if (item_ptr->base::kind() == base::client) // Restore side list item (it was deleted on detach).
+                                {
+                                    item_ptr->base::riseup(tier::release, tile::events::enlist, item_ptr);
+                                }
                             }
                             else item_ptr = boss.This();
                             pro::focus::set(boss.back(), gear_id_list, solo::off);
@@ -674,6 +678,10 @@ namespace netxs::app::tile
                             boss.attach(newnode);
                             pro::focus::set(slot_1->back(), gear_id_list, solo::off); // Handover all foci.
                             pro::focus::set(slot_2->back(), gear_id_list, solo::off);
+                            if (curitem->base::kind() == base::client) // Restore side list item (it was deleted on detach).
+                            {
+                                curitem->base::riseup(tier::release, tile::events::enlist, curitem);
+                            }
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -713,6 +721,7 @@ namespace netxs::app::tile
                                 }
                             }
                             boss.base::deface();
+                            boss.base::reflow();
                         }
                     };
                     boss.LISTEN(tier::request, e2::form::proceed::createby, gear)
@@ -731,7 +740,6 @@ namespace netxs::app::tile
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
                             app->base::signal(tier::anycast, e2::form::upon::started, app);
                             pro::focus::set(app, gear.id, solo::off);
-                            app->base::reflow();
                         }
                     };
                     //todo unify, demo limits

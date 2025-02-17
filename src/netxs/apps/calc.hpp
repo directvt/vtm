@@ -337,7 +337,7 @@ namespace netxs::app::calc
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
                   ->plugin<pro::keybd>("defapp")
-                  ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
@@ -366,12 +366,12 @@ namespace netxs::app::calc
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
                                                     ->active(c7)
-                                                    ->shader(cell::shaders::color(c3), e2::form::state::hover)
+                                                    ->shader(c3, e2::form::state::hover)
                                                     ->limits({ 3,-1 }, { 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
                                                          ->active(c7)
-                                                         ->shader(cell::shaders::color(c3), e2::form::state::hover)
+                                                         ->shader(c3, e2::form::state::hover)
                                                          ->limits({ -1,1 }, { 3,-1 })
                                                          ->upload(ansi::wrp(wrap::off).add(" … "));
                             auto body_area = func_body->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -421,7 +421,7 @@ namespace netxs::app::calc
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
                                                     ->active(c7)
-                                                    ->shader(cell::shaders::color(c3), e2::form::state::hover)
+                                                    ->shader(c3, e2::form::state::hover)
                                                     ->limits({ 3,-1 }, { 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())

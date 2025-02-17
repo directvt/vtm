@@ -96,7 +96,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::hub)
                   ->plugin<pro::keybd>("defapp")
-                  ->shader(cell::shaders::color(c3), e2::form::state::focus::count)
+                  ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
