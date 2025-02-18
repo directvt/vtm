@@ -4701,13 +4701,17 @@ namespace netxs::ui
                 if (!clip) return;
                 auto full = dest.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
-                auto stop = clip.coor.y + clip.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
                 auto find = selection_active() && match.length() && owner.selmod == mime::textonly;
+                auto clip2 = clip;
+                clip2.coor.y += sctop;
+                clip2.size.y = std::max(0, clip2.size.y - sctop - scend);
+                auto stop = clip2.coor.y + clip2.size.y;
+                dest.clip(clip2);
                 auto fill = [&](auto& area, auto chr)
                 {
-                    if (auto r = clip.trim(area))
+                    if (auto r = clip2.trim(area))
                     {
                         dest.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                     }
@@ -4718,7 +4722,6 @@ namespace netxs::ui
                 auto left_rect = rect{{ left_edge, full.coor.y + coor.y }, dot_11 };
                 auto rght_rect = left_rect;
                 rght_rect.coor.x += clip.size.x - 1;
-
                 while (head != tail && rght_rect.coor.y < stop)
                 {
                     auto& curln = *head;
@@ -4788,6 +4791,7 @@ namespace netxs::ui
                     left_rect.coor.y = rght_rect.coor.y;
                     ++head;
                 }
+                dest.clip(clip);
 
                 if (panel.y != arena) // The scrolling region is set.
                 {
@@ -6061,10 +6065,10 @@ namespace netxs::ui
                 if (selection_active())
                 {
                     auto full = dest.full();
+                    auto clip = dest.clip();
                     auto cntx = dest.change_basis(full);
                     auto mode = owner.selmod;
-                    auto clip = dest.clip();
-                    if (panel.y != arena)
+                    if (panel.y != arena) // Draw fixed regions.
                     {
                         auto draw_area = [&](auto grip_1, auto grip_2, auto offset)
                         {
