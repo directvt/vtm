@@ -826,7 +826,7 @@ namespace netxs::app::terminal
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
         auto& term_bgc = term->color().bgc();
-        auto drawfx = [&](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
+        auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
@@ -845,9 +845,9 @@ namespace netxs::app::terminal
                 }
             }
             else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
-        };
+        });
         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
-            ->limits({ -1,1 }, { -1,1 });
+            ->limits({ -1, 1 }, { -1, 1 });
 
         auto [slot1, cover, menu_data] = construct_menu(config);
         auto menu = object->attach(slot::_1, slot1)

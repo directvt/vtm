@@ -4758,11 +4758,10 @@ namespace netxs::ui
         };
 
         wptr boss; // grip: Scroll info source.
-        bool wide; // grip: Is the scrollbar active.
-        si32 thin; // grip: Scrollbar thickness.
-        si32 init; // grip: Handle base width.
-        si32 mult; // grip: Vertical bar width multiplier.
-        hook memo; // grip: .
+        bool wide = faux; // grip: Is the scrollbar active.
+        si32 thin = 1; // grip: Scrollbar thickness.
+        si32 init = 1; // grip: Handle base width.
+        si32 mult = 2; // grip: Vertical bar width multiplier.
         math calc; // grip: Scrollbar calculator.
         bool on_pager = faux; // grip: .
         fp2d drag_origin; // grip: Drag origin.
@@ -4825,23 +4824,15 @@ namespace netxs::ui
         }
 
     public:
-        template<class P = decltype(drawfx::xlight)>
-        grip(sptr boss, P fx = {}, si32 thickness = 1, si32 multiplier = 2)
-            : boss{ boss       },
-              wide{ faux       },
-              thin{ thickness  },
-              init{ thickness  },
-              mult{ multiplier }
+        grip(sptr boss_ptr, auto& drawfx)
+            : boss{ boss_ptr }
         {
             config(thin);
-            auto& drawfx = base::field(fx);
-            boss->LISTEN(tier::release, e2::form::upon::scroll::bycoor::any, scinfo, memo)
+            boss_ptr->LISTEN(tier::release, e2::form::upon::scroll::bycoor::any, scinfo, bell::sensors)
             {
                 calc.update(scinfo);
                 base::deface();
             };
-
-            namespace bttn = input::events::mouse::button;
             LISTEN(tier::release, input::events::mouse::scroll::act, gear)
             {
                 if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
@@ -4859,8 +4850,8 @@ namespace netxs::ui
             LISTEN(tier::release, input::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->form::protos(tier::release, bttn::down::left)
-                 || this->form::protos(tier::release, bttn::down::right))
+                if (this->form::protos(tier::release, input::events::mouse::button::down::left)
+                 || this->form::protos(tier::release, input::events::mouse::button::down::right))
                 if (auto dir = calc.inside(twod{ gear.coord }[Axis]))
                 {
                     if (gear.capture(bell::id))
@@ -4886,8 +4877,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->form::protos(tier::release, bttn::up::left)
-                     || this->form::protos(tier::release, bttn::up::right))
+                    if (this->form::protos(tier::release, input::events::mouse::button::up::left)
+                     || this->form::protos(tier::release, input::events::mouse::button::up::right))
                     {
                         gear.setfree();
                         gear.dismiss();
@@ -4905,7 +4896,6 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-
             LISTEN(tier::release, input::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager)
@@ -4959,7 +4949,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (this->form::protos(tier::release, bttn::drag::stop::right))
+                        if (this->form::protos(tier::release, input::events::mouse::button::drag::stop::right))
                         {
                             send<e2::form::upon::scroll::cancel::_<Axis>>();
                         }
@@ -5019,6 +5009,9 @@ namespace netxs::ui
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
+        grip(sptr boss_ptr)
+            : grip{ boss_ptr, drawfx::xlight }
+        { }
     };
 
     // controls: Pluggable dummy object.
