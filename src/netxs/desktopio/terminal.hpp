@@ -7827,7 +7827,7 @@ namespace netxs::ui
             set_bg_color(config.def_bcolor);
             if (config.def_filler != argb::default_color) // Unsync with SGR default background.
             {
-                auto c = cell{whitespace}.bgc(config.def_filler).link(base::id);
+                auto c = cell{ whitespace }.bgc(config.def_filler).link(base::id);
                 base::color(c);
             }
             selection_submit();

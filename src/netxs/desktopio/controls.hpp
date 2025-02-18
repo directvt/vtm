@@ -2332,51 +2332,24 @@ namespace netxs::ui
                   skill::memo;
 
             robot robo; // fader: .
+            cell& filler;
             span  fade;
             cell  c1;
             cell  c2;
-            cell  c2_orig;
             si32  transit;
-            bool  fake = faux;
-
-            //todo use lambda
-            void work(si32 balance)
-            {
-                auto brush = boss.base::color();
-                brush.avg(c1, c2, balance);
-                fake = true;
-                boss.base::color(brush);
-                fake = faux;
-                boss.base::deface();
-            }
 
         public:
             fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms, sptr tracking_object = {})
+            fader(base& boss, cell& boss_filler, cell highlighted_state, span fade_out = 250ms, sptr tracking_object = {})
                 : skill{ boss },
                    robo{ boss },
+                 filler{ boss_filler },
                    fade{ fade_out },
-                     c1{ default_state },
+                     c1{ boss_filler },
                      c2{ highlighted_state },
-                c2_orig{ highlighted_state },
                 transit{ 0 }
             {
-                boss.base::color(c1);
-                boss.LISTEN(tier::release, e2::form::prop::filler, filler)
-                {
-                    if (!fake)
-                    {
-                        auto& fgc = filler.fgc();
-                        auto& bgc = filler.bgc();
-                        c1.fgc(fgc);
-                        c1.bgc(bgc);
-                        if (filler.fga()) c2.fgc(fgc);
-                        else              c2.fgc(c2_orig.fgc());
-                        if (filler.bga()) c2.bgc(bgc);
-                        else              c2.bgc(c2_orig.bgc());
-                        work(transit);
-                    }
-                };
+                filler = c1;
                 auto& root = tracking_object ? *tracking_object : boss;
                 root.LISTEN(tier::release, e2::form::state::mouse, active, memo)
                 {
@@ -2384,7 +2357,8 @@ namespace netxs::ui
                     if (active)
                     {
                         transit = 256;
-                        work(transit);
+                        filler = c2;
+                        boss.base::deface();
                     }
                     else
                     {
@@ -2396,11 +2370,18 @@ namespace netxs::ui
                             robo.actify(constlinearAtoB<si32>(range, limit, start), [&](auto step)
                             {
                                 transit -= step;
-                                work(transit);
+                                filler.avg(c1, c2, transit);
+                                boss.base::deface();
                             });
                         }
-                        else work(transit = 0);
+                        else
+                        {
+                            transit = 0;
+                            filler = c1;
+                            boss.base::deface();
+                        }
                     }
+                    
                 };
             }
         };
