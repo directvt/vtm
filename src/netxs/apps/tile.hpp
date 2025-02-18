@@ -271,9 +271,9 @@ namespace netxs::app::tile
                     })
                     ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
                         ->upload(what.applet->base::property("window.header"))
+                        ->shader(cell::shaders::text(cell{ whitespace }))
                         ->invoke([&](auto& boss)
                         {
-                            boss.color(0, 0);
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 auto shadow = ptr::shadow(boss.This());
@@ -496,7 +496,7 @@ namespace netxs::app::tile
                         auto highlight_color = skin::color(tone::winfocus);
                         auto c3 = highlight_color.alpha(0x70);
                         auto c = state ? c3 : window_clr;
-                        boss.front()->color(c.fgc(), c.bgc());
+                        boss.front()->base::color(c.fgc(), c.bgc());
                         boss.base::deface();
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
