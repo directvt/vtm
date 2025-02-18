@@ -642,16 +642,14 @@ namespace netxs::app::terminal
         window//->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
-        auto defclr = config.take("/config/terminal/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
         auto layers = window->attach(ui::cake::ctor())
-                            ->colors(window_clr)
+                            ->shader(cell::shaders::fuse(window_clr))
                             ->limits(dot_11);
         auto scroll = layers->attach(ui::rail::ctor())
                             ->limits({ 10,1 }); // mc crashes when window is too small
         if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell();//todo revise + " -i";
         auto term = scroll->attach(ui::term::ctor(config))
             ->plugin<pro::focus>(pro::focus::mode::focused)
-            ->colors(defclr.fgc(), defclr.bgc())
             ->invoke([&](auto& boss)
             {
                 ui_term_events(boss, appcfg);
@@ -825,7 +823,7 @@ namespace netxs::app::terminal
             });
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-        auto& term_bgc = term->color().bgc();
+        auto& term_bgc = term->get_color().bgc();
         auto& drawfx = term->base::field([&](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
         {
             static auto box1 = "▄"sv;
@@ -851,7 +849,7 @@ namespace netxs::app::terminal
 
         auto [slot1, cover, menu_data] = construct_menu(config);
         auto menu = object->attach(slot::_1, slot1)
-            ->colors(window_clr)
+            ->shader(cell::shaders::fuse(window_clr))
             ->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, e2::area, new_area, -, (menu_height))

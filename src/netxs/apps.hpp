@@ -443,10 +443,8 @@ namespace netxs::app::shared
                 ->plugin<pro::focus>(pro::focus::mode::relay, faux/*no default focus*/)
                 ->limits(dot_11);
             auto scrl = term_cake->attach(ui::rail::ctor());
-            auto defclr = config.take("/config/terminal/colors/default", cell{}.fgc(whitelt).bgc(blackdk));
             auto term = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(defclr.fgc(), defclr.bgc())
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;

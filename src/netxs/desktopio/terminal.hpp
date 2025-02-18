@@ -7515,14 +7515,14 @@ namespace netxs::ui
                 selection_moveto(delta);
             }
         }
+        auto& get_color()
+        {
+            return defclr;
+        }
         void set_color(cell brush)
         {
             auto& console = *target;
             brush.link(base::id);
-            if (config.def_filler == argb::default_color) // Sync with SGR49.
-            {
-                base::color(cell{ brush }.txt(whitespace));
-            }
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
@@ -7533,10 +7533,6 @@ namespace netxs::ui
             auto brush = defclr;
             brush.bgc(bg);
             brush.link(base::id);
-            if (config.def_filler == argb::default_color) // Sync with SGR49.
-            {
-                base::color(cell{ brush }.txt(whitespace));
-            }
             defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
@@ -7825,11 +7821,6 @@ namespace netxs::ui
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
-            if (config.def_filler != argb::default_color) // Unsync with SGR default background.
-            {
-                auto c = cell{ whitespace }.bgc(config.def_filler).link(base::id);
-                base::color(c);
-            }
             selection_submit();
             publish_property(ui::tty::events::io_log,         [&](auto& v){ v = io_log; });
             publish_property(ui::tty::events::selmod,         [&](auto& v){ v = selmod; });
@@ -8228,11 +8219,14 @@ namespace netxs::ui
                 auto full = parent_canvas.full();
                 auto original_cursor = console.get_coord(origin); // base::coor() and origin are the same.
 
+                auto brush = defclr;
+                if (config.def_filler != argb::default_color) brush.bgc(config.def_filler); // Unsync with SGR default background.
+                parent_canvas.fill(cell::shaders::fusefull(brush));
+
                 if (ime_on) // Draw IME composition overlay.
                 {
                     if (auto parent = base::parent())
                     {
-                        auto brush = base::color();
                         brush.fuse(console.cell_under_cursor());
                         auto viewport_square = parent->area();
                         auto viewport_cursor = original_cursor + origin;
@@ -8270,7 +8264,7 @@ namespace netxs::ui
                 else
                 {
                     cursor.coor(original_cursor);
-                    if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
+                    if (brush.bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
                 }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
