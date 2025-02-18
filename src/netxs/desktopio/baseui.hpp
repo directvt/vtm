@@ -716,7 +716,7 @@ namespace netxs::ui
             if constexpr (Absolute) area.coor += region.coor;
             return area;
         }
-        auto color() const { return base::filler; }
+        auto& color() const { return base::filler; }
         void color(argb fg_color, argb bg_color)
         {
             base::filler.bgc(bg_color)

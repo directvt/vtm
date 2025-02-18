@@ -8232,7 +8232,8 @@ namespace netxs::ui
                 {
                     if (auto parent = base::parent())
                     {
-                        auto brush = base::color().fuse(console.cell_under_cursor());
+                        auto brush = base::color();
+                        brush.fuse(console.cell_under_cursor());
                         auto viewport_square = parent->area();
                         auto viewport_cursor = original_cursor + origin;
                         if (viewport_square.size.inside(viewport_cursor))

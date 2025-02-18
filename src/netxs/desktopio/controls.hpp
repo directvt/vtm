@@ -4618,14 +4618,36 @@ namespace netxs::ui
         }
     };
 
+    namespace drawfx
+    {
+        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+        {
+            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            {
+                if (wide) // Draw full scrollbar on mouse hover
+                {
+                    canvas.fill([&](cell& c){ c.link(boss.bell::id).xlight(); });
+                }
+                canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
+            }
+        };
+        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
+        {
+            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            {
+                canvas.fill(handle, cell::shaders::underlight);
+            }
+        };
+    }
+
     // controls: Scrollbar.
-    template<axis Axis, auto drawfx>
-    class gripfx
-        : public flow, public form<gripfx<Axis, drawfx>>
+    template<axis Axis>
+    class grip
+        : public flow, public form<grip<Axis>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
 
-        using form = ui::form<gripfx<Axis, drawfx>>;
+        using form = ui::form<grip<Axis>>;
 
         enum activity
         {
@@ -4735,7 +4757,7 @@ namespace netxs::ui
             }
         };
 
-        wptr boss; // grip: .
+        wptr boss; // grip: Scroll info source.
         bool wide; // grip: Is the scrollbar active.
         si32 thin; // grip: Scrollbar thickness.
         si32 init; // grip: Handle base width.
@@ -4796,14 +4818,15 @@ namespace netxs::ui
         }
 
     protected:
-        // gripfx: .
+        // grip: .
         void inform(rect new_area) override
         {
             calc.resize(new_area.size);
         }
 
     public:
-        gripfx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
+        template<class P = decltype(drawfx::xlight)>
+        grip(sptr boss, P fx = {}, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               wide{ faux       },
               thin{ thickness  },
@@ -4811,7 +4834,7 @@ namespace netxs::ui
               mult{ multiplier }
         {
             config(thin);
-
+            auto& drawfx = base::field(fx);
             boss->LISTEN(tier::release, e2::form::upon::scroll::bycoor::any, scinfo, memo)
             {
                 calc.update(scinfo);
@@ -4845,7 +4868,6 @@ namespace netxs::ui
                         on_pager = true;
                         pager_repeat();
                         gear.dismiss();
-
                         timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto)
                         {
                             if (pager_repeat())
@@ -4958,11 +4980,15 @@ namespace netxs::ui
                     base::reflow();
                     return faux; // One-shot call.
                 };
-
                 timer.pacify(activity::mouse_leave);
-
-                if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
+                if (active)
+                {
+                    apply(activity::mouse_hover);
+                }
+                else
+                {
+                    timer.actify(activity::mouse_leave, skin::globals().leave_timeout, apply);
+                }
             };
             //LISTEN(tier::release, input::events::mouse::move, gear)
             //{
@@ -4984,51 +5010,16 @@ namespace netxs::ui
                 auto region = parent_canvas.clip();
                 auto object = parent_canvas.full();
                 auto handle = region;
-
                 calc.commit(handle);
-
                 auto& handle_len = handle.size[Axis];
                 auto& region_len = region.size[Axis];
                 auto& object_len = object.size[Axis];
-
                 handle.trimby(region);
                 handle_len = std::max(1, handle_len);
-
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
     };
-
-    namespace drawfx
-    {
-        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
-        {
-            if (object_len && handle_len != region_len) // Show only if it is oversized.
-            {
-                // Brightener isn't suitable for white backgrounds.
-                //auto bright = skin::color(tone::brighter);
-                //bright.bga(bright.bga() / 2).fga(0);
-                //bright.link(bell::id);
-
-                if (wide) // Draw full scrollbar on mouse hover
-                {
-                    canvas.fill([&](cell& c){ c.link(boss.bell::id).xlight(); });
-                }
-                //canvas.fill(handle, [&](cell& c){ c.fusefull(bright); });
-                canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
-            }
-        };
-        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
-        {
-            if (object_len && handle_len != region_len) // Show only if it is oversized.
-            {
-                canvas.fill(handle, cell::shaders::underlight);
-            }
-        };
-    }
-
-    template<axis Axis>
-    using grip = gripfx<Axis, drawfx::xlight>;
 
     // controls: Pluggable dummy object.
     class mock

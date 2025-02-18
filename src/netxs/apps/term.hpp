@@ -825,12 +825,12 @@ namespace netxs::app::terminal
             });
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-        static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
+        auto& term_bgc = term->color().bgc();
+        auto drawfx = [&](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
         {
             static auto box1 = "▄"sv;
             static auto box2 = ' ';
             auto window_clr = skin::color(tone::window_clr);
-            auto term_bgc = boss.base::color().bgc();
             if (handle_len != region_len) // Show only if it is oversized.
             {
                 if (wide) // Draw full scrollbar on mouse hover.
@@ -846,16 +846,8 @@ namespace netxs::app::terminal
             }
             else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(window_clr.bgc()); });
         };
-        auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
-            ->limits({ -1,1 }, { -1,1 })
-            ->invoke([&](auto& boss)
-            {
-                boss.color(boss.color().bgc(term->color().bgc()));
-                term->LISTEN(tier::release, e2::form::prop::filler, brush, -)
-                {
-                    boss.color(boss.color().bgc(brush.bgc()));
-                };
-            });
+        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll, drawfx))
+            ->limits({ -1,1 }, { -1,1 });
 
         auto [slot1, cover, menu_data] = construct_menu(config);
         auto menu = object->attach(slot::_1, slot1)
@@ -870,7 +862,6 @@ namespace netxs::app::terminal
         cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             auto& bar = boss.base::field(cell{ "▀"sv }.link(slot1->id));
-            auto& term_bgc = boss.base::field(term->color().bgc());
             auto& winsz = boss.base::field(dot_00);
             auto& visible = boss.base::field(slot1->back() != boss.This());
             auto& check_state = boss.base::field([state = true, &winsz, &visible](base& boss) mutable
@@ -889,10 +880,6 @@ namespace netxs::app::terminal
             {
                 winsz = new_area.size;
                 check_state(boss);
-            };
-            term->LISTEN(tier::release, e2::form::prop::filler, clr)
-            {
-                term_bgc = clr.bgc();
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (borders))
             {

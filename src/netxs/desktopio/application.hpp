@@ -61,7 +61,7 @@ namespace netxs::app::shared
     };
     const auto underlined_hz_scrollbar = [](auto scrlrail)
     {
-        auto grip = ui::gripfx<axis::X, ui::drawfx::underline>::ctor(scrlrail)
+        auto grip = ui::grip<axis::X>::ctor(scrlrail, ui::drawfx::underline)
             ->alignment({ snap::both, snap::tail })
             ->invoke([&](auto& boss)
             {
