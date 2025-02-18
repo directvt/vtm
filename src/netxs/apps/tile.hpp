@@ -499,26 +499,6 @@ namespace netxs::app::tile
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.base::deface();
                     };
-                    boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
-                    {
-                        if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
-                        {
-                            auto ratio = node->get_ratio();
-                            if (ratio == min_ratio)
-                            {
-                                node->set_ratio(saved_ratio);
-                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
-                            }
-                            else
-                            {
-                                saved_ratio = ratio;
-                                node->set_ratio(min_state);
-                                min_ratio = node->get_ratio();
-                                pro::focus::off(boss.This(), gear.id);
-                            }
-                            node->base::reflow();
-                        }
-                    };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
                         // Block a rising up of this event: dtvt object fires this event on exit.
@@ -615,6 +595,30 @@ namespace netxs::app::tile
                             }
                         }
                     };
+                    boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    {
+                        if (boss.count() > 2) // Restore if maximized.
+                        {
+                            boss.back()->base::signal(tier::release, e2::form::size::restore);
+                        }
+                        else if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
+                        {
+                            auto ratio = node->get_ratio();
+                            if (ratio == min_ratio)
+                            {
+                                node->set_ratio(saved_ratio);
+                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? solo::off : solo::on, true);
+                            }
+                            else
+                            {
+                                saved_ratio = ratio;
+                                node->set_ratio(min_state);
+                                min_ratio = node->get_ratio();
+                                pro::focus::off(boss.This(), gear.id);
+                            }
+                            node->base::reflow();
+                        }
+                    };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
                         pro::focus::set(boss.This(), gear.id, solo::off);
@@ -629,6 +633,7 @@ namespace netxs::app::tile
                             {
                                 auto fullscreen_item = boss.back();
                                 auto& fullscreen_inst = *fullscreen_item;
+                                boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
                                 fullscreen_item->LISTEN(tier::release, e2::form::size::restore, empty_ptr, oneoff)
                                 {
                                     auto item_ptr = fullscreen_inst.This();
@@ -643,7 +648,6 @@ namespace netxs::app::tile
                                 {
                                     oneoff.clear();
                                 };
-                                boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
                                 boss.base::reflow();
                             }
                         }
