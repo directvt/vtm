@@ -2478,7 +2478,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    if (!alive || boss.base::filler.bga() == 0xFF) return;
+                    if (!alive) return;
                     parent_canvas.blur(width, cache, [&](cell& c){ c.alpha(0xFF); });
                 };
             }
@@ -3164,6 +3164,13 @@ namespace netxs::ui
             auto item = ui::tui_domain().template create<TT>(std::forward<Args>(args)...);
             return item;
         }
+        // form: Set control as root.
+        auto isroot(bool isroot, si32 ofkind = base::client)
+        {
+            base::root(isroot);
+            base::kind(ofkind);
+            return This();
+        }
         // form: Attach a plugin of the specified type and return self.
         template<class S, class ...Args>
         auto plugin(Args&&... args)
@@ -3183,6 +3190,16 @@ namespace netxs::ui
         auto& plugins(Args&&... args)
         {
             return base::plugin<S>(std::forward<Args>(args)...);
+        }
+        // form: Fill object region using parametrized fx.
+        template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any>
+        auto _shader(cell fx)
+        {
+            LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
+            {
+                parent_canvas.fill(cell::shaders::fusefull(fx));
+            };
+            return This();
         }
         // form: Fill object region using parametrized fx.
         template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
@@ -3235,36 +3252,28 @@ namespace netxs::ui
             }
             return This();
         }
-        // form: Set control as root.
-        auto isroot(bool isroot, si32 ofkind = base::client)
-        {
-            base::root(isroot);
-            base::kind(ofkind);
-            return This();
-        }
         // form: Set a static color (transparent for mouse events).
         auto colors(cell brush)
         {
-            base::color2(brush);
-            return This();
+            return _shader(brush);
         }
         // form: Set a static color (transparent for mouse events).
         auto colors(argb fg_color, argb bg_color)
         {
-            base::color2(cell{ whitespace }.fgc(fg_color).bgc(bg_color));
-            return This();
+            auto brush = cell{ whitespace }.fgc(fg_color).bgc(bg_color);
+            return _shader(brush);
         }
-        // form: Set the form visible for mouse.
+        // form: Make the form visible to the mouse.
         auto active(cell brush = {})
         {
-            base::color2(brush.txt(whitespace).link(bell::id));
-            return This();
+            brush.txt(whitespace).link(bell::id);
+            return _shader(brush);
         }
-        // form: Set the form visible for mouse.
+        // form: Make the form visible to the mouse.
         auto active(argb fg_color, argb bg_color)
         {
-            base::color2(cell{ whitespace }.link(bell::id).fgc(fg_color).bgc(bg_color));
-            return This();
+            auto brush = cell{ whitespace }.link(bell::id).fgc(fg_color).bgc(bg_color);
+            return _shader(brush);
         }
         // form: Invoke an arbitrary functor(self/*This/boss) in place.
         template<class P>

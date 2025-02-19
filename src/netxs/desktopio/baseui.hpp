@@ -608,7 +608,6 @@ namespace netxs::ui
         subs relyon; // base: Subscription on parent events.
         rect region; // base: The region occupied by the object.
         rect socket; // base: The region provided for the object.
-        cell filler; // base: Object color.
         twod min_sz; // base: Minimal size.
         twod max_sz; // base: Maximal size.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
@@ -714,17 +713,6 @@ namespace netxs::ui
             auto area = rect{ -oversz.corner(), region.size + oversz };
             if constexpr (Absolute) area.coor += region.coor;
             return area;
-        }
-        auto& color2() const { return base::filler; }
-        void color2(argb fg_color, argb bg_color)
-        {
-            base::filler.bgc(bg_color)
-                        .fgc(fg_color)
-                        .txt(whitespace);
-        }
-        void color2(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
-        {
-            base::filler = new_filler;
         }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
@@ -1153,14 +1141,7 @@ namespace netxs::ui
               locked{ faux },
               master{ faux },
               family{ type::client }
-        {
-            LISTEN(tier::release, e2::render::background::any, parent_canvas)
-            {
-                //todo drop filler, use shader()
-                     if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
-                else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(base::filler.link()));
-            };
-        }
+        { }
     };
 
     struct input_fields_t
