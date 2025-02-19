@@ -869,7 +869,6 @@ namespace netxs::ui
         template<bool Forced = faux>
         void reflow()
         {
-            if (hidden) return;
             auto parent_ptr = This();
             while ((Forced || !parent_ptr->base::master) && parent_ptr->base::family != base::reflow_root)
             {
