@@ -2695,7 +2695,6 @@ namespace netxs::ui
             cell  alerts;
             cell  stress;
             page  status;
-            escx  coder;
 
             struct
             {
@@ -2754,7 +2753,7 @@ namespace netxs::ui
                 track.number++;
                 status.reindex();
                 auto ctx = canvas.change_basis(canvas.area());
-                canvas.output(status);
+                canvas.output(status, cell::shaders::contrast);
             }
             void stop()
             {
@@ -2776,6 +2775,7 @@ namespace netxs::ui
                     maxlen = std::max(maxlen, desc.size());
                 }
                 auto attr = si32{ 0 };
+                auto coder = escx{};
                 for (auto& desc : description)
                 {
                     status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
@@ -2787,6 +2787,7 @@ namespace netxs::ui
                     status[prop::frame_rate].set(stress) = std::to_string(fps);
                     boss.base::strike();
                 };
+                boss.base::signal(tier::general, e2::config::fps, -1);
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     update(new_area.size);

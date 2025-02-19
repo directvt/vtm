@@ -24,6 +24,7 @@ namespace netxs::prompt
     #define prompt_list \
         X(apps) /* */ \
         X(args) /* */ \
+        X(auth) /* */ \
         X(base) /* */ \
         X(calc) /* */ \
         X(desk) /* */ \

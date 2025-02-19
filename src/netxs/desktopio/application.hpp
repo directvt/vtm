@@ -814,8 +814,7 @@ namespace netxs::app::shared
         auto& indexer = ui::tui_domain();
         auto config_lock = indexer.unique_lock(); // Sync multithreaded access to config.
         auto gui_config = app::shared::get_gui_config(config);
-        auto& g = ui::skin::globals();
-        app::shared::get_tui_config(config, g);
+        app::shared::get_tui_config(config, ui::skin::globals());
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, gui_config);
@@ -823,22 +822,7 @@ namespace netxs::app::shared
         auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
-
-        //todo deduplicate (vtm::hall)
-        gate.LISTEN(tier::general, e2::config::fps, fps)
-        {
-            if (fps > 0)
-            {
-                g.maxfps = fps;
-                log(prompt::gate, "Rendering refresh rate: ", g.maxfps, " fps");
-            }
-            else if (fps < 0)
-            {
-                fps = g.maxfps;
-            }
-        };
-        gate.base::signal(tier::general, e2::config::fps, g.maxfps);
-
+        gate.base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         applet->base::kind(base::reflow_root);

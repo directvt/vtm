@@ -264,11 +264,17 @@ namespace netxs::events
         {
             if (e2_config_fps_id)
             {
-                memo = general.subscribe(e2_config_fps_id, reactor::hndl<si32>{ [&](si32& fps)
+                memo = general.subscribe(e2_config_fps_id, reactor::hndl<si32>{ [&](si32& new_fps)
                 {
-                    if (fps > 0)
+                    if (new_fps > 0)
                     {
+                        fps = new_fps;
                         quartz.ignite(fps);
+                        log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
+                    }
+                    else if (new_fps < 0)
+                    {
+                        new_fps = fps;
                     }
                     else
                     {

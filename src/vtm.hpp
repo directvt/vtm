@@ -1269,8 +1269,7 @@ namespace netxs::app::vtm
         {
             auto& canal = *server;
 
-            auto& g = ui::skin::globals();
-            app::shared::get_tui_config(config, g);
+            app::shared::get_tui_config(config, ui::skin::globals());
 
             plugins<pro::focus>(pro::focus::mode::focusable, faux);
             plugins<pro::keybd>("desktop");
@@ -1865,21 +1864,7 @@ namespace netxs::app::vtm
                     }
                 }
             };
-
-            //todo deduplicate (ui::gate)
-            LISTEN(tier::general, e2::config::fps, fps)
-            {
-                if (fps > 0)
-                {
-                    g.maxfps = fps;
-                    log(prompt::hall, "Rendering refresh rate: ", g.maxfps, " fps");
-                }
-                else if (fps < 0)
-                {
-                    fps = g.maxfps;
-                }
-            };
-            base::signal(tier::general, e2::config::fps, g.maxfps);
+            base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         }
 
         // hall: Autorun apps from config.
