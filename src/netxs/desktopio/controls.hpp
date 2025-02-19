@@ -3235,13 +3235,6 @@ namespace netxs::ui
             }
             return This();
         }
-        // form: deprecated in favor of pro::brush. Set colors and return self.
-        template<class ...Args>
-        auto colors(Args&&... args)
-        {
-            base::color(std::forward<Args>(args)...);
-            return This();
-        }
         // form: Set control as root.
         auto isroot(bool isroot, si32 ofkind = base::client)
         {
@@ -3249,15 +3242,29 @@ namespace netxs::ui
             base::kind(ofkind);
             return This();
         }
-        // form: Set the form visible for mouse.
-        auto active(cell brush)
+        // form: Set a static color (transparent for mouse events).
+        auto colors(cell brush)
         {
-            base::color(brush.txt(whitespace).link(bell::id));
+            base::color2(brush);
             return This();
         }
-        auto active()
+        // form: Set a static color (transparent for mouse events).
+        auto colors(argb fg_color, argb bg_color)
         {
-            return active(base::color());
+            base::color2(cell{ whitespace }.fgc(fg_color).bgc(bg_color));
+            return This();
+        }
+        // form: Set the form visible for mouse.
+        auto active(cell brush = {})
+        {
+            base::color2(brush.txt(whitespace).link(bell::id));
+            return This();
+        }
+        // form: Set the form visible for mouse.
+        auto active(argb fg_color, argb bg_color)
+        {
+            base::color2(cell{ whitespace }.link(bell::id).fgc(fg_color).bgc(bg_color));
+            return This();
         }
         // form: Invoke an arbitrary functor(self/*This/boss) in place.
         template<class P>

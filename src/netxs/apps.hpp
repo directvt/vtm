@@ -235,8 +235,7 @@ namespace netxs::app::shared
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
-                                            ->active()
-                                            ->colors(whitelt, reddk);
+                                            ->active(whitelt, reddk);
                                     scroll->attach(ui::post::ctor())
                                           ->upload(truecolor);
                         auto sb = layers->attach(ui::fork::ctor());
@@ -269,8 +268,7 @@ namespace netxs::app::shared
                                 ->colors(yellowlt, pureblue);
             auto title = header->attach(slot::_1, ui::post::ctor()->upload(" Application Title "));
             auto close_btn = header->attach(slot::_2, ui::post::ctor()->upload(" x ")->limits(-dot_11, { 3, 1 }))
-                ->active()
-                ->colors(purewhite, purered)
+                ->active(purewhite, purered)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->invoke([](auto& boss)
                 {
@@ -598,8 +596,7 @@ namespace netxs::app::shared
             auto inside = object->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto layers = inside->attach(slot::_1, ui::cake::ctor());
             auto scroll = layers->attach(ui::rail::ctor())
-                                ->active()
-                                ->colors(whitedk, 0xFF0f0f0f)
+                                ->active(whitedk, 0xFF0f0f0f)
                                 ->limits({ -1,-1 }, { -1,-1 });
             static const auto data = []
             {
@@ -676,8 +673,7 @@ namespace netxs::app::shared
             {
                 auto f = ui::item::ctor()
                     ->setpad({ 2, 2, 0, 0 }, { -2, 1, 0, 0 })
-                    ->active()
-                    ->colors(purewhite, 0x00)
+                    ->active(purewhite, 0x00)
                     ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->invoke([&](auto& boss)
                     {

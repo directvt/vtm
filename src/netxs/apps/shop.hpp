@@ -216,8 +216,7 @@ namespace netxs::app::shop
                                ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
-                                        ->active()
-                                        ->colors(whitedk, 0xFF0f0f0f)
+                                        ->active(whitedk, 0xFF0f0f0f)
                                         ->limits({ -1,-1 }, { -1,-1 });
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())

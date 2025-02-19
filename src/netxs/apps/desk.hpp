@@ -582,10 +582,10 @@ namespace netxs::app::desk
             auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
+                ->active()
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
                 //->shader(c3, e2::form::state::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
-                ->active()
                 ->invoke([&](auto& boss)
                 {
                     auto& drag_origin = boss.base::template field<fp2d>();

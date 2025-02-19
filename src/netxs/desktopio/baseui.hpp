@@ -715,14 +715,14 @@ namespace netxs::ui
             if constexpr (Absolute) area.coor += region.coor;
             return area;
         }
-        auto& color() const { return base::filler; }
-        void color(argb fg_color, argb bg_color)
+        auto& color2() const { return base::filler; }
+        void color2(argb fg_color, argb bg_color)
         {
             base::filler.bgc(bg_color)
                         .fgc(fg_color)
                         .txt(whitespace);
         }
-        void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
+        void color2(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
         {
             base::filler = new_filler;
         }

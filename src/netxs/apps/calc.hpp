@@ -385,8 +385,7 @@ namespace netxs::app::calc
                                                         ->active()
                                                         ->limits({ -1,1 }, { -1,-1 });
                                         auto sheet_body = scroll->attach(ui::post::ctor())
-                                                                ->active()
-                                                                ->colors(0xFF000000, 0xFFffffff)
+                                                                ->active(0xFF000000, 0xFFffffff)
                                                                 ->plugin<pro::cell_highlight>()
                                                                 ->upload(cellatix_text);
                                     auto sum = fx_sum->attach(slot::_2, ui::post::ctor())
