@@ -971,10 +971,6 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, e2::form::prop::filler, new_filler)
-            {
-                canvas.mark(new_filler);
-            };
             LISTEN(tier::release, e2::area, new_area)
             {
                 canvas.face::area(new_area);

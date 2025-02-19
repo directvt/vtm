@@ -424,7 +424,6 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( name      , text       ), // user name.
                     EVENT_XS( zorder    , si32       ), // Set form z-order, si32: 0 plain, 1 backmost, 2 topmost.
-                    EVENT_XS( filler    , const cell ), // Set form brush/color.
                     EVENT_XS( fullscreen, ui::sptr   ), // Set fullscreen app.
                     EVENT_XS( viewport  , rect       ), // request: Return form actual viewport.
                     EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.
@@ -722,12 +721,10 @@ namespace netxs::ui
             base::filler.bgc(bg_color)
                         .fgc(fg_color)
                         .txt(whitespace);
-            base::signal(tier::release, e2::form::prop::filler, filler);
         }
         void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
         {
             base::filler = new_filler;
-            base::signal(tier::release, e2::form::prop::filler, filler);
         }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
