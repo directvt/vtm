@@ -192,7 +192,7 @@ namespace netxs::app::tile
                     ->template plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"), true, faux, true)
                     ->template plugin<pro::light>()
                     ->template plugin<pro::focus>()
-                    ->limits({ 10,-1 }, { -1,-1 })
+                    ->limits({ 10, -1 }, { -1, -1 })
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -447,7 +447,7 @@ namespace netxs::app::tile
             });
             menu_data->active(window_clr);
             auto menu_id = menu_block->id;
-            cover->setpad({ 0,0,3,0 });
+            cover->setpad({ 0, 0, 3, 0 });
             cover->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (menu_id))
@@ -458,13 +458,48 @@ namespace netxs::app::tile
 
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
-                ->active(window_clr)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
-                ->shader(c3, e2::form::state::focus::count)
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
+                    auto& default_color = boss.base::field(window_clr).link(boss.id);
+                    auto& hilight_color = boss.base::field(highlight_color).alpha(0x70).link(boss.id);
+                    auto& current_color = boss.base::field(default_color);
+                    boss.shader(current_color)
+                        ->shader(c3, e2::form::state::focus::count);
+                    auto& highlight = boss.base::field([&](auto state)
+                    {
+                        current_color = state ? hilight_color : default_color;
+                        boss.base::deface();
+                    });
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
+                    {
+                        highlight(faux);
+                    };
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::ask, target)
+                    {
+                        if (auto parent_ptr = boss.base::parent())
+                        if (parent_ptr->base::subset.size() == 1) // Only empty slot available.
+                        {
+                            highlight(true);
+                            target = boss.This();
+                        }
+                    };
+                    boss.LISTEN(tier::release, vtm::events::d_n_d::drop, what)
+                    {
+                        if (auto parent_ptr = boss.base::parent())
+                        if (parent_ptr->base::subset.size() == 1) // Only empty slot available.
+                        {
+                            highlight(faux);
+                            // Solo focus will be set in pro::d_n_d::proceed.
+                            //pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
+                            auto app = app_window(what);
+                            parent_ptr->attach(app);
+                            app->base::signal(tier::anycast, e2::form::upon::started);
+                            app->base::reflow();
+                        }
+                    };
                     boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
                     {
                         pro::focus::set(boss.This(), gear.id, solo::on);
@@ -475,7 +510,7 @@ namespace netxs::app::tile
                 ->branch
                 (
                     ui::post::ctor()->upload("Empty Slot", 10)
-                        ->limits({ 10,1 }, { 10,1 })
+                        ->limits({ 10, 1 }, { 10, 1 })
                         ->alignment({ snap::center, snap::center })
                 )
                 ->branch
@@ -490,46 +525,9 @@ namespace netxs::app::tile
                 ->active()
                 ->invoke([&](auto& boss)
                 {
-                    auto highlight = [](auto& boss, auto state)
-                    {
-                        auto window_clr = skin::color(tone::window_clr);
-                        auto highlight_color = skin::color(tone::winfocus);
-                        auto c3 = highlight_color.alpha(0x70);
-                        auto c = state ? c3 : window_clr;
-                        boss.front()->base::color(c.fgc(), c.bgc());
-                        boss.base::deface();
-                    };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
                         // Block a rising up of this event: dtvt object fires this event on exit.
-                    };
-                    boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
-                    {
-                        if (boss.count())
-                        {
-                            highlight(boss, faux);
-                        }
-                    };
-                    boss.LISTEN(tier::release, vtm::events::d_n_d::ask, target)
-                    {
-                        if (boss.count() == 1) // Only empty slot available.
-                        {
-                            highlight(boss, true);
-                            target = boss.This();
-                        }
-                    };
-                    boss.LISTEN(tier::release, vtm::events::d_n_d::drop, what)
-                    {
-                        if (boss.count() == 1) // Only empty pane/slot available.
-                        {
-                            highlight(boss, faux);
-                            // Solo focus will be set in pro::d_n_d::proceed.
-                            //pro::focus::off(boss.back()); // Unset focus from node_veer if it is focused.
-                            auto app = app_window(what);
-                            boss.attach(app);
-                            app->base::signal(tier::anycast, e2::form::upon::started);
-                            app->base::reflow();
-                        }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
                     {
