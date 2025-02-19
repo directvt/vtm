@@ -8613,7 +8613,6 @@ namespace netxs::ui
         si32 nodata; // dtvt: Show splash "No signal".
         face splash; // dtvt: "No signal" splash.
         page errmsg; // dtvt: Overlay error message.
-        span maxoff; // dtvt: Max delay before showing "No signal".
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
 
         // dtvt: Format error message overlay.
@@ -8779,13 +8778,6 @@ namespace netxs::ui
                 stream.syskeybd.send(*this, gear);
                 gear.dismiss();
             };
-            LISTEN(tier::general, e2::config::fps, frame_rate)
-            {
-                if (frame_rate > 0)
-                {
-                    stream.fps.send(*this, frame_rate);
-                }
-            };
             LISTEN(tier::anycast, e2::form::prop::cwd, path)
             {
                 stream.cwd.send(*this, path);
@@ -8799,15 +8791,19 @@ namespace netxs::ui
                     stream.syswinsz.send(*this, 0, new_area.size, faux);
                 }
             };
-            maxoff = span{ span::period::den / std::max(1, ui::skin::globals().maxfps) };
-            LISTEN(tier::general, e2::config::fps, fps)
-            {
-                maxoff = span{ span::period::den / std::max(1, fps) };
-            };
             LISTEN(tier::anycast, e2::form::prop::lucidity, value)
             {
                 if (value == -1) value = opaque;
                 else             opaque = value;
+            };
+            auto& maxoff = base::field(span{ span::period::den / std::max(1, ui::skin::globals().maxfps) }); // dtvt: Max delay before showing "No signal".
+            LISTEN(tier::general, e2::config::fps, fps)
+            {
+                maxoff = span{ span::period::den / std::max(1, fps) };
+                if (fps > 0)
+                {
+                    stream.fps.send(*this, fps);
+                }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

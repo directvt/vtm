@@ -823,20 +823,22 @@ namespace netxs::app::shared
         auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
         auto& gate = *gate_ptr;
         gate.base::resize(os::dtvt::gridsz);
-        gate.base::signal(tier::general, e2::config::fps, g.maxfps);
+
         //todo deduplicate (vtm::hall)
         gate.LISTEN(tier::general, e2::config::fps, fps)
         {
             if (fps > 0)
             {
                 g.maxfps = fps;
+                log(prompt::gate, "Rendering refresh rate: ", g.maxfps, " fps");
             }
             else if (fps < 0)
             {
                 fps = g.maxfps;
             }
         };
-        log(prompt::gate, "Rendering refresh rate: ", g.maxfps, " fps");
+        gate.base::signal(tier::general, e2::config::fps, g.maxfps);
+
         auto appcfg = eccc{ .cmd = cmd };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         applet->base::kind(base::reflow_root);

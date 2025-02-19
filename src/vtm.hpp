@@ -1782,19 +1782,6 @@ namespace netxs::app::vtm
                     gear_id = {};
                 }
             };
-            //todo deduplicate (ui::gate)
-            LISTEN(tier::general, e2::config::fps, fps)
-            {
-                if (fps > 0)
-                {
-                    g.maxfps = fps;
-                    log(prompt::hall, "Rendering refresh rate: ", g.maxfps, " fps");
-                }
-                else if (fps < 0)
-                {
-                    fps = g.maxfps;
-                }
-            };
             LISTEN(tier::general, e2::timer::any, timestamp)
             {
                 if (base::ruined()) // Force all gates to redraw.
@@ -1876,6 +1863,20 @@ namespace netxs::app::vtm
                             }
                         }
                     }
+                }
+            };
+
+            //todo deduplicate (ui::gate)
+            LISTEN(tier::general, e2::config::fps, fps)
+            {
+                if (fps > 0)
+                {
+                    g.maxfps = fps;
+                    log(prompt::hall, "Rendering refresh rate: ", g.maxfps, " fps");
+                }
+                else if (fps < 0)
+                {
+                    fps = g.maxfps;
                 }
             };
             base::signal(tier::general, e2::config::fps, g.maxfps);
