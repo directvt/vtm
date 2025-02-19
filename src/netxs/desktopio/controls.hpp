@@ -2692,8 +2692,6 @@ namespace netxs::ui
         public:
             using skill::skill; // Inherits ctors.
 
-            cell  alerts;
-            cell  stress;
             page  status;
 
             struct
@@ -2707,24 +2705,15 @@ namespace netxs::ui
             }
             track; // debug: Textify the telemetry data for debugging purpose.
 
-            void shadow()
-            {
-                for (auto i = 0; i < (si32)description.size(); i++)
-                {
-                    status[i].ease();
-                }
-            }
             void update(bool focus_state)
             {
-                shadow();
-                status[prop::last_event].set(stress) = "focus";
-                status[prop::focused].set(stress) = focus_state ? "active" : "lost";
+                status[prop::last_event] = "focus";
+                status[prop::focused] = focus_state ? "active" : "lost";
             }
             void update(twod new_size)
             {
-                shadow();
-                status[prop::last_event].set(stress) = "size";
-                status[prop::win_size].set(stress) = utf::concat(new_size.x, " x ", new_size.y);
+                status[prop::last_event] = "size";
+                status[prop::win_size] = utf::concat(new_size.x, " x ", new_size.y);
             }
             void update(span watch, si32 delta)
             {
@@ -2738,18 +2727,10 @@ namespace netxs::ui
             }
             void output(face& canvas)
             {
-                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-
-                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-
-                status[prop::frame_size].set(stress) =
-                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-
-                status[prop::total_size].set(stress) =
-                    utf::format(track.totals) + " bytes";
-
+                status[prop::render_ns] = utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
+                status[prop::proceed_ns] = utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
+                status[prop::frame_size] = utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
+                status[prop::total_size] = utf::format(track.totals) + " bytes";
                 track.number++;
                 status.reindex();
                 auto ctx = canvas.change_basis(canvas.area());
@@ -2762,10 +2743,6 @@ namespace netxs::ui
             }
             void start()
             {
-                //todo use skin
-                stress = cell{}.fgc(whitelt);
-                alerts = cell{}.fgc(argb{ 0xFF'ff'd0'd0 });
-
                 status.style.wrp(wrap::off).jet(bias::left).rlf(feed::rev).mgl(4);
                 status.current().locus.cup(dot_00).cnl(2);
 
@@ -2784,7 +2761,7 @@ namespace netxs::ui
 
                 boss.LISTEN(tier::general, e2::config::fps, fps, memo)
                 {
-                    status[prop::frame_rate].set(stress) = std::to_string(fps);
+                    status[prop::frame_rate] = std::to_string(fps);
                     boss.base::strike();
                 };
                 boss.base::signal(tier::general, e2::config::fps, -1);
@@ -2794,51 +2771,47 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {
-                    shadow();
-                    status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos ].set(stress) =
-                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
-                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
+                    status[prop::last_event] = "mouse";
+                    status[prop::mouse_pos ] = (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
+                                               (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
 
                     auto m_buttons = std::bitset<8>(m.buttons);
                     for (auto i = 0; i < hids::numofbuttons; i++)
                     {
-                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
+                        auto& state = status[prop::mouse_btn_1 + i];
                         state = m_buttons[i] ? "pressed" : "idle   ";
                     }
 
                     if constexpr (debugmode)
                     {
-                        status[prop::k].set(stress) = utf::concat(netxs::_k0, " ",
-                                                                  netxs::_k1, " ",
-                                                                  netxs::_k2, " ",
-                                                                  netxs::_k3);
+                        status[prop::k] = utf::concat(netxs::_k0, " ",
+                                                      netxs::_k1, " ",
+                                                      netxs::_k2, " ",
+                                                      netxs::_k3);
                     }
-                    status[prop::mouse_wheeldt].set(stress) = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
-                    status[prop::mouse_wheelsi].set(stress) = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
-                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
+                    status[prop::mouse_wheeldt] = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
+                    status[prop::mouse_wheelsi] = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
+                    status[prop::mouse_hzwheel] = m.hzwheel ? "active" : "idle  ";
+                    status[prop::mouse_vtwheel] = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
+                    status[prop::ctrl_state   ] = "0x" + utf::to_hex(m.ctlstat);
                 };
                 boss.LISTEN(tier::release, e2::conio::focus, f, memo)
                 {
-                    shadow();
-                    status[prop::focused].set(stress) = f.state ? "focused  " : "unfocused";
+                    status[prop::focused] = f.state ? "focused  " : "unfocused";
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
                 {
                     static constexpr auto kstate = std::to_array({ "idle    ", "pressed ", "repeated" });
-                    shadow();
-                    status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
-                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
-                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-                    status[prop::key_payload  ].set(stress) = k.payload == input::keybd::type::keypress ? "keypress"
-                                                            : k.payload == input::keybd::type::keypaste ? "keypaste"
-                                                            : k.payload == input::keybd::type::imeanons ? "IME composition"
-                                                            : k.payload == input::keybd::type::imeinput ? "IME input"
-                                                            : k.payload == input::keybd::type::kblayout ? "keyboard layout" : "unknown payload";
+                    status[prop::last_event   ] = "keybd";
+                    status[prop::key_state    ] = kstate[k.keystat % 3];
+                    status[prop::ctrl_state   ] = "0x" + utf::to_hex(k.ctlstat );
+                    status[prop::key_code     ] = "0x" + utf::to_hex(k.virtcod );
+                    status[prop::key_scancode ] = "0x" + utf::to_hex(k.scancod );
+                    status[prop::key_payload  ] = k.payload == input::keybd::type::keypress ? "keypress"
+                                                : k.payload == input::keybd::type::keypaste ? "keypaste"
+                                                : k.payload == input::keybd::type::imeanons ? "IME composition"
+                                                : k.payload == input::keybd::type::imeinput ? "IME input"
+                                                : k.payload == input::keybd::type::kblayout ? "keyboard layout" : "unknown payload";
                     if (k.vkchord.length())
                     {
                         auto t = text{};
@@ -2864,7 +2837,7 @@ namespace netxs::ui
                                 else                t.push_back(c);
                             }
                         }
-                        if (t.size()) status[prop::key_chord].set(stress) = t;
+                        if (t.size()) status[prop::key_chord] = t;
                     }
                 };
             }
