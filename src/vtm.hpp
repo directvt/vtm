@@ -1918,7 +1918,6 @@ namespace netxs::app::vtm
             auto usergate_ptr = ui::gate::ctor(client, vtmode, app_config, userid, session_id, true);
             auto& usergate = *usergate_ptr;
 
-            usergate.local = faux;
             //todo scripting
             //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
             auto& keybd = usergate.plugins<pro::keybd>();
@@ -2138,7 +2137,6 @@ namespace netxs::app::vtm
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             usergate.attach(deskmenu);
-            if (usergate.local) usergate.nexthop = deskmenu;
             deskmenu.reset();
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();

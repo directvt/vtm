@@ -827,7 +827,7 @@ namespace netxs::app::shared
         auto applet = app::shared::builder(aclass)(appcfg, config);
         applet->base::kind(base::reflow_root);
         gate.attach(applet);
-        if (gate.local) gate.nexthop = applet;
+        gate.nexthop = applet;
         applet.reset();
         config_lock.unlock();
         gate.launch();

@@ -474,7 +474,6 @@ namespace netxs::ui
         link       conio; // gate: Input data parser.
         flag       alive; // gate: sysclose isn't sent.
         bool       direct; // gate: .
-        bool       local; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         bool       fullscreen; // gate: .
         wptr       nexthop; // gate: .
@@ -734,7 +733,6 @@ namespace netxs::ui
               conio{ canal, *this  },
               alive{ true },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
-              local{ true },
               yield{ faux },
               fullscreen{ faux }
         {
