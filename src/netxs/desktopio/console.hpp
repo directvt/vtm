@@ -1261,10 +1261,6 @@ namespace netxs::ui
                 {
                     if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
                 };
-                LISTEN(tier::preview, e2::config::fps, fps)
-                {
-                    conio.fps.send(canal, fps);
-                };
                 LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     conio.cwd.send(canal, path);

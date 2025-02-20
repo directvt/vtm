@@ -8534,13 +8534,6 @@ namespace netxs::ui
                     owner.base::riseup(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            void handle(s11n::xs::fps                 lock)
-            {
-                owner.bell::enqueue(owner_wptr, [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
-                {
-                    owner.base::signal(tier::general, e2::config::fps, fps);
-                });
-            }
             void handle(s11n::xs::logs                lock)
             {
                 s11n::recycle_log(lock, os::process::id.second);
