@@ -152,6 +152,7 @@ namespace netxs::app::vtm
                                     boss.base::signal(tier::preview, e2::area, preview_area);
                                     boss.base::moveby(delta);
                                     boss.base::signal(tier::preview, e2::form::upon::changed, delta);
+                                    boss.base::strike();
                                 }
                                 gear.dismiss();
                                 break;
@@ -164,19 +165,21 @@ namespace netxs::app::vtm
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
-                        robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                        robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto delta)
                         {
-                            boss.base::moveby(x);
+                            boss.base::moveby(delta);
+                            boss.base::signal(tier::preview, e2::form::upon::changed, delta);
                             boss.base::strike();
                         });
                     }
                     else
                     {
                         auto boundary = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
-                        robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                        robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto delta)
                         {
                             //todo revise: crash after window closed (bad weak ptr)
-                            convey(x, boundary);
+                            convey(delta, boundary);
+                            boss.base::signal(tier::preview, e2::form::upon::changed, delta);
                             boss.base::strike();
                         });
                     }
@@ -200,14 +203,16 @@ namespace netxs::app::vtm
                 auto screen = boss.base::area();
                 auto oldpos = screen.coor;
                 auto newpos = target - screen.size / 2;
-
                 auto path = newpos - oldpos;
                 auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
-
                 robo.pacify();
-                robo.actify(func, [&](twod& x){ boss.base::moveby(x); boss.base::strike(); });
+                robo.actify(func, [&](auto delta)
+                {
+                    boss.base::moveby(delta);
+                    boss.base::strike();
+                });
             }
             /*
             // pro::frame: Search for a non-overlapping form position in
@@ -1042,7 +1047,6 @@ namespace netxs::app::vtm
                 base::signal(tier::request, vtm::events::newapp, what);
             }
             auto window_ptr = window_t::ctor(*this, what);
-
             attach(window_ptr);
 
             auto& menuid = what.applet->base::property("window.menuid");
@@ -1761,17 +1765,17 @@ namespace netxs::app::vtm
                     gear_id = {};
                 }
             };
-            LISTEN(tier::general, e2::timer::any, timestamp)
-            {
-                if (base::ruined()) // Force all gates to redraw.
-                {
-                    for (auto usergate_ptr : usrs_list)
-                    {
-                        usergate_ptr->base::ruined(true);
-                    }
-                    base::ruined(faux);
-                }
-            };
+            //LISTEN(tier::general, e2::timer::any, timestamp)
+            //{
+            //    if (base::ruined()) // Force all gates to redraw.
+            //    {
+            //        for (auto usergate_ptr : usrs_list)
+            //        {
+            //            usergate_ptr->base::ruined(true);
+            //        }
+            //        base::ruined(faux);
+            //    }
+            //};
             LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync hall basis with current gate.
             {
                 auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link());

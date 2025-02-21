@@ -221,7 +221,7 @@ namespace netxs::ui
                 {
                     auto area = boss.base::area();
                     auto next = area + warp;
-                    boss.extend(next);
+                    boss.base::extend(next);
                 };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
