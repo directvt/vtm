@@ -314,7 +314,7 @@ namespace netxs::app::vtm
                     auto& init = data.init;
                     auto& step = data.step;
                     data.ctrl = gear.meta(hids::anyCtrl);
-                    slot.coor = init = step = gear.click;
+                    slot.coor = init = step = gear.click + gear.owner.coor();
                     slot.size = dot_00;
                     boss.base::deface(slot);
                     gear.dismiss();

@@ -228,13 +228,13 @@ namespace netxs::app::tile
                                 auto& applet_area = applet.base::template property<rect>("window.area");
                                 if (!applet_area) applet_area.size = applet.base::size();
                                 auto coor = dot_00;
-                                applet.global(coor);
+                                applet.base::global(coor);
                                 applet_area.coor = -coor;
                                 what.applet = applet_ptr;
 
                                 auto gear_id_list = pro::focus::cut(applet_ptr);
                                 boss.remove(applet_ptr);
-                                applet.moveto(dot_00);
+                                applet.base::moveto(dot_00);
                                 world_ptr->base::signal(tier::request, vtm::events::handoff, what); // Attach to the world.
                                 pro::focus::set(applet_ptr, gear.id, solo::on, true);
                                 //todo revise (soul, mouse event tree caching)
