@@ -4446,8 +4446,6 @@ namespace netxs::ui
             strict[Axis] = true;
             robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
             {
-                //todo revise
-                //if (auto step = netxs::saturate_cast<twod::type>(p))
                 if (auto step = twod::cast(p))
                 {
                     auto delta = Axis == X ? twod{ step, 0 }

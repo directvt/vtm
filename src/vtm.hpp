@@ -1841,7 +1841,7 @@ namespace netxs::app::vtm
                                 coor.y -= 1;
                                 coor.x -= half_x;
                                 user_name.move(coor);
-                                parent_canvas.fill(user_name, cell::shaders::fuse);
+                                parent_canvas.fill(user_name, cell::shaders::contrast);
                                 usergate.fill_pointer(gear, parent_canvas);
                             }
                         }
@@ -2025,7 +2025,7 @@ namespace netxs::app::vtm
                 robot.actify(usergate.id, func, [&](auto& x)
                 {
                     usergate.base::moveby(-x);
-                    usergate.base::strike();
+                    this->base::deface();
                 });
             };
             usergate.LISTEN(tier::release, e2::form::layout::jumpto, window_inst)
@@ -2046,6 +2046,14 @@ namespace netxs::app::vtm
                 auto center = usergate.base::coor() + gear.owner.base::size() / 2;
                 gear.owner.base::signal(tier::release, e2::form::layout::shift, center);
             };
+            usergate.LISTEN(tier::release, e2::conio::mouse, m) // Trigger to redraw all gates on mouse activity (to redraw foreign mouse cursor).
+            {
+                this->base::deface();
+            };
+            usergate.LISTEN(tier::release, e2::conio::winsz, w) // Trigger to redraw all gates.
+            {
+                this->base::deface();
+            };
             auto& drag_origin = usergate.base::field<fp2d>();
             auto& user_mouse = usergate.base::plugin<pro::mouse>();
             user_mouse.template draggable<hids::buttons::leftright>(true);
@@ -2065,17 +2073,17 @@ namespace netxs::app::vtm
                 {
                     drag_origin = gear.coord;
                     usergate.base::moveby(-delta);
-                    usergate.base::deface();
+                    this->base::deface();
                 }
             };
             usergate.LISTEN(tier::release, e2::form::drag::stop::any, gear)
             {
                 if (gear.owner.id != usergate.id) return;
                 robot.pacify(usergate.id);
-                robot.actify(usergate.id, gear.fader<quadratic<twod>>(2s), [&](auto& x)
+                robot.actify(usergate.id, gear.fader<quadratic<twod>>(2s), [&](auto delta)
                 {
-                    usergate.base::moveby(-x);
-                    usergate.base::deface();
+                    usergate.base::moveby(-delta);
+                    this->base::deface();
                 });
             };
 
