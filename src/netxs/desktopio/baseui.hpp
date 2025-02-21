@@ -705,13 +705,6 @@ namespace netxs::ui
         {
             signal(Tier, Event::id, param);
         }
-        template<bool Absolute = true>
-        auto actual_area() const
-        {
-            auto area = rect{ -oversz.corner(), region.size + oversz };
-            if constexpr (Absolute) area.coor += region.coor;
-            return area;
-        }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
         {

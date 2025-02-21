@@ -5252,9 +5252,10 @@ namespace netxs::ui
                     ++start;
                 }
 
-                auto square = owner.actual_area<faux>();
+                //auto square = rect{ -owner.base::oversz.corner(), owner.base::size() + owner.base::oversz };
+                auto square = rect{ .size = owner.base::size() } + owner.base::oversz;
                 auto minlim = square.coor;
-                auto maxlim = square.coor + std::max(dot_00, square.size - dot_11);
+                auto maxlim = minlim + std::max(dot_00, square.size - dot_11);
                 coor1 = std::clamp(coor1, minlim, maxlim);
                 coor2 = std::clamp(coor2, minlim, maxlim);
                 return std::pair{ coor1, coor2 };
