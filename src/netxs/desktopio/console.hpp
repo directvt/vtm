@@ -476,7 +476,6 @@ namespace netxs::ui
         bool       direct; // gate: .
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         bool       fullscreen; // gate: .
-        wptr       nexthop; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
         pro::debug debug{ *this };
@@ -736,8 +735,7 @@ namespace netxs::ui
               yield{ faux },
               fullscreen{ faux }
         {
-            //todo
-            //auto& focus = plugins<pro::focus>();
+            plugins<pro::focus>();
             auto& keybd = plugins<pro::keybd>("gate");
             auto& mouse = plugins<pro::mouse>();
             auto& luafx = plugins<pro::luafx>();
@@ -1036,30 +1034,6 @@ namespace netxs::ui
                     }
                 }
             };
-            //todo mimic pro::focus
-            LISTEN(tier::release, input::events::focus::any, seed)
-            {
-                if (auto target = nexthop.lock())
-                {
-                    auto deed = bell::protos(tier::release);
-                    target->base::signal(tier::release, deed, seed);
-                }
-            };
-            //todo mimic pro::focus
-            //if (standalone)
-            {
-                LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr)
-                {
-                    owner_ptr = This();
-                };
-            }
-            LISTEN(tier::preview, input::events::keybd::key::post, gear) // Start of kb event propagation.
-            {
-                if (auto target = nexthop.lock())
-                {
-                    target->base::signal(tier::preview, input::events::keybd::key::post, gear);
-                }
-            };
             LISTEN(tier::release, input::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (!gear.handled)
@@ -1086,11 +1060,6 @@ namespace netxs::ui
             {
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
-            };
-            LISTEN(tier::release, e2::form::proceed::onbehalf, proc)
-            {
-                //todo hids
-                //proc(gear);
             };
             LISTEN(tier::preview, input::events::mouse::button::click::leftright, gear)
             {

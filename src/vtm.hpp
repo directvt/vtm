@@ -1271,7 +1271,7 @@ namespace netxs::app::vtm
 
             app::shared::get_tui_config(config, ui::skin::globals());
 
-            plugins<pro::focus>(pro::focus::mode::focusable, faux);
+            plugins<pro::focus>(pro::focus::mode::focusable);
             plugins<pro::keybd>("desktop");
             auto& luafx = base::plugin<pro::luafx>();
             static auto proc_map = pro::luafx::fxmap<hall>
@@ -1742,26 +1742,6 @@ namespace netxs::app::vtm
                 hall_focus = gear.id;
             };
             //todo mimic pro::focus
-            LISTEN(tier::release, input::events::keybd::any, gear) // Last resort for unhandled kb events. Forward the keybd event to the gate for sending it to the outside.
-            {
-                if (!gear.handled)
-                {
-                    gear.owner.base::signal(tier::release, input::events::keybd::key::post, gear);
-                }
-            };
-            //todo mimic pro::focus (hall has no parent)
-            LISTEN(tier::preview, input::events::focus::set::any, seed) // Forward focus events to the gate for sending it to the outside.
-            {
-                if (seed.gear_id)
-                {
-                    if (auto gear_ptr = bell::getref<hids>(seed.gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        auto deed = this->bell::protos(tier::preview);
-                        gear.owner.base::signal(tier::preview, deed, seed);
-                    }
-                }
-            };
 
             auto& switch_counter = base::field<std::unordered_map<id_t, si32>>(); // hall: Focus switch counter.
             LISTEN(tier::release, input::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
@@ -1929,22 +1909,12 @@ namespace netxs::app::vtm
             usrs_list.push_back(usergate_ptr);
             auto usrs_list_iter = std::prev(usrs_list.end());
             usergate.props.background_color.link(bell::id);
-
-            //todo revise (now world is not a parent for usergate)
-            //usergate.base::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-            usergate.father = base::This();
-
-            usergate.nexthop = base::This();
-
             base::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
-            auto& saved = base::field<wptr>();
             auto& memo = base::field<subs>();
             usergate.LISTEN(tier::release, vtm::events::gate::restore, restore_mode)
             {
                 if (memo.empty()) return;
-                    //todo revise
-                    usergate.nexthop = std::exchange(saved, wptr{});
                 memo.clear();
                 usergate.base::riseup(tier::preview, e2::form::prop::ui::header, std::move(usergate.base::property("window.saved_header")));
                 usergate.base::riseup(tier::preview, e2::form::prop::ui::footer, std::move(usergate.base::property("window.saved_footer")));
@@ -1970,8 +1940,6 @@ namespace netxs::app::vtm
                     window_ptr->base::detach();
                     auto applet_ptr = new_fullscreen.applet;
                     auto& applet = *applet_ptr;
-                        //todo revise
-                        saved = std::exchange(usergate.nexthop, applet_ptr);
                     applet.base::detach();
                     auto new_pos = usergate.base::area();
                     new_pos.coor -= usergate.base::coor();
@@ -2015,42 +1983,23 @@ namespace netxs::app::vtm
                     pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
                 }
             };
-            usergate.LISTEN(tier::release, input::events::focus::set::any, seed) // Any: To run prior the ui::gate's input::events::focus::any.
-            {
-                if (seed.treeid)
-                {
-                    if (auto target = usergate.nexthop.lock())
-                    {
-                        auto deed = this->bell::protos(tier::release);
-                        target->base::signal(tier::request, deed, seed); // Request to filter recursive loops.
-                        this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
-                    }
-                }
-                else
-                {
-                    usergate.bell::expire(tier::release, true);
-                }
-            };
-            //todo mimic pro::focus
-            usergate.LISTEN(tier::request, input::events::focus::cut, seed, -, (treeid = datetime::uniqueid(), digest = ui64{}))
-            {
-                if (usergate.base::subset.size() > 1)
-                {
-                    seed.treeid = treeid;
-                    seed.digest = ++digest;
-                    for (auto& [ext_gear_id, gear_ptr] : usergate.gears)
-                    {
-                        if (ext_gear_id && !gear_ptr->keybd_disabled) // Ignore default and halted gears.
-                        {
-                            if (auto gear_id = gear_ptr->id)
-                            {
-                                seed.gear_id = gear_id;
-                                usergate.base::subset.back()->base::signal(tier::release, input::events::focus::set::off, seed);
-                            }
-                        }
-                    }
-                }
-            };
+            //todo filter recursive loops
+            //usergate.LISTEN(tier::release, input::events::focus::set::any, seed) // Any: To run prior the ui::gate's input::events::focus::any.
+            //{
+            //    if (seed.treeid)
+            //    {
+            //        if (auto target = usergate.nexthop.lock())
+            //        {
+            //            auto deed = this->bell::protos(tier::release);
+            //            target->base::signal(tier::request, deed, seed); // Request to filter recursive loops.
+            //            this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
+            //        }
+            //    }
+            //    else
+            //    {
+            //        usergate.bell::expire(tier::release, true);
+            //    }
+            //};
 
             usergate.LISTEN(tier::release, e2::form::prop::name, user_name_utf8)
             {

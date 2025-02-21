@@ -744,14 +744,15 @@ namespace netxs::app::terminal
                     //    0 -- maximize (toggle)
                     if (new_size == dot_00) // Toggle fullscreen terminal (only if it is focused by someone).
                     {
-                        auto gates = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
-                        if (gates.size())
-                        if (auto gate_ptr = boss.bell::getref<base>(gates.back()))
+                        auto gear_id_list = boss.base::riseup(tier::request, e2::form::state::keybd::enlist);
+                        for (auto gear_id : gear_id_list)
                         {
-                            gate_ptr->base::signal(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
+                            if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
                             {
+                                auto& gear = *gear_ptr;
                                 boss.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                            });
+                                break;
+                            }
                         }
                     }
                     else if (boss.base::size() != new_size)

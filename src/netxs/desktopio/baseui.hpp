@@ -75,7 +75,6 @@ namespace netxs::ui
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr)>;
-    using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
     using book = std::vector<sptr>;
@@ -247,7 +246,7 @@ namespace netxs::events::userland
                     EVENT_XS( expose  , rect        ), // Order to bring the requested item on top of the visual tree.
                     EVENT_XS( appear  , twod        ), // Fly to the specified coords.
                     EVENT_XS( swarp   , const dent  ), // preview: Do form swarping.
-                    GROUP_XS( go      , ui::sptr    ), // preview: Do form swarping.
+                    GROUP_XS( go      , ui::sptr    ),
                     GROUP_XS( focus   , id_t        ),
 
                     SUBSET_XS( go )
@@ -345,7 +344,6 @@ namespace netxs::events::userland
                     EVENT_XS( attach    , ui::sptr    ), // Order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( swap      , ui::sptr    ), // Order to replace existing object. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor ), // Exec functor (see pro::focus).
-                    EVENT_XS( onbehalf  , ui::proc    ), // Exec functor on behalf (see gate).
                     GROUP_XS( quit      , bool        ), // Request to quit/detach (arg: fast or not).
                     GROUP_XS( action    , input::hids ), // Request to proceed action.
 

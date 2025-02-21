@@ -533,7 +533,6 @@ namespace netxs::app::desk
             });
             auto world_ptr = window->base::signal(tier::general, e2::config::creator);
             ground->attach(world_ptr);
-            world_ptr->father = {}; //todo attached
             auto taskbar_viewport = ground->attach(ui::fork::ctor(axis::X));
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
