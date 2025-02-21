@@ -2097,8 +2097,7 @@ namespace netxs::app::vtm
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            usergate.attach(deskmenu);
-            deskmenu.reset();
+            usergate.attach(std::move(deskmenu));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             lock.unlock();
             usergate.launch();
