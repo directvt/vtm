@@ -1765,17 +1765,17 @@ namespace netxs::app::vtm
                     gear_id = {};
                 }
             };
-            //LISTEN(tier::general, e2::timer::any, timestamp)
-            //{
-            //    if (base::ruined()) // Force all gates to redraw.
-            //    {
-            //        for (auto usergate_ptr : usrs_list)
-            //        {
-            //            usergate_ptr->base::ruined(true);
-            //        }
-            //        base::ruined(faux);
-            //    }
-            //};
+            LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                if (base::ruined()) // Force all gates to redraw.
+                {
+                    for (auto usergate_ptr : usrs_list)
+                    {
+                        usergate_ptr->base::ruined(true);
+                    }
+                    base::ruined(faux);
+                }
+            };
             LISTEN(tier::release, e2::render::background::prerender, parent_canvas) // Sync hall basis with current gate.
             {
                 auto gate_ptr = bell::getref<ui::gate>(parent_canvas.link());
