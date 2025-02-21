@@ -958,7 +958,8 @@ namespace netxs::ui
             LISTEN(tier::release, e2::command::printscreen, gear)
             {
                 auto data = escx{};
-                data.s11n(canvas, gear.slot);
+                props.clip_prtscrn_mime == mime::textonly ? data.s11n<faux>(canvas, gear.slot)
+                                                          : data.s11n<true>(canvas, gear.slot);
                 if (data.length())
                 {
                     if (props.clip_prtscrn_mime != mime::disabled)
