@@ -1522,7 +1522,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
-              multihome_list{ owner.base::property<decltype(multihome_list)>("multihome_list") }
+              multihome_list{ owner.base::property<std::decay_t<decltype(multihome_list)>>("multihome_list") }
         {
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
