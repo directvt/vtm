@@ -1818,8 +1818,7 @@ namespace netxs::gui
                 auto& gear = *gears;
                 auto basis = gear.owner.base::coor();
                 owner.global(basis);
-                gear.replay(mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
-                gear.pass(tier::release, owner.This(), gear.owner.base::coor(), true);
+                gear.replay(owner.This(), mouse.cause, mouse.coord - basis, mouse.click - basis, mouse.delta, mouse.buttons, mouse.ctlstat, mouse.whlfp, mouse.whlsi, mouse.hzwhl);
             }
             void handle(s11n::xs::warping          lock)
             {

@@ -1513,13 +1513,16 @@ namespace netxs::input
 
         bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
 
+        std::list<std::pair<wptr, wptr>>& multihome_list; // hids: .
+
         hids(auth& indexer, base& owner, core const& idmap)
             : base{ indexer },
               relay{ 0 },
               owner{ owner },
               idmap{ idmap },
               alive{ faux },
-              other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) } // Defaults for US layout.
+              other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
+              multihome_list{ owner.base::property<decltype(multihome_list)>("multihome_list") }
         {
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
@@ -1638,7 +1641,7 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
+        void replay(sptr object_ptr, hint new_cause, fp2d new_coord, fp2d new_click, fp2d new_delta, si32 new_button_state, si32 new_ctlstate, fp32 new_whlfp, si32 new_whlsi, bool new_hzwhl)
         {
             static constexpr auto mask = netxs::events::level_mask(input::events::mouse::button::any.id);
             static constexpr auto base = mask & input::events::mouse::button::any.id;
@@ -1652,6 +1655,7 @@ namespace netxs::input
             mouse::cause = (new_cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(new_delta);
             mouse::load_button_state(new_button_state);
+            pass(tier::release, object_ptr, owner.base::coor(), true);
         }
 
         auto meta(si32 ctl_key = -1) { return keybd::ctlstat & ctl_key; }
@@ -1720,20 +1724,20 @@ namespace netxs::input
 
         auto& area() const { return idmap.area(); }
 
-        void pass(si32 Tier, sptr object, fp2d offset, bool relative = faux)
+        void pass(si32 Tier, sptr object_ptr, fp2d offset, bool relative = faux)
         {
-            if (object)
+            if (object_ptr)
             {
                 auto temp_coord = mouse::coord;
                 auto temp_click = mouse::click;
                 if (relative)
                 {
-                    object->global(coord);
+                    object_ptr->global(coord);
                     click += coord - temp_coord;
                 }
                 mouse::coord += offset;
                 mouse::click += offset;
-                object->base::signal(Tier, mouse::cause, *this);
+                object_ptr->base::signal(Tier, mouse::cause, *this);
                 mouse::coord = temp_coord;
                 mouse::click = temp_click;
             }

@@ -344,6 +344,7 @@ namespace netxs::events::userland
                     EVENT_XS( attach    , ui::sptr    ), // Order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( swap      , ui::sptr    ), // Order to replace existing object. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor ), // Exec functor (see pro::focus).
+                    EVENT_XS( multihome , ui::sptr    ), // Release: Register gate-based parent.
                     GROUP_XS( quit      , bool        ), // Request to quit/detach (arg: fast or not).
                     GROUP_XS( action    , input::hids ), // Request to proceed action.
 
