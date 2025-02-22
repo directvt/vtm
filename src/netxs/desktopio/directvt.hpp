@@ -919,6 +919,7 @@ namespace netxs::directvt
                                         (fp2d, click))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
+        STRUCT_macro(minimize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
         STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
         STRUCT_macro(header_request,    (id_t, window_id))
@@ -926,9 +927,6 @@ namespace netxs::directvt
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT_macro(command,           (text, utf8))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
-        STRUCT_macro(fatal,             (text, err_msg))
-        STRUCT_macro(minimize,          (id_t, gear_id))
-        //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
         STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
@@ -1482,7 +1480,6 @@ namespace netxs::directvt
             X(tooltip_element  ) /* Tooltip text.                                 */\
             X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
             X(logs             ) /* Debug logs.                                   */\
-            X(fatal            ) /* Fatal error message.                          */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
             X(sysfocus         ) /* System focus device.                          */\

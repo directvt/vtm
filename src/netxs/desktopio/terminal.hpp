@@ -8539,14 +8539,6 @@ namespace netxs::ui
             {
                 s11n::recycle_log(lock, os::process::id.second);
             }
-            void handle(s11n::xs::fatal               lock)
-            {
-                owner.bell::enqueue(owner_wptr, [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
-                {
-                    owner.errmsg = owner.genmsg(utf8);
-                    owner.base::deface();
-                });
-            }
             void handle(s11n::xs::sysclose            lock)
             {
                 lock.unlock();
