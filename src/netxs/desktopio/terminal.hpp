@@ -8347,6 +8347,7 @@ namespace netxs::ui
                     {
                         if (auto gear_ptr = boss.bell::template getref<hids>(tooltip.gear_id)) //todo Apple clang requires template.
                         {
+                            gear_ptr->set_multihome();
                             gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                         }
                     }
@@ -8363,6 +8364,7 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     }
@@ -8379,6 +8381,7 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         if (gear.captured(owner.id)) gear.setfree(true);
                         parent_ptr->base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                     }
@@ -8412,6 +8415,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(k.gear_id))
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         k.syncto(gear);
                         owner.base::riseup(tier::release, input::events::keybd::key::post, gear, true);
                     }
@@ -8428,6 +8432,7 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
@@ -8442,6 +8447,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         owner.base::riseup(tier::release, e2::form::size::minimize, gear);
                     }
                 });
@@ -8462,6 +8468,7 @@ namespace netxs::ui
                     auto guard = owner.sync();
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
+                        gear_ptr->set_multihome();
                         gear_ptr->set_clipboard(c);
                     }
                 }
@@ -8476,6 +8483,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
+                        gear.set_multihome();
                         gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
@@ -8565,6 +8573,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
                     {
+                        gear_ptr->set_multihome();
                         gear_ptr->owner.base::signal(tier::preview, e2::command::gui, gui_cmd);
                     }
                 });

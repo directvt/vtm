@@ -751,6 +751,8 @@ namespace netxs::input
         ui64 digest{}; // foci: Incrementing event number to avoid refocusing when connecting recursively.
     };
 
+    using multihome_t = std::pair<wptr, wptr>;
+
     // input: Mouse tracker.
     struct mouse
     {
@@ -1513,7 +1515,7 @@ namespace netxs::input
 
         bool shared_event = faux; // hids: The key event was touched by another procees/handler. See pro::keybd(release, key::post) for detailts.
 
-        std::list<std::pair<wptr, wptr>>& multihome_list; // hids: .
+        multihome_t& multihome; // hids: .
 
         hids(auth& indexer, base& owner, core const& idmap)
             : base{ indexer },
@@ -1522,7 +1524,7 @@ namespace netxs::input
               idmap{ idmap },
               alive{ faux },
               other_key{ build_other_key(key::KeySlash, key::KeySlash | (hids::anyShift << 8)) }, // Defaults for US layout.
-              multihome_list{ owner.base::property<std::decay_t<decltype(multihome_list)>>("multihome_list") }
+              multihome{ owner.base::property<multihome_t>("multihome") }
         {
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
@@ -1546,6 +1548,14 @@ namespace netxs::input
             return alive;
         }
 
+        void set_multihome()
+        {
+            auto [world_wptr, parent_wptr] = multihome;
+            if (auto world_ptr = world_wptr.lock())
+            {
+                world_ptr->base::father = parent_wptr;
+            }
+        }
         auto tooltip_enabled(time const& now)
         {
             return !mouse::m_sys.buttons

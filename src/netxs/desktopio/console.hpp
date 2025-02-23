@@ -474,11 +474,12 @@ namespace netxs::ui
         link       conio; // gate: Input data parser.
         flag       alive; // gate: sysclose isn't sent.
         bool       direct; // gate: .
-        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        bool       yield; // gate: Indicator that the current frame has been successfully sent.
         bool       fullscreen; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
         pro::debug debug{ *this };
+        input::multihome_t& multihome;
 
         void forward(auto& device)
         {
@@ -504,6 +505,7 @@ namespace netxs::ui
                 gear.base::template plugin<pro::luafx>().activate(proc_map); //todo apple clang requires template keyword
             }
             auto& [_id, gear_ptr] = *gear_it;
+            gear_ptr->set_multihome();
             gear_ptr->hids::take(device);
             base::strike();
         }
@@ -733,7 +735,8 @@ namespace netxs::ui
               alive{ true },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               yield{ faux },
-              fullscreen{ faux }
+              fullscreen{ faux },
+              multihome{ base::property<input::multihome_t>("multihome") }
         {
             plugins<pro::focus>();
             auto& keybd = plugins<pro::keybd>("gate");
@@ -955,6 +958,10 @@ namespace netxs::ui
             canvas.link(bell::id);
             canvas.cmode = props.vtmode;
             canvas.face::area(base::area());
+            LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
+            {
+                multihome = { world_ptr, world_ptr->base::father };
+            };
             LISTEN(tier::release, e2::command::printscreen, gear)
             {
                 auto data = escx{};
