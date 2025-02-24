@@ -1506,6 +1506,7 @@ namespace netxs::app::vtm
                 {
                     gear_ptr->set_multihome();
                     luafx.set_object(gear_ptr, "gear");
+                    luafx.set_object(gear_ptr->owner.This(), "gate");
                 }
                 auto result = luafx.run_script(script.cmd, scripting_context);
                 if (result.empty()) result = "ok";
@@ -1520,6 +1521,7 @@ namespace netxs::app::vtm
                 auto& scripting_context = *gear.scripting_context_ptr;
                 gear.set_multihome();
                 luafx.set_object(gear.This(), "gear");
+                luafx.set_object(gear.owner.This(), "gate");
                 luafx.run_script(script_body, scripting_context);
             };
 
