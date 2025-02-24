@@ -88,7 +88,7 @@ namespace netxs::app::shared
     const auto set_title = [](base& boss, input::hids& gear, bias alignment = bias::left)
     {
         auto old_title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
-        gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
+        gear.owner.base::signal(tier::request, input::events::clipboard, gear);
         auto& data = gear.board::cargo;
         if (data.utf8.empty())
         {

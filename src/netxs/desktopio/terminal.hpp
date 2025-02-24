@@ -7229,7 +7229,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
+            gear.owner.base::signal(tier::request, input::events::clipboard, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
             {
@@ -7502,7 +7502,7 @@ namespace netxs::ui
             }
             else
             {
-                gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
+                gear.owner.base::signal(tier::request, input::events::clipboard, gear);
                 auto& data = gear.board::cargo;
                 if (data.utf8.size())
                 {
@@ -8484,7 +8484,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        gear.owner.base::riseup(tier::request, input::events::clipboard, gear);
+                        gear.owner.base::signal(tier::request, input::events::clipboard, gear);
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {

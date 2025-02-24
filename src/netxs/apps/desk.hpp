@@ -422,23 +422,6 @@ namespace netxs::app::desk
 
             auto highlight_color = skin::color(tone::winfocus);
             auto c8 = cell{}.bgc(argb::active_transparent).fgc(highlight_color.bgc());
-            auto ground = window->attach(slot::_2, ui::cake::ctor())
-                ->template plugin<pro::notes>(" Info ")
-                ->invoke([&](auto& boss)
-                {
-                    auto infospec = spec{ .hidden = true, .label = "Info", .title = "Info", .type = "info" };
-                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (infospec))
-                    {
-                        infospec.gear_id = gear.id;
-                        gear.owner.base::riseup(tier::request, desk::events::exec, infospec);
-                        gear.dismiss(true);
-                    };
-                });
-            auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
-                ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
-                ->shader(c8, e2::form::state::hover)
-                ->limits({}, { -1, 1 })
-                ->alignment({ snap::tail, snap::tail });
 
             auto user_info = utf::split(usrcfg.cfg, ";");
             auto& user_id__view = user_info[0];
@@ -485,7 +468,7 @@ namespace netxs::app::desk
 
             window->invoke([&](auto& boss) mutable
             {
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (ground, usrcfg))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (usrcfg))
                 {
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr; //todo This is ui::gate.
@@ -532,6 +515,25 @@ namespace netxs::app::desk
                 };
             });
             auto world_ptr = window->base::signal(tier::general, e2::config::creator);
+            if (!world_ptr) return window;
+            auto& world = *world_ptr;
+            auto ground = window->attach(slot::_2, ui::cake::ctor())
+                ->template plugin<pro::notes>(" Info ");
+            auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
+                ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
+                ->shader(c8, e2::form::state::hover)
+                ->limits({}, { -1, 1 })
+                ->alignment({ snap::tail, snap::tail })
+                ->invoke([&](auto& boss)
+                {
+                    auto infospec = spec{ .hidden = true, .label = "Info", .title = "Info", .type = "info" };
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (infospec))
+                    {
+                        infospec.gear_id = gear.id;
+                        world.base::signal(tier::request, desk::events::exec, infospec);
+                        gear.dismiss(true);
+                    };
+                });
             ground->attach(world_ptr);
             auto taskbar_viewport = ground->attach(ui::fork::ctor(axis::X));
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
