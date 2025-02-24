@@ -2711,9 +2711,8 @@ namespace netxs::ui
                 si32 frsize = 0;
                 si64 totals = 0;
                 si32 number = 0;    // info: Current frame number
-                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
             }
-            track; // debug: Textify the telemetry data for debugging purpose.
+            track; // debug: Telemetry data.
 
             void update(bool focus_state)
             {
@@ -2772,7 +2771,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::general, e2::config::fps, fps, memo)
                 {
                     status[prop::frame_rate] = std::to_string(fps);
-                    boss.base::strike();
+                    boss.base::deface();
                 };
                 boss.base::signal(tier::general, e2::config::fps, -1);
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
@@ -2804,10 +2803,12 @@ namespace netxs::ui
                     status[prop::mouse_hzwheel] = m.hzwheel ? "active" : "idle  ";
                     status[prop::mouse_vtwheel] = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
                     status[prop::ctrl_state   ] = "0x" + utf::to_hex(m.ctlstat);
+                    boss.base::deface();
                 };
                 boss.LISTEN(tier::release, e2::conio::focus, f, memo)
                 {
                     status[prop::focused] = f.state ? "focused  " : "unfocused";
+                    boss.base::deface();
                 };
                 boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
                 {
@@ -2849,6 +2850,7 @@ namespace netxs::ui
                         }
                         if (t.size()) status[prop::key_chord] = t;
                     }
+                    boss.base::deface();
                 };
             }
         };

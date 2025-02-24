@@ -478,7 +478,7 @@ namespace netxs::ui
         bool       fullscreen; // gate: .
         face       canvas; // gate: .
         std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
-        pro::debug debug{ *this };
+        pro::debug& debug;
         input::multihome_t& multihome;
 
         void forward(auto& device)
@@ -736,6 +736,7 @@ namespace netxs::ui
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
               yield{ faux },
               fullscreen{ faux },
+              debug{ base::plugin<pro::debug>() },
               multihome{ base::property<input::multihome_t>("multihome") }
         {
             plugins<pro::focus>();
@@ -766,8 +767,7 @@ namespace netxs::ui
                                                 {
                                                     gear_ptr->set_handled();
                                                 }
-                                                auto& debug = boss.template plugins<pro::debug>();
-                                                boss.props.debug_overlay ? debug.stop() : debug.start();
+                                                boss.props.debug_overlay ? boss.debug.stop() : boss.debug.start();
                                                 boss.props.debug_overlay = !boss.props.debug_overlay;
                                                 boss.base::deface();
                                                 luafx.set_return();
