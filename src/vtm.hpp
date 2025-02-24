@@ -1396,25 +1396,15 @@ namespace netxs::app::vtm
                                             if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
 
                                             auto current = window_ptr; 
-                                            auto maximized = faux;
-                                            auto owner_id = id_t{};
-                                            do
-                                            {
-                                                window_ptr.reset();
-                                                owner_id = id_t{};
-                                                if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                                                else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-                                            }
-                                            while (window_ptr != current);
+                                            window_ptr.reset();
+                                            if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                                            else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
 
-                                            if (window_ptr && (!owner_id || maximized))
+                                            if (window_ptr)
                                             {
                                                 auto& window = *window_ptr;
                                                 window.base::signal(tier::release, e2::form::layout::selected, gear);
-                                                if (!maximized)
-                                                {
-                                                    gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                                                }
+                                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
                                                 boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                                 {
                                                     pro::focus::set(window.This(), gear_id, solo::on);
