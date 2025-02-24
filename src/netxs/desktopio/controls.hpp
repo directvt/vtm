@@ -3010,7 +3010,7 @@ namespace netxs::ui
             }
             auto run_script(auto& script_body, auto& scripting_context)
             {
-                //log("  script body: ", ansi::hi(script_body));
+                log("  script body: ", ansi::hi(script_body));
                 for (auto& [object_name, object_wptr] : scripting_context)
                 {
                     if (auto object_ptr = object_wptr.lock())

@@ -1276,8 +1276,11 @@ namespace netxs::app::vtm
             app::shared::get_tui_config(config, ui::skin::globals());
 
             plugins<pro::focus>(pro::focus::mode::focusable);
-            plugins<pro::keybd>("desktop");
+            auto& keybd = plugins<pro::keybd>("desktop");
             auto& luafx = base::plugin<pro::luafx>();
+            auto bindings = pro::keybd::load(config, "desktop");
+            keybd.bind(bindings);
+
             static auto proc_map = pro::luafx::fxmap<hall>
             {
                 { "Shutdown",           [](auto& boss, auto& luafx)
@@ -1402,7 +1405,7 @@ namespace netxs::app::vtm
                                                 if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
                                                 else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
                                             }
-                                            while (window_ptr != current); // Skip all foreign maximized windows.
+                                            while (window_ptr != current);
 
                                             if (window_ptr && (!owner_id || maximized))
                                             {
@@ -1907,12 +1910,6 @@ namespace netxs::app::vtm
             auto lock = bell::unique_lock();
             auto usergate_ptr = ui::gate::ctor(client, vtmode, app_config, userid, session_id, true);
             auto& usergate = *usergate_ptr;
-
-            //todo scripting
-            //keybd.proc("RunScript", [&](hids& gear){ base::riseup(tier::preview, e2::form::proceed::action::runscript, gear); });
-            auto& keybd = usergate.plugins<pro::keybd>();
-            auto bindings = pro::keybd::load(app_config, "desktop"); //todo rename "desktop" to "gate"?
-            keybd.bind(bindings);
 
             auto& [user_ptr, uname] = users.emplace_back(usergate_ptr, para{});
             auto users_iter = std::prev(users.end());
