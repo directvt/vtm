@@ -2091,6 +2091,7 @@ namespace netxs::app::vtm
             auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             usergate.attach(std::move(deskmenu));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
+            pro::focus::set(This(), id_t{}, solo::off);
             lock.unlock();
             usergate.launch();
             base::deface();

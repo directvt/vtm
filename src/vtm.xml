@@ -559,7 +559,6 @@ R"==(
             <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
             <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
-            <!-- GUI Window key bindings. -->
             <key="Esc+T"                                                script=GuiAlwaysOnTop/>
             <key="Esc+W"                                                script=GuiCloseWindow/>
             <key="Esc+M"                                                script=GuiMinimizeWindow/>
