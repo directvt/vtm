@@ -704,6 +704,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
+                                                            gear.set_multihome();
                                                             boss.base::signal(tier::release, e2::form::size::minimize, gear);
                                                         }
                                                     });
@@ -720,6 +721,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
+                                                            gear.set_multihome();
                                                             boss.base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
                                                         }
                                                     });
@@ -736,6 +738,7 @@ namespace netxs::app::vtm
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
                                                             auto& gear = *gear_ptr;
+                                                            gear.set_multihome();
                                                             boss.base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                                                         }
                                                     });
@@ -1501,6 +1504,7 @@ namespace netxs::app::vtm
                 if (script.gear_id)
                 if (auto gear_ptr = bell::getref<hids>(script.gear_id))
                 {
+                    gear_ptr->set_multihome();
                     luafx.set_object(gear_ptr, "gear");
                 }
                 auto result = luafx.run_script(script.cmd, scripting_context);
@@ -1514,6 +1518,7 @@ namespace netxs::app::vtm
                 if (!gear.scripting_context_ptr) return;
                 auto& script_body = *gear.script_ptr;
                 auto& scripting_context = *gear.scripting_context_ptr;
+                gear.set_multihome();
                 luafx.set_object(gear.This(), "gear");
                 luafx.run_script(script_body, scripting_context);
             };

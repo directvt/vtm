@@ -222,6 +222,7 @@ namespace netxs::ui
                     auto area = boss.base::area();
                     auto next = area + warp;
                     boss.base::extend(next);
+                    boss.base::deface();
                 };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
@@ -1338,6 +1339,13 @@ namespace netxs::ui
                 }
                 return changed;
             }
+            static void set_multihome(sptr item_ptr, id_t gear_id)
+            {
+                if (auto gear_ptr = item_ptr->bell::getref<hids>(gear_id))
+                {
+                    gear_ptr->set_multihome();
+                }
+            }
 
         public:
             struct mode
@@ -1355,6 +1363,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
+                    set_multihome(item_ptr, id);
                     item_ptr->base::riseup(tier::preview, input::events::focus::set::on, { .gear_id = id, .focus_type = focus_type, .just_activate_only = just_activate_only });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
@@ -1375,6 +1384,7 @@ namespace netxs::ui
                 auto lock = item_ptr->bell::sync();
                 auto fire = [&](auto id)
                 {
+                    set_multihome(item_ptr, id);
                     item_ptr->base::riseup(tier::preview, input::events::focus::set::off, { .gear_id = id });
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>)
