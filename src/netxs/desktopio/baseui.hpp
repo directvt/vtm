@@ -215,7 +215,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( size )
                 {
-                    EVENT_XS( restore    , ui::sptr    ),
+                    EVENT_XS( restore    , si32        ),
                     EVENT_XS( minimize   , input::hids ),
                     GROUP_XS( enlarge    , input::hids ),
 
@@ -346,15 +346,10 @@ namespace netxs::events::userland
                     EVENT_XS( functor   , ui::functor ), // Exec functor (see pro::focus).
                     EVENT_XS( multihome , ui::sptr    ), // Release: Register gate-based parent.
                     GROUP_XS( quit      , bool        ), // Request to quit/detach (arg: fast or not).
-                    GROUP_XS( action    , input::hids ), // Request to proceed action.
 
                     SUBSET_XS( quit )
                     {
                         EVENT_XS( one, bool ), // Signal to close (fast or not).
-                    };
-                    SUBSET_XS( action )
-                    {
-                        EVENT_XS( restore  , input::hids ),
                     };
                 };
                 SUBSET_XS( cursor )

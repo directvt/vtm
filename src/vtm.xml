@@ -130,44 +130,45 @@ R"==(
         <CloseWindow           ="vtm.window.Close()"/>            <!-- Close window. -->
         <ShowClosingPreview    ="vtm.window.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
         <HideClosingPreview    ="vtm.window.ShowClosingPreview(false)"/> <!-- Clear pred-close window state. -->
-        <MinimizeWindow        ="vtm.window.MinimizeWindow()"/>   <!-- Minimize window. -->
-        <MaximizeWindow        ="vtm.window.MaximizeWindow()"/>   <!-- Maximize window. -->
+        <MinimizeWindow        ="vtm.window.Minimize()"/>         <!-- Minimize window. -->
+        <MaximizeWindow        ="vtm.window.Maximize()"/>         <!-- Maximize window. -->
         <FullscreenWindow      ="vtm.window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
-        <MoveWindowLeft        ="vtm.window.WarpWindow( 1,-1, 0, 0)"/>  <!-- Move window to the left. WarpWindow(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-        <MoveWindowRight       ="vtm.window.WarpWindow(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
-        <MoveWindowUp          ="vtm.window.WarpWindow( 0, 0, 1,-1)"/>  <!-- Move window up. -->
-        <MoveWindowDown        ="vtm.window.WarpWindow( 0, 0,-1, 1)"/>  <!-- Move window down. -->
-        <MoveWindowTopLeft     ="vtm.window.WarpWindow( 2,-2, 1,-1)"/>  <!-- Move window to the top-left. -->
-        <MoveWindowBottomLeft  ="vtm.window.WarpWindow( 2,-2,-1, 1)"/>  <!-- Move window to the bottom-left. -->
-        <MoveWindowTopRight    ="vtm.window.WarpWindow(-2, 2, 1,-1)"/>  <!-- Move window to the top-right. -->
-        <MoveWindowBottomRight ="vtm.window.WarpWindow(-2, 2,-1, 1)"/>  <!-- Move window to the bottom-right. -->
-        <IncreaseWindowWidth   ="vtm.window.WarpWindow( 0, 1, 0, 0)"/>  <!-- Increase window width. -->
-        <DecreaseWindowWidth   ="vtm.window.WarpWindow( 0,-1, 0, 0)"/>  <!-- Decrease window width. -->
-        <IncreaseWindowHeight  ="vtm.window.WarpWindow( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
-        <DecreaseWindowHeight  ="vtm.window.WarpWindow( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
+        <RestoreWindow         ="vtm.gate.Restore()"/>            <!-- Restore maximized/fullscreen window. -->
+        <MoveWindowLeft        ="vtm.window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. WarpWindow(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+        <MoveWindowRight       ="vtm.window.Warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
+        <MoveWindowUp          ="vtm.window.Warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
+        <MoveWindowDown        ="vtm.window.Warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
+        <MoveWindowTopLeft     ="vtm.window.Warp( 2,-2, 1,-1)"/>  <!-- Move window to the top-left. -->
+        <MoveWindowBottomLeft  ="vtm.window.Warp( 2,-2,-1, 1)"/>  <!-- Move window to the bottom-left. -->
+        <MoveWindowTopRight    ="vtm.window.Warp(-2, 2, 1,-1)"/>  <!-- Move window to the top-right. -->
+        <MoveWindowBottomRight ="vtm.window.Warp(-2, 2,-1, 1)"/>  <!-- Move window to the bottom-right. -->
+        <IncreaseWindowWidth   ="vtm.window.Warp( 0, 1, 0, 0)"/>  <!-- Increase window width. -->
+        <DecreaseWindowWidth   ="vtm.window.Warp( 0,-1, 0, 0)"/>  <!-- Decrease window width. -->
+        <IncreaseWindowHeight  ="vtm.window.Warp( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
+        <DecreaseWindowHeight  ="vtm.window.Warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
 
         <GuiFocusPrevWindow       ="vtm.gate.FocusNextWindow(-1)"/>
         <GuiFocusNextWindow       ="vtm.gate.FocusNextWindow( 1)"/>
         <GuiAlwaysOnTop           ="vtm.gate.AlwaysOnTop()"/>
-        <GuiMinimizeWindow        ="vtm.gate.MinimizeWindow()"/>
-        <GuiMaximizeWindow        ="vtm.gate.MaximizeWindow()"/>
+        <GuiMinimizeWindow        ="vtm.gate.Minimize()"/>
+        <GuiMaximizeWindow        ="vtm.gate.Maximize()"/>
         <GuiFullscreenWindow      ="vtm.gate.Fullscreen()"/>
-        <GuiMoveWindowLeft        ="vtm.gate.WarpWindow( 1,-1, 0, 0)"/>
-        <GuiMoveWindowRight       ="vtm.gate.WarpWindow(-1, 1, 0, 0)"/>
-        <GuiMoveWindowUp          ="vtm.gate.WarpWindow( 0, 0, 1,-1)"/>
-        <GuiMoveWindowDown        ="vtm.gate.WarpWindow( 0, 0,-1, 1)"/>
-        <GuiMoveWindowTopLeft     ="vtm.gate.WarpWindow( 2,-2, 1,-1)"/>
-        <GuiMoveWindowBottomLeft  ="vtm.gate.WarpWindow( 2,-2,-1, 1)"/>
-        <GuiMoveWindowTopRight    ="vtm.gate.WarpWindow(-2, 2, 1,-1)"/>
-        <GuiMoveWindowBottomRight ="vtm.gate.WarpWindow(-2, 2,-1, 1)"/>
-        <GuiIncreaseWindowWidth   ="vtm.gate.WarpWindow( 0, 1, 0, 0)"/>
-        <GuiDecreaseWindowWidth   ="vtm.gate.WarpWindow( 0,-1, 0, 0)"/>
-        <GuiIncreaseWindowHeight  ="vtm.gate.WarpWindow( 0, 0, 0, 1)"/>
-        <GuiDecreaseWindowHeight  ="vtm.gate.WarpWindow( 0, 0, 0,-1)"/>
-        <GuiMoveWindowLeftByPx    ="vtm.gate.MoveWindow(-1, 0)"/>
-        <GuiMoveWindowRightByPx   ="vtm.gate.MoveWindow( 1, 0)"/>
-        <GuiMoveWindowUpByPx      ="vtm.gate.MoveWindow( 0,-1)"/>
-        <GuiMoveWindowDownByPx    ="vtm.gate.MoveWindow( 0, 1)"/>
+        <GuiMoveWindowLeft        ="vtm.gate.Warp( 1,-1, 0, 0)"/>
+        <GuiMoveWindowRight       ="vtm.gate.Warp(-1, 1, 0, 0)"/>
+        <GuiMoveWindowUp          ="vtm.gate.Warp( 0, 0, 1,-1)"/>
+        <GuiMoveWindowDown        ="vtm.gate.Warp( 0, 0,-1, 1)"/>
+        <GuiMoveWindowTopLeft     ="vtm.gate.Warp( 2,-2, 1,-1)"/>
+        <GuiMoveWindowBottomLeft  ="vtm.gate.Warp( 2,-2,-1, 1)"/>
+        <GuiMoveWindowTopRight    ="vtm.gate.Warp(-2, 2, 1,-1)"/>
+        <GuiMoveWindowBottomRight ="vtm.gate.Warp(-2, 2,-1, 1)"/>
+        <GuiIncreaseWindowWidth   ="vtm.gate.Warp( 0, 1, 0, 0)"/>
+        <GuiDecreaseWindowWidth   ="vtm.gate.Warp( 0,-1, 0, 0)"/>
+        <GuiIncreaseWindowHeight  ="vtm.gate.Warp( 0, 0, 0, 1)"/>
+        <GuiDecreaseWindowHeight  ="vtm.gate.Warp( 0, 0, 0,-1)"/>
+        <GuiMoveWindowLeftByPx    ="vtm.gate.Move(-1, 0)"/>
+        <GuiMoveWindowRightByPx   ="vtm.gate.Move( 1, 0)"/>
+        <GuiMoveWindowUpByPx      ="vtm.gate.Move( 0,-1)"/>
+        <GuiMoveWindowDownByPx    ="vtm.gate.Move( 0, 1)"/>
 
         <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
         <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
@@ -230,9 +231,9 @@ R"==(
         <TerminalCwdSync                   ="vtm.terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
         <TerminalWrapMode                  ="vtm.terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
         <TerminalAlignMode                 ="vtm.terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalFullscreen                ="vtm.window.SetFullscreenMode()"/>            <!-- Toggle fullscreen mode. -->
-        <TerminalMaximize                  ="vtm.window.MaximizeWindow()"/>               <!-- Toggle between maximized and normal window size. -->
-        <TerminalMinimize                  ="vtm.window.MinimizeWindow()"/>               <!-- Minimize window. -->
+        <TerminalFullscreen                ="vtm.window.Fullscreen()"/>                   <!-- Toggle fullscreen mode. -->
+        <TerminalMaximize                  ="vtm.window.Maximize()"/>                     <!-- Toggle between maximized and normal window size. -->
+        <TerminalMinimize                  ="vtm.window.Minimize()"/>                     <!-- Minimize window. -->
         <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
         <TerminalQuit                      ="vtm.terminal.Quit()"/>                       <!-- Terminate runnning console apps and close terminal. -->
@@ -562,6 +563,7 @@ R"==(
             <key="Esc+T"                                                script=GuiAlwaysOnTop/>
             <key="Esc+W"                                                script=GuiCloseWindow/>
             <key="Esc+M"                                                script=GuiMinimizeWindow/>
+            <key="Esc+F10"                                              script=RestoreWindow/>
             <key="Esc+F11"                                              script=GuiMaximizeWindow/>
             <key="Esc+F12"                                              script=GuiFullscreenWindow/>
             <key="Esc+Shift+LeftArrow"                                  script=GuiMoveWindowLeftByPx/>

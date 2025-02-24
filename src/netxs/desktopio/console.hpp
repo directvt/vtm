@@ -769,6 +769,7 @@ namespace netxs::ui
                                                 auto& debug = boss.template plugins<pro::debug>();
                                                 boss.props.debug_overlay ? debug.stop() : debug.start();
                                                 boss.props.debug_overlay = !boss.props.debug_overlay;
+                                                boss.base::deface();
                                                 luafx.set_return();
                                             }},
                 { "IncreasecCellHeight",    [](auto& boss, auto& luafx)
@@ -858,7 +859,7 @@ namespace netxs::ui
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
-                { "MoveWindow",             [](auto& boss, auto& luafx)
+                { "Move",                   [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
                                                 auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -874,7 +875,7 @@ namespace netxs::ui
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
-                { "WarpWindow",             [](auto& boss, auto& luafx)
+                { "Warp",                   [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
                                                 auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -892,7 +893,7 @@ namespace netxs::ui
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
-                { "MaximizeWindow",         [](auto& boss, auto& luafx)
+                { "Maximize",               [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
                                                 auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -906,7 +907,7 @@ namespace netxs::ui
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
-                { "MinimizeWindow",         [](auto& boss, auto& luafx)
+                { "Minimize",               [](auto& boss, auto& luafx)
                                             {
                                                 auto gui_cmd = e2::command::gui.param();
                                                 auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -918,6 +919,11 @@ namespace netxs::ui
                                                 }
                                                 gui_cmd.cmd_id = syscmd::minimize;
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "Restore",                [](auto& boss, auto& luafx)
+                                            {
+                                                boss.base::signal(tier::release, e2::form::size::restore);
                                                 luafx.set_return();
                                             }},
                 { "AlwaysOnTop",            [](auto& boss, auto& luafx)

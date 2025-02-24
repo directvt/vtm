@@ -70,7 +70,6 @@ namespace netxs::app::vtm
             SUBSET_XS(gate)
             {
                 EVENT_XS( fullscreen, applink ), // release: Toggle fullscreen mode.
-                EVENT_XS( restore   , si32    ), // release: Restore from fullscreen. args: restore mode.
             };
         };
     };
@@ -651,7 +650,7 @@ namespace netxs::app::vtm
 
                 static auto proc_map = pro::luafx::fxmap<base>
                 {
-                    { "WarpWindow",         [](auto& boss, auto& luafx)
+                    { "Warp",               [](auto& boss, auto& luafx)
                                             {
                                                 auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
                                                                   luafx.get_args_or(2, 0),   //
@@ -695,7 +694,7 @@ namespace netxs::app::vtm
                                                 boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
                                                 luafx.set_return();
                                             }},
-                    { "MinimizeWindow",     [](auto& boss, auto& luafx)
+                    { "Minimize",           [](auto& boss, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -711,7 +710,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "MaximizeWindow",     [](auto& boss, auto& luafx)
+                    { "Maximize",           [](auto& boss, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -877,7 +876,7 @@ namespace netxs::app::vtm
                     auto window_ptr = This();
                     if (maximize_token.size()) // Restore maximized window.
                     {
-                        base::signal(tier::release, e2::form::size::restore, window_ptr);
+                        base::signal(tier::release, e2::form::size::restore);
                     }
                     pro::focus::one(window_ptr, gear.id); // Drop all unrelated foci.
                     auto what = what_copy;
@@ -886,7 +885,7 @@ namespace netxs::app::vtm
                     //todo window_ptr->base::riseup(vtm::events::gate::fullscreen...
                     gear.owner.base::signal(tier::release, vtm::events::gate::fullscreen, what);
                 };
-                LISTEN(tier::release, e2::form::size::restore, item_ptr)
+                LISTEN(tier::release, e2::form::size::restore, p)
                 {
                     if (maximize_token.size())
                     {
@@ -926,7 +925,7 @@ namespace netxs::app::vtm
                     auto window_ptr = This();
                     if (maximize_token.size()) // Restore maximized window.
                     {
-                        base::signal(tier::release, e2::form::size::restore, window_ptr);
+                        base::signal(tier::release, e2::form::size::restore);
                     }
                     else
                     {
@@ -941,9 +940,9 @@ namespace netxs::app::vtm
                             viewport_area = viewport;
                             recalc(viewport);
                         };
-                        gear.owner.LISTEN(tier::release, vtm::events::gate::restore, p, maximize_token)
+                        gear.owner.LISTEN(tier::release, e2::form::size::restore, p, maximize_token)
                         {
-                            base::signal(tier::release, e2::form::size::restore, This());
+                            base::signal(tier::release, e2::form::size::restore, p);
                         };
                         LISTEN(tier::preview, e2::area, new_area, maximize_token)
                         {
@@ -957,7 +956,7 @@ namespace netxs::app::vtm
                                     saved_area.coor += base::anchor - anchor; // Follow the mouse cursor.
                                 }
                                 else saved_area = {}; // Preserve current window size.
-                                base::signal(tier::release, e2::form::size::restore, This());
+                                base::signal(tier::release, e2::form::size::restore);
                             }
                         };
                     }
@@ -1390,7 +1389,7 @@ namespace netxs::app::vtm
                                                     return;
                                                 }
                                             }
-                                            gear.owner.base::signal(tier::preview, e2::form::proceed::action::restore, gear);
+                                            gear.owner.base::signal(tier::preview, e2::form::size::restore);
 
                                             auto window_ptr = boss.base::signal(tier::request, e2::form::layout::go::item); // Take current window.
                                             if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
@@ -1909,7 +1908,7 @@ namespace netxs::app::vtm
             base::signal(tier::release, desk::events::usrs, usrs_list_ptr);
 
             auto& memo = base::field<subs>();
-            usergate.LISTEN(tier::release, vtm::events::gate::restore, restore_mode)
+            usergate.LISTEN(tier::release, e2::form::size::restore, p)
             {
                 if (memo.empty()) return;
                 memo.clear();
@@ -1928,7 +1927,7 @@ namespace netxs::app::vtm
             {
                 if (usergate.base::subset.size() > 1)
                 {
-                    usergate.base::signal(tier::release, vtm::events::gate::restore);
+                    usergate.base::signal(tier::release, e2::form::size::restore);
                 }
                 if (new_fullscreen.applet && !new_fullscreen.applet->base::subset.empty())
                 {
@@ -1951,29 +1950,24 @@ namespace netxs::app::vtm
 
                     usergate.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                     {
-                        usergate.base::signal(tier::release, vtm::events::gate::restore);
-                    };
-                    usergate.LISTEN(tier::preview, e2::form::proceed::action::restore, gear, memo)
-                    {
-                        usergate.base::signal(tier::release, vtm::events::gate::restore);
-                        usergate.bell::expire(tier::preview);
+                        usergate.base::signal(tier::release, e2::form::size::restore);
                     };
                     applet.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
                     {
                         auto deed = applet.bell::protos(tier::preview);
                         if (deed == e2::form::size::enlarge::maximize.id)
                         {
-                            usergate.base::signal(tier::release, vtm::events::gate::restore);
+                            usergate.base::signal(tier::release, e2::form::size::restore);
                         }
                     };
                     applet.LISTEN(tier::release, e2::form::size::minimize, gear, memo)
                     {
                         applet.bell::expire(tier::release); // Suppress hide/minimization.
-                        usergate.base::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, e2::form::size::restore);
                     };
                     applet.LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                     {
-                        usergate.base::signal(tier::release, vtm::events::gate::restore);
+                        usergate.base::signal(tier::release, e2::form::size::restore);
                         applet.bell::expire(tier::release, true); // Continue event riseup().
                     };
                     usergate.attach(applet_ptr);

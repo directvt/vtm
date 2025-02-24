@@ -632,7 +632,7 @@ namespace netxs::app::tile
                                 auto fullscreen_item = boss.back();
                                 auto& fullscreen_inst = *fullscreen_item;
                                 boss.base::riseup(tier::release, e2::form::proceed::attach, fullscreen_item);
-                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, empty_ptr, oneoff)
+                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, p, oneoff)
                                 {
                                     auto item_ptr = fullscreen_inst.This();
                                     auto gear_id_list = pro::focus::cut(item_ptr);
