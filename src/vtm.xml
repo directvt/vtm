@@ -128,8 +128,6 @@ R"==(
 
         <AlwaysOnTop           ="vtm.window.AlwaysOnTop(not vtm.window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
         <CloseWindow           ="vtm.window.Close()"/>            <!-- Close window. -->
-        <ShowClosingPreview    ="vtm.window.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
-        <HideClosingPreview    ="vtm.window.ShowClosingPreview(false)"/> <!-- Clear pred-close window state. -->
         <MinimizeWindow        ="vtm.window.Minimize()"/>         <!-- Minimize window. -->
         <MaximizeWindow        ="vtm.window.Maximize()"/>         <!-- Maximize window. -->
         <FullscreenWindow      ="vtm.window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
@@ -237,18 +235,9 @@ R"==(
         <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
         <TerminalQuit                      ="vtm.terminal.Quit()"/>                       <!-- Terminate runnning console apps and close terminal. -->
-
-        <ScrollPageUp      ="vtm.defapp.ScrollViewportByPage( 0, 1)"/>  <!--  -->
-        <ScrollPageDown    ="vtm.defapp.ScrollViewportByPage( 0,-1)"/>  <!--  -->
-        <ScrollLineUp      ="vtm.defapp.ScrollViewportByStep( 0, 3)"/>  <!--  -->
-        <ScrollLineDown    ="vtm.defapp.ScrollViewportByStep( 0,-3)"/>  <!--  -->
-        <ScrollCharLeft    ="vtm.defapp.ScrollViewportByStep( 3, 0)"/>  <!--  -->
-        <ScrollCharRight   ="vtm.defapp.ScrollViewportByStep(-3, 0)"/>  <!--  -->
-        <ScrollTop         ="vtm.defapp.ScrollViewportToTop()"/>        <!--  -->
-        <ScrollEnd         ="vtm.defapp.ScrollViewportToEnd()"/>        <!--  -->
+    </variables>
 )=="
 R"==(
-    </variables>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
@@ -681,8 +670,20 @@ R"==(
             <key=""                      script=TerminalQuit/>
         </terminal>
         <defapp key*>
-            <key="Esc"  script=ShowClosingPreview/>
-            <key="-Esc" script=CloseWindow/>
+            <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
+            <key="-Esc" preview script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"/> <!-- Close the window on Esc release. -->
+            <key="Any"  preview script="vtm.defapp.ShowClosingPreview(false)"/> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <key="PageUp"       script="vtm.defapp.ScrollViewportByPage( 0, 1)"/>
+            <key="PageDown"     script="vtm.defapp.ScrollViewportByPage( 0,-1)"/>
+            <key="UpArrow"      script="vtm.defapp.ScrollViewportByStep( 0, 3)"/>
+            <key="DownArrow"    script="vtm.defapp.ScrollViewportByStep( 0,-3)"/>
+            <key="LeftArrow"    script="vtm.defapp.ScrollViewportByStep( 3, 0)"/>
+            <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
+            <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
+            <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
+            <key="F10"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.Restore() end"/>
+            <key="F11"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.window.Maximize() end"/>
+            <key="F12"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.window.Fullscreen() end"/>
         </defapp>
     </events>
 </config>)=="

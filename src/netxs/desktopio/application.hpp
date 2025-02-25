@@ -110,63 +110,64 @@ namespace netxs::app::shared
             }
         }
     };
-    const auto base_kb_navigation = [](ui::pro::keybd& keybd, netxs::sptr<base> /*scroll*/, base& /*boss*/)
+    const auto base_kb_navigation = [](xmls& config, netxs::sptr<base> scroll_ptr, base& boss)
     {
-        //todo scripting
-        //auto& scroll_inst = *scroll;
-        //auto& esc_pressed = boss.base::property("keybd.esc_pressed", faux);
-        //keybd.proc("WindowClose", [&](hids& gear)
-        //{
-        //    if (esc_pressed)
-        //    {
-        //        boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
-        //        gear.set_handled();
-        //    }
-        //});
-        //keybd.proc("WindowClosePreview", [&](hids& /*gear*/)
-        //{
-        //    if (std::exchange(esc_pressed, true) != esc_pressed)
-        //    {
-        //        boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
-        //    }
-        //});
-        //keybd.proc("CancelWindowClose", [&](hids& /*gear*/)
-        //{
-        //    if (std::exchange(esc_pressed, faux) != esc_pressed)
-        //    {
-        //        boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, esc_pressed);
-        //    }
-        //});
-        //keybd.proc("ScrollPageUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
-        //keybd.proc("ScrollPageDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
-        //keybd.proc("ScrollLineUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
-        //keybd.proc("ScrollLineDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
-        //keybd.proc("ScrollCharLeft"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
-        //keybd.proc("ScrollCharRight" , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
-        //keybd.proc("ScrollTop"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-        //keybd.proc("ScrollEnd"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-        //keybd.proc("ToggleMaximize"  , [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        //keybd.proc("ToggleFullscreen", [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); });
-
-        keybd.bind( "Esc", "DropAutoRepeat"    , true);
-        keybd.bind( "Esc", "WindowClosePreview", true);
-        keybd.bind("-Esc", "WindowClose"       , true);
-        keybd.bind( "Any", "CancelWindowClose" , true);
-
-        keybd.bind("PageUp"    , "ScrollPageUp"    );
-        keybd.bind("PageDown"  , "ScrollPageDown"  );
-        keybd.bind("UpArrow"   , "ScrollLineUp"    );
-        keybd.bind("DownArrow" , "ScrollLineDown"  );
-        keybd.bind("LeftArrow" , "ScrollCharLeft"  );
-        keybd.bind("RightArrow", "ScrollCharRight" );
-        keybd.bind("Home"      , "DropAutoRepeat"  );
-        keybd.bind("Home"      , "ScrollTop"       );
-        keybd.bind("End"       , "DropAutoRepeat"  );
-        keybd.bind("End"       , "ScrollEnd"       );
-        keybd.bind("F11"       , "DropAutoRepeat"  );
-        keybd.bind("F11"       , "ToggleMaximize"  );
-        keybd.bind("F12"       , "DropAutoRepeat"  );
-        keybd.bind("F12"       , "ToggleFullscreen");
+        auto& scroll_inst = *scroll_ptr;
+        auto& keybd = boss.base::plugin<pro::keybd>("defapp");
+        auto& luafx = boss.base::plugin<pro::luafx>();
+        auto bindings = pro::keybd::load(config, "defapp");
+        keybd.bind(bindings);
+        auto& proc_map = boss.base::field(pro::luafx::fxmap<base>
+        {
+            { "ScrollViewportByPage",   [&](auto& /*boss*/, auto& luafx)
+                                        {
+                                            auto step = twod{ luafx.get_args_or(1, 0),
+                                                              luafx.get_args_or(2, 0) };
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = step });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportByStep",   [&](auto& /*boss*/, auto& luafx)
+                                        {
+                                            auto step = twod{ luafx.get_args_or(1, 0),
+                                                              luafx.get_args_or(2, 0) };
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = step });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportToTop",    [&](auto& /*boss*/, auto& luafx)
+                                        {
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportToEnd",    [&](auto& /*boss*/, auto& luafx)
+                                        {
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ShowClosingPreview",     [&](auto& boss, auto& luafx)
+                                        {
+                                            auto& closing_preview_state = boss.base::property("defapp.closing_preview_state", faux);
+                                            auto args_count = luafx.args_count();
+                                            if (args_count && std::exchange(closing_preview_state, luafx.get_args_or(1, faux)) != closing_preview_state)
+                                            {
+                                                boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, closing_preview_state);
+                                            }
+                                            luafx.set_return(closing_preview_state);
+                                        }},
+            { "Close",                  [&](auto& boss, auto& luafx)
+                                        {
+                                            boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                            {
+                                                boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
+                                            });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return();
+                                        }},
+        });
+        luafx.activate(proc_map);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;

@@ -428,8 +428,7 @@ namespace netxs::app::calc
                     layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };

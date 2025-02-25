@@ -688,12 +688,6 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return();
                                             }},
-                    { "ShowClosingPreview", [](auto& boss, auto& luafx)
-                                            {
-                                                auto preview_state = luafx.get_args_or(1, faux);
-                                                boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, preview_state);
-                                                luafx.set_return();
-                                            }},
                     { "Minimize",           [](auto& boss, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))

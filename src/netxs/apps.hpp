@@ -243,8 +243,7 @@ namespace netxs::app::shared
                         auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };
@@ -545,7 +544,7 @@ namespace netxs::app::shared
             std::swap(appcfg.cmd, args);
             return build_dtvt(appcfg, config);
         };
-        auto build_info = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_info = [](eccc /*appcfg*/, xmls& config)
         {
             using namespace app::shared;
 
@@ -781,8 +780,8 @@ namespace netxs::app::shared
                 //todo scripting
                 //auto& items_inst = *items;
                 //auto& state_inst = *state_state;
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                auto& keybd = boss.template plugins<pro::keybd>("defapp");
+                app::shared::base_kb_navigation(config, scroll, boss);
                 //keybd.proc("UpdateChordPreview", [&](hids& gear)
                 //{
                 //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
