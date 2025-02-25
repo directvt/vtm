@@ -501,6 +501,8 @@ namespace netxs::ui
                                            auto repeated = gear.keystat == input::key::repeated;
                                            luafx.set_return(repeated);
                                        }},
+                    //todo scripting
+                    //proc("Noop",           [&](hids& gear){ gear.set_handled(); gear.interrupt_key_proc = true; });
                 };
                 gear.base::template plugin<pro::luafx>().activate(proc_map); //todo apple clang requires template keyword
             }

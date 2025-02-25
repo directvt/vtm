@@ -777,30 +777,44 @@ namespace netxs::app::shared
             });
             window->invoke([&](auto& boss)
             {
-                //todo scripting
-                //auto& items_inst = *items;
-                //auto& state_inst = *state_state;
-                auto& keybd = boss.template plugins<pro::keybd>("defapp");
+                auto& items_inst = *items;
+                auto& state_inst = *state_state;
+                auto& luafx = boss.base::plugin<pro::luafx>();
+                auto& keybd = boss.base::plugin<pro::keybd>("defapp");
                 app::shared::base_kb_navigation(config, scroll, boss);
-                //keybd.proc("UpdateChordPreview", [&](hids& gear)
-                //{
-                //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                //    if (rawkbd) gear.set_handled();
-                //});
-                //keybd.proc("ExclusiveKeyboardMode", [&](hids& gear)
-                //{
-                //    state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
-                //    if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
-                //    gear.set_handled();
-                //});
-                keybd.bind("Any", "UpdateChordPreview");
+                auto& proc_map = boss.base::field(pro::luafx::fxmap<base>
+                {
+                    { "UpdateChordPreview",     [&](auto& /*boss*/, auto& luafx)
+                                                {
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                    {
+                                                        auto& gear = *gear_ptr;
+                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                        if (rawkbd) gear.set_handled();
+                                                    }
+                                                    luafx.set_return(); // No returns.
+                                                }},
+                    { "ExclusiveKeyboardMode",  [&](auto& /*boss*/, auto& luafx)
+                                                {
+                                                    if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                    {
+                                                        auto& gear = *gear_ptr;
+                                                        state_inst.base::signal(tier::release, ui::tty::events::rawkbd);
+                                                        if (gear.keystat != input::key::repeated) update(items_inst, gear, true);
+                                                        gear.set_handled();
+                                                    }
+                                                    luafx.set_return(); // No returns.
+                                                }},
+                });
+                keybd.bind("Any", "vtm.defapp.UpdateChordPreview()");
                 keybd.bind(
                     #if defined(WIN32)
                     "Ctrl-Alt | Alt-Ctrl"
                     #else
                     "Alt+Shift+B"
                     #endif
-                    , "ExclusiveKeyboardMode", true);
+                    , "vtm.defapp.ExclusiveKeyboardMode()", true);
+                luafx.activate(proc_map);
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

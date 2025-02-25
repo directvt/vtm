@@ -2213,9 +2213,6 @@ namespace netxs::ui
                         if (!gear.touched && !gear.handled) _dispatch(gear, true, input::key::kmap::any_key);
                     }
                 };
-                //todo scripting
-                //proc("Noop",           [&](hids& gear){ gear.set_handled(); gear.interrupt_key_proc = true; });
-                //proc("DropAutoRepeat", [&](hids& gear){ if (gear.keystat == input::key::repeated) { gear.set_handled(); gear.interrupt_key_proc = true; }});
             }
 
             auto bind(qiew chord_str, auto&& scripts, bool preview = faux)
