@@ -825,9 +825,45 @@ namespace netxs::app::shared
         gate.base::resize(os::dtvt::gridsz);
         gate.base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         auto appcfg = eccc{ .cmd = cmd };
-        auto applet = app::shared::builder(aclass)(appcfg, config);
-        applet->base::kind(base::reflow_root);
-        gate.attach(std::move(applet));
+        auto applet_ptr = app::shared::builder(aclass)(appcfg, config);
+        auto& applet = *applet_ptr;
+        applet.base::kind(base::reflow_root);
+            //todo deduplicate with ui::hall. Move to luafx/keybd/ui::base/indexer
+            auto& luafx = applet.base::plugin<pro::luafx>();
+            applet.LISTEN(tier::general, e2::config::creator, script_host_ptr)
+            {
+                script_host_ptr = applet.This();
+            };
+            applet.LISTEN(tier::release, e2::command::run, script)
+            {
+                auto scripting_context = std::unordered_map<text, netxs::wptr<base>>{};
+                auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+                if (shadow.empty()) return;
+                //luafx.set_object(This(), "desktop");
+                if (script.gear_id)
+                if (auto gear_ptr = applet.bell::getref<hids>(script.gear_id))
+                {
+                    gear_ptr->set_multihome();
+                    luafx.set_object(gear_ptr, "gear");
+                    luafx.set_object(gear_ptr->owner.This(), "gate");
+                }
+                auto result = luafx.run_script(script.cmd, scripting_context);
+                if (result.empty()) result = "ok";
+                log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+                script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+            };
+            applet.LISTEN(tier::preview, e2::runscript, gear)
+            {
+                if (!gear.script_ptr) return;
+                if (!gear.scripting_context_ptr) return;
+                auto& script_body = *gear.script_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
+                gear.set_multihome();
+                luafx.set_object(gear.This(), "gear");
+                luafx.set_object(gear.owner.This(), "gate");
+                luafx.run_script(script_body, scripting_context);
+            };
+        gate.attach(std::move(applet_ptr));
         config_lock.unlock();
         gate.launch();
         gate.bell::dequeue();
