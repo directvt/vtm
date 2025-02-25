@@ -8574,7 +8574,7 @@ namespace netxs::ui
                     if (auto gear_ptr = owner.bell::getref<hids>(gui_cmd.gear_id))
                     {
                         gear_ptr->set_multihome();
-                        gear_ptr->owner.base::signal(tier::preview, e2::command::gui, gui_cmd);
+                        owner.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                     }
                 });
             }

@@ -925,7 +925,23 @@ namespace netxs::ui
                                             }},
                 { "Restore",                [](auto& boss, auto& luafx)
                                             {
-                                                boss.base::signal(tier::release, e2::form::size::restore);
+                                                if (boss.base::subset.size() > 1)
+                                                {
+                                                    boss.base::signal(tier::release, e2::form::size::restore);
+                                                }
+                                                else
+                                                {
+                                                    auto gui_cmd = e2::command::gui.param();
+                                                    auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                    auto ok = !!gear_ptr;
+                                                    if (ok)
+                                                    {
+                                                        gui_cmd.gear_id = gear_ptr->id;
+                                                        gear_ptr->set_handled();
+                                                    }
+                                                    gui_cmd.cmd_id = syscmd::restore;
+                                                    boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                }
                                                 luafx.set_return();
                                             }},
                 { "AlwaysOnTop",            [](auto& boss, auto& luafx)

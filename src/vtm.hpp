@@ -742,6 +742,33 @@ namespace netxs::app::vtm
                 };
                 luafx.activate(proc_map);
 
+                LISTEN(tier::preview, e2::command::gui, gui_cmd)
+                {
+                    if (gui_cmd.cmd_id == syscmd::warpwindow)
+                    {
+                        if (gui_cmd.args.size() == 4)
+                        {
+                            auto warp = dent{ any_get_or(gui_cmd.args[0]),
+                                              any_get_or(gui_cmd.args[1]),
+                                              any_get_or(gui_cmd.args[2]),
+                                              any_get_or(gui_cmd.args[3]) };
+                            base::signal(tier::preview, e2::form::layout::swarp, warp);
+                            return;
+                        }
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::togglefsmode)
+                    {
+                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.set_multihome();
+                            base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                            return;
+                        }
+                    }
+                    bell::expire(tier::preview, true);
+                };
+                
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                 {
                     if (base::subset.size())
