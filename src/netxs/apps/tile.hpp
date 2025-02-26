@@ -351,30 +351,29 @@ namespace netxs::app::tile
                         auto& keybd = boss.template plugins<pro::keybd>();
                         auto& luafx = boss.template plugins<pro::luafx>();
                         keybd.bind(*grip_bindings_ptr);
-
-                        static auto proc_map = pro::luafx::fxmap<decltype(boss)>
+                        auto& proc_map = base::property("grip.proc_map", pro::luafx::fxmap<decltype(boss)>
                         {
-                            { action::MoveGrip,         [](auto& boss, auto& luafx)
+                            { action::MoveGrip,         [&](auto& /*boss*/, auto& luafx)
                                                         {
                                                             auto delta = luafx.get_args_or(1, twod{});
-                                                            boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
+                                                            base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
                                                             if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
                                                             luafx.set_return();
                                                         }},
-                            { action::ResizeGrip,       [](auto& boss, auto& luafx)
+                            { action::ResizeGrip,       [&](auto& /*boss*/, auto& luafx)
                                                         {
                                                             auto delta = luafx.get_args_or(1, si32{});
-                                                            boss.base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
+                                                            base::riseup(tier::preview, app::tile::events::ui::grips::resize, delta);
                                                             if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
                                                             luafx.set_return();
                                                         }},
-                            { action::FocusNextGrip,    [](auto& boss, auto& luafx)
+                            { action::FocusNextGrip,    [&](auto& /*boss*/, auto& luafx)
                                                         {
                                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                                             auto ok = !!gear_ptr;
@@ -382,13 +381,13 @@ namespace netxs::app::tile
                                                             {
                                                                 auto& gear = *gear_ptr;
                                                                 auto delta = luafx.get_args_or(1, si32{ 1 });
-                                                                delta > 0 ? boss.base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
-                                                                          : boss.base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);
+                                                                delta > 0 ? base::riseup(tier::preview, app::tile::events::ui::focus::nextgrip, gear)
+                                                                          : base::riseup(tier::preview, app::tile::events::ui::focus::prevgrip, gear);
                                                                 gear.set_handled();
                                                             }
                                                             luafx.set_return(ok);
                                                         }},
-                        };
+                        });
                         luafx.activate(proc_map);
                     });
             return node;
