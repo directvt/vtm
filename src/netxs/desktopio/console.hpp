@@ -493,18 +493,22 @@ namespace netxs::ui
                 gear.board::brush = props.clip_preview_clrs;
                 gear.board::alpha = props.clip_preview_alfa;
                 gear.mouse::delay = props.dblclick_timeout;
-
-                static auto proc_map = pro::luafx::fxmap<hids>
+                auto& luafx = gear.base::template plugin<pro::luafx>(); //todo apple clang requires template keyword
+                auto& proc_map = gear.base::property("gear.proc_map", pro::luafx::fxmap<hids>
                 {
-                    { "IsKeyRepeated", [](hids& gear, auto& luafx)
-                                       {
-                                           auto repeated = gear.keystat == input::key::repeated;
-                                           luafx.set_return(repeated);
-                                       }},
-                    //todo scripting
-                    //proc("Noop",           [&](hids& gear){ gear.set_handled(); gear.interrupt_key_proc = true; });
-                };
-                gear.base::template plugin<pro::luafx>().activate(proc_map); //todo apple clang requires template keyword
+                    { "IsKeyRepeated",  [&](hids& /*gear*/, auto& luafx)
+                                        {
+                                            auto repeated = gear.keystat == input::key::repeated;
+                                            luafx.set_return(repeated);
+                                        }},
+                    { "SetHandled",     [&](hids& /*gear*/, auto& luafx)
+                                        {
+                                            gear.set_handled();
+                                            gear.interrupt_key_proc = true;
+                                            luafx.set_return();
+                                        }},
+                });
+                luafx.activate(proc_map);
             }
             auto& [_id, gear_ptr] = *gear_it;
             gear_ptr->set_multihome();
