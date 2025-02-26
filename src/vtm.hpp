@@ -695,7 +695,7 @@ namespace netxs::app::vtm
                 keybd.bind(window_bindings);
                 luafx.activate("window.proc_map",
                 {
-                    { "Warp",               [&]()
+                    { "Warp",               [&]
                                             {
                                                 auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
                                                                   luafx.get_args_or(2, 0),   //
@@ -705,14 +705,14 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
-                    { "AlwaysOnTop",        [&]()
+                    { "AlwaysOnTop",        [&]
                                             {
                                                 auto args_count = luafx.args_count();
                                                 auto state = window_alwaysontop(args_count, args_count ? luafx.get_args_or(1, faux) : faux);
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(state);
                                             }},
-                    { "Close",              [&]()
+                    { "Close",              [&]
                                             {
                                                 auto gear_id = id_t{};
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -723,7 +723,7 @@ namespace netxs::app::vtm
                                                 window_close(gear_id);
                                                 luafx.set_return();
                                             }},
-                    { "Minimize",           [&]()
+                    { "Minimize",           [&]
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -732,7 +732,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Maximize",           [&]()
+                    { "Maximize",           [&]
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -741,7 +741,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Fullscreen",         [&]()
+                    { "Fullscreen",         [&]
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -1363,8 +1363,8 @@ namespace netxs::app::vtm
 
             app::shared::get_tui_config(config, ui::skin::globals());
 
-            plugins<pro::focus>(pro::focus::mode::focusable);
-            auto& keybd = plugins<pro::keybd>("desktop");
+            base::plugin<pro::focus>(pro::focus::mode::focusable);
+            auto& keybd = base::plugin<pro::keybd>("desktop");
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
@@ -2173,7 +2173,7 @@ namespace netxs::app::vtm
             if constexpr (debugmode) log(prompt::hall, "Session control stopped");
             bell::dequeue(); // Wait until all cleanups are completed.
             auto lock = bell::sync();
-            plugins<pro::mouse>().reset(); // Release the captured mouse.
+            base::plugin<pro::mouse>().reset(); // Release the captured mouse.
         }
     };
 }

@@ -126,7 +126,7 @@ namespace netxs::app::terminal
         {
             if (item.type == menu::type::Repeat)
             {
-                auto& tick = boss.plugins<pro::timer>();
+                auto& tick = boss.base::plugin<pro::timer>();
                 boss.LISTEN(tier::release, input::events::mouse::button::down::left, gear, -, (proc))
                 {
                     if (item.views.size())

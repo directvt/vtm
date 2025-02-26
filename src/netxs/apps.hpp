@@ -792,7 +792,7 @@ namespace netxs::app::shared
                     , "vtm.infopage.ExclusiveKeyboardMode()", true);
                 luafx.activate("infopage.proc_map",
                 {
-                    { "UpdateChordPreview",     [&]()
+                    { "UpdateChordPreview",     [&]
                                                 {
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {
@@ -802,7 +802,7 @@ namespace netxs::app::shared
                                                     }
                                                     luafx.set_return(); // No returns.
                                                 }},
-                    { "ExclusiveKeyboardMode",  [&]()
+                    { "ExclusiveKeyboardMode",  [&]
                                                 {
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {

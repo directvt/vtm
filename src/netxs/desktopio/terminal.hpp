@@ -7841,7 +7841,7 @@ namespace netxs::ui
             keybd.bind(bindings);
             luafx.activate("terminal.proc_map",
             {
-                { "SetExclusiveKeyboardMode",   [&]()
+                { "SetExclusiveKeyboardMode",   [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7858,7 +7858,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "FindNextMatch",              [&]()
+                { "FindNextMatch",              [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7867,7 +7867,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ScrollViewportByPage",       [&]()
+                { "ScrollViewportByPage",       [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7877,7 +7877,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ScrollViewportByCell",       [&]()
+                { "ScrollViewportByCell",       [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7887,7 +7887,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ScrollViewportToTop",        [&]()
+                { "ScrollViewportToTop",        [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7896,7 +7896,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ScrollViewportToEnd",        [&]()
+                { "ScrollViewportToEnd",        [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7905,7 +7905,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SendKey",                    [&]()
+                { "SendKey",                    [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7914,7 +7914,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "Print",                      [&]()
+                { "Print",                      [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7923,7 +7923,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "CopyViewport",               [&]()
+                { "CopyViewport",               [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7931,7 +7931,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "CopySelection",              [&]()
+                { "CopySelection",              [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7947,7 +7947,7 @@ namespace netxs::ui
                                                         }
                                                     });
                                                 }},
-                { "PasteClipboard",             [&]()
+                { "PasteClipboard",             [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7955,7 +7955,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ClearClipboard",             [&]()
+                { "ClearClipboard",             [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7963,7 +7963,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetClipboardFormat",         [&]()
+                { "SetClipboardFormat",         [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7979,7 +7979,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetSelectionForm",           [&]()
+                { "SetSelectionForm",           [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -7996,7 +7996,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "ClearSelection",             [&]()
+                { "ClearSelection",             [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8007,7 +8007,7 @@ namespace netxs::ui
                                                         }
                                                     });
                                                 }},
-                { "OneShotSelection",           [&]()
+                { "OneShotSelection",           [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& /*gear*/)
                                                     {
@@ -8022,7 +8022,7 @@ namespace netxs::ui
                                                         }
                                                     });
                                                 }},
-                { "UndoReadline",               [&]()
+                { "UndoReadline",               [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8030,7 +8030,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "RedoReadline",               [&]()
+                { "RedoReadline",               [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8038,7 +8038,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetCwdSync",                 [&]()
+                { "SetCwdSync",                 [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8046,7 +8046,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetWrappingMode",            [&]()
+                { "SetWrappingMode",            [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8063,7 +8063,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetAligningMode",            [&]()
+                { "SetAligningMode",            [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8080,7 +8080,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetLogging",                 [&]()
+                { "SetLogging",                 [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8089,7 +8089,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "Restart",                    [&]()
+                { "Restart",                    [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {
@@ -8097,7 +8097,7 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "Quit",                       [&]()
+                { "Quit",                       [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
                                                     {

@@ -3183,12 +3183,6 @@ namespace netxs::ui
             base::unplug<S>();
             return This();
         }
-        // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
-        template<class S, class ...Args>
-        auto& plugins(Args&&... args)
-        {
-            return base::plugin<S>(std::forward<Args>(args)...);
-        }
         // form: Fill object region using parametrized fx.
         template<auto Tier = tier::release, auto RenderOrder = e2::render::background::any>
         auto _shader(cell fx)
@@ -3396,7 +3390,7 @@ namespace netxs::ui
         form()
             : base{ ui::tui_domain() }
         {
-            plugins<pro::mouse>();
+            base::plugin<pro::mouse>();
         }
     };
 

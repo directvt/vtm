@@ -565,7 +565,7 @@ namespace netxs::app::desk
                     };
                     boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
-                        auto& timer = boss.template plugins<pro::timer>();
+                        auto& timer = boss.base::template plugin<pro::timer>();
                         if (state)
                         {
                             timer.pacify(faux);
@@ -590,7 +590,7 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     auto& drag_origin = boss.base::template field<fp2d>();
-                    auto& mouse = boss.template plugins<pro::mouse>();
+                    auto& mouse = boss.base::template plugin<pro::mouse>();
                     mouse.template draggable<hids::buttons::left>(true);
                     boss.LISTEN(tier::release, e2::form::drag::start::_<hids::buttons::left>, gear)
                     {
