@@ -1315,9 +1315,45 @@ namespace netxs::app::vtm
             window.coor = dot_00;
             netxs::online(window, origin, center, pset);
         }
-        void focus_next_window(si32 dir)
+        auto focus_next_window(hids& gear, si32 dir)
         {
-            log("focus_next_window ", dir);
+            auto go_forward = dir > 0;
+            gear.set_multihome();
+            auto gear_id = gear.id;
+            auto appspec = desk::spec{ .hidden  = true,
+                                       .winform = winstate::normal,
+                                       .type    = app::vtty::id,
+                                       .gear_id = gear_id };
+            if (gear.shared_event) // Give another process a chance to handle this event.
+            {
+                go_forward ? base::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                           : base::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                if (!gear_id)
+                {
+                    return faux;
+                }
+            }
+            gear.owner.base::signal(tier::preview, e2::form::size::restore);
+
+            auto window_ptr = base::signal(tier::request, e2::form::layout::go::item); // Take current window.
+            if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
+
+            auto current = window_ptr; 
+            window_ptr.reset();
+            if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+            else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+
+            if (window_ptr)
+            {
+                auto& window = *window_ptr;
+                window.base::signal(tier::release, e2::form::layout::selected, gear);
+                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
+                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                {
+                    pro::focus::set(window.This(), gear_id, solo::on);
+                });
+            }
+            return true;
         }
 
     public:
@@ -1420,50 +1456,15 @@ namespace netxs::app::vtm
                                         }},
                 { "FocusNextWindow",    [&](auto& /*boss*/, auto& luafx)
                                         {
-                                            auto go_forward = luafx.get_args_or(1, 1) > 0;
-                                            auto gear_ptr = luafx.template get_object<hids>("gear");
-                                            if (!gear_ptr)
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                             {
-                                                luafx.set_return();
-                                                return;
-                                            }
-                                            auto& gear = *gear_ptr;
-                                            auto gear_id = gear.id;
-                                            auto appspec = desk::spec{ .hidden  = true,
-                                                                       .winform = winstate::normal,
-                                                                       .type    = app::vtty::id,
-                                                                       .gear_id = gear_id };
-                                            if (gear.shared_event) // Give another process a chance to handle this event.
-                                            {
-                                                go_forward ? base::signal(tier::request, e2::form::layout::focus::next, gear_id)
-                                                           : base::signal(tier::request, e2::form::layout::focus::prev, gear_id);
-                                                if (!gear_id)
+                                                auto& gear = *gear_ptr;
+                                                auto dir = luafx.get_args_or(1, 1);
+                                                if (focus_next_window(gear, dir))
                                                 {
-                                                    luafx.set_return();
-                                                    return;
+                                                    gear.set_handled();
                                                 }
                                             }
-                                            gear.owner.base::signal(tier::preview, e2::form::size::restore);
-
-                                            auto window_ptr = base::signal(tier::request, e2::form::layout::go::item); // Take current window.
-                                            if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
-
-                                            auto current = window_ptr; 
-                                            window_ptr.reset();
-                                            if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                                            else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
-
-                                            if (window_ptr)
-                                            {
-                                                auto& window = *window_ptr;
-                                                window.base::signal(tier::release, e2::form::layout::selected, gear);
-                                                gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                                                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
-                                                {
-                                                    pro::focus::set(window.This(), gear_id, solo::on);
-                                                });
-                                            }
-                                            gear.set_handled();
                                             luafx.set_return();
                                         }},
             });
@@ -1577,13 +1578,15 @@ namespace netxs::app::vtm
 
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
-                auto hit = true;
+                auto hit = faux;
                 if (gui_cmd.cmd_id == syscmd::focusnextwindow)
+                if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
                 {
+                    auto& gear = *gear_ptr;
                     auto dir = any_get_or(gui_cmd.args[0], 1);
-                    focus_next_window(dir);
+                    focus_next_window(gear, dir);
+                    hit = true;
                 }
-                else hit = faux;
                 if (!hit) bell::expire(tier::preview, true);
             };
             LISTEN(tier::general, e2::shutdown, msg)
