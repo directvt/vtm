@@ -2078,7 +2078,7 @@ namespace netxs::ui
             std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<script>>, preview>>.
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;
-            text boss_name_str;
+            std::vector<text> boss_names;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -2156,18 +2156,35 @@ namespace netxs::ui
             }
 
         public:
+            void register_name(text boss_name)
+            {
+                boss_names.push_back(boss_name);
+            }
             keybd(base&&) = delete;
-            keybd(base& boss, text boss_name = {})
+            keybd(base& boss)
+                : keybd{ boss, utf::concat("object"s, boss.id) }
+            { }
+            keybd(base& boss, text boss_name)
+                : keybd{ boss, std::vector<text>{ boss_name }}
+            { }
+            keybd(base& boss, std::vector<text> boss_name_list)
                 : skill{ boss },
                   instance_id{ datetime::now().time_since_epoch().count() },
-                  boss_name_str{ boss_name.empty() ? utf::concat("object"s, boss.id) : boss_name }
+                  boss_names{ boss_name_list }
             {
                 boss.LISTEN(tier::request, e2::runscript, gear)
                 {
                     if (gear.scripting_context_ptr)
                     {
                         auto& scripting_context = *gear.scripting_context_ptr;
-                        scripting_context[boss_name_str] = boss.This();
+                        for (auto& boss_name : boss_names)
+                        {
+                            auto& reference = scripting_context[boss_name];
+                            if (ptr::is_empty(reference))
+                            {
+                                reference = boss.This();
+                            }
+                        }
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::state::focus::count, count)

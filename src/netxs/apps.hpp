@@ -559,7 +559,7 @@ namespace netxs::app::shared
                 .add(app::shared::repository);
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>("defapp")
+                ->plugin<pro::keybd>("infopage")
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
@@ -780,7 +780,7 @@ namespace netxs::app::shared
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
                 auto& luafx = boss.base::plugin<pro::luafx>();
-                auto& keybd = boss.base::plugin<pro::keybd>("defapp");
+                auto& keybd = boss.base::plugin<pro::keybd>();
                 app::shared::base_kb_navigation(config, scroll, boss);
                 auto& proc_map = boss.base::field(pro::luafx::fxmap<base>
                 {
@@ -806,14 +806,14 @@ namespace netxs::app::shared
                                                     luafx.set_return(); // No returns.
                                                 }},
                 });
-                keybd.bind("Any", "vtm.defapp.UpdateChordPreview()");
+                keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
                 keybd.bind(
                     #if defined(WIN32)
                     "Ctrl-Alt | Alt-Ctrl"
                     #else
                     "Alt+Shift+B"
                     #endif
-                    , "vtm.defapp.ExclusiveKeyboardMode()", true);
+                    , "vtm.infopage.ExclusiveKeyboardMode()", true);
                 luafx.activate(proc_map);
             });
             inside->attach(slot::_2, ui::post::ctor())

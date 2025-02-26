@@ -1007,7 +1007,10 @@ namespace netxs::ui
             {
                 if (gui_cmd.cmd_id == syscmd::restore && base::subset.size() > 1)
                 {
-                    base::signal(tier::release, e2::form::size::restore);
+                    bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                    {
+                        boss.base::signal(tier::release, e2::form::size::restore);
+                    });
                 }
                 else
                 {

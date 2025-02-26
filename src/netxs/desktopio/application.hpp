@@ -113,7 +113,8 @@ namespace netxs::app::shared
     const auto base_kb_navigation = [](xmls& config, ui::sptr scroll_ptr, base& boss)
     {
         auto& scroll_inst = *scroll_ptr;
-        auto& keybd = boss.base::plugin<pro::keybd>("defapp");
+        auto& keybd = boss.base::plugin<pro::keybd>();
+        keybd.register_name("defapp");
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = pro::keybd::load(config, "defapp");
         keybd.bind(bindings);
@@ -173,7 +174,8 @@ namespace netxs::app::shared
     {
         auto& applet = *applet_ptr;
         applet.base::plugin<pro::focus>();
-        auto& keybd = applet.base::plugin<pro::keybd>("applet");
+        auto& keybd = applet.base::plugin<pro::keybd>();
+        keybd.register_name("applet");
         auto& luafx = applet.base::plugin<pro::luafx>();
         auto& applet_bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
         applet_bindings = pro::keybd::load(config, "applet");

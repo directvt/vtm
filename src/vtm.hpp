@@ -784,31 +784,49 @@ namespace netxs::app::vtm
                     }
                     else if (gui_cmd.cmd_id == syscmd::minimize)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        if (gui_cmd.gear_id)
                         {
-                            auto& gear = *gear_ptr;
-                            gear.set_multihome();
-                            base::signal(tier::preview, e2::form::size::minimize, gear);
+                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                            {
+                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                                {
+                                    auto& gear = *gear_ptr;
+                                    gear.set_multihome();
+                                    boss.base::signal(tier::preview, e2::form::size::minimize, gear);
+                                }
+                            });
                             return;
                         }
                     }
                     else if (gui_cmd.cmd_id == syscmd::maximize)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        if (gui_cmd.gear_id)
                         {
-                            auto& gear = *gear_ptr;
-                            gear.set_multihome();
-                            base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                            {
+                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                                {
+                                    auto& gear = *gear_ptr;
+                                    gear.set_multihome();
+                                    boss.base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                                }
+                            });
                             return;
                         }
                     }
                     else if (gui_cmd.cmd_id == syscmd::fullscreen)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        if (gui_cmd.gear_id)
                         {
-                            auto& gear = *gear_ptr;
-                            gear.set_multihome();
-                            base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                            {
+                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                                {
+                                    auto& gear = *gear_ptr;
+                                    gear.set_multihome();
+                                    boss.base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                                }
+                            });
                             return;
                         }
                     }
