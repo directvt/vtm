@@ -647,53 +647,52 @@ namespace netxs::app::vtm
                 auto& window_bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                 if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
                 keybd.bind(window_bindings);
-
-                static auto proc_map = pro::luafx::fxmap<base>
+                auto& proc_map = base::property("window.proc_map", pro::luafx::fxmap<base>
                 {
-                    { "Warp",               [](auto& boss, auto& luafx)
+                    { "Warp",               [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
                                                                   luafx.get_args_or(2, 0),   //
                                                                   luafx.get_args_or(3, 0),   //
                                                                   luafx.get_args_or(4, 0) }; //
-                                                boss.bell::enqueue(boss.This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
+                                                bell::enqueue(This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
                                                 {
                                                     boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
                                                 });
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
-                    { "AlwaysOnTop",        [](auto& boss, auto& luafx)
+                    { "AlwaysOnTop",        [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 auto args_count = luafx.args_count();
                                                 auto zorder = zpos::plain;
                                                 if (args_count == 0) // Request zpos.
                                                 {
-                                                    zorder = boss.base::signal(tier::request, e2::form::prop::zorder);
+                                                    zorder = base::signal(tier::request, e2::form::prop::zorder);
                                                 }
                                                 else // Set zpos.
                                                 {
                                                     zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                                    boss.base::signal(tier::preview, e2::form::prop::zorder, zorder);
+                                                    base::signal(tier::preview, e2::form::prop::zorder, zorder);
                                                 }
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(zorder == zpos::topmost);
                                             }},
-                    { "Close",              [](auto& boss, auto& luafx)
+                    { "Close",              [&](auto& /*boss*/, auto& luafx)
                                             {
-                                                boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                                bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
                                                 {
                                                     boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
                                                 });
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return();
                                             }},
-                    { "Minimize",           [](auto& boss, auto& luafx)
+                    { "Minimize",           [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                     {
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
@@ -705,12 +704,12 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Maximize",           [](auto& boss, auto& luafx)
+                    { "Maximize",           [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                     {
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
@@ -722,12 +721,12 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Fullscreen",         [](auto& boss, auto& luafx)
+                    { "Fullscreen",         [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    boss.bell::enqueue(boss.This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
+                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
                                                     {
                                                         if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
                                                         {
@@ -739,7 +738,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                };
+                });
                 luafx.activate(proc_map);
 
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
