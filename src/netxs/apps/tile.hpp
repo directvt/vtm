@@ -351,7 +351,7 @@ namespace netxs::app::tile
                         auto& keybd = boss.template plugins<pro::keybd>();
                         auto& luafx = boss.template plugins<pro::luafx>();
                         keybd.bind(*grip_bindings_ptr);
-                        auto& proc_map = base::property("grip.proc_map", pro::luafx::fxmap<decltype(boss)>
+                        auto& proc_map = boss.base::property("grip.proc_map", pro::luafx::fxmap<decltype(boss)>
                         {
                             { action::MoveGrip,         [&](auto& /*boss*/, auto& luafx)
                                                         {

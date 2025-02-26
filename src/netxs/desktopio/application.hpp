@@ -148,7 +148,7 @@ namespace netxs::app::shared
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
-            { "ShowClosingPreview",     [&](auto& boss, auto& luafx)
+            { "ShowClosingPreview",     [&](auto& /*boss*/, auto& luafx)
                                         {
                                             auto& closing_preview_state = boss.base::property("defapp.closing_preview_state", faux);
                                             auto args_count = luafx.args_count();
@@ -158,7 +158,7 @@ namespace netxs::app::shared
                                             }
                                             luafx.set_return(closing_preview_state);
                                         }},
-            { "Close",                  [&](auto& boss, auto& luafx)
+            { "Close",                  [&](auto& /*boss*/, auto& luafx)
                                         {
                                             boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
                                             {
