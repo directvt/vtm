@@ -25,6 +25,7 @@ namespace netxs
         static constexpr auto _counter        = __COUNTER__ + 1;
         static constexpr auto minimize        = __COUNTER__ - _counter;
         static constexpr auto maximize        = __COUNTER__ - _counter;
+        static constexpr auto fullscreen      = __COUNTER__ - _counter;
         static constexpr auto restore         = __COUNTER__ - _counter;
         static constexpr auto move            = __COUNTER__ - _counter;
         static constexpr auto monitorpower    = __COUNTER__ - _counter;
@@ -34,7 +35,6 @@ namespace netxs
         static constexpr auto rollfontlist    = __COUNTER__ - _counter;
         static constexpr auto resetcellheight = __COUNTER__ - _counter;
         static constexpr auto resetwheelaccum = __COUNTER__ - _counter;
-        static constexpr auto togglefsmode    = __COUNTER__ - _counter;
         static constexpr auto toggleaamode    = __COUNTER__ - _counter;
         static constexpr auto focusnextwindow = __COUNTER__ - _counter;
         static constexpr auto alwaysontop     = __COUNTER__ - _counter;

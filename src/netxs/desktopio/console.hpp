@@ -842,7 +842,7 @@ namespace netxs::ui
                                                     gear_ptr->set_handled();
                                                 }
                                                 //todo args
-                                                gui_cmd.cmd_id = syscmd::togglefsmode;
+                                                gui_cmd.cmd_id = syscmd::fullscreen;
                                                 boss.base::signal(tier::preview, e2::command::gui, gui_cmd);
                                                 luafx.set_return();
                                             }},
@@ -1005,15 +1005,22 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
-                if (gui_cmd.gear_id)
+                if (gui_cmd.cmd_id == syscmd::restore && base::subset.size() > 1)
                 {
-                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gui_cmd.gear_id);
-                    if (gear_ptr)
-                    {
-                        gui_cmd.gear_id = ext_gear_id;
-                    }
+                    base::signal(tier::release, e2::form::size::restore);
                 }
-                conio.gui_command.send(canal, gui_cmd);
+                else
+                {
+                    if (gui_cmd.gear_id)
+                    {
+                        auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gui_cmd.gear_id);
+                        if (gear_ptr)
+                        {
+                            gui_cmd.gear_id = ext_gear_id;
+                        }
+                    }
+                    conio.gui_command.send(canal, gui_cmd);
+                }
             };
             LISTEN(tier::release, e2::command::run, script)
             {

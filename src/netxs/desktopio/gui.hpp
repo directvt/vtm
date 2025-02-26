@@ -3187,7 +3187,7 @@ namespace netxs::gui
                     case syscmd::resetwheelaccum: ResetWheelAccumulator();  break;
                     case syscmd::tunecellheight:  IncreaseCellHeight(args); break;
                     case syscmd::resetcellheight: ResetCellHeight();        break;
-                    case syscmd::togglefsmode:    ToggleFullscreenMode();   break;
+                    case syscmd::fullscreen:      ToggleFullscreenMode();   break;
                     case syscmd::toggleaamode:    ToggleAntialiasingMode(); break;
                     case syscmd::rollfontlist:    RollFontList(args);       break;
                     case syscmd::warpwindow:      WarpWindow(args);         break;

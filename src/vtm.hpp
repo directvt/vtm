@@ -644,7 +644,7 @@ namespace netxs::app::vtm
                 base::kind(base::reflow_root);
                 base::root(true);
 
-                auto& window_bindings = base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
+                auto& window_bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                 if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
                 keybd.bind(window_bindings);
 
@@ -744,6 +744,7 @@ namespace netxs::app::vtm
 
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
+                    //todo unify (the same in proc_map)
                     if (gui_cmd.cmd_id == syscmd::warpwindow)
                     {
                         if (gui_cmd.args.size() == 4)
@@ -756,7 +757,52 @@ namespace netxs::app::vtm
                             return;
                         }
                     }
-                    else if (gui_cmd.cmd_id == syscmd::togglefsmode)
+                    else if (gui_cmd.cmd_id == syscmd::alwaysontop)
+                    {
+                        auto args_count = gui_cmd.args.size();
+                        auto zorder = zpos::plain;
+                        if (args_count == 0) // Request zpos.
+                        {
+                            zorder = base::signal(tier::request, e2::form::prop::zorder);
+                        }
+                        else // Set zpos.
+                        {
+                            zorder = any_get_or(gui_cmd.args[0], faux) ? zpos::topmost : zpos::plain;
+                            base::signal(tier::preview, e2::form::prop::zorder, zorder);
+                        }
+                        return;
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::close)
+                    {
+                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.set_multihome();
+                        }
+                        base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                        return;
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::minimize)
+                    {
+                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.set_multihome();
+                            base::signal(tier::preview, e2::form::size::minimize, gear);
+                            return;
+                        }
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::maximize)
+                    {
+                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.set_multihome();
+                            base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
+                            return;
+                        }
+                    }
+                    else if (gui_cmd.cmd_id == syscmd::fullscreen)
                     {
                         if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
                         {
@@ -1607,6 +1653,7 @@ namespace netxs::app::vtm
                 what.applet->base::property("window.menuid") = what.menuid;
                 what.applet->base::bind_property<tier::preview>("window.header", *what.applet, e2::form::prop::ui::header) = setup.title;
                 what.applet->base::bind_property<tier::preview>("window.footer", *what.applet, e2::form::prop::ui::footer) = setup.footer;
+                app::shared::applet_kb_navigation(config, what.applet);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {
@@ -2111,8 +2158,9 @@ namespace netxs::app::vtm
             //auto& usergate_id = usergate.base::property<id_t>("gate.id");
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
-            auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            usergate.attach(std::move(deskmenu));
+            auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
+            app::shared::applet_kb_navigation(config, deskmenu_ptr);
+            usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
             pro::focus::set(This(), id_t{}, solo::off);
             lock.unlock();

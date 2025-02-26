@@ -123,50 +123,27 @@ R"==(
         <TryToQuit             ="vtm.desktop.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
         <RunApplication        ="vtm.desktop.Run()"/>                 <!-- Run default application. -->
         <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
-        <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>   <!-- Switch focus to the prev desktop window. -->
-        <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>   <!-- Switch focus to the next desktop window. -->
 
-        <AlwaysOnTop           ="vtm.window.AlwaysOnTop(not vtm.window.AlwaysOnTop())"/>  <!-- Toggle AlwaysOnTop window flag. -->
-        <CloseWindow           ="vtm.window.Close()"/>            <!-- Close window. -->
-        <MinimizeWindow        ="vtm.window.Minimize()"/>         <!-- Minimize window. -->
-        <MaximizeWindow        ="vtm.window.Maximize()"/>         <!-- Maximize window. -->
-        <FullscreenWindow      ="vtm.window.Fullscreen()"/>       <!-- Maximize window to full screen. -->
-        <RestoreWindow         ="vtm.gate.Restore()"/>            <!-- Restore maximized/fullscreen window. -->
-        <MoveWindowLeft        ="vtm.window.Warp( 1,-1, 0, 0)"/>  <!-- Move window to the left. WarpWindow(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
-        <MoveWindowRight       ="vtm.window.Warp(-1, 1, 0, 0)"/>  <!-- Move window to the right. -->
-        <MoveWindowUp          ="vtm.window.Warp( 0, 0, 1,-1)"/>  <!-- Move window up. -->
-        <MoveWindowDown        ="vtm.window.Warp( 0, 0,-1, 1)"/>  <!-- Move window down. -->
-        <MoveWindowTopLeft     ="vtm.window.Warp( 2,-2, 1,-1)"/>  <!-- Move window to the top-left. -->
-        <MoveWindowBottomLeft  ="vtm.window.Warp( 2,-2,-1, 1)"/>  <!-- Move window to the bottom-left. -->
-        <MoveWindowTopRight    ="vtm.window.Warp(-2, 2, 1,-1)"/>  <!-- Move window to the top-right. -->
-        <MoveWindowBottomRight ="vtm.window.Warp(-2, 2,-1, 1)"/>  <!-- Move window to the bottom-right. -->
-        <IncreaseWindowWidth   ="vtm.window.Warp( 0, 1, 0, 0)"/>  <!-- Increase window width. -->
-        <DecreaseWindowWidth   ="vtm.window.Warp( 0,-1, 0, 0)"/>  <!-- Decrease window width. -->
-        <IncreaseWindowHeight  ="vtm.window.Warp( 0, 0, 0, 1)"/>  <!-- Increase window height. -->
-        <DecreaseWindowHeight  ="vtm.window.Warp( 0, 0, 0,-1)"/>  <!-- Decrease window height. -->
-
-        <GuiFocusPrevWindow       ="vtm.gate.FocusNextWindow(-1)"/>
-        <GuiFocusNextWindow       ="vtm.gate.FocusNextWindow( 1)"/>
-        <GuiAlwaysOnTop           ="vtm.gate.AlwaysOnTop()"/>
-        <GuiMinimizeWindow        ="vtm.gate.Minimize()"/>
-        <GuiMaximizeWindow        ="vtm.gate.Maximize()"/>
-        <GuiFullscreenWindow      ="vtm.gate.Fullscreen()"/>
-        <GuiMoveWindowLeft        ="vtm.gate.Warp( 1,-1, 0, 0)"/>
-        <GuiMoveWindowRight       ="vtm.gate.Warp(-1, 1, 0, 0)"/>
-        <GuiMoveWindowUp          ="vtm.gate.Warp( 0, 0, 1,-1)"/>
-        <GuiMoveWindowDown        ="vtm.gate.Warp( 0, 0,-1, 1)"/>
-        <GuiMoveWindowTopLeft     ="vtm.gate.Warp( 2,-2, 1,-1)"/>
-        <GuiMoveWindowBottomLeft  ="vtm.gate.Warp( 2,-2,-1, 1)"/>
-        <GuiMoveWindowTopRight    ="vtm.gate.Warp(-2, 2, 1,-1)"/>
-        <GuiMoveWindowBottomRight ="vtm.gate.Warp(-2, 2,-1, 1)"/>
-        <GuiIncreaseWindowWidth   ="vtm.gate.Warp( 0, 1, 0, 0)"/>
-        <GuiDecreaseWindowWidth   ="vtm.gate.Warp( 0,-1, 0, 0)"/>
-        <GuiIncreaseWindowHeight  ="vtm.gate.Warp( 0, 0, 0, 1)"/>
-        <GuiDecreaseWindowHeight  ="vtm.gate.Warp( 0, 0, 0,-1)"/>
-        <GuiMoveWindowLeftByPx    ="vtm.gate.Move(-1, 0)"/>
-        <GuiMoveWindowRightByPx   ="vtm.gate.Move( 1, 0)"/>
-        <GuiMoveWindowUpByPx      ="vtm.gate.Move( 0,-1)"/>
-        <GuiMoveWindowDownByPx    ="vtm.gate.Move( 0, 1)"/>
+        <FocusPrevApplet       ="vtm.applet.FocusNext(-1)"/>      <!-- Request to Switch focus to the prev applet. -->
+        <FocusNextApplet       ="vtm.applet.FocusNext( 1)"/>      <!-- Request to Switch focus to the next applet. -->
+        <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
+        <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
+        <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
+        <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
+        <FullscreenApplet      ="vtm.applet.Fullscreen()"/>       <!-- Request to Maximize window to full screen. -->
+        <RestoreApplet         ="vtm.applet.Restore()"/>          <!-- Request to Restore maximized/fullscreen window. -->
+        <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0)"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+        <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0)"/>  <!-- Request to Move window to the right. -->
+        <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1)"/>  <!-- Request to Move window up. -->
+        <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1)"/>  <!-- Request to Move window down. -->
+        <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1)"/>  <!-- Request to Move window to the top-left. -->
+        <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1)"/>  <!-- Request to Move window to the bottom-left. -->
+        <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1)"/>  <!-- Request to Move window to the top-right. -->
+        <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1)"/>  <!-- Request to Move window to the bottom-right. -->
+        <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0)"/>  <!-- Request to Increase window width. -->
+        <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0)"/>  <!-- Request to Decrease window width. -->
+        <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1)"/>  <!-- Request to Increase window height. -->
+        <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1)"/>  <!-- Request to Decrease window height. -->
 
         <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
         <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
@@ -229,12 +206,8 @@ R"==(
         <TerminalCwdSync                   ="vtm.terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
         <TerminalWrapMode                  ="vtm.terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
         <TerminalAlignMode                 ="vtm.terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalFullscreen                ="vtm.window.Fullscreen()"/>                   <!-- Toggle fullscreen mode. -->
-        <TerminalMaximize                  ="vtm.window.Maximize()"/>                     <!-- Toggle between maximized and normal window size. -->
-        <TerminalMinimize                  ="vtm.window.Minimize()"/>                     <!-- Minimize window. -->
         <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
-        <TerminalQuit                      ="vtm.terminal.Quit()"/>                       <!-- Terminate runnning console apps and close terminal. -->
     </variables>
 )=="
 R"==(
@@ -541,63 +514,41 @@ R"==(
         <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
             <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
             <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
-            <key="Ctrl+0"                                               script=ResetCellHeight/>
-            <key="Alt+Enter"                                            script=ToggleFullscreenMode/>
+            <key="Esc+0"                                                script=ResetCellHeight/>
             <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
             <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
             <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
             <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
             <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
-            <key="Esc+T"                                                script=GuiAlwaysOnTop/>
-            <key="Esc+W"                                                script=GuiCloseWindow/>
-            <key="Esc+M"                                                script=GuiMinimizeWindow/>
-            <key="Esc+F10"                                              script=RestoreWindow/>
-            <key="Esc+F11"                                              script=GuiMaximizeWindow/>
-            <key="Esc+F12"                                              script=GuiFullscreenWindow/>
-            <key="Esc+Shift+LeftArrow"                                  script=GuiMoveWindowLeftByPx/>
-            <key="Esc+Shift+RightArrow"                                 script=GuiMoveWindowRightByPx/>
-            <key="Esc+Shift+UpArrow"                                    script=GuiMoveWindowUpByPx/>
-            <key="Esc+Shift+DownArrow"                                  script=GuiMoveWindowDownByPx/>
-            <key="Esc+LeftArrow"                                        script=GuiMoveWindowLeft/>
-            <key="Esc+RightArrow"                                       script=GuiMoveWindowRight/>
-            <key="Esc+UpArrow"                                          script=GuiMoveWindowUp/>
-            <key="Esc+DownArrow"                                        script=GuiMoveWindowDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=GuiMoveWindowTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=GuiMoveWindowBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=GuiMoveWindowTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=GuiMoveWindowBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             script=GuiIncreaseWindowWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             script=GuiDecreaseWindowWidth/>
-            <key="Esc+UpArrow+DownArrow"                                script=GuiIncreaseWindowHeight/>
-            <key="Esc+DownArrow+UpArrow"                                script=GuiDecreaseWindowHeight/>
         </gate>
         <desktop key*>  <!-- Desktop key bindings. -->
-            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
-            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
             <key="Shift+F7"                                             script=Disconnect/>
             <key="F10" preview                                          script=TryToQuit/>
             <key="Alt+Shift+N"                                          script=RunApplication/>
             <key="Esc+F1"                                               script=RunInfoPage/>
         </desktop>
-        <window key*>  <!-- TUI Window key bindings. -->
-            <key="Esc+T"                                                script=AlwaysOnTop/>
-            <key="Esc+W"                                                script=CloseWindow/>
-            <key="Esc+M"                                                script=MinimizeWindow/>
-            <key="Esc+F11"                                              script=MaximizeWindow/>
-            <key="Esc+F12"                                              script=FullscreenWindow/>
-            <key="Esc+LeftArrow"                                        script=MoveWindowLeft/>
-            <key="Esc+RightArrow"                                       script=MoveWindowRight/>
-            <key="Esc+UpArrow"                                          script=MoveWindowUp/>
-            <key="Esc+DownArrow"                                        script=MoveWindowDown/>
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveWindowTopLeft/>
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveWindowBottomLeft/>
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveWindowTopRight/>
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveWindowBottomRight/>
-            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseWindowWidth/>
-            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseWindowWidth/>
-            <key="Esc+UpArrow+DownArrow"                                script=IncreaseWindowHeight/>
-            <key="Esc+DownArrow+UpArrow"                                script=DecreaseWindowHeight/>
-        </window>
+        <applet key*>  <!-- Applet key bindings. -->
+            <key="Ctrl+PageUp"                                          script=FocusPrevApplet/>
+            <key="Ctrl+PageDown"                                        script=FocusNextApplet/>
+            <key="Esc+T"                                                script=AlwaysOnTopApplet/>
+            <key="Esc+W"                                                script=CloseApplet/>
+            <key="Esc+M"                                                script=MinimizeApplet/>
+            <key="Esc+F10"                                              script=RestoreApplet/>
+            <key="Esc+F11"                                              script=MaximizeApplet/>
+            <key="Esc+F12"                                              script=FullscreenApplet/>
+            <key="Esc+LeftArrow"                                        script=MoveAppletLeft/>
+            <key="Esc+RightArrow"                                       script=MoveAppletRight/>
+            <key="Esc+UpArrow"                                          script=MoveAppletUp/>
+            <key="Esc+DownArrow"                                        script=MoveAppletDown/>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveAppletTopLeft/>
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveAppletBottomLeft/>
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveAppletTopRight/>
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveAppletBottomRight/>
+            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseAppletWidth/>
+            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseAppletWidth/>
+            <key="Esc+UpArrow+DownArrow"                                script=IncreaseAppletHeight/>
+            <key="Esc+DownArrow+UpArrow"                                script=DecreaseAppletHeight/>
+        </applet>
         <tile key*>
             <key="Ctrl+PageUp"     script=TileFocusPrev/>
             <key="Ctrl+PageDown"   script=TileFocusNext/>
@@ -662,12 +613,8 @@ R"==(
             <key=""                      script=TerminalCwdSync/>
             <key=""                      script=TerminalWrapMode/>
             <key=""                      script=TerminalAlignMode/>
-            <key=""                      script=TerminalFullscreen/>
-            <key=""                      script=TerminalMaximize/>
-            <key=""                      script=TerminalMinimize/>
             <key=""                      script=TerminalStdioLog/>
             <key=""                      script=TerminalRestart/>
-            <key=""                      script=TerminalQuit/>
         </terminal>
         <defapp key*>
             <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
