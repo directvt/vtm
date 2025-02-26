@@ -612,7 +612,7 @@ namespace netxs::app::vtm
                     boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            auto window_alwaysontop(si32 args_count, bool args)
+            auto window_alwaysontop(arch args_count, bool args)
             {
                 auto zorder = zpos::plain;
                 if (args_count == 0) // Request zpos.
