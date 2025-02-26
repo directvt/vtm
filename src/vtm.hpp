@@ -795,7 +795,6 @@ namespace netxs::app::vtm
                     else hit = faux;
                     if (!hit) bell::expire(tier::preview, true);
                 };
-                
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
                 {
                     if (base::subset.size())
@@ -1316,6 +1315,10 @@ namespace netxs::app::vtm
             window.coor = dot_00;
             netxs::online(window, origin, center, pset);
         }
+        void focus_next_window(si32 dir)
+        {
+            log("focus_next_window ", dir);
+        }
 
     public:
         hall(xipc server, xmls def_config)
@@ -1331,19 +1334,19 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
-            static auto proc_map = pro::luafx::fxmap<hall>
+            auto& proc_map = base::property("hall.proc_map", pro::luafx::fxmap<hall>
             {
-                { "Shutdown",           [](auto& boss, auto& luafx)
+                { "Shutdown",           [&](auto& /*boss*/, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();
-                                            auto ok = !args_count || !boss.base::signal(tier::request, e2::form::layout::go::item);
+                                            auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
                                             if (ok)
                                             {
-                                                boss.base::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
+                                                base::signal(tier::general, e2::shutdown, utf::concat(prompt::repl, "Server shutdown"));
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Disconnect",         [](auto& /*boss*/, auto& luafx) //todo Disconnect(gear_id)
+                { "Disconnect",         [&](auto& /*boss*/, auto& luafx) //todo Disconnect(gear_id)
                                         {
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
@@ -1354,7 +1357,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Run",                [](auto& boss, auto& luafx)
+                { "Run",                [&](auto& /*boss*/, auto& luafx)
                                         {
                                             auto args_count = luafx.args_count();
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -1368,7 +1371,7 @@ namespace netxs::app::vtm
                                                 if (gear_ptr)
                                                 {
                                                     auto& current_default = gear_ptr->owner.base::property("desktop.selected");
-                                                    appspec = boss.menu_list[current_default];
+                                                    appspec = menu_list[current_default];
                                                     appspec.fixed = faux;
                                                     appspec.menuid = current_default;
                                                     appspec.gear_id = gear_id;
@@ -1393,16 +1396,16 @@ namespace netxs::app::vtm
                                                 appconf.cd("item");
                                                 auto itemptr = appconf.homelist.front();
                                                 auto menuid = itemptr->take(attr::id, ""s);
-                                                if (boss.menu_list.contains(menuid))
+                                                if (menu_list.contains(menuid))
                                                 {
-                                                    auto& appbase = boss.menu_list[menuid];
-                                                    if (appbase.fixed) boss.hall::loadspec(appspec, appbase, *itemptr, menuid);
-                                                    else               boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                    auto& appbase = menu_list[menuid];
+                                                    if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
+                                                    else               hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                                 else
                                                 {
                                                     if (menuid.empty()) menuid = "vtm.run(" + utf8_xml + ")";
-                                                    boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                                                    hall::loadspec(appspec, appspec, *itemptr, menuid);
                                                 }
                                             }
                                             auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
@@ -1411,11 +1414,11 @@ namespace netxs::app::vtm
                                             if (appspec.title.empty()) appspec.title = title;
                                             if (appspec.label.empty()) appspec.label = title;
                                             if (appspec.tooltip.empty()) appspec.tooltip = appspec.menuid;
-                                            boss.base::signal(tier::request, desk::events::exec, appspec);
+                                            base::signal(tier::request, desk::events::exec, appspec);
                                             if (gear_ptr) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
-                { "FocusNextWindow",    [](auto& boss, auto& luafx)
+                { "FocusNextWindow",    [&](auto& /*boss*/, auto& luafx)
                                         {
                                             auto go_forward = luafx.get_args_or(1, 1) > 0;
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -1432,8 +1435,8 @@ namespace netxs::app::vtm
                                                                        .gear_id = gear_id };
                                             if (gear.shared_event) // Give another process a chance to handle this event.
                                             {
-                                                go_forward ? boss.base::signal(tier::request, e2::form::layout::focus::next, gear_id)
-                                                           : boss.base::signal(tier::request, e2::form::layout::focus::prev, gear_id);
+                                                go_forward ? base::signal(tier::request, e2::form::layout::focus::next, gear_id)
+                                                           : base::signal(tier::request, e2::form::layout::focus::prev, gear_id);
                                                 if (!gear_id)
                                                 {
                                                     luafx.set_return();
@@ -1442,20 +1445,20 @@ namespace netxs::app::vtm
                                             }
                                             gear.owner.base::signal(tier::preview, e2::form::size::restore);
 
-                                            auto window_ptr = boss.base::signal(tier::request, e2::form::layout::go::item); // Take current window.
+                                            auto window_ptr = base::signal(tier::request, e2::form::layout::go::item); // Take current window.
                                             if (window_ptr) window_ptr->base::signal(tier::release, e2::form::layout::unselect, gear); // Hide current window if it was hidden before focusing.
 
                                             auto current = window_ptr; 
                                             window_ptr.reset();
-                                            if (go_forward) boss.base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                                            else            boss.base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                                            if (go_forward) base::signal(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                                            else            base::signal(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
 
                                             if (window_ptr)
                                             {
                                                 auto& window = *window_ptr;
                                                 window.base::signal(tier::release, e2::form::layout::selected, gear);
                                                 gear.owner.base::signal(tier::release, e2::form::layout::jumpto, window);
-                                                boss.bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
+                                                bell::enqueue(window_ptr, [&, gear_id = gear.id](auto& /*boss*/) // Keep the focus tree intact while processing events.
                                                 {
                                                     pro::focus::set(window.This(), gear_id, solo::on);
                                                 });
@@ -1463,7 +1466,7 @@ namespace netxs::app::vtm
                                             gear.set_handled();
                                             luafx.set_return();
                                         }},
-            };
+            });
             luafx.activate(proc_map);
 
             auto current_module_file = os::process::binary();
@@ -1540,7 +1543,6 @@ namespace netxs::app::vtm
             {
                 parent_ptr->base::riseup(tier::release, e2::form::proceed::multihome, This());
             };
-            
 
             //todo move to luafx/keybd/ui::base/indexer
             LISTEN(tier::release, e2::command::run, script)
@@ -1573,6 +1575,17 @@ namespace netxs::app::vtm
                 luafx.run_script(script_body, scripting_context);
             };
 
+            LISTEN(tier::preview, e2::command::gui, gui_cmd)
+            {
+                auto hit = true;
+                if (gui_cmd.cmd_id == syscmd::focusnextwindow)
+                {
+                    auto dir = any_get_or(gui_cmd.args[0], 1);
+                    focus_next_window(dir);
+                }
+                else hit = faux;
+                if (!hit) bell::expire(tier::preview, true);
+            };
             LISTEN(tier::general, e2::shutdown, msg)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
@@ -1799,7 +1812,6 @@ namespace netxs::app::vtm
             {
                 hall_focus = gear.id;
             };
-            //todo mimic pro::focus
 
             auto& switch_counter = base::field<std::unordered_map<id_t, si32>>(); // hall: Focus switch counter.
             LISTEN(tier::release, input::events::focus::set::any, seed) // Reset the focus switch counter when it is focused from outside.
