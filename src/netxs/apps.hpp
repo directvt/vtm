@@ -782,7 +782,7 @@ namespace netxs::app::shared
                 auto& luafx = boss.base::plugin<pro::luafx>();
                 auto& keybd = boss.base::plugin<pro::keybd>();
                 app::shared::base_kb_navigation(config, scroll, boss);
-                auto& proc_map = boss.base::field(pro::luafx::fxmap<base>
+                auto& proc_map = boss.base::property("infopage.proc_map", pro::luafx::fxmap<base>
                 {
                     { "UpdateChordPreview",     [&](auto& /*boss*/, auto& luafx)
                                                 {
