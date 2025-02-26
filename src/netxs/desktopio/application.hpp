@@ -457,7 +457,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
-                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                            boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},

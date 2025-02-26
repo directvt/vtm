@@ -604,6 +604,52 @@ namespace netxs::app::vtm
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
             si32 z_order = zpos::plain;
+            
+            void window_swarp(dent warp)
+            {
+                bell::enqueue(This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
+                {
+                    boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
+                });
+            }
+            auto window_alwaysontop(si32 args_count, bool args)
+            {
+                auto zorder = zpos::plain;
+                if (args_count == 0) // Request zpos.
+                {
+                    zorder = base::signal(tier::request, e2::form::prop::zorder);
+                }
+                else // Set zpos.
+                {
+                    zorder = args ? zpos::topmost : zpos::plain;
+                    base::signal(tier::preview, e2::form::prop::zorder, zorder);
+                }
+                return zorder == zpos::topmost;
+            }
+            void window_close(id_t gear_id)
+            {
+                bell::enqueue(This(), [gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                {
+                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        gear.set_multihome();
+                    }
+                    boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
+                });
+            }
+            void window_state(id_t gear_id, auto state)
+            {
+                bell::enqueue(This(), [state, gear_id](auto& boss) // Keep the focus tree intact while processing events.
+                {
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        gear.set_multihome();
+                        boss.base::signal(tier::preview, state, gear);
+                    }
+                });
+            }
 
         protected: 
             // window: .
@@ -655,36 +701,26 @@ namespace netxs::app::vtm
                                                                   luafx.get_args_or(2, 0),   //
                                                                   luafx.get_args_or(3, 0),   //
                                                                   luafx.get_args_or(4, 0) }; //
-                                                bell::enqueue(This(), [warp](auto& boss) // Keep the focus tree intact while processing events.
-                                                {
-                                                    boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
-                                                });
+                                                window_swarp(warp);
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
                     { "AlwaysOnTop",        [&](auto& /*boss*/, auto& luafx)
                                             {
                                                 auto args_count = luafx.args_count();
-                                                auto zorder = zpos::plain;
-                                                if (args_count == 0) // Request zpos.
-                                                {
-                                                    zorder = base::signal(tier::request, e2::form::prop::zorder);
-                                                }
-                                                else // Set zpos.
-                                                {
-                                                    zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                                    base::signal(tier::preview, e2::form::prop::zorder, zorder);
-                                                }
+                                                auto state = window_alwaysontop(args_count, args_count ? luafx.get_args_or(1, faux) : faux);
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                                luafx.set_return(zorder == zpos::topmost);
+                                                luafx.set_return(state);
                                             }},
                     { "Close",              [&](auto& /*boss*/, auto& luafx)
                                             {
-                                                bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                                auto gear_id = id_t{};
+                                                if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
-                                                    boss.base::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                                                });
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                                    gear_ptr->set_handled();
+                                                    gear_id = gear_ptr->id;
+                                                }
+                                                window_close(gear_id);
                                                 luafx.set_return();
                                             }},
                     { "Minimize",           [&](auto& /*boss*/, auto& luafx)
@@ -692,15 +728,7 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                    {
-                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                        {
-                                                            auto& gear = *gear_ptr;
-                                                            gear.set_multihome();
-                                                            boss.base::signal(tier::release, e2::form::size::minimize, gear);
-                                                        }
-                                                    });
+                                                    window_state(gear_ptr->id, e2::form::size::minimize.id);
                                                 }
                                                 luafx.set_return();
                                             }},
@@ -709,15 +737,7 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                    {
-                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                        {
-                                                            auto& gear = *gear_ptr;
-                                                            gear.set_multihome();
-                                                            boss.base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                                                        }
-                                                    });
+                                                    window_state(gear_ptr->id, e2::form::size::enlarge::maximize.id);
                                                 }
                                                 luafx.set_return();
                                             }},
@@ -726,15 +746,7 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
                                                     gear_ptr->set_handled();
-                                                    bell::enqueue(This(), [gear_id = gear_ptr->id](auto& boss) // Keep the focus tree intact while processing events.
-                                                    {
-                                                        if (auto gear_ptr = boss.bell::template getref<hids>(gear_id))
-                                                        {
-                                                            auto& gear = *gear_ptr;
-                                                            gear.set_multihome();
-                                                            boss.base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                                                        }
-                                                    });
+                                                    window_state(gear_ptr->id, e2::form::size::enlarge::fullscreen.id);
                                                 }
                                                 luafx.set_return();
                                             }},
@@ -743,7 +755,7 @@ namespace netxs::app::vtm
 
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
-                    //todo unify (the same in proc_map)
+                    auto hit = true;
                     if (gui_cmd.cmd_id == syscmd::warpwindow)
                     {
                         if (gui_cmd.args.size() == 4)
@@ -752,84 +764,36 @@ namespace netxs::app::vtm
                                               any_get_or(gui_cmd.args[1]),
                                               any_get_or(gui_cmd.args[2]),
                                               any_get_or(gui_cmd.args[3]) };
-                            base::signal(tier::preview, e2::form::layout::swarp, warp);
-                            return;
+                            window_swarp(warp);
                         }
                     }
                     else if (gui_cmd.cmd_id == syscmd::alwaysontop)
                     {
                         auto args_count = gui_cmd.args.size();
-                        auto zorder = zpos::plain;
-                        if (args_count == 0) // Request zpos.
-                        {
-                            zorder = base::signal(tier::request, e2::form::prop::zorder);
-                        }
-                        else // Set zpos.
-                        {
-                            zorder = any_get_or(gui_cmd.args[0], faux) ? zpos::topmost : zpos::plain;
-                            base::signal(tier::preview, e2::form::prop::zorder, zorder);
-                        }
-                        return;
+                        window_alwaysontop(args_count, args_count ? any_get_or(gui_cmd.args[0], faux) : faux);
                     }
                     else if (gui_cmd.cmd_id == syscmd::close)
                     {
-                        if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
-                        {
-                            auto& gear = *gear_ptr;
-                            gear.set_multihome();
-                        }
-                        base::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                        return;
+                        window_close(gui_cmd.gear_id);
                     }
-                    else if (gui_cmd.cmd_id == syscmd::minimize)
+                    else if (gui_cmd.gear_id)
                     {
-                        if (gui_cmd.gear_id)
+                        if (gui_cmd.cmd_id == syscmd::minimize)
                         {
-                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
-                            {
-                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
-                                {
-                                    auto& gear = *gear_ptr;
-                                    gear.set_multihome();
-                                    boss.base::signal(tier::preview, e2::form::size::minimize, gear);
-                                }
-                            });
-                            return;
+                            window_state(gui_cmd.gear_id, e2::form::size::minimize.id);
                         }
-                    }
-                    else if (gui_cmd.cmd_id == syscmd::maximize)
-                    {
-                        if (gui_cmd.gear_id)
+                        else if (gui_cmd.cmd_id == syscmd::maximize)
                         {
-                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
-                            {
-                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
-                                {
-                                    auto& gear = *gear_ptr;
-                                    gear.set_multihome();
-                                    boss.base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                                }
-                            });
-                            return;
+                            window_state(gui_cmd.gear_id, e2::form::size::enlarge::maximize.id);
                         }
-                    }
-                    else if (gui_cmd.cmd_id == syscmd::fullscreen)
-                    {
-                        if (gui_cmd.gear_id)
+                        else if (gui_cmd.cmd_id == syscmd::fullscreen)
                         {
-                            bell::enqueue(This(), [gear_id = gui_cmd.gear_id](auto& boss) // Keep the focus tree intact while processing events.
-                            {
-                                if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
-                                {
-                                    auto& gear = *gear_ptr;
-                                    gear.set_multihome();
-                                    boss.base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
-                                }
-                            });
-                            return;
+                            window_state(gui_cmd.gear_id, e2::form::size::enlarge::fullscreen.id);
                         }
+                        else hit = faux;
                     }
-                    bell::expire(tier::preview, true);
+                    else hit = faux;
+                    if (!hit) bell::expire(tier::preview, true);
                 };
                 
                 LISTEN(tier::preview, vtm::events::d_n_d::drop, what)
@@ -853,7 +817,7 @@ namespace netxs::app::vtm
                         base::hidden = true;
                     }
                 };
-                LISTEN(tier::release, e2::form::size::minimize, gear)
+                LISTEN(tier::preview, e2::form::size::minimize, gear)
                 {
                     auto window_ptr = This();
                     if (base::hidden) // Restore if it is hidden.
@@ -1788,8 +1752,8 @@ namespace netxs::app::vtm
                         pro::focus::set(window, gear_id/*requested focus*/, solo::on); // Notify pro::focus owners.
                         window->base::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                              if (appbase.winform == winstate::maximized)  window->base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (appbase.winform == winstate::fullscreen) window->base::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
-                        else if (appbase.winform == winstate::minimized)  window->base::signal(tier::release, e2::form::size::minimize, gear);
+                        else if (appbase.winform == winstate::fullscreen) window->base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                        else if (appbase.winform == winstate::minimized)  window->base::signal(tier::preview, e2::form::size::minimize, gear);
                         yield = utf::concat(window->id);
                     }
                 }
@@ -1822,8 +1786,8 @@ namespace netxs::app::vtm
                     window->base::signal(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     auto& cfg = menu_list[what.menuid];
                          if (cfg.winform == winstate::maximized)  window->base::signal(tier::preview, e2::form::size::enlarge::maximize, gear);
-                    else if (cfg.winform == winstate::fullscreen) window->base::signal(tier::release, e2::form::size::enlarge::fullscreen, gear);
-                    else if (cfg.winform == winstate::minimized)  window->base::signal(tier::release, e2::form::size::minimize, gear);
+                    else if (cfg.winform == winstate::fullscreen) window->base::signal(tier::preview, e2::form::size::enlarge::fullscreen, gear);
+                    else if (cfg.winform == winstate::minimized)  window->base::signal(tier::preview, e2::form::size::minimize, gear);
                 }
             };
             LISTEN(tier::request, vtm::events::handoff, what)
@@ -2052,7 +2016,7 @@ namespace netxs::app::vtm
                             usergate.base::signal(tier::release, e2::form::size::restore);
                         }
                     };
-                    applet.LISTEN(tier::release, e2::form::size::minimize, gear, memo)
+                    applet.LISTEN(tier::preview, e2::form::size::minimize, gear, memo)
                     {
                         applet.bell::expire(tier::release); // Suppress hide/minimization.
                         usergate.base::signal(tier::release, e2::form::size::restore);

@@ -1215,7 +1215,7 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, e2::form::size::minimize, gear)
+                LISTEN(tier::preview, e2::form::size::minimize, gear)
                 {
                     auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);

@@ -95,7 +95,7 @@ namespace netxs::app::desk
                                 window.base::signal(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
                                 if (window.hidden) // Restore if minimized.
                                 {
-                                    window.base::signal(tier::release, e2::form::size::minimize, gear);
+                                    window.base::signal(tier::preview, e2::form::size::minimize, gear);
                                 }
                                 else pro::focus::set(data_src, gear.id, solo::on);
                             }
@@ -122,7 +122,7 @@ namespace netxs::app::desk
                                     window.base::riseup(tier::preview, e2::form::layout::expose);
                                     if (window.hidden) // Restore if minimized.
                                     {
-                                        window.base::signal(tier::release, e2::form::size::minimize, gear);
+                                        window.base::signal(tier::preview, e2::form::size::minimize, gear);
                                     }
                                     pro::focus::set(data_src, gear.id, solo::off);
                                 }
@@ -137,7 +137,7 @@ namespace netxs::app::desk
                                 window.base::riseup(tier::preview, e2::form::layout::expose);
                                 if (window.hidden) // Restore if minimized.
                                 {
-                                    window.base::signal(tier::release, e2::form::size::minimize, gear);
+                                    window.base::signal(tier::preview, e2::form::size::minimize, gear);
                                 }
                                 else pro::focus::set(data_src, gear.id, solo::on);
                                 gear.dismiss();

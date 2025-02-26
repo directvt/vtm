@@ -8448,7 +8448,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();
-                        owner.base::riseup(tier::release, e2::form::size::minimize, gear);
+                        owner.base::riseup(tier::preview, e2::form::size::minimize, gear);
                     }
                 });
             }

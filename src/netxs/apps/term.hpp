@@ -301,7 +301,7 @@ namespace netxs::app::terminal
                 {
                     _submit<true>(boss, item, [](auto& boss, auto& /*item*/, auto& gear)
                     {
-                        boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                        boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                     });
                 }},
                 { term::action::TerminalRestart, [](ui::item& boss, menu::item& item)

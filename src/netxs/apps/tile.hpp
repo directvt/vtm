@@ -345,7 +345,7 @@ namespace netxs::app::tile
                     {
                         boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
                         {
-                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                            boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                         auto& keybd = boss.template plugins<pro::keybd>();
@@ -593,7 +593,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    boss.LISTEN(tier::preview, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
                     {
                         if (boss.count() > 2) // Restore if maximized.
                         {
