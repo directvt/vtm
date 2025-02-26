@@ -690,9 +690,9 @@ namespace netxs::app::vtm
                 base::kind(base::reflow_root);
                 base::root(true);
 
-                auto& window_bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
-                if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
-                keybd.bind(window_bindings);
+                auto& bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
+                if (bindings.empty()) bindings = pro::keybd::load(world.config, "window");
+                keybd.bind(bindings);
                 luafx.activate("window.proc_map",
                 {
                     { "Warp",               [&]

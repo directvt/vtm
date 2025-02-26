@@ -176,9 +176,9 @@ namespace netxs::app::shared
         auto& keybd = applet.base::plugin<pro::keybd>();
         keybd.register_name("applet");
         auto& luafx = applet.base::plugin<pro::luafx>();
-        auto& applet_bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
-        applet_bindings = pro::keybd::load(config, "applet");
-        keybd.bind(applet_bindings);
+        auto& bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
+        bindings = pro::keybd::load(config, "applet");
+        keybd.bind(bindings);
         luafx.activate("applet.proc_map",
         {
             { "FocusNext",          [&]
