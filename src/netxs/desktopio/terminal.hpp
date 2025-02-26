@@ -817,20 +817,20 @@ namespace netxs::ui
                     auto [t, r] = record(data);
                     if (t == type::request)
                     {
-                        auto c = owner.cursor.bgc();
+                        auto c = owner.caret.bgc();
                         reply.osc(ansi::osc_caret_color, utf::fprint("rgb:%r%/%g%/%b%", utf::to_hex(c.chan.r),
                                                                                         utf::to_hex(c.chan.g),
                                                                                         utf::to_hex(c.chan.b)));
                     }
                     else if (t == type::rgbcolor)
                     {
-                        owner.cursor.bgc(r);
+                        owner.caret.bgc(r);
                     }
                     else notsupported(ansi::osc_caret_color, full_data, data);
                 };
                 procs[ansi::osc_reset_crclr] = [&](view /*data*/)
                 {
-                    owner.cursor.color(owner.config.def_curclr);
+                    owner.caret.color(owner.config.def_curclr);
                 };
                 procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
@@ -879,7 +879,7 @@ namespace netxs::ui
                 #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)"); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)"); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.decscusr(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_space[csi_spc_cst] = V{ p->owner.caret.decscusr(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
                 vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack, n default is 0"); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack, n default is 0"); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
@@ -4193,7 +4193,7 @@ namespace netxs::ui
                 {
                     auto  start = si32{};
                     auto  count = si32{};
-                    auto  caret = std::max(0, batch.caret);
+                    auto cursor = std::max(0, batch.caret);
                     auto& curln = batch.current();
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -4201,24 +4201,24 @@ namespace netxs::ui
                     {
                         default:
                         case commands::erase::line::right: // n = 0 (default)  Erase to Right.
-                            start = caret;
-                            count = wraps ? coord.x == panel.x ? 0 : panel.x - (caret + panel.x) % panel.x
-                                          : std::max(0, std::max(panel.x, width) - caret);
+                            start = cursor;
+                            count = wraps ? coord.x == panel.x ? 0 : panel.x - (cursor + panel.x) % panel.x
+                                          : std::max(0, std::max(panel.x, width) - cursor);
                             break;
                         case commands::erase::line::left: // n = 1  Erase to Left.
-                            start = wraps ? caret - caret % panel.x
+                            start = wraps ? cursor - cursor % panel.x
                                           : 0;
-                            count = caret - start + 1; // +1 to include the current cell.
+                            count = cursor - start + 1; // +1 to include the current cell.
                             break;
                         case commands::erase::line::all: // n = 2  Erase All.
-                            start = wraps ? caret - caret % panel.x
+                            start = wraps ? cursor - cursor % panel.x
                                           : 0;
                             count = wraps ? panel.x
                                           : std::max(panel.x, batch->length());
                             break;
                         case commands::erase::line::wraps: // n = 3  Erase wrapped line.
-                            start = caret;
-                            count = width - caret;
+                            start = cursor;
+                            count = width - cursor;
                             break;
                     }
                     if (count)
@@ -6598,11 +6598,9 @@ namespace netxs::ui
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
-        pro::caret cursor; // term: Text cursor controller.
-        pro::timer worker; // term: Linear animation controller.
-        pro::robot dynamo; // term: Linear animation controller.
-        pro::keybd chords; // term: Keyboard controller.
-        pro::luafx lunafx; // term: App scripting.
+        pro::caret& caret; // term: Text cursor controller.
+        pro::timer& timer; // term: Linear animation controller.
+        pro::robot& robot; // term: Linear animation controller.
         m_tracking mtrack; // term: VT-style mouse tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -6797,10 +6795,10 @@ namespace netxs::ui
                     target->style.wrp(wrap::on);
                     break;
                 case 12:   // Enable cursor blinking.
-                    cursor.blink_period();
+                    caret.blink_period();
                     break;
                 case 25:   // Cursor on.
-                    cursor.show();
+                    caret.show();
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
@@ -6908,10 +6906,10 @@ namespace netxs::ui
                     target->style.wrp(wrap::off);
                     break;
                 case 12:   // Disable cursor blinking.
-                    cursor.blink_period(span::zero());
+                    caret.blink_period(span::zero());
                     break;
                 case 25:   // Cursor off.
-                    cursor.hide();
+                    caret.hide();
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
                     log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -7122,7 +7120,7 @@ namespace netxs::ui
             console.style.wrp(config.def_wrpmod);
             console.setpad(config.def_margin);
             selection_selmod(config.def_selmod);
-            cursor.style(config.def_cursor);
+            caret.style(config.def_cursor);
         }
         // term: Set terminal background.
         void setsgr(fifo& q)
@@ -7208,7 +7206,7 @@ namespace netxs::ui
             if (active)
             {
                 auto& console = *target;
-                worker.pacify();
+                timer.pacify();
                 auto shore = console.getpad();
                 auto delta = dot_00;
                      if (origin.x <= oversz.l && origin.x > oversz.l - shore) delta = {-1, oversz.l - shore };
@@ -7217,7 +7215,7 @@ namespace netxs::ui
                 {
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto /*id*/) mutable // 0ms = current FPS ticks/sec.
+                    timer.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto /*id*/) mutable // 0ms = current FPS ticks/sec.
                     {
                         auto shift = scrollby(delta);
                         return shore-- && (origin.x != limit && !!shift);
@@ -7396,13 +7394,13 @@ namespace netxs::ui
                 auto time = datetime::round<si32>(skin::globals().switching);
                 auto init = 0;
                 auto func = constlinearAtoB<twod>(path, time, init);
-                dynamo.actify(func, [&](twod& step)
+                robot.actify(func, [&](twod& step)
                 {
                     scrollby(step);
                     base::deface();
                 });
             }
-            else worker.pacify();
+            else timer.pacify();
 
         }
         void selection_extend(hids& gear)
@@ -7423,7 +7421,7 @@ namespace netxs::ui
                 auto shift = scrollby(delta);
                 coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
-                worker.actify(0ms, [&, delta, coord, boxed](auto) mutable // 0ms = current FPS ticks/sec.
+                timer.actify(0ms, [&, delta, coord, boxed](auto) mutable // 0ms = current FPS ticks/sec.
                                     {
                                         auto shift = scrollby(delta);
                                         coord -= shift;
@@ -7435,7 +7433,7 @@ namespace netxs::ui
                                         else return faux;
                                     });
             }
-            else worker.pacify();
+            else timer.pacify();
 
             if (console.selection_extend(coord, boxed))
             {
@@ -7446,7 +7444,7 @@ namespace netxs::ui
         {
             //todo option: copy on select
             //...
-            worker.pacify();
+            timer.pacify();
             base::deface();
         }
         void selection_submit()
@@ -7797,32 +7795,30 @@ namespace netxs::ui
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },
-              target{&normal},
-              cursor{ *this, config.def_cur_on, config.def_cursor, dot_00, config.def_period, config.def_curclr },
-              worker{ *this },
-              dynamo{ *this },
-              chords{ *this, "terminal" },
-              lunafx{ *this },
+              target{ &normal },
+               caret{ base::plugin<pro::caret>(config.def_cur_on, config.def_cursor, dot_00, config.def_period, config.def_curclr) },
+               timer{ base::plugin<pro::timer>() },
+               robot{ base::plugin<pro::robot>() },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
               ctrack{ *this },
-              follow{  0, 1 },
-              decckm{  faux },
-              bpmode{  faux },
-              unsync{  faux },
-              invert{  faux },
-              styled{  faux },
+              follow{ 0, 1 },
+              decckm{ faux },
+              bpmode{ faux },
+              unsync{ faux },
+              invert{ faux },
+              styled{ faux },
               io_log{ config.def_io_log },
               selalt{ config.def_selalt },
-              resume{  faux },
-              forced{  faux },
+              resume{ faux },
+              forced{ faux },
               selmod{ config.def_selmod },
               onesht{ mime::disabled },
               altscr{ config.def_alt_on },
               kbmode{ prot::vt },
-              ime_on{  faux }, 
-              rawkbd{  faux }
+              ime_on{ faux }, 
+              rawkbd{ faux }
         {
             set_fg_color(config.def_fcolor);
             set_bg_color(config.def_bcolor);
@@ -7839,9 +7835,10 @@ namespace netxs::ui
             publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
+            auto& keybd = base::plugin<pro::keybd>("terminal");
+            auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(xml_config, "terminal");
-            chords.bind(bindings);
-
+            keybd.bind(bindings);
             auto& proc_map = base::property("terminal.proc_map", pro::luafx::fxmap<decltype(*this)>
             {
                 { "SetExclusiveKeyboardMode",   [&](auto& /*boss*/, auto& luafx)
@@ -8109,7 +8106,7 @@ namespace netxs::ui
                                                     });
                                                 }},
             });
-            lunafx.activate(proc_map);
+            luafx.activate(proc_map);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
@@ -8257,19 +8254,19 @@ namespace netxs::ui
                                 parent_canvas.output<faux>(imebox, viewport_cursor, cell::shaders::mimic(brush));
                             }
                             composit_cursor -= origin; // Convert to original (scrollback based) basis.
-                            cursor.coor(composit_cursor);
+                            caret.coor(composit_cursor);
                         }
                         else // Original cursor is outside the viewport.
                         {
-                            cursor.coor(original_cursor);
+                            caret.coor(original_cursor);
                             console.output(parent_canvas);
                         }
                     }
                 }
                 else
                 {
-                    cursor.coor(original_cursor);
-                    if (brush.bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
+                    caret.coor(original_cursor);
+                    if (brush.bga() != 0xFF) parent_canvas.fill(rect{ caret.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); // Prefill the cursor cell placeholder in the case of transparent background.
                     console.output(parent_canvas);
                 }
                 if (invert) parent_canvas.fill(cell::shaders::invbit);

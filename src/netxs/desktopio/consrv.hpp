@@ -1430,7 +1430,7 @@ struct impl : consrv
                             {
                                 if (mode != !!(server.inpmod & nt::console::inmode::insert))
                                 {
-                                    server.uiterm.cursor.toggle();
+                                    server.uiterm.caret.toggle();
                                 }
                             }
                             data.crop(size);
@@ -4050,7 +4050,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            auto [form, show] = uiterm.cursor.style();
+            auto [form, show] = uiterm.caret.style();
             packet.reply.style = form ? 100 : 1;
             packet.reply.alive = show;
         }
@@ -4084,9 +4084,9 @@ struct impl : consrv
             if constexpr (isreal())
             {
                 // Ignore legacy cursor style.
-                //uiterm.cursor.style(packet.input.style > 50 ? text_cursor::block : text_cursor::underline);
-                packet.input.alive ? uiterm.cursor.show()
-                                   : uiterm.cursor.hide();
+                //uiterm.caret.style(packet.input.style > 50 ? text_cursor::block : text_cursor::underline);
+                packet.input.alive ? uiterm.caret.show()
+                                   : uiterm.caret.hide();
             }
         }
         else
