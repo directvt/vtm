@@ -351,7 +351,7 @@ namespace netxs::app::tile
                         auto& keybd = boss.template plugins<pro::keybd>();
                         auto& luafx = boss.template plugins<pro::luafx>();
                         keybd.bind(*grip_bindings_ptr);
-                        auto& proc_map = boss.base::property("grip.proc_map", pro::luafx::fxmap
+                        luafx.activate("grip.proc_map",
                         {
                             { action::MoveGrip,         [&]()
                                                         {
@@ -388,7 +388,6 @@ namespace netxs::app::tile
                                                             luafx.set_return(ok);
                                                         }},
                         });
-                        luafx.activate(proc_map);
                     });
             return node;
         };
@@ -1056,7 +1055,7 @@ namespace netxs::app::tile
                     auto& luafx = boss.template plugins<pro::luafx>();
                     auto bindings = pro::keybd::load(config, "tile");
                     keybd.bind(bindings);
-                    auto& proc_map = boss.base::property("tile.proc_map", pro::luafx::fxmap
+                    luafx.activate("tile.proc_map",
                     {
                         { action::FocusNextPaneOrGrip,  [&]()
                                                         {
@@ -1146,7 +1145,6 @@ namespace netxs::app::tile
                                                             });
                                                         }},
                     });
-                    luafx.activate(proc_map);
 
                     boss.LISTEN(tier::preview, app::tile::events::ui::any, gear)
                     {

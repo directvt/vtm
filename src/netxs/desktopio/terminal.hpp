@@ -7839,7 +7839,7 @@ namespace netxs::ui
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(xml_config, "terminal");
             keybd.bind(bindings);
-            auto& proc_map = base::property("terminal.proc_map", pro::luafx::fxmap
+            luafx.activate("terminal.proc_map",
             {
                 { "SetExclusiveKeyboardMode",   [&]()
                                                 {
@@ -8106,7 +8106,6 @@ namespace netxs::ui
                                                     });
                                                 }},
             });
-            luafx.activate(proc_map);
 
             LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {

@@ -2886,9 +2886,10 @@ namespace netxs::ui
                   lua{ boss.indexer.lua }
             { }
 
-            auto activate(fxmap& proc_map)
+            auto activate(qiew map_name, fxmap&& proc_map_init)
             {
                 if (!lua) return;
+                auto& proc_map = boss.base::property(map_name, std::move(proc_map_init));
                 boss.LISTEN(tier::release, e2::luafx, lua)
                 {
                     auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.

@@ -782,7 +782,15 @@ namespace netxs::app::shared
                 auto& luafx = boss.base::plugin<pro::luafx>();
                 auto& keybd = boss.base::plugin<pro::keybd>();
                 app::shared::base_kb_navigation(config, scroll, boss);
-                auto& proc_map = boss.base::property("infopage.proc_map", pro::luafx::fxmap
+                keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
+                keybd.bind(
+                    #if defined(WIN32)
+                    "Ctrl-Alt | Alt-Ctrl"
+                    #else
+                    "Alt+Shift+B"
+                    #endif
+                    , "vtm.infopage.ExclusiveKeyboardMode()", true);
+                luafx.activate("infopage.proc_map",
                 {
                     { "UpdateChordPreview",     [&]()
                                                 {
@@ -806,15 +814,7 @@ namespace netxs::app::shared
                                                     luafx.set_return(); // No returns.
                                                 }},
                 });
-                keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
-                keybd.bind(
-                    #if defined(WIN32)
-                    "Ctrl-Alt | Alt-Ctrl"
-                    #else
-                    "Alt+Shift+B"
-                    #endif
-                    , "vtm.infopage.ExclusiveKeyboardMode()", true);
-                luafx.activate(proc_map);
+
             });
             inside->attach(slot::_2, ui::post::ctor())
                 ->limits({ -1, 1 })

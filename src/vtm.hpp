@@ -693,7 +693,7 @@ namespace netxs::app::vtm
                 auto& window_bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                 if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
                 keybd.bind(window_bindings);
-                auto& proc_map = base::property("window.proc_map", pro::luafx::fxmap
+                luafx.activate("window.proc_map",
                 {
                     { "Warp",               [&]()
                                             {
@@ -751,7 +751,6 @@ namespace netxs::app::vtm
                                                 luafx.set_return();
                                             }},
                 });
-                luafx.activate(proc_map);
 
                 LISTEN(tier::preview, e2::command::gui, gui_cmd)
                 {
@@ -1369,10 +1368,9 @@ namespace netxs::app::vtm
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
-
-            auto& proc_map = base::property("hall.proc_map", pro::luafx::fxmap
+            luafx.activate("hall.proc_map",
             {
-                { "Shutdown",           [&]()
+                { "Shutdown",           [&]
                                         {
                                             auto args_count = luafx.args_count();
                                             auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
@@ -1382,7 +1380,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Disconnect",         [&]() //todo Disconnect(gear_id)
+                { "Disconnect",         [&] //todo Disconnect(gear_id)
                                         {
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
@@ -1393,7 +1391,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Run",                [&]()
+                { "Run",                [&]
                                         {
                                             auto args_count = luafx.args_count();
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -1454,7 +1452,7 @@ namespace netxs::app::vtm
                                             if (gear_ptr) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
-                { "FocusNextWindow",    [&]()
+                { "FocusNextWindow",    [&]
                                         {
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                             {
@@ -1468,7 +1466,6 @@ namespace netxs::app::vtm
                                             luafx.set_return();
                                         }},
             });
-            luafx.activate(proc_map);
 
             auto current_module_file = os::process::binary();
             auto  free_list = std::list<std::pair<text, desk::spec>>{};

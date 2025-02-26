@@ -118,7 +118,7 @@ namespace netxs::app::shared
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = pro::keybd::load(config, "defapp");
         keybd.bind(bindings);
-        auto& proc_map = boss.base::property("defapp.proc_map", pro::luafx::fxmap
+        luafx.activate("defapp.proc_map",
         {
             { "ScrollViewportByPage",   [&]()
                                         {
@@ -168,7 +168,6 @@ namespace netxs::app::shared
                                             luafx.set_return();
                                         }},
         });
-        luafx.activate(proc_map);
     };
     const auto applet_kb_navigation = [](xmls& config, ui::sptr applet_ptr)
     {
@@ -180,7 +179,7 @@ namespace netxs::app::shared
         auto& applet_bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
         applet_bindings = pro::keybd::load(config, "applet");
         keybd.bind(applet_bindings);
-        auto& proc_map = applet.base::property("applet.proc_map", pro::luafx::fxmap
+        luafx.activate("applet.proc_map",
         {
             { "FocusNext",          [&]()
                                     {
@@ -288,7 +287,6 @@ namespace netxs::app::shared
                                         luafx.set_return();
                                     }},
         });
-        luafx.activate(proc_map);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
