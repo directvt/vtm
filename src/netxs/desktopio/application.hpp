@@ -118,9 +118,9 @@ namespace netxs::app::shared
         auto& luafx = boss.base::plugin<pro::luafx>();
         auto bindings = pro::keybd::load(config, "defapp");
         keybd.bind(bindings);
-        auto& proc_map = boss.base::property("defapp.proc_map", pro::luafx::fxmap<base>
+        auto& proc_map = boss.base::property("defapp.proc_map", pro::luafx::fxmap
         {
-            { "ScrollViewportByPage",   [&](auto& /*boss*/, auto& luafx)
+            { "ScrollViewportByPage",   [&]()
                                         {
                                             auto step = twod{ luafx.get_args_or(1, 0),
                                                               luafx.get_args_or(2, 0) };
@@ -128,7 +128,7 @@ namespace netxs::app::shared
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
-            { "ScrollViewportByStep",   [&](auto& /*boss*/, auto& luafx)
+            { "ScrollViewportByStep",   [&]()
                                         {
                                             auto step = twod{ luafx.get_args_or(1, 0),
                                                               luafx.get_args_or(2, 0) };
@@ -136,19 +136,19 @@ namespace netxs::app::shared
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
-            { "ScrollViewportToTop",    [&](auto& /*boss*/, auto& luafx)
+            { "ScrollViewportToTop",    [&]()
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
-            { "ScrollViewportToEnd",    [&](auto& /*boss*/, auto& luafx)
+            { "ScrollViewportToEnd",    [&]()
                                         {
                                             scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                             luafx.set_return(); // No returns.
                                         }},
-            { "ShowClosingPreview",     [&](auto& /*boss*/, auto& luafx)
+            { "ShowClosingPreview",     [&]()
                                         {
                                             auto& closing_preview_state = boss.base::property("defapp.closing_preview_state", faux);
                                             auto args_count = luafx.args_count();
@@ -158,7 +158,7 @@ namespace netxs::app::shared
                                             }
                                             luafx.set_return(closing_preview_state);
                                         }},
-            { "Close",                  [&](auto& /*boss*/, auto& luafx)
+            { "Close",                  [&]()
                                         {
                                             boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
                                             {
@@ -180,9 +180,9 @@ namespace netxs::app::shared
         auto& applet_bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
         applet_bindings = pro::keybd::load(config, "applet");
         keybd.bind(applet_bindings);
-        auto& proc_map = applet.base::property("applet.proc_map", pro::luafx::fxmap<base>
+        auto& proc_map = applet.base::property("applet.proc_map", pro::luafx::fxmap
         {
-            { "FocusNext",          [&](auto& /*boss*/, auto& luafx)
+            { "FocusNext",          [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -195,7 +195,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "Warp",               [&](auto& /*boss*/, auto& luafx)
+            { "Warp",               [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -211,7 +211,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "AlwaysOnTop",        [&](auto& /*boss*/, auto& luafx)
+            { "AlwaysOnTop",        [&]()
                                     {
                                         auto args_count = luafx.args_count();
                                         auto zorder = zpos::plain;
@@ -227,7 +227,7 @@ namespace netxs::app::shared
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                         luafx.set_return(zorder == zpos::topmost);
                                     }},
-            { "Close",              [&](auto& /*boss*/, auto& luafx)
+            { "Close",              [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -239,7 +239,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "Minimize",           [&](auto& /*boss*/, auto& luafx)
+            { "Minimize",           [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -251,7 +251,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "Maximize",           [&](auto& /*boss*/, auto& luafx)
+            { "Maximize",           [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -263,7 +263,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "Fullscreen",         [&](auto& /*boss*/, auto& luafx)
+            { "Fullscreen",         [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -275,7 +275,7 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "Restore",            [&](auto& /*boss*/, auto& luafx)
+            { "Restore",            [&]()
                                     {
                                         auto gui_cmd = e2::command::gui.param();
                                         if (auto gear_ptr = luafx.template get_object<hids>("gear"))

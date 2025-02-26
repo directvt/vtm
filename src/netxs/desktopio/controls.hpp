@@ -2876,8 +2876,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
         public:
-            template<class T>
-            using fxmap = std::unordered_map<text, std::function<void(T&, luafx&)>>;
+            using fxmap = std::unordered_map<text, std::function<void()>>;
 
             lua_State* lua;
 
@@ -2887,11 +2886,9 @@ namespace netxs::ui
                   lua{ boss.indexer.lua }
             { }
 
-            template<class T>
-            auto activate(fxmap<T>& proc_map)
+            auto activate(fxmap& proc_map)
             {
                 if (!lua) return;
-                auto& owner = dynamic_cast<T&>(boss);
                 boss.LISTEN(tier::release, e2::luafx, lua)
                 {
                     auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
@@ -2899,7 +2896,7 @@ namespace netxs::ui
                     if (iter != proc_map.end())
                     {
                         auto& fx = iter->second;
-                        fx(owner, *this); // After call, all values in the stack will be returned as a result.
+                        fx(); // After call, all values in the stack will be returned as a result.
                         boss.bell::expire(tier::release); // Do not pass from ui::host to vtm::hall.
                     }
                 };

@@ -782,9 +782,9 @@ namespace netxs::app::shared
                 auto& luafx = boss.base::plugin<pro::luafx>();
                 auto& keybd = boss.base::plugin<pro::keybd>();
                 app::shared::base_kb_navigation(config, scroll, boss);
-                auto& proc_map = boss.base::property("infopage.proc_map", pro::luafx::fxmap<base>
+                auto& proc_map = boss.base::property("infopage.proc_map", pro::luafx::fxmap
                 {
-                    { "UpdateChordPreview",     [&](auto& /*boss*/, auto& luafx)
+                    { "UpdateChordPreview",     [&]()
                                                 {
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {
@@ -794,7 +794,7 @@ namespace netxs::app::shared
                                                     }
                                                     luafx.set_return(); // No returns.
                                                 }},
-                    { "ExclusiveKeyboardMode",  [&](auto& /*boss*/, auto& luafx)
+                    { "ExclusiveKeyboardMode",  [&]()
                                                 {
                                                     if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                     {

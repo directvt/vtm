@@ -693,9 +693,9 @@ namespace netxs::app::vtm
                 auto& window_bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                 if (window_bindings.empty()) window_bindings = pro::keybd::load(world.config, "window");
                 keybd.bind(window_bindings);
-                auto& proc_map = base::property("window.proc_map", pro::luafx::fxmap<base>
+                auto& proc_map = base::property("window.proc_map", pro::luafx::fxmap
                 {
-                    { "Warp",               [&](auto& /*boss*/, auto& luafx)
+                    { "Warp",               [&]()
                                             {
                                                 auto warp = dent{ luafx.get_args_or(1, 0),   // Args...
                                                                   luafx.get_args_or(2, 0),   //
@@ -705,14 +705,14 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
-                    { "AlwaysOnTop",        [&](auto& /*boss*/, auto& luafx)
+                    { "AlwaysOnTop",        [&]()
                                             {
                                                 auto args_count = luafx.args_count();
                                                 auto state = window_alwaysontop(args_count, args_count ? luafx.get_args_or(1, faux) : faux);
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(state);
                                             }},
-                    { "Close",              [&](auto& /*boss*/, auto& luafx)
+                    { "Close",              [&]()
                                             {
                                                 auto gear_id = id_t{};
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
@@ -723,7 +723,7 @@ namespace netxs::app::vtm
                                                 window_close(gear_id);
                                                 luafx.set_return();
                                             }},
-                    { "Minimize",           [&](auto& /*boss*/, auto& luafx)
+                    { "Minimize",           [&]()
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -732,7 +732,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Maximize",           [&](auto& /*boss*/, auto& luafx)
+                    { "Maximize",           [&]()
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -741,7 +741,7 @@ namespace netxs::app::vtm
                                                 }
                                                 luafx.set_return();
                                             }},
-                    { "Fullscreen",         [&](auto& /*boss*/, auto& luafx)
+                    { "Fullscreen",         [&]()
                                             {
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                                 {
@@ -1370,9 +1370,9 @@ namespace netxs::app::vtm
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
 
-            auto& proc_map = base::property("hall.proc_map", pro::luafx::fxmap<hall>
+            auto& proc_map = base::property("hall.proc_map", pro::luafx::fxmap
             {
-                { "Shutdown",           [&](auto& /*boss*/, auto& luafx)
+                { "Shutdown",           [&]()
                                         {
                                             auto args_count = luafx.args_count();
                                             auto ok = !args_count || !base::signal(tier::request, e2::form::layout::go::item);
@@ -1382,7 +1382,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Disconnect",         [&](auto& /*boss*/, auto& luafx) //todo Disconnect(gear_id)
+                { "Disconnect",         [&]() //todo Disconnect(gear_id)
                                         {
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
                                             auto ok = !!gear_ptr;
@@ -1393,7 +1393,7 @@ namespace netxs::app::vtm
                                             }
                                             luafx.set_return(ok);
                                         }},
-                { "Run",                [&](auto& /*boss*/, auto& luafx)
+                { "Run",                [&]()
                                         {
                                             auto args_count = luafx.args_count();
                                             auto gear_ptr = luafx.template get_object<hids>("gear");
@@ -1454,7 +1454,7 @@ namespace netxs::app::vtm
                                             if (gear_ptr) gear_ptr->set_handled();
                                             luafx.set_return();
                                         }},
-                { "FocusNextWindow",    [&](auto& /*boss*/, auto& luafx)
+                { "FocusNextWindow",    [&]()
                                         {
                                             if (auto gear_ptr = luafx.template get_object<hids>("gear"))
                                             {
