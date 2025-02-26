@@ -190,7 +190,7 @@ namespace netxs::app::tile
         {
             return ui::fork::ctor(axis::Y)
                     ->template plugin<pro::title>(what.applet->base::property("window.header"), what.applet->base::property("window.footer"), true, faux, true)
-                    ->template plugin<pro::light>()
+                    ->template plugin<pro::light>() //todo gcc requires template keyword
                     ->template plugin<pro::focus>()
                     ->limits({ 10, -1 }, { -1, -1 })
                     ->isroot(true)
@@ -332,15 +332,15 @@ namespace netxs::app::tile
                         }
                     };
                 });
-                auto grip = node->attach(slot::_I, ui::mock::ctor())
+                auto grip = node->attach(slot::_I, ui::mock::ctor()
                     ->isroot(true)
                     ->active()
-                    ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
-                    ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                    ->template plugin<pro::keybd>("grip")
-                    ->template plugin<pro::luafx>()
+                    ->plugin<pro::mover>()
+                    ->plugin<pro::focus>(pro::focus::mode::focusable)
+                    ->plugin<pro::keybd>("grip")
+                    ->plugin<pro::luafx>()
                     ->shader(c3, e2::form::state::focus::count)
-                    ->template plugin<pro::shade<cell::shaders::xlight>>()
+                    ->plugin<pro::shade<cell::shaders::xlight>>()
                     ->invoke([&](auto& boss)
                     {
                         boss.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
@@ -348,7 +348,7 @@ namespace netxs::app::tile
                             boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
-                        auto& keybd = boss.base::template plugin<pro::keybd>();
+                        auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
                         auto& luafx = boss.base::template plugin<pro::luafx>();
                         auto& bindings = *grip_bindings_ptr;
                         keybd.bind(bindings);
@@ -358,7 +358,7 @@ namespace netxs::app::tile
                                                         {
                                                             auto delta = luafx.get_args_or(1, twod{});
                                                             boss.base::riseup(tier::preview, app::tile::events::ui::grips::move, delta);
-                                                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) //todo gcc requires template keyword
                                                             {
                                                                 gear_ptr->set_handled();
                                                             }
@@ -389,7 +389,7 @@ namespace netxs::app::tile
                                                             luafx.set_return(ok);
                                                         }},
                         });
-                    });
+                    }));
             return node;
         };
         auto empty_slot = []
@@ -1052,7 +1052,7 @@ namespace netxs::app::tile
                     {
                         boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
                     };
-                    auto& keybd = boss.base::template plugin<pro::keybd>();
+                    auto& keybd = boss.base::template plugin<pro::keybd>(); //todo Apple clang reqires template
                     auto& luafx = boss.base::template plugin<pro::luafx>();
                     auto bindings = pro::keybd::load(config, "tile");
                     keybd.bind(bindings);
