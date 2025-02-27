@@ -245,7 +245,7 @@ namespace netxs::events
 
     struct auth
     {
-        id_t                       newid;
+        id_t                       newid{};
         wptr<ui::base>             empty;
         std::recursive_mutex       mutex;
         std::map<id_t, wptr<ui::base>> store;
