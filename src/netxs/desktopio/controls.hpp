@@ -1336,6 +1336,7 @@ namespace netxs::ui
                         boss.base::signal(tier::release, e2::form::state::focus::off, gear_id);
                     }
                     boss.base::signal(tier::release, e2::form::state::focus::count, count);
+                    //if constexpr (debugmode) log("Focus %set% <object:%id%>", active == state::live ? "set" : "off", boss.id);
                 }
                 return changed;
             }
@@ -2900,6 +2901,10 @@ namespace netxs::ui
                         fx(); // After call, all values in the stack will be returned as a result.
                         boss.bell::expire(tier::release); // Do not pass from ui::host to vtm::hall.
                     }
+                    else
+                    {
+                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi(".", fx_name, "()"));
+                    }
                 };
             }
             template<class T>
@@ -2922,7 +2927,7 @@ namespace netxs::ui
             }
             auto log_context()
             {
-                log("%%vtm context:", prompt::lua);
+                log("%%context:", prompt::lua);
                 ::lua_getglobal(lua, "vtm");
                 ::lua_pushnil(lua);
                 while (::lua_next(lua, -2))
@@ -3034,7 +3039,6 @@ namespace netxs::ui
             }
             auto run_script(auto& script_body, auto& scripting_context)
             {
-                log("  script body: ", ansi::hi(script_body));
                 for (auto& [object_name, object_wptr] : scripting_context)
                 {
                     if (auto object_ptr = object_wptr.lock())
@@ -3043,6 +3047,7 @@ namespace netxs::ui
                     }
                 }
                 log_context();
+                log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
                 ::lua_settop(lua, 0);
                 auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                           || ::lua_pcall(lua, 0, 0, 0);

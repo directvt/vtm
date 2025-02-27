@@ -181,19 +181,19 @@ namespace netxs::app::shared
         keybd.bind(bindings);
         luafx.activate("applet.proc_map",
         {
-            { "FocusNext",          [&]
-                                    {
-                                        auto gui_cmd = e2::command::gui.param();
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
-                                        {
-                                            gui_cmd.gear_id = gear_ptr->id;
-                                            gear_ptr->set_handled();
-                                        }
-                                        gui_cmd.cmd_id = syscmd::focusnextwindow;
-                                        gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
-                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
-                                        luafx.set_return();
-                                    }},
+            //{ "FocusNext",          [&]
+            //                        {
+            //                            auto gui_cmd = e2::command::gui.param();
+            //                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+            //                            {
+            //                                gui_cmd.gear_id = gear_ptr->id;
+            //                                gear_ptr->set_handled();
+            //                            }
+            //                            gui_cmd.cmd_id = syscmd::focusnextwindow;
+            //                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+            //                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+            //                            luafx.set_return();
+            //                        }},
             { "Warp",               [&]
                                     {
                                         auto gui_cmd = e2::command::gui.param();

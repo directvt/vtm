@@ -120,12 +120,12 @@ R"==(
                         - .tile: ...
                             - .grip: ...
                         - .terminal: ...  -->
-        <TryToQuit             ="vtm.desktop.Shutdown('try')"/>       <!-- Shut down the desktop server if no applications are running. -->
-        <RunApplication        ="vtm.desktop.Run()"/>                 <!-- Run default application. -->
+        <TryToQuit             ="vtm.desktop.Shutdown('try')"/>      <!-- Shut down the desktop server if no applications are running. -->
+        <RunApplication        ="vtm.desktop.Run()"/>                <!-- Run default application. -->
         <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
+        <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
+        <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
 
-        <FocusPrevApplet       ="vtm.applet.FocusNext(-1)"/>      <!-- Request to Switch focus to the prev applet. -->
-        <FocusNextApplet       ="vtm.applet.FocusNext( 1)"/>      <!-- Request to Switch focus to the next applet. -->
         <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
         <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
         <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
@@ -521,14 +521,14 @@ R"==(
             <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
         </gate>
         <desktop key*>  <!-- Desktop key bindings. -->
+            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
+            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
             <key="Shift+F7"                                             script=Disconnect/>
             <key="F10" preview                                          script=TryToQuit/>
             <key="Alt+Shift+N"                                          script=RunApplication/>
             <key="Esc+F1"                                               script=RunInfoPage/>
         </desktop>
         <applet key*>  <!-- Applet key bindings. -->
-            <key="Ctrl+PageUp"                                          script=FocusPrevApplet/>
-            <key="Ctrl+PageDown"                                        script=FocusNextApplet/>
             <key="Esc+T"                                                script=AlwaysOnTopApplet/>
             <key="Esc+W"                                                script=CloseApplet/>
             <key="Esc+M"                                                script=MinimizeApplet/>
