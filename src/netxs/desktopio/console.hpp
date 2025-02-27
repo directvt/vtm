@@ -509,7 +509,7 @@ namespace netxs::ui
                                         }},
                 });
             }
-            auto& [_id, gear_ptr] = *gear_it;
+            auto& [ext_gear_id, gear_ptr] = *gear_it;
             gear_ptr->set_multihome();
             gear_ptr->hids::take(device);
             base::strike();

@@ -1571,7 +1571,10 @@ namespace netxs::ui
                         if (seed.gear_id && first_step && (iter = gears.find(id_t{}), iter != gears.end())) // Check if the default chain exists.
                         {
                             boss.base::signal(tier::request, input::events::focus::dup, seed);
-                            return;
+                            //todo revise: Fresh connected desktop with unfocused dtvt-app failed to focus if we just return here.
+                            //return;
+                            //fix:
+                            iter = gears.find(seed.gear_id);
                         }
                         else
                         {
