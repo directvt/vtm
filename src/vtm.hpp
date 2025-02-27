@@ -993,6 +993,12 @@ namespace netxs::app::vtm
                         {
                             base::signal(tier::release, e2::form::size::restore, p);
                         };
+                        LISTEN(tier::preview, e2::form::layout::swarp, warp, maximize_token) // Restore on manual resizing.
+                        {
+                            saved_area = {}; // Preserve current window size.
+                            base::signal(tier::release, e2::form::size::restore);
+                            bell::expire(tier::preview, true);
+                        };
                         LISTEN(tier::preview, e2::area, new_area, maximize_token)
                         {
                             if (new_area != base::area())
