@@ -10,7 +10,6 @@
 
 #include "console.hpp"
 #include "system.hpp"
-//#include "scripting.hpp"
 #include "gui.hpp"
 
 #include <fstream>
