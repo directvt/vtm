@@ -628,9 +628,6 @@ R"==(
             <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
             <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
             <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
-            <key="F10"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.Restore() end"/>
-            <key="F11"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.window.Maximize() end"/>
-            <key="F12"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.window.Fullscreen() end"/>
         </defapp>
     </events>
 </config>)=="

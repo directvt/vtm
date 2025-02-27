@@ -2152,6 +2152,7 @@ namespace netxs::app::vtm
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
+            deskmenu_ptr->base::plugin<pro::keybd>("taskbar");
             app::shared::applet_kb_navigation(config, deskmenu_ptr);
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
