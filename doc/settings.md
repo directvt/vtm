@@ -18,20 +18,22 @@ graph TB
 
 ## TL;DR
 
-The settings are stored in a slightly modified XML-like format which allows to store hierarchical list of key=value pairs.  
+The settings are stored in an XML-like format, forming a hierarchical list of key=value pairs.  
 See [`/src/vtm.xml`](../src/vtm.xml) for reference.
 
-There are two default settings locations that can be overridden:
+We call the text data in the settings file "plain XML data" even though our file format is not technically XML, but only visually resembles it.
+
+There are two predefined settings source locations:
 ```xml
 <file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
 <file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
 ```
 
 The process of loading settings consists of the following steps:
-- Build an ordered list of source files by looking for the root `<file=.../>` subsections.
-- Overlay the `<config/>` subsection from the source files in the loading order.
+- Build an ordered list of the setting source files by looking for the root `<file=.../>` subsections.
+- Overlay the `<config/>` subsection from the source files in the specified order.
 - Overlay the `<config/>` subsection from the value of the `$VTM_CONFIG` environment variable or from a settings file it references.
-- Overlay the `<config/>` subsection from the DirectVT config received from the parent process.
+- Overlay the `<config/>` subsection from the DirectVT config payload received from the parent process.
 - Overlay the `<config/>` subsection from the specified `--config <...>` CLI option value or from a settings file it referencing.
 
 The file list is built in the following order from the following sources:
@@ -57,21 +59,24 @@ The file list is built in the following order from the following sources:
 
 ## Details
 
-### Key differences from the standard XML
+### Key differences from XML
 
- - All stored values are UTF-8 strings:
+ - All stored values are UTF-8 strings (the settings consumer decides on its own side how to interpret the string):
    - `name=2000` and `name="2000"` have the same meaning.
  - There is no distinction between XML-attribute and XML-subobject, i.e. any attributes are sub-objects:
    - `<name param=value />` and `<name> <param=value /> </name>` have the same meaning.
  - In addition to a set of sub-objects each object can contain its own text value:
-   - E.g. `<name=names_value param=params_value />`.
+   - E.g. `<name=names_value param=params_value />` - subobject `name` has text value `names_value`.
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` have the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
  - Compact syntax is allowed.
    - `<node0><node1><thing name=value/></node1></node0>` and `<node0/node1/thing name=value/>` have the same meaning.
- - Objects can reference values ​​of other objects using absolute references (three levels of indirection allowed).
+ - Objects can reference values of other objects using absolute references (three levels of indirection allowed).
    - `thing2` refers to the value `thing1` in `<node1 thing1=value1/><node2 thing2=/node1/thing1 />`.
+ - Any Unicode characters are allowed, including the U+0000 (null) character.
+ - Multiple root elements are allowed.
+ - There is no support for named XML character entities.
  - Escaped characters with special meaning:
    - `\a`  ASCII 0x07 BEL
    - `\t`  ASCII 0x09 TAB
@@ -210,12 +215,12 @@ The following declarations have the same meaning:
 <file= ... />  <!-- Ordered list of references to settings files used to form the resultant configuration. -->
 ...
 <config>  <!-- Global configuration. -->
-    <set>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <variable = value/>  <!-- Globally referenced variable. -->
+    <variables>  <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
+        <variable_name = variable_value/>  <!-- Globally referenced variable. -->
         ...  <!-- Set of global variables. -->
-    </set>
+    </variables>
     ...
-    <object1=variable/>           <!-- object1 references the value of /config/set/variable (/config/set is a default namespace). -->
+    <object1=variable_name/>      <!-- object1 references the value of /config/variables/variable_name (/config/variables is a default namespace). -->
     <object2=/config/object1/>    <!-- object2 references the value of /config/object1 using an absolute reference (three levels of indirection allowed). -->
     <object3="/config/object1"/>  <!-- object3 contains the string value "/config/object1". -->
     ...
@@ -232,32 +237,24 @@ The following declarations have the same meaning:
     <terminal ... >  <!-- Built-in terminal configuration section. -->
         ...
     </terminal>
-    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <gui>  <!-- Native GUI window layer key bindings. -->
-            <key="Key+Chord">
-                <action="ActionName" data="parameter"/>
-            </key>
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+        <gate>  <!-- Native GUI window layer key bindings. -->
+            <key="Key+Chord" script="<script body>"/>
             ...
-        </gui>
-        <tui>  <!-- TUI matrix layer key bindings. -->
-            <key="Key+Chord">
-                <action="ActionName" data="parameter"/>
-            </key>
-            ...
-        </tui>
+        </gate>
         <desktop>  <!-- Desktop layer key bindings. -->
-            <key="Key+Chord">
-                <action="ActionName" data="parameter"/>
-            </key>
+            <key="Key+Chord" script="<script body>"/>
             ...
         </desktop>
+        <applet>  <!-- Application/window layer key bindings. -->
+            <key="Key+Chord" script="<script body>"/>
+            ...
+        </applet>
         <terminal>  <!-- Application specific layer key bindings. -->
-            <key="Key+Chord">
-                <action="ActionName" data="parameter"/>
-            </key>
+            <key="Key+Chord" script="<script body>"/>
             ...
         </terminal>
-    </hotkeys>
+    </events>
 </config>
 ```
 
@@ -316,33 +313,32 @@ The following configuration items produce the same final result:
 
 ### Key bindings
 
+> 2025 Feb 28: This section is under development.
+
 In vtm there are several layers of key combination processing. Each layer has its own set of key bindings. Keys processed at the previous layer usually do not get to the next one.
 
 Layer                  | Config section               | Description
 -----------------------|------------------------------|------------
-Native GUI window      | `<config/hotkeys/gui/>`      | Native GUI window layer key bindings.
-TUI matrix             | `<config/hotkeys/tui/>`      | TUI matrix layer key bindings.
-Desktop environment    | `<config/hotkeys/desktop/>`  | Desktop layer key bindings (taskbar and window management).
-Application `app_name` | `<config/hotkeys/app_name/>` | Application layer key bindings.
+`gate`                 |                              | ...
+`desktop`              |                              | ...
+`applet`               |                              | ...
+`tile`                 |                              | ...
+`defapp`               |                              | ...
+...                    |                              | ...
 
 #### Syntax
 
 The syntax for defining key combination bindings is:
 
 ```xml
-<key="Key+Chord | ... | Another+Key+Chord" [ preview ]>
-    <action="NameOfAction1" data="argument"/>
-    ...
-    <action="NameOfActionN" data="argument"/>
-</key>
+<key="Key+Chord | ... | Another+Key+Chord" [ preview ] script="<script body>"/>
 ```
 
 Tag      | Value
 ---------|--------
 `key`    | The text string containing the key combinations.
-`action` | The action name.
 `preview`| A Boolean value specifying that hotkey actions should be processed while traversing the focus tree until the target object is reached (ignoring keyboard exclusive mode). Default is `off`.
-`data`   | The arguments passed to the action.
+`script` | The Lua script body.
 
 The following joiners are allowed for combining keys:
 
@@ -369,67 +365,11 @@ The required key combination sequence can be generated on the Info page, accessi
 
 Configuration record                                           | Interpretation
 ---------------------------------------------------------------|-----------------
-`<key="Key+Chord" action=NameOfAction/>`                       | Append existing bindings using an indirect reference (the `NameOfAction` variable without quotes).
-`<key="Key+Chord | Another+Chord" action=NameOfAction/>`       | Append existing bindings for `Key+Chord | Another+Chord`.
-`<key="Key+Chord" action="NameOfAction"/>`                     | Append existing bindings with the directly specified command "NameOfAction".
-`<key="Key+Chord" action=""/>`                                 | Remove all existing bindings for the specified key combination "Key+Chord".
-`<key="Key+Chord"><action="NameOfAction" data="param"/></key>` | Append existing bindings with the directly specified command "NameOfAction" with arguments "param".
-`<key=""          action="NameOfAction"/>`                     | Do nothing.
-
-#### Available actions (`action=`)
-
-Action                         | Arguments (`data=`)                                    | Available at layer  | Description
--------------------------------|--------------------------------------------------------|---------------------|------------
-`Noop`                         |                                                        | All layers          | Ignore all events for the specified key combination. No further processing.
-`DropAutoRepeat`               |                                                        | All layers          | Ignore `Key Repeat` events for the specified key combination. This binding should be specified before the main action for the key combination.
-`IncreaseCellHeight`           |                                                        | Native GUI window   | Increase the text cell height by one pixel.
-`DecreaseCellHeight`           |                                                        | Native GUI window   | Decrease the text cell height by one pixel.
-`ResetCellHeight`              |                                                        | Native GUI window   | Reset text cell height.
-`ToggleFullscreenMode`         |                                                        | Native GUI window   | Toggle fullscreen mode.
-`ToggleAntialiasingMode`       |                                                        | Native GUI window   | Toggle text antialiasing mode.
-`RollFontsBackward`            |                                                        | Native GUI window   | Roll font list backward.
-`RollFontsForward`             |                                                        | Native GUI window   | Roll font list forward.
-`ToggleDebugOverlay`           |                                                        | TUI matrix          | Toggle debug overlay.
-`FocusPrevWindow`              |                                                        | Desktop             | Switch focus to the next desktop window.
-`FocusNextWindow`              |                                                        | Desktop             | Switch focus to the previous desktop window.
-`Disconnect`                   |                                                        | Desktop             | Disconnect from the desktop.
-`RunApplication`               | _`Taskbar item id`_                                    | Desktop             | Run application. Run the default application if no arguments are specified.
-`RunScript`                    | _`Script body`_                                        | Desktop             | Run script.
-`AlwaysOnTopWindow`            | `on` \| `off`                                          | Desktop             | Toggle AlwaysOnTop window flag.
-`CloseWindow`                  |                                                        | Desktop             | Close window.
-`MinimizeWindow`               |                                                        | Desktop             | Minimize window.
-`MaximizeWindow`               |                                                        | Desktop             | Maximize window.
-`FullscreenWindow`             |                                                        | Desktop             | Maximize window to full screen.
-`WarpWindow`                   | _`IntL, IntR, IntT, IntB`_                             | Desktop             | Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides.
-`TryToQuit`                    |                                                        | Desktop             | Shut down the desktop server if no applications are running.
-`ExclusiveKeyboardMode`        | `on` \| `off`                                          | Application         | Toggle exclusive keyboard mode.
-`TerminalFindNext`             |                                                        | Application         | Highlight next match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalFindPrev`             |                                                        | Application         | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
-`TerminalScrollViewportByPage` | _`IntX, IntY`_                                         | Application         | Scroll viewport by _`IntX, IntY`_ pages.
-`TerminalScrollViewportByCell` | _`IntX, IntY`_                                         | Application         | Scroll viewport by _`IntX, IntY`_ cells.
-`TerminalScrollViewportToTop`  |                                                        | Application         | Scroll viewport to the scrollback top.
-`TerminalScrollViewportToEnd`  |                                                        | Application         | Scroll viewport to the scrollback bottom (reset viewport position).
-`TerminalViewportCopy`         |                                                        | Application         | Сopy viewport to clipboard.
-`TerminalClipboardCopy`        |                                                        | Application         | Сopy selection to clipboard.
-`TerminalClipboardPaste`       |                                                        | Application         | Paste from clipboard.
-`TerminalClipboardWipe`        |                                                        | Application         | Reset clipboard.
-`TerminalClipboardFormat`      | `none` \| `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application | Switch terminal text selection copy format.
-`TerminalOutput`               | _`Text string`_                                        | Application         | Direct output the string to the terminal scrollback.
-`TerminalSendKey`              | _`Text string`_                                        | Application         | Simulating key presses using the specified string.
-`TerminalUndo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
-`TerminalRedo`                 |                                                        | Application         | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-`TerminalCwdSync`              |                                                        | Application         | Toggle the current working directory sync mode.
-`TerminalWrapMode`             | `on` \| `off`                                          | Application         | Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is.
-`TerminalAlignMode`            | `left` \| `right` \| `center`                          | Application         | Set terminal scrollback lines aligning mode. Applied to the active selection if it is.
-`TerminalFullscreen`           |                                                        | Application         | Toggle fullscreen mode.
-`TerminalMaximize`             |                                                        | Application         | Toggle between maximized and normal window size.
-`TerminalMinimize`             |                                                        | Application         | Minimize window.
-`TerminalStdioLog`             | `on` \| `off`                                          | Application         | Toggle stdin/stdout logging to the specified state, or just toggle to another state if no arguments are specified.
-`TerminalSelectionRect`        | `on` \| `off`                                          | Application         | Toggle between linear and rectangular selection form.
-`TerminalSelectionCancel`      |                                                        | Application         | Deselect a selection.
-`TerminalSelectionOneShot`     | `text` \| `ansi` \|<br>`rich` \| `html` \| `protected` | Application         | One-shot toggle to copy text while mouse tracking is active. Keep selection if `Ctrl` key is pressed.
-`TerminalRestart`              |                                                        | Application         | Terminate runnning console apps and restart current session.
-`TerminalQuit`                 |                                                        | Application         | Terminate runnning console apps and close terminal.
+`<key="Key+Chord" script=ScriptReference/>`                    | Append existing bindings using an indirect reference (the `ScriptReference` variable without quotes).
+`<key="Key+Chord | Another+Chord" script="<script body>"/>`    | Append existing bindings for `Key+Chord | Another+Chord`.
+`<key="Key+Chord" script="<script body>"/>`                    | Append existing bindings with the directly specified Lua script `"<script body>"`.
+`<key="Key+Chord" script=""/>`                                 | Remove all existing bindings for the specified key combination "Key+Chord".
+`<key=""          script="..."/>`                              | Do nothing.
 
 ### DirectVT configuration payload received from the parent process
 
@@ -467,7 +407,7 @@ The value of the `cfg` menu item attribute (or a whole `<config>` subsection) wi
 </config>
 ```
 
-#### Typical config
+#### Typical configuration
 
 Notes
 - Hardcoded settings can be found in the source file [/src/vtm.xml](../src/vtm.xml).
@@ -477,8 +417,9 @@ Notes
 `settings.xml`:
 ```xml
 <file*/>  <!-- Clear previously defined sources. Start a new list. -->
-<file="/path/to/override_defaults.xml"/>  <!-- Reference to the base configuration. -->
-<config>
+<file="/etc/vtm/settings.xml"/>        <!-- Default system-wide settings source. The "/etc/..." path will be auto converted to the "%PROGRAMDATA%\..." on Windows. -->
+<file="~/.config/vtm/settings.xml"/>   <!-- Default user-wise settings source. -->
+<config>  <!-- App configuration. -->
     <gui>  <!-- GUI mode related settings. (win32 platform only for now) -->
         <antialiasing=on/>    <!-- Antialiasing of rendered glyphs. Note: Multi-layered color glyphs such as emoji are always antialiased. -->
         <cellheight=22/>      <!-- Text cell height in physical pixels. Note: The width of the text cell depends on the primary font (the first one in the font list). -->
@@ -546,8 +487,8 @@ Notes
         <repeat_rate   = 30ms />  <!-- Repeat rate. -->
         <dblclick      = 500ms/>  <!-- Mouse double click threshold. -->
     </timings>
-    <set>        <!-- Global namespace - Unresolved literals will try to be resolved from here. -->
-        <blackdk     = 0xFF101010 />  <!-- Color reference literals. -->
+    <variables>  <!-- Global variables - Unresolved literals will try to be resolved from here. -->
+        <blackdk     = 0xFF101010 />
         <reddk       = 0xFFc40f1f />
         <greendk     = 0xFF12a10e />
         <yellowdk    = 0xFFc09c00 />
@@ -584,7 +525,104 @@ Notes
             <mode="text"/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
             <rect=false/>   <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
-    </set>
+        <!-- vtm.* scripting context:
+            - .gate: ...
+            - .applet (standalone app): ...
+                - .gear: ...
+            - .desktop: ...
+                    - .window: ...
+                    - .applet: ...
+                        - .tile: ...
+                            - .grip: ...
+                        - .terminal: ...  -->
+        <TryToQuit             ="vtm.desktop.Shutdown('try')"/>      <!-- Shut down the desktop server if no applications are running. -->
+        <RunApplication        ="vtm.desktop.Run()"/>                <!-- Run default application. -->
+        <RunInfoPage           ="vtm.desktop.Run({ title='Info-page', hidden=true, label='Info', type='info' })"/>  <!-- Run Info-page. -->
+        <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
+        <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
+
+        <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
+        <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
+        <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
+        <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
+        <FullscreenApplet      ="vtm.applet.Fullscreen()"/>       <!-- Request to Maximize window to full screen. -->
+        <RestoreApplet         ="vtm.applet.Restore()"/>          <!-- Request to Restore maximized/fullscreen window. -->
+        <MoveAppletLeft        ="vtm.applet.Warp( 1,-1, 0, 0)"/>  <!-- Request to Move window to the left. WarpApplet(l, r, t, b): The parameters specify four deltas for the left, right, top and bottom sides of the window. -->
+        <MoveAppletRight       ="vtm.applet.Warp(-1, 1, 0, 0)"/>  <!-- Request to Move window to the right. -->
+        <MoveAppletUp          ="vtm.applet.Warp( 0, 0, 1,-1)"/>  <!-- Request to Move window up. -->
+        <MoveAppletDown        ="vtm.applet.Warp( 0, 0,-1, 1)"/>  <!-- Request to Move window down. -->
+        <MoveAppletTopLeft     ="vtm.applet.Warp( 2,-2, 1,-1)"/>  <!-- Request to Move window to the top-left. -->
+        <MoveAppletBottomLeft  ="vtm.applet.Warp( 2,-2,-1, 1)"/>  <!-- Request to Move window to the bottom-left. -->
+        <MoveAppletTopRight    ="vtm.applet.Warp(-2, 2, 1,-1)"/>  <!-- Request to Move window to the top-right. -->
+        <MoveAppletBottomRight ="vtm.applet.Warp(-2, 2,-1, 1)"/>  <!-- Request to Move window to the bottom-right. -->
+        <IncreaseAppletWidth   ="vtm.applet.Warp( 0, 1, 0, 0)"/>  <!-- Request to Increase window width. -->
+        <DecreaseAppletWidth   ="vtm.applet.Warp( 0,-1, 0, 0)"/>  <!-- Request to Decrease window width. -->
+        <IncreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0, 1)"/>  <!-- Request to Increase window height. -->
+        <DecreaseAppletHeight  ="vtm.applet.Warp( 0, 0, 0,-1)"/>  <!-- Request to Decrease window height. -->
+
+        <TileFocusPrev         ="vtm.tile.FocusNextPaneOrGrip(-1)"/>  <!-- Focus the previous pane or the split grip. -->
+        <TileFocusNext         ="vtm.tile.FocusNextPaneOrGrip( 1)"/>  <!-- Focus the next pane or the split grip. -->
+        <TileFocusPrevPane     ="vtm.tile.FocusNextPane(-1)"/>        <!-- Focus the previous pane. -->
+        <TileFocusNextPane     ="vtm.tile.FocusNextPane( 1)"/>        <!-- Focus the next pane. -->
+        <TileRunApplication    ="vtm.tile.RunApplication()"/>         <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
+        <TileSelectAllPanes    ="vtm.tile.SelectAllPanes()"/>         <!-- Select all panes. -->
+        <TileSplitHorizontally ="vtm.tile.SplitPane(0)"/>             <!-- Split active panes horizontally. -->
+        <TileSplitVertically   ="vtm.tile.SplitPane(1)"/>             <!-- Split active panes vertically. -->
+        <TileSplitOrientation  ="vtm.tile.RotateSplit()"/>            <!-- Change split orientation. -->
+        <TileSwapPanes         ="vtm.tile.SwapPanes()"/>              <!-- Swap two or more panes. -->
+        <TileEqualizeSplitRatio="vtm.tile.EqualizeSplitRatio()"/>     <!-- Equalize split ratio. -->
+        <TileSetManagerTitle   ="vtm.tile.SetTitle()"/>               <!-- Set tiling window manager title using clipboard data. -->
+        <TileClosePane         ="vtm.tile.ClosePane()"/>              <!-- Close active application. -->
+        <TileMoveGripLeft      ="vtm.grip.MoveGrip(-1, 0)"/>          <!-- Move the split grip to the left. -->
+        <TileMoveGripRight     ="vtm.grip.MoveGrip( 1, 0)"/>          <!-- Move the split grip to the right. -->
+        <TileMoveGripUp        ="vtm.grip.MoveGrip( 0,-1)"/>          <!-- Move the split grip up. -->
+        <TileMoveGripDown      ="vtm.grip.MoveGrip( 0, 1)"/>          <!-- Move the split grip down. -->
+        <TileDecreaseGripWidth ="vtm.grip.ResizeGrip(-1)"/>           <!-- Decrease the split grip width. -->
+        <TileIncreaseGripWidth ="vtm.grip.ResizeGrip( 1)"/>           <!-- Increase the split grip width. -->
+        <TileFocusPrevGrip     ="vtm.grip.FocusNextGrip(-1)"/>        <!-- Focus the prev split grip. -->
+        <TileFocusNextGrip     ="vtm.grip.FocusNextGrip( 1)"/>        <!-- Focus the next split grip. -->
+
+        <Disconnect            ="vtm.gate.Disconnect()"/>             <!-- Disconnect from the desktop. -->
+        <ToggleDebugOverlay    ="vtm.gate.DebugOverlay()"/>           <!-- Toggle debug overlay. -->
+        <IncreaseCellHeight    ="vtm.gate.IncreasecCellHeight( 1)"/>  <!-- Increase the text cell height by one pixel. -->
+        <DecreaseCellHeight    ="vtm.gate.IncreasecCellHeight(-1)"/>  <!-- Decrease the text cell height by one pixel. -->
+        <ResetWheelAccumulator ="vtm.gate.WheelAccumReset()"/>        <!-- Reset wheel accumulator. -->
+        <ResetCellHeight       ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.CellHeightReset() end"/>   <!-- Reset text cell height. -->
+        <ToggleAntialiasingMode="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.AntialiasingMode() end"/>  <!-- Toggle text antialiasing mode. -->
+        <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
+        <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
+
+        <ExclusiveKeyboardMode             ="vtm.terminal.SetExclusiveKeyboardMode()"/>   <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+        <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
+        <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
+        <TerminalScrollViewportOnePageDown ="vtm.terminal.ScrollViewportByPage( 0,-1)"/>  <!-- Scroll viewport one page down. -->
+        <TerminalScrollViewportOnePageLeft ="vtm.terminal.ScrollViewportByPage( 1, 0)"/>  <!-- Scroll viewport one page to the left. -->
+        <TerminalScrollViewportOnePageRight="vtm.terminal.ScrollViewportByPage(-1, 0)"/>  <!-- Scroll viewport one page to the right. -->
+        <TerminalScrollViewportOneLineUp   ="vtm.terminal.ScrollViewportByCell( 0, 1)"/>  <!-- Scroll viewport one line up. -->
+        <TerminalScrollViewportOneLineDown ="vtm.terminal.ScrollViewportByCell( 0,-1)"/>  <!-- Scroll viewport one line down. -->
+        <TerminalScrollViewportOneCellLeft ="vtm.terminal.ScrollViewportByCell( 1, 0)"/>  <!-- Scroll viewport one cell to the left. -->
+        <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
+        <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
+        <TerminalSendKey                   ="vtm.terminal.SendKey('test\r')"/>            <!-- Simulating keypresses using the specified string. -->
+        <TerminalOutput                    ="vtm.terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
+        <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
+        <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
+        <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
+        <TerminalClipboardFormat           ="vtm.terminal.SetClipboardFormat()"/>         <!-- Toggle terminal text selection copy format. -->
+        <TerminalSelectionForm             ="vtm.terminal.SetSelectionForm()"/>           <!-- Toggle between linear and rectangular selection form. -->
+        <TerminalSelectionCancel           ="vtm.terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
+        <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
+        <TerminalUndo                      ="vtm.terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
+        <TerminalRedo                      ="vtm.terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
+        <TerminalCwdSync                   ="vtm.terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
+        <TerminalWrapMode                  ="vtm.terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
+        <TerminalAlignMode                 ="vtm.terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
+        <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
+        <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
+    </variables>
     <desktop>  <!-- Desktop client settings. -->
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <windowmax=3000x2000/>  <!-- Maximum window cell grid size. -->
@@ -611,14 +649,14 @@ Notes
                             <wrap=on/>     <!-- Lines wrapping mode. -->
                         </scrollback>
                         <selection>
-                            <mode=/config/set/selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
+                            <mode=selection/mode/>  <!-- Clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none" . -->
                         </selection>
                     </terminal>
                 </config>
             </item>
-            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
-            <item id="Site" label="Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-            <item id="Logs" label="Desktop Logs"    type="dtvt" title="Logs"           cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+            <item id="Tile" label="Window Manager"  type="tile" title="Window Manager" cmd="h1:1(Term, Term)"      tooltip=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default  "/>
+            <item id="Site" label="Viewport Marker" type="site" title="\e[11:3pSite "  cmd="@" winform="maximized" tooltip=" Desktop Viewport Marker         \n   LeftClick to launch instance  \n   RightClick to set as default  "/>  <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+            <item id="Logs" label="Log Monitor"     type="dtvt" title="Log Monitor"    cmd="$0 -q -r term $0 -m"   tooltip=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default  ">
                 <config>
                     <terminal>
                         <scrollback>
@@ -731,7 +769,7 @@ Notes
             <oversize=0 opacity=0xC0/>  <!-- Scrollback horizontal (left and right) oversize. It is convenient for horizontal scrolling. -->
         </scrollback>
         <colors>  <!-- Terminal colors. -->
-            <color0  = pureblack  />  <!-- Link to global <config/set/*/> namespace. -->
+            <color0  = pureblack  />
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -748,7 +786,7 @@ Notes
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default fgc=whitedk bgc=pureblack/>  <!-- Default/current colors (SGR49/39). -->
-            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =/config/set/color/default) to sync with SGR49 (default background). -->
+            <bground = color/default/>  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =color/default) to sync with SGR49 (default background). -->
             <match fx="color" fgc=whitelt bgc=0xFF007F00/>  <!-- Color of the selected text occurrences. Set an fx to use cell::shaders: "xlight" | "color" | "invert" | "reverse". -->
             <selection>
                 <text      fx="color"  fgc=whitelt bgc=bluelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -762,8 +800,8 @@ Notes
         <border=0/>  <!-- Width of the left and right border of the terminal window. -->
         <tablen=8/>  <!-- Tab length. -->
         <menu item*>
-            <autohide=menu/autohide/> <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/> <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
             <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
@@ -850,7 +888,7 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplicatoin label=" + ">
+            <item action=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
@@ -872,129 +910,120 @@ Notes
     </tile>
     <defapp>
         <menu>
-            <autohide=menu/autohide/>  <!-- Link to global <config/set/menu/autohide>. -->
-            <slim=menu/slim/>          <!-- Link to global <config/set/menu/slim>. -->
+            <autohide=menu/autohide/>
+            <slim=menu/slim/>
         </menu>
     </defapp>
-    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
-        <gui key*>  <!-- Native GUI window layer key bindings. key* here is to clear all previous bindings and start a new list. -->
-            <key="CapsLock+UpArrow"      action=IncreaseCellHeight/>      <!-- Increase the text cell height by one pixel. -->
-            <key="CapsLock+DownArrow"    action=DecreaseCellHeight/>      <!-- Decrease the text cell height by one pixel. -->
-            <key="Ctrl+0">
-                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Reset text cell height. -->
-                <action=ResetCellHeight/>         <!-- Reset text cell height. -->
-            </key>
-            <key="Alt+Enter">
-                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle fullscreen mode. -->
-                <action=ToggleFullscreenMode/>    <!-- Toggle fullscreen mode. -->
-            </key>
-            <key="Ctrl+CapsLock">
-                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Toggle text antialiasing mode. -->
-                <action=ToggleAntialiasingMode/>  <!-- Toggle text antialiasing mode. -->
-            </key>
-            <key="Ctrl+Shift+F11">
-                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list backward. -->
-                <action=RollFontsBackward/>       <!-- Roll font list backward. -->
-            </key>
-            <key="Ctrl+Shift+F12">
-                <action=DropAutoRepeat/>          <!-- Don't autorepeat the Roll font list forward. -->
-                <action=RollFontsForward/>        <!-- Roll font list forward. -->
-            </key>
-        </gui>
-        <tui key*>  <!-- TUI matrix layer key bindings. -->
-            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-        </tui>
-        <desktop key*>  <!-- Desktop layer key bindings. -->
-            <key="Ctrl+PageUp"   action=FocusPrevWindow/>  <!-- Switch focus to the next desktop window. -->
-            <key="Ctrl+PageDown" action=FocusNextWindow/>  <!-- Switch focus to the previous desktop window. -->
-            <key="Shift+F7"      action=Disconnect/>       <!-- Disconnect from the desktop. -->
-            <key="F10" preview   action=TryToQuit/>        <!-- Shut down the desktop server if no applications are running. -->
-            <key="Alt+Shift+N"   action=RunApplication/>   <!-- Run default application. -->
-            <key=""              action=AlwaysOnTopWindow/><!-- Toggle AlwaysOnTop window flag. -->
-            <key=""              action=CloseWindow/>      <!-- Close window. -->
-            <key=""              action=MinimizeWindow/>   <!-- Minimize window. -->
-            <key="Esc+F11"       action=MaximizeWindow/>   <!-- Maximize window. -->
-            <key="Esc+F12"       action=FullscreenWindow/> <!-- Maximize window to full screen. -->
-            <key="Esc+F1">      <action=RunScript data="vtm.run(title='Info-page' hidden=true label=Info type=info)"/></key>  <!-- Run Info-page. -->
-
-            <key=""><action=WarpWindow data="0,0,0,0"/></key> <!-- Warp desktop window. The data parameter specifies four deltas for the left, right, top and bottom window sides. -->
-            <key="Esc+'=' | Esc+'+'">                                    <action=WarpWindow data=" 1, 1, 1, 1"/></key> <!-- Increase window size. -->
-            <key="Esc+'-'">                                              <action=WarpWindow data="-1,-1,-1,-1"/></key> <!-- Reduce window size. -->        </desktop>
-            <key="Esc+LeftArrow">                                        <action=WarpWindow data=" 1,-1, 0, 0"/></key> <!-- Move window to the left. -->
-            <key="Esc+RightArrow">                                       <action=WarpWindow data="-1, 1, 0, 0"/></key> <!-- Move window to the right. -->
-            <key="Esc+UpArrow">                                          <action=WarpWindow data=" 0, 0, 1,-1"/></key> <!-- Move window up. -->
-            <key="Esc+DownArrow">                                        <action=WarpWindow data=" 0, 0,-1, 1"/></key> <!-- Move window down. -->
-            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow">     <action=WarpWindow data=" 2,-2, 1,-1"/></key> <!-- Move window to the top-left. -->
-            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow">   <action=WarpWindow data=" 2,-2,-1, 1"/></key> <!-- Move window to the bottom-left. -->
-            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow">    <action=WarpWindow data="-2, 2, 1,-1"/></key> <!-- Move window to the top-right. -->
-            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow">  <action=WarpWindow data="-2, 2,-1, 1"/></key> <!-- Move window to the bottom-right. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
+        <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
+            <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
+            <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
+            <key="Esc+0"                                                script=ResetCellHeight/>
+            <key="Ctrl+CapsLock"                                        script=ToggleAntialiasingMode/>
+            <key="Ctrl+Shift+F11"                                       script=RollFontsBackward/>
+            <key="Ctrl+Shift+F12"                                       script=RollFontsForward/>
+            <key="-Ctrl" preview                                        script=ResetWheelAccumulator/>
+            <key="Space-Backspace | Backspace-Space"                    script=ToggleDebugOverlay/>
+        </gate>
+        <desktop key*>  <!-- Desktop key bindings. -->
+            <key="Ctrl+PageUp"                                          script=FocusPrevWindow/>
+            <key="Ctrl+PageDown"                                        script=FocusNextWindow/>
+            <key="Shift+F7"                                             script=Disconnect/>
+            <key="F10" preview                                          script=TryToQuit/>
+            <key="Alt+Shift+N"                                          script=RunApplication/>
+            <key="Esc+F1"                                               script=RunInfoPage/>
+        </desktop>
+        <applet key*>  <!-- Applet key bindings. -->
+            <key="Esc+T"                                                script=AlwaysOnTopApplet/>
+            <key="Esc+W"                                                script=CloseApplet/>
+            <key="Esc+M"                                                script=MinimizeApplet/>
+            <key="Esc+F10"                                              script=RestoreApplet/>
+            <key="Esc+F11"                                              script=MaximizeApplet/>
+            <key="Esc+F12"                                              script=FullscreenApplet/>
+            <key="Esc+LeftArrow"                                        script=MoveAppletLeft/>
+            <key="Esc+RightArrow"                                       script=MoveAppletRight/>
+            <key="Esc+UpArrow"                                          script=MoveAppletUp/>
+            <key="Esc+DownArrow"                                        script=MoveAppletDown/>
+            <key="Esc+LeftArrow+UpArrow    | Esc+UpArrow+LeftArrow"     script=MoveAppletTopLeft/>
+            <key="Esc+LeftArrow+DownArrow  | Esc+DownArrow+LeftArrow"   script=MoveAppletBottomLeft/>
+            <key="Esc+RightArrow+UpArrow   | Esc+UpArrow+RightArrow"    script=MoveAppletTopRight/>
+            <key="Esc+RightArrow+DownArrow | Esc+DownArrow+RightArrow"  script=MoveAppletBottomRight/>
+            <key="Esc+LeftArrow+RightArrow"                             script=IncreaseAppletWidth/>
+            <key="Esc+RightArrow+LeftArrow"                             script=DecreaseAppletWidth/>
+            <key="Esc+UpArrow+DownArrow"                                script=IncreaseAppletHeight/>
+            <key="Esc+DownArrow+UpArrow"                                script=DecreaseAppletHeight/>
+        </applet>
         <tile key*>
-            <key="Ctrl+PageUp"     action=TileFocusPrev         />  <!-- Focus the previous pane or the split grip. -->
-            <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->
-            <key=""                action=TileFocusPrevPane     />  <!-- Focus the previous pane. -->
-            <key=""                action=TileFocusNextPane     />  <!-- Focus the next pane. -->
-            <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-            <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
-            <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
-            <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
-            <key="Alt+Shift+R"     action=TileSplitOrientation  />  <!-- Change split orientation. -->
-            <key="Alt+Shift+S"     action=TileSwapPanes         />  <!-- Swap two or more panes. -->
-            <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
-            <key="Alt+Shift+F2"    action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
-            <key="Alt+Shift+W"     action=TileClosePane         />  <!-- Close active application. -->
-            <grips key*>
-                <key="LeftArrow" ><action=TileMoveGrip   data="-1, 0"/></key>  <!-- Move the split grip to the left. -->
-                <key="RightArrow"><action=TileMoveGrip   data=" 1, 0"/></key>  <!-- Move the split grip to the right. -->
-                <key="UpArrow"   ><action=TileMoveGrip   data=" 0,-1"/></key>  <!-- Move the split grip up. -->
-                <key="DownArrow" ><action=TileMoveGrip   data=" 0, 1"/></key>  <!-- Move the split grip down. -->
-                <key="'-'"       ><action=TileResizeGrip data="-1"   /></key>  <!-- Decrease the split grip width. -->
-                <key="Shift+'+' | NumpadPlus"><action=TileResizeGrip data="1"/></key>  <!-- Increase the split grip width. -->
-                <key="Shift+Tab" action=TileFocusPrevGrip/>  <!-- Focus the next split grip. -->
-                <key="Tab"       action=TileFocusNextGrip/>  <!-- Focus the previous split grip. -->
-            </grips>
+            <key="Ctrl+PageUp"     script=TileFocusPrev/>
+            <key="Ctrl+PageDown"   script=TileFocusNext/>
+            <key=""                script=TileFocusPrevPane/>
+            <key=""                script=TileFocusNextPane/>
+            <key="Alt+Shift+N"     script=TileRunApplication/>
+            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
+            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
+            <key="Alt+Shift+Minus" script=TileSplitVertically/>
+            <key="Alt+Shift+R"     script=TileSplitOrientation/>
+            <key="Alt+Shift+S"     script=TileSwapPanes/>
+            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
+            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
+            <key="Alt+Shift+W"     script=TileClosePane/>
+            <grip key*>
+                <key="LeftArrow"                          script=TileMoveGripLeft/>
+                <key="RightArrow"                         script=TileMoveGripRight/>
+                <key="UpArrow"                            script=TileMoveGripUp/>
+                <key="DownArrow"                          script=TileMoveGripDown/>
+                <key="'-'"                                script=TileDecreaseGripWidth/>
+                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
+                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
+                <key="Tab"                                script=TileFocusNextGrip/>
+            </grip>
         </tile>
-        <terminal key*>  <!-- Application specific layer key bindings. -->
-            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            <key="Alt+RightArrow" action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"  action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"    ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Shift+Ctrl+PageDown"  ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Shift+Alt+LeftArrow"  ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
-            <key="Shift+Alt+RightArrow" ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"   ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
-            <key="Shift+Ctrl+DownArrow" ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
-            <key="Shift+Ctrl+LeftArrow" ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
-            <key="Shift+Ctrl+Home">
-                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
-                <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
-            </key>
-            <key="Shift+Ctrl+End">
-                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
-                <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
-            </key>
-            <key="">                   <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
-            <key="">                   <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
-            <key=""                     action=TerminalViewportCopy/>                 <!-- Сopy viewport to clipboard. -->
-            <key="Ctrl+Insert"  preview action=TerminalClipboardCopy/>                <!-- Сopy selection to clipboard. -->
-            <key="Shift+Insert" preview action=TerminalClipboardPaste/>               <!-- Paste from clipboard. -->
-            <key=""                     action=TerminalClipboardWipe/>                <!-- Reset clipboard. -->
-            <key=""                     action=TerminalClipboardFormat/>              <!-- Toggle terminal text selection copy format. -->
-            <key=""                     action=TerminalSelectionRect/>                <!-- Toggle between linear and rectangular selection form. -->
-            <key="Esc" preview          action=TerminalSelectionCancel/>              <!-- Deselect a selection. -->
-            <key=""                     action=TerminalSelectionOneShot/>             <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key=""                     action=TerminalUndo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                     action=TerminalRedo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                     action=TerminalCwdSync/>                      <!-- Toggle the current working directory sync mode. -->
-            <key=""                     action=TerminalWrapMode/>                     <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""                     action=TerminalAlignMode/>                    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-            <key=""                     action=TerminalFullscreen/>                   <!-- Toggle fullscreen mode. -->
-            <key=""                     action=TerminalMaximize/>                     <!-- Toggle between maximized and normal window size. -->
-            <key=""                     action=TerminalMinimize/>                     <!-- Minimize window. -->
-            <key=""                     action=TerminalStdioLog/>                     <!-- Toggle stdin/stdout logging. -->
-            <key=""                     action=TerminalRestart/>                      <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                     action=TerminalQuit/>                         <!-- Terminate runnning console apps and close terminal. -->
+        <terminal key*>  <!-- Terminal key bindings. -->
+            <key="Ctrl-Alt | Alt-Ctrl" preview script=ExclusiveKeyboardMode/>
+            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
+            <key="Alt+RightArrow"        script=TerminalFindNext/>
+            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
+            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
+            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
+            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
+            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
+            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
+            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
+            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
+            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
+            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
+            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
+            <key=""                      script=TerminalSendKey/>
+            <key=""                      script=TerminalOutput/>
+            <key=""                      script=TerminalCopyViewport/>
+            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
+            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
+            <key=""                      script=TerminalClipboardWipe/>
+            <key=""                      script=TerminalClipboardFormat/>
+            <key=""                      script=TerminalSelectionRect/>
+            <key="Esc" preview           script=TerminalSelectionCancel/>
+            <key=""                      script=TerminalSelectionOneShot/>
+            <key=""                      script=TerminalUndo/>
+            <key=""                      script=TerminalRedo/>
+            <key=""                      script=TerminalCwdSync/>
+            <key=""                      script=TerminalWrapMode/>
+            <key=""                      script=TerminalAlignMode/>
+            <key=""                      script=TerminalStdioLog/>
+            <key=""                      script=TerminalRestart/>
         </terminal>
-    </hotkeys>
+        <defapp key*>  <!-- Default application bindings (e.g., Info-Page). -->
+            <key="Esc"  preview script="vtm.defapp.ShowClosingPreview(not vtm.gear.IsKeyRepeated())"/> <!-- Pred window close action. -->
+            <key="-Esc" preview script="if (vtm.defapp.ShowClosingPreview()) then vtm.defapp.Close() end"/> <!-- Close the window on Esc release. -->
+            <key="Any"  preview script="vtm.defapp.ShowClosingPreview(false)"/> <!-- Preview for "Any" is always triggered after all other previews. Non-preview "Any" is triggered before all other keys. -->
+            <key="PageUp"       script="vtm.defapp.ScrollViewportByPage( 0, 1)"/>
+            <key="PageDown"     script="vtm.defapp.ScrollViewportByPage( 0,-1)"/>
+            <key="UpArrow"      script="vtm.defapp.ScrollViewportByStep( 0, 3)"/>
+            <key="DownArrow"    script="vtm.defapp.ScrollViewportByStep( 0,-3)"/>
+            <key="LeftArrow"    script="vtm.defapp.ScrollViewportByStep( 3, 0)"/>
+            <key="RightArrow"   script="vtm.defapp.ScrollViewportByStep(-3, 0)"/>
+            <key="Home"         script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToTop() end"/>
+            <key="End"          script="if (not vtm.gear.IsKeyRepeated()) then vtm.defapp.ScrollViewportToEnd() end"/>
+        </defapp>
+    </events>
 </config>
 ```

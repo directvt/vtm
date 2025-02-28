@@ -5,9 +5,9 @@
 
 namespace netxs::events::userland
 {
-    struct shop
+    namespace shop
     {
-        EVENTPACK( shop, netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // shop: App manager.
@@ -31,7 +31,7 @@ namespace netxs::app::shop
     static constexpr auto id = "gems";
     static constexpr auto name = "Application Distribution Hub (DEMO)";
 
-    using events = netxs::events::userland::shop;
+    namespace events = netxs::events::userland::shop;
 
     namespace
     {
@@ -195,7 +195,7 @@ namespace netxs::app::shop
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60000000)
-                  ->plugin<pro::keybd>()
+                  ->plugin<pro::keybd>("defapp")
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -216,8 +216,7 @@ namespace netxs::app::shop
                                ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
-                                        ->active()
-                                        ->colors(whitedk, 0xFF0f0f0f)
+                                        ->active(whitedk, 0xFF0f0f0f)
                                         ->limits({ -1,-1 }, { -1,-1 });
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())
@@ -233,8 +232,7 @@ namespace netxs::app::shop
                 layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };

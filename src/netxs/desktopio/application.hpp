@@ -10,7 +10,6 @@
 
 #include "console.hpp"
 #include "system.hpp"
-#include "scripting.hpp"
 #include "gui.hpp"
 
 #include <fstream>
@@ -24,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.99.61";
+    static const auto version = "v0.9.99.62";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -38,13 +37,13 @@ namespace netxs::app::shared
     };
     const auto closing_by_gesture = [](auto& boss)
     {
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
+        boss.LISTEN(tier::release, input::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+        boss.LISTEN(tier::release, input::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
             boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
@@ -61,7 +60,7 @@ namespace netxs::app::shared
     };
     const auto underlined_hz_scrollbar = [](auto scrlrail)
     {
-        auto grip = ui::gripfx<axis::X, ui::drawfx::underline>::ctor(scrlrail)
+        auto grip = ui::grip<axis::X>::ctor(scrlrail, ui::drawfx::underline)
             ->alignment({ snap::both, snap::tail })
             ->invoke([&](auto& boss)
             {
@@ -88,7 +87,7 @@ namespace netxs::app::shared
     const auto set_title = [](base& boss, input::hids& gear, bias alignment = bias::left)
     {
         auto old_title = boss.base::riseup(tier::request, e2::form::prop::ui::header);
-        gear.owner.base::riseup(tier::request, hids::events::clipboard, gear);
+        gear.owner.base::signal(tier::request, input::events::clipboard, gear);
         auto& data = gear.board::cargo;
         if (data.utf8.empty())
         {
@@ -110,83 +109,208 @@ namespace netxs::app::shared
             }
         }
     };
-    const auto base_kb_navigation = [](ui::pro::keybd& keybd, netxs::sptr<base> scroll, base& boss)
+    const auto base_kb_navigation = [](xmls& config, ui::sptr scroll_ptr, base& boss)
     {
-        auto& scroll_inst = *scroll;
-        auto esc_pressed = ptr::shared(faux);
-        keybd.proc("WindowClose", [&, esc_pressed](hids& gear)
+        auto& scroll_inst = *scroll_ptr;
+        auto& keybd = boss.base::plugin<pro::keybd>();
+        keybd.register_name("defapp");
+        auto& luafx = boss.base::plugin<pro::luafx>();
+        auto bindings = pro::keybd::load(config, "defapp");
+        keybd.bind(bindings);
+        luafx.activate("defapp.proc_map",
         {
-            if (*esc_pressed)
-            {
-                boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, true);
-                gear.set_handled();
-            }
+            { "ScrollViewportByPage",   [&]
+                                        {
+                                            auto step = twod{ luafx.get_args_or(1, 0),
+                                                              luafx.get_args_or(2, 0) };
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::v, { .vector = step });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportByStep",   [&]
+                                        {
+                                            auto step = twod{ luafx.get_args_or(1, 0),
+                                                              luafx.get_args_or(2, 0) };
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::v, { .vector = step });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportToTop",    [&]
+                                        {
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y);
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ScrollViewportToEnd",    [&]
+                                        {
+                                            scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y);
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return(); // No returns.
+                                        }},
+            { "ShowClosingPreview",     [&]
+                                        {
+                                            auto& closing_preview_state = boss.base::property("defapp.closing_preview_state", faux);
+                                            auto args_count = luafx.args_count();
+                                            if (args_count && std::exchange(closing_preview_state, luafx.get_args_or(1, faux)) != closing_preview_state)
+                                            {
+                                                boss.base::signal(tier::anycast, e2::form::state::keybd::command::close, closing_preview_state);
+                                            }
+                                            luafx.set_return(closing_preview_state);
+                                        }},
+            { "Close",                  [&]
+                                        {
+                                            boss.bell::enqueue(boss.This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                                            {
+                                                boss.base::riseup(tier::release, e2::form::proceed::quit::one, true);
+                                            });
+                                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                                            luafx.set_return();
+                                        }},
         });
-        keybd.proc("WindowClosePreview", [&, esc_pressed](hids& /*gear*/)
+    };
+    const auto applet_kb_navigation = [](xmls& config, ui::sptr applet_ptr)
+    {
+        auto& applet = *applet_ptr;
+        applet.base::plugin<pro::focus>();
+        auto& keybd = applet.base::plugin<pro::keybd>();
+        keybd.register_name("applet");
+        auto& luafx = applet.base::plugin<pro::luafx>();
+        auto& bindings = applet.base::property<input::key::keybind_list_t>("applet.bindings");
+        bindings = pro::keybd::load(config, "applet");
+        keybd.bind(bindings);
+        luafx.activate("applet.proc_map",
         {
-            if (std::exchange(*esc_pressed, true) != *esc_pressed)
-            {
-                boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
-            }
+            //{ "FocusNext",          [&]
+            //                        {
+            //                            auto gui_cmd = e2::command::gui.param();
+            //                            if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+            //                            {
+            //                                gui_cmd.gear_id = gear_ptr->id;
+            //                                gear_ptr->set_handled();
+            //                            }
+            //                            gui_cmd.cmd_id = syscmd::focusnextwindow;
+            //                            gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+            //                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+            //                            luafx.set_return();
+            //                        }},
+            { "Warp",               [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::warpwindow;
+                                        gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(luafx.get_args_or(2, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(luafx.get_args_or(3, si32{ 0 }));
+                                        gui_cmd.args.emplace_back(luafx.get_args_or(4, si32{ 0 }));
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
+            { "AlwaysOnTop",        [&]
+                                    {
+                                        auto args_count = luafx.args_count();
+                                        auto& alwaysontop = applet.base::property("applet.alwaysontop", faux);
+                                        auto gear_ptr = luafx.template get_object<hids>("gear");
+                                        if (args_count)
+                                        {
+                                            auto gui_cmd = e2::command::gui.param();
+                                            alwaysontop = luafx.get_args_or(1, faux);
+                                            if (gear_ptr)
+                                            {
+                                                gui_cmd.gear_id = gear_ptr->id;
+                                            }
+                                            gui_cmd.cmd_id = syscmd::alwaysontop;
+                                            gui_cmd.args.emplace_back(alwaysontop);
+                                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        }
+                                        if (gear_ptr) gear_ptr->set_handled();
+                                        luafx.set_return(alwaysontop);
+                                    }},
+            { "Close",              [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::close;
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
+            { "Minimize",           [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::minimize;
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
+            { "Maximize",           [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::maximize;
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
+            { "Fullscreen",         [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::fullscreen;
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
+            { "Restore",            [&]
+                                    {
+                                        auto gui_cmd = e2::command::gui.param();
+                                        if (auto gear_ptr = luafx.template get_object<hids>("gear"))
+                                        {
+                                            gui_cmd.gear_id = gear_ptr->id;
+                                            gear_ptr->set_handled();
+                                        }
+                                        gui_cmd.cmd_id = syscmd::restore;
+                                        applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                                        luafx.set_return();
+                                    }},
         });
-        keybd.proc("CancelWindowClose", [&, esc_pressed](hids& /*gear*/)
-        {
-            if (std::exchange(*esc_pressed, faux) != *esc_pressed)
-            {
-                boss.bell::signal(tier::anycast, e2::form::state::keybd::command::close, *esc_pressed);
-            }
-        });
-        keybd.proc("ScrollPageUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0, 1 }}); });
-        keybd.proc("ScrollPageDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bypage::y, { .vector = { 0,-1 }}); });
-        keybd.proc("ScrollLineUp"    , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0, 3 }}); });
-        keybd.proc("ScrollLineDown"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::y, { .vector = { 0,-3 }}); });
-        keybd.proc("ScrollCharLeft"  , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = { 3, 0 }}); });
-        keybd.proc("ScrollCharRight" , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::bystep::x, { .vector = {-3, 0 }}); });
-        keybd.proc("ScrollTop"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_top::y); });
-        keybd.proc("ScrollEnd"       , [&](hids& gear){ gear.set_handled(); scroll_inst.base::riseup(tier::preview, e2::form::upon::scroll::to_end::y); });
-        keybd.proc("ToggleMaximize"  , [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::maximize,   *gear_ptr); }); }); // Refocus-related operations require execution outside of keyboard eves.
-        keybd.proc("ToggleFullscreen", [&](hids& gear){ gear.set_handled(); scroll_inst.bell::enqueue(boss.This(), [&, gear_id = gear.id](auto& /*boss*/){ if (auto gear_ptr = boss.bell::getref<hids>(gear_id)) scroll_inst.base::riseup(tier::preview, e2::form::size::enlarge::fullscreen, *gear_ptr); }); });
-
-        keybd.bind( "Esc", "DropAutoRepeat"    , true);
-        keybd.bind( "Esc", "WindowClosePreview", true);
-        keybd.bind("-Esc", "WindowClose"       , true);
-        keybd.bind( "Any", "CancelWindowClose" , true);
-
-        keybd.bind("PageUp"    , "ScrollPageUp"    );
-        keybd.bind("PageDown"  , "ScrollPageDown"  );
-        keybd.bind("UpArrow"   , "ScrollLineUp"    );
-        keybd.bind("DownArrow" , "ScrollLineDown"  );
-        keybd.bind("LeftArrow" , "ScrollCharLeft"  );
-        keybd.bind("RightArrow", "ScrollCharRight" );
-        keybd.bind("Home"      , "DropAutoRepeat"  );
-        keybd.bind("Home"      , "ScrollTop"       );
-        keybd.bind("End"       , "DropAutoRepeat"  );
-        keybd.bind("End"       , "ScrollEnd"       );
-        keybd.bind("F11"       , "DropAutoRepeat"  );
-        keybd.bind("F11"       , "ToggleMaximize"  );
-        keybd.bind("F12"       , "DropAutoRepeat"  );
-        keybd.bind("F12"       , "ToggleFullscreen");
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
     namespace win
     {
-        using state = gui::window::state;
-
         namespace type
         {
-            static const auto undefined = "undefined"s;
-            static const auto normal    = "normal"s;
-            static const auto minimized = "minimized"s;
-            static const auto maximized = "maximized"s;
+            static const auto undefined  = "undefined"s;
+            static const auto normal     = "normal"s;
+            static const auto minimized  = "minimized"s;
+            static const auto maximized  = "maximized"s;
+            static const auto fullscreen = "fullscreen"s;
         }
 
         static auto options = std::unordered_map<text, si32>
-           {{ type::undefined, state::normal    },
-            { type::normal,    state::normal    },
-            { type::minimized, state::minimized },
-            { type::maximized, state::maximized }};
+           {{ type::undefined,  winstate::normal     },
+            { type::normal,     winstate::normal     },
+            { type::minimized,  winstate::minimized  },
+            { type::maximized,  winstate::maximized  },
+            { type::fullscreen, winstate::fullscreen }};
     }
 
     namespace menu
@@ -301,19 +425,15 @@ namespace netxs::app::shared
                 button->active(); // Always active for tooltips.
                 if (alive)
                 {
-                    if (hover.clr()) button->shader(hover                , e2::form::state::hover);
-                    else             button->shader(cell::shaders::xlight, e2::form::state::hover);
+                    if (hover.clr()) button->shader(cell::shaders::mimic(hover), e2::form::state::hover);
+                    else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(tooltip)
                     ->setpad({ 2, 2, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
-                        auto props_shadow = ptr::shared(std::move(props));
-                        setup(boss, *props_shadow);
-                        boss.LISTEN(tier::release, e2::dtor, v, -, (props_shadow))
-                        {
-                            props_shadow.reset();
-                        };
+                        auto& item_props = boss.base::field(std::move(props));
+                        setup(boss, item_props);
                     });
                 return button;
             };
@@ -336,16 +456,16 @@ namespace netxs::app::shared
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .tooltip = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
-                            boss.base::riseup(tier::release, e2::form::size::minimize, gear);
+                            boss.base::riseup(tier::preview, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},
                     { menu::item{ menu::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .tooltip = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& /*item*/)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
                             boss.base::riseup(tier::preview, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
@@ -355,10 +475,10 @@ namespace netxs::app::shared
                     [c1](auto& boss, auto& /*item*/)
                     {
                         boss.template shader<tier::anycast>(cell::shaders::color(c1), e2::form::state::keybd::command::close);
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
                             auto backup = boss.This();
-                            boss.bell::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            boss.base::signal(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
                             gear.dismiss();
                         };
                     }},
@@ -392,10 +512,10 @@ namespace netxs::app::shared
             auto menucake = menuveer->attach(ui::cake::ctor()->branch(menufork))
                 ->invoke([&](auto& boss)
                 {
-                    auto slim_status = ptr::shared(slimsize);
-                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (slim_status))
+                    auto& slim_status = boss.base::field(slimsize);
+                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area)
                     {
-                        if (!*slim_status)
+                        if (!slim_status)
                         {
                             auto height = boss.base::min_sz.y;
                             if (new_area.size.y < 3)
@@ -411,9 +531,9 @@ namespace netxs::app::shared
                             }
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (slim_status))
+                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim)
                     {
-                        *slim_status = slim;
+                        slim_status = slim;
                         auto height = slim ? 1 : 3;
                         boss.base::limits({ -1, height }, { -1, height });
                         boss.reflow();
@@ -424,26 +544,27 @@ namespace netxs::app::shared
             menuveer->limits({ -1, slimsize ? 1 : 3 }, { -1, slimsize ? 1 : 3 })
                 ->invoke([&](auto& boss)
                 {
-                    auto menutent_shadow = ptr::shadow(menutent);
-                    auto menucake_shadow = ptr::shadow(menucake);
-                    auto autohide_shadow = ptr::shared(autohide);
-                    boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, autohide_shadow, menutent_shadow))
+                    if (autohide)
                     {
-                        if (*autohide_shadow)
-                        if (auto menucake = menucake_shadow.lock())
+                        auto menutent_shadow = ptr::shadow(menutent);
+                        auto menucake_shadow = ptr::shadow(menucake);
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, menutent_shadow))
                         {
-                            auto menu_visible = boss.back() != menucake;
-                            if (!!hits == menu_visible)
+                            if (auto menucake = menucake_shadow.lock())
                             {
-                                boss.roll();
-                                boss.reflow();
-                                if (auto menutent = menutent_shadow.lock())
+                                auto menu_visible = boss.back() != menucake;
+                                if (!!hits == menu_visible)
                                 {
-                                    menutent->bell::signal(tier::release, e2::form::state::visible, menu_visible);
+                                    boss.roll();
+                                    boss.reflow();
+                                    if (auto menutent = menutent_shadow.lock())
+                                    {
+                                        menutent->base::signal(tier::release, e2::form::state::visible, menu_visible);
+                                    }
                                 }
                             }
-                        }
-                    };
+                        };
+                    }
                 });
 
             return std::tuple{ menuveer, menutent, menucake };
@@ -463,6 +584,7 @@ namespace netxs::app::shared
             {
                 auto item = menu::item{};
                 auto& data = *data_ptr;
+                //todo scripting (expand action)
                 auto action = data.take(menu::attr::action, ""s);
                 item.type = data.take(menu::attr::type, menu::type::Command, type_options);
                 defs.tooltip = data.take(menu::attr::tooltip, ""s);
@@ -472,7 +594,7 @@ namespace netxs::app::shared
                 {
                     item.views.push_back(
                     {
-                        .label = label->take_value(),
+                        .label = config.expand(label),
                         .tooltip = label->take(menu::attr::tooltip, defs.tooltip),
                         .data = label->take(menu::attr::data, defs.data),
                     });
@@ -482,7 +604,7 @@ namespace netxs::app::shared
                 {
                     if (item.type == menu::type::Option)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
                         {
                             item.taken = (item.taken + 1) % item.views.size();
                         };
@@ -724,12 +846,11 @@ namespace netxs::app::shared
         twod gridsize{};
         si32 cellsize{};
         std::list<text> fontlist;
-        input::key::keybind_list_t hotkeys;
     };
 
     auto get_gui_config(xmls& config)
     {
-        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", win::state::normal, app::shared::win::options),
+        auto gui_config = gui_config_t{ .winstate = config.take("/config/gui/winstate", winstate::normal, app::shared::win::options),
                                         .aliasing = config.take("/config/gui/antialiasing", faux),
                                         .blinking = config.take("/config/gui/blinkrate", span{ 400ms }),
                                         .wincoord = config.take("/config/gui/wincoor", dot_mx),
@@ -741,10 +862,48 @@ namespace netxs::app::shared
         for (auto& f : recs)
         {
             //todo implement 'fonts/font/file' - font file path/url
-            gui_config.fontlist.push_back(f->take_value());
+            gui_config.fontlist.push_back(config.expand(f));
         }
-        gui_config.hotkeys = ui::pro::keybd::load(config, "gui");
         return gui_config;
+    }
+    auto get_tui_config(xmls& config, ui::skin& g)
+    {
+        using namespace std::chrono;
+        g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
+        g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
+        g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
+        g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
+        g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
+        g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
+        g.action         = config.take("/config/colors/action"     , cell{ whitespace });
+        g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
+        g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
+        g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
+        g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
+        g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
+        g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
+        g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
+        g.spd_max        = config.take("/config/timings/kinetic/spd_max"  , 100 );
+        g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
+        g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
+        g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
+        g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
+        g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
+        g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
+        g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
+        g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
+        g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
+        g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
+        g.maxfps         = config.take("/config/timings/fps"              , 60);
+        g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
+        g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
+        g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
+        g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
+        g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
+        g.shadow_blur    = config.take("/config/desktop/shadow/blur"   , 3);
+        g.shadow_opacity = config.take("/config/desktop/shadow/opacity", 105.5f);
+        g.shadow_offset  = config.take("/config/desktop/shadow/offset" , dot_21);
+        if (g.maxfps <= 0) g.maxfps = 60;
     }
     void splice(xipc client, gui_config_t& gc)
     {
@@ -754,8 +913,8 @@ namespace netxs::app::shared
             os::dtvt::client = client;
             auto connect = [&]
             {
-                auto event_domain = netxs::events::auth{};
-                auto window = event_domain.create<gui::window>(event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21, gc.hotkeys);
+                auto gui_event_domain = netxs::events::auth{};
+                auto window = gui_event_domain.create<gui::window>(gui_event_domain, gc.fontlist, gc.cellsize, gc.aliasing, gc.blinking, dot_21);
                 window->connect(gc.winstate, gc.wincoord, gc.gridsize);
             };
             if (os::stdout_fd != os::invalid_fd)
@@ -773,21 +932,34 @@ namespace netxs::app::shared
     }
     void start(text cmd, text aclass, xmls& config)
     {
+        //todo revise
         auto [client, server] = os::ipc::xlink();
-        auto config_lock = ui::tui_domain().unique_lock(); // Sync multithreaded access to config.
+        auto& indexer = ui::tui_domain();
+        auto config_lock = indexer.unique_lock(); // Sync multithreaded access to config.
         auto gui_config = app::shared::get_gui_config(config);
+        app::shared::get_tui_config(config, ui::skin::globals());
         auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             app::shared::splice(client, gui_config);
         }};
-        auto domain = ui::host::ctor(server, config)->plugin<scripting::host>();
+        auto gate_ptr = ui::gate::ctor(server, os::dtvt::vtmode, config);
+        auto& gate = *gate_ptr;
+        gate.base::resize(os::dtvt::gridsz);
+        gate.base::signal(tier::general, e2::config::fps, ui::skin::globals().maxfps);
         auto appcfg = eccc{ .cmd = cmd };
-        auto applet = app::shared::builder(aclass)(appcfg, config);
+        auto applet_ptr = app::shared::builder(aclass)(appcfg, config);
+        auto& applet = *applet_ptr;
+        applet.base::kind(base::reflow_root);
+        app::shared::applet_kb_navigation(config, applet_ptr);
+        gate.attach(std::move(applet_ptr));
         config_lock.unlock();
-        domain->invite(server, applet, os::dtvt::vtmode, os::dtvt::gridsz);
-        domain->stop();
+        gate.launch();
+        gate.bell::dequeue();
+        config_lock.lock();
+        gate.base::plugin<pro::mouse>().reset();
+        gate_ptr.reset();
         server->shut();
-        client->shut(); //todo revise deadlock when closing term inside desktop by X close button.
+        client->shut();
         thread.join();
     }
 }

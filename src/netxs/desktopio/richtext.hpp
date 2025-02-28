@@ -45,6 +45,7 @@ namespace netxs::ui
     class flow
         : protected ansi::runtime
     {
+    protected:
         rect textline{ }; // flow: Textline placeholder.
         si32 textsize{ }; // flow: Full textline length (1D).
         rect boundary{ }; // flow: Affected area by the text output.
@@ -1525,7 +1526,6 @@ namespace netxs::ui
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
-        void   ease()        { lyric->each([&](auto& c){ c.clr({});  });  } // para: Reset color for all text.
         void   link(id_t id) { lyric->each([&](auto& c){ c.link(id); });  } // para: Set object ID for each cell.
         template<bool ResetStyle = faux>
         void wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
@@ -2844,6 +2844,12 @@ namespace netxs::ui
                 return context;
             }
             return ctx{ *this };
+        }
+        auto move_basis(twod new_coor)
+        {
+            region.coor = new_coor;
+            client.coor = new_coor;
+            pagerect.coor = new_coor;
         }
         // Use a two letter function if we don't need to return *this
         face& cup(twod p)     { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "geometry.hpp"
+#include "lua.hpp"
 
 #include <vector>
 #include <mutex>
@@ -13,6 +14,18 @@
 #include <optional>
 #include <thread>
 #include <condition_variable>
+
+//todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
+#if defined(__i386__) && defined(__linux__)
+    extern long double fmodl(long double a, long double b);
+    double fmod(double a, double b) { return fmodl(a, b); }
+    float  fmod(float  a, float  b) { return fmodl(a, b); }
+#endif
+
+namespace netxs::ui
+{
+    struct base;
+}
 
 namespace netxs::events
 {
@@ -98,12 +111,9 @@ namespace netxs::events
     }
     template<hint Group, auto Count> constexpr auto subset = _instantiate<Group>(std::make_index_sequence<Count>{});
 
-    struct bell;
-    using ftor = std::function<bool(sptr<bell>)>;
-
     struct handler
     {
-        virtual ~handler() { }
+        virtual ~handler() = default;
     };
     struct hook : sptr<handler>
     {
@@ -156,14 +166,6 @@ namespace netxs::events
             }
             ref_count += lref;
             del_count += ldel;
-        }
-        void merge(reactor const& r)
-        {
-            for (auto& [event, src_subs] : r.stock)
-            {
-                auto& dst_subs = stock[event];
-                dst_subs.insert( dst_subs.end(), src_subs.begin(), src_subs.end() );
-            }
         }
         template<class F>
         hook subscribe(hint event, hndl<F> proc)
@@ -243,12 +245,44 @@ namespace netxs::events
 
     struct auth
     {
-        id_t                       newid;
-        wptr<bell>                 empty;
+        id_t                       newid{};
+        wptr<ui::base>             empty;
         std::recursive_mutex       mutex;
-        std::map<id_t, wptr<bell>> store;
-        generics::jobs<wptr<bell>> agent;
+        std::map<id_t, wptr<ui::base>> store;
+        generics::jobs<wptr<ui::base>> agent;
         reactor                    general{ true };
+        lua_State*                 lua;
+        si32                       fps{};
+        hook                       memo{};
+        datetime::quartz<auth>     quartz;
+        hint                       e2_timer_tick_id;
+
+        auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
+            : lua{ lua },
+              quartz{ *this },
+              e2_timer_tick_id{ e2_timer_tick_id }
+        {
+            if (e2_config_fps_id)
+            {
+                memo = general.subscribe(e2_config_fps_id, reactor::hndl<si32>{ [&](si32& new_fps)
+                {
+                    if (new_fps > 0)
+                    {
+                        fps = new_fps;
+                        quartz.ignite(fps);
+                        log(prompt::auth, "Rendering refresh rate: ", fps, " fps");
+                    }
+                    else if (new_fps < 0)
+                    {
+                        new_fps = fps;
+                    }
+                    else
+                    {
+                        quartz.stop();
+                    }
+                }});
+            }
+        }
 
         // auth: .
         auto sync()
@@ -270,8 +304,14 @@ namespace netxs::events
         {
             return std::unique_lock{ mutex };
         }
+        // auth: .
+        void timer(time now)
+        {
+            auto lock = sync();
+            general.notify(e2_timer_tick_id, now);
+        }
         // auth: Return sptr of the object by its id.
-        template<class T = bell>
+        template<class T = ui::base>
         auto getref(id_t id)
         {
             auto lock = sync();
@@ -308,7 +348,7 @@ namespace netxs::events
         }
         // auth: .
         template<bool Sync = true, class T>
-        void enqueue(wptr<bell> object_wptr, T&& proc)
+        void enqueue(wptr<ui::base> object_wptr, T&& proc)
         {
             agent.add(object_wptr, [&, proc](auto& object_wptr) mutable
             {
@@ -322,9 +362,11 @@ namespace netxs::events
             });
         }
         // auth: .
-        void dequeue()
+        void stop()
         {
             agent.stop();
+            auto lock = sync();
+            quartz.stop();
         }
         // auth: .
         template<class T, class P>
@@ -358,26 +400,13 @@ namespace netxs::events
         }
     };
 
-    class subs
-    {
-        std::vector<hook> tokens;
+    using subs = std::vector<hook>;
+    constexpr auto& operator - (subs& tokens, si32) { return tokens; }
 
-    public:
-        auto& operator - (si32)    { return *this;                                                           }
-        operator bool () const     { return tokens.size();                                                   }
-        void  admit(hook&& t)      {        tokens.push_back(std::forward<hook>(t));                         }
-        hook& extra()              { return tokens.emplace_back();                                           }
-        auto  count() const        { return tokens.size();                                                   }
-        void  clear()              {        tokens.clear();                                                  }
-        void  reset()              {        tokens.clear();                                                  }
-        void  merge(subs const& m) {        tokens.insert( tokens.end(), m.tokens.begin(), m.tokens.end() ); }
-    };
-
-    template<class Parent_t, class Object_t, auto Event_id>
+    template<class Object_t, auto Event_id>
     struct type_clue
     {
         using type = Object_t;
-        using base = Parent_t;
         static constexpr auto id = Event_id;
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<class ...Args> static constexpr auto param(Args&&... args) { return type{ std::forward<Args>(args)... }; }
@@ -391,46 +420,34 @@ namespace netxs::events
     #define GET_END1_XS(a, b, c, d, e, last, ...) last
     #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    #define LISTEN_S(level, event, param              ) bell::submit(level, event )           = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token -0 ) = [&]                    ([[maybe_unused]] typename decltype( event )::type& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token -0 ) = [&, ARG_EVAL_XS byval ]([[maybe_unused]] typename decltype( event )::type& param) mutable
+    #define LISTEN_S(level, event, param              ) bell::submit(level, event)            = [&]                   ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_T(level, event, param, token       ) bell::submit(level, event, token - 0) = [&]                   ([[maybe_unused]] typename decltype( event )::type& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::submit(level, event, token - 0) = [&, ARG_EVAL_XS byval]([[maybe_unused]] typename decltype( event )::type& param) mutable
     #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
 
-    #define EVENTPACK( name, base ) using _group_type = name; \
-                                    static constexpr auto _counter_base = __COUNTER__; \
-                                    public: static constexpr auto any = netxs::events::type_clue<_group_type, decltype(base)::type, decltype(base)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
+    #define EVENTPACK( name )       static constexpr auto _counter_base = __COUNTER__; \
+                                    static constexpr auto any = netxs::events::type_clue<decltype(name)::type, decltype(name)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = netxs::events::type_clue<type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
-    #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
+    #define SUBSET_XS( name )       }; namespace name { EVENTPACK( _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
-                                    private: static constexpr auto _dummy = { 777
-
-    struct ref_count_t
-    {
-        ui64 obj_count{};
-        ui64 ref_count{};
-        ui64 del_count{};
-    };
+                                    static constexpr auto _dummy = { 777
 
     //todo unify seeding
     namespace userland
     {
-        struct root
+        namespace root
         {
-            static constexpr auto root_event = type_clue<root, si32, 0>{};
-            EVENTPACK( root, root_event )
+            static constexpr auto root_event = type_clue<si32, 0>{};
+            EVENTPACK( root_event )
             {
-                EVENT_XS( dtor     , const id_t ),
-                EVENT_XS( cascade  , ftor ),
-                EVENT_XS( base     , root ),
-                EVENT_XS( hids     , root ),
-                EVENT_XS( scripting, root ),
-                EVENT_XS( custom   , root ),
-                EVENT_XS( cleanup  , ref_count_t ), // Garbage collection.
+                EVENT_XS( base     , si32 ),
+                EVENT_XS( hids     , si32 ),
+                EVENT_XS( custom   , si32 ),
             };
-        };
+        }
     }
 
     // events: Event x-mitter.
@@ -440,10 +457,10 @@ namespace netxs::events
 
         auth&        indexer;
         reactor&     general;
-        const id_t   id;
-        subs         tracker;
+        const id_t   id;      // bell: Object id.
+        subs         sensors; // bell: Event subscriptions.
 
-    private:
+    //private:
         reactor release{ true };
         reactor preview{ faux };
         reactor request{ true };
@@ -484,15 +501,15 @@ namespace netxs::events
         };
 
     public:
-        template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                 }
-        template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                 }
-        template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);          }
-        template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.extra()); }
+        template<class Event> auto submit(si32 Tier, Event)               { return submit_helper      <Event>(Tier, *this);                        }
+        template<class Event> auto submit(si32 Tier, Event, si32)         { return submit_helper      <Event>(Tier, *this);                        }
+        template<class Event> auto submit(si32 Tier, Event, hook& token)  { return submit_helper_token<Event>(Tier, *this, token);                 }
+        template<class Event> auto submit(si32 Tier, Event, subs& tokens) { return submit_helper_token<Event>(Tier, *this, tokens.emplace_back()); }
         template<class Event>
         void submit(si32 Tier, Event, std::function<void(typename Event::type&)> handler)
         {
             auto lock = indexer.sync();
-            tracker.admit(reactors[Tier]->subscribe(Event::id, handler));
+            sensors.push_back(reactors[Tier]->subscribe(Event::id, handler));
         }
         template<class Event>
         void submit(si32 Tier, Event, hook& token, std::function<void(typename Event::type&)> handler)
@@ -503,40 +520,6 @@ namespace netxs::events
         auto accomplished(si32 Tier)
         {
             return reactors[Tier]->handled;
-        }
-        auto signal(si32 Tier, hint event, auto& param)
-        {
-            auto lock = indexer.sync();
-            if (Tier == tier::anycast)
-            {
-                auto root = gettop();
-                auto proc = ftor{ [&](auto boss_ptr)
-                {
-                    boss_ptr->anycast.notify(event, param);
-                    return true;
-                }};
-                root->release.notify(userland::root::cascade.id, proc);
-            }
-            else reactors[Tier]->notify(event, param);
-        }
-        // bell: Fire an event.
-        // Usage example:
-        //          bell::signal(tier::preview, e2::form::prop::ui::header, txt);
-        template<class Event>
-        auto signal(si32 Tier, Event, Event::type&& param = {})
-        {
-            signal(Tier, Event::id, param);
-            return param;
-        }
-        template<class Event>
-        void signal(si32 Tier, Event, Event::type& param)
-        {
-            signal(Tier, Event::id, param);
-        }
-        template<class Event>
-        void signal(si32 Tier, Event, Event::type const& param)
-        {
-            signal(Tier, Event::id, param);
         }
         // bell: Return initial event of the current event execution branch.
         auto protos(si32 Tier)
@@ -566,7 +549,7 @@ namespace netxs::events
         // bell: .
         void dequeue()
         {
-            indexer.agent.stop();
+            indexer.stop();
         }
         // bell: .
         template<bool Sync = true, class ...Args>
@@ -600,21 +583,8 @@ namespace netxs::events
             : indexer{ indexer },
               general{ indexer.general },
               id{ indexer.new_id() }
-        {
-            LISTEN(tier::general, userland::root::cleanup, counter)
-            {
-                counter.obj_count++;
-                preview.cleanup(counter.ref_count, counter.del_count);
-                request.cleanup(counter.ref_count, counter.del_count);
-                release.cleanup(counter.ref_count, counter.del_count);
-                anycast.cleanup(counter.ref_count, counter.del_count);
-            };
-        }
-       ~bell()
-        {
-            signal(tier::release, userland::root::dtor, id);
-        }
-        virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
+        { }
+        virtual ~bell() = default;
     };
 }
 namespace netxs

@@ -7,9 +7,9 @@
 
 namespace netxs::events::userland
 {
-    struct calc
+    namespace calc
     {
-        EVENTPACK( calc, netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -24,7 +24,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 namespace netxs::ui
@@ -121,7 +121,7 @@ namespace netxs::ui
                         }
                     });
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -131,7 +131,7 @@ namespace netxs::ui
                     }
                     recalc();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::button::dblclick::left, gear, memo)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.base::size();
@@ -141,18 +141,18 @@ namespace netxs::ui
                     recalc();
                     gear.dismiss();
                 };
-                boss.LISTEN(tier::general, hids::events::die, gear, memo)
+                boss.LISTEN(tier::general, input::events::die, gear, memo)
                 {
                     recalc();
-                    boss.deface();
+                    boss.base::deface();
                 };
-                boss.LISTEN(tier::release, hids::events::mouse::hover::any, gear, memo)
+                boss.LISTEN(tier::release, input::events::mouse::hover::any, gear, memo)
                 {
-                    if (gear.cause == hids::events::mouse::hover::enter.id)
+                    if (gear.cause == input::events::mouse::hover::enter.id)
                     {
                         items.add(gear);
                     }
-                    else if (gear.cause == hids::events::mouse::hover::leave.id)
+                    else if (gear.cause == input::events::mouse::hover::leave.id)
                     {
                         auto& item = items.take(gear);
                         if (item.region.size)
@@ -196,14 +196,14 @@ namespace netxs::ui
                 }
                 else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
                 log(prompt::calc, "DATA ", data, ansi::nil());
-                boss.bell::signal(tier::release, e2::data::utf8, data);
+                boss.base::signal(tier::release, e2::data::utf8, data);
             }
             // pro::cell_highlight: Configuring the mouse button to operate.
             template<hids::buttons Button>
             void engage()
             {
-                boss.bell::signal(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
+                boss.base::signal(tier::release, e2::form::draggable::_<Button>, true);
+                boss.LISTEN(tier::release, input::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
@@ -246,7 +246,7 @@ namespace netxs::app::calc
     static constexpr auto id = "calc";
     static constexpr auto name = "Spreadsheet calculator (DEMO)";
 
-    using events = ::netxs::events::userland::calc;
+    namespace events = ::netxs::events::userland::calc;
 
     namespace
     {
@@ -336,7 +336,7 @@ namespace netxs::app::calc
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
-                  ->plugin<pro::keybd>()
+                  ->plugin<pro::keybd>("defapp")
                   ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
@@ -385,8 +385,7 @@ namespace netxs::app::calc
                                                         ->active()
                                                         ->limits({ -1,1 }, { -1,-1 });
                                         auto sheet_body = scroll->attach(ui::post::ctor())
-                                                                ->active()
-                                                                ->colors(0xFF000000, 0xFFffffff)
+                                                                ->active(0xFF000000, 0xFFffffff)
                                                                 ->plugin<pro::cell_highlight>()
                                                                 ->upload(cellatix_text);
                                     auto sum = fx_sum->attach(slot::_2, ui::post::ctor())
@@ -429,8 +428,7 @@ namespace netxs::app::calc
                     layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };

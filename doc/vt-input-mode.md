@@ -26,7 +26,7 @@ Anyone who wants to:
 Existing approaches have the following drawbacks:
 - There is no uniform way to receive keyboard events.
 - Window size tracking requires platform-specific calls with no way to synchronize the output.
-- Mouse tracking modes lack support for negative coordinates, high-resolution wheel scrolling, and have a limited set of buttons.
+- Mouse tracking modes lack support for negative coordinates, and high-resolution wheel scrolling.
 - Bracketed paste mode does not support the transfer of binary data and data containing sequences of bracketed paste mode itself.
 
 ## Conventions

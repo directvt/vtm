@@ -13,7 +13,17 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "/DDEBUG /MTd /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreadedDebug",
           "type": "STRING"
         }
       ],
@@ -54,7 +64,17 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /Zc:preprocessor /W4",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "/DDEBUG /MTd /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreadedDebug",
           "type": "STRING"
         }
       ]
@@ -80,6 +100,16 @@
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/i686-linux-gnu-g++",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/i686-linux-gnu-gcc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
+          "type": "STRING"
         }
       ],
       "intelliSenseMode": "linux-gcc-x86",
@@ -101,6 +131,16 @@
           "name": "CMAKE_CXX_FLAGS_RELEASE",
           "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "/DNDEBUG /MT /O2 /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreaded",
+          "type": "STRING"
         }
       ],
       "intelliSenseMode": "windows-msvc-arm"
@@ -120,6 +160,16 @@
           "name": "CMAKE_CXX_FLAGS_RELEASE",
           "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "/DNDEBUG /MT /O2 /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreaded",
+          "type": "STRING"
         }
       ],
       "intelliSenseMode": "windows-msvc-arm64"
@@ -138,6 +188,16 @@
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
           "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "/DNDEBUG /MT /O2 /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreaded",
           "type": "STRING"
         }
       ]
@@ -162,6 +222,16 @@
           "name": "DCMAKE_EXE_LINKER_FLAGS_RELEASE",
           "value": "/DEBUG /OPT:REF /OPT:ICF",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "/DNDEBUG /MT /O2 /c",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+          "value": "MultiThreaded",
+          "type": "STRING"
         }
       ]
     },
@@ -185,6 +255,16 @@
         {
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/arm-linux-gnueabihf-g++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/arm-linux-gnueabihf-gcc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
           "type": "STRING"
         }
       ],
@@ -214,6 +294,16 @@
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/aarch64-linux-gnu-g++",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/aarch64-linux-gnu-gcc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
+          "type": "STRING"
         }
       ],
       "intelliSenseMode": "linux-gcc-arm",
@@ -241,6 +331,16 @@
         {
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/i686-linux-gnu-g++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/i686-linux-gnu-gcc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
           "type": "STRING"
         }
       ],

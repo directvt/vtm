@@ -31,7 +31,7 @@ Option                  | Description
 `-p`, `--pin <id>`      | Specifies the desktop id it will be pinned to.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
-`-m`, `--monitor`       | Run Desktop Monitor.
+`-m`, `--monitor`       | Run Log Monitor.
 `-r`, `--`, `--run`     | Run desktop applet standalone.
 `<type>`                | Desktop applet to run.
 `<args...>`             | Desktop applet arguments.
@@ -62,18 +62,18 @@ The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
   - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
-### Script commands
+### Scripting
 
-Syntax: `<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]`
+#### 28 Feb 2025: This functionality is under development.
 
-Script Command                           | Description
------------------------------------------|-------------------------------------------
-`vtm.run([<attr_list...>])`              | Create and run a menu item constructed using a space-separated list of `<attribute>=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.<br>See [Settings/Taskbar menu item attributes](settings.md#Taskbar-menu-item-attributes) for details.
-`vtm.set(id=<item_id> [<attr_list...>])` | Create or override a menu item using a space-separated list of `<attribute>=<value>`.
-`vtm.del([<item_id>])`                   | Delete the taskbar menu item by `<id>`.<br>Delete all menu items if no `<id>` specified.
-`vtm.dtvt(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.
-`vtm.selected(<item_id>)`                | Set selected menu item using specified `<id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
-`vtm.shutdown()`                         | Terminate the running desktop session.
+Script Command                                          | Description
+--------------------------------------------------------|-------------------------------------------
+`vtm.desktop.Run([{ <attr_list...> }])`                 | Create and run a menu item constructed using a comma-separated list of `<attribute>=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.<br>See [Settings/Taskbar menu item attributes](settings.md#Taskbar-menu-item-attributes) for details.
+`vtm.taskbar.Set({ id='<item_id>', [<attr_list...>] })` | Create or override a menu item using a comma-separated list of `<attribute>=<value>`.
+`vtm.taskbar.Del(['<item_id>'])`                        | Delete the taskbar menu item by `<item_id>`.<br>Delete all menu items if no `<id>` specified.
+`vtm.taskbar.dtvt(<dtvt_app...>)`                       | Create a temporary menu item and run the specified dtvt-executable.
+`vtm.taskbar.Selected('<item_id>')`                     | Set selected menu item using specified `<item_id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
+`vtm.desktop.Shutdown(['try'])`                         | Terminate the running desktop session. If `try` is specified, the server will only shut down if there are no running windows.
 
 ### Character escaping
 
@@ -92,6 +92,8 @@ Characters | Expanded to
 
 ### Usage Examples
 
+> 28 Feb 2025: Scripting functionality is under development.
+
 |                                                     | Description
 ------------------------------------------------------|--------------------------------------------
 `vtm`                                                 | Run Desktop Client.
@@ -99,9 +101,9 @@ Characters | Expanded to
 `vtm -r term`                                         | Run Terminal Console.
 `vtm -r term </path/to/console/app...>`               | Run Terminal Console with a CUI application inside.
 `vtm ssh <user@server> vtm </path/to/console/app...>` | Run a CUI application remotely over SSH.
-`vtm -x "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client and reconfigure the taskbar menu.
-`echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
-`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal Console on the running desktop.
-`echo "vtm.run(title='Console \nApplication' cmd='</path/to/app...>')" \| vtm` | Run Teletype Console with a CUI application inside on the running desktop.
-`echo "vtm.run(type=tile title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run Tiling Window Manager with three terminals attached.
-`echo "vtm.shutdown()" \| vtm`                        | Terminate the running desktop session.
+`vtm -x "vtm.taskbar.Del(); vtm.taskbar.Set({ splitter, id='Apps' }); vtm.taskbar.Set({ id='Term' })"` | Run Desktop Client and reconfigure the taskbar menu.
+`echo "vtm.taskbar.Del(); vtm.taskbar.Set({ splitter, id='Apps' }); vtm.taskbar.Set({ id='Term' })" \| vtm`<br><br>`echo "vtm.taskbar.Set({ id='user@server', type='dtty', cmd='ssh <user@server> vtm' })" \| vtm` | Reconfigure the taskbar menu of the running desktop.
+`echo "vtm.desktop.Run()" \| vtm`<br><br>`echo "vtm.desktop.Run({ id='Term' })" \| vtm`<br><br>`echo "vtm.desktop.dtvt('vtm -r term')" \| vtm` | Run Terminal Console on the running desktop.
+`echo "vtm.desktop.Run({ title='Console \nApplication', cmd='</path/to/app...>' })" \| vtm` | Run Teletype Console with a CUI application inside on the running desktop.
+`echo "vtm.desktop.Run({ type='tile', title='Terminals', cmd='v(h(Term,Term),Term)' })" \| vtm` | Run Tiling Window Manager with three terminals attached.
+`echo "vtm.desktop.Shutdown()" \| vtm`                | Shutdown desktop server.

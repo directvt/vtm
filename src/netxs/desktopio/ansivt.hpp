@@ -305,6 +305,20 @@ namespace netxs::ansi
             {
                 itos(data);
             }
+            else if constexpr (std::is_floating_point_v<D>)
+            {
+                if ((si64)data == data)
+                {
+                    block += std::to_string((si64)data) + ".0";
+                }
+                else
+                {
+                    auto str = std::to_string(data);
+                    auto shadow = qiew{ str };
+                    utf::trim_back(shadow, "0");
+                    block += shadow;
+                }
+            }
             else if constexpr (std::is_same_v<D, bias>
                             || std::is_same_v<D, wrap>
                             || std::is_same_v<D, rtol>
@@ -583,8 +597,9 @@ namespace netxs::ansi
         auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset cursor location.
         auto& save_title()          { return add("\033[22;0t"                        ); } // escx: Save terminal window title.
         auto& load_title()          { return add("\033[23;0t"                        ); } // escx: Restore terminal window title.
-        auto& osc(view p, view arg) { return add("\033]", p, ';', arg,        c0_bel ); } // escx: OSC report.
-        auto& header(view t)        { return add("\033]2;", t,                c0_bel ); } // escx: Window title.
+        auto& osc(view p)           { return add("\033]", p, c0_bel                  ); } // escx: OSC report.
+        auto& osc(view p, view arg) { return add("\033]", p, ';', arg, c0_bel        ); } // escx: OSC report with args.
+        auto& header(view t)        { return add("\033]2;", t, c0_bel                ); } // escx: Window title.
         auto& save_palette()        { return add("\033[#P"                           ); } // escx: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // escx: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // escx: Reset color palette (Linux console).
@@ -647,6 +662,8 @@ namespace netxs::ansi
             static constexpr auto idle     = si32{ 32 };
             static constexpr auto wheel_up = si32{ 64 };
             static constexpr auto wheel_dn = si32{ 65 };
+            static constexpr auto wheel_lt = si32{ 66 };
+            static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
             if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
@@ -680,11 +697,13 @@ namespace netxs::ansi
             }
             else if (gear.m_sys.wheelsi)
             {
-                ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+                if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_lt : wheel_rt;
+                else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
                 pressed = true;
             }
             else if (gear.m_sys.buttons)
             {
+                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
@@ -715,6 +734,8 @@ namespace netxs::ansi
             static constexpr auto idle     = si32{ 32 };
             static constexpr auto wheel_up = si32{ 64 };
             static constexpr auto wheel_dn = si32{ 65 };
+            static constexpr auto wheel_lt = si32{ 66 };
+            static constexpr auto wheel_rt = si32{ 67 };
 
             auto ctrl = si32{};
             if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
@@ -730,12 +751,18 @@ namespace netxs::ansi
             auto s_rght = s_bttn[hids::right ];
             auto s_mddl = s_bttn[hids::middle];
 
+            //todo impl ext mouse buttons 128-131
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m_sys.wheelsi) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+            else if (gear.m_sys.wheelsi)
+            {
+                if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_lt : wheel_rt;
+                else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
+            }
             else if (gear.m_sys.buttons)
             {
+                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
@@ -1601,15 +1628,13 @@ namespace netxs::ansi
                     ascii.remove_prefix(1); // R
                     return;
                 }
-
                 auto base = ascii.data();
                 auto head = base;
                 auto tail = head + ascii.length();
                 auto delm = tail; // Semicolon ';' position
                 auto exec = [&](auto pad)
                 {
-                    auto cmd = text(base, delm);
-                    ++delm;
+                    auto cmd = text(base, delm == tail ? (delm = head) : delm++);
                     auto size = head - delm;
                     if (auto it = oscer.find(cmd); it != oscer.end())
                     {
@@ -1619,7 +1644,6 @@ namespace netxs::ansi
                     }
                     ascii.remove_prefix(head - base + pad); // Take the text and BEL or ST too.
                 };
-
                 while (head != tail)
                 {
                     c = *head;
@@ -1629,7 +1653,7 @@ namespace netxs::ansi
                         while (head != tail)
                         {
                             auto c0 = (byte)*head;
-                            if (c0 <= c0_esc) // To avoid double comparing.
+                            if (c0 <= c0_esc) // To avoid extra comparisons.
                             {
                                 if (c0 == c0_bel)
                                 {
@@ -1650,13 +1674,18 @@ namespace netxs::ansi
                         }
                         return; // Drop bcuz no ST in the sequence.
                     }
-                    else if (c == c0_bel) return; // Drop bcuz no ';' in the sequence.
+                    else if (c == c0_bel)
+                    {
+                        exec(1); 
+                        return;
+                    }
                     else if (c == c0_esc)
                     {
                         auto next = std::next(head);
                         if (next != tail && *next == '\\')
                         {
-                            return; // Drop bcuz no ';' in the sequence.
+                            exec(2);
+                            return;
                         }
                     }
                     ++head;

@@ -24,32 +24,25 @@
   - Extending selection with `Ctrl` key pressed.
   - Changing selection mode (linear/box) with `Alt` key pressed.
   - Selecting a word/paragraph/entire scrollback buffer or a semantic block (when using OSC 133) by Double/Triple/Quadruple/Quintuple left clicking.
-- Multiple clipboard formats support:
+- Support multiple selection copy formats:
   - Plain text
   - RTF
   - HTML
   - ANSI/VT
-  - Protected (Windows only: `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`)
-- Built-in Windows Console API server:
+  - Protected (MS Windows platform only: `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`)
+- Built-in MS Windows Console API server:
   - Legacy Win32 Console API support.
-  - No Windows Console Host (conhost.exe) dependency.
+  - No MS Windows Console Host (conhost.exe) dependency.
   - Fullduplex pass-through VT input/output.
   - OEM/National, UTF-8 and UTF-16 encoding support.
   - Enforced ENABLE_WINDOW_INPUT mode.  
     Note: In fact it is a viewport resize event reporting. Viewport dimensions is always equal to the win32 console buffer dimensions.
   - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes.
   - Disabled ENABLE_QUICK_EDIT_MODE mode.
-  - Per process (not per process name) Windows Command Prompt (cmd.exe) input history, aka "line input"/"cooked read".
+  - Per process (not per process name) MS Windows Command Prompt (cmd.exe) input history, aka "line input"/"cooked read".
 - Stdin/stdout logging.
 
-### Custom SGR attributes
-
-Name               | Sequence                         | Description
--------------------|----------------------------------|------------
-`grid color`       | `CSI` 68 : 2 :: r : g : b `m`<br>`CSI` 68 : 5 : n `m`<br>`CSI` 68 : n `m`    | (not implemented) Set grid color.
-`reset grid color` | `CSI` 69 `m`                     | (not implemented) Reset grid color (sync with foreground color).
-
-### Runtime configuraion vt-sequences
+### Private control sequences
 
 Name         | Sequence                         | Description
 -------------|----------------------------------|------------
@@ -66,10 +59,10 @@ Name         | Sequence                         | Description
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
 ### Custom menu configuration
-      
+
 It is possible to create your own terminal window menu from scratch by specifying a list of menu items in the `<config/terminal/menu/>` section of the configuration file.
 
-### Syntax
+#### Syntax
 
 ```xml
 <config>
@@ -92,7 +85,7 @@ It is possible to create your own terminal window menu from scratch by specifyin
 </config>
 ```
 
-### Attributes for the `<config/terminal/menu/item>` object
+#### Attributes for the `<config/terminal/menu/item>` object
 
 Attribute  | Description
 -----------|------------
@@ -101,7 +94,7 @@ label      | Menu item label list. One or more textual representations selected 
 tooltip    | Tooltip content.
 action     | The action name which called on item activation.
 
-### Attributes for the `<config/terminal/menu/item/label>` sub-object
+#### Attributes for the `<config/terminal/menu/item/label>` sub-object
 
 Attribute        | Description
 -----------------|------------
@@ -117,7 +110,7 @@ Value       | Description
 `Option`    | Cyclically selects the next label in the list and calls the action with the arguments from `data=`.
 `Repeat`    | Selects the next label and calls the action repeatedly from the time it is pressed until it is released.
 
-#### Actions `action`
+#### Attribute `action` (this will soon be replaced by Lua scripting)
 
 `*` - Not implemented.
 
@@ -193,7 +186,7 @@ Hotkey                       | Description
 `Shift+Insert`               | Paste from clipboard.
 `Esc`                        | Deselect a selection if it is.
 
-#### Terminal configuration example
+### Configuration example
 
 ```xml
 <config>
@@ -347,53 +340,40 @@ Hotkey                       | Description
             </item>
         </menu>
     </terminal>
-    <hotkeys>  <!--  The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop.   -->
-        <tui key*>  <!-- TUI matrix layer key bindings. -->
-            <key="Space-Backspace | Backspace-Space" action=ToggleDebugOverlay/>  <!-- Toggle debug overlay. -->
-        </tui>
-        <terminal key*>
-            <key="Ctrl-Alt | Alt-Ctrl" preview action=ExclusiveKeyboardMode/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
-            <key="Alt+RightArrow"            action=TerminalFindNext/>  <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Alt+LeftArrow"             action=TerminalFindPrev/>  <!-- Highlight previous match of selected text fragment. Clipboard content is used if no active selection. -->
-            <key="Shift+Ctrl+PageUp"       ><action=TerminalScrollViewportByPage data=" 0, 1"/></key>  <!-- Scroll viewport one page up. -->
-            <key="Shift+Ctrl+PageDown"     ><action=TerminalScrollViewportByPage data=" 0,-1"/></key>  <!-- Scroll viewport one page down. -->
-            <key="Shift+Alt+LeftArrow"     ><action=TerminalScrollViewportByPage data=" 1, 0"/></key>  <!-- Scroll viewport one page to the left. -->
-            <key="Shift+Alt+RightArrow"    ><action=TerminalScrollViewportByPage data="-1, 0"/></key>  <!-- Scroll viewport one page to the right. -->
-            <key="Shift+Ctrl+UpArrow"      ><action=TerminalScrollViewportByCell data=" 0, 1"/></key>  <!-- Scroll viewport one line up. -->
-            <key="Shift+Ctrl+DownArrow"    ><action=TerminalScrollViewportByCell data=" 0,-1"/></key>  <!-- Scroll viewport one line down. -->
-            <key="Shift+Ctrl+LeftArrow"    ><action=TerminalScrollViewportByCell data=" 1, 0"/></key>  <!-- Scroll viewport one cell to the left. -->
-            <key="Shift+Ctrl+RightArrow"   ><action=TerminalScrollViewportByCell data="-1, 0"/></key>  <!-- Scroll viewport one cell to the right. -->
-            <key="Shift+Ctrl+Home">
-                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback top. -->
-                <action=TerminalScrollViewportToTop/>  <!-- Scroll to the scrollback top. -->
-            </key>
-            <key="Shift+Ctrl+End">
-                <action=DropAutoRepeat/>               <!-- Don't autorepeat the Scroll to the scrollback bottom (reset viewport position). -->
-                <action=TerminalScrollViewportToEnd/>  <!-- Scroll to the scrollback bottom (reset viewport position). -->
-            </key>
-            <key="">                   <action=TerminalSendKey data="test\r"/></key>  <!-- Simulating keypresses using the specified string. -->
-            <key="">                   <action=TerminalOutput  data="Hello!"/></key>  <!-- Direct output the string to the terminal scrollback. -->
-            <key=""                     action=TerminalViewportCopy/>                 <!-- Сopy viewport to clipboard. -->
-            <key="Ctrl+Insert"  preview action=TerminalClipboardCopy/>                <!-- Сopy selection to clipboard. -->
-            <key="Shift+Insert" preview action=TerminalClipboardPaste/>               <!-- Paste from clipboard. -->
-            <key=""                     action=TerminalClipboardWipe/>                <!-- Reset clipboard. -->
-            <key=""                     action=TerminalClipboardFormat/>              <!-- Toggle terminal text selection copy format. -->
-            <key=""                     action=TerminalSelectionRect/>                <!-- Toggle between linear and rectangular selection form. -->
-            <key="Esc" preview          action=TerminalSelectionCancel/>              <!-- Deselect a selection. -->
-            <key=""                     action=TerminalSelectionOneShot/>             <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
-            <key=""                     action=TerminalUndo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
-            <key=""                     action=TerminalRedo/>                         <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-            <key=""                     action=TerminalCwdSync/>                      <!-- Toggle the current working directory sync mode. -->
-            <key=""                     action=TerminalWrapMode/>                     <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-            <key=""                     action=TerminalAlignMode/>                    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-            <key=""                     action=TerminalFullscreen/>                   <!-- Toggle fullscreen mode. -->
-            <key=""                     action=TerminalMaximize/>                     <!-- Toggle between maximized and normal window size. -->
-            <key=""                     action=TerminalMinimize/>                     <!-- Minimize window. -->
-            <key=""                     action=TerminalStdioLog/>                     <!-- Toggle stdin/stdout logging. -->
-            <key=""                     action=TerminalRestart/>                      <!-- Terminate runnning console apps and restart current session. -->
-            <key=""                     action=TerminalQuit/>                         <!-- Terminate runnning console apps and close terminal. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
+        <terminal key*>  <!-- Terminal key bindings. -->
+            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
+            <key="Alt+RightArrow"        script=TerminalFindNext/>
+            <key="Alt+LeftArrow"         script=TerminalFindPrev/>
+            <key="Shift+Ctrl+PageUp"     script=TerminalScrollViewportOnePageUp/>
+            <key="Shift+Ctrl+PageDown"   script=TerminalScrollViewportOnePageDown/>
+            <key="Shift+Alt+LeftArrow"   script=TerminalScrollViewportOnePageLeft/>
+            <key="Shift+Alt+RightArrow"  script=TerminalScrollViewportOnePageRight/>
+            <key="Shift+Ctrl+UpArrow"    script=TerminalScrollViewportOneLineUp/>
+            <key="Shift+Ctrl+DownArrow"  script=TerminalScrollViewportOneLineDown/>
+            <key="Shift+Ctrl+LeftArrow"  script=TerminalScrollViewportOneCellLeft/>
+            <key="Shift+Ctrl+RightArrow" script=TerminalScrollViewportOneCellRight/>
+            <key="Shift+Ctrl+Home"       script=TerminalScrollViewportToTop/>
+            <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
+            <key=""                      script=TerminalSendKey/>
+            <key=""                      script=TerminalOutput/>
+            <key=""                      script=TerminalCopyViewport/>
+            <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
+            <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
+            <key=""                      script=TerminalClipboardWipe/>
+            <key=""                      script=TerminalClipboardFormat/>
+            <key=""                      script=TerminalSelectionRect/>
+            <key="Esc" preview           script=TerminalSelectionCancel/>
+            <key=""                      script=TerminalSelectionOneShot/>
+            <key=""                      script=TerminalUndo/>
+            <key=""                      script=TerminalRedo/>
+            <key=""                      script=TerminalCwdSync/>
+            <key=""                      script=TerminalWrapMode/>
+            <key=""                      script=TerminalAlignMode/>
+            <key=""                      script=TerminalStdioLog/>
+            <key=""                      script=TerminalRestart/>
         </terminal>
-    </hotkeys>
+    </events>
 </config>
 ```
 
@@ -433,7 +413,7 @@ Tiling Window Manager is a window container that organizes the workspace into mu
   - `double LeftClick` -- Maxixmize/restore
 - Configurable via settings (See configuration example in doc\settings.md`).
 
-#### Tiling Window Manager configuration example
+### Configuration example
 
 ```xml
 <config>
@@ -441,7 +421,7 @@ Tiling Window Manager is a window container that organizes the workspace into mu
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplicatoin label=" + ">
+            <item action=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
@@ -461,32 +441,32 @@ Tiling Window Manager is a window container that organizes the workspace into mu
             <!-- <item action=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
         </menu>
     </tile>
-    <hotkeys>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. -->
+    <events>
         <tile key*>
-            <key="Ctrl+PageUp"     action=TileFocusPrev         />  <!-- Focus the previous pane or the split grip. -->
-            <key="Ctrl+PageDown"   action=TileFocusNext         />  <!-- Focus the next pane or the split grip. -->
-            <key=""                action=TileFocusPrevPane     />  <!-- Focus the previous pane. -->
-            <key=""                action=TileFocusNextPane     />  <!-- Focus the next pane. -->
-            <key="Alt+Shift+N"     action=TileRunApplicatoin    />  <!-- Launch application instances in active empty slots. The app to run can be set by RightClick on the taskbar. -->
-            <key="Alt+Shift+A"     action=TileSelectAllPanes    />  <!-- Select all panes. -->
-            <key="Alt+Shift+'|'"   action=TileSplitHorizontally />  <!-- Split active panes horizontally. -->
-            <key="Alt+Shift+Minus" action=TileSplitVertically   />  <!-- Split active panes vertically. -->
-            <key="Alt+Shift+R"     action=TileSplitOrientation  />  <!-- Change split orientation. -->
-            <key="Alt+Shift+S"     action=TileSwapPanes         />  <!-- Swap two or more panes. -->
-            <key="Alt+Shift+E"     action=TileEqualizeSplitRatio/>  <!-- Equalize split ratio. -->
-            <key="Alt+Shift+F2"    action=TileSetManagerTitle   />  <!-- Set tiling window manager title using clipboard data. -->
-            <key="Alt+Shift+W"     action=TileClosePane         />  <!-- Close active application. -->
-            <grips key*>
-                <key="LeftArrow" ><action=TileMoveGrip   data="-1, 0"/></key>  <!-- Move the split grip to the left. -->
-                <key="RightArrow"><action=TileMoveGrip   data=" 1, 0"/></key>  <!-- Move the split grip to the right. -->
-                <key="UpArrow"   ><action=TileMoveGrip   data=" 0,-1"/></key>  <!-- Move the split grip up. -->
-                <key="DownArrow" ><action=TileMoveGrip   data=" 0, 1"/></key>  <!-- Move the split grip down. -->
-                <key="'-'"       ><action=TileResizeGrip data="-1"   /></key>  <!-- Decrease the split grip width. -->
-                <key="Shift+'+' | NumpadPlus"><action=TileResizeGrip data="1"/></key>  <!-- Increase the split grip width. -->
-                <key="Shift+Tab" action=TileFocusPrevGrip/>  <!-- Focus the next split grip. -->
-                <key="Tab"       action=TileFocusNextGrip/>  <!-- Focus the previous split grip. -->
-            </grips>
+            <key="Ctrl+PageUp"     script=TileFocusPrev/>
+            <key="Ctrl+PageDown"   script=TileFocusNext/>
+            <key=""                script=TileFocusPrevPane/>
+            <key=""                script=TileFocusNextPane/>
+            <key="Alt+Shift+N"     script=TileRunApplication/>
+            <key="Alt+Shift+A"     script=TileSelectAllPanes/>
+            <key="Alt+Shift+'|'"   script=TileSplitHorizontally/>
+            <key="Alt+Shift+Minus" script=TileSplitVertically/>
+            <key="Alt+Shift+R"     script=TileSplitOrientation/>
+            <key="Alt+Shift+S"     script=TileSwapPanes/>
+            <key="Alt+Shift+E"     script=TileEqualizeSplitRatio/>
+            <key="Alt+Shift+F2"    script=TileSetManagerTitle/>
+            <key="Alt+Shift+W"     script=TileClosePane/>
+            <grip key*>
+                <key="LeftArrow"                          script=TileMoveGripLeft/>
+                <key="RightArrow"                         script=TileMoveGripRight/>
+                <key="UpArrow"                            script=TileMoveGripUp/>
+                <key="DownArrow"                          script=TileMoveGripDown/>
+                <key="'-'"                                script=TileDecreaseGripWidth/>
+                <key="Shift+'+' | '+' | '=' | NumpadPlus" script=TileIncreaseGripWidth/>
+                <key="Shift+Tab"                          script=TileFocusPrevGrip/>
+                <key="Tab"                                script=TileFocusNextGrip/>
+            </grip>
         </tile>
-    </hotkeys>
+    </events>
 </config>
 ```

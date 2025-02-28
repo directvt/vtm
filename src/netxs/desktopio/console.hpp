@@ -110,37 +110,18 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             gate& owner; // link: Link owner.
-            flag  alive; // link: sysclose isn't sent.
             wptr  owner_wptr; // link: .
-
-            // link: Send data outside.
-            void run()
-            {
-                directvt::binary::stream::reading_loop(canal, [&](view data){ s11n::sync(data); });
-                s11n::stop(); // Wake up waiting objects, if any.
-                if constexpr (debugmode) log(prompt::gate, "DirectVT session complete");
-            }
-            // link: Notify environment to disconnect.
-            void disconnect()
-            {
-                if (alive.exchange(faux))
-                {
-                    s11n::sysclose.send(canal, true);
-                    canal.wake();
-                }
-            }
 
             link(pipe& canal, gate& owner)
                 : s11n{ *this },
                  canal{ canal },
-                 owner{ owner },
-                 alive{ true  }
+                 owner{ owner }
             {
-                auto oneshot = ptr::shared(hook{});
-                owner.LISTEN(tier::anycast, e2::form::upon::started, root, *oneshot, (oneshot))
+                auto& oneshot = owner.base::template field<hook>(); //todo Apple clang requires template keyword
+                owner.LISTEN(tier::anycast, e2::form::upon::started, root, oneshot)
                 {
                     owner_wptr = owner.This();
-                    oneshot->reset();
+                    owner.base::unfield(oneshot);
                 };
             }
 
@@ -150,7 +131,7 @@ namespace netxs::ui
             {
                 owner.bell::enqueue(owner_wptr, [Tier, d = data](auto& boss) mutable
                 {
-                    boss.bell::signal(Tier, E::id, d);
+                    boss.base::signal(Tier, E::id, d);
                 });
             }
             void handle(s11n::xs::req_input_fields lock)
@@ -159,7 +140,7 @@ namespace netxs::ui
                 {
                     auto ext_gear_id = item.gear_id;
                     auto int_gear_id = owner.get_int_gear_id(ext_gear_id);
-                    auto inputfield_request = owner.bell::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
+                    auto inputfield_request = owner.base::signal(tier::general, ui::e2::command::request::inputfields, { .gear_id = int_gear_id, .acpStart = item.acpStart, .acpEnd = item.acpEnd }); // pro::focus retransmits as a tier::release for focused objects.
                     auto field_list = inputfield_request.wait_for();
                     for (auto& f : field_list) f.coor -= owner.coor();
                     s11n::ack_input_fields.send(canal, ext_gear_id, field_list);
@@ -167,27 +148,17 @@ namespace netxs::ui
             }
             void handle(s11n::xs::command     lock)
             {
-                //todo implement
-                //auto cmd = eccc{ .cmd = lock.thing.utf8 };
-                //notify(scripting::events::invoke, cmd);
-                auto cmd = qiew{ lock.thing.utf8 };
-                if (cmd.starts_with("exit") || cmd.starts_with("quit"))
-                {
-                    lock.unlock();
-                    disconnect();
-                }
-                else
-                {
-                    auto msg = utf::concat(prompt::repl, ansi::err("Not implemented: "), ansi::clr(yellowlt, utf::trim(cmd, "\r\n")));
-                    s11n::logs.send(canal, ui32{}, datetime::now(), msg);
-                }
+                auto cmd = eccc{ .cmd = lock.thing.utf8 };
+                notify(e2::command::run, cmd);
+                auto msg = utf::concat(prompt::repl, ansi::clr(yellowlt, utf::trim(cmd.cmd, "\r\n")));
+                s11n::logs.send(canal, ui32{}, datetime::now(), msg);
             }
             void handle(s11n::xs::syswinsz    lock)
             {
                 auto& item = lock.thing;
                 notify(e2::conio::winsz, item.winsize);
             }
-            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/mnimized
+            //todo use s11n::xs::screenmode:  normal/fullscreen/maximized/minimized
             void handle(s11n::xs::fullscrn  /*lock*/)
             {
                 owner.fullscreen = true;
@@ -230,7 +201,7 @@ namespace netxs::ui
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& item = lock.thing;
-                notify(e2::conio::focus, item);
+                notify(e2::conio::focus::post, item);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -275,7 +246,7 @@ namespace netxs::ui
                 // In case of recursive connection via terminal, ui::term schedules self-closing and waiting for the vtty to be released inside the task broker.
                 // vtm client waits for disconnect acknowledge which is scheduled (if scheduled) right after the vtty cleanup task.
                 lock.unlock();
-                disconnect();
+                owner.disconnect();
             }
         };
 
@@ -288,8 +259,8 @@ namespace netxs::ui
 
             struct stat
             {
-                span watch{}; // diff::stat: Duration of the STDOUT rendering.
-                sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
+                span watch{}; // diff::stat: Rendering duration.
+                sz_t delta{}; // diff::stat: Last rendered frame size.
             };
 
             pipe& canal; // diff: Channel to outside.
@@ -340,8 +311,8 @@ namespace netxs::ui
             {
                 abort = true;
             }
-            // diff: Obtain new content to render.
-            auto commit(core const& canvas)
+            // diff: Try to add the touched canvas image to the queue for analysis and sending detected differences.
+            auto send(core const& canvas)
             {
                 if (abort)
                 {
@@ -379,14 +350,14 @@ namespace netxs::ui
                   abort{ faux }
             {
                 using namespace netxs::directvt;
-                paint = work([&, vtmode]
+                paint = std::thread{ [&, vtmode]
                 {
                          if (vtmode == svga::dtvt ) render<binary::bitmap_dtvt_t >();
                     else if (vtmode == svga::vtrgb) render<binary::bitmap_vtrgb_t>();
                     else if (vtmode == svga::vt256) render<binary::bitmap_vt256_t>();
                     else if (vtmode == svga::vt16 ) render<binary::bitmap_vt16_t >();
                     else if (vtmode == svga::nt16 ) render<binary::bitmap_dtvt_t >();
-                });
+                }};
             }
             void stop()
             {
@@ -418,7 +389,6 @@ namespace netxs::ui
             //todo revise
             text os_user_id;
             text title;
-            text selected;
             span clip_preview_time;
             cell clip_preview_clrs;
             byte clip_preview_alfa;
@@ -466,7 +436,6 @@ namespace netxs::ui
                     this->session_id  = session_id;
                     os_user_id        = utf::concat("[", userid, ":", session_id, "]");
                     title             = os_user_id;
-                    selected          = config.take("/config/desktop/taskbar/selected", ""s);
                     background_color  = config.take("/config/desktop/background/color", cell{}.fgc(whitedk).bgc(0xFF000000));
                     auto utf8_tile    = config.take("/config/desktop/background/tile", ""s);
                     if (utf8_tile.size())
@@ -498,405 +467,104 @@ namespace netxs::ui
             }
         };
 
-        // gate: Input forwarder.
-        struct input_t
-        {
-            using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
-            using lock = std::recursive_mutex;
-
-            template<class T>
-            void forward(T& device)
-            {
-                auto gear_it = gears.find(device.gear_id);
-                if (gear_it == gears.end())
-                {
-                    gear_it = gears.emplace(device.gear_id, boss.bell::create<hids>(boss.props, boss, xmap)).first;
-                }
-                auto& [_id, gear_ptr] = *gear_it;
-                gear_ptr->hids::take(device);
-                boss.strike();
-            }
-
-            gate& boss;
-            subs  memo;
-            face  xmap;
-            lock  sync;
-            depo  gears;
-
-            input_t(props_t& props, gate& boss)
-                : boss{ boss }
-            {
-                xmap.cmode = props.vtmode;
-                xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
-                xmap.face::area(boss.base::area());
-                boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
-                {
-                    auto data = escx{};
-                    data.s11n(xmap, gear.slot);
-                    if (data.length())
-                    {
-                        if (boss.props.clip_prtscrn_mime != mime::disabled)
-                        {
-                            gear.set_clipboard(gear.slot.size, data, boss.props.clip_prtscrn_mime);
-                        }
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
-                    xmap.mark(new_filler);
-                };
-                boss.LISTEN(tier::release, e2::area, new_area, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Sync with diff::render thread.
-                    xmap.face::area(new_area);
-                };
-                boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
-                {
-                    if (m.enabled != hids::stat::ok)
-                    {
-                        auto gear_it = gears.find(m.gear_id);
-                        if (gear_it != gears.end())
-                        {
-                            switch (m.enabled)
-                            {
-                                case hids::stat::ok:   break;
-                                case hids::stat::halt: gear_it->second->deactivate(); break;
-                                case hids::stat::die:  gears.erase(gear_it);          break;
-                            }
-                        }
-                        boss.strike();
-                    }
-                    else forward(m);
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
-                {
-                    forward(k);
-                };
-                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
-                {
-                    forward(f);
-                };
-                boss.LISTEN(tier::release, e2::conio::board, c, memo)
-                {
-                    forward(c);
-                };
-            }
-            void fire(hint event_id)
-            {
-                for (auto& [ext_gear_id, gear_ptr] : gears)
-                {
-                    if (ext_gear_id)
-                    {
-                        auto& gear = *gear_ptr;
-                        if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
-                        {
-                            gear.fire_fast();
-                            gear.fire(event_id);
-                        }
-                    }
-                }
-            }
-            auto get_ext_gear_id(id_t gear_id)
-            {
-                for (auto& [ext_gear_id, gear_ptr] : gears)
-                {
-                    if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
-                }
-                return std::pair{ id_t{}, netxs::sptr<hids>{} };
-            }
-        };
-
-        // gate: Realtime statistics.
-        struct debug_t
-        {
-            #define prop_list                     \
-            X(total_size   , "total sent"       ) \
-            X(proceed_ns   , "rendering time"   ) \
-            X(render_ns    , "stdout time"      ) \
-            X(frame_size   , "frame size"       ) \
-            X(frame_rate   , "frame rate"       ) \
-            X(focused      , "focus"            ) \
-            X(win_size     , "win size"         ) \
-            X(key_code     , "key virt"         ) \
-            X(key_scancode , "key scan"         ) \
-            X(key_chord    , "key chord"        ) \
-            X(key_state    , "key state"        ) \
-            X(key_payload  , "key type"         ) \
-            X(ctrl_state   , "controls"         ) \
-            X(k            , "k"                ) \
-            X(mouse_pos    , "mouse coord"      ) \
-            X(mouse_wheelsi, "wheel steps"      ) \
-            X(mouse_wheeldt, "wheel delta"      ) \
-            X(mouse_hzwheel, "H wheel"          ) \
-            X(mouse_vtwheel, "V wheel"          ) \
-            X(mouse_btn_1  , "left button"      ) \
-            X(mouse_btn_2  , "right button"     ) \
-            X(mouse_btn_3  , "middle button"    ) \
-            X(mouse_btn_4  , "4th button"       ) \
-            X(mouse_btn_5  , "5th button"       ) \
-            X(mouse_btn_6  , "left+right combo" ) \
-            X(last_event   , "event"            )
-
-            enum prop
-            {
-                #define X(a, b) a,
-                prop_list
-                #undef X
-            };
-
-            static constexpr auto description = std::to_array(
-            {
-                #define X(a, b) b##sv,
-                prop_list
-                #undef X
-            });
-            #undef prop_list
-
-            base& boss;
-            subs  tokens;
-            cell  alerts;
-            cell  stress;
-            page  status;
-            escx  coder;
-            bool  bypass = faux;
-
-            struct
-            {
-                span render = span::zero();
-                span output = span::zero();
-                si32 frsize = 0;
-                si64 totals = 0;
-                si32 number = 0;    // info: Current frame number
-                //bool   onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
-            }
-            track; // debug: Textify the telemetry data for debugging purpose.
-
-            void shadow()
-            {
-                for (auto i = 0; i < (si32)description.size(); i++)
-                {
-                    status[i].ease();
-                }
-            }
-
-            debug_t(base& boss)
-                : boss{ boss }
-            { }
-
-            operator bool () const { return tokens.count(); }
-
-            void update(bool focus_state)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "focus";
-                status[prop::focused].set(stress) = focus_state ? "active" : "lost";
-            }
-            void update(twod new_size)
-            {
-                shadow();
-                status[prop::last_event].set(stress) = "size";
-                status[prop::win_size].set(stress) =
-                    std::to_string(new_size.x) + " x " +
-                    std::to_string(new_size.y);
-            }
-            void update(span watch, si32 delta)
-            {
-                track.output = watch;
-                track.frsize = delta;
-                track.totals+= delta;
-            }
-            void update(time timestamp)
-            {
-                track.render = datetime::now() - timestamp;
-            }
-            void output(face& canvas)
-            {
-                status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
-
-                status[prop::proceed_ns].set(track.render > 12ms ? alerts : stress) =
-                    utf::adjust(utf::format (track.render.count()), 11, " ", true) + "ns";
-
-                status[prop::frame_size].set(stress) =
-                    utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-
-                status[prop::total_size].set(stress) =
-                    utf::format(track.totals) + " bytes";
-
-                track.number++;
-                status.reindex();
-                auto ctx = canvas.change_basis(canvas.area());
-                canvas.output(status);
-            }
-            void stop()
-            {
-                track = {};
-                tokens.clear();
-            }
-            void start()
-            {
-                //todo use skin
-                stress = cell{}.fgc(whitelt);
-                alerts = cell{}.fgc(argb{ 0xFF'ff'd0'd0 });
-
-                status.style.wrp(wrap::off).jet(bias::left).rlf(feed::rev).mgl(4);
-                status.current().locus.cup(dot_00).cnl(2);
-
-                auto maxlen = 0_sz;
-                for (auto& desc : description)
-                {
-                    maxlen = std::max(maxlen, desc.size());
-                }
-                auto attr = si32{ 0 };
-                for (auto& desc : description)
-                {
-                    status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
-                    coder.clear();
-                }
-
-                boss.LISTEN(tier::general, e2::config::fps, fps, tokens)
-                {
-                    status[prop::frame_rate].set(stress) = std::to_string(fps);
-                    boss.base::strike();
-                };
-                boss.bell::signal(tier::general, e2::config::fps, e2::config::fps.param(-1));
-                boss.LISTEN(tier::release, e2::area, new_area, tokens)
-                {
-                    update(new_area.size);
-                };
-                boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
-                {
-                    if (bypass) return;
-                    shadow();
-                    status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos ].set(stress) =
-                        (m.coordxy.x < 10000 ? std::to_string(m.coordxy.x) : "-") + " : " +
-                        (m.coordxy.y < 10000 ? std::to_string(m.coordxy.y) : "-") ;
-
-                    auto m_buttons = std::bitset<8>(m.buttons);
-                    for (auto i = 0; i < hids::numofbuttons; i++)
-                    {
-                        auto& state = status[prop::mouse_btn_1 + i].set(stress);
-                        state = m_buttons[i] ? "pressed" : "idle   ";
-                    }
-
-                    if constexpr (debugmode)
-                    {
-                        status[prop::k].set(stress) = std::to_string(netxs::_k0) + " "
-                                                    + std::to_string(netxs::_k1) + " "
-                                                    + std::to_string(netxs::_k2) + " "
-                                                    + std::to_string(netxs::_k3);
-                    }
-                    status[prop::mouse_wheeldt].set(stress) = m.wheelfp ? (m.wheelfp < 0 ? ""s : " "s) + std::to_string(m.wheelfp) : " -- "s;
-                    status[prop::mouse_wheelsi].set(stress) = m.wheelsi ? (m.wheelsi < 0 ? ""s : " "s) + std::to_string(m.wheelsi) : m.wheelfp ? " 0 "s : " -- "s;
-                    status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
-                    status[prop::mouse_vtwheel].set(stress) = (m.wheelfp && !m.hzwheel) ? "active" : "idle  ";
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.ctlstat);
-                };
-                boss.LISTEN(tier::release, e2::conio::focus, f, tokens)
-                {
-                    shadow();
-                    status[prop::focused].set(stress) = f.state ? "focused  " : "unfocused";
-                };
-                boss.LISTEN(tier::release, e2::conio::keybd, k, tokens)
-                {
-                    static constexpr auto kstate = std::to_array({ "idle    ", "pressed ", "repeated" });
-                    shadow();
-                    status[prop::last_event   ].set(stress) = "keybd";
-                    status[prop::key_state    ].set(stress) = kstate[k.keystat % 3];
-                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstat );
-                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcod );
-                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancod );
-                    status[prop::key_payload  ].set(stress) = k.payload == keybd::type::keypress ? "keypress"
-                                                            : k.payload == keybd::type::keypaste ? "keypaste"
-                                                            : k.payload == keybd::type::imeanons ? "IME composition"
-                                                            : k.payload == keybd::type::imeinput ? "IME input"
-                                                            : k.payload == keybd::type::kblayout ? "keyboard layout" : "unknown payload";
-                    if (k.vkchord.length())
-                    {
-                        auto t = text{};
-                        if (k.vkchord.size() && k.keystat != input::key::repeated)
-                        {
-                            auto vkchord =     input::key::kmap::to_string(k.vkchord, faux);
-                            auto scchord =     input::key::kmap::to_string(k.scchord, faux);
-                            auto chchord =     input::key::kmap::to_string(k.chchord, faux);
-                            auto gen_vkchord = input::key::kmap::to_string(k.vkchord, true);
-                            auto gen_chchord = input::key::kmap::to_string(k.chchord, true);
-                            //log("Keyboard chords: %%  %%  %%", utf::buffer_to_hex(gear.vkchord), utf::buffer_to_hex(gear.scchord), utf::buffer_to_hex(gear.chchord),
-                            if (vkchord.size()) t += (t.size() ? "  " : "") + (vkchord == gen_vkchord ? vkchord : gen_vkchord + "  " + vkchord);
-                            if (chchord.size()) t += (t.size() ? "  " : "") + (chchord == gen_chchord ? chchord : gen_chchord + "  " + chchord);
-                            if (scchord.size()) t += (t.size() ? "  " : "") + scchord;
-                        }
-                        else if (k.cluster.length()) //todo revise
-                        {
-                            for (byte c : k.cluster)
-                            {
-                                     if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
-                                else if (c == 0x7F) t += "\\x7F";
-                                else if (c == 0x20) t += "\\x20";
-                                else                t.push_back(c);
-                            }
-                        }
-                        if (t.size()) status[prop::key_chord].set(stress) = t;
-                    }
-                };
-            }
-        };
-
     public:
         pipe&      canal; // gate: Channel to outside.
-        props_t    props; // gate: Application properties.
-        input_t    input; // gate: Input event handler.
-        debug_t    debug; // gate: Statistics monitor.
-        //todo
-        //pro::focus focus; // gate: Focus controller.
-        pro::keybd keybd; // gate: Keyboard controller.
-        diff       paint; // gate: Render.
+        props_t    props; // gate: Input gate properties.
+        diff       paint; // gate: Renderer.
         link       conio; // gate: Input data parser.
+        flag       alive; // gate: sysclose isn't sent.
         bool       direct; // gate: .
-        bool       local; // gate: .
-        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        bool       yield; // gate: Indicator that the current frame has been successfully sent.
         bool       fullscreen; // gate: .
-        para       uname; // gate: Client name.
-        text       uname_txt; // gate: Client name (original).
-        sptr       applet; // gate: Standalone application.
-        subs       tokens; // gate: Subscription tokens.
-        wptr       nexthop; // gate: .
+        face       canvas; // gate: .
+        std::unordered_map<id_t, netxs::sptr<hids>> gears; // gate: .
+        pro::debug& debug;
+        input::multihome_t& multihome;
 
-        void draw_foreign_names(face& parent_canvas)
+        void forward(auto& device)
         {
-            auto& header = *uname.lyric;
-            auto  half_x = header.size().x / 2;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            auto gear_it = gears.find(device.gear_id);
+            if (gear_it == gears.end())
             {
-                auto& gear = *gear_ptr;
-                if (gear.mouse_disabled) continue;
-                auto coor = twod{ gear.coord };
-                coor.y -= 1;
-                coor.x -= half_x;
-                header.move(coor);
-                parent_canvas.fill(header, cell::shaders::fuse);
+                gear_it = gears.emplace(device.gear_id, bell::create<hids>(*this, canvas)).first;
+                auto& gear = *(gear_it->second);
+                gear.tooltip_timeout = props.tooltip_timeout;
+                gear.board::ghost = props.clip_preview_glow;
+                gear.board::brush = props.clip_preview_clrs;
+                gear.board::alpha = props.clip_preview_alfa;
+                gear.mouse::delay = props.dblclick_timeout;
+                auto& luafx = gear.base::template plugin<pro::luafx>(); //todo apple clang requires template keyword
+                luafx.activate("gear.proc_map",
+                {
+                    { "IsKeyRepeated",  [&]
+                                        {
+                                            auto repeated = gear.keystat == input::key::repeated;
+                                            luafx.set_return(repeated);
+                                        }},
+                    { "SetHandled",     [&]
+                                        {
+                                            gear.set_handled();
+                                            gear.interrupt_key_proc = true;
+                                            luafx.set_return();
+                                        }},
+                });
+            }
+            auto& [ext_gear_id, gear_ptr] = *gear_it;
+            gear_ptr->set_multihome();
+            gear_ptr->hids::take(device);
+            base::strike();
+        }
+        void fire(hint event_id)
+        {
+            for (auto& [ext_gear_id, gear_ptr] : gears)
+            {
+                if (ext_gear_id)
+                {
+                    auto& gear = *gear_ptr;
+                    if (gear.m_sys.timecod != time{}) // Don't send mouse events if the mouse has not been used yet.
+                    {
+                        gear.fire_fast();
+                        gear.fire(event_id);
+                    }
+                }
             }
         }
-        void draw_mouse_pointer(face& canvas)
+        auto get_ext_gear_id(id_t gear_id)
+        {
+            for (auto& [ext_gear_id, gear_ptr] : gears)
+            {
+                if (gear_ptr->id == gear_id) return std::pair{ ext_gear_id, gear_ptr };
+            }
+            return std::pair{ id_t{}, netxs::sptr<hids>{} };
+        }
+        id_t get_int_gear_id(id_t ext_gear_id)
+        {
+            auto int_gear_id = id_t{};
+            auto gear_it = gears.find(ext_gear_id);
+            if (gear_it != gears.end()) int_gear_id = gear_it->second->id;
+            return int_gear_id;
+        }
+        void fill_pointer(hids& gear, face& parent_canvas)
         {
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
-            auto area = rect_11;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
+                                            : idle;
+            auto area = rect{ gear.owner.coor() + gear.coord, dot_11 };
+            parent_canvas.fill(area, cell::shaders::fuse(brush));
+        }
+        void draw_mouse_pointer(face& parent_canvas)
+        {
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
-                area.coor = gear.coord;
-                auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
-                                                : idle;
-                canvas.fill(area, cell::shaders::fuse(brush));
+                fill_pointer(gear, parent_canvas);
             }
         }
-        void draw_clipboard_preview(face& canvas, time const& stamp)
+        void draw_clipboard_preview(time const& stamp)
         {
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 gear.board::shown = !gear.mouse_disabled &&
@@ -911,13 +579,13 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(face& canvas, time const& stamp)
+        void draw_tooltips(time const& stamp)
         {
             auto full = canvas.full();
             auto area = canvas.area();
             auto zero = rect{ dot_00, area.size };
             canvas.area(zero);
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -943,7 +611,7 @@ namespace netxs::ui
         void send_tooltips()
         {
             auto list = conio.tooltips.freeze();
-            for (auto& [ext_gear_id, gear_ptr] : input.gears /* use filter gear.is_tooltip_changed()*/)
+            for (auto& [ext_gear_id, gear_ptr] : gears /* use filter gear.is_tooltip_changed()*/)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
@@ -955,103 +623,75 @@ namespace netxs::ui
             }
             list.thing.sendby<true>(canal);
         }
-        void check_tooltips(time now)
+        auto check_tooltips(time now)
         {
             auto result = faux;
-            for (auto& [ext_gear_id, gear_ptr] : input.gears)
+            for (auto& [ext_gear_id, gear_ptr] : gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.mouse_disabled) continue;
                 result |= gear.tooltip_check(now);
             }
-            if (result) base::strike();
+            return result;
         }
 
         // gate: .
-        id_t get_int_gear_id(id_t ext_gear_id)
+        void rebuild_scene(time stamp)
         {
-            auto int_gear_id = id_t{};
-            auto gear_it = input.gears.find(ext_gear_id);
-            if (gear_it != input.gears.end()) int_gear_id = gear_it->second->id;
-            return int_gear_id;
-        }
-        // gate: Attach a new item.
-        auto attach(sptr& item)
-        {
-            std::swap(applet, item);
-            if (local) nexthop = applet;
-            applet->bell::signal(tier::release, e2::form::upon::vtree::attached, This());
-        }
-        // gate: .
-        void _rebuild_scene(bool damaged)
-        {
-            auto stamp = datetime::now();
-            auto& canvas = input.xmap;
+            auto damaged = base::ruined();
+            if (props.tooltip_enabled)
+            {
+                damaged |= check_tooltips(stamp);
+            }
             if (damaged)
             {
-                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
+                if (auto context = canvas.change_basis(base::area()))
                 {
-                    draw_mouse_pointer(canvas);
-                }
-                if (!direct && props.clip_preview_show)
-                {
-                    draw_clipboard_preview(canvas, stamp);
-                }
-                if (props.tooltip_enabled)
-                {
-                    if (direct) send_tooltips();
-                    else        draw_tooltips(canvas, stamp);
-                }
-                if (debug)
-                {
-                    debug.output(canvas);
-                    if constexpr (debugmode) // Red channel histogram.
-                    if (input.gears.size())
+                    canvas.wipe(props.background_color);
+                    if (base::subset.size() == 1 && props.background_image.size()) // Taskbar only (no full screen app on top).
                     {
-                        auto& [gear_id, gear_ptr] = *input.gears.begin();
-                        if (gear_ptr->meta(hids::ScrlLock)) 
-                        {
-                            auto hist = page{};
-                            hist.brush.bgc(0x80ffffff);
-                            auto full = canvas.full();
-                            auto area = canvas.area();
-                            canvas.area({ dot_00, area.size });
-                            auto coor = gear_ptr->coord;
-                            for (auto x = 0; x < area.size.y; x++)
-                            {
-                                auto xy = coor + twod{ x - area.size.y/2, 0 };
-                                auto has_value = xy.x > 0 && xy.x < canvas.size().x;
-                                if (has_value) utf::repeat(" ", canvas[xy].bgc().chan.r);
-                                hist += "\n"s;
-                            }
-                            auto full_area = full;
-                            full_area.coor = {};
-                            full_area.size.x = dot_mx.x; // Prevent line wrapping.
-                            canvas.full(full_area);
-                            canvas.cup(dot_00);
-                            canvas.output(hist, cell::shaders::blend);
-                            canvas.area(area);
-                            canvas.full(full);
-                        }
+                        //todo cache background
+                        canvas.tile(props.background_image, cell::shaders::fuse);
                     }
-                }
-                if (props.show_regions)
-                {
-                    canvas.each([](cell& c)
+                    if (base::subset.size())
                     {
-                        auto mark = argb{ argb::vt256[c.link() % 256] };
-                        auto bgc = c.bgc();
-                        mark.alpha(64);
-                        bgc.mix(mark);
-                        c.bgc(bgc);
-                    });
+                        base::subset.back()->render(canvas);
+                    }
+                    if (!direct && props.clip_preview_show)
+                    {
+                        draw_clipboard_preview(stamp);
+                    }
+                    if (props.tooltip_enabled)
+                    {
+                        if (direct) send_tooltips();
+                        else        draw_tooltips(stamp);
+                    }
+                    if (props.debug_overlay)
+                    {
+                        debug.output(canvas);
+                    }
+                    if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
+                    {
+                        draw_mouse_pointer(canvas);
+                    }
+                    if (props.show_regions)
+                    {
+                        canvas.each([](cell& c)
+                        {
+                            auto mark = argb{ argb::vt256[c.link() % 256] };
+                            auto bgc = c.bgc();
+                            mark.alpha(64);
+                            bgc.mix(mark);
+                            c.bgc(bgc);
+                        });
+                    }
                 }
             }
             else
             {
                 if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
                 {
-                    for (auto& [ext_gear_id, gear_ptr] : input.gears)
+                    for (auto& [ext_gear_id, gear_ptr] : gears)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
@@ -1063,17 +703,10 @@ namespace netxs::ui
                 }
                 if (yield) return;
             }
+            yield = paint.send(canvas); // Try to output updated canvas if paint is not busy.
 
-            // Note: We have to fire a mouse move event every frame,
-            //       because in the global frame the mouse can stand still,
-            //       but any form can move under the cursor, so for the form itself,
-            //       the mouse cursor moves inside the form.
-            if (debug)
+            if (props.debug_overlay) // Get rendering stats.
             {
-                debug.bypass = true;
-                input.fire(hids::events::mouse::move.id);
-                debug.bypass = faux;
-                yield = paint.commit(canvas);
                 if (yield)
                 {
                     auto d = paint.status();
@@ -1081,99 +714,254 @@ namespace netxs::ui
                 }
                 debug.update(stamp);
             }
-            else
-            {
-                input.fire(hids::events::mouse::move.id);
-                yield = paint.commit(canvas); // Try output my canvas to the my console.
-            }
+            // Note: We have to fire a mouse move event every frame,
+            //       because in the global frame the mouse can stand still,
+            //       but any form can move under the cursor, so for the form itself,
+            //       the mouse cursor moves inside the form.
+            base::ruined(faux);
+            fire(input::events::mouse::move.id);
         }
-        // gate: .
-        void rebuild_scene(id_t world_id, bool damaged)
-        {
-            if (damaged)
-            {
-                auto& canvas = input.xmap;
-                canvas.wipe(world_id);
-                if (applet)
-                if (auto context = canvas.change_basis(base::area()))
-                {
-                    applet->render(canvas);
-                }
-            }
-            _rebuild_scene(damaged);
-        }
-        // gate: Main loop.
+        // gate: Rx loop.
         void launch()
         {
-            bell::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
-            conio.run();
-            bell::signal(tier::release, e2::form::upon::stopped, true);
+            base::signal(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
+            directvt::binary::stream::reading_loop(canal, [&](view data){ conio.s11n::sync(data); });
+            conio.s11n::stop(); // Wake up waiting dtvt objects, if any.
+            if constexpr (debugmode) log(prompt::gate, "DirectVT session closed");
+            base::signal(tier::release, e2::form::upon::stopped, true);
         }
 
         //todo revise
         gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
-              input{ props, *this },
-              debug{*this },
-              //focus{*this },
-              keybd{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
+              alive{ true },
               direct{ !!(vtmode & (ui::console::direct | ui::console::gui)) },
-              local{ true },
               yield{ faux },
-              fullscreen{ faux }
+              fullscreen{ faux },
+              debug{ base::plugin<pro::debug>() },
+              multihome{ base::property<input::multihome_t>("multihome") }
         {
-            keybd.proc("ToggleDebugOverlay", [&](hids& gear){ gear.set_handled(); debug ? debug.stop() : debug.start(); });
-            auto bindings = pro::keybd::load(config, "tui");
+            base::plugin<pro::focus>();
+            auto& keybd = base::plugin<pro::keybd>("gate");
+            auto& mouse = base::plugin<pro::mouse>();
+            auto& luafx = base::plugin<pro::luafx>();
+            auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
+            luafx.activate("gate.proc_map",
+            {
+                { "Disconnect",             [&]
+                                            {
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gear_ptr->set_handled();
+                                                }
+                                                base::signal(tier::preview, e2::conio::quit);
+                                                luafx.set_return();
+                                            }},
+                { "DebugOverlay",           [&]
+                                            {
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gear_ptr->set_handled();
+                                                }
+                                                props.debug_overlay ? debug.stop() : debug.start();
+                                                props.debug_overlay = !props.debug_overlay;
+                                                base::deface();
+                                                luafx.set_return();
+                                            }},
+                { "IncreasecCellHeight",    [&]
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::tunecellheight;
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, fp32{ 1.f }));
+                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "RollFonts",              [&]
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::rollfontlist;
+                                                gui_cmd.args.emplace_back(luafx.get_args_or(1, si32{ 1 }));
+                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "WheelAccumReset",        [&]
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                }
+                                                gui_cmd.cmd_id = syscmd::resetwheelaccum;
+                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "CellHeightReset",        [&]
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                gui_cmd.cmd_id = syscmd::resetcellheight;
+                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+                { "AntialiasingMode",       [&]
+                                            {
+                                                auto gui_cmd = e2::command::gui.param();
+                                                auto gear_ptr = luafx.template get_object<hids>("gear");
+                                                auto ok = !!gear_ptr;
+                                                if (ok)
+                                                {
+                                                    gui_cmd.gear_id = gear_ptr->id;
+                                                    gear_ptr->set_handled();
+                                                }
+                                                //todo args
+                                                gui_cmd.cmd_id = syscmd::toggleaamode;
+                                                base::signal(tier::preview, e2::command::gui, gui_cmd);
+                                                luafx.set_return();
+                                            }},
+            });
 
             base::root(true);
             base::limits(dot_11);
-
-            LISTEN(tier::preview, hids::events::focus::set::any, seed, tokens)
+            props.background_color.txt(whitespace).link(bell::id);
+            canvas.link(bell::id);
+            canvas.cmode = props.vtmode;
+            canvas.face::area(base::area());
+            LISTEN(tier::release, e2::form::proceed::multihome, world_ptr)
+            {
+                multihome = { world_ptr, world_ptr->base::father };
+            };
+            LISTEN(tier::release, e2::command::printscreen, gear)
+            {
+                auto data = escx{};
+                props.clip_prtscrn_mime == mime::textonly ? data.s11n<faux>(canvas, gear.slot)
+                                                          : data.s11n<true>(canvas, gear.slot);
+                if (data.length())
+                {
+                    if (props.clip_prtscrn_mime != mime::disabled)
+                    {
+                        gear.set_clipboard(gear.slot.size, data, props.clip_prtscrn_mime);
+                    }
+                }
+            };
+            LISTEN(tier::release, e2::area, new_area)
+            {
+                canvas.face::area(new_area);
+            };
+            LISTEN(tier::preview, e2::command::gui, gui_cmd)
+            {
+                if (gui_cmd.cmd_id == syscmd::restore && base::subset.size() > 1)
+                {
+                    bell::enqueue(This(), [](auto& boss) // Keep the focus tree intact while processing events.
+                    {
+                        boss.base::signal(tier::release, e2::form::size::restore);
+                    });
+                }
+                else
+                {
+                    if (gui_cmd.gear_id)
+                    {
+                        auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gui_cmd.gear_id);
+                        if (gear_ptr)
+                        {
+                            gui_cmd.gear_id = ext_gear_id;
+                        }
+                    }
+                    conio.gui_command.send(canal, gui_cmd);
+                }
+            };
+            LISTEN(tier::release, e2::command::run, script)
+            {
+                luafx.set_object(This(), "gate");
+                luafx.run_script(script);
+            };
+            LISTEN(tier::preview, e2::runscript, gear)
+            {
+                if (!gear.script_ptr) return;
+                if (!gear.scripting_context_ptr) return;
+                auto& script_body = *gear.script_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
+                luafx.set_object(This(), "gate");
+                luafx.set_object(gear.This(), "gear");
+                luafx.run_script(script_body, scripting_context);
+            };
+            LISTEN(tier::release, e2::conio::mouse, m)
+            {
+                if (m.enabled != hids::stat::ok)
+                {
+                    auto gear_it = gears.find(m.gear_id);
+                    if (gear_it != gears.end())
+                    {
+                        switch (m.enabled)
+                        {
+                            case hids::stat::ok:   break;
+                            case hids::stat::halt: gear_it->second->deactivate(); break;
+                            case hids::stat::die:  gears.erase(gear_it);          break;
+                        }
+                    }
+                    base::strike();
+                }
+                else forward(m);
+            };
+            LISTEN(tier::release, e2::conio::keybd, k)
+            {
+                forward(k);
+            };
+            LISTEN(tier::release, e2::conio::focus::any, f)
+            {
+                forward(f);
+            };
+            LISTEN(tier::release, e2::conio::board, c)
+            {
+                forward(c);
+            };
+            LISTEN(tier::preview, input::events::focus::set::any, seed)
             {
                 if (seed.gear_id)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(seed.gear_id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(seed.gear_id);
                     if (gear_ptr)
                     {
                         auto deed = bell::protos(tier::preview);
-                        auto state = deed == hids::events::focus::set::on.id;
+                        auto state = deed == input::events::focus::set::on.id;
                         conio.sysfocus.send(canal, ext_gear_id, state, seed.focus_type, ui64{}, ui64{});
                     }
                 }
             };
-            //todo mimic pro::focus
-            LISTEN(tier::release, hids::events::focus::any, seed, tokens)
-            {
-                if (auto target = nexthop.lock())
-                {
-                    auto deed = bell::protos(tier::release);
-                    target->bell::signal(tier::release, deed, seed);
-                }
-            };
-            //todo mimic pro::focus
-            //if (standalone)
-            {
-                LISTEN(tier::request, e2::config::plugins::focus::owner, owner_ptr, tokens)
-                {
-                    owner_ptr = This();
-                };
-            }
-            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
-            {
-                if (auto target = nexthop.lock())
-                {
-                    target->bell::signal(tier::preview, hids::events::keybd::key::post, gear);
-                }
-            };
-            LISTEN(tier::release, hids::events::keybd::any, gear, tokens) // Forward unhandled events to the outside. Return back unhandled keybd events.
+            LISTEN(tier::release, input::events::keybd::any, gear) // Forward unhandled events to the outside. Return back unhandled keybd events.
             {
                 if (!gear.handled)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr)
                     {
                         gear.gear_id = ext_gear_id;
@@ -1181,35 +969,22 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
+            LISTEN(tier::release, e2::form::proceed::quit::any, fast)
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
-                conio.disconnect();
+                disconnect();
             };
-            LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
-            {
-                uname = uname_txt = user_name;
-            };
-            LISTEN(tier::request, e2::form::prop::name, user_name, tokens)
-            {
-                user_name = uname_txt;
-            };
-            LISTEN(tier::request, e2::form::prop::viewport, viewport, tokens)
+            LISTEN(tier::request, e2::form::prop::viewport, viewport)
             {
                 viewport = base::area();
             };
             //todo unify creation (delete simple create wo gear)
-            LISTEN(tier::preview, e2::form::proceed::create, dest_region, tokens)
+            LISTEN(tier::preview, e2::form::proceed::create, dest_region)
             {
                 dest_region.coor += base::coor();
                 this->base::riseup(tier::release, e2::form::proceed::create, dest_region);
             };
-            LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
-            {
-                //todo hids
-                //proc(input.gear);
-            };
-            LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
+            LISTEN(tier::preview, input::events::mouse::button::click::leftright, gear)
             {
                 if (gear.clear_clipboard())
                 {
@@ -1217,46 +992,37 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
-            {
-                auto new_area = rect{ dot_00, new_size };
-                if (applet) applet->bell::signal(tier::anycast, e2::form::upon::resized, new_area);
-                auto old_size = base::size();
-                auto delta = base::resize(new_size).size - old_size;
-                if (delta && direct) paint.cancel();
-            };
-            LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
+            LISTEN(tier::release, e2::conio::pointer, pointer)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
             };
-            LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
+            LISTEN(tier::release, e2::form::upon::stopped, fast) // Reading loop ends.
             {
-                this->bell::signal(tier::anycast, e2::form::proceed::quit::one, fast);
-                conio.disconnect();
+                this->base::signal(tier::anycast, e2::form::proceed::quit::one, fast);
+                disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                base::detach();
-                tokens.reset();
+                bell::sensors.clear();
             };
-            LISTEN(tier::preview, e2::conio::quit, deal, tokens) // Disconnect.
+            LISTEN(tier::preview, e2::conio::quit, deal) // Disconnect.
             {
-                conio.disconnect();
+                disconnect();
             };
-            LISTEN(tier::general, e2::conio::quit, deal, tokens) // Shutdown.
+            LISTEN(tier::general, e2::conio::quit, deal) // Shutdown.
             {
-                conio.disconnect();
+                disconnect();
             };
-            LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
+            LISTEN(tier::anycast, e2::form::upon::started, item_ptr)
             {
                 if (props.debug_overlay) debug.start();
-                this->bell::signal(tier::release, e2::form::prop::name, props.title);
+                this->base::signal(tier::release, e2::form::prop::name, props.title);
                 //todo revise
                 if (props.title.length())
                 {
                     this->base::riseup(tier::preview, e2::form::prop::ui::header, props.title);
                 }
             };
-            LISTEN(tier::request, e2::form::prop::ui::footer, f, tokens)
+            LISTEN(tier::request, e2::form::prop::ui::footer, f)
             {
                 auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
@@ -1264,7 +1030,7 @@ namespace netxs::ui
                 footer.wait();
                 f = footer.thing.utf8;
             };
-            LISTEN(tier::request, e2::form::prop::ui::header, h, tokens)
+            LISTEN(tier::request, e2::form::prop::ui::header, h)
             {
                 auto window_id = id_t{};
                 auto header = conio.header.freeze();
@@ -1272,30 +1038,30 @@ namespace netxs::ui
                 header.wait();
                 h = header.thing.utf8;
             };
-            LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter, tokens)
+            LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter)
             {
                 auto window_id = id_t{};
                 conio.footer.send(canal, window_id, newfooter);
             };
-            LISTEN(tier::preview, e2::form::prop::ui::header, newheader, tokens)
+            LISTEN(tier::preview, e2::form::prop::ui::header, newheader)
             {
                 auto window_id = id_t{};
                 conio.header.send(canal, window_id, newheader);
             };
-            LISTEN(tier::release, hids::events::clipboard, from_gear, tokens)
+            LISTEN(tier::release, input::events::clipboard, from_gear)
             {
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
-            LISTEN(tier::request, hids::events::clipboard, from_gear, tokens)
+            LISTEN(tier::request, input::events::clipboard, from_gear)
             {
                 auto clipdata = conio.clipdata.freeze();
                 auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(myid);
+                auto [ext_gear_id, gear_ptr] = get_ext_gear_id(myid);
                 if (gear_ptr)
                 {
                     conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
@@ -1306,317 +1072,146 @@ namespace netxs::ui
                     }
                 }
             };
-            LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
+            LISTEN(tier::preview, input::events::mouse::button::tplclick::leftright, gear)
             {
-                if (debug)
+                if (props.debug_overlay)
                 {
                     props.show_regions = true;
+                    props.debug_overlay = faux;
                     debug.stop();
                 }
                 else
                 {
-                    if (props.show_regions) props.show_regions = faux;
-                    else                    debug.start();
+                    if (props.show_regions)
+                    {
+                        props.show_regions = faux;
+                    }
+                    else
+                    {
+                        props.debug_overlay = true;
+                        debug.start();
+                    }
                 }
                 gear.dismiss();
             };
-            if (props.tooltip_enabled)
-            {
-                LISTEN(tier::general, e2::timer::any, now, tokens)
-                {
-                    check_tooltips(now);
-                };
-            }
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::minimize, gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens)
+                LISTEN(tier::release, input::events::mouse::scroll::any, gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                     gear.dismiss();
                 };
-                LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
+                LISTEN(tier::release, input::events::mouse::button::any, gear, -, (isvtm))
                 {
-                    using button = hids::events::mouse::button;
+                    namespace button = input::events::mouse::button;
                     auto forward = faux;
                     auto cause = gear.mouse::cause;
                     if (isvtm && (gear.index == hids::leftright || // Reserved for dragging nested vtm.
                                   gear.index == hids::right)       // Reserved for creation inside nested vtm.
-                              && events::subevent(cause, button::drag::any.id))
+                              && netxs::events::subevent(cause, button::drag::any.id))
                     {
                         return; // Pass event to the hall.
                     }
-                    if (fullscreen && events::subevent(cause, button::drag::any.id)) // Enable left drag in fullscreen mode.
+                    if (fullscreen && netxs::events::subevent(cause, button::drag::any.id)) // Enable left drag in GUI fullscreen mode.
                     {
                         return; // Pass event to the hall.
                     }
-                    if (events::subevent(cause, button::click     ::any.id)
-                     || events::subevent(cause, button::dblclick  ::any.id)
-                     || events::subevent(cause, button::tplclick  ::any.id)
-                     || events::subevent(cause, button::drag::pull::any.id))
+                    if (netxs::events::subevent(cause, button::click     ::any.id)
+                     || netxs::events::subevent(cause, button::dblclick  ::any.id)
+                     || netxs::events::subevent(cause, button::tplclick  ::any.id)
+                     || netxs::events::subevent(cause, button::drag::pull::any.id))
                     {
                         gear.setfree();
                         forward = true;
                     }
-                    else if (events::subevent(cause, button::drag::start::any.id))
+                    else if (netxs::events::subevent(cause, button::drag::start::any.id))
                     {
                         gear.capture(bell::id); // To avoid unhandled mouse pull processing.
                         forward = true;
                     }
-                    else if (events::subevent(cause, button::drag::cancel::any.id)
-                          || events::subevent(cause, button::drag::stop  ::any.id))
+                    else if (netxs::events::subevent(cause, button::drag::cancel::any.id)
+                          || netxs::events::subevent(cause, button::drag::stop  ::any.id))
                     {
                         gear.setfree();
                     }
                     if (forward)
                     {
-                        auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                        auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                         if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstat, cause, gear.coord, gear.delta.get(), gear.take_button_state(), gear.whlfp, gear.whlsi, gear.hzwhl, gear.click);
                         gear.dismiss();
                     }
                 };
-                LISTEN(tier::release, e2::config::fps, fps, tokens)
+                LISTEN(tier::release, e2::config::fps, fps)
                 {
-                    if (fps > 0) this->bell::signal(tier::general, e2::config::fps, fps);
+                    if (fps > 0) this->base::signal(tier::general, e2::config::fps, fps);
                 };
-                LISTEN(tier::preview, e2::config::fps, fps, tokens)
-                {
-                    conio.fps.send(canal, fps);
-                };
-                LISTEN(tier::preview, e2::form::prop::cwd, path, tokens)
+                LISTEN(tier::preview, e2::form::prop::cwd, path)
                 {
                     conio.cwd.send(canal, path);
                 };
-                LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
+                LISTEN(tier::preview, input::events::mouse::button::click::any, gear)
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::preview, e2::form::layout::expose, item, tokens)
+                LISTEN(tier::preview, e2::form::layout::expose, item)
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::preview, e2::form::layout::swarp, warp, tokens)
+                LISTEN(tier::preview, e2::form::layout::swarp, warp)
                 {
                     conio.warping.send(canal, 0, warp);
                 };
-                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.fullscrn.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                 {
-                    auto [ext_gear_id, gear_ptr] = input.get_ext_gear_id(gear.id);
+                    auto [ext_gear_id, gear_ptr] = get_ext_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
+            LISTEN(tier::release, e2::conio::winsz, new_size)
+            {
+                auto delta = base::sizeby(new_size - base::size());
+                if (delta && direct)
+                {
+                    base::ruined(true);
+                    paint.cancel();
+                }
+                auto timestamp = datetime::now(); // Do not wait next timer tick.
+                rebuild_scene(timestamp);
+            };
+            LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                rebuild_scene(timestamp);
+            };
             conio.sysstart.send(canal);
+        }
+        // gate: Notify environment to disconnect.
+        void disconnect()
+        {
+            if (alive.exchange(faux))
+            {
+                conio.s11n::sysclose.send(canal, true);
+                canal.wake();
+            }
         }
         // gate: .
         void inform(rect new_area) override
         {
-            if (applet)
+            if (base::subset.size())
+            if (auto object = base::subset.back())
             {
-                applet->base::resize(new_area.size);
+                object->base::resize(new_area.size);
             }
-        }
-    };
-
-    // console: World aether.
-    class host
-        : public form<host>
-    {
-    public:
-        using tick = datetime::quartz<bell, tier::general, e2::timer::tick.id>;
-
-        pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
-
-        tick quartz; // host: Frame rate synchronizator.
-        si32 maxfps; // host: Frame rate.
-        regs debris; // host: Wrecked regions.
-        xmls config; // host: Resultant settings.
-        subs tokens; // host: Subscription tokens.
-        flag active; // host: Host is available for connections.
-
-        std::vector<bool> user_numbering; // host: .
-
-        host(xipc server, xmls config, si32 focus_type = pro::focus::mode::hub)
-            :  focus{ *this, focus_type, faux },
-              quartz{ *this },
-              config{ config },
-              active{ true }
-        {
-            using namespace std::chrono;
-            auto& canal = *server;
-
-            auto& g = skin::globals();
-            g.window_clr     = config.take("/config/colors/window"     , cell{ whitespace });
-            g.winfocus       = config.take("/config/colors/focus"      , cell{ whitespace });
-            g.brighter       = config.take("/config/colors/brighter"   , cell{ whitespace });
-            g.shadower       = config.take("/config/colors/shadower"   , cell{ whitespace });
-            g.warning        = config.take("/config/colors/warning"    , cell{ whitespace });
-            g.danger         = config.take("/config/colors/danger"     , cell{ whitespace });
-            g.action         = config.take("/config/colors/action"     , cell{ whitespace });
-
-            g.selected       = config.take("/config/desktop/taskbar/colors/selected"  , cell{ whitespace });
-            g.active         = config.take("/config/desktop/taskbar/colors/active"    , cell{ whitespace });
-            g.focused        = config.take("/config/desktop/taskbar/colors/focused"   , cell{ whitespace });
-            g.inactive       = config.take("/config/desktop/taskbar/colors/inactive"  , cell{ whitespace });
-
-            g.spd            = config.take("/config/timings/kinetic/spd"      , 10  );
-            g.pls            = config.take("/config/timings/kinetic/pls"      , 167 );
-            g.spd_accel      = config.take("/config/timings/kinetic/spd_accel", 1   );
-            g.spd_max        = config.take("/config/timings/kinetic/spd_max"  , 100 );
-            g.ccl            = config.take("/config/timings/kinetic/ccl"      , 120 );
-            g.ccl_accel      = config.take("/config/timings/kinetic/ccl_accel", 30  );
-            g.ccl_max        = config.take("/config/timings/kinetic/ccl_max"  , 1   );
-            g.switching      = config.take("/config/timings/switching"        , span{ 200ms });
-            g.deceleration   = config.take("/config/timings/deceleration"     , span{ 2s    });
-            g.blink_period   = config.take("/config/cursor/blink"             , span{ 400ms });
-            g.menu_timeout   = config.take("/config/desktop/taskbar/timeout"  , span{ 250ms });
-            g.leave_timeout  = config.take("/config/timings/leave_timeout"    , span{ 1s    });
-            g.repeat_delay   = config.take("/config/timings/repeat_delay"     , span{ 500ms });
-            g.repeat_rate    = config.take("/config/timings/repeat_rate"      , span{ 30ms  });
-            g.max_value      = config.take("/config/desktop/windowmax"        , twod{ 3000, 2000  });
-            g.macstyle       = config.take("/config/desktop/macstyle"         , faux);
-            g.menuwide       = config.take("/config/desktop/taskbar/wide"     , faux);
-
-            g.shadow_enabled = config.take("/config/desktop/shadow/enabled", true);
-            g.shadow_bias    = config.take("/config/desktop/shadow/bias"   , 0.37f);
-            g.shadow_blur    = config.take("/config/desktop/shadow/blur"   , 3);
-            g.shadow_opacity = config.take("/config/desktop/shadow/opacity", 105.5f);
-            g.shadow_offset  = config.take("/config/desktop/shadow/offset" , dot_21);
-
-            maxfps = config.take("/config/timings/fps", 60);
-            if (maxfps <= 0) maxfps = 60;
-
-            LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
-            {
-                world_ptr = base::This();
-            };
-            LISTEN(tier::general, e2::config::fps, fps, tokens)
-            {
-                if (fps > 0)
-                {
-                    maxfps = fps;
-                    quartz.ignite(maxfps);
-                }
-                else if (fps == -1)
-                {
-                    fps = maxfps;
-                }
-                else
-                {
-                    quartz.stop();
-                }
-            };
-            LISTEN(tier::general, e2::cleanup, counter, tokens)
-            {
-                this->router(tier::general).cleanup(counter.ref_count, counter.del_count);
-            };
-            LISTEN(tier::general, hids::events::halt, gear, tokens)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.setfree();
-                    gear.dismiss();
-                }
-            };
-            LISTEN(tier::general, e2::shutdown, msg, tokens)
-            {
-                if constexpr (debugmode) log(prompt::host, msg);
-                active.exchange(faux); // To prevent new applications from launching.
-                canal.stop();
-            };
-            LISTEN(tier::general, hids::events::device::user::login, props, tokens)
-            {
-                props = 0;
-                while (props < user_numbering.size() && user_numbering[props]) { props++; }
-                if (props == user_numbering.size()) user_numbering.push_back(true);
-                else                                user_numbering[props] = true;
-            };
-            LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
-            {
-                if (props < user_numbering.size()) user_numbering[props] = faux;
-                else
-                {
-                    if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
-                }
-            };
-            LISTEN(tier::request, hids::events::focus::set::any, seed, tokens, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
-            {
-                auto is_recursive = faux;
-                if (seed.treeid)
-                {
-                    auto& digest = focus_tree_map[seed.treeid];
-                    if (digest < seed.digest) // This is the first time this focus event has been received.
-                    {
-                        digest = seed.digest;
-                    }
-                    else // We've seen this event before.
-                    {
-                        is_recursive = true;
-                    }
-                }
-                if (!is_recursive)
-                {
-                    auto deed = this->bell::protos(tier::request);
-                    this->bell::signal(tier::release, deed, seed);
-                }
-            };
-
-            quartz.ignite(maxfps);
-            log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
-        }
-
-        // host: Mark dirty region.
-        void denote(rect updateregion)
-        {
-            if (updateregion)
-            {
-                debris.push_back(updateregion);
-            }
-        }
-        void deface(rect damaged_region) override
-        {
-            base::deface(damaged_region);
-            denote(damaged_region);
-        }
-        // host: Create a new root of the specified subtype and attach it.
-        auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)
-        {
-            auto lock = bell::unique_lock();
-            auto portal = ui::gate::ctor(uplink, vtmode, host::config);
-            portal->bell::signal(tier::release, e2::form::upon::vtree::attached, base::This());
-            portal->attach(applet);
-            portal->base::resize(winsz);
-            auto& screen = *portal;
-            LISTEN(tier::general, e2::timer::any, timestamp)
-            {
-                auto damaged = !debris.empty();
-                debris.clear();
-                screen.rebuild_scene(bell::id, damaged);
-            };
-            screen.LISTEN(tier::release, e2::conio::winsz, new_size, -)
-            {
-                screen.rebuild_scene(bell::id, true);
-            };
-            lock.unlock();
-            portal->launch();
-            bell::dequeue();
-            quartz.stop();
-        }
-        // host: Shutdown.
-        void stop()
-        {
-            auto lock = bell::sync();
-            mouse.reset();
-            tokens.reset();
         }
     };
 }

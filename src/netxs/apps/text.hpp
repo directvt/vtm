@@ -5,9 +5,9 @@
 
 namespace netxs::events::userland
 {
-    struct textancy
+    namespace textancy
     {
-        EVENTPACK(textancy, netxs::events::userland::root::custom )
+        EVENTPACK(netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // text: Text editor.
@@ -31,7 +31,7 @@ namespace netxs::app::textancy
     static constexpr auto id = "text";
     static constexpr auto name = "Text Editor (DEMO)";
 
-    using events = netxs::events::userland::textancy;
+    namespace events = netxs::events::userland::textancy;
 
     namespace
     {
@@ -95,7 +95,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::hub)
-                  ->plugin<pro::keybd>()
+                  ->plugin<pro::keybd>("defapp")
                   ->shader(c3, e2::form::state::focus::count)
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
@@ -135,8 +135,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                         layers->attach(app::shared::scroll_bars(scroll));
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };

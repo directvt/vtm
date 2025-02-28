@@ -7,9 +7,50 @@
 #include "events.hpp"
 #include "xml.hpp"
 
-#include <typeindex>
 #include <future>
 
+namespace netxs
+{
+    struct eccc
+    {
+        text env{}; // eccc: Environment var list delimited by \0.
+        text cwd{}; // eccc: Current working directory.
+        text cmd{}; // eccc: Command line to run.
+        text cfg{}; // eccc: Configuration patch.
+        twod win{}; // eccc: Console window size.
+        id_t gear_id{}; // eccc: Gear id.
+    };
+    struct syscmd
+    {
+        static constexpr auto _counter        = __COUNTER__ + 1;
+        static constexpr auto minimize        = __COUNTER__ - _counter;
+        static constexpr auto maximize        = __COUNTER__ - _counter;
+        static constexpr auto fullscreen      = __COUNTER__ - _counter;
+        static constexpr auto restore         = __COUNTER__ - _counter;
+        static constexpr auto move            = __COUNTER__ - _counter;
+        static constexpr auto monitorpower    = __COUNTER__ - _counter;
+        static constexpr auto update          = __COUNTER__ - _counter;
+        static constexpr auto close           = __COUNTER__ - _counter;
+        static constexpr auto tunecellheight  = __COUNTER__ - _counter;
+        static constexpr auto rollfontlist    = __COUNTER__ - _counter;
+        static constexpr auto resetcellheight = __COUNTER__ - _counter;
+        static constexpr auto resetwheelaccum = __COUNTER__ - _counter;
+        static constexpr auto toggleaamode    = __COUNTER__ - _counter;
+        static constexpr auto focusnextwindow = __COUNTER__ - _counter;
+        static constexpr auto alwaysontop     = __COUNTER__ - _counter;
+        static constexpr auto warpwindow      = __COUNTER__ - _counter;
+    };
+    struct winstate
+    {
+        static constexpr auto _counter   = __COUNTER__ + 1;
+        static constexpr auto undefined  = __COUNTER__ - _counter;
+        static constexpr auto normal     = __COUNTER__ - _counter;
+        static constexpr auto minimized  = __COUNTER__ - _counter;
+        static constexpr auto maximized  = __COUNTER__ - _counter;
+        static constexpr auto fullscreen = __COUNTER__ - _counter;
+        static constexpr auto tiled      = __COUNTER__ - _counter;
+    };
+}
 namespace netxs::input
 {
     struct hids;
@@ -34,26 +75,23 @@ namespace netxs::ui
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
     using functor = std::function<void(sptr)>;
-    using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
     using book = std::vector<sptr>;
+    using guicmd = directvt::binary::gui_command_t;
 }
 
 namespace netxs::events::userland
 {
-    struct e2
+    namespace e2
     {
-        static constexpr auto dtor = netxs::events::userland::root::dtor;
-        static constexpr auto cascade = netxs::events::userland::root::cascade;
-        static constexpr auto cleanup = netxs::events::userland::root::cleanup;
-
-        EVENTPACK( e2, netxs::events::userland::root::base )
+        EVENTPACK( netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
-            EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             EVENT_XS( area      , rect           ), // release: Object rectangle.
+            EVENT_XS( runscript , input::hids    ), // preview: Pass script activated by gear to the ui::host. release: Run script on objects in context. request: Restore scripting context.
+            EVENT_XS( luafx     , lua_State*     ), // release: Handle lua __call.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // Timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
@@ -91,7 +129,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( background )
                 {
-                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt bell::signal) and any kind of highlighters.
+                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt base::signal) and any kind of highlighters.
                 };
             };
             SUBSET_XS( config )
@@ -129,7 +167,6 @@ namespace netxs::events::userland
             {
                 EVENT_XS( mouse   , input::sysmouse ), // release: Mouse activity.
                 EVENT_XS( keybd   , input::syskeybd ), // release: Keybd activity.
-                EVENT_XS( focus   , input::sysfocus ), // release: Focus activity.
                 EVENT_XS( board   , input::sysboard ), // release: Clipboard preview.
                 EVENT_XS( error   , const si32      ), // release: Return error code.
                 EVENT_XS( winsz   , const twod      ), // release: Order to update terminal primary overlay.
@@ -137,11 +174,17 @@ namespace netxs::events::userland
                 EVENT_XS( quit    , const si32      ), // release: Quit, arg: si32 - quit reason.
                 EVENT_XS( pointer , const bool      ), // release: Mouse pointer visibility.
                 EVENT_XS( logs    , const text      ), // Log output.
+                GROUP_XS( focus   , input::sysfocus ), // release: Focus activity.
+
+                SUBSET_XS( focus )
+                {
+                    EVENT_XS( post, input::sysfocus ), // release: Focus activity.
+                };
             };
             SUBSET_XS( data )
             {
                 //todo revise (see app::desk)
-                EVENT_XS( changed, text       ), // release/preview/request: Current menu item id(text).
+                EVENT_XS( changed, text       ), // release/request: Current menu item id(text).
                 EVENT_XS( request, si32       ),
                 EVENT_XS( disable, si32       ),
                 EVENT_XS( flush  , si32       ),
@@ -152,6 +195,8 @@ namespace netxs::events::userland
                 EVENT_XS( cout       , const text  ), // Append extra data to output.
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
+                EVENT_XS( run        , eccc        ), // Run script.
+                EVENT_XS( gui        , ui::guicmd  ), // Request a gui command.
                 GROUP_XS( request    , input::hids ), // general: Request input field list.
 
                 SUBSET_XS( request )
@@ -161,7 +206,6 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<core>  ), // Request global canvas.
                 GROUP_XS( size     , input::hids ), // Window size manipulation.
                 GROUP_XS( layout   , const twod  ),
                 GROUP_XS( draggable, bool        ), // Signal to the form to enable draggablity for specified mouse button.
@@ -176,7 +220,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( size )
                 {
-                    EVENT_XS( restore    , ui::sptr    ),
+                    EVENT_XS( restore    , si32        ),
                     EVENT_XS( minimize   , input::hids ),
                     GROUP_XS( enlarge    , input::hids ),
 
@@ -203,12 +247,11 @@ namespace netxs::events::userland
                     EVENT_XS( selected, input::hids ), // Inform if selected.
                     EVENT_XS( shift   , const twod  ), // Request a global shifting with delta.
                     EVENT_XS( jumpto  , ui::base    ), // Fly to the specified object.
-                    EVENT_XS( convey  , cube        ), // Request a global conveying with delta (Inform all children to be conveyed).
                     EVENT_XS( bubble  , rect        ), // Order to popup the requested item through the visual tree.
                     EVENT_XS( expose  , rect        ), // Order to bring the requested item on top of the visual tree.
                     EVENT_XS( appear  , twod        ), // Fly to the specified coords.
                     EVENT_XS( swarp   , const dent  ), // preview: Do form swarping.
-                    GROUP_XS( go      , ui::sptr    ), // preview: Do form swarping.
+                    GROUP_XS( go      , ui::sptr    ),
                     GROUP_XS( focus   , id_t        ),
 
                     SUBSET_XS( go )
@@ -306,23 +349,12 @@ namespace netxs::events::userland
                     EVENT_XS( attach    , ui::sptr    ), // Order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( swap      , ui::sptr    ), // Order to replace existing object. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor ), // Exec functor (see pro::focus).
-                    EVENT_XS( onbehalf  , ui::proc    ), // Exec functor on behalf (see gate).
+                    EVENT_XS( multihome , ui::sptr    ), // Release: Register gate-based parent.
                     GROUP_XS( quit      , bool        ), // Request to quit/detach (arg: fast or not).
-                    GROUP_XS( action    , input::hids ), // Request to proceed action.
 
                     SUBSET_XS( quit )
                     {
                         EVENT_XS( one, bool ), // Signal to close (fast or not).
-                    };
-                    SUBSET_XS( action )
-                    {
-                        EVENT_XS( runscript  , input::hids ),
-                        EVENT_XS( alwaysontop, input::hids ),
-                        EVENT_XS( warp       , input::hids ),
-                        EVENT_XS( close      , input::hids ),
-                        EVENT_XS( minimize   , input::hids ),
-                        EVENT_XS( maximize   , input::hids ),
-                        EVENT_XS( fullscreen , input::hids ),
                     };
                 };
                 SUBSET_XS( cursor )
@@ -390,8 +422,7 @@ namespace netxs::events::userland
                 SUBSET_XS( prop )
                 {
                     EVENT_XS( name      , text       ), // user name.
-                    EVENT_XS( zorder    , zpos       ), // Set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
-                    EVENT_XS( filler    , const cell ), // Set form brush/color.
+                    EVENT_XS( zorder    , si32       ), // Set form z-order, si32: 0 plain, 1 backmost, 2 topmost.
                     EVENT_XS( fullscreen, ui::sptr   ), // Set fullscreen app.
                     EVENT_XS( viewport  , rect       ), // request: Return form actual viewport.
                     EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.
@@ -405,6 +436,7 @@ namespace netxs::events::userland
                         EVENT_XS( size    , twod     ), // Set window size.
                         EVENT_XS( fullsize, rect     ), // Request window size with titles and borders.
                         EVENT_XS( instance, ui::sptr ), // Request window instance.
+                        EVENT_XS( state   , si32     ), // Request window state.
                     };
                     SUBSET_XS( ui )
                     {
@@ -459,12 +491,18 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 namespace netxs::ui
 {
-    using e2 = netxs::events::userland::e2;
+    namespace e2 = netxs::events::userland::e2;
+
+    // controls: UI extensions.
+    namespace pro
+    {
+        struct skill;
+    }
 
     //todo reimplement
     struct skin
@@ -500,6 +538,8 @@ namespace netxs::ui
         span leave_timeout;
         span repeat_delay;
         span repeat_rate;
+
+        si32 maxfps = 60;
 
         bool shadow_enabled = true;
         si32 shadow_blur = 3;
@@ -555,18 +595,18 @@ namespace netxs::ui
     {
         enum type
         {
-            reflow_root = -1,
+            reflow_root = -1, // Object generates (tier::anycast, e2::form::upon::resized) after reflowing.
             client = 0,
             node = 1,
             placeholder = 2,
         };
 
-        book subset; // base: List of nested objects.
+        std::list<sptr> subset; // base: List of nested objects.
         wptr father; // base: Reference to parent.
+        std::list<sptr>::iterator holder; // base: Iterator on parent list (for instant deletion).
         subs relyon; // base: Subscription on parent events.
         rect region; // base: The region occupied by the object.
         rect socket; // base: The region provided for the object.
-        cell filler; // base: Object color.
         twod min_sz; // base: Minimal size.
         twod max_sz; // base: Maximal size.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
@@ -575,11 +615,12 @@ namespace netxs::ui
         dent intpad; // base: Pads inside object.
         bind atgrow; // base: Bindings on enlarging.
         bind atcrop; // base: Bindings on shrinking.
-        bool wasted; // base: Should the object be redrawn.
+        bool wasted; // base: Should the object be redrawn. //todo make it rect{}
         bool hidden; // base: Ignore rendering and resizing.
         bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
+        std::unordered_map<text, netxs::sptr<std::any>, qiew::hash, qiew::equal> fields;
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
@@ -594,25 +635,76 @@ namespace netxs::ui
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
-        template<bool Absolute = true>
-        auto actual_area() const
+        // base: Cleanup weak references.
+        auto cleanup()
         {
-            auto area = rect{ -oversz.corner(), region.size + oversz };
-            if constexpr (Absolute) area.coor += region.coor;
-            return area;
+            auto ref_count = ui64{};
+            auto del_count = ui64{};
+            for (auto& [item_id, item_wptr] : indexer.store)
+            {
+                if (auto item_ptr = item_wptr.lock())
+                {
+                    auto& item = *item_ptr;
+                    item.preview.cleanup(ref_count, del_count);
+                    item.request.cleanup(ref_count, del_count);
+                    item.release.cleanup(ref_count, del_count);
+                    item.anycast.cleanup(ref_count, del_count);
+                }
+            }
+            general.cleanup(ref_count, del_count);
+            return std::pair{ ref_count, del_count };
         }
-        auto color() const { return base::filler; }
-        void color(argb fg_color, argb bg_color)
+        // base: Find the root of the visual tree.
+        auto gettop()
         {
-            base::filler.bgc(bg_color)
-                        .fgc(fg_color)
-                        .txt(whitespace);
-            bell::signal(tier::release, e2::form::prop::filler, filler);
+            auto parent_ptr = This();
+            while (!parent_ptr->base::master)
+            {
+                if (auto next_parent_ptr = parent_ptr->father.lock()) parent_ptr = next_parent_ptr;
+                else break;
+            }
+            return parent_ptr;
         }
-        void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
+        void broadcast(hint event, auto& param)
         {
-            base::filler = new_filler;
-            bell::signal(tier::release, e2::form::prop::filler, filler);
+            auto lock = bell::sync();
+            anycast.notify(event, param);
+            for (auto item_ptr : base::subset)
+            {
+                if (item_ptr && !item_ptr->master)
+                {
+                    item_ptr->broadcast(event, param);
+                }
+            }
+        }
+        auto signal(si32 Tier, hint event, auto& param)
+        {
+            auto lock = bell::sync();
+            if (Tier == tier::anycast)
+            {
+                auto root_ptr = gettop();
+                root_ptr->broadcast(event, param);
+            }
+            else reactors[Tier]->notify(event, param);
+        }
+        // base: Fire an event.
+        // Usage example:
+        //          base::signal(tier::preview, e2::form::prop::ui::header, txt);
+        template<class Event>
+        auto signal(si32 Tier, Event, Event::type&& param = {})
+        {
+            signal(Tier, Event::id, param);
+            return param;
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type& param)
+        {
+            signal(Tier, Event::id, param);
+        }
+        template<class Event>
+        void signal(si32 Tier, Event, Event::type const& param)
+        {
+            signal(Tier, Event::id, param);
         }
         // base: Align object.
         static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
@@ -658,7 +750,11 @@ namespace netxs::ui
             xform(atcrop.y, atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
-            bell::signal(tier::release, e2::area, new_area);
+            base::signal(tier::release, e2::area, new_area);
+            if (base::family == base::reflow_root && base::region.size != new_area.size)
+            {
+                base::signal(tier::anycast, e2::form::upon::resized, new_area);
+            }
             base::region = new_area;
         }
         // base: Notify about appoved area (ext rect) for the object.
@@ -698,7 +794,7 @@ namespace netxs::ui
             base::socket.size = base::region.size;
             auto new_area = base::socket;
             auto old_coor = base::region.coor;
-            bell::signal(tier::release, e2::area, new_area);
+            base::signal(tier::release, e2::area, new_area);
             base::region.coor = new_area.coor;
             return base::region.coor - old_coor;
         }
@@ -737,95 +833,62 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            if (auto parent_ptr = parent())
+            auto parent_ptr = This();
+            while (auto next_parent_ptr = parent_ptr->base::parent())
             {
-                area.coor += base::region.coor;
-                parent_ptr->deface(area);
+                area.coor += parent_ptr->base::region.coor + parent_ptr->base::intpad.corner();
+                parent_ptr = next_parent_ptr;
+                parent_ptr->base::wasted = true; //todo parent_ptr->base::wasted = area;
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
         void strike()
         {
-            strike(base::region);
+            base::strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
-        virtual void deface(rect area)
+        void deface(rect area)
         {
-            base::wasted = true;
-            strike(area);
+            base::wasted = true; //todo base::wasted = area;
+            base::strike(area);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
         {
-            deface(base::region);
+            base::deface(base::region);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         template<bool Forced = faux>
         void reflow()
         {
-            auto parent_ptr = parent();
-            if (parent_ptr && (!base::master || (Forced && (base::family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            auto parent_ptr = This();
+            while ((Forced || !parent_ptr->base::master) && parent_ptr->base::family != base::reflow_root)
             {
-                parent_ptr->reflow<Forced>();
+                if (auto next_parent_ptr = parent_ptr->base::parent()) parent_ptr = next_parent_ptr;
+                else break;
             }
-            else change(base::region + base::extpad);
+            parent_ptr->change(parent_ptr->base::region + parent_ptr->base::extpad);
         }
         // base: Remove the form from the visual tree.
         void detach()
         {
-            if (auto parent_ptr = parent())
+            if (auto parent_ptr = base::parent())
             {
-                strike();
+                base::strike();
                 parent_ptr->remove(This());
             }
         }
-        // base: Remove visual tree branch.
-        void destroy()
-        {
-            auto lock = bell::sync();
-            auto shadow = This();
-            if (auto parent_ptr = parent())
-            {
-                parent_ptr->destroy();
-            }
-            detach();
-        }
-        // base: Recursively calculate global coordinate.
+        // base: Calculate global coordinate.
         void global(auto& coor)
         {
-            coor -= base::region.coor;
-            if (auto parent_ptr = parent())
+            coor -= base::region.coor + base::intpad.corner();
+            if (base::family == base::reflow_root) return;
+            auto parent_ptr = base::parent();
+            while (parent_ptr)
             {
-                parent_ptr->global(coor);
-            }
-        }
-        // base: Recursively find the root of the visual tree.
-        netxs::sptr<bell> gettop() override
-        {
-            auto parent_ptr = parent();
-            if (!base::master && parent_ptr) return parent_ptr->gettop();
-            else                             return This();
-        }
-        // base: Invoke a lambda with parent as a parameter.
-        // Usage example:
-        //     toboss([&](auto& parent_ptr) { c.fuse(parent.filler); });
-        template<class P>
-        void toboss(P proc)
-        {
-            if (auto parent_ptr = parent())
-            {
-                proc(*parent_ptr);
-            }
-        }
-        // base: Execute the proc along the entire visual tree.
-        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P>>>
-        void diveup(P proc)
-        {
-            if constexpr (Plain) proc();
-            else                 if (!proc()) return;
-            if (auto parent_ptr = parent())
-            {
-                parent_ptr->diveup(proc);
+                coor -= parent_ptr->base::region.coor + parent_ptr->base::intpad.corner();
+                if (parent_ptr->base::family == base::reflow_root) break;
+                parent_ptr = parent_ptr->base::parent();
             }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
@@ -835,24 +898,24 @@ namespace netxs::ui
         void raw_riseup(si32 Tier, hint event_id, auto& param, bool forced = faux)
         {
             auto lock = bell::sync();
-            bell::signal(Tier, event_id, param);
+            base::signal(Tier, event_id, param);
             if (forced)
             {
-                auto parent_ptr = parent();
+                auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
-                    parent_ptr->bell::signal(Tier, event_id, param);
-                    parent_ptr = parent_ptr->parent();
+                    parent_ptr->base::signal(Tier, event_id, param);
+                    parent_ptr = parent_ptr->base::parent();
                 }
             }
             else if (!bell::accomplished(Tier))
             {
-                auto parent_ptr = parent();
+                auto parent_ptr = base::parent();
                 while (parent_ptr)
                 {
-                    parent_ptr->bell::signal(Tier, event_id, param);
+                    parent_ptr->base::signal(Tier, event_id, param);
                     if (parent_ptr->bell::accomplished(Tier)) break;
-                    parent_ptr = parent_ptr->parent();
+                    parent_ptr = parent_ptr->base::parent();
                 }
             }
         }
@@ -891,6 +954,85 @@ namespace netxs::ui
             base::intpad = new_intpad;
             base::extpad = new_extpad;
         }
+        template<class T>
+        auto plugin_name()
+        {
+            static auto name = []{ auto name_ptr = std::type_index(typeid(T)).name();
+                                   return qiew{ name_ptr, std::strlen(name_ptr) + 1/*include trailing null*/ }; }();
+            return name;
+        }
+        // base: Detach the specified plugin.
+        template<class T>
+        void unplug()
+        {
+            //todo std::unordered_map::erase calls text::ctor until C++23
+            //fields.erase(plugin_name<T>());
+            if (auto iter = fields.find(plugin_name<T>()); iter != fields.end())
+            {
+                fields.erase(iter);
+            }
+        }
+        // base: Return a reference to a plugin of the specified type. Create an instance of the specified plugin using the specified arguments if it does not exist.
+        template<class T, class ...Args>
+        auto& plugin(Args&&... args)
+        {
+            auto iter = fields.find(plugin_name<T>());
+            if (iter == fields.end())
+            {
+                iter = fields.emplace(plugin_name<T>(), ptr::shared(std::make_any<T>(*this, std::forward<Args>(args)...))).first;
+            }
+            return *(std::any_cast<T>(iter->second.get()));
+        }
+        // base: Allocate an anonymous property.
+        template<class T = text>
+        auto& field(T&& init = {})
+        {
+            auto value_ptr = ptr::shared(std::make_any<std::decay_t<T>>(std::forward<T>(init)));
+            auto& value = *(std::any_cast<std::decay_t<T>>(value_ptr.get()));
+            auto addr = (ui64)&value;
+            auto property_name = qiew{ (char*)(&addr), sizeof(addr) };
+            fields.emplace(property_name, value_ptr);
+            return value;
+        }
+        // base: Remove an anonymous property.
+        template<class T>
+        void unfield(T& value)
+        {
+            auto addr = (ui64)&value;
+            auto property_name = qiew{ (char*)(&addr), sizeof(addr) };
+            //todo std::unordered_map::erase calls text::ctor until C++23
+            //fields.erase(property_name);
+            if (auto iter = fields.find(property_name); iter != fields.end())
+            {
+                fields.erase(iter);
+            }
+        }
+        // base: Get object property reference.
+        template<class T = text>
+        auto& property(qiew property_name, T&& init = {})
+        {
+            auto iter = fields.find(property_name);
+            if (iter == fields.end())
+            {
+                iter = fields.emplace(property_name, ptr::shared(std::make_any<std::decay_t<T>>(std::forward<T>(init)))).first;
+            }
+            return *(std::any_cast<std::decay_t<T>>(iter->second.get()));
+        }
+        // base: Bind object property to event.
+        template<si32 Tier = tier::release, class Event>
+        auto& bind_property(qiew property_name, base& boss, Event event)
+        {
+            auto& prop = base::property<typename Event::type>(property_name);
+            boss.LISTEN(Tier, event, new_value)
+            {
+                if (prop != new_value)
+                {
+                    prop = new_value;
+                }
+                boss.bell::expire(Tier, true);
+            };
+            return prop;
+        }
         // base: Render to the canvas. Trim = trim viewport to the nested object region.
         template<bool Forced = faux>
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
@@ -898,48 +1040,93 @@ namespace netxs::ui
             if (hidden) return;
             if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
             {
-                if (pred) bell::signal(tier::release, e2::render::background::prerender, canvas);
-                if (post) bell::signal(tier::release, e2::postrender, canvas);
+                if (pred) base::signal(tier::release, e2::render::background::prerender, canvas);
+                if (post) base::signal(tier::release, e2::postrender, canvas);
             }
         }
-
-    protected:
-        virtual void deform(rect& /*new_area*/) {}
-        virtual void inform(rect /*new_area*/) {}
+        // base: Attach nested object.
+        template<sort Order = sort::forward>
+        auto _attach(auto item_ptr)
+        {
+            if constexpr (Order == sort::reverse)
+            {
+                subset.push_front(item_ptr);
+                item_ptr->holder = subset.begin();
+                item_ptr->father = This();
+            }
+            else
+            {
+                subset.push_back(item_ptr);
+                item_ptr->holder = std::prev(subset.end());
+                item_ptr->father = This();
+            }
+        }
+        // base: Attach nested object.
+        template<sort Order = sort::forward>
+        auto attach(auto item_ptr)
+        {
+            _attach<Order>(item_ptr);
+            item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, This());
+            base::resize(); // Fit item_ptr to parent size.
+            return item_ptr;
+        }
         // base: Remove nested object.
         virtual void remove(sptr item_ptr)
         {
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (iter != tail)
+            if (item_ptr && item_ptr->holder != subset.end())
             {
                 auto backup = This();
-                subset.erase(iter);
-                item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                subset.erase(std::exchange(item_ptr->holder, subset.end()));
+                //todo revise (see pro::mouse::reset(soul))
+                //item_ptr->father = {};
+                item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                item_ptr->relyon.clear();
             }
         }
         // base: Update nested object.
         virtual void replace(sptr old_item_ptr, sptr new_item_ptr)
         {
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c == old_item_ptr; });
-            if (iter != tail)
+            if (old_item_ptr && old_item_ptr->holder != subset.end())
             {
                 auto backup = This();
-                auto pos = subset.erase(iter);
-                old_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, new_item_ptr);
-                new_item_ptr->bell::signal(tier::release, e2::form::upon::vtree::attached, backup);
+                *(old_item_ptr->holder) = new_item_ptr;
+                new_item_ptr->holder = std::exchange(old_item_ptr->holder, subset.end());
+                new_item_ptr->father = This();
+                //todo revise (see pro::mouse::reset(soul))
+                //old_item_ptr->father = {};
+                old_item_ptr->base::signal(tier::release, e2::form::upon::vtree::detached, backup);
+                old_item_ptr->relyon.clear();
+                new_item_ptr->base::signal(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
-        virtual ~base() = default;
+        // base: Remove the last nested object. Return the object refrence.
+        auto pop_back()
+        {
+            if (subset.size())
+            {
+                auto item_ptr = subset.back();
+                remove(item_ptr);
+                return item_ptr;
+            }
+            return sptr{};
+        }
+        // base: Remove all nested objects.
+        void clear()
+        {
+            auto backup = This();
+            while (subset.size())
+            {
+                pop_back();
+            }
+        }
+
+    protected:
+        virtual void deform([[maybe_unused]] rect& new_area) {}
+        virtual void inform([[maybe_unused]] rect  new_area) {}
 
     public:
-        base(auth& indexer, size_t nested_count = 0)
+        base(auth& indexer)
             : bell{ indexer },
-              subset{ nested_count },
               min_sz{ skin::globals().min_value },
               max_sz{ skin::globals().max_value },
               wasted{ true },
@@ -947,42 +1134,7 @@ namespace netxs::ui
               locked{ faux },
               master{ faux },
               family{ type::client }
-        {
-            LISTEN(tier::release, e2::cascade, proc)
-            {
-                auto backup = This();
-                auto keepon = proc(backup);
-                if (!keepon) this->bell::expire(tier::release);
-            };
-            LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-            {
-                if (!master)
-                {
-                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
-                    {
-                        auto backup = This(); // Object can be deleted inside proc.
-                        backup->bell::signal(tier::release, e2::cascade, proc);
-                    };
-                }
-                father = parent_ptr;
-                // Propagate form events up to the visual branch ends (children).
-                // Exec after all subscriptions.
-                //todo implement via e2::cascade
-            };
-            LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
-            {
-                if (this->bell::protos(tier::release, e2::form::upon::vtree::detached))
-                {
-                    relyon.reset();
-                }
-                if (parent_ptr && !hidden) parent_ptr->base::reflow();
-            };
-            LISTEN(tier::release, e2::render::background::any, parent_canvas)
-            {
-                     if (base::filler.xy())   parent_canvas.fill(cell::shaders::fusefull(base::filler));
-                else if (base::filler.link()) parent_canvas.fill(cell::shaders::onlyid(bell::id));
-            };
-        }
+        { }
     };
 
     struct input_fields_t

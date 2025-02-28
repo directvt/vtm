@@ -5,9 +5,9 @@
 
 namespace netxs::events::userland
 {
-    struct test
+    namespace test
     {
-        EVENTPACK( test, netxs::events::userland::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -22,7 +22,7 @@ namespace netxs::events::userland
                 };
             };
         };
-    };
+    }
 }
 
 // test: Test window.
@@ -31,7 +31,7 @@ namespace netxs::app::test
     static constexpr auto id = "test";
     static constexpr auto name = "Text Layout Test (DEMO)";
 
-    using events = netxs::events::userland::test;
+    namespace events = netxs::events::userland::test;
 
     namespace
     {
@@ -600,7 +600,7 @@ namespace netxs::app::test
             auto topic = get_text();
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>()
+                ->plugin<pro::keybd>("defapp")
                 //->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->invoke([](auto& boss)
@@ -618,8 +618,7 @@ namespace netxs::app::test
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
-                                            ->active()
-                                            ->colors(cyanlt, bluedk);
+                                            ->active(cyanlt, bluedk);
                             auto object = scroll->attach(ui::post::ctor())
                                                 ->upload(topic)
                                                 ->invoke([&](auto& self)
@@ -657,8 +656,7 @@ namespace netxs::app::test
                     b[{5, 1}].alpha(0);
             window->invoke([&](auto& boss)
             {
-                auto& keybd = boss.template plugins<pro::keybd>();
-                app::shared::base_kb_navigation(keybd, scroll, boss);
+                app::shared::base_kb_navigation(config, scroll, boss);
             });
             return window;
         };

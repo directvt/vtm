@@ -13,6 +13,7 @@ namespace netxs::prompt
     static constexpr auto   gui = " gui: "sv;
     static constexpr auto   ack = " ack: "sv;
     static constexpr auto   key = " key: "sv;
+    static constexpr auto   lua = " lua: "sv;
     static constexpr auto   tty = " tty: "sv;
     static constexpr auto   vtm = " vtm: "sv;
     static constexpr auto   xml = " xml: "sv;
@@ -23,6 +24,7 @@ namespace netxs::prompt
     #define prompt_list \
         X(apps) /* */ \
         X(args) /* */ \
+        X(auth) /* */ \
         X(base) /* */ \
         X(calc) /* */ \
         X(desk) /* */ \
@@ -167,6 +169,39 @@ namespace netxs::directvt
             {
                 // Noop.
             }
+            else if constexpr (std::is_same_v<D, std::any>)
+            {
+                // Four letters type encoding.
+                #define type_id_list \
+                    X(char) \
+                    X(bool) \
+                    X(text) \
+                    X(byte) \
+                    X(ui16) \
+                    X(ui32) \
+                    X(ui64) \
+                    X(si16) \
+                    X(si32) \
+                    X(si64) \
+                    X(twod) \
+                    X(rect) \
+                    X(fp32) \
+                    X(fp64) \
+                    X(fp2d) \
+                    X(time) \
+                    X(span) \
+                    X(argb) \
+                    X(dent)
+                #define X(item_t)   if (data.type() == typeid(item_t)) {                \
+                                        fuse_ext(block, make_ui32(#item_t));            \
+                                        fuse_ext(block, *std::any_cast<item_t>(&data)); \
+                                    } else
+                type_id_list
+                {
+                    log(prompt::dtvt, "Unsupported data type");
+                }
+                #undef X
+            }
             else if constexpr (requires{ std::begin(std::declval<D>()); })
             {
                 auto length = (sz_t)data.size();
@@ -216,12 +251,10 @@ namespace netxs::directvt
                 return *this;
             }
             // stream: .
-            template<class T, bool PeekOnly = faux>
-            static auto _take_item(view& data)
+            template<class T, bool PeekOnly = faux, class D = std::remove_cv_t<std::remove_reference_t<T>>, class R0 = std::conditional_t<std::is_same_v<D, noop>, si32, D>, class R = std::conditional_t<std::is_same_v<R0, text>, view, R0>>
+            static R _take_item(view& data)
             {
-                using D = std::remove_cv_t<std::remove_reference_t<T>>;
-                if constexpr (std::is_same_v<D, view>
-                           || std::is_same_v<D, text>)
+                if constexpr (std::is_same_v<D, view> || std::is_same_v<D, text>)
                 {
                     if (data.size() < sizeof(sz_t))
                     {
@@ -272,6 +305,29 @@ namespace netxs::directvt
                     {
                         data.remove_prefix(sizeof(data_type));
                     }
+                    return crop;
+                }
+                else if constexpr (std::is_same_v<D, std::any>)
+                {
+                    auto crop = std::any{};
+                    if (data.size() <= sizeof(si32))
+                    {
+                        log(prompt::dtvt, "Corrupted frame data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
+                        return crop;
+                    }
+                    auto type_id = netxs::aligned<si32>(data.data()); // Get four letters type index.
+                    auto bits = data.substr(sizeof(si32));
+                    switch (type_id)
+                    {
+                        #define X(item_t) case make_ui32(#item_t): \
+                                            crop = _take_item<item_t>(bits); \
+                                            break;
+                        type_id_list
+                        #undef X
+                        #undef type_id_list
+                    }
+                    if constexpr (!PeekOnly) data = bits;
                     return crop;
                 }
                 else if constexpr (requires{ std::begin(std::declval<D>()); })
@@ -846,7 +902,8 @@ namespace netxs::directvt
 
         auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
-        auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto r : rs) s << r; return s << '}'; }
+        auto& operator << (std::ostream& s, regs const& rs) { s << '{'; for (auto& r : rs) s << r; return s << '}'; }
+        auto& operator << (std::ostream& s, many const& my) { s << '{'; for (auto& r : my) s << r.type().name(); return s << '}'; }
 
         STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
@@ -863,6 +920,7 @@ namespace netxs::directvt
                                         (fp2d, click))
         STRUCT_macro(fullscrn,          (id_t, gear_id))
         STRUCT_macro(maximize,          (id_t, gear_id))
+        STRUCT_macro(minimize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
         STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
         STRUCT_macro(header_request,    (id_t, window_id))
@@ -870,9 +928,6 @@ namespace netxs::directvt
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT_macro(command,           (text, utf8))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
-        STRUCT_macro(fatal,             (text, err_msg))
-        STRUCT_macro(minimize,          (id_t, gear_id))
-        //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
         STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
@@ -914,6 +969,7 @@ namespace netxs::directvt
         STRUCT_macro(restored,          (id_t, gear_id))
         STRUCT_macro(req_input_fields,  (id_t, gear_id) (si32, acpStart) (si32, acpEnd))
         STRUCT_macro(ack_input_fields,  (id_t, gear_id) (regs, field_list))
+        STRUCT_macro(gui_command,       (id_t, gear_id) (si32, cmd_id) (many, args))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1425,7 +1481,6 @@ namespace netxs::directvt
             X(tooltip_element  ) /* Tooltip text.                                 */\
             X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
             X(logs             ) /* Debug logs.                                   */\
-            X(fatal            ) /* Fatal error message.                          */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
             X(sysfocus         ) /* System focus device.                          */\
@@ -1443,7 +1498,8 @@ namespace netxs::directvt
             X(cwd              ) /* CWD Notification.                             */\
             X(restored         ) /* Notify normal window state.                   */\
             X(req_input_fields ) /* Request input field list.                     */\
-            X(ack_input_fields ) /* Reply input field list.                       */
+            X(ack_input_fields ) /* Reply input field list.                       */\
+            X(gui_command      ) /* GUI command request.                          */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 

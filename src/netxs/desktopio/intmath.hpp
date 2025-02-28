@@ -4,17 +4,20 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include <optional>
 #include <algorithm>
 #include <limits>
 #include <cmath>
 #include <cfenv>
 #include <cassert>
+#include <any>
 #include <bit>
 #include <atomic>
 #include <cstring> // std::memcpy
 #include <utility> // std::cmp_equal
 #include <numeric> // std::accumulate
+#include <typeindex>
 
 #ifndef faux
     #define faux (false)
@@ -36,6 +39,7 @@ namespace netxs
     using sz_t = uint32_t;
     using arch = size_t;
     using flag = std::atomic<bool>;
+    using many = std::vector<std::any>;
 
     constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
@@ -125,6 +129,18 @@ namespace netxs
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
                         std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si32max, si32, si64>>;
 
+    template<class T>
+    auto& any_get_or(std::any const& value, T& fallback)
+    {
+        return value.type() == typeid(T) ? *std::any_cast<T*>(value)
+                                         : fallback;
+    }
+    template<class T = si32>
+    auto any_get_or(std::any const& value, T const& fallback = {})
+    {
+        return value.type() == typeid(T) ? std::any_cast<T>(value)
+                                         : fallback;
+    }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
     void set_bit(T&& n, bool v)

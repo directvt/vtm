@@ -38,7 +38,7 @@
     #include <sys/types.h>  // ::getaddrinfo
     #include <sys/socket.h> // ::shutdown() ::socket(2)
     #include <netdb.h>      //
-    #include <arpa/inet.h>  // ::inet_ntop()
+    //#include <arpa/inet.h>  // ::inet_ntop() ?This may require dynamic linking. #GH696
 
     #include <stdio.h>
     #include <unistd.h>     // ::read()
@@ -80,18 +80,6 @@
                     __VA_ARGS__; \
                     auto et_stop = datetime::round<si32, std::chrono::microseconds>(datetime::now() - et_start); \
                     os::logstd("et: ", (et_stop) / 1000.f, " ms\t expr: ", #__VA_ARGS__); }
-namespace netxs
-{
-    struct eccc
-    {
-        text env{}; // eccc: Environment var list delimited by \0.
-        text cwd{}; // eccc: Current working directory.
-        text cmd{}; // eccc: Command line to run.
-        text cfg{}; // eccc: Configuration patch.
-        twod win{}; // eccc: Console window size.
-        id_t hid{}; // eccc: Gear id.
-    };
-}
 namespace netxs::os
 {
     namespace fs = std::filesystem;
@@ -2343,6 +2331,7 @@ namespace netxs::os
     {
         static const auto elevated = []
         {
+            std::setlocale(LC_CTYPE, ".UTF8"); // Set the UTF-8 character classification for STL.
             #if defined(_WIN32)
                 //todo Workaround for https://github.com/PowerShell/Win32-OpenSSH/issues/2037
                 os::env::unset("c28fc6f98a2c44abbbd89d6a3037d0d9_POSIX_FD_STATE");
@@ -3078,7 +3067,7 @@ namespace netxs::os
                         ok(::chmod(dest.string().c_str(), 0755), "Failed to set a file's mode bits for '%path%'.", dest.string());
                     #endif
                 }
-                else log("Failed to copy process image to '%path%'.", dest.string());
+                else log("Failed to copy process image (%file%) to '%path%'.", file.string(), dest.string());
                 return done;
             };
             auto done = getpaths(file, dest) && create_reg_keys(file) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
@@ -3606,12 +3595,12 @@ namespace netxs::os
                 return socket;
             }
 
-            static auto open([[maybe_unused]] text addr, [[maybe_unused]] text port, [[maybe_unused]] bool logs = faux)
+            //todo X11 support. #GH696
+            /*static auto open([[maybe_unused]] text addr, [[maybe_unused]] text port, [[maybe_unused]] bool logs = faux)
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;
                 auto socket = sptr<ipc::stdcon>{};
-
                 #if defined(_WIN32)
                     // N/A
                 #else
@@ -3721,13 +3710,12 @@ namespace netxs::os
                         }
                     }
                 #endif
-
                 if (r != os::invalid_fd && w != os::invalid_fd)
                 {
                     socket = ptr::shared<ipc::stdcon>(r, w);
                 }
                 return socket;
-            }
+            }*/
         };
 
         auto stdio()
@@ -4522,313 +4510,6 @@ namespace netxs::os
             {
                 return termlink->get_current_line();
             }
-        };
-    }
-
-    namespace runspace
-    {
-        template<class Term>
-        struct base_tty
-        {
-            Term& terminal;
-
-            base_tty(Term& terminal)
-                : terminal{ terminal }
-            { }
-            virtual ~base_tty() = default;
-
-            virtual void write(view data) = 0;
-            virtual void runapp(eccc cfg, std::function<void(view)> input_hndl,
-                                          std::function<void(si32, view)> shutdown_hndl) = 0;
-            virtual void shut() = 0;
-            virtual bool connected() = 0;
-        };
-        template<class Term>
-        struct raw : public base_tty<Term>
-        {
-            using base_tty = runspace::base_tty<Term>;
-
-            ipc::stdcon               termlink;
-            std::thread               stdinput;
-            std::thread               stdwrite;
-            std::thread               waitexit;
-            fd_t                      prochndl;
-            pidt                      proc_pid;
-            text                      writebuf;
-            std::mutex                writemtx;
-            std::condition_variable   writesyn;
-            std::function<void(view)> receiver;
-            std::function<void(si32, view)> shutdown;
-
-            raw(Term& terminal)
-                : base_tty{ terminal       },
-                  prochndl{ os::invalid_fd },
-                  proc_pid{                }
-            { }
-           ~raw()
-            {
-                if constexpr (debugmode) log(prompt::task, "Destructor started");
-                stop();
-                if constexpr (debugmode) log(prompt::task, "Destructor complete");
-            }
-
-            operator bool () { return termlink; }
-
-            virtual bool connected() override
-            {
-                return !!termlink;
-            }
-            void disconnect()
-            {
-                auto guard = std::lock_guard{ writemtx };
-                termlink.stop();
-            }
-            // task: Cleaning in order to be able to restart.
-            void payoff()
-            {
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    if constexpr (debugmode) log(prompt::task, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    stdwrite.join();
-                }
-                if (stdinput.joinable())
-                {
-                    if constexpr (debugmode) log(prompt::task, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-                    stdinput.join();
-                }
-                if (waitexit.joinable())
-                {
-                    if constexpr (debugmode) log(prompt::task, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
-                    waitexit.join();
-                }
-                auto guard = std::lock_guard{ writemtx };
-                termlink = {};
-                writebuf = {};
-            }
-            virtual void shut() override
-            {
-                if (termlink)
-                {
-                    termlink.shut();
-                }
-            }
-            auto wait_child()
-            {
-                disconnect();
-                auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
-                return exit_code;
-            }
-            virtual void runapp(eccc cfg, std::function<void(view)> input_hndl,
-                                          std::function<void(si32, view)> shutdown_hndl) override
-            {
-                receiver = input_hndl;
-                shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, ansi::hi(utf::debase437(cfg.cmd)), cfg.cwd.empty() ? "current directory"s
-                                                                                                                                             : "'" + utf::debase437(cfg.cwd) + "'");
-                #if defined(_WIN32)
-
-                    auto s_pipe_r = os::invalid_fd;
-                    auto s_pipe_w = os::invalid_fd;
-                    auto m_pipe_r = os::invalid_fd;
-                    auto m_pipe_w = os::invalid_fd;
-                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                    auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<byte>{};
-                    auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 2>{};
-
-                    auto tunnel = [&]
-                    {
-                        auto sa = SECURITY_ATTRIBUTES{};
-                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                        sa.lpSecurityDescriptor = NULL;
-                        sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
-                        {
-                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                            startinf.StartupInfo.hStdInput  = s_pipe_r;
-                            startinf.StartupInfo.hStdOutput = s_pipe_w;
-                            startinf.StartupInfo.hStdError  = s_pipe_w;
-                            return true;
-                        }
-                        else
-                        {
-                            os::close(m_pipe_w);
-                            os::close(m_pipe_r);
-                            os::close(s_pipe_w);
-                            os::close(s_pipe_r);
-                            return faux;
-                        }
-                    };
-                    auto fillup = [&]
-                    {
-                        stdhndls[0] = s_pipe_r;
-                        stdhndls[1] = s_pipe_w;
-                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
-                        attrbuff.resize(attrsize);
-                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-
-                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                        0,
-                                                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                        &stdhndls,
-                                                        sizeof(stdhndls),
-                                                        nullptr,
-                                                        nullptr))
-                        {
-                            return true;
-                        }
-                        else return faux;
-                    };
-                    auto create = [&]
-                    {
-                        auto wcmd = utf::to_utf(os::nt::retokenize(cfg.cmd));
-                        auto wcwd = utf::to_utf(cfg.cwd);
-                        auto wenv = utf::to_utf(os::env::add(cfg.env));
-                        return ::CreateProcessW(nullptr,                             // lpApplicationName
-                                                wcmd.data(),                         // lpCommandLine
-                                                nullptr,                             // lpProcessAttributes
-                                                nullptr,                             // lpThreadAttributes
-                                                TRUE,                                // bInheritHandles
-                                                DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                                EXTENDED_STARTUPINFO_PRESENT |       // override startupInfo type
-                                                CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
-                                                wenv.data(),                         // lpEnvironment
-                                                wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
-                                                            : nullptr,
-                                                &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                                &procsinf);                          // lpProcessInformation
-                    };
-
-                    if (tunnel()
-                     && fillup()
-                     && create())
-                    {
-                        os::close( procsinf.hThread );
-                        prochndl = procsinf.hProcess;
-                        proc_pid = procsinf.dwProcessId;
-                        termlink = { m_pipe_r, m_pipe_w };
-                    }
-                    else os::fail(prompt::task, "Process creation error");
-
-                    os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                    os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-
-                #else
-
-                    auto to_server = std::to_array({ os::invalid_fd, os::invalid_fd });
-                    auto to_client = std::to_array({ os::invalid_fd, os::invalid_fd });
-                    ok(::pipe(to_server.data()), "::pipe(to_server)", os::unexpected);
-                    ok(::pipe(to_client.data()), "::pipe(to_client)", os::unexpected);
-                    termlink = { to_server[0], to_client[1] };
-                    proc_pid = os::process::sysfork();
-                    if (proc_pid == 0) // Child branch.
-                    {
-                        os::dtvt::active = faux; // Update tty::logger.
-                        os::dtvt::client = {};   //
-                        ::dup2(to_client[0], STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-                        ::dup2(to_server[1], STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                        ::dup2(to_server[1], STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
-                        os::fdscleanup();
-                        cfg.env = os::env::add(cfg.env);
-                        os::signals::listener.reset();
-                        os::process::spawn(cfg.cmd, cfg.cwd, cfg.env);
-                    }
-                    // Parent branch.
-                    os::close(to_client[0]);
-                    os::close(to_server[1]);
-
-                #endif
-
-                stdinput = std::thread{ [&]{ read_socket_thread(); } };
-                stdwrite = std::thread{ [&]{ send_socket_thread(); } };
-
-                if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
-            }
-            void stop()
-            {
-                if (termlink)
-                {
-                    wait_child();
-                }
-                payoff();
-            }
-            void read_socket_thread()
-            {
-                if constexpr (debugmode) log(prompt::task, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-                auto flow = text{};
-                while (termlink)
-                {
-                    auto shot = termlink.recv();
-                    if (shot && termlink)
-                    {
-                        flow += shot;
-                        auto crop = view{ flow };
-                        utf::purify(crop);
-                        receiver(crop);
-                        flow.erase(0, crop.size()); // Delete processed data.
-                    }
-                    else break;
-                }
-                if (termlink) // Skip if stop was called via dtor.
-                {
-                    auto exit_code = wait_child();
-                    shutdown(exit_code, "");
-                }
-                if constexpr (debugmode) log(prompt::task, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
-            }
-            void send_socket_thread()
-            {
-                if constexpr (debugmode) log(prompt::task, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                auto guard = std::unique_lock{ writemtx };
-                auto cache = text{};
-                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
-                {
-                    std::swap(cache, writebuf);
-                    guard.unlock();
-                    if (termlink.send(cache)) cache.clear();
-                    else                      break;
-                    guard.lock();
-                }
-                if constexpr (debugmode) log(prompt::task, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
-            }
-            virtual void write(view data) override
-            {
-                auto guard = std::lock_guard{ writemtx };
-                writebuf += data;
-                if (termlink) writesyn.notify_one();
-            }
-        };
-
-        template<class Term>
-        struct tty : public base_tty<Term>, vt::vtty
-        {
-            using vtty = vt::vtty;
-            using base_tty = runspace::base_tty<Term>;
-
-            virtual void write(view data) override
-            {
-                vtty::write(data);
-            }
-            virtual bool connected() override
-            {
-                return vtty::operator bool();
-            }
-            virtual void shut() override
-            {
-                vtty::sighup();
-            }
-            virtual void runapp(eccc appcfg, std::function<void(view)> /*input_hndl*/,
-                                             std::function<void(si32, view)> /*shutdown_hndl*/) override
-            {
-                vtty::runapp(base_tty::terminal, appcfg);
-            }
-            tty(Term& terminal)
-                : base_tty{ terminal }
-            { }
         };
     }
 
@@ -5781,6 +5462,17 @@ namespace netxs::os
                                         m.wheelfp = -1;
                                         m.wheelsi = -1;
                                         break;
+                                    case 66:
+                                        m.hzwheel = true;
+                                        m.wheelfp = 1;
+                                        m.wheelsi = 1;
+                                        break;
+                                    case 67:
+                                        m.hzwheel = true;
+                                        m.wheelfp = -1;
+                                        m.wheelsi = -1;
+                                        break;
+                                    //todo impl ext mouse buttons 129-131
                                 }
                                 m.changed++;
                                 m.timecod = timecode;

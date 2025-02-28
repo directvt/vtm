@@ -20,11 +20,11 @@ namespace netxs
         dtvt ,
     };
 
-    enum class zpos : si32
+    namespace zpos
     {
-        backmost = -1,
-        plain    =  0,
-        topmost  =  1,
+        static constexpr auto plain    = 0;
+        static constexpr auto backmost = 1;
+        static constexpr auto topmost  = 2;
     };
 
     namespace unln
@@ -1749,10 +1749,24 @@ namespace netxs
             if (c < ' ') gc.set_c0(c);
             return *this;
         }
-        // cell: Delight both foreground and background.
+        // cell: Highlight both foreground and background.
         auto& xlight(si32 factor = 1)
         {
             uv.bg.xlight(factor, uv.fg);
+            return *this;
+        }
+        // cell: Highlight by underlining.
+        auto& underlight(si32 factor = 1)
+        {
+            auto fgc = uv.fg;
+            auto bgc = uv.bg;
+            if (st.inv()) std::swap(fgc, bgc);
+            auto index = st.unc();
+            auto color = st.und() == unln::line ? index ? argb{ argb::vt256[index] }.alpha(fgc.alpha()) : fgc
+                                                : bgc;
+            color.xlight(factor);
+            st.unc(color.to_256cube());
+            st.und(unln::line);
             return *this;
         }
         // cell: Invert both foreground and background.
@@ -2135,6 +2149,17 @@ namespace netxs
                 template<class D> inline void operator () (D& dst) const { dst.xlight(factor); }
                 template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
+            struct underlight_t
+            {
+                si32 factor; // Uninitialized.
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return underlight_t{ param };
+                }
+                template<class D> inline void operator () (D& dst) const { dst.underlight(factor); }
+                template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
+            };
             struct invert_t
             {
                 template<class D> inline void operator () (D& dst) const { dst.invert(); }
@@ -2255,27 +2280,28 @@ namespace netxs
             static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
             static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
-            static constexpr auto contrast = contrast_t{};
-            static constexpr auto fusefull = fusefull_t{};
-            static constexpr auto  overlay =  overlay_t{};
-            static constexpr auto   fuseid =   fuseid_t{};
-            static constexpr auto      mix =      mix_t{};
-            static constexpr auto blendpma = blendpma_t{};
-            static constexpr auto    blend =    blend_t{};
-            static constexpr auto    alpha =    alpha_t{};
-            static constexpr auto     lite =     lite_t{};
-            static constexpr auto     fuse =     fuse_t{};
-            static constexpr auto     flat =     flat_t{};
-            static constexpr auto     full =     full_t{};
-            static constexpr auto     wipe =     wipe_t{};
-            static constexpr auto skipnuls = skipnuls_t{};
-            static constexpr auto     text =     text_t{};
-            static constexpr auto     meta =     meta_t{};
-            static constexpr auto   xlight =   xlight_t{ 1 };
-            static constexpr auto   invert =   invert_t{};
-            static constexpr auto  reverse =  reverse_t{};
-            static constexpr auto   invbit =   invbit_t{};
-            static constexpr auto disabled = disabled_t{};
+            static constexpr auto   contrast =   contrast_t{};
+            static constexpr auto   fusefull =   fusefull_t{};
+            static constexpr auto    overlay =    overlay_t{};
+            static constexpr auto     fuseid =     fuseid_t{};
+            static constexpr auto        mix =        mix_t{};
+            static constexpr auto   blendpma =   blendpma_t{};
+            static constexpr auto      blend =      blend_t{};
+            static constexpr auto      alpha =      alpha_t{};
+            static constexpr auto       lite =       lite_t{};
+            static constexpr auto       fuse =       fuse_t{};
+            static constexpr auto       flat =       flat_t{};
+            static constexpr auto       full =       full_t{};
+            static constexpr auto       wipe =       wipe_t{};
+            static constexpr auto   skipnuls =   skipnuls_t{};
+            static constexpr auto       text =       text_t{};
+            static constexpr auto       meta =       meta_t{};
+            static constexpr auto     invert =     invert_t{};
+            static constexpr auto    reverse =    reverse_t{};
+            static constexpr auto     invbit =     invbit_t{};
+            static constexpr auto   disabled =   disabled_t{};
+            static constexpr auto     xlight =     xlight_t{ 1 };
+            static constexpr auto underlight = underlight_t{ 1 };
         };
 
         auto draw_cursor()
