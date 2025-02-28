@@ -588,14 +588,6 @@ namespace netxs::app::vtm
         : public form<hall>
     {
     private:
-        struct restoration_type
-        {
-            static constexpr auto _counter = __COUNTER__ + 1;
-            static constexpr auto full = __COUNTER__ - _counter;
-            static constexpr auto size = __COUNTER__ - _counter;
-            static constexpr auto coor = __COUNTER__ - _counter;
-        };
-
         // hall: Desktop window.
         struct window_t : ui::form<window_t>
         {
@@ -1199,99 +1191,6 @@ namespace netxs::app::vtm
                     }
                 }
             }
-        }
-        //todo use for specified usergate
-        auto vtm_selected(eccc& /*script*/, qiew args)
-        {
-            if (args)
-            {
-                auto selected_item = args.str();
-                for (auto usergate_ptr : usrs_list)
-                {
-                    usergate_ptr->base::signal(tier::release, e2::data::changed, selected_item);
-                }
-                return "ok"s;
-            }
-            else return "skip: id required"s;
-        }
-        auto vtm_set(eccc& /*script*/, qiew args)
-        {
-            auto appconf = xml::settings{ "<item " + text{ args } + " />" };
-            appconf.cd("item");
-            auto itemptr = appconf.homelist.front();
-            auto appspec = desk::spec{ .fixed   = true,
-                                       .winform = winstate::normal,
-                                       .type    = app::vtty::id };
-            auto menuid = itemptr->take(attr::id, ""s);
-            if (menuid.empty())
-            {
-                return "skip: 'id=' not specified"s;
-            }
-            else
-            {
-                auto splitter = itemptr->take(attr::splitter, faux);
-                hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
-                if (!appspec.hidden)
-                {
-                    auto& [stat, list] = apps_list[menuid];
-                    stat = true;
-                }
-                menu_list[menuid] = appspec;
-                base::signal(tier::release, desk::events::apps, apps_list_ptr);
-                return "ok"s;
-            }
-        }
-        auto vtm_del(eccc& /*script*/, qiew args)
-        {
-            if (args.empty())
-            {
-                for (auto& [menuid, conf] : menu_list)
-                {
-                    if (apps_list.contains(menuid))
-                    {
-                        auto& [stat, list] = apps_list[menuid];
-                        if (list.empty()) apps_list.erase(menuid);
-                        else              stat = faux;
-                    }
-                }
-                menu_list.clear();
-                base::signal(tier::release, desk::events::apps, apps_list_ptr);
-                return "ok"s;
-            }
-            else
-            {
-                auto menuid = text{ args };
-                if (menu_list.contains(menuid))
-                {
-                    if (apps_list.contains(menuid))
-                    {
-                        auto& [stat, list] = apps_list[menuid];
-                        if (list.empty()) apps_list.erase(menuid);
-                        else              stat = faux;
-                    }
-                    menu_list.erase(menuid);
-                    base::signal(tier::release, desk::events::apps, apps_list_ptr);
-                    return "ok"s;
-                }
-                else
-                {
-                    return "skip: 'id=" + menuid + "' not found";
-                }
-            }
-        }
-        auto vtm_dtvt(eccc& script, qiew args)
-        {
-            auto appspec = desk::spec{ .hidden  = true,
-                                       .type    = app::dtvt::id,
-                                       .gear_id = script.gear_id };
-            appspec.appcfg.env = script.env;
-            appspec.appcfg.cwd = script.cwd;
-            appspec.appcfg.cmd = args;
-            appspec.title = args;
-            appspec.label = args;
-            appspec.tooltip = args;
-            base::signal(tier::request, desk::events::exec, appspec);
-            return "ok " + appspec.appcfg.cmd;
         }
         // hall: Draw a navigation string.
         void fasten(sptr object_ptr, auto highlighted, auto item_is_active, auto& color, face& canvas)
