@@ -201,7 +201,7 @@ namespace netxs::ui
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& item = lock.thing;
-                notify(e2::conio::focus, item);
+                notify(e2::conio::focus::post, item);
             }
             void handle(s11n::xs::sysmouse    lock)
             {
@@ -929,7 +929,7 @@ namespace netxs::ui
             {
                 forward(k);
             };
-            LISTEN(tier::release, e2::conio::focus, f)
+            LISTEN(tier::release, e2::conio::focus::any, f)
             {
                 forward(f);
             };

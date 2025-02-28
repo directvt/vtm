@@ -167,7 +167,6 @@ namespace netxs::events::userland
             {
                 EVENT_XS( mouse   , input::sysmouse ), // release: Mouse activity.
                 EVENT_XS( keybd   , input::syskeybd ), // release: Keybd activity.
-                EVENT_XS( focus   , input::sysfocus ), // release: Focus activity.
                 EVENT_XS( board   , input::sysboard ), // release: Clipboard preview.
                 EVENT_XS( error   , const si32      ), // release: Return error code.
                 EVENT_XS( winsz   , const twod      ), // release: Order to update terminal primary overlay.
@@ -175,6 +174,12 @@ namespace netxs::events::userland
                 EVENT_XS( quit    , const si32      ), // release: Quit, arg: si32 - quit reason.
                 EVENT_XS( pointer , const bool      ), // release: Mouse pointer visibility.
                 EVENT_XS( logs    , const text      ), // Log output.
+                GROUP_XS( focus   , input::sysfocus ), // release: Focus activity.
+
+                SUBSET_XS( focus )
+                {
+                    EVENT_XS( post, input::sysfocus ), // release: Focus activity.
+                };
             };
             SUBSET_XS( data )
             {

@@ -1618,28 +1618,6 @@ namespace netxs::app::vtm
                     if constexpr (debugmode) log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
                 }
             };
-            LISTEN(tier::request, input::events::focus::set::any, seed, -, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops.
-            {
-                auto is_recursive = faux;
-                if (seed.treeid)
-                {
-                    auto& digest = focus_tree_map[seed.treeid];
-                    if (digest < seed.digest) // This is the first time this focus event has been received.
-                    {
-                        digest = seed.digest;
-                    }
-                    else // We've seen this event before.
-                    {
-                        is_recursive = true;
-                    }
-                }
-                if (!is_recursive)
-                {
-                    auto deed = this->bell::protos(tier::request);
-                    this->base::signal(tier::release, deed, seed);
-                }
-            };
-
             LISTEN(tier::request, vtm::events::apptype, what)
             {
                 auto& setup = menu_list[what.menuid];
@@ -2048,24 +2026,21 @@ namespace netxs::app::vtm
                     pro::focus::set(applet_ptr, gear_id_list, solo::on, true); // Refocus.
                 }
             };
-            //todo filter recursive loops
-            //usergate.LISTEN(tier::release, input::events::focus::set::any, seed) // Any: To run prior the ui::gate's input::events::focus::any.
-            //{
-            //    if (seed.treeid)
-            //    {
-            //        if (auto target = usergate.nexthop.lock())
-            //        {
-            //            auto deed = this->bell::protos(tier::release);
-            //            target->base::signal(tier::request, deed, seed); // Request to filter recursive loops.
-            //            this->bell::expire(tier::release); // Do not pass the event to the ui::gate.
-            //        }
-            //    }
-            //    else
-            //    {
-            //        usergate.bell::expire(tier::release, true);
-            //    }
-            //};
-
+            usergate.LISTEN(tier::release, e2::conio::focus::post, seed, -, (focus_tree_map = std::unordered_map<ui64, ui64>{})) // Filter recursive focus loops. Run prior the ui::gate's e2::conio::focus::any.
+            {
+                if (seed.treeid)
+                {
+                    auto& digest = focus_tree_map[seed.treeid];
+                    if (digest < seed.digest) // This is the first time this focus event has been received.
+                    {
+                        digest = seed.digest;
+                    }
+                    else // We've seen this event before.
+                    {
+                        usergate.bell::expire(tier::release); // Stop event forwarding.
+                    }
+                }
+            };
             usergate.LISTEN(tier::release, e2::form::prop::name, user_name_utf8)
             {
                 uname = user_name_utf8;

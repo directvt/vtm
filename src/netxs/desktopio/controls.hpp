@@ -2823,7 +2823,7 @@ namespace netxs::ui
                     status[prop::ctrl_state   ] = "0x" + utf::to_hex(m.ctlstat);
                     boss.base::deface();
                 };
-                boss.LISTEN(tier::release, e2::conio::focus, f, memo)
+                boss.LISTEN(tier::release, e2::conio::focus::any, f, memo)
                 {
                     status[prop::focused] = f.state ? "focused  " : "unfocused";
                     boss.base::deface();
