@@ -2,6 +2,8 @@
 
 ## Building from source
 
+Note: As part of the build process, cmake downloads and compiles the Lua source code from https://www.lua.org.
+
 ### Unix
 
 Build-time dependencies
