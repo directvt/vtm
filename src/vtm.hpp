@@ -622,7 +622,7 @@ namespace netxs::app::vtm
             {
                 bell::enqueue(This(), [gear_id](auto& boss) // Keep the focus tree intact while processing events.
                 {
-                    if (auto gear_ptr = boss.bell::getref<hids>(gear_id))
+                    if (auto gear_ptr = boss.bell::template getref<hids>(gear_id)) //todo Apple clang requires template
                     {
                         auto& gear = *gear_ptr;
                         gear.set_multihome();

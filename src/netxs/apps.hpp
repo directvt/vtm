@@ -779,8 +779,8 @@ namespace netxs::app::shared
             {
                 auto& items_inst = *items;
                 auto& state_inst = *state_state;
-                auto& luafx = boss.base::plugin<pro::luafx>();
-                auto& keybd = boss.base::plugin<pro::keybd>();
+                auto& luafx = boss.base::template plugin<pro::luafx>(); //todo Apple clang requires template
+                auto& keybd = boss.base::template plugin<pro::keybd>();
                 app::shared::base_kb_navigation(config, scroll, boss);
                 keybd.bind("Any", "vtm.infopage.UpdateChordPreview()");
                 keybd.bind(
