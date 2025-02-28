@@ -3071,6 +3071,11 @@ namespace netxs::ui
             {
                 auto scripting_context = std::unordered_map<text, netxs::wptr<base>>{};
                 auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+                if (shadow.size() > 2)
+                if (auto c = shadow.front(); (c == '"' || c == '\'') && shadow.back() == c)
+                {
+                    shadow = shadow.substr(1, shadow.size() - 2);
+                }
                 if (shadow.empty()) return;
                 if (script.gear_id)
                 if (auto gear_ptr = boss.bell::getref<hids>(script.gear_id))
@@ -3078,7 +3083,7 @@ namespace netxs::ui
                     gear_ptr->set_multihome();
                     set_object(gear_ptr, "gear");
                 }
-                auto result = run_script(script.cmd, scripting_context);
+                auto result = run_script(shadow, scripting_context);
                 if (result.empty()) result = "ok";
                 log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
                 script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
