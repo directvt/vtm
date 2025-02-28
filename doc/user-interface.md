@@ -100,7 +100,7 @@
     <td colspan="3"></td>
   </tr>
   <tr>
-    <th>Triple Left+RightClick</th>
+    <th>Triple Left+RightClick<br>Space+Backspace</th>
     <td colspan="3">Toggle sysstat overlay</td>
     <td colspan="6"></td>
   </tr>
@@ -155,10 +155,9 @@
     <td colspan="2"></td>
   </tr>
   <tr><th>Esc+F1</th>                                             <td colspan="3"></td><td colspan="7">Open Info-page</td></tr>
+  <tr><th>Esc+F10</th>                                            <td colspan="3"></td><td colspan="7">Restore window</td></tr>
   <tr><th>Esc+F11</th>                                            <td colspan="3"></td><td colspan="7">Maximize window</td></tr>
   <tr><th>Esc+F12</th>                                            <td colspan="3"></td><td colspan="7">Maximize window to full screen</td></tr>
-  <tr><th>Esc+'=' | Esc+'+'</th>                                  <td colspan="3"></td><td colspan="7">Increase window size</td></tr>
-  <tr><th>Esc+'-'</th>                                            <td colspan="3"></td><td colspan="7">Reduce window size</td></tr>
   <tr><th>Esc+LeftArrow</th>                                      <td colspan="3"></td><td colspan="7">Move window to the left</td></tr>
   <tr><th>Esc+RightArrow</th>                                     <td colspan="3"></td><td colspan="7">Move window to the right</td></tr>
   <tr><th>Esc+UpArrow</th>                                        <td colspan="3"></td><td colspan="7">Move window up</td></tr>
