@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
                 "\n    -p, --pin <id>       Specifies the desktop id it will be pinned to."
                 "\n    -s, --server         Run Desktop Server."
                 "\n    -d, --daemon         Run Desktop Server in background."
-                "\n    -m, --monitor        Run Desktop Monitor."
+                "\n    -m, --monitor        Run Log Monitor."
                 "\n    -r, --, --run        Run desktop applet standalone."
                 "\n    <type>               Desktop applet to run."
                 "\n    <args...>            Desktop applet arguments."

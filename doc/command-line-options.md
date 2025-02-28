@@ -31,7 +31,7 @@ Option                  | Description
 `-p`, `--pin <id>`      | Specifies the desktop id it will be pinned to.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
-`-m`, `--monitor`       | Run Desktop Monitor.
+`-m`, `--monitor`       | Run Log Monitor.
 `-r`, `--`, `--run`     | Run desktop applet standalone.
 `<type>`                | Desktop applet to run.
 `<args...>`             | Desktop applet arguments.

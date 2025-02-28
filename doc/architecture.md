@@ -467,9 +467,9 @@ The following examples assume that vtm is installed on both the local and remote
 
 ## Standard I/O stream monitoring
 
-Vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+Vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Log Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
-Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Desktop Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
+Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Log Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
 
 ## Desktop taskbar customization
 
@@ -504,26 +504,28 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 </config>
 ```
 
+#### 28 Feb 2025: This functionality is under development.
+
 Additionally, the taskbar menu of the running desktop can be configured using shell piped redirection by sending script commands to the running vtm desktop:
 ```
 # Delete existing menu items
-echo "vtm.del()" | vtm
+echo "vtm.taskbar.Del()" | vtm
 ```
 ```
 # Add new menu items
-echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
-echo "vtm.set(id=White label='White Terminal' type=dtvt cmd='vtm -r term' cfg='<config><terminal><colors><default fgc=0xFF000000 bgc=0xFFffffff/></colors></terminal></config>')" | vtm
-echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><terminal><scrollback size=500000/></terminal></config>')" | vtm
-echo "vtm.set(id=Tile label='Three Terminals' type=tile cmd='v(h(Term, White), Huge)')" | vtm
-echo "vtm.set(id=cmd label='Remote cmd over SSH' type=dtty cmd='ssh user@server vtm cmd')" | vtm
+echo "vtm.taskbar.Set({ id='Term', label='Terminal', type='dtvt', cmd='vtm -r term' })" | vtm
+echo "vtm.taskbar.Set({ id='White', label='White Terminal', type='dtvt', cmd='vtm -r term', cfg='<config><terminal><colors><default fgc=0xFF000000 bgc=0xFFffffff/></colors></terminal></config>' })" | vtm
+echo "vtm.taskbar.Set({ id='Huge', label='Huge Terminal', type='dtvt', cmd='vtm -r term', cfg='<config><terminal><scrollback size=500000/></terminal></config>' })" | vtm
+echo "vtm.taskbar.Set({ id='Tile', label='Three Terminals', type='tile', cmd='v(h(Term, White), Huge)' })" | vtm
+echo "vtm.taskbar.Set({ id='cmd', label='Remote cmd over SSH', type='dtty', cmd='ssh user@server vtm cmd' })" | vtm
 ```
 ```
 # Set default menu item
-echo "vtm.selected(Term)" | vtm
+echo "vtm.taskbar.Selected('Term')" | vtm
 ```
 ```
 # Run window with terminals
-echo "vtm.run(id=Tile)" | vtm
+echo "vtm.desktop.Run({ id='Tile' })" | vtm
 ```
 
 # Desktop Live Panel
