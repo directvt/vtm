@@ -174,6 +174,7 @@ namespace netxs::directvt
                 // Four letters type encoding.
                 #define type_id_list \
                     X(char) \
+                    X(bool) \
                     X(text) \
                     X(byte) \
                     X(ui16) \

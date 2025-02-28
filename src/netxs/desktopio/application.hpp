@@ -212,18 +212,22 @@ namespace netxs::app::shared
             { "AlwaysOnTop",        [&]
                                     {
                                         auto args_count = luafx.args_count();
-                                        auto zorder = zpos::plain;
-                                        if (args_count == 0) // Request zpos.
+                                        auto& alwaysontop = applet.base::property("applet.alwaysontop", faux);
+                                        auto gear_ptr = luafx.template get_object<hids>("gear");
+                                        if (args_count)
                                         {
-                                            zorder = applet.base::riseup(tier::request, e2::form::prop::zorder);
+                                            auto gui_cmd = e2::command::gui.param();
+                                            alwaysontop = luafx.get_args_or(1, faux);
+                                            if (gear_ptr)
+                                            {
+                                                gui_cmd.gear_id = gear_ptr->id;
+                                            }
+                                            gui_cmd.cmd_id = syscmd::alwaysontop;
+                                            gui_cmd.args.emplace_back(alwaysontop);
+                                            applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
-                                        else // Set zpos.
-                                        {
-                                            zorder = luafx.get_args_or(1, faux) ? zpos::topmost : zpos::plain;
-                                            applet.base::riseup(tier::preview, e2::form::prop::zorder, zorder);
-                                        }
-                                        if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                        luafx.set_return(zorder == zpos::topmost);
+                                        if (gear_ptr) gear_ptr->set_handled();
+                                        luafx.set_return(alwaysontop);
                                     }},
             { "Close",              [&]
                                     {
