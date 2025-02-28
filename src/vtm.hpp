@@ -1446,38 +1446,23 @@ namespace netxs::app::vtm
             {
                 parent_ptr->base::riseup(tier::release, e2::form::proceed::multihome, This());
             };
-
-            //todo move to luafx/keybd/ui::base/indexer
             LISTEN(tier::release, e2::command::run, script)
             {
-                auto scripting_context = std::unordered_map<text, wptr>{};
-                auto shadow = utf::trim(script.cmd, " \r\n\t\f");
-                if (shadow.empty()) return;
                 luafx.set_object(This(), "desktop");
                 if (script.gear_id)
-                if (auto gear_ptr = bell::getref<hids>(script.gear_id))
                 {
-                    gear_ptr->set_multihome();
-                    luafx.set_object(gear_ptr, "gear");
-                    luafx.set_object(gear_ptr->owner.This(), "gate");
+                    bell::expire(tier::release, true); // Continue release riseup.
                 }
-                auto result = luafx.run_script(script.cmd, scripting_context);
-                if (result.empty()) result = "ok";
-                log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
-                script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
+                else
+                {
+                    luafx.run_script(script);
+                }
             };
             LISTEN(tier::preview, e2::runscript, gear)
             {
-                if (!gear.script_ptr) return;
-                if (!gear.scripting_context_ptr) return;
-                auto& script_body = *gear.script_ptr;
-                auto& scripting_context = *gear.scripting_context_ptr;
-                gear.set_multihome();
-                luafx.set_object(gear.This(), "gear");
-                luafx.set_object(gear.owner.This(), "gate");
-                luafx.run_script(script_body, scripting_context);
+                luafx.set_object(This(), "desktop");
+                bell::expire(tier::preview, true); // Continue preview riseup.
             };
-
             LISTEN(tier::preview, e2::command::gui, gui_cmd)
             {
                 auto hit = faux;

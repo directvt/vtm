@@ -901,11 +901,18 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::command::run, script)
             {
-                if (auto world_ptr = base::signal(tier::general, e2::config::creator))
-                {
-                    //todo set gear_id
-                    world_ptr->base::signal(tier::release, e2::command::run, script);
-                }
+                luafx.set_object(This(), "gate");
+                luafx.run_script(script);
+            };
+            LISTEN(tier::preview, e2::runscript, gear)
+            {
+                if (!gear.script_ptr) return;
+                if (!gear.scripting_context_ptr) return;
+                auto& script_body = *gear.script_ptr;
+                auto& scripting_context = *gear.scripting_context_ptr;
+                luafx.set_object(This(), "gate");
+                luafx.set_object(gear.This(), "gear");
+                luafx.run_script(script_body, scripting_context);
             };
             LISTEN(tier::release, e2::conio::mouse, m)
             {

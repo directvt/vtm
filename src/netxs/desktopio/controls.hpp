@@ -2142,11 +2142,7 @@ namespace netxs::ui
                             {
                                 auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
                                 auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
-                                //todo cache world_ptr
-                                if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
-                                {
-                                    world_ptr->base::signal(tier::preview, e2::runscript, gear);
-                                }
+                                boss.base::riseup(tier::preview, e2::runscript, gear);
                                 gear.script_ptr = temp_script_ptr;
                                 gear.scripting_context_ptr = temp_scripting_context_ptr;
                             }
@@ -3070,6 +3066,22 @@ namespace netxs::ui
                 ::lua_pushnil(lua);
                 ::lua_setglobal(lua, "vtm"); // Wipe global context.
                 return result;
+            }
+            auto run_script(auto& script)
+            {
+                auto scripting_context = std::unordered_map<text, netxs::wptr<base>>{};
+                auto shadow = utf::trim(script.cmd, " \r\n\t\f");
+                if (shadow.empty()) return;
+                if (script.gear_id)
+                if (auto gear_ptr = boss.bell::getref<hids>(script.gear_id))
+                {
+                    gear_ptr->set_multihome();
+                    set_object(gear_ptr, "gear");
+                }
+                auto result = run_script(script.cmd, scripting_context);
+                if (result.empty()) result = "ok";
+                log(ansi::clr(yellowlt, shadow), "\n", prompt::lua, result);
+                script.cmd = utf::concat(shadow, "\n", prompt::lua, result);
             }
         };
     }
