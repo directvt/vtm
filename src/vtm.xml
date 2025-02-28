@@ -509,7 +509,7 @@ R"==(
             <slim=menu/slim/>
         </menu>
     </defapp>
-    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop; key* is to clear all previous bindings and start a new list. -->
+    <events>  <!-- The required key combination sequence can be generated on the Info page, accessible by clicking on the label in the lower right corner of the vtm desktop. The 'key*' statement here is to clear all previous bindings and start a new list. -->
         <gate key*>  <!-- `User gate`/`standalone app` key bindings. -->
             <key="CapsLock+UpArrow"                                     script=IncreaseCellHeight/>
             <key="CapsLock+DownArrow"                                   script=DecreaseCellHeight/>
@@ -581,7 +581,7 @@ R"==(
 )=="
 #else
 R"==(
-            <key="Alt+Shift+B" preview         script=ExclusiveKeyboardMode/>
+            <key="Alt+Shift+B" preview   script=ExclusiveKeyboardMode/>
 )=="
 #endif
 R"==(
