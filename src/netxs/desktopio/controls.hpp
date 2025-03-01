@@ -2998,12 +2998,12 @@ namespace netxs::ui
                 }
                 set_return(ok);
             }
-            auto read_args(auto add_item)
+            auto read_args(si32 index, auto add_item)
             {
-                if (lua_istable(lua, -1))
+                if (lua_istable(lua, index))
                 {
                     ::lua_pushnil(lua); // Push prev key.
-                    while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<item " + text{ table } + " />" }
+                    while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
                     {
                         auto key = ::lua_torawstring(lua, -2);
                         if (!key.empty()) // Allow stringable keys only.
@@ -3036,7 +3036,6 @@ namespace netxs::ui
                         ::lua_pop(lua, 1); // Pop val.
                     }
                 }
-                ::lua_pop(lua, 1); // Pop arg.
             }
             auto run_script(auto& script_body, auto& scripting_context)
             {

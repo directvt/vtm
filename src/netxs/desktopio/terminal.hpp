@@ -7899,13 +7899,14 @@ namespace netxs::ui
                                                         auto backup = syskeybd{};
                                                         backup.set(gear);
                                                         auto args_count = luafx.args_count();
-                                                        //todo reverse args enumeration
-                                                        log("key args:");
-                                                        while (args_count--)
+                                                        auto index = 0;
+                                                        while (index < args_count)
                                                         {
+                                                            //log("key args:");
                                                             auto k = syskeybd{};
                                                             k.syncto(gear);
-                                                            luafx.read_args([&](qiew key, qiew val)
+                                                            gear.ctlstat = backup.ctlstat;
+                                                            luafx.read_args(++index, [&](qiew key, qiew val)
                                                             {
                                                                      if (key == "keystat") gear.keystat = xml::take_or(val, input::key::released);
                                                                 else if (key == "ctlstat") gear.ctlstat = xml::take_or(val, backup.ctlstat);
@@ -7915,7 +7916,7 @@ namespace netxs::ui
                                                                 else if (key == "extflag") gear.extflag = xml::take_or(val, 0);
                                                                 else if (key == "cluster") gear.cluster = val;
                                                                 else log("%%Unknown key event parameters %%=%%", prompt::lua, key, utf::debase437(val));
-                                                                log("  %%=%%", key, utf::debase437(val));
+                                                                //log("  %%=%%", key, utf::debase437(val));
                                                             });
                                                             key_event(gear);
                                                         }
