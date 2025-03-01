@@ -2898,7 +2898,6 @@ namespace netxs::ui
                     {
                         auto& fx = iter->second;
                         fx(); // After call, all values in the stack will be returned as a result.
-                        boss.bell::expire(tier::release); // Do not pass from ui::host to vtm::hall.
                     }
                     else
                     {

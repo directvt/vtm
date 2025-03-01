@@ -182,7 +182,6 @@ namespace netxs::events
         template<class F>
         void notify(hint event, F& param)
         {
-            alive = branch::proceed;
             queue.push_back(event);
             auto head = qcopy.size();
             if (order)
@@ -221,11 +220,12 @@ namespace netxs::events
                     {
                         if (auto compatible = static_cast<wrapper<F>*>(proc_ptr.get()))
                         {
+                            alive = branch::proceed;
                             compatible->proc(param);
                         }
                     }
                 }
-                while (alive == branch::proceed && ++iter != tail);
+                while (alive != branch::fullstop && ++iter != tail);
                 qcopy.resize(head);
             }
             queue.pop_back();
