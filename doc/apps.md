@@ -300,9 +300,9 @@ Hotkey                       | Description
             <item type="Command" action=TerminalMinimize       label="Minimize"/>
             <item type="Command" action=Noop                   label="Noop"/>
 
-            <item type="Option" action=TerminalCwdSync>
-                <label="Sync"                     data="off" tooltip=" CWD sync is off "/>
-                <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/>
+            <item type="Option" action=AlwaysOnTopApplet>
+                <label="OnTop"                     data="off" tooltip=" AlwaysOnTop off "/>
+                <label="\e[38:2:0:255:0mOnTop\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
             </item>
 
             <item action=TerminalSendKey tooltip=" Simulate keypresses ">
