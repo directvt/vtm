@@ -7773,6 +7773,56 @@ namespace netxs::ui
             imefmt.flow::compose<faux>(imebox, test);
             return composit_cursor;
         }
+        void key_event(hids& gear)
+        {
+            if (gear.touched && !rawkbd) return;
+            switch (gear.payload)
+            {
+                case keybd::type::keypress:
+                    if (config.resetonkey && gear.doinput())
+                    {
+                        base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                        unsync = true;
+                        follow[axis::X] = true;
+                        follow[axis::Y] = true;
+                    }
+                    ipccon.keybd(gear, decckm, kbmode);
+                    if (!gear.touched || gear.keystat != input::key::released) gear.set_handled();
+                    break;
+                case keybd::type::imeinput:
+                case keybd::type::keypaste:
+                    _paste(gear.cluster);
+                    gear.dismiss();
+                    break;
+                case keybd::type::imeanons:
+                    if (imetxt != gear.cluster)
+                    {
+                        imetxt = gear.cluster;
+                        imebox.wipe();
+                        ansi::parse(gear.cluster, &imebox);
+                        ime_on = imebox.length();
+                        if (ime_on)
+                        {
+                            imebox.style.wrp(wrap::on);
+                            //if (imebox.locus.size())
+                            auto iter = std::find_if(imebox.locus.begin(), imebox.locus.end(), [](auto cmd){ return cmd.cmd == ansi::fn::sc; });
+                            if (iter != imebox.locus.end())
+                            {
+                                //auto [cmd, arg] = imebox.locus.back();
+                                auto [cmd, arg] = *iter;
+                                if (cmd == ansi::fn::sc) imebox.caret = arg;
+                            }
+                        }
+                        if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(ansi::s11n(imebox.content(), rect{.size = imebox.size()})));
+                        unsync = true;
+                    }
+                    else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
+                    break;
+                case keybd::type::kblayout:
+                    //todo
+                    break;
+            }
+        }
 
     protected:
         // term: Recalc metrics for the new viewport size.
@@ -7842,6 +7892,38 @@ namespace netxs::ui
             keybd.bind(bindings);
             luafx.activate("terminal.proc_map",
             {
+                { "KeyEvent",                   [&]
+                                                {
+                                                    luafx.run_with_gear([&](auto& gear)
+                                                    {
+                                                        auto backup = syskeybd{};
+                                                        backup.set(gear);
+                                                        auto args_count = luafx.args_count();
+                                                        auto index = 0;
+                                                        while (index < args_count)
+                                                        {
+                                                            //log("key args:");
+                                                            auto k = syskeybd{};
+                                                            k.syncto(gear);
+                                                            gear.ctlstat = backup.ctlstat;
+                                                            luafx.read_args(++index, [&](qiew key, qiew val)
+                                                            {
+                                                                     if (key == "keystat") gear.keystat = xml::take_or(val, input::key::released);
+                                                                else if (key == "ctlstat") gear.ctlstat = xml::take_or(val, backup.ctlstat);
+                                                                else if (key == "virtcod") gear.virtcod = xml::take_or(val, 0);
+                                                                else if (key == "scancod") gear.scancod = xml::take_or(val, 0);
+                                                                else if (key == "keycode") gear.keycode = xml::take_or(val, 0);
+                                                                else if (key == "extflag") gear.extflag = xml::take_or(val, 0);
+                                                                else if (key == "cluster") gear.cluster = val;
+                                                                else log("%%Unknown key event parameters %%=%%", prompt::lua, key, utf::debase437(val));
+                                                                //log("  %%=%%", key, utf::debase437(val));
+                                                            });
+                                                            key_event(gear);
+                                                        }
+                                                        backup.syncto(gear);
+                                                        gear.set_handled();
+                                                    });
+                                                }},
                 { "SetExclusiveKeyboardMode",   [&]
                                                 {
                                                     luafx.run_with_gear([&](auto& gear)
@@ -8161,53 +8243,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, input::events::keybd::key::post, gear)
             {
-                if (gear.touched && !rawkbd && gear.keystat != input::key::released) return;
-                switch (gear.payload)
-                {
-                    case keybd::type::keypress:
-                        if (config.resetonkey && gear.doinput())
-                        {
-                            this->base::riseup(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
-                            unsync = true;
-                            follow[axis::X] = true;
-                            follow[axis::Y] = true;
-                        }
-                        ipccon.keybd(gear, decckm, kbmode);
-                        if (!gear.touched || gear.keystat != input::key::released) gear.set_handled();
-                        break;
-                    case keybd::type::imeinput:
-                    case keybd::type::keypaste:
-                        _paste(gear.cluster);
-                        gear.dismiss();
-                        break;
-                    case keybd::type::imeanons:
-                        if (imetxt != gear.cluster)
-                        {
-                            imetxt = gear.cluster;
-                            imebox.wipe();
-                            ansi::parse(gear.cluster, &imebox);
-                            ime_on = imebox.length();
-                            if (ime_on)
-                            {
-                                imebox.style.wrp(wrap::on);
-                                //if (imebox.locus.size())
-                                auto iter = std::find_if(imebox.locus.begin(), imebox.locus.end(), [](auto cmd){ return cmd.cmd == ansi::fn::sc; });
-                                if (iter != imebox.locus.end())
-                                {
-                                    //auto [cmd, arg] = imebox.locus.back();
-                                    auto [cmd, arg] = *iter;
-                                    if (cmd == ansi::fn::sc) imebox.caret = arg;
-                                }
-                            }
-                            if (io_log) log(prompt::key, "IME composition preview: ", ansi::hi(ansi::s11n(imebox.content(), rect{.size = imebox.size()})));
-                            unsync = true;
-                        }
-                        else unsync = std::exchange(ime_on, imebox.length()) != ime_on;
-                        break;
-                    case keybd::type::kblayout:
-                        //todo
-                        break;
-                }
+                key_event(gear);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

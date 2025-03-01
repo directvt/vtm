@@ -1320,7 +1320,7 @@ namespace netxs::app::vtm
                                             {
                                                 auto utf8_xml = ansi::escx{};
                                                 utf8_xml += "<item>";
-                                                luafx.read_args([&](qiew key, qiew val)
+                                                luafx.read_args(0, [&](qiew key, qiew val)
                                                 {
                                                     //log("  %%=%%", key, utf::debase437(val));
                                                     utf8_xml += "<";

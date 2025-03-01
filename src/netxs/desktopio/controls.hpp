@@ -2998,41 +2998,43 @@ namespace netxs::ui
                 }
                 set_return(ok);
             }
-            auto read_args(auto add_item)
+            auto read_args(si32 index, auto add_item)
             {
-                if (!lua_istable(lua, -1)) return;
-                ::lua_pushnil(lua); // Push prev key.
-                while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<item " + text{ table } + " />" }
+                if (lua_istable(lua, index))
                 {
-                    auto key = ::lua_torawstring(lua, -2);
-                    if (!key.empty()) // Allow stringable keys only.
+                    ::lua_pushnil(lua); // Push prev key.
+                    while (::lua_next(lua, index)) // Table is in the stack at index. { "<item " + text{ table } + " />" }
                     {
-                        auto val = ::lua_torawstring(lua, -1);
-                        if (val.empty() && lua_istable(lua, -1)) // Extract item list.
+                        auto key = ::lua_torawstring(lua, -2);
+                        if (!key.empty()) // Allow stringable keys only.
                         {
-                            ::lua_pushnil(lua); // Push prev key.
-                            while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
+                            auto val = ::lua_torawstring(lua, -1);
+                            if (val.empty() && lua_istable(lua, -1)) // Extract item list.
                             {
-                                auto val2 = ::lua_torawstring(lua, -1);
-                                auto key2_type = ::lua_type(lua, -2);
-                                if (key2_type != LUA_TSTRING) // key2 is integer index.
+                                ::lua_pushnil(lua); // Push prev key.
+                                while (::lua_next(lua, -2)) // Table is in the stack at index -2. { "<key="key2=val2"/>" }
                                 {
-                                    add_item(key, val2);
+                                    auto val2 = ::lua_torawstring(lua, -1);
+                                    auto key2_type = ::lua_type(lua, -2);
+                                    if (key2_type != LUA_TSTRING) // key2 is integer index.
+                                    {
+                                        add_item(key, val2);
+                                    }
+                                    else
+                                    {
+                                        auto key2 = ::lua_torawstring(lua, -2);
+                                        add_item(key, utf::concat(key2, '=', val2));
+                                    }
+                                    ::lua_pop(lua, 1); // Pop val2.
                                 }
-                                else
-                                {
-                                    auto key2 = ::lua_torawstring(lua, -2);
-                                    add_item(key, utf::concat(key2, '=', val2));
-                                }
-                                ::lua_pop(lua, 1); // Pop val2.
+                            }
+                            else
+                            {
+                                add_item(key, val);
                             }
                         }
-                        else
-                        {
-                            add_item(key, val);
-                        }
+                        ::lua_pop(lua, 1); // Pop val.
                     }
-                    ::lua_pop(lua, 1); // Pop val.
                 }
             }
             auto run_script(auto& script_body, auto& scripting_context)
@@ -3045,7 +3047,7 @@ namespace netxs::ui
                     }
                 }
                 log_context();
-                log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(script_body));
+                log("%%script:\n%pads%%script%", prompt::lua, prompt::pads, ansi::hi(utf::debase437(script_body)));
                 ::lua_settop(lua, 0);
                 auto error = ::luaL_loadbuffer(lua, script_body.data(), script_body.size(), "script body")
                           || ::lua_pcall(lua, 0, 0, 0);
