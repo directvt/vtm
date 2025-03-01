@@ -59,6 +59,7 @@ namespace netxs::ui
 
         #define proc_list \
             X(Noop                        ) /* */ \
+            X(AlwaysOnTopApplet           ) /* */ \
             X(ExclusiveKeyboardMode       ) /* */ \
             X(TerminalQuit                ) /* */ \
             X(TerminalCwdSync             ) /* */ \

@@ -10,6 +10,8 @@ namespace netxs::events::userland
 {
     namespace terminal
     {
+        using state_pair_t = std::pair<bool, id_t>;
+
         EVENTPACK( ui::e2::extra::slot3 )
         {
             EVENT_XS( cmd    , si32 ),
@@ -24,6 +26,7 @@ namespace netxs::events::userland
                 EVENT_XS( wrapln   , si32 ),
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
+                EVENT_XS( alwaysontop, state_pair_t ),
                 EVENT_XS( rawkbd   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
@@ -46,6 +49,7 @@ namespace netxs::events::userland
                 EVENT_XS( wrapln   , si32 ),
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
+                EVENT_XS( alwaysontop, bool ),
                 EVENT_XS( rawkbd   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , argb ),
@@ -450,6 +454,21 @@ namespace netxs::app::terminal
                         _update_to(boss, item, state);
                     };
                 }},
+                { term::action::AlwaysOnTopApplet, [](ui::item& boss, menu::item& item)
+                {
+                    //todo scripting: it is a temporary solution (until scripting is implemented)
+                    item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
+                    _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                    {
+                        auto state = item.views[item.taken].value;
+                        auto state_pair = std::pair{ state, gear.id };
+                        boss.base::signal(tier::anycast, preview::alwaysontop, state_pair);
+                    });
+                    boss.LISTEN(tier::anycast, release::alwaysontop, state)
+                    {
+                        _update_to(boss, item, state);
+                    };
+                }},
                 { term::action::TerminalLogStart, [](ui::item& /*boss*/, menu::item& /*item*/)
                 {
 
@@ -777,6 +796,32 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
+                //todo scripting: it is a temporary solution (until scripting is implemented)
+                auto& alwaysontop = window->base::property("applet.alwaysontop", faux);
+                boss.LISTEN(tier::anycast, terminal::events::preview::alwaysontop, state_pair)
+                {
+                    auto [state, gear_id] = state_pair;
+                    if (alwaysontop != state)
+                    {
+                        alwaysontop = state;
+                        auto gui_cmd = e2::command::gui.param();
+                        gui_cmd.gear_id = gear_id;
+                        gui_cmd.cmd_id = syscmd::alwaysontop;
+                        gui_cmd.args.emplace_back(state);
+                        boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
+                    }
+                };
+                auto& window_inst = *window;
+                window_inst.LISTEN(tier::preview, e2::command::gui, gui_cmd) // Sync alwaysontop state with UI.
+                {
+                    if (gui_cmd.cmd_id == syscmd::alwaysontop)
+                    {
+                        auto state = any_get_or(gui_cmd.args[0], faux);
+                        boss.base::signal(tier::anycast, terminal::events::release::alwaysontop, state);
+                    }
+                    window_inst.bell::expire(tier::preview, true);
+                };
+
                 auto& cwd_commands = boss.base::field(config.take(attr::cwdsync, ""s));
                 auto& cwd_sync = boss.base::template field<bool>();         //todo Apple clang reqires template
                 auto& cwd_path = boss.base::template field<os::fs::path>(); //
