@@ -1397,8 +1397,8 @@ struct impl : consrv
                     lock.unlock();
                     server.uiterm.update([&]
                     {
-                        static auto empty = cell{ emptyspace }.wdt(utf::matrix::vs<11,11>);
-                        static auto erase = cell{ whitespace }.wdt(utf::matrix::vs<11,11>);
+                        static auto empty = cell{ emptyspace }.wdt(1, 1, 1, 1);
+                        static auto erase = cell{ whitespace }.wdt(1, 1, 1, 1);
                         auto& term = *server.uiterm.target;
                         auto& data = line.content();
                         auto  size = line.length();
@@ -3313,7 +3313,7 @@ struct impl : consrv
                 {
                     if (skip == src.Char.UnicodeChar)
                     {
-                        dst.txt(toUTF8, utf::matrix::vs<21,21>);
+                        dst.txt(toUTF8, 2, 1, 2, 1);
                         skip = {};
                         return;
                     }
@@ -3328,12 +3328,12 @@ struct impl : consrv
                     {
                         if (prop.ucwidth == unidata::widths::wide)
                         {
-                            prev->txt(toUTF8, utf::matrix::vs<21,11>);
-                            dst  .txt(toUTF8, utf::matrix::vs<21,21>);
+                            prev->txt(toUTF8, 2, 1, 1, 1);
+                            dst  .txt(toUTF8, 2, 1, 2, 1);
                         }
                         else // Narrow surrogate pair.
                         {
-                            prev->txt(toUTF8, utf::matrix::vs<11,11>);
+                            prev->txt(toUTF8, 1, 1, 1, 1);
                             dst.txt(whitespace);
                         }
                         prev = {};
@@ -3344,17 +3344,17 @@ struct impl : consrv
                         {
                             if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
                             {
-                                dst.txt(toUTF8, utf::matrix::vs<21,21>); // Right half of wide char.
+                                dst.txt(toUTF8, 2, 1, 2, 1); // Right half of wide char.
                             }
                             else
                             {
-                                dst.txt(toUTF8, utf::matrix::vs<21,11>); // Left half of wide char.
+                                dst.txt(toUTF8, 2, 1, 1, 1); // Left half of wide char.
                                 skip = src.Char.UnicodeChar;
                             }
                         }
                         else
                         {
-                            dst.txt(toUTF8, utf::matrix::vs<11,11>); // Narrow character.
+                            dst.txt(toUTF8, 1, 1, 1, 1); // Narrow character.
                         }
                     }
                     code = {};
@@ -3499,8 +3499,8 @@ struct impl : consrv
                     auto tail = filler.end();
                     while (head != tail)
                     {
-                        (head++)->wdt(utf::matrix::vs<21,11>);
-                        (head++)->wdt(utf::matrix::vs<21,21>);
+                        (head++)->wdt(2, 1, 1, 1);
+                        (head++)->wdt(2, 1, 2, 1);
                     }
                 }
                 if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::text); return true; }))
