@@ -274,7 +274,7 @@ namespace netxs::ansi
             auto cptr = tail;
             auto bake = [&](auto bits)
             {
-                do *--cptr = static_cast<char>('0' + bits % 10);
+                do *--cptr = (char)('0' + bits % 10);
                 while (bits /= 10);
             };
             if constexpr (std::is_signed_v<T>)
