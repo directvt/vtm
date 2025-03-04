@@ -1019,8 +1019,8 @@ namespace netxs
             }
 
             static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto token_mask = ~(ui64)0b1111'1110; // Exclude rtl and matrix metadata.
-            static constexpr auto rtl_mask = (ui64)0b0000'0010; // rtl metadata.
+            static constexpr auto token_mask = (char)0b0000'0001; // Exclude RTL and matrix metadata. It is a null bit (the null character).
+
             struct prop
             {
                 // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
@@ -1097,25 +1097,35 @@ namespace netxs
                 props.sizex = (byte)(w ? w - 1 : 0);
                 props.sizey = (byte)(h ? h - 1 : 0);
             }
+            auto jgc_token() const // Exclude RTL and matrix metadata.
+            {
+                auto token_copy = token;
+                ((char*)&token_copy)[0] &= token_mask;
+                return token_copy;
+            }
             void set_direct(view utf8, si32 w, si32 h)
             {
                 auto count = utf8.size();
-                token &= rtl_mask; // Keep rtl bit.
+                //todo revise
+                //auto isrtl = props.isrtl;
                 if (count < limit)
                 {
+                    token = 0;
                     if (count == 1 && utf8.front() == 0) props.isnul = 1;
                     else
                     {
                         mtx(w, h);
                         std::memcpy(glyph + 1, utf8.data(), count);
+                        //props.isrtl = isrtl;
                     }
                 }
                 else
                 {
-                    token |= qiew::hash{}(utf8) & ~rtl_mask; // Keep rtl bit.
+                    token = qiew::hash{}(utf8);
+                    //props.isrtl = isrtl;
                     set_jumbo_flag();
                     mtx(w, h);
-                    jumbos().add(token & token_mask, utf8);
+                    jumbos().add(jgc_token(), utf8);
                 }
             }
             // glyf: Cluster length in bytes (if it is not jumbo).
@@ -1135,7 +1145,7 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (is_jumbo()) return jumbos().get(token & token_mask);
+                    if (is_jumbo()) return jumbos().get(jgc_token());
                     else            return view(glyph + 1, str_len());
                 }
             }
@@ -1149,7 +1159,7 @@ namespace netxs
             }
             auto jgc() const
             {
-                return !is_jumbo() || jumbos().exists(token & token_mask);
+                return !is_jumbo() || jumbos().exists(jgc_token());
             }
             // Return cluster storage length.
             auto len() const
@@ -1908,7 +1918,7 @@ namespace netxs
             return *this;
         }
 
-        auto jgc_token() const { return gc.token & cell::glyf::token_mask; } // cell: Return grapheme cluster registration token.
+        auto jgc_token() const { return gc.jgc_token(); } // cell: Return grapheme cluster registration token.
         auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
