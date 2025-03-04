@@ -132,7 +132,6 @@ namespace netxs::directvt
                 block.text::push_back((char)data);
             }
             else if constexpr (std::is_arithmetic_v<D>
-                            //|| std::is_same_v<D, type>
                             || std::is_same_v<D, twod>
                             || std::is_same_v<D, fp2d>
                             || std::is_same_v<D, dent>

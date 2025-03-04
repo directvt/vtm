@@ -967,7 +967,7 @@ namespace netxs
 
                 struct vars
                 {
-                    lock mutex{}; // Cluster map mutex. Do need to reset/clear/flush the map?
+                    lock mutex{}; // Cluster map mutex. Do we need to reset/clear/flush the map?
                     depo jumbo{}; // Jumbo cluster map.
                     uset undef{}; // List of unknown tokens.
                 };
