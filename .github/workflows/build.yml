@@ -32,7 +32,7 @@ jobs:
             platform: windows
             cpu: Win32
             arch: x86
-            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4" -A '
             cxx: cl
             cc: cl
           - os: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
             flags: '-DCMAKE_C_FLAGS="-O2 -static" -DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
             platform: windows
-            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /Zi /Zc:preprocessor /W4" -A '
+            flags: '-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/DEBUG /OPT:REF /OPT:ICF" -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /c" -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4" -A '
             cxx: cl
             cc: cl
 
