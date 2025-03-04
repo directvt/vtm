@@ -274,7 +274,7 @@ namespace netxs::ansi
             auto cptr = tail;
             auto bake = [&](auto bits)
             {
-                do *--cptr = static_cast<char>('0' + bits % 10);
+                do *--cptr = (char)('0' + bits % 10);
                 while (bits /= 10);
             };
             if constexpr (std::is_signed_v<T>)
@@ -465,13 +465,13 @@ namespace netxs::ansi
             {
                 add(utf::replacement);
                 state.set_gc();
-                state.wdt(utf::matrix::vs<11,11>);
+                state.wdt(1, 1, 1, 1);
             };
             auto side_badfx = [&] // Restoring the halves on the side
             {
                 add(state.txt());
                 state.set_gc();
-                state.wdt(utf::matrix::vs<11,11>);
+                state.wdt(1, 1, 1, 1);
             };
             auto allfx = [&](cell const& c)
             {
@@ -546,7 +546,7 @@ namespace netxs::ansi
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, cell& state) // basevt: Ansify/textify all content.
         {
-            auto region = rect{-dot_mx / 2, dot_mx };
+            auto region = rect{ -dot_mx / 2, dot_mx };
             return s11n<UseSGR, Initial, Finalize>(canvas, region, state);
         }
     };
@@ -860,7 +860,7 @@ namespace netxs::ansi
             while (head != tail)
             {
                 auto& word = *head++;
-                add("\2", word, utf::to_utf_from_code(utf::matrix::vs_runtime(std::min(8, (si32)word.size() * 2 / 4), 1, 0, 1)));
+                add("\2", word, utf::to_utf_from_code(utf::matrix::vs_runtime(std::min(utf::matrix::kx, (si32)word.size() * 2 / 4), 1, 0, 1)));
                 if (head != tail) add(" ");
             }
             return *this;
@@ -1233,7 +1233,8 @@ namespace netxs::ansi
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
             * - void jet(si32 b);                    // Set adjustment.
-            * - void rtl(bool b);                    // Set reverse line feed.
+            * - void rlf(bool b);                    // Set reverse line feed.
+            * - void rtl(bool b);                    // Set right to left text.
             * - void link(id_t i);                   // Set object id link.
             */
 
@@ -1817,7 +1818,7 @@ namespace netxs::ansi
                 auto [w, h, x, y] = utf::matrix::whxy(v);
                 auto wdt = x == 0 ? w : 1;
                 proto_count += wdt;
-                brush.txt(utf8, v);
+                brush.txt(utf8, w, h, x, y);
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }

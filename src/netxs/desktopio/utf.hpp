@@ -91,28 +91,28 @@ namespace netxs::utf
     // utf: Unicode Character Size Modifiers
     namespace matrix
     {
-        template<si32 xy>
-        static auto mosaic = []{ return xy / 10 + ((xy % 10) << 4); }();
+        template<si32 xxy>
+        static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << 5); }();
         static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
-        static constexpr auto kx = 8;
+        static constexpr auto kx = 16;
         static constexpr auto ky = 4;
         static constexpr auto mx = p(kx + 1);
         static constexpr auto my = p(ky + 1);
         static auto s = [](auto w, auto h, auto x, auto y){ return p(w) + x + (p(h) + y) * mx; };
-        template<si32 wh, si32 xy = 0>
-        static constexpr auto vs = []
+        template<si32 wwh, si32 xxy = 0>
+        static constexpr auto vs = [] // wwh: (00 0 -> 16 4); xxy: (00 0 -> 16 4)
         {
-            auto w = wh / 10;
-            auto h = wh % 10;
-            auto x = xy / 10;
-            auto y = xy % 10;
+            auto w = wwh / 10;
+            auto h = wwh % 10;
+            auto x = xxy / 10;
+            auto y = xxy % 10;
             auto v = p(w) + x + (p(h) + y) * mx;
             return v;
         }();
         static constexpr auto vs_block = 0xD0000;
-        template<si32 wh, si32 xy = 0>
-        static constexpr auto vs_code = vs_block + vs<wh, xy>;
-        template<si32 wh, si32 xy = 00, auto code = vs_code<wh, xy>>
+        template<si32 wwh, si32 xxy = 0>
+        static constexpr auto vs_code = vs_block + vs<wwh, xxy>;
+        template<si32 wwh, si32 xxy = 0, auto code = vs_code<wwh, xxy>>
         static constexpr auto vss = utf8view<code>;
 
         auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
@@ -184,7 +184,7 @@ namespace netxs::utf
         {
             if (next.utf8len && unidata::allied(next))
             {
-                if (next.cdpoint >= matrix::vs_code<00,00> && next.cdpoint <= matrix::vs_code<84,84>) // Set matrix size and drop VS-wh_xy modificator.
+                if (next.cdpoint >= matrix::vs_code<00, 00> && next.cdpoint <= matrix::vs_code<164, 164>) // Set matrix size and drop VS-wh_xy modificator.
                 {
                     cmatrix = (si32)(next.cdpoint - matrix::vs_block);
                 }
@@ -385,7 +385,7 @@ namespace netxs::utf
                             auto left = next;
                             auto utf8len = 0_sz;
                             auto cpcount = 0;
-                            while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
+                            while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
                             {
                                 utf8len += next.utf8len;
                                 cpcount += 1;
@@ -473,7 +473,7 @@ namespace netxs::utf
                         auto left = next;
                         auto utf8len = 0_sz;
                         auto cpcount = 0;
-                        while (next.correct && (next.cdpoint < matrix::vs_code<00,00> || next.cdpoint > matrix::vs_code<84,84>)) // Eat all until VS.
+                        while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
                         {
                             utf8len += next.utf8len;
                             cpcount += 1;

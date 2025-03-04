@@ -180,7 +180,7 @@ namespace netxs::ui
                         auto pos2 = (region.coor + region.size) / step;
                         pos1 = std::clamp(pos1, dot_00, twod{ 25, 98 } );
                         pos2 = std::clamp(pos2, dot_00, twod{ 25, 98 } );
-                        data += 'A'+ (char)pos1.x;
+                        data += 'A' + (char)pos1.x;
                         data += std::to_string(pos1.y + 1);
                         data += ':';
                         data += 'A' + (char)pos2.x;
