@@ -1233,7 +1233,8 @@ namespace netxs::ansi
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
             * - void jet(si32 b);                    // Set adjustment.
-            * - void rtl(bool b);                    // Set reverse line feed.
+            * - void rlf(bool b);                    // Set reverse line feed.
+            * - void rtl(bool b);                    // Set right to left text.
             * - void link(id_t i);                   // Set object id link.
             */
 

@@ -1069,7 +1069,9 @@ namespace netxs
             }
             constexpr void set(char c)
             {
+                auto isrtl = props.isrtl;
                 token = 0;
+                props.isrtl = isrtl;
                 props.isnul = !c;
                 glyph[1] = c;
             }
@@ -1083,7 +1085,9 @@ namespace netxs
             }
             constexpr void set_c0(char c)
             {
+                auto isrtl = props.isrtl;
                 token = 0;
+                props.isrtl = isrtl;
                 props.sizex = 2 - 1;
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
@@ -1106,23 +1110,25 @@ namespace netxs
             void set_direct(view utf8, si32 w, si32 h)
             {
                 auto count = utf8.size();
-                //todo revise
-                //auto isrtl = props.isrtl;
+                auto isrtl = props.isrtl;
                 if (count < limit)
                 {
                     token = 0;
-                    if (count == 1 && utf8.front() == 0) props.isnul = 1;
+                    props.isrtl = isrtl;
+                    if (count == 1 && utf8.front() == 0)
+                    {
+                        props.isnul = 1;
+                    }
                     else
                     {
                         mtx(w, h);
                         std::memcpy(glyph + 1, utf8.data(), count);
-                        //props.isrtl = isrtl;
                     }
                 }
                 else
                 {
                     token = qiew::hash{}(utf8);
-                    //props.isrtl = isrtl;
+                    props.isrtl = isrtl;
                     set_jumbo_flag();
                     mtx(w, h);
                     jumbos().add(jgc_token(), utf8);
