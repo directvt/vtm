@@ -21,12 +21,12 @@ By defining that the graphical representation of a character is a cellular matri
 
 Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD02A2.
 
-Matrix fragments up to 8x4 cells require at least four associated integer values, which can be packed into Unicode codepoint space by enumerating "wh_xy" values:
+Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into Unicode codepoint space by enumerating "wh_xy" values:
   - w: Character matrix width.
   - h: Character matrix height.
   - x: Horizontal fragment selector inside the matrix.
   - y: Vertical fragment selector inside the matrix.
-  - For character matrices larger than 8x4, pixel graphics should be used.
+  - For character matrices larger than 16x4, pixel graphics should be used.
 
 ![image](https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c)
 
@@ -65,7 +65,7 @@ struct wh_xy
     int w, h, x, y;
 };
 static int p(int n) { return n * (n + 1) / 2; }
-const int kx = 8; // Max width of the character matrix.
+const int kx = 16; // Max width of the character matrix.
 const int ky = 4; // Max height of the character matrix.
 const int mx = p(kx + 1); // Lookup table boundaries.
 const int my = p(ky + 1); //

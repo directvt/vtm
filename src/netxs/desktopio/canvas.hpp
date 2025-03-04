@@ -967,9 +967,9 @@ namespace netxs
 
                 struct vars
                 {
-                    lock mutex{}; // There is no need to reset/clear/flush the map because
-                    depo jumbo{}; //todo the number of different clusters is unlimited.
-                    uset undef{}; // jumbos: List of unknown tokens.
+                    lock mutex{}; // Cluster map mutex. Do need to reset/clear/flush the map?
+                    depo jumbo{}; // Jumbo cluster map.
+                    uset undef{}; // List of unknown tokens.
                 };
                 struct guard : sync
                 {
@@ -1019,18 +1019,17 @@ namespace netxs
             }
 
             static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto token_mask = ~(ui64)0b1111'1100; // Exclude rtl and matrix metadata.
-            static constexpr auto rtl_mask = (ui64)0b0000'0100; // rtl metadata.
+            static constexpr auto token_mask = (char)0b0000'0001; // Exclude RTL and matrix metadata. It is a null bit (the null character).
+
             struct prop
             {
                 // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
                 // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
                 //    Drop "count" and use null (0x0) terminator, if you need an extra three bits for something.
                 byte isnul : 1; // prop: Null char inside.
-                byte empty : 1; // prop: Reserved.
                 byte isrtl : 1; // prop: Cluster contains RTL text.
-                byte sizex : 3; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 8)
-                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)
+                byte sizex : 4; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
+                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
             };
 
             ui64 token;
@@ -1060,7 +1059,7 @@ namespace netxs
             {
                 return (glyph[1] & 0b1100'0000) == 0b1000'0000;
             }
-            void set_jumbo()
+            void set_jumbo_flag()
             {
                 glyph[1] = (glyph[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
             }
@@ -1070,7 +1069,9 @@ namespace netxs
             }
             constexpr void set(char c)
             {
+                auto isrtl = props.isrtl;
                 token = 0;
+                props.isrtl = isrtl;
                 props.isnul = !c;
                 glyph[1] = c;
             }
@@ -1084,7 +1085,9 @@ namespace netxs
             }
             constexpr void set_c0(char c)
             {
+                auto isrtl = props.isrtl;
                 token = 0;
+                props.isrtl = isrtl;
                 props.sizex = 2 - 1;
                 glyph[1] = '^';
                 glyph[2] = '@' + (c & 0b00011111);
@@ -1098,13 +1101,24 @@ namespace netxs
                 props.sizex = (byte)(w ? w - 1 : 0);
                 props.sizey = (byte)(h ? h - 1 : 0);
             }
+            auto jgc_token() const // Exclude RTL and matrix metadata.
+            {
+                auto token_copy = token;
+                ((char*)&token_copy)[0] &= token_mask;
+                return token_copy;
+            }
             void set_direct(view utf8, si32 w, si32 h)
             {
                 auto count = utf8.size();
-                token &= rtl_mask; // Keep rtl bit.
+                auto isrtl = props.isrtl;
                 if (count < limit)
                 {
-                    if (count == 1 && utf8.front() == 0) props.isnul = 1;
+                    token = 0;
+                    props.isrtl = isrtl;
+                    if (count == 1 && utf8.front() == 0)
+                    {
+                        props.isnul = 1;
+                    }
                     else
                     {
                         mtx(w, h);
@@ -1113,10 +1127,11 @@ namespace netxs
                 }
                 else
                 {
-                    token |= qiew::hash{}(utf8) & ~rtl_mask; // Keep rtl bit.
-                    set_jumbo();
+                    token = qiew::hash{}(utf8);
+                    props.isrtl = isrtl;
+                    set_jumbo_flag();
                     mtx(w, h);
-                    jumbos().add(token & token_mask, utf8);
+                    jumbos().add(jgc_token(), utf8);
                 }
             }
             // glyf: Cluster length in bytes (if it is not jumbo).
@@ -1136,7 +1151,7 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (is_jumbo()) return jumbos().get(token & token_mask);
+                    if (is_jumbo()) return jumbos().get(jgc_token());
                     else            return view(glyph + 1, str_len());
                 }
             }
@@ -1150,7 +1165,7 @@ namespace netxs
             }
             auto jgc() const
             {
-                return !is_jumbo() || jumbos().exists(token & token_mask);
+                return !is_jumbo() || jumbos().exists(jgc_token());
             }
             // Return cluster storage length.
             auto len() const
@@ -1201,7 +1216,7 @@ namespace netxs
                                  // │ └────── interpolation type between `c0` and `c2`
                                  // └──────── interpolation type between `c0` and `c1`
                 // Unique attributes. From 24th bit.
-                ui32 mosaic : 8; // High bits - y, low bits - x. // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+                ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
             };
             static constexpr auto shared_bits = (1 << 24) - 1;
 
@@ -1705,12 +1720,12 @@ namespace netxs
         {
                  if (st.xy() == 0) dest += whitespace;
             else if (gc.props.sizex == 0 && gc.props.sizey == 0) dest += gc.get();
-            else if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,11>)
+            else if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
                 {
-                    dest += shadow[1] & 0b00011111;
+                    dest += shadow[1] & (' ' - 1);
                 }
                 else dest += shadow;
             }
@@ -1718,7 +1733,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,11>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1731,7 +1746,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0xF) == 1)//wdt() == utf::matrix::vs<21,21>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1851,14 +1866,26 @@ namespace netxs
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.mtx(w, h);
-            st.xy(x + (y << 4));
+            st.xy(x + (y << 5));
+            return *this;
+        }
+        auto& wdt(si32 w, si32 h, si32 x, si32 y)
+        {
+            gc.mtx(w, h);
+            st.xy(x + (y << 5));
             return *this;
         }
         auto& txt(view utf8, si32 vs)
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.set_direct(utf8, w, h);
-            st.xy(x + (y << 4));
+            st.xy(x + (y << 5));
+            return *this;
+        }
+        auto& txt(view utf8, si32 w, si32 h, si32 x, si32 y)
+        {
+            gc.set_direct(utf8, w, h);
+            st.xy(x + (y << 5));
             return *this;
         }
         cell& txt(view utf8)
@@ -1873,7 +1900,7 @@ namespace netxs
                 auto cluster = utf::cluster(utf8);
                 auto [w, h, x, y] = utf::matrix::whxy(cluster.attr.cmatrix);
                 gc.set_direct(cluster.text, w, h);
-                st.xy(x + (y << 4));
+                st.xy(x + (y << 5));
             }
             return *this;
         }
@@ -1881,7 +1908,7 @@ namespace netxs
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.set_direct(utf8, w, h);
-            st.xy(x + (y << 4));
+            st.xy(x + (y << 5));
             return *this;
         }
         auto& txt(char c)        { gc.set(c); st.xy(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
@@ -1897,18 +1924,18 @@ namespace netxs
             return *this;
         }
 
-        auto jgc_token() const { return gc.token & cell::glyf::token_mask; } // cell: Return grapheme cluster registration token.
+        auto jgc_token() const { return gc.jgc_token(); } // cell: Return grapheme cluster registration token.
         auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        // deprecated: use whxy instead.
+        //todo deprecated: use whxy instead.
         si32  wdt() const
         {
             auto xy = st.xy();
-            auto x = xy & 0xF;
-            auto y = xy >> 4;
+            auto x = xy & 0b00011111;
+            auto y = xy >> 5;
             auto w = gc.props.sizex + 1;
             auto h = gc.props.sizey + 1;
             return utf::matrix::s(w, h, x, y);
@@ -1916,8 +1943,8 @@ namespace netxs
         // cell: Return cluster matrix metadata.
         auto whxy() const  { return std::tuple{ (si32)(gc.props.sizex + 1),
                                                 (si32)(gc.props.sizey + 1),
-                                                (si32)(st.attrs.mosaic & 0xF),
-                                                (si32)(st.attrs.mosaic >> 4) }; }
+                                                (si32)(st.attrs.mosaic & 0b00011111),
+                                                (si32)(st.attrs.mosaic >> 5) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster object.

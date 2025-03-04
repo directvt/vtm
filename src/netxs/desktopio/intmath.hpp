@@ -25,6 +25,7 @@
 
 namespace netxs
 {
+    using int8 = int8_t;
     using byte = uint8_t;
     using ui16 = uint16_t;
     using ui32 = uint32_t;
@@ -44,8 +45,8 @@ namespace netxs
     constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto bytemin = std::numeric_limits<byte>::min();
     static constexpr auto bytemax = std::numeric_limits<byte>::max();
-    static constexpr auto charmin = std::numeric_limits<char>::min();
-    static constexpr auto charmax = std::numeric_limits<char>::max();
+    static constexpr auto int8min = std::numeric_limits<int8>::min();
+    static constexpr auto int8max = std::numeric_limits<int8>::max();
     static constexpr auto ui64max = std::numeric_limits<ui64>::max();
     static constexpr auto si64max = std::numeric_limits<si64>::max();
     static constexpr auto si32max = std::numeric_limits<si32>::max();
@@ -305,23 +306,23 @@ namespace netxs
             log("fp64max -> fp32: ", fp64max, " -> ",       netxs::saturate_cast<fp32>(fp64max), netxs::saturate_cast<fp32>(fp64max) != fp32max ? " BAD" : "");
             log("fp64max -> si64: ", fp64max, " -> ",       netxs::saturate_cast<si64>(fp64max), netxs::saturate_cast<si64>(fp64max) != si64max ? " BAD" : "");
             log("fp64max -> si32: ", fp64max, " -> ",       netxs::saturate_cast<si32>(fp64max), netxs::saturate_cast<si32>(fp64max) != si32max ? " BAD" : "");
-            log("fp64max -> char: ", fp64max, " -> ", (si32)netxs::saturate_cast<char>(fp64max), netxs::saturate_cast<char>(fp64max) != charmax ? " BAD" : "");
+            log("fp64max -> int8: ", fp64max, " -> ", (si32)netxs::saturate_cast<int8>(fp64max), netxs::saturate_cast<int8>(fp64max) != int8max ? " BAD" : "");
             log("fp64max -> ui64: ", fp64max, " -> ",       netxs::saturate_cast<ui64>(fp64max), netxs::saturate_cast<ui64>(fp64max) != ui64max ? " BAD" : "");
             log("fp64max -> ui32: ", fp64max, " -> ",       netxs::saturate_cast<ui32>(fp64max), netxs::saturate_cast<ui32>(fp64max) != ui32max ? " BAD" : "");
             log("fp64max -> byte: ", fp64max, " -> ", (si32)netxs::saturate_cast<byte>(fp64max), netxs::saturate_cast<byte>(fp64max) != bytemax ? " BAD" : "");
             log("fp64min -> fp32: ", fp64min, " -> ",       netxs::saturate_cast<fp32>(fp64min), netxs::saturate_cast<fp32>(fp64min) != fp32min ? " BAD" : "");
             log("fp64min -> si64: ", fp64min, " -> ",       netxs::saturate_cast<si64>(fp64min), netxs::saturate_cast<si64>(fp64min) != si64min ? " BAD" : "");
-            log("fp64min -> char: ", fp64min, " -> ", (si32)netxs::saturate_cast<char>(fp64min), netxs::saturate_cast<char>(fp64min) != charmin ? " BAD" : "");
+            log("fp64min -> int8: ", fp64min, " -> ", (si32)netxs::saturate_cast<int8>(fp64min), netxs::saturate_cast<int8>(fp64min) != int8min ? " BAD" : "");
             log("fp64min -> ui64: ", fp64min, " -> ",       netxs::saturate_cast<ui64>(fp64min), netxs::saturate_cast<ui64>(fp64min) != ui64min ? " BAD" : "");
             log("fp64min -> byte: ", fp64min, " -> ", (si32)netxs::saturate_cast<byte>(fp64min), netxs::saturate_cast<byte>(fp64min) != bytemin ? " BAD" : "");
             log("fp32max -> fp64: ", fp32max, " -> ",       netxs::saturate_cast<fp64>(fp32max), netxs::saturate_cast<fp64>(fp32max) != fp32max ? " BAD" : "");
             log("fp32max -> si32: ", fp32max, " -> ",       netxs::saturate_cast<si32>(fp32max), netxs::saturate_cast<si32>(fp32max) != si32max ? " BAD" : "");
-            log("fp32max -> char: ", fp32max, " -> ", (si32)netxs::saturate_cast<char>(fp32max), netxs::saturate_cast<char>(fp32max) != charmax ? " BAD" : "");
+            log("fp32max -> int8: ", fp32max, " -> ", (si32)netxs::saturate_cast<int8>(fp32max), netxs::saturate_cast<int8>(fp32max) != int8max ? " BAD" : "");
             log("fp32max -> ui32: ", fp32max, " -> ",       netxs::saturate_cast<ui32>(fp32max), netxs::saturate_cast<ui32>(fp32max) != ui32max ? " BAD" : "");
             log("fp32max -> byte: ", fp32max, " -> ", (si32)netxs::saturate_cast<byte>(fp32max), netxs::saturate_cast<byte>(fp32max) != bytemax ? " BAD" : "");
             log("fp32min -> fp64: ", fp32min, " -> ",       netxs::saturate_cast<fp64>(fp32min), netxs::saturate_cast<fp64>(fp32min) != fp32min ? " BAD" : "");
             log("fp32min -> si32: ", fp32min, " -> ",       netxs::saturate_cast<si32>(fp32min), netxs::saturate_cast<si32>(fp32min) != si32min ? " BAD" : "");
-            log("fp32min -> char: ", fp32min, " -> ", (si32)netxs::saturate_cast<char>(fp32min), netxs::saturate_cast<char>(fp32min) != charmin ? " BAD" : "");
+            log("fp32min -> int8: ", fp32min, " -> ", (si32)netxs::saturate_cast<int8>(fp32min), netxs::saturate_cast<int8>(fp32min) != int8min ? " BAD" : "");
             log("fp32min -> ui32: ", fp32min, " -> ",       netxs::saturate_cast<ui32>(fp32min), netxs::saturate_cast<ui32>(fp32min) != ui32min ? " BAD" : "");
             log("fp32min -> byte: ", fp32min, " -> ", (si32)netxs::saturate_cast<byte>(fp32min), netxs::saturate_cast<byte>(fp32min) != bytemin ? " BAD" : "");
             log("ui64max -> si32: ", ui64max, " -> ",       netxs::saturate_cast<si32>(ui64max), netxs::saturate_cast<si32>(ui64max) != si32max ? " BAD" : "");
@@ -340,12 +341,12 @@ namespace netxs
             log("si64min -> ui32: ", si64min, " -> ",       netxs::saturate_cast<ui32>(si64min), netxs::saturate_cast<ui32>(si64min) != ui32min ? " BAD" : "");
             log("si32max -> fp32: ", si32max, " -> ",       netxs::saturate_cast<fp32>(si32max), netxs::saturate_cast<fp32>(si32max) != (fp32)si32max ? " BAD" : "");
             log("si32max -> si64: ", si32max, " -> ",       netxs::saturate_cast<si64>(si32max), netxs::saturate_cast<si64>(si32max) != si32max ? " BAD" : "");
-            log("si32max -> char: ", si32max, " -> ", (si32)netxs::saturate_cast<char>(si32max), netxs::saturate_cast<char>(si32max) != charmax ? " BAD" : "");
+            log("si32max -> int8: ", si32max, " -> ", (si32)netxs::saturate_cast<int8>(si32max), netxs::saturate_cast<int8>(si32max) != int8max ? " BAD" : "");
             log("si32max -> ui64: ", si32max, " -> ",       netxs::saturate_cast<ui64>(si32max), netxs::saturate_cast<ui64>(si32max) != si32max ? " BAD" : "");
             log("si32max -> byte: ", si32max, " -> ", (si32)netxs::saturate_cast<byte>(si32max), netxs::saturate_cast<byte>(si32max) != bytemax ? " BAD" : "");
             log("si32min -> fp32: ", si32min, " -> ",       netxs::saturate_cast<fp32>(si32min), netxs::saturate_cast<fp32>(si32min) != (fp32)si32min ? " BAD" : "");
             log("si32min -> si64: ", si32min, " -> ",       netxs::saturate_cast<si64>(si32min), netxs::saturate_cast<si64>(si32min) != si32min ? " BAD" : "");
-            log("si32min -> char: ", si32min, " -> ", (si32)netxs::saturate_cast<char>(si32min), netxs::saturate_cast<char>(si32min) != charmin ? " BAD" : "");
+            log("si32min -> int8: ", si32min, " -> ", (si32)netxs::saturate_cast<int8>(si32min), netxs::saturate_cast<int8>(si32min) != int8min ? " BAD" : "");
             log("si32min -> ui64: ", si32min, " -> ",       netxs::saturate_cast<ui64>(si32min), netxs::saturate_cast<ui64>(si32min) != ui64min ? " BAD" : "");
             log("si32min -> byte: ", si32min, " -> ", (si32)netxs::saturate_cast<byte>(si32min), netxs::saturate_cast<byte>(si32min) != bytemin ? " BAD" : "");
         }
