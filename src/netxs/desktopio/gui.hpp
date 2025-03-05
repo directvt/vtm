@@ -1467,6 +1467,8 @@ namespace netxs::gui
             X(pass_state) /* Pass keybd modifiers state.           */ \
             X(pass_input) /* Pass keybd input.                     */ \
             X(expose_win) /* Order to expose window.               */ \
+            X(make_ontop) /* Order to make window topmost.         */ \
+            X(set_normal) /* Order to make window notopmost.       */ \
             X(no_command) /* Noop. Just to update.                 */ \
             X(cmd_w_data) /* Command with payload.                 */
             static constexpr auto _base = 99900;
@@ -1990,6 +1992,7 @@ namespace netxs::gui
         virtual void window_make_foreground() = 0;
         virtual void window_make_focused() = 0;
         virtual void window_make_exposed() = 0;
+        virtual void window_make_topmost(bool) = 0;
 
         virtual void sync_os_settings() = 0;
 
@@ -2989,16 +2992,8 @@ namespace netxs::gui
         }
         void AlwaysOnTop(many const& args)
         {
-            auto state = args.size() ? any_get_or<si32>(args.front(), -1) + 1 : 0;
-            if (state == 0) // Toggle.
-            {
-                //todo implement
-            }
-            else // Set state - 1;
-            {
-                state -= 1;
-                //todo implement
-            }
+            auto state = args.size() ? any_get_or(args.front(), faux) : faux;
+            window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
 
         arch run_command(arch command, arch lParam)
@@ -3101,6 +3096,14 @@ namespace netxs::gui
             else if (command == ipc::expose_win)
             {
                 window_make_exposed();
+            }
+            else if (command == ipc::make_ontop)
+            {
+                window_make_topmost(true);
+            }
+            else if (command == ipc::set_normal)
+            {
+                window_make_topmost(faux);
             }
             else command = 0;
             return command;
@@ -3912,12 +3915,13 @@ namespace netxs::gui
             ::GetKeyboardLayoutNameW(kblayout.data());
             log("%%Keyboard layout changed to ", prompt::gui, utf::to_utf(kblayout));//, " lo(hkl),langid=", lo((arch)hkl), " hi(hkl),handle=", hi((arch)hkl));
         }
-        void window_make_focused()    { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
-        void window_make_exposed()    { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
-        void window_make_foreground() { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
-        void window_shutdown()        { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
-        void window_cleanup()         { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
-        twod mouse_get_pos()          { return twod{ winmsg.pt.x, winmsg.pt.y }; }
+        void window_make_focused()       { ::SetFocus((HWND)master.hWnd); } // Calls WM_KILLFOCOS(prev) + WM_ACTIVATEAPP(next) + WM_SETFOCUS(next).
+        void window_make_exposed()       { ::SetWindowPos((HWND)master.hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOACTIVATE); }
+        void window_make_topmost(bool s) { ::SetWindowPos((HWND)master.hWnd, s ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
+        void window_make_foreground()    { ::SetForegroundWindow((HWND)master.hWnd); } //::AllowSetForegroundWindow(ASFW_ANY); } // Neither ::SetFocus() nor ::SetActiveWindow() can switch focus immediately.
+        void window_shutdown()           { ::SendMessageW((HWND)master.hWnd, WM_CLOSE, NULL, NULL); }
+        void window_cleanup()            { ::RemoveClipboardFormatListener((HWND)master.hWnd); ::PostQuitMessage(0); }
+        twod mouse_get_pos()             { return twod{ winmsg.pt.x, winmsg.pt.y }; }
         void mouse_capture(si32 captured_by)
         {
             if (!std::exchange(heldby, heldby | captured_by))
@@ -4195,6 +4199,7 @@ namespace netxs::gui
         void window_make_foreground() {}
         void window_make_focused() {}
         void window_make_exposed() {}
+        void window_make_topmost(bool) {}
         void window_message_pump() {}
         void window_initilize() {}
         void window_shutdown() {}
