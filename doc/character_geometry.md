@@ -28,12 +28,13 @@ Matrix fragments up to 16x4 cells require at least four associated integer value
   - y: Vertical fragment selector inside the matrix.
   - For character matrices larger than 16x4, pixel graphics should be used.
 
-![image](https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c)
+### //todo geometry modifier table
 
 Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
 
 Users can explicitly specify the size of the character matrix (by zeroing `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
 
+### //todo geometry modifiers are outdated since v0.9.99.67
 - Example 1. Output a 3x1 character:
   - `pwsh`
     ```pwsh
