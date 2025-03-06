@@ -117,6 +117,44 @@
       "addressSanitizerRuntimeFlags": "detect_leaks=0"
     },
     {
+      "name": "5.WSL-ARM64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_arm" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "-O0 -g -DDEBUG -pthread -static -s",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/aarch64-linux-gnu-g++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/aarch64-linux-gnu-gcc",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O0 -static",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-arm",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true
+    },
+    {
       "name": "PROD-Win-ARM32",
       "generator": "Ninja",
       "configurationType": "Release",
