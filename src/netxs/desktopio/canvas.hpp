@@ -5,6 +5,7 @@
 
 #include "geometry.hpp"
 #include "ptr.hpp"
+#include "logger.hpp"
 
 #include <span>
 #include <unordered_set>
@@ -967,7 +968,7 @@ namespace netxs
 
                 struct vars
                 {
-                    lock mutex{}; // Cluster map mutex. Do need to reset/clear/flush the map?
+                    lock mutex{}; // Cluster map mutex. Do we need to reset/clear/flush the map?
                     depo jumbo{}; // Jumbo cluster map.
                     uset undef{}; // List of unknown tokens.
                 };
@@ -1218,6 +1219,8 @@ namespace netxs
                 // Unique attributes. From 24th bit.
                 ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
             };
+            static constexpr auto width_bits = (byte)0b00011111; // Character geometry width bits (for attr::mosaic).
+            static constexpr auto height_bits = 5; // Character geometry height bits count (for attr::mosaic).
             static constexpr auto shared_bits = (1 << 24) - 1;
 
             //todo Cf's can not be entered: even using paste from clipboard
@@ -1720,7 +1723,7 @@ namespace netxs
         {
                  if (st.xy() == 0) dest += whitespace;
             else if (gc.props.sizex == 0 && gc.props.sizey == 0) dest += gc.get();
-            else if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,11>)
+            else if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1733,7 +1736,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,11>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1746,7 +1749,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & 0b00011111) == 1)//wdt() == utf::matrix::vs<21,21>)
+            if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1934,8 +1937,8 @@ namespace netxs
         si32  wdt() const
         {
             auto xy = st.xy();
-            auto x = xy & 0b00011111;
-            auto y = xy >> 5;
+            auto x = xy & cell::body::width_bits;
+            auto y = xy >> cell::body::height_bits;
             auto w = gc.props.sizex + 1;
             auto h = gc.props.sizey + 1;
             return utf::matrix::s(w, h, x, y);
@@ -1943,8 +1946,8 @@ namespace netxs
         // cell: Return cluster matrix metadata.
         auto whxy() const  { return std::tuple{ (si32)(gc.props.sizex + 1),
                                                 (si32)(gc.props.sizey + 1),
-                                                (si32)(st.attrs.mosaic & 0b00011111),
-                                                (si32)(st.attrs.mosaic >> 5) }; }
+                                                (si32)(st.attrs.mosaic & cell::body::width_bits),
+                                                (si32)(st.attrs.mosaic >> cell::body::height_bits) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster object.

@@ -452,7 +452,7 @@ namespace netxs::utf
     //             auto y = [&](frag const& cluster){};
     //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
     template<bool Clusterize = true, class S, class Y, class A>
-    void decode(S serve, Y yield, A ascii,  view utf8, si32& decsg)
+    void decode(S serve, Y yield, A ascii, view utf8, si32& decsg)
     {
         static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
         {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
@@ -506,7 +506,7 @@ namespace netxs::utf
                 }
                 else
                 {
-                    auto is_plain = [](char c){ return c >= 0x20 && (byte)(c - 0x7f) > 0x20; };
+                    auto is_plain = [](byte c){ return c >= 0x20 && c < 0x7f; };
                     if (decsg && next.cdpoint <= 0x7e && next.cdpoint >= 0x5f) // ['_' - '~']
                     {
                         yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
