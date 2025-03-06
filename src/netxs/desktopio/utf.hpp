@@ -506,7 +506,7 @@ namespace netxs::utf
                 }
                 else
                 {
-                    auto is_plain = [&](byte c){ return c >= 0x20 && c < 0x7f; };
+                    auto is_plain = [](byte c){ return c >= 0x20 && c < 0x7f; };
                     if (decsg && next.cdpoint <= 0x7e && next.cdpoint >= 0x5f) // ['_' - '~']
                     {
                         yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
