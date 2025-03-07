@@ -185,6 +185,8 @@ namespace netxs::app::test
                 .add(">❤"  , vss<11>, "<VS11_00  >❤" , vss<21>, "<VS21_00\n")
                 .add(">😎" , vss<11>, "<VS11_00  >😎" , vss<21>, "<VS21_00\n")
                 .add("\n")
+                .add("The longest word in the Hindi language: >\2विश्वविज्ञानकोशनिर्माणसमिति", vss<161>, "<VSG1_00 (16x1)\n")
+                .add("\n")
                 .add(header("Variation Selectors VS15/16"))
                 .add("\n")
                 .add("Plain>❤<   VS15>❤︎<   VS16>❤️<\n")

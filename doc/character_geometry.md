@@ -17,9 +17,9 @@ By defining that the graphical representation of a character is a cellular matri
 
 1x1 | 2x2 | 3x1
 ----|-----|-----
-![SGR-CFA-A](https://github.com/directvt/vtm/assets/11535558/9eba4601-6bab-4498-8f89-2aee70b59b38) | ![SGR-CFA-E](https://github.com/directvt/vtm/assets/11535558/77c73079-8ea2-43f3-a5a8-2c2ec3adc5ec) | ![SGR-CFA-Indic](https://github.com/directvt/vtm/assets/11535558/f646cc6d-7d01-409a-a8eb-53c42536fdab)
+![SGR-CFA-A](images/A_1x1.png) | ![SGR-CFA-E](images/E_2x2.png) | ![SGR-CFA-Indic](images/deva_3x1.png)
 
-Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD02A2.
+Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD08F6.
 
 Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into Unicode codepoint space by enumerating "wh_xy" values:
   - w: Character matrix width.
@@ -28,34 +28,43 @@ Matrix fragments up to 16x4 cells require at least four associated integer value
   - y: Vertical fragment selector inside the matrix.
   - For character matrices larger than 16x4, pixel graphics should be used.
 
-### //todo geometry modifier table
+[Table source](images/vtm_character_geometry_modifiers_16x4.xhtml)
+
+![image](images/vtm_character_geometry_modifiers_16x4.png)
 
 Terminals can annotate each scrollback cell with character matrix metadata and use it to display either the entire character image or a specific fragment within the cell.
 
 Users can explicitly specify the size of the character matrix (by zeroing `_xy`) or select any fragment of it (non-zero `_xy`) by placing a specific modifier character after the grapheme cluster.
 
-### //todo geometry modifiers are outdated since v0.9.99.67
-
-- Example 1. Output a 3x1 character:
+- Example 1. Output a 3x1 (31_00) character:
   - `pwsh`
     ```pwsh
-    "👩‍👩‍👧‍👧`u{D0033}"
+    "👩‍👩‍👧‍👧`u{D009F}"
     ```
   - `wsl/bash`
     ```bash
-    printf "👩‍👩‍👧‍👧\UD0033\n"
+    printf "👩‍👩‍👧‍👧\UD009F\n"
     ```
-- Example 2. Output a 6x2 character (by stacking two 6x1 fragments on top of each other due to the linear nature of the terminal):
+- Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02 on top of each other):
   - `pwsh`
     ```pwsh
-    "👩‍👩‍👧‍👧`u{D00C9}`n👩‍👩‍👧‍👧`u{D00F6}"
+    "👩‍👩‍👧‍👧`u{D0279}`n👩‍👩‍👧‍👧`u{D0312}"
     ```
   - `wsl/bash`
     ```bash
-    printf "👩‍👩‍👧‍👧\UD00C9\n👩‍👩‍👧‍👧\UD00F6\n"
+    printf "👩‍👩‍👧‍👧\UD0279\n👩‍👩‍👧‍👧\UD0312\n"
+    ```
+- Example 3. Output the longest word in the Hindi language 16x1 (G1_00):
+  - `pwsh`
+    ```pwsh
+    "`u{2}विश्वविज्ञानकोशनिर्माणसमिति`u{D0121}"
+    ```
+  - `wsl/bash`
+    ```bash
+    printf "\U2विश्वविज्ञानकोशनिर्माणसमिति\UD0121\n"
     ```
 - Screenshot:  
-  ![image](https://github.com/user-attachments/assets/5c6d0e5c-ba36-4602-a626-95f64042c67f)
+  ![image](images/vtm_character_geometry_modifiers_screenshot.png)
 
 ### Helper functions
 
@@ -103,7 +112,7 @@ To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, 
 
 ## Another brick in the wall
 
-> At present only standardized variation sequences with VS1, VS2, VS3, VS15 and VS16 have been defined; VS15 and VS16 are reserved to request that a character should be displayed as text or as an emoji) respectively.
+> At present only standardized variation sequences with VS1, VS2, VS3, VS15 and VS16 have been defined; VS15 and VS16 are reserved to request that a character should be displayed as text or as an emoji respectively.
 
 > VS4–VS14 (U+FE03–U+FE0D) are not used for any variation sequences
 
@@ -152,4 +161,4 @@ int get_hflip(int state) { int hflip = state >> 2; return hflip; }
 
 # Summary
 
-![image](https://github.com/user-attachments/assets/4f9f7450-a49c-43db-8001-e8be4530450e)
+![image](images/vtm_character_geometry_modifiers_summary.png)
