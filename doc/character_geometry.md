@@ -19,7 +19,7 @@ By defining that the graphical representation of a character is a cellular matri
 ----|-----|-----
 ![SGR-CFA-A](images/A_1x1.png) | ![SGR-CFA-E](images/E_2x2.png) | ![SGR-CFA-Indic](images/deva_3x1.png)
 
-Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD02A2.
+Each character is a sequence of codepoints (one or more) - this is the so-called grapheme cluster. Using a font, this sequence is translated into a glyph run. The final scaling and rasterization of the glyph run is done into a rectangular terminal cell matrix, defined either implicitly based on the Unicode properties of the cluster codepoints, or explicitly using a modifier codepoint from the Unicode codepoint range 0xD0000-0xD08F6.
 
 Matrix fragments up to 16x4 cells require at least four associated integer values, which can be packed into Unicode codepoint space by enumerating "wh_xy" values:
   - w: Character matrix width.
@@ -45,7 +45,7 @@ Users can explicitly specify the size of the character matrix (by zeroing `_xy`)
     ```bash
     printf "👩‍👩‍👧‍👧\UD009F\n"
     ```
-- Example 2. Output a 6x2 character (by stacking two 6x1 fragments (62_01 and 62_02) on top of each other due to the linear nature of the terminal):
+- Example 2. Output a 6x2 character (by stacking two 6x1 fragments 62_01 and 62_02 on top of each other):
   - `pwsh`
     ```pwsh
     "👩‍👩‍👧‍👧`u{D0279}`n👩‍👩‍👧‍👧`u{D0312}"
@@ -103,7 +103,7 @@ To set arbitrary boundaries, the C0 control character `ASCII 0x02 STX` is used, 
 
 ## Another brick in the wall
 
-> At present only standardized variation sequences with VS1, VS2, VS3, VS15 and VS16 have been defined; VS15 and VS16 are reserved to request that a character should be displayed as text or as an emoji) respectively.
+> At present only standardized variation sequences with VS1, VS2, VS3, VS15 and VS16 have been defined; VS15 and VS16 are reserved to request that a character should be displayed as text or as an emoji respectively.
 
 > VS4–VS14 (U+FE03–U+FE0D) are not used for any variation sequences
 
