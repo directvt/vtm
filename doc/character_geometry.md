@@ -28,7 +28,7 @@ Matrix fragments up to 16x4 cells require at least four associated integer value
   - y: Vertical fragment selector inside the matrix.
   - For character matrices larger than 16x4, pixel graphics should be used.
 
-[Table source](images/vtm_character_geometry_modifiers_16x4.html)
+[Table source](images/vtm_character_geometry_modifiers_16x4.xhtml)
 
 ![image](images/vtm_character_geometry_modifiers_16x4.png)
 
