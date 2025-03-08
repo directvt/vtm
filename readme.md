@@ -12,7 +12,7 @@ It can wrap any console application and be nested indefinitely, forming a text-b
 
 - Windows
   - Windows 8.1 and later
-- Unix
+- [*nix](https://en.wikipedia.org/wiki/Unix-like)
   - Linux
   - macOS
   - FreeBSD
@@ -22,7 +22,7 @@ It can wrap any console application and be nested indefinitely, forming a text-b
 
 [Tested Terminals](https://github.com/directvt/vtm/discussions/72)
 
-<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on Unix platforms, a terminal emulator is required.</sup>
+<sup>Currently, rendering into a native GUI window is only available on the Windows platform; on *nix platforms, a terminal emulator is required.</sup>
 
 # Binary downloads
 
