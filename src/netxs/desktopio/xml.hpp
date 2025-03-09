@@ -736,6 +736,21 @@ namespace netxs::xml
                         past->next = next;  // Release an element from the previous list.
                         if (next) next->prev = past;
                         dest.push_back(item);
+                        if (mode != elem::form::attr) // Prepend '\n    <' to item when inserting it to gate==insB.
+                        {
+                            if (from->utf8.empty()) // Checking indent. Take indent from parent + pads if it is absent.
+                            {
+                                from->utf8 = parent->from->utf8 + "    ";
+                            }
+                            if (from->next && from->next->kind == type::begin_tag) // Checking begin_tag.
+                            {
+                                auto shadow = view{ from->next->utf8 };
+                                if (utf::trim_front(shadow, whitespaces).empty()) // Set it to '<' if it is absent.
+                                {
+                                    from->next->utf8 = "<";
+                                }
+                            }
+                        }
                         continue;
                     }
                     log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
@@ -1199,6 +1214,7 @@ namespace netxs::xml
                         item->mode = elem::form::pact;
                         auto next = ptr::shared<elem>();
                         open(next);
+                        page.append(type::begin_tag); // Add begin_tag placeholder.
                         peek(data, what, last);
                         temp = pair(next, data, what, last, type::top_token);
                         auto& sub_name = next->name->utf8;
