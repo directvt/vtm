@@ -466,7 +466,7 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     code.step();
-                    if (Clusterize && code && next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                    if (Clusterize && next.cdpoint == 0x02/*ansi::c0_stx*/ && code) // Custom cluster initiator.
                     {
                         next = code.take();
                         auto rest = code.rest();
