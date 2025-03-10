@@ -209,25 +209,25 @@ namespace netxs::app::shared
                                         applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         luafx.set_return();
                                     }},
-            { "AlwaysOnTop",        [&]
+            { "ZOrder",            [&]
                                     {
                                         auto args_count = luafx.args_count();
-                                        auto& alwaysontop = applet.base::property("applet.alwaysontop", faux);
+                                        auto& zorder = applet.base::property("applet.zorder", zpos::plain);
                                         auto gear_ptr = luafx.template get_object<hids>("gear");
                                         if (args_count)
                                         {
                                             auto gui_cmd = e2::command::gui.param();
-                                            alwaysontop = luafx.get_args_or(1, faux);
+                                            zorder = luafx.get_args_or(1, zpos::plain);
                                             if (gear_ptr)
                                             {
                                                 gui_cmd.gear_id = gear_ptr->id;
                                             }
-                                            gui_cmd.cmd_id = syscmd::alwaysontop;
-                                            gui_cmd.args.emplace_back(alwaysontop);
+                                            gui_cmd.cmd_id = syscmd::zorder;
+                                            gui_cmd.args.emplace_back(zorder);
                                             applet.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                                         }
                                         if (gear_ptr) gear_ptr->set_handled();
-                                        luafx.set_return(alwaysontop);
+                                        luafx.set_return(zorder);
                                     }},
             { "Close",              [&]
                                     {

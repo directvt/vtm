@@ -301,8 +301,8 @@ Hotkey                       | Description
             <item type="Command" action=Noop                   label="Noop"/>
 
             <item type="Option" action=AlwaysOnTopApplet>
-                <label="OnTop"                     data="off" tooltip=" AlwaysOnTop off "/>
-                <label="\e[38:2:0:255:0mOnTop\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
+                <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
+                <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
             </item>
 
             <item action=TerminalSendKey tooltip=" Simulate keypresses ">

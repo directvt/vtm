@@ -128,7 +128,7 @@ R"==(
         <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
         <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
 
-        <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
+        <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1)"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
         <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
         <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
         <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->
@@ -257,6 +257,10 @@ R"==(
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
+                            <item type="Option" action=AlwaysOnTopApplet>
+                                <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
+                                <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
+                            </item>
                             <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <tooltip>
                                     " Previous match                                  \n"
@@ -397,6 +401,10 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
+            <item type="Option" action=AlwaysOnTopApplet>
+                <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
+                <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
+            </item>
             <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"

@@ -23,9 +23,9 @@ namespace netxs
 
     namespace zpos
     {
+        static constexpr auto backmost = -1;
         static constexpr auto plain    = 0;
-        static constexpr auto backmost = 1;
-        static constexpr auto topmost  = 2;
+        static constexpr auto topmost  = 1;
     };
 
     namespace unln

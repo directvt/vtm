@@ -2963,7 +2963,7 @@ namespace netxs::gui
         }
         void MoveWindow(many const& args)
         {
-            if (args.size())
+            if (args.size() != 2) return;
             if (auto delta = twod{ any_get_or(args[0]), any_get_or(args[1]) })
             {
                 move_window(delta);
@@ -2990,9 +2990,9 @@ namespace netxs::gui
                 //todo implement
             }
         }
-        void AlwaysOnTop(many const& args)
+        void ZOrder(many const& args)
         {
-            auto state = args.size() ? any_get_or(args.front(), faux) : faux;
+            auto state = args.size() ? any_get_or(args.front(), zpos::plain) : zpos::plain;
             window_send_command(master.hWnd, state ? ipc::make_ontop : ipc::set_normal);
         }
 
@@ -3196,7 +3196,7 @@ namespace netxs::gui
                     case syscmd::warpwindow:      WarpWindow(args);         break;
                     case syscmd::move:            MoveWindow(args);         break;
                     case syscmd::focusnextwindow: FocusNextWindow(args);    break;
-                    case syscmd::alwaysontop:     AlwaysOnTop(args);        break;
+                    case syscmd::zorder:          ZOrder(args);             break;
                 }
                 update_gui();
             });

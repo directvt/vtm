@@ -346,6 +346,7 @@ namespace netxs::app::shared
                 //    }
                 //};
                 closing_on_quit(boss);
+                boss.base::property("applet.zorder", zpos::backmost);
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
                 {
                     auto title_fg_color = argb{ 0xFFffffff };
@@ -373,7 +374,6 @@ namespace netxs::app::shared
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::outer, dent{  2, 2, 1, 1 });
                     boss.base::riseup(tier::release, e2::config::plugins::sizer::inner, dent{ -4,-4,-2,-2 });
                     boss.base::riseup(tier::release, e2::config::plugins::align, faux);
-                    boss.base::riseup(tier::preview, e2::form::prop::zorder, zpos::backmost);
                     parent.LISTEN(tier::release, input::events::mouse::button::click::right, gear)
                     {
                         auto area = boss.base::area() + dent{ 2, 2, 1, 1 };

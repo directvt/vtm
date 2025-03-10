@@ -797,26 +797,28 @@ namespace netxs::app::terminal
             ->invoke([&](auto& boss)
             {
                 //todo scripting: it is a temporary solution (until scripting is implemented)
-                auto& alwaysontop = window->base::property("applet.alwaysontop", faux);
+                auto& zorder = window->base::property("applet.zorder", zpos::plain);
                 boss.LISTEN(tier::anycast, terminal::events::preview::alwaysontop, state_pair)
                 {
                     auto [state, gear_id] = state_pair;
-                    if (alwaysontop != state)
+                    auto new_zorder = state ? zpos::topmost : zpos::plain;
+                    if (zorder != new_zorder)
                     {
-                        alwaysontop = state;
                         auto gui_cmd = e2::command::gui.param();
                         gui_cmd.gear_id = gear_id;
-                        gui_cmd.cmd_id = syscmd::alwaysontop;
-                        gui_cmd.args.emplace_back(state);
+                        gui_cmd.cmd_id = syscmd::zorder;
+                        gui_cmd.args.emplace_back(new_zorder);
                         boss.base::riseup(tier::preview, e2::command::gui, gui_cmd);
                     }
                 };
                 auto& window_inst = *window;
                 window_inst.LISTEN(tier::preview, e2::command::gui, gui_cmd) // Sync alwaysontop state with UI.
                 {
-                    if (gui_cmd.cmd_id == syscmd::alwaysontop)
+                    if (gui_cmd.cmd_id == syscmd::zorder && gui_cmd.args.size())
                     {
-                        auto state = any_get_or(gui_cmd.args[0], faux);
+                        auto new_zorder = any_get_or(gui_cmd.args[0], zpos::plain);
+                        zorder = new_zorder;
+                        auto state = new_zorder == zpos::topmost;
                         boss.base::signal(tier::anycast, terminal::events::release::alwaysontop, state);
                     }
                     window_inst.bell::expire(tier::preview, true);

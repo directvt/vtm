@@ -2965,17 +2965,17 @@ namespace netxs::ui
                 ::lua_pop(lua, 2); // Pop "vtm" and "object_name".
                 return object_ptr;
             }
-            auto push_value(auto& v)
+            auto push_value(auto&& v)
             {
-                using T = decltype(v);
+                using T = std::decay_t<decltype(v)>;
                 static constexpr auto is_string_v = requires{ (const char*)v.data(); };
                 static constexpr auto is_cstring_v = requires{ (const char*)v[0]; };
-                     if constexpr (std::is_same_v<std::decay_t<T>, bool>) ::lua_pushboolean(lua, v);
-                else if constexpr (is_string_v)                           ::lua_pushlstring(lua, v.data(), v.size());
-                else if constexpr (is_cstring_v)                          ::lua_pushstring(lua, v);
-                else if constexpr (std::is_integral_v<T>)                 ::lua_pushinteger(lua, v);
-                else if constexpr (std::is_floating_point_v<T>)           ::lua_pushnumber(lua, v);
-                else if constexpr (std::is_pointer_v<T>)                  ::lua_pushlightuserdata(lua, v);
+                     if constexpr (std::is_same_v<T, bool>)     ::lua_pushboolean(lua, v);
+                else if constexpr (is_string_v)                 ::lua_pushlstring(lua, v.data(), v.size());
+                else if constexpr (is_cstring_v)                ::lua_pushstring(lua, v);
+                else if constexpr (std::is_integral_v<T>)       ::lua_pushinteger(lua, v);
+                else if constexpr (std::is_floating_point_v<T>) ::lua_pushnumber(lua, v);
+                else if constexpr (std::is_pointer_v<T>)        ::lua_pushlightuserdata(lua, v);
                 else if constexpr (debugmode) throw;
             }
             void set_return(auto... args)

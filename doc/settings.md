@@ -541,7 +541,7 @@ Notes
         <FocusPrevWindow       ="vtm.desktop.FocusNextWindow(-1)"/>  <!-- Switch focus to the prev window. -->
         <FocusNextWindow       ="vtm.desktop.FocusNextWindow( 1)"/>  <!-- Switch focus to the next window. -->
 
-        <AlwaysOnTopApplet     ="vtm.applet.AlwaysOnTop(not vtm.applet.AlwaysOnTop())"/>  <!-- Request to toggle AlwaysOnTop window flag. -->
+        <AlwaysOnTopApplet     ="vtm.applet.ZOrder(vtm.applet.ZOrder()==1 and 0 or 1)"/>  <!-- Request to toggle z-order window attribute. -1: backmost; 0: plain; 1: topmost. -->
         <CloseApplet           ="vtm.applet.Close()"/>            <!-- Request to Close window. -->
         <MinimizeApplet        ="vtm.applet.Minimize()"/>         <!-- Request to Minimize window. -->
         <MaximizeApplet        ="vtm.applet.Maximize()"/>         <!-- Request to Maximize window. -->

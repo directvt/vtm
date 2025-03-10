@@ -86,28 +86,13 @@ namespace netxs::app::vtm
                   skill::memo;
 
             robot robo;
-            si32  z_order;
             fp2d  drag_origin;
 
         public:
             frame(base&&) = delete;
             frame(base& boss) : skill{ boss },
-                robo{ boss    },
-                z_order{ zpos::plain }
+                robo{ boss }
             {
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
-                {
-                    boss.base::signal(tier::release, e2::form::prop::zorder, z_order);
-                };
-                boss.LISTEN(tier::preview, e2::form::prop::zorder, order)
-                {
-                    z_order = order;
-                    boss.base::signal(tier::release, e2::form::prop::zorder, z_order);
-                };
-                boss.LISTEN(tier::request, e2::form::prop::zorder, order)
-                {
-                    order = z_order;
-                };
                 boss.LISTEN(tier::preview, input::events::mouse::button::click::left, gear, memo)
                 {
                     //todo window.events(onclick)
@@ -592,10 +577,10 @@ namespace netxs::app::vtm
         struct window_t : ui::form<window_t>
         {
             hall& world;
+            si32& zorder;
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
-            si32 z_order = zpos::plain;
             
             void window_swarp(dent warp)
             {
@@ -604,19 +589,14 @@ namespace netxs::app::vtm
                     boss.base::signal(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            auto window_alwaysontop(arch args_count, bool args)
+            auto window_zorder(arch args_count, si32 state)
             {
-                auto zorder = zpos::plain;
-                if (args_count == 0) // Request zpos.
+                if (args_count != 0)
                 {
-                    zorder = base::signal(tier::request, e2::form::prop::zorder);
+                    zorder = state;
+                    base::strike();
                 }
-                else // Set zpos.
-                {
-                    zorder = args ? zpos::topmost : zpos::plain;
-                    base::signal(tier::preview, e2::form::prop::zorder, zorder);
-                }
-                return zorder == zpos::topmost;
+                return zorder;
             }
             void window_close(id_t gear_id)
             {
@@ -665,7 +645,8 @@ namespace netxs::app::vtm
 
         public:
             window_t(hall& owner, applink& what)
-                : world{ owner }
+                : world{ owner },
+                  zorder{ what.applet->base::property("applet.zorder", zpos::plain) }
             {
                 base::plugin<pro::d_n_d>();
                 base::plugin<pro::ghost>();
@@ -697,13 +678,13 @@ namespace netxs::app::vtm
                                                 if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
                                                 luafx.set_return(); // No returns.
                                             }},
-                    { "AlwaysOnTop",        [&]
-                                            {
-                                                auto args_count = luafx.args_count();
-                                                auto state = window_alwaysontop(args_count, args_count ? luafx.get_args_or(1, faux) : faux);
-                                                if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
-                                                luafx.set_return(state);
-                                            }},
+                    //{ "ZOrder",             [&]
+                    //                        {
+                    //                            auto args_count = luafx.args_count();
+                    //                            auto state = window_zorder(args_count, luafx.get_args_or(1, zpos::plain));
+                    //                            if (auto gear_ptr = luafx.template get_object<hids>("gear")) gear_ptr->set_handled();
+                    //                            luafx.set_return(state);
+                    //                        }},
                     { "Close",              [&]
                                             {
                                                 auto gear_id = id_t{};
@@ -758,10 +739,10 @@ namespace netxs::app::vtm
                             window_swarp(warp);
                         }
                     }
-                    else if (gui_cmd.cmd_id == syscmd::alwaysontop)
+                    else if (gui_cmd.cmd_id == syscmd::zorder)
                     {
                         auto args_count = gui_cmd.args.size();
-                        window_alwaysontop(args_count, args_count ? any_get_or(gui_cmd.args[0], faux) : faux);
+                        window_zorder(args_count, args_count ? any_get_or(gui_cmd.args[0], zpos::plain) : zpos::plain);
                     }
                     else if (gui_cmd.cmd_id == syscmd::close)
                     {
@@ -940,7 +921,6 @@ namespace netxs::app::vtm
                 };
                 LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                 {
-                    auto order = base::riseup(tier::request, e2::form::prop::zorder);
                     auto viewport = gear.owner.base::signal(tier::request, e2::form::prop::viewport);
                     auto recalc = [&](auto viewport)
                     {
@@ -957,7 +937,7 @@ namespace netxs::app::vtm
                             base::extend(new_area);
                         }
                     };
-                    if (order == zpos::backmost) // It is a region view. Just resize it.
+                    if (zorder == zpos::backmost) // It is a region view. Just resize it.
                     {
                         recalc(viewport - dent{ 2, 2, 0, 0 });
                         return;
@@ -1042,10 +1022,6 @@ namespace netxs::app::vtm
                         base::holder = world.base::subset.insert(next, this->This());
                         base::strike();
                     }
-                };
-                LISTEN(tier::release, e2::form::prop::zorder, order)
-                {
-                    z_order = order;
                 };
                 LISTEN(tier::release, e2::form::state::mouse, state)
                 {
@@ -1470,7 +1446,7 @@ namespace netxs::app::vtm
                 if (auto gear_ptr = bell::getref<hids>(gui_cmd.gear_id))
                 {
                     auto& gear = *gear_ptr;
-                    auto dir = any_get_or(gui_cmd.args[0], 1);
+                    auto dir = gui_cmd.args.size() ? any_get_or(gui_cmd.args[0], 1) : 1;
                     focus_next_window(gear, dir);
                     hit = true;
                 }
@@ -1745,12 +1721,14 @@ namespace netxs::app::vtm
                         if (auto window_ptr = std::dynamic_pointer_cast<window_t>(item_ptr))
                         {
                             fasten(window_ptr, window_ptr->highlighted, window_ptr->active, window_ptr->color, parent_canvas);
-                            layers[std::clamp(window_ptr->z_order, zpos::plain, zpos::topmost)].push_back(item_ptr);
+                            auto zorder = window_ptr->zorder;
+                            auto i = zorder == zpos::plain   ? 1 :
+                                     zorder == zpos::topmost ? 2 : 0;
+                            layers[i].push_back(item_ptr);
                         }
                     }
-                    for (auto l : { zpos::backmost, zpos::plain, zpos::topmost })
+                    for (auto& layer : layers)
                     {
-                        auto& layer = layers[l];
                         for (auto& item_ptr : layer)
                         {
                             item_ptr->render<true>(parent_canvas);
