@@ -7886,11 +7886,11 @@ namespace netxs::ui
             publish_property(ui::tty::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
-            auto& keybd = base::plugin<pro::keybd>("terminal");
+            auto& keybd = base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(xml_config, "terminal");
             keybd.bind(bindings);
-            luafx.activate("terminal.proc_map",
+            luafx.activate("terminal",
             {
                 { "KeyEvent",                   [&]
                                                 {

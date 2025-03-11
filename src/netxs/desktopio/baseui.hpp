@@ -85,6 +85,7 @@ namespace netxs::events::userland
 {
     namespace e2
     {
+        using name_ref = std::pair<text, ui::wptr>;
         EVENTPACK( netxs::events::userland::root::base )
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
@@ -147,6 +148,7 @@ namespace netxs::events::userland
                 SUBSET_XS( plugins )
                 {
                     EVENT_XS( align, bool     ), // release: Enable/disable align plugin.
+                    EVENT_XS( luafx, name_ref ), // Collect Lua context name references.
                     GROUP_XS( focus, ui::sptr ), // request: pro::focus owner.
                     GROUP_XS( sizer, dent     ), // Configure sizer.
 

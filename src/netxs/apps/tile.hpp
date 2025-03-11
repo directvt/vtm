@@ -337,7 +337,7 @@ namespace netxs::app::tile
                     ->active()
                     ->plugin<pro::mover>()
                     ->plugin<pro::focus>(pro::focus::mode::focusable)
-                    ->plugin<pro::keybd>("grip")
+                    ->plugin<pro::keybd>()
                     ->plugin<pro::luafx>()
                     ->shader(c3, e2::form::state::focus::count)
                     ->plugin<pro::shade<cell::shaders::xlight>>()
@@ -352,7 +352,7 @@ namespace netxs::app::tile
                         auto& luafx = boss.base::template plugin<pro::luafx>();
                         auto& bindings = *grip_bindings_ptr;
                         keybd.bind(bindings);
-                        luafx.activate("grip.proc_map",
+                        luafx.activate("grip",
                         {
                             { action::MoveGrip,         [&]
                                                         {
@@ -388,7 +388,7 @@ namespace netxs::app::tile
                                                             }
                                                             luafx.set_return(ok);
                                                         }},
-                        });
+                        }, true);
                     }));
             return node;
         };
@@ -924,7 +924,7 @@ namespace netxs::app::tile
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
                 ->plugin<pro::focus>()
-                ->plugin<pro::keybd>("tile")
+                ->plugin<pro::keybd>()
                 ->plugin<pro::luafx>();
             static auto on_left_click = [](auto& boss, auto& event)
             {
@@ -1059,7 +1059,7 @@ namespace netxs::app::tile
                     auto& luafx = boss.base::template plugin<pro::luafx>();
                     auto bindings = pro::keybd::load(config, "tile");
                     keybd.bind(bindings);
-                    luafx.activate("tile.proc_map",
+                    luafx.activate("tile",
                     {
                         { action::FocusNextPaneOrGrip,  [&]
                                                         {

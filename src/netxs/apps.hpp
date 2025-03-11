@@ -220,7 +220,7 @@ namespace netxs::app::shared
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->plugin<pro::keybd>("defapp")
+                  ->plugin<pro::keybd>()
                   //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
@@ -252,7 +252,7 @@ namespace netxs::app::shared
             auto window = ui::cake::ctor()
                 ->active()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>("defapp")
+                ->plugin<pro::keybd>()
                 //->plugin<pro::acryl>()
                 //->plugin<pro::cache>()
                 ->alignment({ snap::both, snap::both })
@@ -559,7 +559,7 @@ namespace netxs::app::shared
                 .add(app::shared::repository);
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->plugin<pro::keybd>("infopage")
+                ->plugin<pro::keybd>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
@@ -790,7 +790,7 @@ namespace netxs::app::shared
                     "Alt+Shift+B"
                     #endif
                     , "vtm.infopage.ExclusiveKeyboardMode()", true);
-                luafx.activate("infopage.proc_map",
+                luafx.activate("infopage",
                 {
                     { "UpdateChordPreview",     [&]
                                                 {

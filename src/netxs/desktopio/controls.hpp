@@ -2082,7 +2082,7 @@ namespace netxs::ui
             std::unordered_map<text, std::pair<std::list<netxs::sptr<text>>, bool>, qiew::hash, qiew::equal> handlers; // Map<chord, pair<list<shared_ptr<script>>, preview>>.
             std::unordered_map<id_t, time> last_key;
             si64 instance_id;
-            std::vector<text> boss_names;
+            std::list<std::pair<text, wptr>> context_names;
 
             auto _get_chord_list(qiew chord_str = {}) -> std::optional<std::invoke_result_t<decltype(input::key::kmap::chord_list), qiew>>
             {
@@ -2156,38 +2156,38 @@ namespace netxs::ui
             }
 
         public:
-            void register_name(text boss_name)
-            {
-                boss_names.push_back(boss_name);
-            }
             keybd(base&&) = delete;
             keybd(base& boss)
-                : keybd{ boss, utf::concat("object"s, boss.id) }
-            { }
-            keybd(base& boss, text boss_name)
-                : keybd{ boss, std::vector<text>{ boss_name }}
-            { }
-            keybd(base& boss, std::vector<text> boss_name_list)
                 : skill{ boss },
-                  instance_id{ datetime::now().time_since_epoch().count() },
-                  boss_names{ boss_name_list }
+                  instance_id{ datetime::now().time_since_epoch().count() }
             {
-                boss.LISTEN(tier::request, e2::runscript, gear)
+                boss.LISTEN(tier::release, e2::config::plugins::luafx, name_and_reference, memo)
+                {
+                    context_names.push_back(name_and_reference);
+                };
+                boss.LISTEN(tier::request, e2::runscript, gear, memo)
                 {
                     if (gear.scripting_context_ptr)
                     {
                         auto& scripting_context = *gear.scripting_context_ptr;
-                        for (auto& boss_name : boss_names)
+                        std::erase_if(context_names, [&](auto& name_ref)
                         {
-                            auto& reference = scripting_context[boss_name];
-                            if (ptr::is_empty(reference))
+                            auto& [name, object_wptr] = name_ref;
+                            auto object_ptr = object_wptr.lock();
+                            auto is_lost = !object_ptr;
+                            if (!is_lost)
                             {
-                                reference = boss.This();
+                                auto& reference = scripting_context[name];
+                                if (ptr::is_empty(reference))
+                                {
+                                    reference = object_ptr;
+                                }
                             }
-                        }
+                            return is_lost;
+                        });
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::state::focus::count, count)
+                boss.LISTEN(tier::release, e2::form::state::focus::count, count, memo)
                 {
                     if (count == 0)
                     {
@@ -2879,18 +2879,31 @@ namespace netxs::ui
             using fxmap = std::unordered_map<text, std::function<void()>>;
 
             lua_State* lua;
+            std::unordered_set<text> registered_names;
 
             luafx(base&&) = delete;
             luafx(base& boss)
                 : skill{ boss },
                   lua{ boss.indexer.lua }
-            { }
+            {
+                boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
+                {
+                    if (context_keeper_ptr)
+                    {
+                        for (auto& name : registered_names)
+                        {
+                            context_keeper_ptr->base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });
+                        }
+                    }
+                };
+            }
 
-            auto activate(qiew map_name, fxmap&& proc_map_init)
+            auto activate(qiew name, fxmap&& proc_map_init, bool self_hosted = faux)
             {
                 if (!lua) return;
-                auto& proc_map = boss.base::property(map_name, std::move(proc_map_init));
-                boss.LISTEN(tier::release, e2::luafx, lua)
+                registered_names.insert(name);
+                auto& [proc_map, token] = boss.base::property(name, std::pair{ std::move(proc_map_init), hook{} });
+                boss.LISTEN(tier::release, e2::luafx, lua, token)
                 {
                     auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
                     auto iter = proc_map.find(fx_name);
@@ -2904,6 +2917,10 @@ namespace netxs::ui
                         log("%%Function %fx_name% not found", prompt::lua, ansi::hi(".", fx_name, "()"));
                     }
                 };
+                if (self_hosted)
+                {
+                    boss.base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });
+                }
             }
             template<class T>
             auto get_args_or(si32 idx, T fallback = {})

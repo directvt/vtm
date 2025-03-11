@@ -494,7 +494,7 @@ namespace netxs::ui
                 gear.board::alpha = props.clip_preview_alfa;
                 gear.mouse::delay = props.dblclick_timeout;
                 auto& luafx = gear.base::template plugin<pro::luafx>(); //todo apple clang requires template keyword
-                luafx.activate("gear.proc_map",
+                luafx.activate("gear",
                 {
                     { "IsKeyRepeated",  [&]
                                         {
@@ -746,12 +746,12 @@ namespace netxs::ui
               multihome{ base::property<input::multihome_t>("multihome") }
         {
             base::plugin<pro::focus>();
-            auto& keybd = base::plugin<pro::keybd>("gate");
+            auto& keybd = base::plugin<pro::keybd>();
             auto& mouse = base::plugin<pro::mouse>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(config, "gate");
             keybd.bind(bindings);
-            luafx.activate("gate.proc_map",
+            luafx.activate("gate",
             {
                 { "Disconnect",             [&]
                                             {

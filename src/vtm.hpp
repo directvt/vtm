@@ -657,7 +657,7 @@ namespace netxs::app::vtm
                 base::plugin<pro::light>();
                 base::plugin<pro::focus>();
                 auto& mouse = base::plugin<pro::mouse>();
-                auto& keybd = base::plugin<pro::keybd>("window");
+                auto& keybd = base::plugin<pro::keybd>();
                 auto& luafx = base::plugin<pro::luafx>();
                 base::limits(dot_11);
                 base::kind(base::reflow_root);
@@ -666,7 +666,7 @@ namespace netxs::app::vtm
                 auto& bindings = world.base::property<input::key::keybind_list_t>("window.bindings"); // Shared key bindings across the hall.
                 if (bindings.empty()) bindings = pro::keybd::load(world.config, "window");
                 keybd.bind(bindings);
-                luafx.activate("window.proc_map",
+                luafx.activate("window",
                 {
                     { "Warp",               [&]
                                             {
@@ -1246,11 +1246,11 @@ namespace netxs::app::vtm
             app::shared::get_tui_config(config, ui::skin::globals());
 
             base::plugin<pro::focus>(pro::focus::mode::focusable);
-            auto& keybd = base::plugin<pro::keybd>("desktop");
+            auto& keybd = base::plugin<pro::keybd>();
             auto& luafx = base::plugin<pro::luafx>();
             auto bindings = pro::keybd::load(config, "desktop");
             keybd.bind(bindings);
-            luafx.activate("hall.proc_map",
+            luafx.activate("desktop",
             {
                 { "Shutdown",           [&]
                                         {
@@ -1996,7 +1996,9 @@ namespace netxs::app::vtm
             //auto& usergate_os_id = usergate.base::property<text>("gate.os_id");
             usrcfg.cfg = utf::concat(usergate.id, ";", usergate.props.os_user_id);
             auto deskmenu_ptr = app::shared::builder(app::desk::id)(usrcfg, app_config);
-            deskmenu_ptr->base::plugin<pro::keybd>("taskbar");
+            deskmenu_ptr->base::plugin<pro::keybd>();
+            //todo
+            //deskmenu_ptr->lua.activate("taskbar")...
             app::shared::applet_kb_navigation(config, deskmenu_ptr);
             usergate.attach(std::move(deskmenu_ptr));
             usergate.base::extend({ vport, usrcfg.win }); // Restore user's last position.
