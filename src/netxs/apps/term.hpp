@@ -609,16 +609,16 @@ namespace netxs::app::terminal
         {
             boss.set_align(align);
         };
-        boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
+        boss.LISTEN(tier::release, e2::form::upon::started, context_keeper_ptr, -, (appcfg))
         {
-            if (root) // root is empty when d_n_d.
+            if (context_keeper_ptr) // context_keeper_ptr is empty when d_n_d.
             {
                 boss.start(appcfg);
             }
         };
-        boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+        boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
         {
-            boss.base::signal(tier::release, e2::form::upon::started, root);
+            boss.base::signal(tier::release, e2::form::upon::started, context_keeper_ptr);
         };
         boss.LISTEN(tier::anycast, terminal::events::search::forward, gear)
         {

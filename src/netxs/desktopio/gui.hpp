@@ -3283,7 +3283,8 @@ namespace netxs::gui
                 {
                     update_footer();
                 };
-                base::signal(tier::anycast, e2::form::upon::started, This());
+                auto context_keeper_ptr = This();
+                base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr);
             }
             auto winio = std::thread{ [&]
             {

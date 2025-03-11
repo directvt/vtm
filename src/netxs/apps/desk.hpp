@@ -639,12 +639,10 @@ namespace netxs::app::desk
                 ->active()
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                     {
-                        if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
-                        {
-                            auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
-                        }
+                        auto world_ptr = world.This();
+                        auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
@@ -667,12 +665,10 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                     {
-                        if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
-                        {
-                            auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
-                        }
+                        auto world_ptr = world.This();
+                        auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
                     };
                 });
             bttn->invoke([&](auto& boss)

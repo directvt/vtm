@@ -165,7 +165,7 @@ namespace netxs::app::tile
                     parent_canvas.bump(context);
                 }
             };
-            boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
+            boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
             {
                 client->clear();
                 if (auto parent_ptr = boss.base::parent())
@@ -249,7 +249,7 @@ namespace netxs::app::tile
                                 }
                             }
                         };
-                        boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                        boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                         {
                             boss.base::riseup(tier::release, tile::events::enlist, boss.This());
                         };
@@ -581,14 +581,15 @@ namespace netxs::app::tile
                             }
                         };
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                     {
                         if (auto item_ptr = boss.back())
                         {
                             auto& item = *item_ptr;
                             if (item.base::root())
                             {
-                                item.base::signal(tier::anycast, e2::form::upon::started, root);
+                                auto nested_context_keeper_ptr = item_ptr;
+                                item.base::signal(tier::anycast, e2::form::upon::started, nested_context_keeper_ptr);
                             }
                         }
                     };
@@ -732,14 +733,15 @@ namespace netxs::app::tile
                         auto& current_default = gate.base::property("desktop.selected");
                         if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator)) // Finalize app creation.
                         {
-                            auto config = world_ptr->base::signal(tier::request, vtm::events::apptype, { .menuid = current_default });
-                            if (config.type == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
-                            world_ptr->base::signal(tier::request, vtm::events::newapp, config);
-                            auto app = app_window(config);
+                            auto what = world_ptr->base::signal(tier::request, vtm::events::apptype, { .menuid = current_default });
+                            if (what.type == netxs::app::site::id) return; // Deny any desktop viewport markers inside the tiling manager.
+                            world_ptr->base::signal(tier::request, vtm::events::newapp, what);
+                            auto app = app_window(what);
                             pro::focus::off(boss.back());
                             boss.attach(app);
                             app->base::signal(tier::anycast, vtm::events::attached, world_ptr);
-                            app->base::signal(tier::anycast, e2::form::upon::started, app);
+                            auto context_keeper_ptr = what.applet;
+                            app->base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr);
                             pro::focus::set(app, gear.id, solo::off);
                         }
                     };
@@ -1033,11 +1035,12 @@ namespace netxs::app::tile
                         }
                         boss.base::unfield(oneshot);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr)
                     {
-                        if (parent_ptr)
+                        if (context_keeper_ptr)
+                        if (auto world_ptr = boss.base::signal(tier::general, e2::config::creator))
                         {
-                            boss.base::signal(tier::anycast, vtm::events::attached, parent_ptr);
+                            boss.base::signal(tier::anycast, vtm::events::attached, world_ptr);
                         }
                     };
                     boss.LISTEN(tier::request, e2::form::prop::window::state, state)

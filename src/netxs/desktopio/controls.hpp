@@ -1039,7 +1039,7 @@ namespace netxs::ui
                 foot_text = foots;
                 head_page = head_text;
                 foot_page = foot_text;
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo, (tokens = subs{}))
+                boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo, (tokens = subs{}))
                 {
                     if (head_live) header(head_text);
                     if (foot_live) footer(foot_text);
@@ -1458,9 +1458,9 @@ namespace netxs::ui
                 if (set_default_focus)
                 if (node_type == mode::focused || node_type == mode::active || node_type == mode::relay) // Pave default focus path at startup.
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, context_keeper_ptr, memo)
                     {
-                        if (parent_ptr) // Parent_ptr is always empty when the boss is dropped via d_n_d.
+                        if (context_keeper_ptr) // context_keeper_ptr is always empty when the boss is dropped via d_n_d.
                         {
                             pro::focus::set(boss.This(), id_t{}, solo::off);
                         }

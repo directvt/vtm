@@ -1108,7 +1108,8 @@ namespace netxs::app::vtm
                 inst_list.erase(inst_list_iter);
                 base::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
             };
-            window_ptr->base::signal(tier::anycast, e2::form::upon::started, is_handoff ? sptr{} : base::This());
+            auto context_keeper_ptr = is_handoff ? sptr{} : what.applet;
+            window_ptr->base::signal(tier::anycast, e2::form::upon::started, context_keeper_ptr);
             base::signal(tier::release, desk::events::apps, apps_list_ptr);
             window_ptr->base::reflow();
             return window_ptr;
