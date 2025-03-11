@@ -498,12 +498,6 @@ namespace netxs::ui
 {
     namespace e2 = netxs::events::userland::e2;
 
-    // controls: UI extensions.
-    namespace pro
-    {
-        struct skill;
-    }
-
     //todo reimplement
     struct skin
     {
