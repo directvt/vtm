@@ -2880,6 +2880,7 @@ namespace netxs::ui
 
             lua_State* lua;
             std::unordered_set<text> registered_names;
+            fxmap proc_map;
 
             luafx(base&&) = delete;
             luafx(base& boss)
@@ -2896,14 +2897,7 @@ namespace netxs::ui
                         }
                     }
                 };
-            }
-
-            auto activate(qiew name, fxmap&& proc_map_init, bool self_hosted = faux)
-            {
-                if (!lua) return;
-                registered_names.insert(name);
-                auto& [proc_map, token] = boss.base::property(name, std::pair{ std::move(proc_map_init), hook{} });
-                boss.LISTEN(tier::release, e2::luafx, lua, token)
+                boss.LISTEN(tier::release, e2::luafx, lua, memo)
                 {
                     auto fx_name = ::lua_tostring(lua, lua_upvalueindex(2)); // Get fx name.
                     auto iter = proc_map.find(fx_name);
@@ -2914,9 +2908,25 @@ namespace netxs::ui
                     }
                     else
                     {
-                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi(".", fx_name, "()"));
+                        auto object_name = registered_names.size() ? *(registered_names.begin()) : utf::concat("object<", boss.id, ">");
+                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi(object_name, ".", fx_name, "()"));
                     }
                 };
+            }
+
+            auto activate(qiew name, fxmap&& proc_map_init, bool self_hosted = faux)
+            {
+                if (!lua) return;
+                registered_names.insert(name);
+                proc_map.merge(proc_map_init);
+                if (proc_map_init.size())
+                {
+                    log("%%The following functions are not activated for '%%':", prompt::lua, name);
+                    for (auto& [fx_name, val] : proc_map_init)
+                    {
+                        log("%%%fx_name%", prompt::pads, ansi::hi(".", fx_name, "()"));
+                    }
+                }
                 if (self_hosted)
                 {
                     boss.base::signal(tier::release, e2::config::plugins::luafx, { name, boss.This() });

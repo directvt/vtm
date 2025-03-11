@@ -666,7 +666,7 @@ Notes
                         <menu item*>
                             <autohide=menu/autohide/>
                             <slim=menu/slim/>
-                            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                                 <tooltip>
                                     " Previous match                                  \n"
                                     "   LeftClick to jump to previous match or scroll \n"
@@ -676,7 +676,7 @@ Notes
                                 <label="<"/>
                                 <label="\e[38:2:0:255:0m<\e[m"/>
                             </item>
-                            <item action=TerminalFindNext>
+                            <item script=TerminalFindNext>
                                 <tooltip>
                                     " Next match                                     \n"
                                     "   LeftClick to jump to next match or scroll    \n"
@@ -686,7 +686,7 @@ Notes
                                 <label=">"/>
                                 <label="\e[38:2:0:255:0m>\e[m"/>
                             </item>
-                            <item type="Option" action=TerminalWrapMode>
+                            <item type="Option" script=TerminalWrapMode>
                                 <tooltip>
                                     " Wrapping text lines on/off      \n"
                                     "   Applied to selection if it is "
@@ -694,7 +694,7 @@ Notes
                                 <label="Wrap"                     data="off"/>
                                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                             </item>
-                            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+                            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                                 <label="Clipboard"                       data="none"/>
                                 <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
@@ -712,7 +712,7 @@ Notes
                                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                             </item>
-                            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+                            <item script=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
                                 <label="Reset" data="\e[!p"/>
                             </item>
                         </menu>
@@ -802,7 +802,7 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
@@ -812,7 +812,7 @@ Notes
                 <label="<"/>
                 <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item action=TerminalFindNext>
+            <item script=TerminalFindNext>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
@@ -822,7 +822,7 @@ Notes
                 <label=">"/>
                 <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode>
+            <item type="Option" script=ExclusiveKeyboardMode>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
@@ -831,7 +831,7 @@ Notes
                 <label=" Desktop "                                      data="off"/>
                 <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
             </item>
-            <item type="Option" action=TerminalWrapMode>
+            <item type="Option" script=TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     "   Applied to selection if it is "
@@ -839,7 +839,7 @@ Notes
                 <label="Wrap"                     data="off"/>
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
             </item>
-            <item type="Option" action=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
+            <item type="Option" script=TerminalClipboardFormat tooltip=" Clipboard format ">  <!-- type=Option means that the тext label will be selected when clicked. -->
                 <label="Clipboard"                       data="none"/>
                 <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
@@ -857,21 +857,21 @@ Notes
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <!-- <item type="Option" action=TerminalCwdSync> -->
+            <!-- <item type="Option" script=TerminalCwdSync> -->
             <!--     <label="Sync"                     data="off" tooltip=" CWD sync is off "/> -->
             <!--     <label="\e[38:2:0:255:0mSync\e[m" data="on"  tooltip=" CWD sync is on                          \n Make sure your shell has OSC9;9 enabled "/> -->
             <!-- </item> -->
-            <item type="Option" action=TerminalStdioLog>
+            <item type="Option" script=TerminalStdioLog>
                 <label="Log"                     data="off" tooltip=" Console logging is off "/>
                 <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
             </item>
-            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
+            <item script=TerminalOutput tooltip=" Clear TTY viewport ">
                 <label="Clear" data="\e[2J"/>
             </item>
-            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+            <item script=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
                 <label="Reset" data="\e[!p"/>
             </item>
-            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " action=TerminalSendKey data="Hello World!"/> -->
+            <!-- <item label="Hello, World!" tooltip=" Simulate keypress " script=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode=selection/mode/>  <!-- Selection clipboard copy format: "text" | "ansi" | "rich" | "html" | "protected" | "none". -->
@@ -888,24 +888,24 @@ Notes
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplication label=" + ">
+            <item script=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
-            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
-            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
-            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
-            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
-            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
-            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
-            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
-            <!-- <item action=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
-            <!-- <item action=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
-            <!-- <item action=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
-            <!-- <item action=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
+            <item script=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
+            <item script=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
+            <item script=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
+            <item script=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
+            <item script=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
+            <item script=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
+            <item script=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
+            <item script=TileClosePane          label="×"   tooltip=" Close active application "/>
+            <!-- <item script=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
+            <!-- <item script=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
+            <!-- <item script=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
+            <!-- <item script=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
         </menu>
     </tile>
     <defapp>

@@ -68,7 +68,7 @@ It is possible to create your own terminal window menu from scratch by specifyin
 <config>
     <terminal>
         <menu>
-            <item type="<menu_item_type>" action="<action>">
+            <item type="<menu_item_type>" script="<script_body>">
                 <tooltip>
                     " Tooltip text.      \n"
                     " Can be multi-line. "
@@ -192,7 +192,7 @@ Hotkey                       | Description
 <config>
     <terminal>
         <menu item*>
-            <item action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+            <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
                     " Previous match                                  \n"
                     "   LeftClick to jump to previous match or scroll \n"
@@ -203,7 +203,7 @@ Hotkey                       | Description
                 <label="<"/>
                 <label="\e[38:2:0:255:0m<\e[m"/>
             </item>
-            <item action=TerminalFindNext>
+            <item script=TerminalFindNext>
                 <tooltip>
                     " Next match                                     \n"
                     "   LeftClick to jump to next match or scroll    \n"
@@ -214,7 +214,7 @@ Hotkey                       | Description
                 <label=">"/>
                 <label="\e[38:2:0:255:0m>\e[m"/>
             </item>
-            <item type="Option" action=ExclusiveKeyboardMode>
+            <item type="Option" script=ExclusiveKeyboardMode>
                 <tooltip>
                     " Toggle exclusive keyboard mode              \n"
                     "   Exclusive keyboard mode allows keystrokes \n"
@@ -223,7 +223,7 @@ Hotkey                       | Description
                 <label=" Desktop "                                      data="off"/>
                 <label="\e[48:2:0:128:128;38:2:0:255:0m Exclusive \e[m" data="on"/>
             </item>
-            <item type="Option" action=TerminalWrapMode>
+            <item type="Option" script=TerminalWrapMode>
                 <tooltip>
                     " Wrapping text lines on/off      \n"
                     " - applied to selection if it is "
@@ -231,7 +231,7 @@ Hotkey                       | Description
                 <label="Wrap"                     data="off"/>
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
             </item>
-            <item type="Option" action=TerminalAlignMode>
+            <item type="Option" script=TerminalAlignMode>
                 <tooltip>
                     " Align text lines left/right/center \n"
                     " - applied to selection if it is    "
@@ -240,7 +240,7 @@ Hotkey                       | Description
                 <label="\e[38:2:0:255:255mRight\e[m"  data="right"/>
                 <label="\e[38:2:255:255:0mCenter\e[m" data="center"/>
             </item>
-            <item type="Option" action=TerminalClipboardFormat tooltip=" Text selection mode ">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+            <item type="Option" script=TerminalClipboardFormat tooltip=" Text selection mode ">  <!-- type=Option means that the тext label will be selected when clicked.  -->
                 <label="Selection"                       data="none"/>
                 <label="\e[38:2:0:255:0mPlaintext\e[m"   data="text"/>
                 <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
@@ -258,62 +258,62 @@ Hotkey                       | Description
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item type="Option" action=TerminalStdioLog tooltip=" Stdin/out logging is off ">
+            <item type="Option" script=TerminalStdioLog tooltip=" Stdin/out logging is off ">
                 <label="Log"                     data="off"/>
                 <label="\e[38:2:0:255:0mLog\e[m" data="on" tooltip=" Stdin/out logging is on \n Run Logs to see output  "/>
             </item>
             <item label="  " tooltip=" just empty menu block/splitter "/>
-            <item action=TerminalOutput tooltip=" Clear TTY viewport ">
+            <item script=TerminalOutput tooltip=" Clear TTY viewport ">
                 <label="Clear" data="\e[2J"/>
             </item>
-            <item action=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
+            <item script=TerminalOutput tooltip=" Clear scrollback and SGR-attributes ">
                 <label="Reset" data="\e[!p"/>
             </item>
-            <item type="Command" action=TerminalRestart label="Restart"/>
-            <item action=TerminalScrollViewportToTop    label="Top"/>
-            <item action=TerminalScrollViewportToEnd    label="End"/>
+            <item type="Command" script=TerminalRestart label="Restart"/>
+            <item script=TerminalScrollViewportToTop    label="Top"/>
+            <item script=TerminalScrollViewportToEnd    label="End"/>
 
-            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgLeft"    data=" 1, 0"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgRight"   data="-1, 0"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgUp"      data=" 0, 1"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByPage><label="PgDn"      data=" 0,-1"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByCell><label="CharLeft"  data=" 1, 0"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByCell><label="CharRight" data="-1, 0"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByCell><label="LineUp"    data=" 0, 1"/></item>
-            <item type="Repeat" action=TerminalScrollViewportByCell><label="LineDn"    data=" 0,-1"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByPage><label="PgLeft"    data=" 1, 0"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByPage><label="PgRight"   data="-1, 0"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByPage><label="PgUp"      data=" 0, 1"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByPage><label="PgDn"      data=" 0,-1"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByCell><label="CharLeft"  data=" 1, 0"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByCell><label="CharRight" data="-1, 0"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByCell><label="LineUp"    data=" 0, 1"/></item>
+            <item type="Repeat" script=TerminalScrollViewportByCell><label="LineDn"    data=" 0,-1"/></item>
 
-            <item action=TerminalViewportCopy    label="PrnScr"/>
-            <item action=TerminalSelectionCancel label="Deselect"/>
+            <item script=TerminalViewportCopy    label="PrnScr"/>
+            <item script=TerminalSelectionCancel label="Deselect"/>
             
-            <item type="Option" action=TerminalSelectionRect>
+            <item type="Option" script=TerminalSelectionRect>
                 <label="Line" data="false"/>
                 <label="Rect" data="true"/>
             </item>
-            <item type="Repeat"  action=TerminalClipboardCopy  label="Copy"/>
-            <item type="Repeat"  action=TerminalClipboardPaste label="Paste"/>
-            <item type="Repeat"  action=TerminalClipboardWipe  label="Wipe"/>
-            <item type="Command" action=TerminalUndo           label="Undo"/>
-            <item type="Command" action=TerminalRedo           label="Redo"/>
-            <item type="Command" action=TerminalQuit           label="Quit"/>
-            <item type="Command" action=TerminalFullscreen     label="Fullscreen"/>
-            <item type="Command" action=TerminalMaximize       label="Maximize"/>
-            <item type="Command" action=TerminalMinimize       label="Minimize"/>
-            <item type="Command" action=Noop                   label="Noop"/>
+            <item type="Repeat"  script=TerminalClipboardCopy  label="Copy"/>
+            <item type="Repeat"  script=TerminalClipboardPaste label="Paste"/>
+            <item type="Repeat"  script=TerminalClipboardWipe  label="Wipe"/>
+            <item type="Command" script=TerminalUndo           label="Undo"/>
+            <item type="Command" script=TerminalRedo           label="Redo"/>
+            <item type="Command" script=TerminalQuit           label="Quit"/>
+            <item type="Command" script=TerminalFullscreen     label="Fullscreen"/>
+            <item type="Command" script=TerminalMaximize       label="Maximize"/>
+            <item type="Command" script=TerminalMinimize       label="Minimize"/>
+            <item type="Command" script=Noop                   label="Noop"/>
 
-            <item type="Option" action=AlwaysOnTopApplet>
+            <item type="Option" script=AlwaysOnTopApplet>
                 <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
                 <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
             </item>
 
-            <item action=TerminalSendKey tooltip=" Simulate keypresses ">
+            <item script=TerminalSendKey tooltip=" Simulate keypresses ">
                 <label="Hello, World!" data="Hello World!"/>
             </item>
-            <item type="Repeat" action=TerminalOutput tooltip=" test ">
+            <item type="Repeat" script=TerminalOutput tooltip=" test ">
                 <label="Push Me" data="pressed"/>
                 <label="\e[37mPush Me\e[m"/>
             </item>
 
-            <item type="Option" action=TerminalSelectionOneShot>
+            <item type="Option" script=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as HTML \n"
                     " while mouse tracking is active. "
@@ -321,7 +321,7 @@ Hotkey                       | Description
                 <label=" HTML "                                      data="none"/>
                 <label="\e[48:2:0:128:128;38:2:0:255:255m HTML \e[m" data="html"/>
             </item>
-            <item type="Option" action=TerminalSelectionOneShot>
+            <item type="Option" script=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as Text \n"
                     " while mouse tracking is active. "
@@ -329,7 +329,7 @@ Hotkey                       | Description
                 <label=" Text "                                  data="none"/>
                 <label="\e[48:2:0:128:0;38:2:0:255:0m Text \e[m" data="text"/>
             </item>
-            <item type="Option" action=TerminalSelectionOneShot>
+            <item type="Option" script=TerminalSelectionOneShot>
                 <tooltip>
                     " One-shot toggle to copy as Text/HTML \n"
                     " while mouse tracking is active.      "
@@ -422,24 +422,24 @@ Tiling Window Manager is a window container that organizes the workspace into mu
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item action=TileRunApplication label=" + ">
+            <item script=TileRunApplication label=" + ">
                 <tooltip>
                     " Launch application instances in active empty slots.     \n"
                     " The app to run can be set by RightClick on the taskbar. "
                 </tooltip>
             </item>
-            <item action=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
-            <item action=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
-            <item action=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
-            <item action=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
-            <item action=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
-            <item action=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
-            <item action=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
-            <item action=TileClosePane          label="×"   tooltip=" Close active application "/>
-            <!-- <item action=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
-            <!-- <item action=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
-            <!-- <item action=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
-            <!-- <item action=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
+            <item script=TileSelectAllPanes     label=":::" tooltip=" Select all panes "/>
+            <item script=TileSplitHorizontally  label=" │ " tooltip=" Split active panes horizontally "/>
+            <item script=TileSplitVertically    label="──"  tooltip=" Split active panes vertically "/>
+            <item script=TileSplitOrientation   label="┌┘"  tooltip=" Change split orientation "/>
+            <item script=TileSwapPanes          label="<->" tooltip=" Swap two or more panes "/>
+            <item script=TileEqualizeSplitRatio label=">|<" tooltip=" Equalize split ratio "/>
+            <item script=TileSetManagerTitle    label='"…"' tooltip=" Set tiling window manager title using clipboard data "/>
+            <item script=TileClosePane          label="×"   tooltip=" Close active application "/>
+            <!-- <item script=TileFocusPrev      label="<"   tooltip=" Focus the previous pane or the split grip "/> -->
+            <!-- <item script=TileFocusNext      label=">"   tooltip=" Focus the next pane or the split grip "/> -->
+            <!-- <item script=TileFocusPrevPane  label="<-"  tooltip=" Focus the previous pane "/> -->
+            <!-- <item script=TileFocusNextPane  label="->"  tooltip=" Focus the next pane "/> -->
         </menu>
     </tile>
     <events>

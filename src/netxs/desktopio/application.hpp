@@ -319,7 +319,7 @@ namespace netxs::app::shared
             static constexpr auto type     = "type";
             static constexpr auto label    = "label";
             static constexpr auto tooltip  = "tooltip";
-            static constexpr auto action   = "action";
+            static constexpr auto script   = "script";
             static constexpr auto data     = "data";
         }
         namespace type
@@ -582,12 +582,18 @@ namespace netxs::app::shared
             {
                 auto item = menu::item{};
                 auto& data = *data_ptr;
-                //todo scripting (expand action)
-                auto action = data.take(menu::attr::action, ""s);
+                auto script_ptr = ptr::shared<text>();
+                auto& script = *script_ptr;
+                for (auto script_rec_ptr : data.list(menu::attr::script))
+                {
+                    script += config.expand(script_rec_ptr);
+                    script += '\n';
+                }
+                if (script.size()) script.pop_back(); // Pop '\n'.
                 item.type = data.take(menu::attr::type, menu::type::Command, type_options);
                 defs.tooltip = data.take(menu::attr::tooltip, ""s);
                 defs.data = data.take(menu::attr::data, ""s);
-                item.alive = !action.empty() && item.type != menu::type::Splitter;
+                item.alive = !script.empty() && item.type != menu::type::Splitter;
                 for (auto label : data.list(menu::attr::label))
                 {
                     item.views.push_back(
@@ -598,21 +604,38 @@ namespace netxs::app::shared
                     });
                 }
                 if (item.views.empty()) continue; // Menu item without label.
-                auto setup = [action, &proc_map](ui::item& boss, menu::item& item)
+                auto setup = [script_ptr, &proc_map](ui::item& boss, menu::item& item)
                 {
-                    if (item.type == menu::type::Option)
+                    auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
+                    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (script_ptr))
                     {
-                        boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
-                        {
-                            item.taken = (item.taken + 1) % item.views.size();
-                        };
-                    }
-                    auto iter = proc_map.find(action);
-                    if (iter != proc_map.end())
-                    {
-                        auto& initproc = iter->second;
-                        initproc(boss, item);
-                    }
+                        item.taken = (item.taken + 1) % item.views.size();
+                        //todo unify: controls.hpp:2132
+                        scripting_context_ptr->clear();
+                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                        boss.base::riseup(tier::request, e2::runscript, gear, true);
+                        std::swap(gear.scripting_context_ptr, scripting_context_ptr);
+                        //todo unify: controls.hpp:2143
+                        auto temp_script_ptr = std::exchange(gear.script_ptr, script_ptr);
+                        auto temp_scripting_context_ptr = std::exchange(gear.scripting_context_ptr, scripting_context_ptr);
+                        boss.base::riseup(tier::preview, e2::runscript, gear);
+                        gear.script_ptr = temp_script_ptr;
+                        gear.scripting_context_ptr = temp_scripting_context_ptr;
+                    };
+
+                    //if (item.type == menu::type::Option)
+                    //{
+                    //    boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear)
+                    //    {
+                    //        item.taken = (item.taken + 1) % item.views.size();
+                    //    };
+                    //}
+                    //auto iter = proc_map.find(action);
+                    //if (iter != proc_map.end())
+                    //{
+                    //    auto& initproc = iter->second;
+                    //    initproc(boss, item);
+                    //}
                 };
                 list.push_back({ item, setup });
             }
