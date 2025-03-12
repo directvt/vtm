@@ -401,21 +401,26 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item name="bttn" label="^" type="Option" script=AlwaysOnTopApplet>
-                <event="ZOrder" source="terminal">
-                    <script>
-                        if (vtm.terminal.ZOrder()==1) then
-                            bttn.label="^"
-                            bttn.tooltip=" AlwaysOnTop off "
-                        else
-                            bttn.label="\\x1b[38:2:0:255:0m^\\x1b[m"
-                            bttn.tooltip=" AlwaysOnTop on "
-                        end
-                        bttn.deface()
-                    </script>
-                </event>
-                <label="^"                     data="off" tooltip=" AlwaysOnTop off "/>
-                <label="\e[38:2:0:255:0m^\e[m" data="on"  tooltip=" AlwaysOnTop on "/>
+            <item="button" label="^" tooltip=" AlwaysOnTop off ">
+                <!--
+                event="mouse:Enter"
+                event="mouse:Leave"
+                event="mouse:Move"
+                event="mouse:LeftDown"
+                event="mouse:LeftUp"
+                event="mouse:LeftClick"
+                event="mouse:LeftDblClick"
+                event="key:Enter"
+                event="key:Ctrl+B"
+                -->
+                <script=AlwaysOnTopApplet event="mouse:LeftClick" event="key:Enter" event="key:Space"/> <!-- The default event source is the parent object, i.e. source="button". -->
+                <script>
+                    <event="property:ZOrder" source="terminal"/>
+                    local is_topmost=vtm.terminal.ZOrder()==1
+                    button.label=is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^"
+                    button.tooltip=is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off "
+                    button.Deface()
+                </script>
             </item>
             <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <tooltip>
