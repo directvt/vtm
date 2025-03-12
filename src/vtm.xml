@@ -401,25 +401,36 @@ R"==(
         <menu item*>
             <autohide=menu/autohide/>
             <slim=menu/slim/>
-            <item="button" label="^" tooltip=" AlwaysOnTop off ">
+            <item label="^" tooltip=" AlwaysOnTop off ">
                 <!--
                 event="mouse:Enter"
                 event="mouse:Leave"
                 event="mouse:Move"
-                event="mouse:LeftDown"
-                event="mouse:LeftUp"
-                event="mouse:LeftClick"
-                event="mouse:LeftDblClick"
+                event="mouse:Wheel" fp2d: hz/vt
+                event="mouse:0:Down"
+                event="mousepreview:0:Down"
+                event="mouse:0:Up"
+                event="mouse:0:Click"
+                event="mouse:8:Click"  0:Left 1:Right 2:Middle 3:button4 4:button5 ...
+                event="mouse:0:DblClick"
+                event="mouse:0:DragStart"
+                event="mouse:0:DragPull"
+                event="mouse:0:DragStop"
+                event="mouse:0:DragCancel"
                 event="key:Enter"
+                event="keypreview:Enter"
                 event="key:Ctrl+B"
+                event="key:-Ctrl"
+                event="key:-Ctrl"
                 -->
-                <script=AlwaysOnTopApplet event="mouse:LeftClick" event="key:Enter" event="key:Space"/> <!-- The default event source is the parent object, i.e. source="button". -->
+                <script=AlwaysOnTopApplet event="mouse:LeftClick" event="key:Enter" event="key:Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
                 <script>
-                    <event="property:ZOrder" source="terminal"/>
+                    <event="release:ZOrder" source="terminal"/>
+                    <event="preview:ZOrder" source="terminal"/>
                     local is_topmost=vtm.terminal.ZOrder()==1
-                    button.label=is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^"
-                    button.tooltip=is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off "
-                    button.Deface()
+                    item.label=is_topmost and "\\x1b[38:2:0:255:0m^\\x1b[m" or "^"
+                    item.tooltip=is_topmost and " AlwaysOnTop on " or " AlwaysOnTop off "
+                    item.Deface()
                 </script>
             </item>
             <item script=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
