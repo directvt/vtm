@@ -411,19 +411,22 @@ R"==(
                 event="mouse:0:Up"
                 event="mousepreview:0:Down"
                 event="mouse:0:Click"
-                event="mouse:8:Click"  0:Left 1:Right 2:Middle 3:button4 4:button5 ...
-                event="mouse:0:DblClick"
-                event="mouse:0:DragStart"
-                event="mouse:0:DragPull"
-                event="mouse:0:DragStop"
-                event="mouse:0:DragCancel"
+                event="mouse:Ctrl+Shift+Click0"
+                event="mouse:Ctrl+Shift+Mouse0"
+                event="mouse:Ctrl+Shift-Mouse0"
+                event="mouse:Click8"  0:Left 1:Right 2:Middle 3:button4 4:button5 ...
+                event="mouse:DblClick0"
+                event="mouse:DragStart0"
+                event="mouse:DragPull0"
+                event="mouse:DragStop0"
+                event="mouse:DragCancel0"
                 event="key:Enter"
                 event="keypreview:Enter"
                 event="key:Ctrl+B"
                 event="key:-Ctrl"
                 event="key:-Ctrl"
                 -->
-                <script=AlwaysOnTopApplet event="mouse:0:Click" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
+                <script=AlwaysOnTopApplet event="mouse:Click0" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
                 <script>
                     <event="release:ZOrder" source="terminal"/>
                     <!-- <event="preview:ZOrder" source="terminal"/> -->
