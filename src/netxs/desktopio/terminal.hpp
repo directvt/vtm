@@ -6263,6 +6263,7 @@ namespace netxs::ui
                         curln.style.jet(align);
                         batch.recalc(curln);
                     });
+                    if (a != bias::none) style.jet(a);
                     resize_viewport(panel, true); // Recalc batch.basis.
                 }
                 else
@@ -7566,7 +7567,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata<true>();
+            ondata<true>(); // Trigger to rise event.
         }
         void set_align(si32 align = {})
         {
@@ -7575,7 +7576,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata<true>();
+            ondata<true>(); // Trigger to rise event.
         }
         void set_selmod(si32 mode)
         {
@@ -7924,22 +7925,21 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetExclusiveKeyboardMode",   [&]
+                { "ExclusiveKeyboardMode",      [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::toggleraw);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto state = luafx.get_args_or(1, true);
-                                                            set_rawkbd(1 + (si32)state);
-                                                        }
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = (si32)rawkbd;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, 0);
+                                                        set_rawkbd(1 + (si32)!!state);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
                 { "FindNextMatch",              [&]
                                                 {
@@ -8046,38 +8046,37 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetClipboardFormat",         [&]
+                { "ClipboardFormat",            [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        auto format = luafx.get_args_or(1, ""s);
-                                                        if (format.empty())
-                                                        {
-                                                            exec_cmd(commands::ui::togglesel);
-                                                        }
-                                                        else
-                                                        {
-                                                            set_selmod((si32)netxs::get_or(xml::options::format, format, mime::textonly));
-                                                        }
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = (si32)selmod;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, 1);
+                                                        set_selmod(state % mime::count);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
-                { "SetSelectionForm",           [&]
+                { "SelectionForm",              [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::toggleselalt);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto form = luafx.get_args_or(1, faux);
-                                                            set_selalt(form);
-                                                        }
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = !!selalt;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, si32{ 0 });
+                                                        set_selalt(state);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
                 { "ClearSelection",             [&]
                                                 {
@@ -8121,56 +8120,72 @@ namespace netxs::ui
                                                         gear.set_handled();
                                                     });
                                                 }},
-                { "SetCwdSync",                 [&]
+                { "CwdSync",                    [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    auto& cwd_sync = base::property("terminal.cwd_sync", faux);
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        base::riseup(tier::preview, ui::tty::events::toggle::cwdsync, true);
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = (si32)cwd_sync;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, 0);
+                                                        base::riseup(tier::preview, ui::tty::events::toggle::cwdsync, state);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
-                { "SetWrappingMode",            [&]
+                { "LineWrapMode",               [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::togglewrp);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto state = luafx.get_args_or(1, true);
-                                                            set_wrapln(1 + (si32)!state);
-                                                        }
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = target->style.wrp() == wrap::off ? 0 : 1;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, si32{ 1 });
+                                                        set_wrapln(1 + (si32)!state);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
-                { "SetAligningMode",            [&]
+                { "LineAlignMode",              [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        auto args_count = luafx.args_count();
-                                                        if (!args_count)
-                                                        {
-                                                            exec_cmd(commands::ui::togglejet);
-                                                        }
-                                                        else
-                                                        {
-                                                            auto state = luafx.get_args_or(1, ""s);
-                                                            set_align((si32)netxs::get_or(xml::options::align, state, bias::none));
-                                                        }
-                                                        gear.set_handled();
-                                                    });
+                                                        auto align = target->style.jet();
+                                                        auto state = align == bias::left || align == bias::none  ? 0 :
+                                                                                            align == bias::right ? 1 : 2;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, si32{ 0 });
+                                                        set_align(1 + std::clamp(state, 0, 2));
+                                                        luafx.set_return();
+                                                    }
                                                 }},
-                { "SetLogging",                 [&]
+                { "LogMode",                    [&]
                                                 {
-                                                    luafx.run_with_gear([&](auto& gear)
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    auto args_count = luafx.args_count();
+                                                    if (!args_count)
                                                     {
-                                                        set_log(luafx.get_args_or(1, !io_log));
-                                                        ondata<true>();
-                                                        gear.set_handled();
-                                                    });
+                                                        auto state = (si32)io_log;
+                                                        luafx.set_return(state);
+                                                    }
+                                                    else
+                                                    {
+                                                        auto state = luafx.get_args_or(1, 0);
+                                                        set_log(state);
+                                                        luafx.set_return();
+                                                    }
                                                 }},
                 { "Restart",                    [&]
                                                 {

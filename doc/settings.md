@@ -592,7 +592,7 @@ Notes
         <RollFontsBackward     ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts(-1) end"/>       <!-- Roll font list backward. -->
         <RollFontsForward      ="if (not vtm.gear.IsKeyRepeated()) then vtm.gate.RollFonts( 1) end"/>       <!-- Roll font list forward. -->
 
-        <ExclusiveKeyboardMode             ="vtm.terminal.SetExclusiveKeyboardMode()"/>   <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
+        <ExclusiveKeyboardMode             ="vtm.terminal.ExclusiveKeyboardMode(vtm.terminal.ExclusiveKeyboardMode()==1 and 0 or 1)"/>  <!-- Toggle exclusive keyboard mode by pressing and releasing Ctrl-Alt or Alt-Ctrl (reversed release order). -->
         <TerminalFindPrev                  ="vtm.terminal.FindNextMatch(-1)"/>            <!-- Highlight prev match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalFindNext                  ="vtm.terminal.FindNextMatch( 1)"/>            <!-- Highlight next match of selected text fragment. Clipboard content is used if no active selection. -->
         <TerminalScrollViewportOnePageUp   ="vtm.terminal.ScrollViewportByPage( 0, 1)"/>  <!-- Scroll viewport one page up. -->
@@ -605,22 +605,24 @@ Notes
         <TerminalScrollViewportOneCellRight="vtm.terminal.ScrollViewportByCell(-1, 0)"/>  <!-- Scroll viewport one cell to the right. -->
         <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
-        <TerminalSendKey                   ="vtm.terminal.SendKey('test\r')"/>            <!-- Simulating keypresses using the specified string. -->
+        <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
         <TerminalOutput                    ="vtm.terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
+        <TerminalClear                     ="vtm.terminal.Print('\\x1b[2J')"/>            <!-- Clear TTY viewport. -->
         <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
         <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
         <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
         <TerminalClipboardWipe             ="vtm.terminal.ClearClipboard()"/>             <!-- Reset clipboard. -->
-        <TerminalClipboardFormat           ="vtm.terminal.SetClipboardFormat()"/>         <!-- Toggle terminal text selection copy format. -->
-        <TerminalSelectionForm             ="vtm.terminal.SetSelectionForm()"/>           <!-- Toggle between linear and rectangular selection form. -->
+        <TerminalClipboardFormat           ="vtm.terminal.ClipboardFormat((vtm.terminal.ClipboardFormat() + 1) % 6)"/>  <!-- Toggle terminal text selection copy format. 0: Disabled; 1: Plain text; 2: ANSI; 3: RTF; 4: HTML; 5: Sensitive plain text. -->
+        <TerminalSelectionForm             ="vtm.terminal.SelectionForm(vtm.terminal.SelectionForm()==1 and 0 or 1)"/>  <!-- Toggle between linear and rectangular selection form. 0: linear form; 1: boxed form. -->
         <TerminalSelectionCancel           ="vtm.terminal.ClearSelection()"/>             <!-- Deselect a selection. -->
         <TerminalSelectionOneShot          ="vtm.terminal.OneShotSelection()"/>           <!-- One-shot toggle to copy text while mouse tracking is active. Keep selection if 'Ctrl' key is pressed. -->
         <TerminalUndo                      ="vtm.terminal.UndoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input. -->
         <TerminalRedo                      ="vtm.terminal.RedoReadline()"/>               <!-- (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command. -->
-        <TerminalCwdSync                   ="vtm.terminal.SetCwdSync()"/>                 <!-- Toggle the current working directory sync mode. -->
-        <TerminalWrapMode                  ="vtm.terminal.SetWrappingMode()"/>            <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. -->
-        <TerminalAlignMode                 ="vtm.terminal.SetAligningMode()"/>            <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. -->
-        <TerminalStdioLog                  ="vtm.terminal.SetLogging()"/>                 <!-- Toggle stdin/stdout logging. -->
+        <TerminalCwdSync                   ="vtm.terminal.CwdSync(vtm.terminal.CwdSync()==1 and 0 or 1)"/>            <!-- Toggle the current working directory sync mode. -->
+        <TerminalWrapMode                  ="vtm.terminal.LineWrapMode(vtm.terminal.LineWrapMode()==1 and 0 or 1)"/>  <!-- Toggle terminal scrollback lines wrapping mode. Applied to the active selection if it is. 0: line wrapping is off; 1: line wrapping is on. -->
+        <TerminalAlignMode                 ="vtm.terminal.LineAlignMode((vtm.terminal.LineAlignMode() + 1) % 3)"/>    <!-- Toggle terminal scrollback lines aligning mode. Applied to the active selection if it is. 0: left; 1: right; 2: center. -->
+        <TerminalStdioLog                  ="vtm.terminal.LogMode(vtm.terminal.LogMode()==1 and 0 or 1)"/>            <!-- Toggle stdin/stdout logging. -->
         <TerminalRestart                   ="vtm.terminal.Restart()"/>                    <!-- Terminate runnning console apps and restart current session. -->
     </variables>
     <desktop>  <!-- Desktop client settings. -->

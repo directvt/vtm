@@ -2909,7 +2909,7 @@ namespace netxs::ui
                     else
                     {
                         auto object_name = registered_names.size() ? *(registered_names.begin()) : utf::concat("object<", boss.id, ">");
-                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi(object_name, ".", fx_name, "()"));
+                        log("%%Function %fx_name% not found", prompt::lua, ansi::hi("vtm.", object_name, ".", fx_name, "()"));
                     }
                 };
             }
@@ -3014,7 +3014,7 @@ namespace netxs::ui
             {
                 return ::lua_gettop(lua);
             }
-            auto run_with_gear(auto proc)
+            auto run_with_gear_wo_return(auto proc)
             {
                 auto gear_ptr = get_object<hids>("gear");
                 auto ok = !!gear_ptr;
@@ -3023,6 +3023,11 @@ namespace netxs::ui
                     auto& gear = *gear_ptr;
                     proc(gear);
                 }
+                return ok;
+            }
+            auto run_with_gear(auto proc)
+            {
+                auto ok = run_with_gear_wo_return(proc);
                 set_return(ok);
             }
             auto read_args(si32 index, auto add_item)
@@ -3135,8 +3140,14 @@ namespace netxs::ui
                 {
                     case LUA_TBOOLEAN:
                     case LUA_TNUMBER:
-                    case LUA_TSTRING: crop = ::lua_torawstring(lua, i); break;
-                    default:          crop = "<" + text{ ::lua_typename(lua, t) } + ">"; break;
+                    case LUA_TSTRING:
+                        crop += ::lua_torawstring(lua, i);
+                        break;
+                    default:
+                        crop += "<";
+                        crop += ::lua_typename(lua, t);
+                        crop += ">";
+                        break;
                 }
             }
             log("", crop);

@@ -621,6 +621,7 @@ namespace netxs::app::shared
                         boss.base::riseup(tier::preview, e2::runscript, gear);
                         gear.script_ptr = temp_script_ptr;
                         gear.scripting_context_ptr = temp_scripting_context_ptr;
+                        gear.dismiss_dblclick();
                     };
 
                     //if (item.type == menu::type::Option)
