@@ -403,7 +403,7 @@ R"==(
             <slim=menu/slim/>
             <item label="^" tooltip=" AlwaysOnTop off ">
                 <!--
-                    <bbb...>: 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: Left+Right; etc...
+                    <bbb...>: 0: AnyButton; 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: Left+Right; etc...
                     Button<bbb...>          Button<bbb...> pushed down / pressed.
                     -Button<bbb...>         Button<bbb...> released.
                     Click<bbb...>           Press and release button<bbb...> w/o movement.
@@ -427,6 +427,7 @@ R"==(
                 event="mouse:Button1"             Left button push down.
                 event="mouse:-Button1"            Left button release.
                 event="mousepreview:Down01"       Right button push down (preview phase).
+                event="mouse:Click"               Any button click.
                 event="mouse:Click1"              Left button click.
                 event="mouse:Click001"            Right button click.
                 event="mouse:Ctrl+Shift+Click1"   Left button click with Ctrl+Shift modifiers pressed.
