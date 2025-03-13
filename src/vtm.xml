@@ -403,30 +403,51 @@ R"==(
             <slim=menu/slim/>
             <item label="^" tooltip=" AlwaysOnTop off ">
                 <!--
-                event="mouse:Enter"
+                    <bbb...>: 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: Left+Right; etc...
+                    Button<bbb...>          Button<bbb...> pushed down / pressed.
+                    -Button<bbb...>         Button<bbb...> released.
+                    Click<bbb...>           Press and release button<bbb...> w/o movement.
+                    DoubleClick<bbb...>     Double clicked by button<bbb...>.
+                    TripleClick<bbb...>     Triple clicked by button<bbb...>.
+                    QuintupleClick<bbb...>  Quintuple clicked by button<bbb...>.
+                    Enter                   Mouse enter.
+                    Leave                   Mouse leave.
+                    Move                    Mouse moved by fp2d delta.
+                    Wheel                   Wheeled by fp32 delta.
+                    DragStart<bbb...>       Drag start with Button<bbb...> pressed.
+                    DragPull<bbb...>        Drag pull with Button<bbb...> pressed.
+                    DragStop<bbb...>        Drag stop with Button<bbb...> pressed.
+                    DragCancel<bbb...>      Drag cancel with Button<bbb...> pressed.
+                event="mouse:Enter"               Mouse enter.
+                event="mouse:-Enter"              Never happen.
+                event="mouse:Ctrl+Enter"          Mouse enter with Ctrl modifier pressed.
                 event="mouse:Leave"
                 event="mouse:Move"
                 event="mouse:Wheel" fp2d: hz/vt
-                event="mouse:0:Down"
-                event="mouse:0:Up"
-                event="mousepreview:0:Down"
-                event="mouse:0:Click"
-                event="mouse:Ctrl+Shift+Click0"
-                event="mouse:Ctrl+Shift+Mouse0"
-                event="mouse:Ctrl+Shift-Mouse0"
-                event="mouse:Click8"  0:Left 1:Right 2:Middle 3:button4 4:button5 ...
-                event="mouse:DblClick0"
-                event="mouse:DragStart0"
-                event="mouse:DragPull0"
-                event="mouse:DragStop0"
-                event="mouse:DragCancel0"
+                event="mouse:Button1"             Left button push down.
+                event="mouse:-Button1"            Left button release.
+                event="mousepreview:Down01"       Right button push down (preview phase).
+                event="mouse:Click1"              Left button click.
+                event="mouse:Click001"            Right button click.
+                event="mouse:Ctrl+Shift+Click1"   Left button click with Ctrl+Shift modifiers pressed.
+                event="mouse:Ctrl+Shift-Click1"   Never happen.
+                event="mouse:Ctrl+Shift+Button1"  Left button push down with Ctrl+Shift modifiers pressed.
+                event="mouse:Ctrl+Shift-Button1"  Left button release with Ctrl+Shift modifiers pressed.
+                event="mouse:DblClick1"           Double click (and stay pressed) by left button.
+                event="mouse:-DblClick1"          Double click (and release) by left button
+                event="mouse:Ctrl+DblClick1"      Double click (and stay pressed) by left button with Ctrl modifier pressed.
+                event="mouse:Ctrl-DblClick1"      Double click (and release) by left button with Ctrl modifier pressed.
+                event="mouse:DragStart101"        Drag start with Left and Right mouse buttons pressed.
+                event="mouse:DragPull101"
+                event="mouse:DragStop101"
+                event="mouse:DragCancel101"
                 event="key:Enter"
                 event="keypreview:Enter"
                 event="key:Ctrl+B"
                 event="key:-Ctrl"
                 event="key:-Ctrl"
                 -->
-                <script=AlwaysOnTopApplet event="mouse:Click0" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
+                <script=AlwaysOnTopApplet event="mouse:Click1" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
                 <script>
                     <event="release:ZOrder" source="terminal"/>
                     <!-- <event="preview:ZOrder" source="terminal"/> -->
