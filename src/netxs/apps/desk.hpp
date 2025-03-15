@@ -517,13 +517,13 @@ namespace netxs::app::desk
             auto world_ptr = window->base::signal(tier::general, e2::config::creator);
             if (!world_ptr) return window;
             auto& world = *world_ptr;
-            auto ground = window->attach(slot::_2, ui::cake::ctor())
-                ->template plugin<pro::notes>(" Info ");
+            auto ground = window->attach(slot::_2, ui::cake::ctor());
             auto ver_label = ground->attach(ui::item::ctor(utf::concat(app::shared::version)))
                 ->active(cell{}.fgc(whitedk).bgc(argb::active_transparent))
                 ->shader(c8, e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail })
+                ->template plugin<pro::notes>(" Info ")
                 ->invoke([&](auto& boss)
                 {
                     auto infospec = spec{ .hidden = true, .label = "Info", .title = "Info", .type = "info" };
