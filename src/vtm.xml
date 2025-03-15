@@ -403,41 +403,47 @@ R"==(
             <slim=menu/slim/>
             <item label="^" tooltip=" AlwaysOnTop off ">
                 <!--
-                    <bbb...>: 0: AnyButton; 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: Left+Right; etc...
-                    Button<bbb...>          Button<bbb...> pushed down / pressed.
-                    -Button<bbb...>         Button<bbb...> released.
-                    Click<bbb...>           Press and release button<bbb...> w/o movement.
-                    DoubleClick<bbb...>     Double clicked by button<bbb...>.
-                    TripleClick<bbb...>     Triple clicked by button<bbb...>.
-                    QuintupleClick<bbb...>  Quintuple clicked by button<bbb...>.
-                    Enter                   Mouse enter.
-                    Leave                   Mouse leave.
-                    Move                    Mouse moved by fp2d delta.
-                    Wheel                   Wheeled by fp32 delta.
-                    DragStart<bbb...>       Drag start with Button<bbb...> pressed.
-                    DragPull<bbb...>        Drag pull with Button<bbb...> pressed.
-                    DragStop<bbb...>        Drag stop with Button<bbb...> pressed.
-                    DragCancel<bbb...>      Drag cancel with Button<bbb...> pressed.
+                    //todo Mouse test page
+                    Format:
+                        Named:   <Left | Right | LeftRight | Middle><Down | Up | [Double | Triple | Quintuple]Click | Drag<Start | Pull | Stop | Cancel>>:
+                        Generic: <Down | Up | [Double | Triple | Quintuple]Click | Drag{Start | Pull | Stop | Cancel}><bbb...>:
+                            <bbb...>: 0: Any button; 100: Left; 010: Middle; 001: Right; 0001: Button4; 00001: Button5; 101: LeftRight; etc...
+                    Action:
+                        Down<bbb...>            Button<bbb...> push down / press.
+                        Up<bbb...>              Button<bbb...> release.
+                        Click<bbb...>           Press and release button<bbb...> w/o movement.
+                            DoubleClick<bbb...>     Double click by button<bbb...>.
+                            TripleClick<bbb...>     Triple click by button<bbb...>.
+                            QuintupleClick<bbb...>  Quintuple click by button<bbb...>.
+                        DragStart<bbb...>       Drag start with button<bbb...> pressed.
+                        DragPull<bbb...>        Drag pull with button<bbb...> pressed.
+                        DragStop<bbb...>        Drag stop with button<bbb...> pressed.
+                        DragCancel<bbb...>      Drag cancel with button<bbb...> pressed.
+                        Enter                   Mouse enter.
+                        Leave                   Mouse leave.
+                        Move                    Mouse move by fp2d delta.
+                        Wheel                   Wheel by fp32 delta.
+
                 event="mouse:Enter"               Mouse enter.
-                event="mouse:-Enter"              Never happen.
+                event="mouse:-Enter"              Same as Mouse enter.
                 event="mouse:Ctrl+Enter"          Mouse enter with Ctrl modifier pressed.
                 event="mouse:Leave"
                 event="mouse:Move"
                 event="mouse:Wheel" fp2d: hz/vt
-                event="mouse:Button1"             Left button push down.
-                event="mouse:-Button1"            Left button release.
+                event="mouse:Down1"               Left button push down.
+                event="mouse:Up1"                 Left button release.
                 event="mousepreview:Down01"       Right button push down (preview phase).
                 event="mouse:Click"               Any button click.
                 event="mouse:Click1"              Left button click.
                 event="mouse:Click001"            Right button click.
                 event="mouse:Ctrl+Shift+Click1"   Left button click with Ctrl+Shift modifiers pressed.
-                event="mouse:Ctrl+Shift-Click1"   Never happen.
-                event="mouse:Ctrl+Shift+Button1"  Left button push down with Ctrl+Shift modifiers pressed.
-                event="mouse:Ctrl+Shift-Button1"  Left button release with Ctrl+Shift modifiers pressed.
-                event="mouse:DblClick1"           Double click (and stay pressed) by left button.
-                event="mouse:-DblClick1"          Double click (and release) by left button
-                event="mouse:Ctrl+DblClick1"      Double click (and stay pressed) by left button with Ctrl modifier pressed.
-                event="mouse:Ctrl-DblClick1"      Double click (and release) by left button with Ctrl modifier pressed.
+                event="mouse:Ctrl+Shift-Click1"   Same as Ctrl+Shift+Click1.
+                event="mouse:Ctrl+Shift+Down1"    Left button push down with Ctrl+Shift modifiers pressed.
+                event="mouse:Ctrl+ShiftUp1"       Left button release with Ctrl+Shift modifiers pressed.
+                event="mouse:DoubleClick1"        Double click (and stay pressed) by left button.
+                event="mouse:-DoubleClick1"       Double click (and release) by left button
+                event="mouse:Ctrl+DoubleClick1"   Double click (and stay pressed) by left button with Ctrl modifier pressed.
+                event="mouse:Ctrl-DoubleClick1"   Double click (and release) by left button with Ctrl modifier pressed.
                 event="mouse:DragStart101"        Drag start with Left and Right mouse buttons pressed.
                 event="mouse:DragPull101"
                 event="mouse:DragStop101"
@@ -447,6 +453,8 @@ R"==(
                 event="key:Ctrl+B"
                 event="key:-Ctrl"
                 event="key:-Ctrl"
+                event="focus:got"
+                event="focus:lost"
                 -->
                 <script=AlwaysOnTopApplet event="mouse:Click1" event="key:-Enter" event="key:-Space"/> <!-- The default event source is the parent object, i.e. source="item". -->
                 <script>
