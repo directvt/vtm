@@ -913,20 +913,71 @@ namespace netxs::input
             //todo use current item's type: Law<twod>
             return delta.fader<Law>(spell);
         }
+
+        si32 pressed = {}; // hids: Physical button state.
+        si32 bttn_id = {}; // hids: Logical button id.
+        bool dragged = {};
+        fp2d pressxy; // knob: Press coordinates.
         // mouse: Generate mouse event.
         void update(sysmouse& m, core const& idmap)
         {
-            auto button_state = m.buttons;
-            pressed_count = 0;
-            while (button_state)
             {
-                pressed_count += button_state & 0x1;
-                button_state >>= 1;
+                auto next_state = m.buttons;
+                auto prev_state = pressed;
+                if (bttn_id & next_state)
+                {
+                    if (prev_state < next_state) // Additional button pressed. E.g., 100 -> 101. //todo possible bug in Apple's Terminal - it doesn't return the second release in case when two buttons are pressed.
+                    {
+                        if (dragged)
+                        {
+                            // drag_cancel(bttn_id); // drag_cancel(100);
+                        }
+                        // up(bttn_id); // up(100);
+                        // bttn_id |= state;
+                        // //auto pushed_bit =...
+                        // //push(pushed_bit);
+                        // push(bttn_id); // push(101);
+                    }
+                    //else if (prev_state > next_state) // Some button released. E.g., 101 -> 001.
+                    //{
+                    //    do nothing
+                    //    // //if (pressed_count > 1)
+                    //    // //{
+                    //    // //    auto released_bit =...
+                    //    // //    up(released_bit);
+                    //    // //}
+                    //}
+                }
+                else if (!prev_state && next_state) // First button(s) pressed. E.g., 000 -> 100.
+                {
+                    // assert(bttn_id == 0);
+                    // bttn_id = next_state;
+                    // //auto pushed_bit(s) =...
+                    // //push(pushed_bit(s));
+                    // push(bttn_id); // push(100);
+                }
+                else if (prev_state && !next_state) // The last button(s) pressed. E.g., 100 -> 000 (bttn_id=101).
+                {
+                    // assert(bttn_id != 0);
+                    if (dragged)
+                    {
+                        // drag_stop(bttn_id); // drag_stop(101);
+                    }
+                    // up(bttn_id); // up(101);
+                    // bttn_id = next_state;
+                }
+                pressed = next_state;
+                pressed_count = 0;
+                while (next_state)
+                {
+                    auto is_pressed = next_state & 0x1;
+                    pressed_count += is_pressed;
+                    next_state >>= 1;
+                }
             }
             auto m_buttons = std::bitset<8>(m.buttons);
             // Interpret button combinations.
-            //todo possible bug in Apple's Terminal - it does not return the second release
-            //                                        in case when two buttons are pressed.
+            //todo drop
             m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
                                                              || (m_buttons[left] && m_buttons[right]);
             m.buttons = (si32)m_buttons.to_ulong();
@@ -938,11 +989,16 @@ namespace netxs::input
                 delta.set(m_sys.coordxy - prime);
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
-                fire(movement); // Update mouse enter/leave state.
+                fire(movement); // Update mouse enter/leave state. Don't care about buttons.
+                pressed = m_sys.buttons;
+                bttn_id = m_sys.buttons;
+                dragged = {};
+                //todo drop
                 sync_button_state(m_sys.buttons);
                 return;
             }
-            if (m_buttons[leftright]) // Cancel left and right dragging if it is.
+            //todo drop
+            if (m_buttons[leftright]) // Cancel left and right drag if it is.
             {
                 if (bttns[left].dragged)
                 {
@@ -960,6 +1016,7 @@ namespace netxs::input
             }
 
             // Suppress left and right to avoid single button tracking (click, pull, etc)
+            //todo drop
             bttns[left ].blocked = m_buttons[leftright] || bttns[leftright].pressed;
             bttns[right].blocked = bttns[left].blocked;
 
@@ -971,8 +1028,16 @@ namespace netxs::input
                 auto new_target = idmap.link(m_sys.coordxy) != idmap.link(prime);
                 auto allow_drag = accum > drag_threshold || new_target;
                 delta.set(step);
-                auto active = si32{};
-                auto genptr = std::begin(bttns);
+                auto active = si32{}; //todo drop
+                auto genptr = std::begin(bttns); //todo drop
+                //todo process a single (current) bttn_id only
+                // if (pressed && allow_drag && !dragged)
+                // {
+                //     click = pressxy;
+                //     dragstrt(bttn_id);
+                //     dragged = true;
+                // }
+                //todo drop
                 for (auto i = 0; i < numofbuttons; i++)
                 {
                     auto& genbtn = *genptr++;
@@ -989,6 +1054,12 @@ namespace netxs::input
                 }
                 coord = m_sys.coordxy;
                 prime = m_sys.coordxy;
+                //todo process a single (current) bttn_id only
+                // if (allow_drag && dragged)
+                // {
+                //     dragpull(bttn_id);
+                // }
+                //todo drop
                 if (allow_drag) for (auto i = 0; active; ++i)
                 {
                     if (active & 0x1)
@@ -997,16 +1068,22 @@ namespace netxs::input
                     }
                     active >>= 1;
                 }
+
                 fire(movement);
             }
 
             if (!busy && fire_fast())
             {
+                pressed = m_sys.buttons;
+                bttn_id = m_sys.buttons;
+                dragged = {};
+                //todo drop
                 sync_button_state(m_sys.buttons);
                 return;
             }
 
             auto genptr = std::begin(bttns);
+            //todo process a single (current) bttn_id only
             for (auto i = 0; i < numofbuttons; i++)
             {
                 auto& genbtn = *genptr++;
@@ -1891,7 +1968,7 @@ namespace netxs::input
                         m_sys.hzwheel = {};
                     }
                 }
-                else if (mouse::swift == next_id) mouse::setfree();
+                else if (mouse::swift == next_id) mouse::setfree(); // Captureer is dead.
             }
             if (m_sav.changed != m_sys.changed) m_sav = m_sys;
             return !alive;
