@@ -801,7 +801,7 @@ namespace netxs::input
             bool pressed; // knod: Button pressed state.
             bool dragged; // knod: The button is in a dragging state.
             bool blocked; // knod: The button is blocked (leftright disables left and right).
-            fp2d clickxy; // knob: Press coordinates.
+            fp2d pressxy; // knob: Press coordinates.
         };
         struct hist_t // Timer for successive double-clicks, e.g. triple-clicks.
         {
@@ -980,7 +980,7 @@ namespace netxs::input
                     {
                         if (allow_drag && !genbtn.dragged)
                         {
-                            click = genbtn.clickxy;
+                            click = genbtn.pressxy;
                             fire(dragstrt, i);
                             genbtn.dragged = true;
                         }
@@ -1016,7 +1016,7 @@ namespace netxs::input
                     genbtn.pressed = sysbtn;
                     if (genbtn.pressed)
                     {
-                        genbtn.clickxy = prime;
+                        genbtn.pressxy = prime;
                         fire(pushdown, i);
                     }
                     else
@@ -1087,6 +1087,9 @@ namespace netxs::input
                 m_sys.hzwheel = {}; // Clear one-shot events.
                 m_sys.wheelfp = {};
                 m_sys.wheelsi = {};
+                hzwhl = {};
+                whlfp = {};
+                whlsi = {};
             }
         }
         // mouse: Return the number of clicks for the specified button.
