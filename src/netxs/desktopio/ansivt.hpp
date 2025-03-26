@@ -678,7 +678,7 @@ namespace netxs::ansi
             auto s_left = s_bttn[hids::left  ];
             auto s_rght = s_bttn[hids::right ];
             auto s_mddl = s_bttn[hids::middle];
-            auto pressed = bool{};
+            auto pressed = true;
 
             if (m_left != s_left)
             {
@@ -695,25 +695,27 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
+            //todo impl ext mouse buttons 128..131/m_5..m_8
+            //else if (m_5 != s_5)
+            //{
+            //    ...
+            //}
+            //...
             else if (gear.m_sys.wheelsi)
             {
                 if (gear.m_sys.hzwheel) ctrl |= gear.m_sys.wheelsi > 0 ? wheel_lt : wheel_rt;
                 else                    ctrl |= gear.m_sys.wheelsi > 0 ? wheel_up : wheel_dn;
-                pressed = true;
             }
             else if (gear.m_sys.buttons)
             {
-                //todo impl ext mouse buttons 128-131
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
                 else if (m_mddl) ctrl |= mddl;
                 ctrl |= idle;
-                pressed = true;
             }
             else
             {
                 ctrl |= idle + btup;
-                pressed = faux;
             }
             coor += dot_11;
             auto count = std::max(1, std::abs(gear.m_sys.wheelsi));
