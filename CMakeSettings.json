@@ -45,7 +45,19 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers -std=c++20",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/g++",
+          "_comment": "/bin/clang++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/gcc",
+          "_comment": "/bin/clang",
           "type": "STRING"
         }
       ],

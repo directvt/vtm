@@ -573,7 +573,7 @@ namespace netxs::app::shared
             auto slimsize = config.take("menu/slim"    , true);
             return mini(autohide, slimsize, 0, menu_items);
         };
-        const auto load = [](xmls& config, action_map_t const& proc_map)
+        const auto load = [](xmls& config, [[maybe_unused]] action_map_t const& proc_map)
         {
             auto list = menu::list{};
             auto defs = menu::item::look{};
@@ -604,7 +604,8 @@ namespace netxs::app::shared
                     });
                 }
                 if (item.views.empty()) continue; // Menu item without label.
-                auto setup = [script_ptr, &proc_map](ui::item& boss, menu::item& item)
+                //auto setup = [script_ptr, &proc_map](ui::item& boss, menu::item& item)
+                auto setup = [script_ptr](ui::item& boss, menu::item& item)
                 {
                     auto& scripting_context_ptr = boss.base::field(ptr::shared<std::unordered_map<text, ui::wptr>>());
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (script_ptr))
