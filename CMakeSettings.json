@@ -419,6 +419,18 @@
           "name": "CMAKE_CXX_FLAGS",
           "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/g++",
+          "_comment": "/bin/clang++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "/bin/gcc",
+          "_comment": "/bin/clang",
+          "type": "STRING"
         }
       ],
       "intelliSenseMode": "linux-gcc-x64",

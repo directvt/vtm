@@ -125,8 +125,8 @@ namespace netxs::app::terminal
             item.select(i);
             _update(boss, item);
         }
-        template<bool AutoUpdate = faux, class P>
-        auto _submit(ui::item& boss, menu::item& item, P proc)
+        template<bool AutoUpdate = faux>
+        auto _submit(ui::item& boss, menu::item& item, std::function<void(ui::item&, menu::item&, hids&)> proc)
         {
             if (item.type == menu::type::Repeat)
             {
