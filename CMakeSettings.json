@@ -45,7 +45,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers -std=c++20",
+          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
