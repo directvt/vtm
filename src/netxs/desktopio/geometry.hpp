@@ -6,10 +6,6 @@
 #include "utf.hpp"
 #include "generics.hpp"
 
-#if defined(__linux__) || defined(__APPLE__)
-    #include <stdint.h>
-#endif
-
 namespace netxs
 {
     using fifo = generics::fifo<si32>;

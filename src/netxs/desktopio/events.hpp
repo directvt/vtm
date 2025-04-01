@@ -89,7 +89,7 @@ namespace netxs::events
     static constexpr inline auto subindex(hint event)
     {
         auto offset = level(event) * block;
-        auto number = (event >> (offset - block)) - 1;
+        auto number = (si32)((event >> (offset - block)) - 1);
         return number;
     }
     // events: Return event id by group + index.
@@ -245,17 +245,17 @@ namespace netxs::events
 
     struct auth
     {
-        id_t                       newid{};
-        wptr<ui::base>             empty;
-        std::recursive_mutex       mutex;
-        std::map<id_t, wptr<ui::base>> store;
-        generics::jobs<wptr<ui::base>> agent;
-        reactor                    general{ true };
-        lua_State*                 lua;
-        si32                       fps{};
-        hook                       memo{};
-        datetime::quartz<auth>     quartz;
-        hint                       e2_timer_tick_id;
+        id_t                                     newid{};
+        wptr<ui::base>                           empty;
+        std::recursive_mutex                     mutex;
+        std::unordered_map<id_t, wptr<ui::base>> store;
+        generics::jobs<wptr<ui::base>>           agent;
+        reactor                                  general{ true };
+        lua_State*                               lua;
+        si32                                     fps{};
+        hook                                     memo{};
+        datetime::quartz<auth>                   quartz;
+        hint                                     e2_timer_tick_id;
 
         auth(lua_State* lua = {}, hint e2_config_fps_id = {}, hint e2_timer_tick_id = {})
             : lua{ lua },
