@@ -44,8 +44,13 @@
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "-O0 -DDEBUG -pthread -g -Wall -Wextra -Wno-missing-field-initializers",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "-O0 -DDEBUG",
           "type": "STRING"
         },
         {
@@ -94,7 +99,7 @@
     {
       "name": "4.WSL-x32-Debug",
       "generator": "Unix Makefiles",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -104,13 +109,13 @@
       "inheritEnvironments": [ "linux_x86" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-O0 -DDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "-O0 -static -DDEBUG -pthread  -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -static",
+          "value": "-O0 -static -DDEBUG",
           "type": "STRING"
         },
         {
@@ -121,11 +126,6 @@
         {
           "name": "CMAKE_C_COMPILER",
           "value": "/bin/i686-linux-gnu-gcc",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
           "type": "STRING"
         }
       ],
@@ -147,12 +147,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-O0 -g -DDEBUG -pthread -static -s",
+          "value": "-O0 -DDEBUG -static -pthread -g",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_DEBUG",
-          "value": "-O0 -static",
+          "value": "-O0 -DDEBUG -static",
           "type": "STRING"
         },
         {
@@ -163,11 +163,6 @@
         {
           "name": "CMAKE_C_COMPILER",
           "value": "/bin/aarch64-linux-gnu-gcc",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O0 -static",
           "type": "STRING"
         }
       ],
@@ -189,7 +184,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         },
         {
@@ -218,7 +213,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor /W4",
           "type": "STRING"
         },
         {
@@ -247,7 +242,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
+          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
           "type": "STRING"
         },
         {
@@ -280,17 +275,17 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
-          "type": "STRING"
-        },
-        {
-          "name": "DCMAKE_EXE_LINKER_FLAGS_RELEASE",
-          "value": "/DEBUG /OPT:REF /OPT:ICF",
+          "value": "/DNDEBUG /MT /O2 /EHsc /bigobj /utf-8 /Zi /Zc:preprocessor /W4",
           "type": "STRING"
         },
         {
           "name": "CMAKE_C_FLAGS_RELEASE",
           "value": "/DNDEBUG /MT /O2 /c",
+          "type": "STRING"
+        },
+        {
+          "name": "DCMAKE_EXE_LINKER_FLAGS_RELEASE",
+          "value": "/DEBUG /OPT:REF /OPT:ICF",
           "type": "STRING"
         },
         {
@@ -313,13 +308,13 @@
       "inheritEnvironments": [ "linux_arm" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static -pthread -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static",
           "type": "STRING"
         },
         {
@@ -351,13 +346,13 @@
       "inheritEnvironments": [ "linux_arm" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static",
           "type": "STRING"
         },
         {
@@ -389,13 +384,13 @@
       "inheritEnvironments": [ "linux_x86" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static",
           "type": "STRING"
         },
         {
@@ -426,13 +421,13 @@
       "inheritEnvironments": [ "linux_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static -pthread -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
+          "name": "CMAKE_C_FLAGS_RELEASE",
+          "value": "-O2 -DNDEBUG -static",
           "type": "STRING"
         },
         {
