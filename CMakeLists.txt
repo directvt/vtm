@@ -23,8 +23,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft-
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2 /EHsc /bigobj /utf-8 /Zc:preprocessor")
     set(WIN32_RESOURCES ".resources/images/vtm.rc")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -v -O2 -pthread")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -v -O2 -DLUA_USE_POSIX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -pthread")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -DLUA_USE_POSIX")
     # Static linkage
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -O2 -pthread")
 endif()
