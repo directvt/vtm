@@ -76,7 +76,7 @@ namespace netxs
         }
 
         template<class...> struct change_value_type_helper;
-        template<template<class...> class C, class... Args>
+        template<template<class...> class C, class ...Args>
         struct change_value_type_helper<C<Args...>>
         {
             template<class ...NewArgs>
