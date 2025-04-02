@@ -2,7 +2,7 @@
   "configurations": [
     {
       "name": "1.Win-x64-Debug",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -31,7 +31,7 @@
     },
     {
       "name": "2.WSL-x64-Debug",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -65,7 +65,7 @@
     },
     {
       "name": "3.Win-x32-Debug",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -93,7 +93,7 @@
     },
     {
       "name": "4.WSL-x32-Debug",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "MinSizeRel",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -105,7 +105,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "value": "-O0 -DDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "-O0 -static",
           "type": "STRING"
         },
         {
@@ -130,7 +135,7 @@
     },
     {
       "name": "5.WSL-ARM64-Debug",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -143,6 +148,11 @@
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
           "value": "-O0 -g -DDEBUG -pthread -static -s",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_DEBUG",
+          "value": "-O0 -static",
           "type": "STRING"
         },
         {
@@ -168,7 +178,7 @@
     },
     {
       "name": "PROD-Win-ARM32",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -197,7 +207,7 @@
     },
     {
       "name": "PROD-Win-ARM64",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -226,7 +236,7 @@
     },
     {
       "name": "PROD-Win-x32",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -259,7 +269,7 @@
     },
     {
       "name": "PROD-Win-x64",
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -292,7 +302,7 @@
     },
     {
       "name": "PROD-WSL-ARM32",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -308,6 +318,11 @@
           "type": "STRING"
         },
         {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
+          "type": "STRING"
+        },
+        {
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/arm-linux-gnueabihf-g++",
           "type": "STRING"
@@ -315,11 +330,6 @@
         {
           "name": "CMAKE_C_COMPILER",
           "value": "/bin/arm-linux-gnueabihf-gcc",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
           "type": "STRING"
         }
       ],
@@ -330,7 +340,7 @@
     },
     {
       "name": "PROD-WSL-ARM64",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -346,6 +356,11 @@
           "type": "STRING"
         },
         {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
+          "type": "STRING"
+        },
+        {
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/aarch64-linux-gnu-g++",
           "type": "STRING"
@@ -353,11 +368,6 @@
         {
           "name": "CMAKE_C_COMPILER",
           "value": "/bin/aarch64-linux-gnu-gcc",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
           "type": "STRING"
         }
       ],
@@ -368,7 +378,7 @@
     },
     {
       "name": "PROD-WSL-x32",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -384,6 +394,11 @@
           "type": "STRING"
         },
         {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
+          "type": "STRING"
+        },
+        {
           "name": "CMAKE_CXX_COMPILER",
           "value": "/bin/i686-linux-gnu-g++",
           "type": "STRING"
@@ -391,11 +406,6 @@
         {
           "name": "CMAKE_C_COMPILER",
           "value": "/bin/i686-linux-gnu-gcc",
-          "type": "STRING"
-        },
-        {
-          "name": "CMAKE_C_FLAGS",
-          "value": "-O2 -static",
           "type": "STRING"
         }
       ],
@@ -405,7 +415,7 @@
     },
     {
       "name": "PROD-WSL-x64",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -418,6 +428,11 @@
         {
           "name": "CMAKE_CXX_FLAGS",
           "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS",
+          "value": "-O2 -static",
           "type": "STRING"
         },
         {

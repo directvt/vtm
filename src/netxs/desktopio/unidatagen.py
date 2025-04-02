@@ -248,10 +248,6 @@ HEADER_BASE = r'''/**
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
-#include <iterator>
-
 namespace netxs::unidata
 {{
     namespace widths

@@ -7,10 +7,6 @@
     #define __BSD__
 #endif
 
-#include <type_traits>
-#include <iostream>
-#include <filesystem>
-
 #if defined(_WIN32)
 
     #if not defined(NOMINMAX)

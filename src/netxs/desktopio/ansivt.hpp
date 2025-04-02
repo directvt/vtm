@@ -5,11 +5,6 @@
 
 #include "canvas.hpp"
 
-#include <mutex>
-#include <array>
-#include <list>
-#include <functional>
-
 namespace netxs::ansi
 {
     using ctrl = utf::ctrl;

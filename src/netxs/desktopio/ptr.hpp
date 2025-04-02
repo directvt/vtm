@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include <memory>
-#include <mutex>
-
 namespace netxs
 {
     template<class T> using sptr = std::shared_ptr<T>;

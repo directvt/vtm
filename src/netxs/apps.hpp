@@ -39,6 +39,7 @@ namespace netxs::app::app1
     static constexpr auto name = "Application";
 }
 
+#include "desktopio/application.hpp"
 #include "apps/term.hpp"
 
 //#if defined(DEBUG)

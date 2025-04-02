@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include "netxs/desktopio/application.hpp"
-#include "netxs/apps/desk.hpp"
-
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";

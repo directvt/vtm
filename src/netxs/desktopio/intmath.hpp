@@ -3,21 +3,44 @@
 
 #pragma once
 
-#include <array>
-#include <vector>
-#include <optional>
 #include <algorithm>
-#include <limits>
-#include <cmath>
-#include <cfenv>
-#include <cassert>
 #include <any>
-#include <bit>
+#include <array>
 #include <atomic>
+#include <bit>
+#include <bitset>
+#include <cassert>
+#include <cfenv>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
 #include <cstring> // std::memcpy
-#include <utility> // std::cmp_equal
+#include <deque>
+#include <fstream>
+#include <filesystem>
+#include <functional>
+#include <future>
+#include <iterator>
+#include <limits>
+#include <list>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <numeric> // std::accumulate
+#include <optional>
+#include <span>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <type_traits>
 #include <typeindex>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility> // std::cmp_equal
+#include <vector>
 
 #ifndef faux
     #define faux (false)

@@ -7,9 +7,6 @@
 #include "ptr.hpp"
 #include "logger.hpp"
 
-#include <span>
-#include <unordered_set>
-
 namespace netxs
 {
     enum class svga

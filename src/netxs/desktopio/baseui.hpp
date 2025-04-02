@@ -7,8 +7,6 @@
 #include "events.hpp"
 #include "xml.hpp"
 
-#include <future>
-
 namespace netxs
 {
     struct eccc

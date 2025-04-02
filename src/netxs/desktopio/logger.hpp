@@ -9,11 +9,7 @@
 // 
 #pragma once
 
-#include "ptr.hpp"
-
-#include <vector>
-#include <functional>
-#include <unordered_map>
+#include "utf.hpp"
 
 namespace netxs
 {

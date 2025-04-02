@@ -10,9 +10,8 @@
 
 #include "console.hpp"
 #include "system.hpp"
+#include "terminal.hpp"
 #include "gui.hpp"
-
-#include <fstream>
 
 namespace netxs::app
 {

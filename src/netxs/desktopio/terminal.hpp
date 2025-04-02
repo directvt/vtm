@@ -3087,14 +3087,15 @@ namespace netxs::ui
             }
             bool test_index()
             {
-                #if defined(DEBUG)
-                auto m = index.front().index;
-                for (auto& i : index)
+                if constexpr (debugmode)
                 {
-                    assert(i.index >= m && i.index - m < 2);
-                    m = i.index;
+                    auto m = index.front().index;
+                    for (auto& i : index)
+                    {
+                        assert(i.index >= m && i.index - m < 2);
+                        m = i.index;
+                    }
                 }
-                #endif
                 return true;
             }
             bool test_futures()
@@ -3116,13 +3117,13 @@ namespace netxs::ui
             }
             auto test_resize()
             {
-                #if defined(DEBUG)
-                auto c = batch.caret;
-                #endif
-                sync_coord();
-                #if defined(DEBUG)
-                assert(c == batch.caret);
-                #endif
+                if constexpr (debugmode)
+                {
+                    auto c = batch.caret;
+                    sync_coord();
+                    assert(c == batch.caret);
+                }
+                else sync_coord();
                 return true;
             }
             auto test_height()

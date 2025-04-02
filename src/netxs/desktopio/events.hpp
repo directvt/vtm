@@ -6,15 +6,6 @@
 #include "geometry.hpp"
 #include "lua.hpp"
 
-#include <vector>
-#include <mutex>
-#include <map>
-#include <list>
-#include <functional>
-#include <optional>
-#include <thread>
-#include <condition_variable>
-
 //todo Workaround for i386 linux targets, https://sourceware.org/bugzilla/show_bug.cgi?id=31775
 #if defined(__i386__) && defined(__linux__)
     extern long double fmodl(long double a, long double b);

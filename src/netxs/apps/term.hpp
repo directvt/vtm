@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include "../desktopio/application.hpp"
-#include "../desktopio/terminal.hpp"
-
 namespace netxs::events::userland
 {
     namespace terminal

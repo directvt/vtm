@@ -6,18 +6,6 @@
 #include "quartz.hpp"
 #include "unidata.hpp"
 
-#include <string>
-#include <string_view>
-#include <vector>
-#include <list>
-#include <map>
-#include <algorithm>
-#include <charconv>
-#include <optional>
-#include <sstream>
-#include <span>
-#include <bitset>
-
 namespace netxs
 {
     using view = std::string_view;

@@ -3,19 +3,6 @@
 
 #pragma once
 
-#include "intmath.hpp"
-
-#include <type_traits>
-#include <list>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <mutex>
-#include <condition_variable>
-#include <deque>
-#include <thread>
-#include <functional>
-
 namespace netxs::generics
 {
     // generics: .
