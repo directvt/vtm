@@ -1152,6 +1152,8 @@ namespace netxs::ui
             ui64  alive; // bufferbase: Selection is active (digest).
             line  match; // bufferbase: Search pattern for highlighting.
 
+            rich  tail_frag; // bufferbase: IRM cached fragment.
+
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
@@ -2472,11 +2474,18 @@ namespace netxs::ui
                     }
                 }
             }
+            // alt_screen: Insert new text using the specified cell shader.
+            template<class Span, class Shader>
+            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            {
+                //todo implement IRM
+                _data(count, proto, fuse);
+            }
             // alt_screen: Parser callback.
             void data(si32 count, core::body const& proto) override
             {
-                //_data(count, proto, cell::shaders::full);
-                _data(count, proto, cell::shaders::skipnuls);
+                owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                             : _data(count, proto, cell::shaders::skipnuls);
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -3834,22 +3843,22 @@ namespace netxs::ui
                 }
             }
 
-            void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
-            void cup (twod  p) override { bufferbase::cup (p); sync_coord<faux>(); }
+            void  cup(fifo& q) override { bufferbase:: cup(q); sync_coord<faux>(); }
+            void  cup(twod  p) override { bufferbase:: cup(p); sync_coord<faux>(); }
             void cup0(twod  p) override { bufferbase::cup0(p); sync_coord<faux>(); }
-            void cuf (si32  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
-            void cub (si32  n) override { bufferbase::cub (n); sync_coord<faux>(); }
-            void chx (si32  n) override { bufferbase::chx (n); sync_coord<faux>(); }
-            void tab (si32  n) override { bufferbase::tab (n); sync_coord<faux>(); }
-            void chy (si32  n) override { bufferbase::chy (n); sync_coord(); }
-            void scl (si32  n) override { bufferbase::scl (n); sync_coord(); }
-            void il  (si32  n) override { bufferbase::il  (n); sync_coord(); }
-            void dl  (si32  n) override { bufferbase::dl  (n); sync_coord(); }
-            void up  (si32  n) override { bufferbase::up  (n); sync_coord(); }
-            void dn  (si32  n) override { bufferbase::dn  (n); sync_coord(); }
-            void lf  (si32  n) override { bufferbase::lf  (n); sync_coord(); }
-            void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
-            void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
+            void  cuf(si32  n) override { bufferbase:: cuf(n); sync_coord<faux>(); }
+            void  cub(si32  n) override { bufferbase:: cub(n); sync_coord<faux>(); }
+            void  chx(si32  n) override { bufferbase:: chx(n); sync_coord<faux>(); }
+            void  tab(si32  n) override { bufferbase:: tab(n); sync_coord<faux>(); }
+            void  chy(si32  n) override { bufferbase:: chy(n); sync_coord(); }
+            void  scl(si32  n) override { bufferbase:: scl(n); sync_coord(); }
+            void   il(si32  n) override { bufferbase::  il(n); sync_coord(); }
+            void   dl(si32  n) override { bufferbase::  dl(n); sync_coord(); }
+            void   up(si32  n) override { bufferbase::  up(n); sync_coord(); }
+            void   dn(si32  n) override { bufferbase::  dn(n); sync_coord(); }
+            void   lf(si32  n) override { bufferbase::  lf(n); sync_coord(); }
+            void   ri()        override { bufferbase::  ri();  sync_coord(); }
+            void   cr()        override { bufferbase::  cr();  sync_coord(); }
 
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
@@ -4672,10 +4681,116 @@ namespace netxs::ui
                 }
                 assert(test_coord());
             }
+            template<bool Copy, bool Reverse, class Span, class Shader>
+            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            {
+                auto fill = [&](auto start_iter, auto seek)
+                {
+                    auto dest = start_iter + seek;
+                    if constexpr (Reverse)
+                    {
+                        assert(count <= coord.x);
+                        auto tail = dest - count;
+                        auto data = proto.end();
+                        rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
+                    }
+                    else
+                    {
+                        assert(count <= panel.x - coord.x);
+                        auto tail = dest + count;
+                        auto data = proto.begin();
+                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                    }
+                };
+                if (coord.y < y_top)
+                {
+                    fill(upbox.begin(), coord.x + coord.y * panel.x);
+                }
+                else if (coord.y <= y_end)
+                {
+                    auto& curln = batch.current();
+                    auto  start = batch.caret;
+                    auto new_len = Reverse ? batch.caret : batch.caret + count;
+                    if (new_len > curln.length())
+                    {
+                        curln.crop(new_len);
+                        auto& mapln = index[coord.y];
+                        mapln.width = new_len % panel.x;
+                        batch.recalc(curln);
+                    }
+                    fill(curln.begin(), start);
+                }
+                else
+                {
+                    fill(dnbox.begin(), coord.x + (coord.y - (y_end + 1)) * panel.x);
+                }
+            }
+            auto& _fragment_from_current_coord(si32 left_cells)
+            {
+                if (coord.y < y_top)
+                {
+                    upbox.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                }
+                else if (coord.y <= y_end)
+                {
+                    auto& curln = batch.current();
+                    auto  start = batch.caret;
+                    curln.copy_piece(tail_frag, start, left_cells);
+                }
+                else
+                {
+                    dnbox.copy_piece(tail_frag, coord.x + (coord.y - (y_end + 1)) * panel.x, left_cells);
+                }
+                return tail_frag;
+            }
+            // scroll_buf: Insert text using the specified cell shader.
+            template<class Span, class Shader>
+            void _data_insert(si32 count, Span const& proto, Shader fuse)
+            {
+                auto next_x = coord.x + count;
+                if (next_x < panel.x)
+                {
+                    auto left_cells = panel.x - next_x;
+                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _data_direct_fill<faux, faux>(count, proto, fuse);
+                    coord.x = next_x;
+                    sync_coord();
+                    if (tail_frag.size())
+                    {
+                        _data_direct_fill<true, faux>(tail_frag.length(), tail_frag, fuse);
+                    }
+                }
+                else if (next_x == panel.x)
+                {
+                    _data(count, proto, fuse);
+                }
+                else
+                {
+                    //todo shift only visible lines
+                    _data(count, proto, fuse);
+                    //auto block_left = next_x % panel.x;
+                    //_data(count - block_left, proto, fuse);
+                    //if (block_left)
+                    //{
+                    //    _lf(1);
+                    //    sync_coord();
+                    //    auto left_cells = panel.x - block_left;
+                    //    tail_frag = _fragment_from_current_coord(left_cells);
+                    //    coord.x = block_left;
+                    //    sync_coord();
+                    //    if (tail_frag.length())
+                    //    {
+                    //        _data_direct_fill<true, faux>(tail_frag.length(), tail_frag, fuse);
+                    //    }
+                    //    _data_direct_fill<faux, true>(block_left, proto, fuse);
+                    //}
+                }
+            }
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 count, core::body const& proto) override
             {
-                _data(count, proto, cell::shaders::skipnuls);
+                owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                             : _data(count, proto, cell::shaders::skipnuls);
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -6611,6 +6726,7 @@ namespace netxs::ui
         cell       defclr; // term: Default/current colors (SGR49/39).
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
+        bool       insmod; // term: Insert/replace mode.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
@@ -6984,11 +7100,14 @@ namespace netxs::ui
         {
             switch (n)
             {
-            case 20:    // LNM—Line Feed/New Line Mode on.
-                target->set_autocr(true);
-                break;
-            default:
-                break;
+                case 4:     // Insert/Replace Mode (IRM) on.
+                    insmod = true;
+                    break;
+                case 20:    // LNM—Line Feed/New Line Mode on.
+                    target->set_autocr(true);
+                    break;
+                default:
+                    break;
             }
         }
         // term: Reset termnail parameters.
@@ -6996,11 +7115,14 @@ namespace netxs::ui
         {
             switch (n)
             {
-            case 20:    // LNM—Line Feed/New Line Mode off.
-                target->set_autocr(faux);
-                break;
-            default:
-                break;
+                case 4:     // Insert/Replace Mode (IRM) off.
+                    insmod = faux;
+                    break;
+                case 20:    // LNM—Line Feed/New Line Mode off.
+                    target->set_autocr(faux);
+                    break;
+                default:
+                    break;
             }
         }
         // term: Set termnail parameters.
@@ -7738,7 +7860,7 @@ namespace netxs::ui
         {
             base::riseup(tier::preview, e2::form::prop::window::size, winsz);
         }
-        // term: Custom data output (ConSrv callback).
+        // term: Custom data output (ConSrv cooked read callback).
         template<class Fx>
         void data(rich& cooked, Fx fx)
         {
@@ -7856,6 +7978,7 @@ namespace netxs::ui
               wtrack{ *this },
               ctrack{ *this },
               follow{ 0, 1 },
+              insmod{ faux },
               decckm{ faux },
               bpmode{ faux },
               unsync{ faux },

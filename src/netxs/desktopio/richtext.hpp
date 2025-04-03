@@ -565,6 +565,28 @@ namespace netxs::ui
             if (width == netxs::si32max) width = length() - at;
             return rich{ core::crop(at, width) };
         }
+        auto copy_piece(rich& dest, si32 from, si32 width) const
+        {
+            auto my_size = size();
+            if (from >= my_size.x * my_size.y)
+            {
+                dest.crop(0);
+                return;
+            }
+            auto new_width = from % my_size.x + width;
+            if (new_width > my_size.x)
+            {
+                width = my_size.x - from;
+            }
+            dest.crop(width);
+            auto src = begin() + from;
+            auto dst = dest.begin();
+            auto end = dest.end();
+            while (dst != end)
+            {
+                *dst++ = *src++;
+            }
+        }
         auto empty()
         {
             return canvas.empty();
@@ -656,11 +678,11 @@ namespace netxs::ui
                         if (c.rtl())
                         {
                             x = w;
-                            while (x != 0) fuse(*dest++, c.wdt(w, h, x--, y));
+                            while (x != 0 && dest != tail) fuse(*dest++, c.wdt(w, h, x--, y));
                         }
                         else
                         {
-                            while (x != w) fuse(*dest++, c.wdt(w, h, ++x, y));
+                            while (x != w && dest != tail) fuse(*dest++, c.wdt(w, h, ++x, y));
                         }
                     }
                     else fuse(*dest++, c);
@@ -714,11 +736,11 @@ namespace netxs::ui
                         if (c.rtl())
                         {
                             x = w;
-                            while (x != 0) set(c.wdt(w, h, x--, y));
+                            while (x != 0 && size != 0) set(c.wdt(w, h, x--, y));
                         }
                         else
                         {
-                            while (x != w) set(c.wdt(w, h, ++x, y));
+                            while (x != w && size != 0) set(c.wdt(w, h, ++x, y));
                         }
                     }
                     else set(c);
@@ -765,12 +787,12 @@ namespace netxs::ui
                     {
                         if (c.rtl())
                         {
-                            while (x != w) fuse(*--dest, c.wdt(w, h, ++x, y));
+                            while (x != w && dest != tail) fuse(*--dest, c.wdt(w, h, ++x, y));
                         }
                         else
                         {
                             x = w;
-                            while (x != 0) fuse(*--dest, c.wdt(w, h, x--, y));
+                            while (x != 0 && dest != tail) fuse(*--dest, c.wdt(w, h, x--, y));
                         }
                     }
                     else fuse(*--dest, c);
