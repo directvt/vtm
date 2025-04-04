@@ -4681,26 +4681,16 @@ namespace netxs::ui
                 }
                 assert(test_coord());
             }
-            template<bool Copy, bool Reverse, class Span, class Shader>
+            template<bool Copy, class Span, class Shader>
             void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
             {
                 auto fill = [&](auto start_iter, auto seek)
                 {
                     auto dest = start_iter + seek;
-                    if constexpr (Reverse)
-                    {
-                        assert(count <= coord.x);
-                        auto tail = dest - count;
-                        auto data = proto.end();
-                        rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
-                    }
-                    else
-                    {
-                        assert(count <= panel.x - coord.x);
-                        auto tail = dest + count;
-                        auto data = proto.begin();
-                        rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
-                    }
+                    assert(count <= panel.x - coord.x);
+                    auto tail = dest + count;
+                    auto data = proto.begin();
+                    rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                 };
                 if (coord.y < y_top)
                 {
@@ -4752,38 +4742,17 @@ namespace netxs::ui
                 {
                     auto left_cells = panel.x - next_x;
                     tail_frag = _fragment_from_current_coord(left_cells);
-                    _data_direct_fill<faux, faux>(count, proto, fuse);
+                    _data_direct_fill<faux>(count, proto, fuse);
                     coord.x = next_x;
                     sync_coord();
                     if (tail_frag.size())
                     {
-                        _data_direct_fill<true, faux>(tail_frag.length(), tail_frag, fuse);
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
                     }
-                }
-                else if (next_x == panel.x)
-                {
-                    _data(count, proto, fuse);
                 }
                 else
                 {
-                    //todo shift only visible lines
                     _data(count, proto, fuse);
-                    //auto block_left = next_x % panel.x;
-                    //_data(count - block_left, proto, fuse);
-                    //if (block_left)
-                    //{
-                    //    _lf(1);
-                    //    sync_coord();
-                    //    auto left_cells = panel.x - block_left;
-                    //    tail_frag = _fragment_from_current_coord(left_cells);
-                    //    coord.x = block_left;
-                    //    sync_coord();
-                    //    if (tail_frag.length())
-                    //    {
-                    //        _data_direct_fill<true, faux>(tail_frag.length(), tail_frag, fuse);
-                    //    }
-                    //    _data_direct_fill<faux, true>(block_left, proto, fuse);
-                    //}
                 }
             }
             // scroll_buf: Proceed new text (parser callback).
