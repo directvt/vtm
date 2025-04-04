@@ -1318,7 +1318,6 @@ namespace netxs::ui
                 sctop = std::max(0, n_top - 1);
                 scend = n_end != 0 ? std::max(1, panel.y - n_end)
                                    : 0;
-
                 auto y_max = panel.y - 1;
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
@@ -1335,16 +1334,12 @@ namespace netxs::ui
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
             {
-                // Sanity check.
                 top    = std::clamp(top,    0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
-                if (top    != 0 &&
-                    bottom != 0 && top >= bottom)
-                    //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
+                if (top != 0 && bottom != 0 && top >= bottom) // && top > bottom) top = bottom; //todo Nobody respects that.
                 {
                     top = bottom = 0;
                 }
-
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1899,15 +1894,14 @@ namespace netxs::ui
     virtual void scl(si32 n)
             {
                 parser::flush();
-                scroll_region(y_top, y_end, n, n > 0 ? faux : true);
+                scroll_region(y_top, y_end, n, faux);//n > 0 ? faux : true);
             }
             // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
     virtual void il(si32 n)
             {
                 parser::flush();
-               /* Works only if cursor is in the scroll region.
-                * Inserts n lines at the current row and removes n lines at the scroll bottom.
-                */
+                // Works only if cursor is in the scroll region.
+                // Inserts n lines at the current row and removes n lines at the scroll bottom.
                 if (n > 0 && coord.y >= y_top
                           && coord.y <= y_end)
                 {
@@ -1919,11 +1913,9 @@ namespace netxs::ui
     virtual void dl(si32 n)
             {
                 parser::flush();
-               /* Works only if cursor is in the scroll region.
-                * Deletes n lines at the current row and add n lines at the scroll bottom.
-                */
-                if (n > 0 && coord.y >= y_top
-                          && coord.y <= y_end)
+                // Works only if cursor is in the scroll region.
+                // Deletes n lines at the current row and add n lines at the scroll bottom.
+                if (n > 0 && coord.y >= y_top && coord.y <= y_end)
                 {
                     scroll_region(coord.y, y_end, -n, faux);
                     coord.x = 0;
@@ -1933,16 +1925,14 @@ namespace netxs::ui
     virtual void ri()
             {
                 parser::flush();
-               /*
-                * Reverse index
-                * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
-                * - one line scroll down if cursor is on the top line of scroll region.
-                */
+                // Reverse index
+                // - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
+                // - one line scroll down if cursor is on the top line of scroll region.
                 if (coord.y != y_top)
                 {
                     coord.y--;
                 }
-                else scroll_region(y_top, y_end, 1, true);
+                else scroll_region(y_top, y_end, 1, faux); // vi does not expect scrollback data (use_scrollback = true).
             }
             // bufferbase: CSI t;b r  Set scrolling region (t/b: top+bottom).
             void scr(fifo& q)
@@ -2038,7 +2028,7 @@ namespace netxs::ui
                 if (new_coord_y < y_top && coord.y >= y_top)
                 {
                     auto dy = y_top - new_coord_y;
-                    scroll_region(y_top, y_end, dy, true);
+                    scroll_region(y_top, y_end, dy, faux); // vi does not expect scrollback data (use_scrollback = true).
                     coord.y = y_top;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -2052,7 +2042,7 @@ namespace netxs::ui
                 if (new_coord_y > y_end && coord.y <= y_end)
                 {
                     auto dy = new_coord_y - y_end;
-                    scroll_region(y_top, y_end, -dy, true);
+                    scroll_region(y_top, y_end, -dy, faux); // vi does not expect scrollback data (use_scrollback = true).
                     coord.y = y_end;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -2571,7 +2561,7 @@ namespace netxs::ui
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(si32 top, si32 end, si32 n, bool /*use_scrollback*/ = faux) override
+            void scroll_region(si32 top, si32 end, si32 n, [[maybe_unused]] bool use_scrollback = faux) override
             {
                 seltop.y += n;
                 selend.y += n;
