@@ -1264,20 +1264,6 @@ namespace netxs::ui
             lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
         }
-        //todo unify: see ui::page::post
-        void post(utf::frag const& cluster)
-        {
-            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
-            {
-                auto c = cluster;
-                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
-                ansi::parser::post(c);
-            }
-            else
-            {
-                ansi::parser::post(cluster);
-            }
-        }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
 
@@ -1892,19 +1878,6 @@ namespace netxs::ui
         {
             auto& item = **layer;
             item.style = parser::style;
-        }
-        void post(utf::frag const& cluster)
-        {
-            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
-            {
-                auto c = cluster;
-                c.attr.cmatrix = netxs::utf::matrix::vs<11,11>;
-                ansi::parser::post(c);
-            }
-            else
-            {
-                ansi::parser::post(cluster);
-            }
         }
         void data(si32 count, core::body const& proto) override
         {
