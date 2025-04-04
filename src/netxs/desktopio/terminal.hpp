@@ -2474,18 +2474,53 @@ namespace netxs::ui
                     }
                 }
             }
+            auto& _fragment_from_current_coord(si32 left_cells)
+            {
+                canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
+                return tail_frag;
+            }
+            template<bool Copy, class Span, class Shader>
+            void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
+            {
+                auto fill = [&](auto start_iter, auto seek)
+                {
+                    auto dest = start_iter + seek;
+                    assert(count <= panel.x - coord.x);
+                    auto tail = dest + count;
+                    auto data = proto.begin();
+                    rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
+                };
+                fill(canvas.begin(), coord.x + coord.y * panel.x);
+            }
             // alt_screen: Insert new text using the specified cell shader.
             template<class Span, class Shader>
             void _data_insert(si32 count, Span const& proto, Shader fuse)
             {
-                //todo implement IRM
-                _data(count, proto, fuse);
+                auto next_x = coord.x + count;
+                if (next_x < panel.x)
+                {
+                    auto left_cells = panel.x - next_x;
+                    tail_frag = _fragment_from_current_coord(left_cells);
+                    _data_direct_fill<faux>(count, proto, fuse);
+                    coord.x = next_x;
+                    if (tail_frag.size())
+                    {
+                        _data_direct_fill<true>(tail_frag.length(), tail_frag, fuse);
+                    }
+                }
+                else
+                {
+                    _data(count, proto, fuse);
+                }
             }
             // alt_screen: Parser callback.
             void data(si32 count, core::body const& proto) override
             {
-                owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                             : _data(count, proto, cell::shaders::skipnuls);
+                if (count)
+                {
+                    owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                                 : _data(count, proto, cell::shaders::skipnuls);
+                }
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -4700,12 +4735,12 @@ namespace netxs::ui
                 {
                     auto& curln = batch.current();
                     auto  start = batch.caret;
-                    auto new_len = Reverse ? batch.caret : batch.caret + count;
-                    if (new_len > curln.length())
+                    auto newlen = batch.caret + count;
+                    if (newlen > curln.length())
                     {
-                        curln.crop(new_len);
+                        curln.crop(newlen);
                         auto& mapln = index[coord.y];
-                        mapln.width = new_len % panel.x;
+                        mapln.width = newlen % panel.x;
                         batch.recalc(curln);
                     }
                     fill(curln.begin(), start);
@@ -4758,8 +4793,12 @@ namespace netxs::ui
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 count, core::body const& proto) override
             {
-                owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                             : _data(count, proto, cell::shaders::skipnuls);
+                if (count)
+                {
+                    owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                                 : _data(count, proto, cell::shaders::skipnuls);
+                }
+                else sync_coord();
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
