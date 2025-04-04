@@ -658,31 +658,45 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                x = w;
-                                do fuse(*dest++, c.wdt(w, h, x--, 1));
-                                while (x != 0 && dest != tail);
+                                fuse(*dest++, c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                do fuse(*dest++, c.wdt(w, h, ++x, 1));
-                                while (x != w && dest != tail);
+                                if (c.rtl())
+                                {
+                                    x = w;
+                                    do fuse(*dest++, c.wdt(w, h, x--, 1));
+                                    while (x != 0 && dest != tail);
+                                }
+                                else
+                                {
+                                    do fuse(*dest++, c.wdt(w, h, ++x, 1));
+                                    while (x != w && dest != tail);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            x = w;
-                            while (x != 0 && dest != tail) fuse(*dest++, c.wdt(w, h, x--, y));
+                            fuse(*dest++, c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            while (x != w && dest != tail) fuse(*dest++, c.wdt(w, h, ++x, y));
+                            if (c.rtl())
+                            {
+                                x = w;
+                                while (x != 0 && dest != tail) fuse(*dest++, c.wdt(w, h, x--, y));
+                            }
+                            else
+                            {
+                                while (x != w && dest != tail) fuse(*dest++, c.wdt(w, h, ++x, y));
+                            }
                         }
                     }
                     else fuse(*dest++, c);
@@ -716,31 +730,45 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                x = w;
-                                do set(c.wdt(w, h, x--, 1));
-                                while (x != 0 && size != 0);
+                                set(c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                do set(c.wdt(w, h, ++x, 1));
-                                while (x != w && size != 0);
+                                if (c.rtl())
+                                {
+                                    x = w;
+                                    do set(c.wdt(w, h, x--, 1));
+                                    while (x != 0 && size != 0);
+                                }
+                                else
+                                {
+                                    do set(c.wdt(w, h, ++x, 1));
+                                    while (x != w && size != 0);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            x = w;
-                            while (x != 0 && size != 0) set(c.wdt(w, h, x--, y));
+                            set(c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            while (x != w && size != 0) set(c.wdt(w, h, ++x, y));
+                            if (c.rtl())
+                            {
+                                x = w;
+                                while (x != 0 && size != 0) set(c.wdt(w, h, x--, y));
+                            }
+                            else
+                            {
+                                while (x != w && size != 0) set(c.wdt(w, h, ++x, y));
+                            }
                         }
                     }
                     else set(c);
@@ -768,31 +796,45 @@ namespace netxs::ui
                             // winsrv2019's cmd.exe sets title with a zero at the end
                             //*dst++ = cell{ c, whitespace };
                         }
-                        else if (w != 0 && h == 1)
+                        else if (h == 1)
                         {
-                            if (c.rtl())
+                            if (w == 1)
                             {
-                                do fuse(*--dest, c.wdt(w, h, ++x, 1));
-                                while (x != w && dest != tail);
+                                fuse(*--dest, c.wdt(w, h, 1, 1));
                             }
-                            else
+                            else if (w != 0)
                             {
-                                x = w;
-                                do fuse(*--dest, c.wdt(w, h, x--, 1));
-                                while (x != 0 && dest != tail);
+                                if (c.rtl())
+                                {
+                                    do fuse(*--dest, c.wdt(w, h, ++x, 1));
+                                    while (x != w && dest != tail);
+                                }
+                                else
+                                {
+                                    x = w;
+                                    do fuse(*--dest, c.wdt(w, h, x--, 1));
+                                    while (x != 0 && dest != tail);
+                                }
                             }
                         }
                     }
                     else if (x == 0) // x==0; Expand hz cell stripe.
                     {
-                        if (c.rtl())
+                        if (w == 1)
                         {
-                            while (x != w && dest != tail) fuse(*--dest, c.wdt(w, h, ++x, y));
+                            fuse(*--dest, c.wdt(w, h, 1, y));
                         }
                         else
                         {
-                            x = w;
-                            while (x != 0 && dest != tail) fuse(*--dest, c.wdt(w, h, x--, y));
+                            if (c.rtl())
+                            {
+                                while (x != w && dest != tail) fuse(*--dest, c.wdt(w, h, ++x, y));
+                            }
+                            else
+                            {
+                                x = w;
+                                while (x != 0 && dest != tail) fuse(*--dest, c.wdt(w, h, x--, y));
+                            }
                         }
                     }
                     else fuse(*--dest, c);
