@@ -195,27 +195,6 @@ namespace netxs::utf
         }
     };
 
-    // utf: First byte based UTF-8 codepoint lengths.
-    static constexpr auto utf8lengths = std::to_array(
-    {   //      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-        /* 0 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 1 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 2 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 3 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 4 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 5 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 6 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 7 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        /* 8 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* 9 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* A */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* B */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* C */ 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        /* D */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-        /* E */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-        /* F */ 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    });
-
     // utf: Codepoint iterator.
     struct cpit
     {
@@ -262,82 +241,91 @@ namespace netxs::utf
             {
                 auto data = reinterpret_cast<byte const*>(textptr);
                 cp = *data;
-                switch (utf8lengths[cp])
+                // First byte based UTF-8 codepoint lengths.
+                if (cp < 0x80) // : len = 1
                 {
-                    case 1:
-                        utf8len = 1U;
-                        break;
-                    case 0:
-                        return prop(utf8len = 1);
-                        break;
-                    case 2:
-                        if (balance > 1)
+                    utf8len = 1U;
+                }
+                else if (cp < 0xC2) // : len = 0
+                {
+                    return prop(utf8len = 1);
+                }
+                else if (cp < 0xE0) // : len = 2
+                {
+                    if (balance > 1)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
                         {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
-                            {
-                                utf8len = 2U;
-                                cp = ((cp & 0b00011111) << 6)
-                                    | (c2 & 0b00111111);
-                            }
-                            else return prop(utf8len = 1);
+                            utf8len = 2U;
+                            cp = ((cp & 0b00011111) << 6)
+                                | (c2 & 0b00111111);
                         }
                         else return prop(utf8len = 1);
-                        break;
-                    case 3:
-                        if (balance > 2)
+                    }
+                    else return prop(utf8len = 1);
+                }
+                else if (cp < 0xF0) // : len = 3
+                {
+                    if (balance > 2)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
                         {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
+                            if (c3 = *++data; (c3 & 0xC0) == 0x80)
                             {
-                                if (c3 = *++data; (c3 & 0xC0) == 0x80)
-                                {
-                                    utf8len = 3U;
-                                    cp = ((cp & 0b00001111) << 12)
-                                        |((c2 & 0b00111111) << 6)
-                                        | (c3 & 0b00111111);
+                                utf8len = 3U;
+                                cp = ((cp & 0b00001111) << 12)
+                                    |((c2 & 0b00111111) << 6)
+                                    | (c3 & 0b00111111);
 
-                                    if (cp >= 0xfdd0 && (cp < 0xfdf0 || ((cp & 0xfffe) == 0xfffe)))
+                                if (cp >= 0xfdd0 && (cp < 0xfdf0 || ((cp & 0xfffe) == 0xfffe)))
+                                {
+                                    return prop(utf8len);
+                                }
+                            }
+                            else return prop(utf8len = 2);
+                        }
+                        else return prop(utf8len = 1);
+                    }
+                    else return prop(utf8len = balance);
+                }
+                else if (cp < 0xF5) // : len = 4
+                {
+                    if (balance > 3)
+                    {
+                        if (c2 = *++data; (c2 & 0xC0) == 0x80)
+                        {
+                            if (c3 = *++data; (c3 & 0xC0) == 0x80)
+                            {
+                                if (c4 = *++data; (c4 & 0xC0) == 0x80)
+                                {
+                                    utf8len = 4U;
+                                    cp = ((cp & 0b00000111) << 18)
+                                        |((c2 & 0b00111111) << 12)
+                                        |((c3 & 0b00111111) << 6)
+                                        | (c4 & 0b00111111);
+
+                                    if (cp > 0x10ffff)
                                     {
                                         return prop(utf8len);
                                     }
                                 }
-                                else return prop(utf8len = 2);
+                                else return prop(utf8len = 3);
                             }
-                            else return prop(utf8len = 1);
+                            else return prop(utf8len = 2);
                         }
-                        else return prop(utf8len = balance);
-                        break;
-                    default: // case 4
-                        if (balance > 3)
-                        {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
-                            {
-                                if (c3 = *++data; (c3 & 0xC0) == 0x80)
-                                {
-                                    if (c4 = *++data; (c4 & 0xC0) == 0x80)
-                                    {
-                                        utf8len = 4U;
-                                        cp = ((cp & 0b00000111) << 18)
-                                            |((c2 & 0b00111111) << 12)
-                                            |((c3 & 0b00111111) << 6)
-                                            | (c4 & 0b00111111);
-
-                                        if (cp > 0x10ffff)
-                                        {
-                                            return prop(utf8len);
-                                        }
-                                    }
-                                    else return prop(utf8len = 3);
-                                }
-                                else return prop(utf8len = 2);
-                            }
-                            else return prop(utf8len = 1);
-                        }
-                        else return prop(utf8len = balance);
-                        break;
+                        else return prop(utf8len = 1);
+                    }
+                    else return prop(utf8len = balance);
+                }
+                else //if (cp <= 0xFF) : len = 0
+                {
+                    return prop(utf8len = 1);
                 }
             }
-            else return prop(utf8len = 0);
-
+            else
+            {
+                return prop(utf8len = 0);
+            }
             return prop(cp, utf8len);
         }
         auto next()
