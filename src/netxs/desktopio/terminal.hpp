@@ -2464,11 +2464,13 @@ namespace netxs::ui
                     }
                 }
             }
+            // alt_screen: .
             auto& _fragment_from_current_coord(si32 left_cells)
             {
                 canvas.copy_piece(tail_frag, coord.x + coord.y * panel.x, left_cells);
                 return tail_frag;
             }
+            // alt_screen: .
             template<bool Copy, class Span, class Shader>
             void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
             {
@@ -4706,6 +4708,7 @@ namespace netxs::ui
                 }
                 assert(test_coord());
             }
+            // scroll_buf: .
             template<bool Copy, class Span, class Shader>
             void _data_direct_fill(si32 count, Span const& proto, Shader fuse)
             {
@@ -4729,7 +4732,7 @@ namespace netxs::ui
                     if (newlen > curln.length())
                     {
                         curln.crop(newlen);
-                        auto& mapln = index[coord.y];
+                        auto& mapln = index[coord.y - y_top];
                         mapln.width = newlen % panel.x;
                         batch.recalc(curln);
                     }
@@ -4740,6 +4743,7 @@ namespace netxs::ui
                     fill(dnbox.begin(), coord.x + (coord.y - (y_end + 1)) * panel.x);
                 }
             }
+            // scroll_buf: .
             auto& _fragment_from_current_coord(si32 left_cells)
             {
                 if (coord.y < y_top)
