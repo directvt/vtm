@@ -664,6 +664,9 @@ apply_nonprint(set(ZEROWIDTH), set(PRINTABLE), chrs)
 noncmd_id = apply_commands(set(CONTROLCP), NONCTRLCP, set(PRINTABLE), chrs)
 apply_wscripts(data.src['ISOCODS'], data.src['SCRIPTS'], chrs)
 
+ # Allow nulls to be printable.
+chrs[0].ucwidth = 'slim'
+
 # 00 33 7 555 00
 # ranges: 0,2 3,2 7,1 5,3 0,2
 script_ranges = []
