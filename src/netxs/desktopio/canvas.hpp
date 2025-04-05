@@ -1264,7 +1264,7 @@ namespace netxs
             }
             void meta(body const& b)
             {
-                token = (token & ~body::shared_bits) | (b.token & body::shared_bits);
+                token = (token & ~body::shared_bits) | (b.token & body::shared_bits); // Keep mosaic.
             }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
@@ -1614,29 +1614,26 @@ namespace netxs
         // cell: Blend two cells and set id if it is (fg = bg * c.fg).
         void overlay(cell const& c)
         {
+            auto bg_opaque = uv.bg.chan.a == 0xFF;
             if (c.st.xy() || c.st.und())
             {
-                auto bg = uv.bg;
-                if (bg.chan.a == 0xFF) bg.mix_one(c.uv.fg);
-                else                   bg.mix(c.uv.fg);
-                uv.fg = bg;
-                gc = c.gc;
-                st = c.st;
+                uv.fg = uv.bg;
+                if (bg_opaque) uv.fg.mix_one(c.uv.fg);
+                else           uv.fg.mix(c.uv.fg);
             }
             else
             {
-                st.meta(c.st);
                 if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.bg);
                 else                      uv.fg.mix(c.uv.bg);
             }
-            if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
-            else                      uv.bg.mix(c.uv.bg);
-
+            gc = c.gc;
+            st = c.st;
+            if (bg_opaque) uv.bg.mix_one(c.uv.bg);
+            else           uv.bg.mix(c.uv.bg);
             if (c.st.raw())
             {
                 px = c.px;
             }
-
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
