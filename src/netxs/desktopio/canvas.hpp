@@ -1708,6 +1708,16 @@ namespace netxs
                 }
                 if (st.xy() && !gc.is_space()) filter<Mode, UseSGR>(base, dest);
                 else                           dest += whitespace;
+                //if (st.xy())
+                //{
+                //    filter<Mode, UseSGR>(base, dest);
+                //}
+                //else // Allow nulls to be copyable.
+                //{
+                //    auto cluster = gc.get<Mode>();
+                //    if (cluster.size()) dest += cluster;
+                //    else                dest += emptyspace;
+                //}
             }
         }
         // cell: Check that the halves belong to the same wide glyph.
