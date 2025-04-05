@@ -1084,7 +1084,7 @@ namespace netxs::app::vtm
             window_ptr->attach(what.applet);
 
             auto& window = *window_ptr;
-            window.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr)
+            window.LISTEN(tier::release, e2::form::upon::vtree::detached, world_ptr, -, (menuid))
             {
                 if (base::subset.size()) // Pass focus to the top most object.
                 {
@@ -1102,7 +1102,12 @@ namespace netxs::app::vtm
                         }
                     }
                 }
+                auto& [fixed_menu_item, inst_list] = apps_list[menuid];
                 inst_list.erase(inst_list_iter);
+                if (!fixed_menu_item && inst_list.empty()) // Remove non-fixed menu group if it is empty.
+                {
+                    apps_list.erase(menuid);
+                }
                 base::signal(tier::release, desk::events::apps, apps_list_ptr); // Update taskbar app list.
             };
             auto context_keeper_ptr = is_handoff ? sptr{} : what.applet;

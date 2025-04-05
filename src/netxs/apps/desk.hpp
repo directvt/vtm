@@ -526,7 +526,7 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(" Info ")
                 ->invoke([&](auto& boss)
                 {
-                    auto infospec = spec{ .hidden = true, .label = "Info", .title = "Info", .type = "info" };
+                    auto infospec = spec{ .menuid = "vtm_info_page", .hidden = true, .label = "Info", .title = "Info", .type = "info" };
                     boss.LISTEN(tier::release, input::events::mouse::button::click::left, gear, -, (infospec))
                     {
                         infospec.gear_id = gear.id;
