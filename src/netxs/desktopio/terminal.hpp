@@ -6848,7 +6848,7 @@ namespace netxs::ui
                 if (type == cwdsync)
                 {
                     auto path = text{ data.substr(delimpos) };
-                    bell::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
+                    bell::enqueue(This(), [&, path](auto& /*boss*/) mutable
                     {
                         this->base::riseup(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
                     });
@@ -7759,7 +7759,7 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else bell::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
+            else bell::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff(io_log);
                 auto lock = bell::sync();
@@ -7809,6 +7809,7 @@ namespace netxs::ui
                     case commands::atexit::close:        close(); break;
                     case commands::atexit::restart:      renew(); break;
                 }
+                backup.reset(); // Backup should dtored under the lock.
             });
         }
         void start()
@@ -7826,6 +7827,8 @@ namespace netxs::ui
                     auto& title = wtrack.get(ansi::osc_title);
                     if (title.empty()) wtrack.set(ansi::osc_title); // Set default title if it is empty.
                     if (config.send_input.size()) ipccon.write<faux>(config.send_input);
+                    auto lock = bell::sync();
+                    backup.reset(); // Backup should dtored under the lock.
                 });
                 appcfg.win = target->panel;
                 ipccon.runapp(*this, appcfg, fdlink);
@@ -7844,17 +7847,24 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
+                    bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable // This backup is to keep the task active.
                     {
                         ipccon.payoff(io_log); // Wait child process.
+                        auto lock = bell::sync();
                         this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                        backup.reset(); // Backup should dtored under the lock.
                     });
                 }
             }
             else // Child process exited with non-zero code and term waits keypress.
             {
+                auto lock = bell::sync();
                 onerun.reset();
-                this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                bell::enqueue(This(), [&, backup = This()](auto& /*boss*/) mutable // The termlink trailer (calling ui::term::close()) should be joined before ui::term dtor.
+                {
+                    this->base::riseup(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+                    backup.reset(); // Backup should dtored under the lock.
+                });
             }
         }
         // term: Resize terminal window.
@@ -8860,7 +8870,9 @@ namespace netxs::ui
             bell::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
+                auto lock = bell::sync();
                 this->base::riseup(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
+                backup.reset(); // Backup should dtored under the lock.
             });
         }
         // dtvt: Splash screen if there is no next frame.
