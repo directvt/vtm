@@ -2249,6 +2249,8 @@ namespace netxs::ui
                 auto reverse_is_available = uirev ? 1 << 1 : 0;
                 return forward_is_available | reverse_is_available;
             }
+            // bufferbase: Clear scrollback keeping current line.
+    virtual void clear_scrollback() = 0;
 
             // bufferbase: Update terminal status.
             bool update_status(term_state& status) const
@@ -2589,6 +2591,16 @@ namespace netxs::ui
                 auto coor = std::clamp(coord, dot_00, panel - dot_11);
                 auto c = canvas[coor];
                 return c;
+            }
+            // alt_screen: Clear scrollback keeping current line.
+            void clear_scrollback() override
+            {
+                if (coord.y > 0 && panel.y > 1)
+                {
+                    scroll_region(0, panel.y - 1, -coord.y);
+                }
+                canvas.del_below({ 0, 1 }, brush.spare.dry());
+                set_coord({ coord.x, 0 });
             }
             //text get_current_line() override
             //{
@@ -3038,6 +3050,20 @@ namespace netxs::ui
                     slide = 0;
                     invite(0, deco{}.wrp(auto_wrap), cell{}); // At least one line must exist.
                     ancid = back().index;
+                    ancdy = 0;
+                    set_width(width);
+                }
+                // buff: Clear scrollback keeping current line.
+                void clear_but_current()
+                {
+                    auto backup = current();
+                    backup.index = 0;
+                    ring::clear();
+                    auto& curln = ring::push_back(backup); // Keep current line.
+                    basis = 0;
+                    slide = 0;
+                    invite(curln); // Sync current line state (length, wrap mode).
+                    ancid = curln.index;
                     ancdy = 0;
                     set_width(width);
                 }
@@ -5252,6 +5278,12 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 auto c = curln.length() && batch.caret <= curln.length() ? curln.at(std::clamp(batch.caret, 0, curln.length() - 1)) : parser::brush;
                 return c;
+            }
+            // scroll_buf: Clear scrollback keeping current line.
+            void clear_scrollback() override
+            {
+                batch.clear_but_current();
+                resize_viewport(panel, true);
             }
             //text get_current_line() override
             //{
@@ -7722,6 +7754,10 @@ namespace netxs::ui
                 base::signal(tier::release, ui::tty::events::io_log, state);
             }
         }
+        void clear_scrollback()
+        {
+            target->clear_scrollback();
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             if constexpr (debugmode) log(prompt::term, "Command: ", cmd);
@@ -8321,6 +8357,16 @@ namespace netxs::ui
                                                         set_log(state);
                                                         luafx.set_return();
                                                     }
+                                                }},
+                { "ClearScrollback",            [&]
+                                                {
+                                                    luafx.run_with_gear_wo_return([&](auto& gear){ gear.set_handled(); });
+                                                    if (selection_active())
+                                                    {
+                                                        exec_cmd(commands::ui::deselect);
+                                                    }
+                                                    clear_scrollback();
+                                                    luafx.set_return();
                                                 }},
                 { "Restart",                    [&]
                                                 {

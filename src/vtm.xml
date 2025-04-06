@@ -193,9 +193,9 @@ R"==(
         <TerminalScrollViewportToTop       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToTop() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalScrollViewportToEnd       ="if (not vtm.gear.IsKeyRepeated()) then vtm.terminal.ScrollViewportToEnd() end"/>  <!-- Scroll viewport to the scrollback top. -->
         <TerminalSendKey                   ="vtm.terminal.SendKey('test\\r')"/>           <!-- Simulating keypresses using the specified string. -->
-        <TerminalOutput                    ="vtm.terminal.Print('Hello!')"/>              <!-- Direct output the string to the terminal scrollback. -->
+        <TerminalOutput                    ="vtm.terminal.Print('Hello!\\n')"/>           <!-- Direct output the string to the terminal scrollback. -->
         <TerminalReset                     ="vtm.terminal.Print('\\x1b[!p')"/>            <!-- Clear scrollback and SGR-attributes. -->
-        <TerminalClear                     ="vtm.terminal.Print('\\x1b[2J')"/>            <!-- Clear TTY viewport. -->
+        <TerminalClearScrollback           ="vtm.terminal.ClearScrollback()"/>            <!-- Clear scrollback above current line. -->
         <TerminalCopyViewport              ="vtm.terminal.CopyViewport()"/>               <!-- Сopy viewport to clipboard. -->
         <TerminalCopySelection             ="vtm.terminal.CopySelection()"/>              <!-- Сopy selection to clipboard. -->
         <TerminalClipboardPaste            ="vtm.terminal.PasteClipboard()"/>             <!-- Paste from clipboard. -->
@@ -529,8 +529,7 @@ R"==(
                 <label="Log"                     data="off" tooltip=" Console logging is off "/>
                 <label="\e[38:2:0:255:0mLog\e[m" data="on"  tooltip=" Console logging is on   \n Run Logs to see output  "/>
             </item>
-            <item label="Clear" script=TerminalClear tooltip=" Clear TTY viewport "/>
-            <item label="Reset" script=TerminalReset tooltip=" Clear scrollback and SGR-attributes "/>
+            <item label="Clear" script=TerminalClearScrollback tooltip=" Clear scrollback "/>
             <!-- <item label="Hello, World!" tooltip=" Simulate keypress " script=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
@@ -668,7 +667,7 @@ R"==(
             <key="Shift+Ctrl+End"        script=TerminalScrollViewportToEnd/>
             <key=""                      script=TerminalSendKey/>
             <key=""                      script=TerminalReset/>
-            <key=""                      script=TerminalClear/>
+            <key=""                      script=TerminalClearScrollback/>
             <key=""                      script=TerminalCopyViewport/>
             <key="Ctrl+Insert"  preview  script=TerminalCopySelection/>
             <key="Shift+Insert" preview  script=TerminalClipboardPaste/>
