@@ -1866,6 +1866,7 @@ namespace netxs
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
         auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
+        auto& xy(si32 x, si32 y) { st.xy(x + (y << 5));    return *this; } // cell: Set glyph fragment.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         // cell: Set cluster unidata width.

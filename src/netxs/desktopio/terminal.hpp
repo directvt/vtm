@@ -1153,6 +1153,7 @@ namespace netxs::ui
             line  match; // bufferbase: Search pattern for highlighting.
 
             rich  tail_frag; // bufferbase: IRM cached fragment.
+            rich  char_2d; // bufferbase: 2D char image.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -2012,6 +2013,11 @@ namespace netxs::ui
                 parser::flush_data();
                 _cup(p);
             }
+            // bufferbase: Cursor position (0-based) w/o data_flush.
+    virtual void cup2(twod p)
+            {
+                _cup(p);
+            }
             // bufferbase: CSI y; x H/F  Cursor position (1-based).
     virtual void cup(fifo& q)
             {
@@ -2048,9 +2054,8 @@ namespace netxs::ui
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
-    virtual void lf(si32 n)
+            void _lf(si32 n)
             {
-                parser::flush_data();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y > y_end && coord.y <= y_end)
                 {
@@ -2060,6 +2065,12 @@ namespace netxs::ui
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
                 if (coord.x < 0 || coord.x > panel.x) coord.x = 0; // Auto cr if the cursor is outside the viewport (to prevent infinitely long lines when autocr is disabled).
+            }
+            // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
+    virtual void lf(si32 n)
+            {
+                parser::flush_data();
+                _lf(n);
             }
             // bufferbase: '\r'  CR Cursor return. Go to home of visible line instead of home of paragraph.
     virtual void cr()
@@ -3913,6 +3924,7 @@ namespace netxs::ui
             void  cup(fifo& q) override { bufferbase:: cup(q); sync_coord<faux>(); }
             void  cup(twod  p) override { bufferbase:: cup(p); sync_coord<faux>(); }
             void cup0(twod  p) override { bufferbase::cup0(p); sync_coord<faux>(); }
+            void cup2(twod  p) override { bufferbase::cup2(p); sync_coord<faux>(); }
             void  cuf(si32  n) override { bufferbase:: cuf(n); sync_coord<faux>(); }
             void  cub(si32  n) override { bufferbase:: cub(n); sync_coord<faux>(); }
             void  chx(si32  n) override { bufferbase:: chx(n); sync_coord<faux>(); }
@@ -4825,11 +4837,75 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Proceed new text.
+            //todo move it to bufferbase
             template<class Span, class Shader>
             void _data_2d(si32 height, si32 count, Span const& proto, Shader fuse)
             {
-                //todo implement
-                _data(count, proto, cell::shaders::skipnuls);
+                //todo revise
+                assert(height > 1);
+                for (auto c : proto)
+                {
+                    auto [w, h, x, y] = c.whxy();
+                    assert(height == h);
+                    if (coord.x == 0 || (coord.x == panel.x && parser::style.wrp() == wrap::on)) // Take a room for the char if we are at the begining.
+                    {
+                        _lf(h - (coord.x != 0 ? 0 : 1));
+                        coord.x = 0;
+                        sync_coord();
+                    }
+                    if (x == 0) // Fullsize character.
+                    {
+                        auto char_size = twod{ w, h };
+                        char_2d.size(char_size);
+                        auto cx = 1;
+                        auto cy = 1;
+                        char_2d.each([&](cell& b)
+                        {
+                            b = c.xy(cx, cy);
+                            if (cx == char_size.x)
+                            {
+                                cx = 1;
+                                cy++;
+                            }
+                            else cx++;
+                        });
+                    }
+                    else // Vertical stripe.
+                    {
+                        auto char_size = twod{ 1, h };
+                        char_2d.size(char_size);
+                        auto cx = 1;
+                        auto cy = 1;
+                        char_2d.each([&](cell& b)
+                        {
+                            b = c.xy(cx, cy++);
+                        });
+                    }
+                    auto char_coor = twod{ coord.x, coord.y - (h - 1) };
+                    if (parser::style.wrp() != wrap::on)
+                    {
+                        //todo unwrap/bisect prev lines if it is wrapped
+                    }
+                    owner.write_block(*this, char_2d, char_coor, rect{ dot_00, panel }, fuse);
+                    coord.x += char_2d.length();
+                    if (parser::style.wrp() == wrap::on)
+                    {
+                        auto char_width = char_2d.length();
+                        //todo while (coord.x > panel.x)
+                        if (coord.x > panel.x)
+                        {
+                            auto rest = coord.x - panel.x;
+                            _lf(h);
+                            //todo sync index!
+                            coord.x = 0;
+                            sync_coord();
+                            char_coor = twod{ -(char_width - rest), coord.y - (h - 1) };
+                            owner.write_block(*this, char_2d, char_coor, rect{ dot_00, panel }, fuse);
+                            coord.x = rest;
+                        }
+                    }
+                    sync_coord();
+                }
             }
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 height, si32 count, core::body const& proto) override
@@ -6833,12 +6909,12 @@ namespace netxs::ui
                 head += clip.coor.x;
                 auto next = head + clip.size.x;
                 auto line = std::span(head, next);
-                scrollback.cup0(coor);
+                scrollback.cup2(coor);
                 scrollback.template _data<true>(clip.size.x, line, fuse);
                 head = next + rest;
                 coor.y++;
             }
-            scrollback.cup0(save);
+            scrollback.cup2(save);
         }
         // term: CSI srcTop ; srcLeft ; srcBottom ; srcRight ; srcBuffIndex ; dstTop ; dstLeft ; dstBuffIndex $ v  — Copy rectangular area (DECCRA). BuffIndex: 1..6, 1 is default index. All coords are 1-based (inclusive).
         void deccra(fifo& q)

@@ -3367,6 +3367,7 @@ struct impl : consrv
             netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
+                scrollback.flush_data();
                 uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
                 return true;
             });
@@ -4158,6 +4159,7 @@ struct impl : consrv
         filler.size(scrl.size);
         direct(packet.target, [&](auto& scrollback)
         {
+            scrollback.flush_data();
             uiterm.write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
             uiterm.write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
             return true;
