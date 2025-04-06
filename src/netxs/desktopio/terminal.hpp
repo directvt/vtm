@@ -2507,13 +2507,27 @@ namespace netxs::ui
                     _data(count, proto, fuse);
                 }
             }
+            // alt_screen: Proceed new text.
+            template<class Span, class Shader>
+            void _data_2d(si32 height, si32 count, Span const& proto, Shader fuse)
+            {
+                //todo implement
+                _data(count, proto, cell::shaders::skipnuls);
+            }
             // alt_screen: Parser callback.
-            void data(si32 count, core::body const& proto) override
+            void data(si32 height, si32 count, core::body const& proto) override
             {
                 if (count)
                 {
-                    owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                                 : _data(count, proto, cell::shaders::skipnuls);
+                    if (height == 1)
+                    {
+                        owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                                     : _data(count, proto, cell::shaders::skipnuls);
+                    }
+                    else // We do not support insmod for _data_2d.
+                    {
+                        _data_2d(height, count, proto, cell::shaders::skipnuls);
+                    }
                 }
             }
             // alt_screen: Clear viewport.
@@ -4810,13 +4824,27 @@ namespace netxs::ui
                     _data(count, proto, fuse);
                 }
             }
+            // scroll_buf: Proceed new text.
+            template<class Span, class Shader>
+            void _data_2d(si32 height, si32 count, Span const& proto, Shader fuse)
+            {
+                //todo implement
+                _data(count, proto, cell::shaders::skipnuls);
+            }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 count, core::body const& proto) override
+            void data(si32 height, si32 count, core::body const& proto) override
             {
                 if (count)
                 {
-                    owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                                 : _data(count, proto, cell::shaders::skipnuls);
+                    if (height == 1)
+                    {
+                        owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
+                                     : _data(count, proto, cell::shaders::skipnuls);
+                    }
+                    else // We do not support insmod for _data_2d.
+                    {
+                        _data_2d(height, count, proto, cell::shaders::skipnuls);
+                    }
                 }
                 else sync_coord();
             }
@@ -7918,6 +7946,7 @@ namespace netxs::ui
                 auto& brush = target == &normal ? normal.parser::brush
                                                 : altbuf.parser::brush;
                 cooked.each([&](cell& c){ c.meta(brush); });
+                //todo _data2d(...)
                 if (target == &normal) normal._data(count, proto, fx);
                 else                   altbuf._data(count, proto, fx);
             }

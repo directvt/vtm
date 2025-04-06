@@ -1212,7 +1212,7 @@ namespace netxs::ansi
             * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(si32 count, core::body const& proto);  // Proceed new cells.
+            * - void data(si32 height, si32 count, core::body const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1727,7 +1727,8 @@ namespace netxs::ansi
 
     private:
         core::body proto_cells{}; // parser: Proto lyric.
-        si32       proto_count{}; // parser: Proto lyric length.
+        si32       proto_count{}; // parser: Proto length.
+        si32       proto_depth{}; // parser: Proto height.
         //text debug{};
 
     public:
@@ -1757,7 +1758,8 @@ namespace netxs::ansi
             proto_cells.assign(n, c);
             auto [w, h, x, y] = c.whxy();
             auto wdt = x == 0 ? w : 1;
-            data(n * wdt, proto_cells);
+            auto hgt = y == 0 ? h : 1;
+            data(hgt, n * wdt, proto_cells);
             proto_cells.clear();
         }
         template<bool ResetStyle = true>
@@ -1779,10 +1781,13 @@ namespace netxs::ansi
         }
         void data(core& cooked)
         {
-            if (auto len = cooked.size().x)
+            auto size = cooked.size();
+            if (auto len = size.x)
             {
                 cooked.each([&](cell& c){ c.meta(brush); });
-                data(len, cooked.pick());
+                //auto& block = cooked.pick();
+                //auto [w, h, x, y] = block.front().whxy();
+                data(size.y, len, cooked.pick());
             }
         }
         auto& get_ansi_marker()
@@ -1790,9 +1795,21 @@ namespace netxs::ansi
             static auto marker = ansi::marker{};
             return marker;
         }
+        void check_height(si32 height)
+        {
+            if (proto_depth != height)
+            {
+                if (proto_count)
+                {
+                    flush();
+                }
+                proto_depth = height;
+            }
+        }
         void ascii(view plain)
         {
             assert(plain.length());
+            check_height(1);
             brush.txt(plain.back());
             auto start = proto_cells.size();
             proto_cells.resize(start + plain.length(), brush);
@@ -1814,6 +1831,8 @@ namespace netxs::ansi
             {
                 auto [w, h, x, y] = utf::matrix::whxy(v);
                 auto wdt = x == 0 ? w : 1;
+                auto hgt = y == 0 ? h : 1;
+                check_height(hgt);
                 proto_count += wdt;
                 brush.txt(utf8, w, h, x, y);
                 proto_cells.push_back(brush);
@@ -1857,7 +1876,7 @@ namespace netxs::ansi
         {
             if (proto_count)
             {
-                data(proto_count, proto_cells);
+                data(proto_depth, proto_count, proto_cells);
                 proto_cells.clear();
                 proto_count = 0;
             }
@@ -1868,7 +1887,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& /*old_style*/) { };
-        virtual void data(si32 /*count*/, core::body const& /*proto*/) { };
+        virtual void data(si32 /*height*/, si32 /*count*/, core::body const& /*proto*/) { };
     };
 
     // ansi: Cursor manipulation command list.

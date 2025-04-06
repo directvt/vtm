@@ -929,7 +929,7 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 count, core::body const& proto)
+                    void data(si32 /*height*/, si32 count, core::body const& proto)
                     {
                         auto start = coord;
                         auto panel = std::max(dot_11, console::buffer);
