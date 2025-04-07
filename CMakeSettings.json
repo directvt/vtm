@@ -2,7 +2,7 @@
   "configurations": [
     {
       "name": "1.Win-x64-Debug",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -173,7 +173,7 @@
     },
     {
       "name": "PROD-Win-ARM32",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Visual Studio 17 2022 ARM",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -202,7 +202,7 @@
     },
     {
       "name": "PROD-Win-ARM64",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Visual Studio 17 2022 ARM64",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
@@ -264,7 +264,7 @@
     },
     {
       "name": "PROD-Win-x64",
-      "generator": "Visual Studio 17 2022",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
