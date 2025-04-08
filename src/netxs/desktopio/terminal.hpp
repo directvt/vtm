@@ -7878,6 +7878,7 @@ namespace netxs::ui
         void clear_scrollback()
         {
             target->clear_scrollback();
+            ondata<true>();
         }
         void exec_cmd(commands::ui::commands cmd)
         {
