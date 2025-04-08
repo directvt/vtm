@@ -1895,7 +1895,7 @@ namespace netxs::ui
     virtual void scl(si32 n)
             {
                 parser::flush();
-                scroll_region(y_top, y_end, n, faux);//n > 0 ? faux : true);
+                scroll_region(y_top, y_end, n, n > 0 ? faux : true);
             }
             // bufferbase: CSI n L  Insert n lines. Place cursor to the beginning of the current.
     virtual void il(si32 n)
@@ -2049,7 +2049,7 @@ namespace netxs::ui
                 if (new_coord_y < y_top && coord.y >= y_top)
                 {
                     auto dy = y_top - new_coord_y;
-                    scroll_region(y_top, y_end, dy, faux); // vi does not expect scrollback data (use_scrollback = true).
+                    scroll_region(y_top, y_end, dy, true);
                     coord.y = y_top;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -2063,7 +2063,7 @@ namespace netxs::ui
                 if (new_coord_y > y_end && coord.y <= y_end)
                 {
                     auto dy = new_coord_y - y_end;
-                    scroll_region(y_top, y_end, -dy, faux); // vi does not expect scrollback data (use_scrollback = true).
+                    scroll_region(y_top, y_end, -dy, true);
                     coord.y = y_end;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
