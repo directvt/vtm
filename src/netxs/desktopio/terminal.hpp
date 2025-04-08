@@ -2068,6 +2068,11 @@ namespace netxs::ui
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
+            // bufferbase: Move cursor back.
+    virtual void _cub(si32 n)
+            {
+                coord.x -= n;
+            }
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
     virtual void _lf(si32 n)
             {
@@ -2277,6 +2282,63 @@ namespace netxs::ui
             }
             // bufferbase: Clear scrollback keeping current line.
     virtual void clear_scrollback() = 0;
+            // bufferbase: Proceed 2d text.
+            template<class Span>
+            void data_2d(twod block_size, Span const& proto, auto print_stripe)
+            {
+                assert(block_size.y > 1);
+                char_2d.unpack2d(proto, block_size);
+                auto clip = char_2d.clip();
+                auto size = char_2d.size();
+                auto wrapln = parser::style.wrp() == wrap::on;
+                auto is_first = coord.x == 0 || (coord.x >= panel.x && wrapln);
+                auto print_stripes = [&]
+                {
+                    auto head = char_2d.begin() + clip.coor.y * size.x;
+                    auto tail = head + clip.size.y * size.x;
+                    auto rest = size.x - (clip.coor.x + clip.size.x);
+                    while (true)
+                    {
+                        head += clip.coor.x;
+                        auto next = head + clip.size.x;
+                        auto line = std::span(head, next);
+                        print_stripe(line);
+                        head = next + rest;
+                        if (head != tail)
+                        {
+                            _cub(clip.size.x);
+                            _lf(1);
+                        }
+                        else break;
+                    }
+                };
+
+                if (!is_first) // Go up to make room for 2D char.
+                {
+                    _ri(block_size.y - 1);
+                }
+                if (wrapln)
+                {
+                    auto left = clip;
+                    while (left.size.x > 0)
+                    {
+                        clip.coor.x = left.coor.x;
+                        clip.size.x = std::min(panel.x - coord.x % panel.x, left.size.x);
+                        print_stripes();
+                        left.coor.x += clip.size.x;
+                        left.size.x -= clip.size.x;
+                        if (left.size.x > 0)
+                        {
+                            _cub(coord.x);
+                            _lf(1);
+                        }
+                    }
+                }
+                else
+                {
+                    print_stripes();
+                }
+            }
 
             // bufferbase: Update terminal status.
             bool update_status(term_state& status) const
@@ -2533,13 +2595,6 @@ namespace netxs::ui
                     _data(count, proto, fuse);
                 }
             }
-            // alt_screen: Proceed new text.
-            template<class Span, class Shader>
-            void _data_2d(twod block_size, Span const& proto, Shader fuse)
-            {
-                //todo implement
-                _data(block_size.x, proto, cell::shaders::skipnuls);
-            }
             // alt_screen: Parser callback.
             void data(si32 width, si32 height, core::body const& proto) override
             {
@@ -2547,12 +2602,12 @@ namespace netxs::ui
                 {
                     if (height == 1)
                     {
-                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnuls)
-                                     : _data(width, proto, cell::shaders::skipnuls);
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnulls)
+                                     : _data(width, proto, cell::shaders::skipnulls);
                     }
-                    else // We do not support insmod for _data_2d.
+                    else // We do not support insmod for data_2d().
                     {
-                        _data_2d({ width, height }, proto, cell::shaders::skipnuls);
+                        data_2d({ width, height }, proto, [&](auto& l){ _data<true>((si32)l.size(), l, cell::shaders::skipnulls); });
                     }
                 }
             }
@@ -3953,6 +4008,7 @@ namespace netxs::ui
             void cup2(twod  p) override { bufferbase::cup2(p); sync_coord<faux>(); }
             void  cuf(si32  n) override { bufferbase:: cuf(n); sync_coord<faux>(); }
             void  cub(si32  n) override { bufferbase:: cub(n); sync_coord<faux>(); }
+            void _cub(si32  n) override { bufferbase::_cub(n); batch.caret -= n;   }
             void  chx(si32  n) override { bufferbase:: chx(n); sync_coord<faux>(); }
             void  tab(si32  n) override { bufferbase:: tab(n); sync_coord<faux>(); }
             void  chy(si32  n) override { bufferbase:: chy(n); sync_coord(); }
@@ -4865,65 +4921,6 @@ namespace netxs::ui
                     _data(count, proto, fuse);
                 }
             }
-            // scroll_buf: Proceed 2d text.
-            template<class Span, class Shader>
-            void _data_2d(twod block_size, Span const& proto, Shader fuse)
-            {
-                assert(block_size.y > 1);
-                char_2d.unpack2d(proto, block_size);
-                auto clip = char_2d.clip();
-                auto size = char_2d.size();
-                auto wrapln = parser::style.wrp() == wrap::on;
-                auto is_first = coord.x == 0 || (coord.x >= panel.x && wrapln);
-                auto print_stripes = [&]
-                {
-                    auto head = char_2d.begin() + clip.coor.y * size.x;
-                    auto tail = head + clip.size.y * size.x;
-                    auto rest = size.x - (clip.coor.x + clip.size.x);
-                    while (true)
-                    {
-                        head += clip.coor.x;
-                        auto next = head + clip.size.x;
-                        auto line = std::span(head, next);
-                        _data<true>(clip.size.x, line, fuse);
-                        head = next + rest;
-                        if (head != tail)
-                        {
-                            coord.x -= clip.size.x;
-                            batch.caret -= clip.size.x;
-                            _lf(1);
-                        }
-                        else break;
-                    }
-                };
-
-                if (!is_first) // Go up to make room for 2D char.
-                {
-                    _ri(block_size.y - 1);
-                }
-                if (wrapln)
-                {
-                    auto left = clip;
-                    while (left.size.x > 0)
-                    {
-                        clip.coor.x = left.coor.x;
-                        clip.size.x = std::min(panel.x - coord.x % panel.x, left.size.x);
-                        print_stripes();
-                        left.coor.x += clip.size.x;
-                        left.size.x -= clip.size.x;
-                        if (left.size.x > 0)
-                        {
-                            batch.caret -= coord.x;
-                            coord.x = 0;
-                            _lf(1);
-                        }
-                    }
-                }
-                else
-                {
-                    print_stripes();
-                }
-            }
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 width, si32 height, core::body const& proto) override
             {
@@ -4931,12 +4928,12 @@ namespace netxs::ui
                 {
                     if (height == 1)
                     {
-                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnuls)
-                                     : _data(width, proto, cell::shaders::skipnuls);
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnulls)
+                                     : _data(width, proto, cell::shaders::skipnulls);
                     }
-                    else // We do not support insmod for _data_2d.
+                    else // We do not support insmod for data_2d().
                     {
-                        _data_2d({ width, height }, proto, cell::shaders::skipnuls);
+                        data_2d({ width, height }, proto, [&](auto& l){ _data<true>((si32)l.size(), l, cell::shaders::skipnulls); });
                     }
                 }
                 else sync_coord();

@@ -3368,7 +3368,7 @@ struct impl : consrv
             auto success = direct(packet.target, [&](auto& scrollback)
             {
                 scrollback.flush_data();
-                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
+                uiterm.write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnulls for transparency?
                 return true;
             });
             if (!success) crop = {};
