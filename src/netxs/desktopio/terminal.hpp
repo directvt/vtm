@@ -1897,7 +1897,7 @@ namespace netxs::ui
                 parser::flush();
                 scroll_region(y_top, y_end, n, faux);//n > 0 ? faux : true);
             }
-            // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n L  Insert n lines. Place cursor to the beginning of the current.
     virtual void il(si32 n)
             {
                 parser::flush();
@@ -1910,7 +1910,7 @@ namespace netxs::ui
                     coord.x = 0;
                 }
             }
-            // bufferbase: CSI n M  Delete n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n M  Delete n lines. Place cursor to the beginning of the current.
     virtual void dl(si32 n)
             {
                 parser::flush();
@@ -1921,6 +1921,21 @@ namespace netxs::ui
                     scroll_region(coord.y, y_end, -n, faux);
                     coord.x = 0;
                 }
+            }
+            // bufferbase: Reverse index with using scrollback.
+            void _ri(si32 n)
+            {
+                // Reverse index
+                // - move cursor up if it is outside of scrolling region or below the top line of scrolling region.
+                // - scroll down if cursor is on the top line of scroll region.
+                auto new_coord_y = coord.y - n;
+                if (new_coord_y < y_top && coord.y >= y_top)
+                {
+                    auto dy = y_top - new_coord_y;
+                    scroll_region(y_top, y_end, dy, true);
+                    coord.y = y_top;
+                }
+                else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: ESC M  Reverse index.
     virtual void ri()
@@ -3044,18 +3059,30 @@ namespace netxs::ui
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
                 }
-                // buff: Rewrite the indices from the specified position to the end.
+                // buff: Rewrite the indices from the specified position to the end or to the top (negative from).
                 void reindex(si32 from)
                 {
-                    assert(from >= 0);
-                    auto a = begin() + from;
-                    auto b = end();
-                    auto i = from == 0 ? 0
-                                       : (a - 1)->index + 1;
-                    while (a != b)
+                    if (from >= 0)
                     {
-                        a->index = i++;
-                        ++a;
+                        auto a = begin() + from;
+                        auto b = end();
+                        auto i = from == 0 ? 0 : (a - 1)->index + 1;
+                        while (a != b)
+                        {
+                            a->index = i++;
+                            ++a;
+                        }
+                    }
+                    else
+                    {
+                        auto a = begin();
+                        auto b = a + std::abs(from);
+                        auto i = b->index - std::abs(from);
+                        while (a != b)
+                        {
+                            a->index = i++;
+                            ++a;
+                        }
                     }
                 }
                 // buff: Remove the specified number of lines at the specified position (inclusive).
@@ -3867,8 +3894,7 @@ namespace netxs::ui
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
                 if (coord.x < 0) coord.x = 0;
 
-                if (coord.y >= y_top
-                 && coord.y <= y_end)
+                if (coord.y >= y_top && coord.y <= y_end)
                 {
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
@@ -4363,11 +4389,11 @@ namespace netxs::ui
             // scroll_buf: Move internal caret by count with wrapping.
             void _fwd(si32 count)
             {
+                coord.x += count;
                 if (count > 0)
                 {
                     if (coord.y < y_top)
                     {
-                        coord.x += count;
                         if (coord.x > panel.x)
                         {
                             wrapdn();
@@ -4382,7 +4408,6 @@ namespace netxs::ui
                     else if (coord.y <= y_end)
                     {
                         auto& curln = batch.current();
-                        coord.x += count;
                         if (coord.x >= panel.x && curln.wrapped())
                         {
                             wrapdn();
@@ -4396,7 +4421,6 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x += count;
                         if (coord.x > panel.x)
                         {
                             wrapdn();
@@ -4408,7 +4432,6 @@ namespace netxs::ui
                 {
                     if (coord.y < y_top)
                     {
-                        coord.x += count;
                         if (coord.x < 0)
                         {
                             wrapup();
@@ -4423,7 +4446,6 @@ namespace netxs::ui
                     else if (coord.y <= y_end)
                     {
                         auto& curln = batch.current();
-                        coord.x += count;
                         if (coord.x < 0 && curln.wrapped())
                         {
                             wrapup(); //failed for CUF(-(panel.x + 1)) at coord.x = 1
@@ -4434,7 +4456,13 @@ namespace netxs::ui
                                 if (coord.y < y_top)
                                 {
                                     batch.basis -= y_top - coord.y;
-                                    if (batch.basis < 0) batch.basis = 0;
+                                    if (batch.basis < 0) // Scroll down by pushing -batch.basis empty lines to front.
+                                    {
+                                        auto n = -batch.basis;
+                                        while (n-- > 0) batch.insert(0, id_t{}, parser::style, parser::brush);
+                                        batch.reindex(batch.basis); // Reindex backward.
+                                        batch.basis = 0;
+                                    }
                                     coord.y = y_top;
                                     index_rebuild();
                                 }
@@ -4443,7 +4471,6 @@ namespace netxs::ui
                     }
                     else
                     {
-                        coord.x += count;
                         if (coord.x < 0)
                         {
                             wrapup();
@@ -4836,90 +4863,82 @@ namespace netxs::ui
                     _data(count, proto, fuse);
                 }
             }
-            // scroll_buf: Proceed new text.
-            //todo move it to bufferbase
+            // scroll_buf: Proceed 2d text.
             template<class Span, class Shader>
-            void _data_2d(si32 height, si32 count, Span const& proto, Shader fuse)
+            void _data_2d(twod block_size, Span const& proto, Shader fuse)
             {
-                //todo revise
-                assert(height > 1);
-                for (auto c : proto)
+                assert(block_size.y > 1);
+                char_2d.unpack2d(proto, block_size);
+                auto clip = char_2d.clip();
+                auto size = char_2d.size();
+                auto wrapln = parser::style.wrp() == wrap::on;
+                auto is_first = coord.x == 0 || (coord.x >= panel.x && wrapln);
+                auto print_stripes = [&]
                 {
-                    auto [w, h, x, y] = c.whxy();
-                    assert(height == h);
-                    if (coord.x == 0 || (coord.x == panel.x && parser::style.wrp() == wrap::on)) // Take a room for the char if we are at the begining.
+                    auto head = char_2d.begin() + clip.coor.y * size.x;
+                    auto tail = head + clip.size.y * size.x;
+                    auto rest = size.x - (clip.coor.x + clip.size.x);
+                    while (true)
                     {
-                        _lf(h - (coord.x != 0 ? 0 : 1));
-                        coord.x = 0;
-                        sync_coord();
-                    }
-                    if (x == 0) // Fullsize character.
-                    {
-                        auto char_size = twod{ w, h };
-                        char_2d.size(char_size);
-                        auto cx = 1;
-                        auto cy = 1;
-                        char_2d.each([&](cell& b)
+                        head += clip.coor.x;
+                        auto next = head + clip.size.x;
+                        auto line = std::span(head, next);
+                        _data<true>(clip.size.x, line, fuse);
+                        head = next + rest;
+                        if (head != tail)
                         {
-                            b = c.xy(cx, cy);
-                            if (cx == char_size.x)
-                            {
-                                cx = 1;
-                                cy++;
-                            }
-                            else cx++;
-                        });
+                            coord.x -= clip.size.x;
+                            batch.caret -= clip.size.x;
+                            _lf(1);
+                            sync_coord();
+                        }
+                        else break;
                     }
-                    else // Vertical stripe.
+                };
+
+                if (!is_first) // Fill down.
+                {
+                    _ri(block_size.y - 1);
+                    sync_coord();
+                }
+                if (wrapln)
+                {
+                    auto left = clip;
+                    while (left.size.x > 0)
                     {
-                        auto char_size = twod{ 1, h };
-                        char_2d.size(char_size);
-                        auto cx = 1;
-                        auto cy = 1;
-                        char_2d.each([&](cell& b)
+                        clip.coor.x = left.coor.x;
+                        clip.size.x = std::min(panel.x - coord.x % panel.x, left.size.x);
+                        print_stripes();
+                        left.coor.x += clip.size.x;
+                        left.size.x -= clip.size.x;
+                        if (left.size.x > 0)
                         {
-                            b = c.xy(cx, cy++);
-                        });
-                    }
-                    auto char_coor = twod{ coord.x, coord.y - (h - 1) };
-                    if (parser::style.wrp() != wrap::on)
-                    {
-                        //todo unwrap/bisect prev lines if it is wrapped
-                    }
-                    owner.write_block(*this, char_2d, char_coor, rect{ dot_00, panel }, fuse);
-                    coord.x += char_2d.length();
-                    if (parser::style.wrp() == wrap::on)
-                    {
-                        auto char_width = char_2d.length();
-                        //todo while (coord.x > panel.x)
-                        if (coord.x > panel.x)
-                        {
-                            auto rest = coord.x - panel.x;
-                            _lf(h);
-                            //todo sync index!
+                            _lf(1);
+                            batch.caret -= coord.x;
                             coord.x = 0;
                             sync_coord();
-                            char_coor = twod{ -(char_width - rest), coord.y - (h - 1) };
-                            owner.write_block(*this, char_2d, char_coor, rect{ dot_00, panel }, fuse);
-                            coord.x = rest;
                         }
                     }
-                    sync_coord();
+                }
+                else
+                {
+                    print_stripes();
                 }
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(si32 height, si32 count, core::body const& proto) override
+            //todo width/height instead of height/count
+            void data(si32 height, si32 width, core::body const& proto) override
             {
-                if (count)
+                if (width)
                 {
                     if (height == 1)
                     {
-                        owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                                     : _data(count, proto, cell::shaders::skipnuls);
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnuls)
+                                     : _data(width, proto, cell::shaders::skipnuls);
                     }
                     else // We do not support insmod for _data_2d.
                     {
-                        _data_2d(height, count, proto, cell::shaders::skipnuls);
+                        _data_2d({ width, height }, proto, cell::shaders::skipnuls);
                     }
                 }
                 else sync_coord();
@@ -5281,7 +5300,7 @@ namespace netxs::ui
                 assert(test_futures());
                 // Note: coord is unsynced -- see set_scroll_region()
             }
-            // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
+            // scroll_buf: Scroll the specified region by n lines (basis - n). The scrollback can only be used with the whole scrolling region.
             void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) override
             {
                 assert(top >= y_top && end <= y_end);
@@ -5295,8 +5314,7 @@ namespace netxs::ui
                 auto count = std::abs(n);
                 if (n < 0) // Scroll text up.
                 {
-                    if (top == y_top &&
-                        end == y_end && use_scrollback)
+                    if (top == y_top && end == y_end && use_scrollback)
                     {
                         count -= feed_futures(count);
                         if (count > 0)
@@ -5337,8 +5355,7 @@ namespace netxs::ui
                 }
                 else // Scroll text down.
                 {
-                    if (top == y_top &&
-                        end == y_end && use_scrollback && batch.basis >= n) // Just move the viewport up.
+                    if (top == y_top && end == y_end && use_scrollback && batch.basis >= n) // Just move the viewport up.
                     {
                         batch.basis -= n;
                     }

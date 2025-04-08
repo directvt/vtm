@@ -841,6 +841,35 @@ namespace netxs::ui
                 }
             }
         }
+        void unpack2d(auto const& proto, twod block_size)
+        {
+            core::size(block_size);
+            //todo simplify (use netxs::onrect)
+            auto iter = core::begin();
+            auto bottom = block_size.x * (block_size.y - 1);
+            auto width_check = block_size.x;
+            for (auto c : proto)
+            {
+                auto [w, h, x, y] = c.whxy();
+                assert(y == 0);
+                if (x != 0) w = 1;
+                width_check -= w;
+                if (width_check < 0) break;
+                auto stride = block_size.x - w;
+                auto dx = w;
+                auto dy = bottom + w;
+                if (x == 0) // Fullsize character.
+                {
+                    y += 1;
+                    netxs::inrect(iter, dx, dy, stride, [&](cell& b){ b = c.xy(++x, y); }, [&]{ x = 0; y++; });
+                }
+                else // Vertical stripe (char_size = twod{ 1, h }).
+                {
+                    netxs::inrect(iter, dx, dy, stride, [&](cell& b){ b = c.xy(x, ++y); });
+                }
+                iter += w;
+            }
+        }
         // rich: Splice proto with auto grow.
         template<bool Copy = faux, class Span, class Shader>
         void splice(si32 at, si32 count, Span const& proto, Shader fuse)
