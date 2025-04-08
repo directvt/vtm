@@ -929,21 +929,21 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 /*height*/, si32 count, core::body const& proto)
+                    void data(si32 width, si32 /*height*/, core::body const& proto)
                     {
                         auto start = coord;
                         auto panel = std::max(dot_11, console::buffer);
-                        coord.x += count;
+                        coord.x += width;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
                         start.y -= scroll();
                         auto seek = coord.x + coord.y * panel.x;
-                        if (count > seek)
+                        if (width > seek)
                         {
-                            count = seek;
+                            width = seek;
                             start = {};
                         }
-                        cache.resize(count);
+                        cache.resize(width);
                         auto head = cache.begin();
                         auto tail = cache.end();
                         auto data = proto.end();

@@ -1212,7 +1212,7 @@ namespace netxs::ansi
             * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(si32 height, si32 count, core::body const& proto);  // Proceed new cells.
+            * - void data(si32 width, si32 height, core::body const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1759,7 +1759,7 @@ namespace netxs::ansi
             auto [w, h, x, y] = c.whxy();
             auto wdt = x == 0 ? w : 1;
             auto hgt = y == 0 ? h : 1;
-            data(hgt, n * wdt, proto_cells);
+            data(n * wdt, hgt, proto_cells);
             proto_cells.clear();
         }
         template<bool ResetStyle = true>
@@ -1782,12 +1782,10 @@ namespace netxs::ansi
         void data(core& cooked)
         {
             auto size = cooked.size();
-            if (auto len = size.x)
+            if (size.x)
             {
                 cooked.each([&](cell& c){ c.meta(brush); });
-                //auto& block = cooked.pick();
-                //auto [w, h, x, y] = block.front().whxy();
-                data(size.y, len, cooked.pick());
+                data(size.x, size.y, cooked.pick());
             }
         }
         auto& get_ansi_marker()
@@ -1876,7 +1874,7 @@ namespace netxs::ansi
         {
             if (proto_count)
             {
-                data(proto_depth, proto_count, proto_cells);
+                data(proto_count, proto_depth, proto_cells);
                 proto_cells.clear();
                 proto_count = 0;
             }
@@ -1887,7 +1885,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& /*old_style*/) { };
-        virtual void data(si32 /*height*/, si32 /*count*/, core::body const& /*proto*/) { };
+        virtual void data(si32 /*width*/, si32 /*height*/, core::body const& /*proto*/) { };
     };
 
     // ansi: Cursor manipulation command list.

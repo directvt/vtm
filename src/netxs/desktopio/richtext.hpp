@@ -1288,10 +1288,10 @@ namespace netxs::ui
             else if (!busy()) locus.push(cmd);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 /*height*/, si32 count, core::body const& proto) override
+        void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
-            lyric->splice(caret, count, proto, cell::shaders::full);
-            caret += count;
+            lyric->splice(caret, width, proto, cell::shaders::full);
+            caret += width;
         }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
@@ -1910,11 +1910,11 @@ namespace netxs::ui
             item.style = parser::style;
         }
         // page: .
-        void data(si32 /*height*/, si32 count, core::body const& proto) override
+        void data(si32 width, si32 /*height*/, core::body const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
-            item.caret += count;
+            item.lyric->splice(item.caret, width, proto, cell::shaders::full);
+            item.caret += width;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.

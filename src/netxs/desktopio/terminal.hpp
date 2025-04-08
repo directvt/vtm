@@ -1923,7 +1923,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Reverse index with using scrollback.
-            void _ri(si32 n)
+    virtual void _ri(si32 n)
             {
                 // Reverse index
                 // - move cursor up if it is outside of scrolling region or below the top line of scrolling region.
@@ -2069,7 +2069,7 @@ namespace netxs::ui
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
-            void _lf(si32 n)
+    virtual void _lf(si32 n)
             {
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y > y_end && coord.y <= y_end)
@@ -2535,24 +2535,24 @@ namespace netxs::ui
             }
             // alt_screen: Proceed new text.
             template<class Span, class Shader>
-            void _data_2d(si32 height, si32 count, Span const& proto, Shader fuse)
+            void _data_2d(twod block_size, Span const& proto, Shader fuse)
             {
                 //todo implement
-                _data(count, proto, cell::shaders::skipnuls);
+                _data(block_size.x, proto, cell::shaders::skipnuls);
             }
             // alt_screen: Parser callback.
-            void data(si32 height, si32 count, core::body const& proto) override
+            void data(si32 width, si32 height, core::body const& proto) override
             {
-                if (count)
+                if (width)
                 {
                     if (height == 1)
                     {
-                        owner.insmod ? _data_insert(count, proto, cell::shaders::skipnuls)
-                                     : _data(count, proto, cell::shaders::skipnuls);
+                        owner.insmod ? _data_insert(width, proto, cell::shaders::skipnuls)
+                                     : _data(width, proto, cell::shaders::skipnuls);
                     }
                     else // We do not support insmod for _data_2d.
                     {
-                        _data_2d(height, count, proto, cell::shaders::skipnuls);
+                        _data_2d({ width, height }, proto, cell::shaders::skipnuls);
                     }
                 }
             }
@@ -3962,6 +3962,8 @@ namespace netxs::ui
             void   up(si32  n) override { bufferbase::  up(n); sync_coord(); }
             void   dn(si32  n) override { bufferbase::  dn(n); sync_coord(); }
             void   lf(si32  n) override { bufferbase::  lf(n); sync_coord(); }
+            void  _lf(si32  n) override { bufferbase:: _lf(n); sync_coord(); }
+            void  _ri(si32  n) override { bufferbase:: _ri(n); sync_coord(); }
             void   ri()        override { bufferbase::  ri();  sync_coord(); }
             void   cr()        override { bufferbase::  cr();  sync_coord(); }
 
@@ -4890,16 +4892,14 @@ namespace netxs::ui
                             coord.x -= clip.size.x;
                             batch.caret -= clip.size.x;
                             _lf(1);
-                            sync_coord();
                         }
                         else break;
                     }
                 };
 
-                if (!is_first) // Fill down.
+                if (!is_first) // Go up to make room for 2D char.
                 {
                     _ri(block_size.y - 1);
-                    sync_coord();
                 }
                 if (wrapln)
                 {
@@ -4913,10 +4913,9 @@ namespace netxs::ui
                         left.size.x -= clip.size.x;
                         if (left.size.x > 0)
                         {
-                            _lf(1);
                             batch.caret -= coord.x;
                             coord.x = 0;
-                            sync_coord();
+                            _lf(1);
                         }
                     }
                 }
@@ -4926,8 +4925,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Proceed new text (parser callback).
-            //todo width/height instead of height/count
-            void data(si32 height, si32 width, core::body const& proto) override
+            void data(si32 width, si32 height, core::body const& proto) override
             {
                 if (width)
                 {
@@ -8034,15 +8032,15 @@ namespace netxs::ui
         template<class Fx>
         void data(rich& cooked, Fx fx)
         {
-            if (auto count = cooked.size().x)
+            if (auto width = cooked.length())
             {
                 auto& proto = cooked.pick();
                 auto& brush = target == &normal ? normal.parser::brush
                                                 : altbuf.parser::brush;
                 cooked.each([&](cell& c){ c.meta(brush); });
-                //todo _data2d(...)
-                if (target == &normal) normal._data(count, proto, fx);
-                else                   altbuf._data(count, proto, fx);
+                //todo split by char height and do _data2d(...) for each
+                if (target == &normal) normal._data(width, proto, fx);
+                else                   altbuf._data(width, proto, fx);
             }
         }
         // term: Move composition cursor (imebox.caret) inside viewport with wordwrapping.
