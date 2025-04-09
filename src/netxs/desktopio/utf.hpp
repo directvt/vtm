@@ -82,6 +82,7 @@ namespace netxs::utf
         template<si32 xxy>
         static auto mosaic = []{ return xxy / 10 + ((xxy % 10) << 5); }();
         static auto p = [](auto x){ return x * (x + 1) / 2; }; // ref: https://github.com/directvt/vtm/assets/11535558/88bf5648-533e-4786-87de-b3dc4103273c
+        static constexpr auto stx = utfx{ 0x02 }; // Custom cluster initiator (STX).
         static constexpr auto kx = 16;
         static constexpr auto ky = 4;
         static constexpr auto mx = p(kx + 1);
@@ -102,6 +103,8 @@ namespace netxs::utf
         static constexpr auto vs_code = vs_block + vs<wwh, xxy>;
         template<si32 wwh, si32 xxy = 0, auto code = vs_code<wwh, xxy>>
         static constexpr auto vss = utf8view<code>;
+        static constexpr auto min_vs_code = vs_code<00, 00>;
+        static constexpr auto max_vs_code = vs_code<164, 164>;
 
         auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
         {
@@ -172,20 +175,17 @@ namespace netxs::utf
         {
             if (next.utf8len && unidata::allied(next))
             {
-                if (next.cdpoint >= matrix::vs_code<00, 00> && next.cdpoint <= matrix::vs_code<164, 164>) // Set matrix size and drop VS-wh_xy modificator.
+                if (next.cdpoint >= matrix::min_vs_code && next.cdpoint <= matrix::max_vs_code) // Set matrix size.
                 {
                     cmatrix = (si32)(next.cdpoint - matrix::vs_block);
                 }
-                else
+                else if (next.ucwidth > unidata::ucwidth)
                 {
-                    if (next.ucwidth > unidata::ucwidth)
-                    {
-                        unidata::ucwidth = next.ucwidth;
-                        cmatrix = mtx[unidata::ucwidth];
-                    }
-                    utf8len += next.utf8len;
-                    cpcount += 1;
+                    unidata::ucwidth = next.ucwidth;
+                    cmatrix = mtx[unidata::ucwidth];
                 }
+                utf8len += next.utf8len;
+                cpcount += 1;
                 return 0_sz;
             }
             else
@@ -353,20 +353,24 @@ namespace netxs::utf
                     if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
                     else
                     {
-                        if (next.cdpoint == 0x02 /*ansi::c0_stx*/) // Custom cluster initiator.
+                        if (next.cdpoint == matrix::stx)
                         {
+                            auto head = code.textptr;
+                            auto utf8len = next.utf8len;
+                            auto cpcount = 1; // STX
                             code.step();
                             next = code.take();
-                            auto head = code.textptr;
-                            auto left = next;
-                            auto utf8len = 0_sz;
-                            auto cpcount = 0;
-                            while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
+                            auto left = next; // Base char in cluster.
+                            if (!next.correct) return frag{ replacement, left }; // Unexpected cluster end.
+                            utf8len += next.utf8len;
+                            cpcount += 1;
+                            while (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code) // Eat all until VS.
                             {
-                                utf8len += next.utf8len;
-                                cpcount += 1;
                                 code.step();
                                 next = code.take();
+                                if (!next.correct) break; // Unexpected cluster end.
+                                utf8len += next.utf8len;
+                                cpcount += 1;
                             }
                             if (next.correct)
                             {
@@ -441,40 +445,46 @@ namespace netxs::utf
             {
                 if (next.is_cmd())
                 {
-                    code.step();
-                    auto custom_cluster_initiator = Clusterize && next.cdpoint == 0x02/*ansi::c0_stx*/ && code;
+                    auto custom_cluster_initiator = Clusterize && next.cdpoint == matrix::stx && code.balance > 1;
                     if (custom_cluster_initiator)
                     {
-                        next = code.take();
                         auto rest = code.rest();
-                        auto left = next;
-                        auto utf8len = 0_sz;
-                        auto cpcount = 0;
-                        while (next.correct && (next.cdpoint < matrix::vs_code<00, 00> || next.cdpoint > matrix::vs_code<164, 164>)) // Eat all until VS.
+                        auto utf8len = next.utf8len;
+                        auto cpcount = 1; // STX
+                        code.step();
+                        next = code.take();
+                        auto left = next; // Base char in cluster.
+                        if (next.correct)
                         {
                             utf8len += next.utf8len;
                             cpcount += 1;
-                            code.step();
-                            next = code.take();
+                            while (next.cdpoint < matrix::min_vs_code || next.cdpoint > matrix::max_vs_code) // Eat all until VS.
+                            {
+                                code.step();
+                                next = code.take();
+                                if (!next.correct) break; // Unexpected cluster end.
+                                utf8len += next.utf8len;
+                                cpcount += 1;
+                            }
+                            if (next.correct)
+                            {
+                                left.utf8len = utf8len;
+                                left.cpcount = cpcount;
+                                left.cmatrix = next.cdpoint - matrix::vs_block;
+                                auto crop = frag{ rest.substr(0, left.utf8len), left };
+                                yield(crop);
+                                code.step();
+                                next = code.take();
+                                continue;
+                            }
                         }
-                        if (next.correct)
-                        {
-                            left.utf8len = utf8len;
-                            left.cpcount = cpcount;
-                            left.cmatrix = next.cdpoint - matrix::vs_block;
-                            auto crop = frag{ rest.substr(0, left.utf8len), left };
-                            yield(crop);
-                            code.step(); // Drop VS codepoint.
-                            next = code.take();
-                        }
-                        else // Silently ignore STX.
-                        {
-                            code.redo(rest.substr(1));
-                            next = left;
-                        }
+                        // Broken cluster. Silently ignore STX.
+                        code.redo(rest.substr(1));
+                        next = left;
                     }
                     else // Proceed general control.
                     {
+                        code.step();
                         auto rest = code.rest();
                         auto chars = serve(next, rest);
                         code.redo(chars);
