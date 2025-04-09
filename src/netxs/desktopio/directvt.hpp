@@ -1443,9 +1443,11 @@ namespace netxs::directvt
         struct bitmap_vtrgb_t : bitmap_a<svga::vtrgb, __COUNTER__ - _counter_base> { };
         struct bitmap_vt256_t : bitmap_a<svga::vt256, __COUNTER__ - _counter_base> { };
         struct bitmap_vt16_t  : bitmap_a<svga::vt16,  __COUNTER__ - _counter_base> { };
+        struct bitmap_vt_2D_t : bitmap_a<svga::vt_2D, __COUNTER__ - _counter_base> { };
 
         using bitmap_dtvt  = wrapper<bitmap_dtvt_t>;
         using bitmap_vtrgb = wrapper<bitmap_vtrgb_t>;
+        using bitmap_vt_2D = wrapper<bitmap_vt_2D_t>;
         using bitmap_vt256 = wrapper<bitmap_vt256_t>;
         using bitmap_vt16  = wrapper<bitmap_vt16_t>;
         using frames_t     = list<view,   frame_element_t>;
@@ -1461,6 +1463,7 @@ namespace netxs::directvt
         {
             #define object_list \
             X(bitmap_dtvt      ) /* Canvas in dtvt format.                        */\
+            X(bitmap_vt_2D     ) /* Canvas with 2D CharGeometry support.          */\
             X(bitmap_vtrgb     ) /* Canvas in truecolor format.                   */\
             X(bitmap_vt256     ) /* Canvas in 256-color format.                   */\
             X(bitmap_vt16      ) /* Canvas in 16-color format.                    */\

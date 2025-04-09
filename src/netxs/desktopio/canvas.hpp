@@ -11,6 +11,7 @@ namespace netxs
 {
     enum class svga
     {
+        vt_2D,
         vtrgb,
         vt256,
         vt16 ,
@@ -1664,7 +1665,7 @@ namespace netxs
         template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void filter(cell& base, T& dest) const
         {
-            if constexpr (UseSGR && Mode == svga::vtrgb)
+            if constexpr (UseSGR && (Mode == svga::vtrgb || Mode == svga::vt_2D))
             {
                 auto egc = gc.get<Mode>();
                 if (egc.size() == 3 && egc[0] == '\xE2' && egc[1] == '\x96')

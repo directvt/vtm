@@ -22,6 +22,7 @@ namespace netxs::ui
         static constexpr auto vt256   = 1 << (__COUNTER__ - _counter);
         static constexpr auto direct  = 1 << (__COUNTER__ - _counter);
         static constexpr auto vtrgb   = 1 << (__COUNTER__ - _counter);
+        static constexpr auto vt_2D   = 1 << (__COUNTER__ - _counter);
 
         template<class T>
         auto str(T mode)
@@ -34,6 +35,7 @@ namespace netxs::ui
                 if (mode & vt16   ) result += "vt16 ";
                 if (mode & vt256  ) result += "vt256 ";
                 if (mode & vtrgb  ) result += "vtrgb ";
+                if (mode & vt_2D  ) result += "vt_2D ";
                 if (mode & direct ) result += "direct ";
                 if (result.size()) result.pop_back();
             }
@@ -353,6 +355,7 @@ namespace netxs::ui
                 paint = std::thread{ [&, vtmode]
                 {
                          if (vtmode == svga::dtvt ) render<binary::bitmap_dtvt_t >();
+                    else if (vtmode == svga::vt_2D) render<binary::bitmap_vt_2D_t>();
                     else if (vtmode == svga::vtrgb) render<binary::bitmap_vtrgb_t>();
                     else if (vtmode == svga::vt256) render<binary::bitmap_vt256_t>();
                     else if (vtmode == svga::vt16 ) render<binary::bitmap_vt16_t >();
@@ -456,6 +459,7 @@ namespace netxs::ui
                        : legacy_mode & ui::console::vt256  ? svga::vt256
                        : legacy_mode & ui::console::gui    ? svga::dtvt
                        : legacy_mode & ui::console::direct ? svga::dtvt
+                       : legacy_mode & ui::console::vt_2D  ? svga::vt_2D
                        : legacy_mode & ui::console::vtrgb  ? svga::vtrgb
                                                            : svga::vtrgb;
             }

@@ -428,7 +428,8 @@ namespace netxs::ansi
         {
                  if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
             else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[39m")
+            else if constexpr (Mode == svga::vtrgb ||
+                               Mode == svga::vt_2D) return c.chan.a == 0 ? add("\033[39m")
                                                                          : add("\033[38;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
                                                                                              c.chan.b, 'm');
@@ -439,7 +440,8 @@ namespace netxs::ansi
         {
                  if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
             else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
-            else if constexpr (Mode == svga::vtrgb) return c.chan.a == 0 ? add("\033[49m")
+            else if constexpr (Mode == svga::vtrgb ||
+                               Mode == svga::vt_2D) return c.chan.a == 0 ? add("\033[49m")
                                                                          : add("\033[48;2;", c.chan.r, ';',
                                                                                              c.chan.g, ';',
                                                                                              c.chan.b, 'm');
@@ -475,7 +477,7 @@ namespace netxs::ansi
                 {
                     auto [w, h, x, y] = state.whxy();
                     if (w != 1 && x == 1) badfx(); // Left part alone
-                    c.scan<svga::vtrgb, UseSGR>(state, block);
+                    c.scan<svga::vt_2D, UseSGR>(state, block);
                 }
                 else
                 {
@@ -483,7 +485,7 @@ namespace netxs::ansi
                     {
                         auto [w, h, x, y] = state.whxy();
                         if (w != 1 && x == 1) badfx(); // Left part alone
-                        c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                        c.scan_attr<svga::vt_2D, UseSGR>(state, block);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
                     else if (cw == 2 && cx == 2) // Right part
@@ -493,19 +495,19 @@ namespace netxs::ansi
                         {
                             if (state.check_pair(c))
                             {
-                                state.scan<svga::vtrgb, UseSGR>(state, block);
+                                state.scan<svga::vt_2D, UseSGR>(state, block);
                                 state.set_gc(); // Cleanup used t
                             }
                             else
                             {
                                 badfx(); // Left part alone
-                                c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                                c.scan_attr<svga::vt_2D, UseSGR>(state, block);
                                 badfx(); // Right part alone
                             }
                         }
                         else
                         {
-                            c.scan_attr<svga::vtrgb, UseSGR>(state, block);
+                            c.scan_attr<svga::vt_2D, UseSGR>(state, block);
                             if (state.xy() == 0) side_badfx(); // Right part alone at the left side
                             else                 badfx(); // Right part alone
                         }

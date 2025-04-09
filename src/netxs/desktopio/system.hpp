@@ -3924,11 +3924,12 @@ namespace netxs::os
                 else if (os::stdout_fd != os::invalid_fd)
                 {
                     #if defined(_WIN32)
+                    auto vtm_env = os::env::get("VTM");
                     {
                         //todo revise
-                        auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                        auto nt16 = vtm_env.empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
                         dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
-                                            : ui::console::nt;
+                                             : ui::console::nt;
                     }
                     #elif defined(__linux__)
                         if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
@@ -3984,13 +3985,19 @@ namespace netxs::os
                             }
                         #endif
                     }
-                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256))) dtvt::vtmode |= ui::console::vtrgb;
+                    if (!(dtvt::vtmode & (ui::console::nt16 | ui::console::vt16 | ui::console::vt256)))
+                    {
+
+                        dtvt::vtmode |= vtm_env.empty() ? ui::console::vtrgb
+                                                        : ui::console::vt_2D;
+                    }
 
                     log(prompt::os, "Terminal type: ", term);
                     log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
                                                   : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
                                                   : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
-                                                                                      : "xterm truecolor");
+                                                  : dtvt::vtmode & ui::console::vtrgb ? "xterm truecolor"
+                                                                                      : "xterm truecolor with 2D CharGeometry support");
                     log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
                                                   : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                       : "VT-style");
@@ -4536,6 +4543,7 @@ namespace netxs::os
                 void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
+                void direct(s11n::xs::bitmap_vt_2D   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
                     auto& bitmap = lock.thing;

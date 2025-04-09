@@ -2306,7 +2306,7 @@ namespace netxs::ui
                     auto [w, h, x, y] = c.whxy();
                     if (x == 1) // Capture the first cell only.
                     {
-                        c.scan<svga::vtrgb, UseSGR>(dest.base, dest);
+                        c.scan<svga::vt_2D, UseSGR>(dest.base, dest);
                     }
                 });
             }
