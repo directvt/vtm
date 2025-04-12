@@ -1020,8 +1020,8 @@ namespace netxs
             // If bytes[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
             // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
             // We do not store Nulls, it is used to create cells with an empty string. //todo If necessary, use Jumbo storage to store clusters containing nulls.
-            static constexpr auto size_x_mask = netxs::letoh((ui64)0b0000'1111); // 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
-            static constexpr auto size_y_mask = netxs::letoh((ui64)0b0011'0000); // 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
+            static constexpr auto size_w_mask = netxs::letoh((ui64)0b0000'1111); // 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
+            static constexpr auto size_h_mask = netxs::letoh((ui64)0b0011'0000); // 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
             static constexpr auto is_rtl_mask = netxs::letoh((ui64)0b0100'0000); // Cluster contains RTL text.
             static constexpr auto reserv_mask = netxs::letoh((ui64)0b1000'0000); // Reserved.
             static constexpr auto letoh_shift = netxs::endian_BE ? 8 * 7 : 0; // Left shift to get bytes[0].
@@ -1044,10 +1044,10 @@ namespace netxs
                 return token == g.token;
             }
 
-            constexpr auto size_x() const { return (si32)((token & size_x_mask) >> (letoh_shift + 0)); }
-            constexpr auto size_y() const { return (si32)((token & size_y_mask) >> (letoh_shift + 4)); }
-            constexpr void size_x(si32 x) { token &= ~size_x_mask; token |= (ui64)x << (letoh_shift + 0); }
-            constexpr void size_y(si32 y) { token &= ~size_y_mask; token |= (ui64)y << (letoh_shift + 4); }
+            constexpr auto size_w() const { return (si32)((token & size_w_mask) >> (letoh_shift + 0)); }
+            constexpr auto size_h() const { return (si32)((token & size_h_mask) >> (letoh_shift + 4)); }
+            constexpr void size_w(si32 w) { token &= ~size_w_mask; token |= (ui64)w << (letoh_shift + 0); }
+            constexpr void size_h(si32 h) { token &= ~size_h_mask; token |= (ui64)h << (letoh_shift + 4); }
             constexpr auto rtl()    const { return token & is_rtl_mask; }
             constexpr void rtl(bool b)    { if (b) token |= is_rtl_mask; else token &= ~is_rtl_mask; }
             constexpr auto is_jumbo() const
@@ -1058,7 +1058,7 @@ namespace netxs
             {
                 token = (token & netxs::letoh(~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
             }
-            constexpr auto bytes() const
+            auto bytes() const
             {
                 return (char*)&token;
             }
@@ -1077,16 +1077,16 @@ namespace netxs
                 auto isrtl = rtl();
                 token = netxs::letoh(((ui64)'^' << 8 * 1) | ((ui64)('@' + (c & 0b00011111)) << 8 * 2)); // bytes[1] = '^'; bytes[2] = '@' + (c & 0b00011111);
                 token |= isrtl;
-                size_x(2 - 1);
+                size_w(2 - 1);
             }
             auto mtx() const
             {
-                return twod{ size_x() + 1, size_y() + 1 };
+                return twod{ size_w() + 1, size_h() + 1 };
             }
             void mtx(si32 w, si32 h)
             {
-                size_x(w ? w - 1 : 0);
-                size_y(h ? h - 1 : 0);
+                size_w(w ? w - 1 : 0);
+                size_h(h ? h - 1 : 0);
             }
             auto jgc_token() const // Return token excluding props.
             {
@@ -1193,10 +1193,6 @@ namespace netxs
                 static constexpr auto reserv = 3;
             };
 
-            static constexpr auto width_bits = (byte)0b0001'1111; // Character geometry width bits (for mosaic_mask).
-            static constexpr auto height_bits = 5; // Character geometry height bits offset (for mosaic_mask).
-            static constexpr auto shared_bits = (ui32)((1 << 24) - 1);
-
             // Shared attributes.
             static constexpr auto bolded_mask = (ui32)0b00000000'00000000'00000000'00000001; // bolded : 1;
             static constexpr auto italic_mask = (ui32)0b00000000'00000000'00000000'00000010; // italic : 1;
@@ -1212,17 +1208,11 @@ namespace netxs
             static constexpr auto fusion_mask = (ui32)0b00000000'11000000'00000000'00000000; // fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
             // Unique attributes. From 24th bit.
             static constexpr auto mosaic_mask = (ui32)0b11111111'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-            static constexpr inline auto offset(ui32 mask)
-            {
-                if (mask == 0) return 0;
-                auto n = 0;
-                while ((mask & 1) == 0)
-                {
-                    mask >>= 1;
-                    ++n;
-                }
-                return n;
-            }
+
+            static constexpr auto x_bits = (byte)0b0001'1111; // Character geometry x fragment selector bits (for mosaic_mask).
+            static constexpr auto y_bits = 5; // Character geometry y fragment selector bits offset (for mosaic_mask).
+            static constexpr auto shared_bits = (ui32)((1 << netxs::field_offset<mosaic_mask>()) - 1);
+
             // Fusion: Background interpolation current c0 with neighbor c1 and c2 cells:
             //    c0 c1
             //    c2
@@ -1250,10 +1240,10 @@ namespace netxs
                 : token{ b.token }
             { }
             constexpr body(si32 mosaic)
-                : token{ (ui32)mosaic << offset(mosaic_mask) }
+                : token{ (ui32)mosaic << netxs::field_offset<mosaic_mask>() }
             { }
             constexpr body(body const& b, si32 mosaic)
-                : token{ b.token & ~mosaic_mask | ((ui32)mosaic << offset(mosaic_mask)) }
+                : token{ (b.token & ~mosaic_mask) | ((ui32)mosaic << netxs::field_offset<mosaic_mask>()) }
             { }
 
             constexpr body& operator = (body const&) = default;
@@ -1289,12 +1279,12 @@ namespace netxs
                             if (auto overln = token & overln_mask; overln != (base.token & overln_mask)) dest.ovr(!!overln);
                             if (auto strike = token & strike_mask; strike != (base.token & strike_mask)) dest.stk(!!strike);
                             if (auto blinks = token & blinks_mask; blinks != (base.token & blinks_mask)) dest.blk(!!blinks);
-                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.und((si32)(unline >> offset(unline_mask)));
-                            if (auto ucolor = token & ucolor_mask; ucolor != (base.token & ucolor_mask)) dest.unc((si32)(ucolor >> offset(ucolor_mask)));
+                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.und((si32)(unline >> netxs::field_offset<unline_mask>()));
+                            if (auto ucolor = token & ucolor_mask; ucolor != (base.token & ucolor_mask)) dest.unc((si32)(ucolor >> netxs::field_offset<ucolor_mask>()));
                         }
                         else
                         {
-                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.inv((si32)(unline >> offset(unline_mask)));
+                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.inv((si32)(unline >> netxs::field_offset<unline_mask>()));
                         }
                     }
                     base.token = token;
@@ -1309,20 +1299,20 @@ namespace netxs
                 token ^= invert_mask;
             }
 
-            void bld(bool b)    { token &= ~bolded_mask; token |= ((ui32)b << offset(bolded_mask)); }
-            void itc(bool b)    { token &= ~italic_mask; token |= ((ui32)b << offset(italic_mask)); }
-            void inv(bool b)    { token &= ~invert_mask; token |= ((ui32)b << offset(invert_mask)); }
-            void ovr(bool b)    { token &= ~overln_mask; token |= ((ui32)b << offset(overln_mask)); }
-            void stk(bool b)    { token &= ~strike_mask; token |= ((ui32)b << offset(strike_mask)); }
-            void blk(bool b)    { token &= ~blinks_mask; token |= ((ui32)b << offset(blinks_mask)); }
-            void und(si32 n)    { token &= ~unline_mask; token |= ((ui32)n << offset(unline_mask)); }
-            void unc(si32 c)    { token &= ~ucolor_mask; token |= ((ui32)c << offset(ucolor_mask)); }
-            void cur(si32 s)    { token &= ~cursor_mask; token |= ((ui32)s << offset(cursor_mask)); }
+            void bld(bool b)    { token &= ~bolded_mask; token |= ((ui32)b << netxs::field_offset<bolded_mask>()); }
+            void itc(bool b)    { token &= ~italic_mask; token |= ((ui32)b << netxs::field_offset<italic_mask>()); }
+            void inv(bool b)    { token &= ~invert_mask; token |= ((ui32)b << netxs::field_offset<invert_mask>()); }
+            void ovr(bool b)    { token &= ~overln_mask; token |= ((ui32)b << netxs::field_offset<overln_mask>()); }
+            void stk(bool b)    { token &= ~strike_mask; token |= ((ui32)b << netxs::field_offset<strike_mask>()); }
+            void blk(bool b)    { token &= ~blinks_mask; token |= ((ui32)b << netxs::field_offset<blinks_mask>()); }
+            void und(si32 n)    { token &= ~unline_mask; token |= ((ui32)n << netxs::field_offset<unline_mask>()); }
+            void unc(si32 c)    { token &= ~ucolor_mask; token |= ((ui32)c << netxs::field_offset<ucolor_mask>()); }
+            void cur(si32 s)    { token &= ~cursor_mask; token |= ((ui32)s << netxs::field_offset<cursor_mask>()); }
+            void mosaic(si32 m) { token &= ~mosaic_mask; token |= (ui32)(m << netxs::field_offset<mosaic_mask>()); }
+            void bitmap(si32 r) { token &= ~bitmap_mask; token |= (ui32)(r << netxs::field_offset<bitmap_mask>()); }
             void  xy(ui32 m)    { token &= ~mosaic_mask; token |= m; }
             void raw(ui32 r)    { token &= ~bitmap_mask; token |= r; }
-            void mosaic(si32 m) { token &= ~mosaic_mask; token |= (ui32)(m << offset(mosaic_mask)); }
-            void bitmap(si32 r) { token &= ~bitmap_mask; token |= (ui32)(r << offset(bitmap_mask)); }
-            void  xy(si32 x, si32 y) { mosaic(x + (y << height_bits)); }
+            void  xy(si32 x, si32 y) { mosaic(x + (y << y_bits)); }
 
             bool bld() const { return !!(token & bolded_mask); }
             bool itc() const { return !!(token & italic_mask); }
@@ -1330,13 +1320,13 @@ namespace netxs
             bool ovr() const { return !!(token & overln_mask); }
             bool stk() const { return !!(token & strike_mask); }
             bool blk() const { return !!(token & blinks_mask); }
-            si32 und() const { return (si32)((token & unline_mask) >> offset(unline_mask)); }
-            si32 unc() const { return (si32)((token & ucolor_mask) >> offset(ucolor_mask)); }
-            si32 cur() const { return (si32)((token & cursor_mask) >> offset(cursor_mask)); }
+            si32 und() const { return (si32)((token & unline_mask) >> netxs::field_offset<unline_mask>()); }
+            si32 unc() const { return (si32)((token & ucolor_mask) >> netxs::field_offset<ucolor_mask>()); }
+            si32 cur() const { return (si32)((token & cursor_mask) >> netxs::field_offset<cursor_mask>()); }
             ui32  xy() const { return (token & mosaic_mask); }
             ui32 raw() const { return (token & bitmap_mask); }
-            si32 mosaic() const { return (si32)((token & mosaic_mask) >> offset(mosaic_mask)); }
-            si32 bitmap() const { return (si32)((token & bitmap_mask) >> offset(bitmap_mask)); }
+            si32 mosaic() const { return (si32)((token & mosaic_mask) >> netxs::field_offset<mosaic_mask>()); }
+            si32 bitmap() const { return (si32)((token & bitmap_mask) >> netxs::field_offset<bitmap_mask>()); }
         };
         struct clrs
         {
@@ -1739,8 +1729,9 @@ namespace netxs
         void scan(text& dest) const
         {
                  if (st.xy() == 0) dest += whitespace;
-            else if (gc.size_x() == 0 && gc.size_y() == 0) dest += gc.get();
-            else if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            //todo revise
+            else if (gc.size_w() == 0 && gc.size_h() == 0) dest += gc.get();
+            else if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1753,7 +1744,8 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            //todo revise
+            if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1766,7 +1758,8 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
+            //todo revise
+            if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1954,17 +1947,17 @@ namespace netxs
         si32  wdt() const
         {
             auto xy = st.mosaic();
-            auto x = xy & cell::body::width_bits;
-            auto y = xy >> cell::body::height_bits;
-            auto w = gc.size_x() + 1;
-            auto h = gc.size_y() + 1;
+            auto x = xy & cell::body::x_bits;
+            auto y = xy >> cell::body::y_bits;
+            auto w = gc.size_w() + 1;
+            auto h = gc.size_h() + 1;
             return utf::matrix::s(w, h, x, y);
         }
         // cell: Return cluster matrix metadata.
-        auto whxy() const  { return std::tuple{ (si32)(gc.size_x() + 1),
-                                                (si32)(gc.size_y() + 1),
-                                                (si32)(st.mosaic() & cell::body::width_bits),
-                                                (si32)(st.mosaic() >> cell::body::height_bits) }; }
+        auto whxy() const  { return std::tuple{ (si32)(gc.size_w() + 1),
+                                                (si32)(gc.size_h() + 1),
+                                                (si32)(st.mosaic() & cell::body::x_bits),
+                                                (si32)(st.mosaic() >> cell::body::y_bits) }; }
         ui32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         template<svga Mode = svga::vtrgb>
         auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.

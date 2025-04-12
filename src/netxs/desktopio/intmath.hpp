@@ -165,6 +165,19 @@ namespace netxs
         return value.type() == typeid(T) ? std::any_cast<T>(value)
                                          : fallback;
     }
+    template<ui32 FieldMask>
+    static constexpr si32 field_offset()
+    {
+        auto mask = FieldMask;
+        if (mask == 0) return 0;
+        auto n = 0;
+        while ((mask & 1) == 0)
+        {
+            mask >>= 1;
+            ++n;
+        }
+        return n;
+    }
     // intmath: Set a single p-bit to v.
     template<sz_t P, class T>
     void set_bit(T&& n, bool v)

@@ -3923,8 +3923,8 @@ namespace netxs::os
                 }
                 else if (os::stdout_fd != os::invalid_fd)
                 {
-                    #if defined(_WIN32)
                     auto vtm_env = os::env::get("VTM");
+                    #if defined(_WIN32)
                     {
                         //todo revise
                         auto nt16 = vtm_env.empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
