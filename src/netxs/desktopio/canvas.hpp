@@ -955,6 +955,7 @@ namespace netxs
     // canvas: Grapheme cluster.
     struct cell
     {
+        //todo get rid of union (use operator[]())
         union glyf
         {
             static auto jumbos()
@@ -1024,8 +1025,8 @@ namespace netxs
             {
                 // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
                 // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
-                //    Drop "count" and use null (0x0) terminator, if you need an extra three bits for something.
-                byte isnul : 1; // prop: Null char inside.
+                // We do not store Nulls, it is used to create cells with an empty string. //todo If necessary, use Jumbo storage to store clusters containing nulls.
+                byte pad_0 : 1; // prop: Reserved. //todo drop: prop: Null char inside.
                 byte isrtl : 1; // prop: Cluster contains RTL text.
                 byte sizex : 4; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
                 byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
@@ -1044,7 +1045,6 @@ namespace netxs
             constexpr glyf(char c)
                 : token{ 0 }
             {
-                props.isnul = !c;
                 glyph[1] = c;
             }
 
@@ -1071,7 +1071,6 @@ namespace netxs
                 auto isrtl = props.isrtl;
                 token = 0;
                 props.isrtl = isrtl;
-                props.isnul = !c;
                 glyph[1] = c;
             }
             constexpr void rtl(bool b)
@@ -1114,15 +1113,8 @@ namespace netxs
                 {
                     token = 0;
                     props.isrtl = isrtl;
-                    if (count == 1 && utf8.front() == 0)
-                    {
-                        props.isnul = 1;
-                    }
-                    else
-                    {
-                        mtx(w, h);
-                        std::memcpy(glyph + 1, utf8.data(), count);
-                    }
+                    mtx(w, h);
+                    std::memcpy(glyph + 1, utf8.data(), count);
                 }
                 else
                 {
@@ -1136,7 +1128,7 @@ namespace netxs
             // glyf: Cluster length in bytes (if it is not jumbo).
             auto str_len() const
             {
-                return !glyph[1] ? (si32)props.isnul :
+                return !glyph[1] ? 0 :
                        !glyph[2] ? 1 :
                        !glyph[3] ? 2 :
                        !glyph[4] ? 3 :
@@ -1148,6 +1140,28 @@ namespace netxs
             view get() const
             {
                 if constexpr (Mode == svga::dtvt) return {};
+                else if constexpr (Mode != svga::vt_2D)
+                {
+                    auto crop = is_jumbo() ? jumbos().get(jgc_token())
+                                           : view(glyph + 1, str_len());
+                    if (auto s = crop.size())
+                    {
+                        if (s >= 4)
+                        {
+                            auto front = crop.front();
+                            if (crop[s - 4] == utf::matrix::utf8_prefix[0]
+                             && crop[s - 3] == utf::matrix::utf8_prefix[1])
+                            {
+                                crop.remove_suffix(4); // Drop geometry modifier.
+                            }
+                            if (front == utf::matrix::stx)
+                            {
+                                crop.remove_prefix(1); // Drop cluster initializer.
+                            }
+                        }
+                    }
+                    return crop;
+                }
                 else
                 {
                     if (is_jumbo()) return jumbos().get(jgc_token());
@@ -1160,7 +1174,7 @@ namespace netxs
             }
             auto is_null() const
             {
-                return glyph[1] == 0;
+                return glyph[1] == 0; // Jumbo bits are nulls. Jumbo mark is the last two bits = 0b10'000000.
             }
             auto jgc() const
             {
@@ -1955,7 +1969,8 @@ namespace netxs
                                                 (si32)(st.attrs.mosaic & cell::body::width_bits),
                                                 (si32)(st.attrs.mosaic >> cell::body::height_bits) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
-        auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
+        template<svga Mode = svga::vtrgb>
+        auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
         auto& egc() const  { return gc;            } // cell: Get grapheme cluster object.
         auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.

@@ -105,6 +105,7 @@ namespace netxs::utf
         static constexpr auto vss = utf8view<code>;
         static constexpr auto min_vs_code = vs_code<00, 00>;
         static constexpr auto max_vs_code = vs_code<164, 164>;
+        static constexpr auto utf8_prefix = utf8view<vs_block>;
 
         auto vs_runtime(si32 w, si32 h, si32 x = {}, si32 y = {})
         {
@@ -583,6 +584,18 @@ namespace netxs::utf
             }
             while (code);
         }
+    }
+    auto codepoint_count(auto&& cluster)
+    {
+        auto count = 0;
+        auto head = std::begin(cluster);
+        auto tail = std::end(cluster);
+        while (head != tail)
+        {
+            auto c = *head++;
+            if ((c & 0xC0) != 0x80) ++count;
+        }
+        return count;
     }
 
     struct qiew : public view

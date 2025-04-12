@@ -1035,8 +1035,7 @@ namespace netxs::gui
                     else if (codepoint.cdpoint == utf::vs08_code) img_alignment.y = snap::center;
                     else if (codepoint.cdpoint == utf::vs09_code) img_alignment.y = snap::tail;
                 }
-                else if (codepoint.cdpoint != utf::matrix::stx // Drop cluster initiator.
-                     && (codepoint.cdpoint < utf::matrix::min_vs_code || codepoint.cdpoint > utf::matrix::max_vs_code)) // Drop geometry modifiers.
+                else
                 {
                     codepoints.push_back(codepoint);
                 }

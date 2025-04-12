@@ -1252,6 +1252,17 @@ namespace netxs::directvt
                     }
                     else cache.scan<Mode>(state, block);
                 };
+                auto put2 = [&](cell const& cache, view cluster)
+                {
+                    if (cache.cur())
+                    {
+                        auto c = cache;
+                        c.draw_cursor();
+                        c.scan_attr<Mode>(state, block);
+                    }
+                    else cache.scan_attr<Mode>(state, block);
+                    block += cluster;
+                };
                 auto dif = [&](cell const& cache, cell const& front)
                 {
                     auto same = cache.check_pair(front);
@@ -1278,46 +1289,184 @@ namespace netxs::directvt
                         right_half(right);
                     }
                 };
-                if (image.hash() != cache.hash())
+                if (image.hash() != cache.hash()) // The cache has been resized.
                 {
                     block.basevt::scroll_wipe();
                     auto src = cache.begin();
                     while (coord.y < field.y)
                     {
-                        if (abort)
+                        if (abort) // The cache is resized again.
                         {
                             delta = reset();
                             state = saved;
                             break;
                         }
                         block.basevt::locate(coord);
+                        auto beg = src + 1;
                         auto end = src + field.x;
+                        auto unsync = faux;
+                        auto is_integral = faux;
+                        auto prev_cluster = view{};
+                        auto cell_count = 0;
                         while (src != end)
                         {
-                            auto& c = *src++;
+                            // if (y!=1 || x!=1 || len==0 || (len==1 && c<32)) // 2D fragment or empty or C0
+                            // {
+                            //      Print white space
+                            //      coor.x++;
+                            // }
+                            // else if ((w==1 && h==1) // slim and
+                            //      && ((c>=32 && c<128) // ansi plain text
+                            //       || (len<4 || (c[len-4]!=vs[0] && c[len-3]!=vs[1])) // or not modified
+                            // {
+                            //      // Print c
+                            //      coor.x++;
+                            // }
+                            // else if (x==1 && w!=1) // wide
+                            // {
+                            //      auto gc = c.txt<svga::vt_2D>();
+                            //      print w spaces: while (w==x && c.txt<svga::vt_2D>() == gc)
+                            //                      {
+                            //                          if (c.txt<svga::vt_2D>() != gc)
+                            //                          {
+                            //                              drop cluster as is and continue diff
+                            //                          }
+                            //                          print space
+                            //                          coor.x++;
+                            //                      }
+                            //          set_coor(coor.x - w)
+                            //          // Print c.
+                            //          set_coor(coor.x + w)
+                            //      }
+                            // }
+                            // not modified:    len<4 || (c[len-4]!=q[0] && c[len-3]!=q[1])
+                            // modified:        len>=4 && c[len-4]==q[0] && c[len-3]==q[1]
+                            auto c = *src++;
+                            //codepoint count
+                            //  if one: is simple (ranges)?
+                            //geometry modifier present
+                            //current char width
+                            // seek to end (printing spaces) until x==w then go back (set coor) and print char and set coor to end
                             auto [w, h, x, y] = c.whxy();
-                            if (w < 2 && x < 2) put(c);
-                            else
+                            if (y == 1)
                             {
-                                if (w == 2 && x == 1)
+                                //if (w == x && is_integral)
+                                //{
+                                //    put3(c, cluster);
+                                //}
+                                //else
+                                if (w != 1 && x == 1)
                                 {
-                                    if (src != end)
+                                    is_integral = true;
+                                    prev_cluster = c.gc.get<svga::vt_2D>();
+                                    cell_count++;
+                                }
+                                else
+                                {
+                                    if (is_integral)
                                     {
-                                        auto& right = *src;
-                                        auto [rw, rh, rx, ry] = right.whxy();
-                                        if (rx == 1) left_half(c);
+                                        auto cluster = c.gc.get<svga::vt_2D>();
+                                        if (prev_cluster == cluster && x == cell_count + 1)
+                                        {
+                                            cell_count++;
+                                        }
                                         else
                                         {
-                                            if (dif(c, right)) left_half(c);
-                                            else               ++src;
+                                            is_integral = faux;
                                         }
                                     }
-                                    else left_half(c);
                                 }
-                                else right_half(c);
+                            }
+                            if (w != x || y != 1 || (w != 1 && !is_integral))
+                            {
+                                put2(c, " ");
+                                //todo track character integrity
+                            }
+                            else
+                            {
+                                auto cluster = c.gc.get<svga::vt_2D>();
+                                auto s = cluster.size();
+                                if (s == 1)
+                                {
+                                    if (cluster.front() >= ' ')
+                                    {
+                                        put2(c, cluster);
+                                    }
+                                    else
+                                    {
+                                        put2(c, " ");
+                                    }
+                                }
+                                else if (s == 0)
+                                {
+                                    put2(c, " ");
+                                }
+                                else
+                                {
+                                    auto count = utf::codepoint_count(cluster);
+                                    if (count == 1 && (cluster.front() & 0x80) == 0)
+                                    {
+                                        put2(c, cluster);
+                                    }
+                                    else
+                                    {
+
+                                    }
+                                }
+                            }
+
+                            if (x == 1 && y == 1)
+                            {
+                                if (unsync)
+                                {
+                                    unsync = faux;
+                                    mov(src - beg);
+                                }
+                                put(c);
+                                if (w > 1)
+                                {
+                                    if (unsync)
+                                    {
+                                        unsync = faux;
+                                        mov(src - beg);
+                                    }
+                                    put(c.txt(' '));
+                                    if (w == 2 || w == x) unsync = true;
+                                }
+                            }
+                            else
+                            {
+                                if (x != 2 || y != 1)
+                                {
+                                    if (unsync)
+                                    {
+                                        unsync = faux;
+                                        mov(src - beg);
+                                    }
+                                    put(c.txt(' '));
+                                }
+                                //unsync = true;
+                                //mov(src - beg);
+                                //if (w == 2 && x == 1)
+                                //{
+                                //    if (src != end)
+                                //    {
+                                //        auto& right = *src;
+                                //        auto [rw, rh, rx, ry] = right.whxy();
+                                //        if (rx == 1) left_half(c);
+                                //        else
+                                //        {
+                                //            if (dif(c, right)) left_half(c);
+                                //            else               ++src;
+                                //        }
+                                //    }
+                                //    else left_half(c);
+                                //}
+                                //else mov(src - beg);//else right_half(c);
                             }
                         }
                         ++coord.y;
+                        coord.x = 0;
                     }
                     std::swap(image, cache);
                     delta = commit(true);
@@ -1328,7 +1477,7 @@ namespace netxs::directvt
                     auto dst = image.begin();
                     while (coord.y < field.y)
                     {
-                        if (abort)
+                        if (abort) // The cache size has suddenly changed.
                         {
                             delta = reset();
                             state = saved;
@@ -1351,7 +1500,6 @@ namespace netxs::directvt
                                     {
                                         auto& f = *src++;
                                         auto& b = *dst++;
-                                        //auto fw = f.wdt();
                                         auto [fw, fh, fx, fy] = f.whxy();
                                         if (fw < 2)
                                         {
@@ -1383,7 +1531,7 @@ namespace netxs::directvt
                                             }
                                             else left_half(f);
                                         }
-                                        else right_half(f); // fw == 3
+                                        else mov(src - beg + 1);//else right_half(f); // fw == 3
                                     }
                                 }
                             }
@@ -1429,7 +1577,7 @@ namespace netxs::directvt
                                         else mov(src - beg), left_half(fore);
                                     }
                                 }
-                                else mov(src - beg), right_half(fore); // w == 3
+                                else mov(src - beg + 1);//, right_half(fore); // w == 3
                             }
                         }
                         ++coord.y;
