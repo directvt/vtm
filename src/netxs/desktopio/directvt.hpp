@@ -1065,7 +1065,7 @@ namespace netxs::directvt
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
                     if (changes & rastr) add(cache.img());
-                    if (changes & glyph) add(cluster, cache.egc().glyph, cluster);
+                    if (changes & glyph) add(cluster, cache.egc().bytes(), cluster);
                     state = cache;
                 };
                 auto map = [&](auto const& cache, auto const& front)
@@ -1146,7 +1146,7 @@ namespace netxs::directvt
                         auto& gc = c.egc();
                         gc.token = 0;
                         auto [size] = stream::take<byte>(data);
-                        stream::take(gc.glyph, size, data);
+                        stream::take(gc.bytes(), size, data);
                         c.jgc(); // Check unknown jumbo clusters.
                     }
                     return c;

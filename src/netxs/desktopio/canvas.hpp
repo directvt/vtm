@@ -955,7 +955,7 @@ namespace netxs
     // canvas: Grapheme cluster.
     struct cell
     {
-        //todo get rid of union (use operator[]())
+        //todo get rid of union
         union glyf
         {
             static auto jumbos()
@@ -1018,15 +1018,12 @@ namespace netxs
                 return guard{ inst };
             }
 
-            static constexpr auto limit = (byte)sizeof(ui64);
-            static constexpr auto token_mask = (char)0b0000'0001; // Exclude RTL and matrix metadata. It is a null bit (the null character).
-
             struct prop
             {
-                // If glyph[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
+                // If bytes[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
                 // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
                 // We do not store Nulls, it is used to create cells with an empty string. //todo If necessary, use Jumbo storage to store clusters containing nulls.
-                byte pad_0 : 1; // prop: Reserved. //todo drop: prop: Null char inside.
+                byte pad_0 : 1; // prop: Reserved.
                 byte isrtl : 1; // prop: Cluster contains RTL text.
                 byte sizex : 4; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
                 byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
@@ -1034,7 +1031,6 @@ namespace netxs
 
             ui64 token;
             prop props;
-            char glyph[limit];
 
             constexpr glyf()
                 : token{ 0 }
@@ -1043,10 +1039,8 @@ namespace netxs
                 : token{ g.token }
             { }
             constexpr glyf(char c)
-                : token{ 0 }
-            {
-                glyph[1] = c;
-            }
+                : token{ netxs::letoh((ui64)c << 8) } // bytes[1] = c;
+            { }
 
             constexpr glyf& operator = (glyf const&) = default;
             auto operator == (glyf const& g) const
@@ -1054,13 +1048,17 @@ namespace netxs
                 return token == g.token;
             }
 
+            constexpr auto bytes() const
+            {
+                return (char*)&token;
+            }
             constexpr auto is_jumbo() const
             {
-                return (glyph[1] & 0b1100'0000) == 0b1000'0000;
+                return (token & netxs::letoh((ui64)0b1100'0000'0000'0000)) == netxs::letoh((ui64)0b1000'0000'0000'0000); // (bytes[1] & 0b1100'0000) == 0b1000'0000;
             }
             void set_jumbo_flag()
             {
-                glyph[1] = (glyph[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
+                token = (token & (~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
             }
             constexpr void set(ui64 t)
             {
@@ -1069,9 +1067,8 @@ namespace netxs
             constexpr void set(char c)
             {
                 auto isrtl = props.isrtl;
-                token = 0;
+                token = netxs::letoh((ui64)c << 8); // bytes[1] = c;
                 props.isrtl = isrtl;
-                glyph[1] = c;
             }
             constexpr void rtl(bool b)
             {
@@ -1084,11 +1081,9 @@ namespace netxs
             constexpr void set_c0(char c)
             {
                 auto isrtl = props.isrtl;
-                token = 0;
+                token = netxs::letoh(((ui64)'^' << 8) | ((ui64)('@' + (c & 0b00011111)) << 16)); // bytes[1] = '^'; bytes[2] = '@' + (c & 0b00011111);
                 props.isrtl = isrtl;
                 props.sizex = 2 - 1;
-                glyph[1] = '^';
-                glyph[2] = '@' + (c & 0b00011111);
             }
             auto mtx() const
             {
@@ -1099,22 +1094,22 @@ namespace netxs
                 props.sizex = (byte)(w ? w - 1 : 0);
                 props.sizey = (byte)(h ? h - 1 : 0);
             }
-            auto jgc_token() const // Exclude RTL and matrix metadata.
+            auto jgc_token() const // Return token excluding props.
             {
                 auto token_copy = token;
-                ((char*)&token_copy)[0] &= token_mask;
+                token_copy &= netxs::letoh(~ui64{} << 8); // ((char*)&token_copy)[0] &= token_mask; // token_mask = (char)0b0000'0000; // Exclude RTL and matrix metadata.
                 return token_copy;
             }
             void set_direct(view utf8, si32 w, si32 h)
             {
                 auto count = utf8.size();
                 auto isrtl = props.isrtl;
-                if (count < limit)
+                if (count < sizeof(token))
                 {
                     token = 0;
                     props.isrtl = isrtl;
                     mtx(w, h);
-                    std::memcpy(glyph + 1, utf8.data(), count);
+                    std::memcpy(bytes() + 1, utf8.data(), count);
                 }
                 else
                 {
@@ -1128,13 +1123,13 @@ namespace netxs
             // glyf: Cluster length in bytes (if it is not jumbo).
             auto str_len() const
             {
-                return !glyph[1] ? 0 :
-                       !glyph[2] ? 1 :
-                       !glyph[3] ? 2 :
-                       !glyph[4] ? 3 :
-                       !glyph[5] ? 4 :
-                       !glyph[6] ? 5 :
-                       !glyph[7] ? 6 : 7;
+                return !(token & netxs::letoh((ui64)0xFF << 8 * 1)) ? 0 : // !bytes[1] ? 0 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 2)) ? 1 : // !bytes[2] ? 1 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 3)) ? 2 : // !bytes[3] ? 2 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 4)) ? 3 : // !bytes[4] ? 3 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 5)) ? 4 : // !bytes[5] ? 4 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 6)) ? 5 : // !bytes[6] ? 5 :
+                       !(token & netxs::letoh((ui64)0xFF << 8 * 7)) ? 6 : 7; // !bytes[7] ? 6 : 7;
             }
             template<svga Mode = svga::vtrgb>
             view get() const
@@ -1143,7 +1138,7 @@ namespace netxs
                 else if constexpr (Mode != svga::vt_2D)
                 {
                     auto crop = is_jumbo() ? jumbos().get(jgc_token())
-                                           : view(glyph + 1, str_len());
+                                           : view(bytes() + 1, str_len());
                     if (auto s = crop.size())
                     {
                         if (s >= 4)
@@ -1165,16 +1160,16 @@ namespace netxs
                 else
                 {
                     if (is_jumbo()) return jumbos().get(jgc_token());
-                    else            return view(glyph + 1, str_len());
+                    else            return view(bytes() + 1, str_len());
                 }
             }
             bool is_space() const //todo VS2019 complains on auto
             {
-                return (byte)(glyph[1]) <= whitespace;
+                return (token & netxs::letoh((ui64)0xFF00)) <= netxs::letoh((ui64)whitespace << 8); // (byte)(bytes[1]) <= whitespace;
             }
             auto is_null() const
             {
-                return glyph[1] == 0; // Jumbo bits are nulls. Jumbo mark is the last two bits = 0b10'000000.
+                return (token & netxs::letoh((ui64)0xFF00)) == 0; // bytes[1] == 0; // Jumbo bits are nulls. Jumbo mark is the last two bits = 0b10'000000.
             }
             auto jgc() const
             {
@@ -1183,7 +1178,7 @@ namespace netxs
             // Return cluster storage length.
             auto len() const
             {
-                return is_jumbo() ? limit : 1/*first byte*/ + str_len();
+                return is_jumbo() ? sizeof(token) : 1/*first byte (props)*/ + str_len();
             }
             void rst()
             {
@@ -1564,7 +1559,7 @@ namespace netxs
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
-            if (c.gc.glyph[1] != 0) fuse(c);
+            if (!c.gc.is_null()) fuse(c); // if (c.gc.bytes[1] != 0) fuse(c);
         }
         // cell: Blend cell colors.
         void mix(cell const& c)
