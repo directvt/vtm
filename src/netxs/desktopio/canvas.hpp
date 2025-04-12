@@ -955,8 +955,7 @@ namespace netxs
     // canvas: Grapheme cluster.
     struct cell
     {
-        //todo get rid of union
-        union glyf
+        struct glyf
         {
             static auto jumbos()
             {
@@ -1018,19 +1017,16 @@ namespace netxs
                 return guard{ inst };
             }
 
-            struct prop
-            {
-                // If bytes[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
-                // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
-                // We do not store Nulls, it is used to create cells with an empty string. //todo If necessary, use Jumbo storage to store clusters containing nulls.
-                byte pad_0 : 1; // prop: Reserved.
-                byte isrtl : 1; // prop: Cluster contains RTL text.
-                byte sizex : 4; // prop: 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
-                byte sizey : 2; // prop: 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
-            };
+            // If bytes[1] & 0b11'00'0000 == 0b10'00'0000 (first byte in UTF-8 cannot start with 0b10......) - If so, cluster is stored in an external map (jumbo cluster).
+            // In Modified UTF-8, the null character (U+0000) uses the two-byte overlong encoding 11000000 10000000 (hexadecimal C0 80), instead of 00000000 (hexadecimal 00).
+            // We do not store Nulls, it is used to create cells with an empty string. //todo If necessary, use Jumbo storage to store clusters containing nulls.
+            static constexpr auto size_x_mask = netxs::letoh((ui64)0b0000'1111); // 0-based (w - 1) cell matrix width. (w: 1 - 16)  utf::matrix::kx
+            static constexpr auto size_y_mask = netxs::letoh((ui64)0b0011'0000); // 0-based (h - 1) cell matrix height. (h: 1 - 4)  utf::matrix::ky
+            static constexpr auto is_rtl_mask = netxs::letoh((ui64)0b0100'0000); // Cluster contains RTL text.
+            static constexpr auto reserv_mask = netxs::letoh((ui64)0b1000'0000); // Reserved.
+            static constexpr auto letoh_shift = netxs::endian_BE ? 8 * 7 : 0; // Left shift to get bytes[0].
 
             ui64 token;
-            prop props;
 
             constexpr glyf()
                 : token{ 0 }
@@ -1039,7 +1035,7 @@ namespace netxs
                 : token{ g.token }
             { }
             constexpr glyf(char c)
-                : token{ netxs::letoh((ui64)c << 8) } // bytes[1] = c;
+                : token{ netxs::letoh((ui64)c << 8 * 1) } // bytes[1] = c;
             { }
 
             constexpr glyf& operator = (glyf const&) = default;
@@ -1048,6 +1044,33 @@ namespace netxs
                 return token == g.token;
             }
 
+            constexpr auto size_x() const
+            {
+                return (si32)((token & size_x_mask) >> letoh_shift);
+            }
+            constexpr void size_x(si32 x)
+            {
+                token &= ~size_x_mask;
+                token |= (ui64)x << letoh_shift;
+            }
+            constexpr auto size_y() const
+            {
+                return (si32)((token & size_y_mask) >> (letoh_shift + 4));
+            }
+            constexpr void size_y(si32 y)
+            {
+                token &= ~size_y_mask;
+                token |= (ui64)y << (letoh_shift + 4);
+            }
+            constexpr auto rtl() const
+            {
+                return token & is_rtl_mask;
+            }
+            constexpr void rtl(bool b)
+            {
+                if (b) token |= is_rtl_mask;
+                else   token &= ~is_rtl_mask;
+            }
             constexpr auto bytes() const
             {
                 return (char*)&token;
@@ -1058,7 +1081,7 @@ namespace netxs
             }
             void set_jumbo_flag()
             {
-                token = (token & (~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
+                token = (token & netxs::letoh(~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
             }
             constexpr void set(ui64 t)
             {
@@ -1066,55 +1089,47 @@ namespace netxs
             }
             constexpr void set(char c)
             {
-                auto isrtl = props.isrtl;
-                token = netxs::letoh((ui64)c << 8); // bytes[1] = c;
-                props.isrtl = isrtl;
-            }
-            constexpr void rtl(bool b)
-            {
-                props.isrtl = b;
-            }
-            constexpr auto rtl() const
-            {
-                return !!props.isrtl;
+                auto isrtl = rtl();
+                token = netxs::letoh((ui64)c << 8 * 1); // bytes[1] = c;
+                token |= isrtl;
             }
             constexpr void set_c0(char c)
             {
-                auto isrtl = props.isrtl;
-                token = netxs::letoh(((ui64)'^' << 8) | ((ui64)('@' + (c & 0b00011111)) << 16)); // bytes[1] = '^'; bytes[2] = '@' + (c & 0b00011111);
-                props.isrtl = isrtl;
-                props.sizex = 2 - 1;
+                auto isrtl = rtl();
+                token = netxs::letoh(((ui64)'^' << 8 * 1) | ((ui64)('@' + (c & 0b00011111)) << 8 * 2)); // bytes[1] = '^'; bytes[2] = '@' + (c & 0b00011111);
+                token |= isrtl;
+                size_x(2 - 1);
             }
             auto mtx() const
             {
-                return twod{ props.sizex + 1, props.sizey + 1 };
+                return twod{ size_x() + 1, size_y() + 1 };
             }
             void mtx(si32 w, si32 h)
             {
-                props.sizex = (byte)(w ? w - 1 : 0);
-                props.sizey = (byte)(h ? h - 1 : 0);
+                size_x(w ? w - 1 : 0);
+                size_y(h ? h - 1 : 0);
             }
             auto jgc_token() const // Return token excluding props.
             {
                 auto token_copy = token;
-                token_copy &= netxs::letoh(~ui64{} << 8); // ((char*)&token_copy)[0] &= token_mask; // token_mask = (char)0b0000'0000; // Exclude RTL and matrix metadata.
+                token_copy &= netxs::letoh(~ui64{} << 8 * 1); // ((char*)&token_copy)[0] &= token_mask; // token_mask = (char)0b0000'0000; // Exclude RTL and matrix metadata.
                 return token_copy;
             }
             void set_direct(view utf8, si32 w, si32 h)
             {
                 auto count = utf8.size();
-                auto isrtl = props.isrtl;
+                auto isrtl = rtl();
                 if (count < sizeof(token))
                 {
-                    token = 0;
-                    props.isrtl = isrtl;
+                    token = isrtl; // token = 0;
                     mtx(w, h);
                     std::memcpy(bytes() + 1, utf8.data(), count);
                 }
                 else
                 {
                     token = qiew::hash{}(utf8);
-                    props.isrtl = isrtl;
+                    token &= ~is_rtl_mask;
+                    token |= isrtl;
                     set_jumbo_flag();
                     mtx(w, h);
                     jumbos().add(jgc_token(), utf8);
@@ -1736,8 +1751,8 @@ namespace netxs
         void scan(text& dest) const
         {
                  if (st.xy() == 0) dest += whitespace;
-            else if (gc.props.sizex == 0 && gc.props.sizey == 0) dest += gc.get();
-            else if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            else if (gc.size_x() == 0 && gc.size_y() == 0) dest += gc.get();
+            else if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1750,7 +1765,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1763,7 +1778,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (gc.props.sizex != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
+            if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1954,13 +1969,13 @@ namespace netxs
             auto xy = st.xy();
             auto x = xy & cell::body::width_bits;
             auto y = xy >> cell::body::height_bits;
-            auto w = gc.props.sizex + 1;
-            auto h = gc.props.sizey + 1;
+            auto w = gc.size_x() + 1;
+            auto h = gc.size_y() + 1;
             return utf::matrix::s(w, h, x, y);
         }
         // cell: Return cluster matrix metadata.
-        auto whxy() const  { return std::tuple{ (si32)(gc.props.sizex + 1),
-                                                (si32)(gc.props.sizey + 1),
+        auto whxy() const  { return std::tuple{ (si32)(gc.size_x() + 1),
+                                                (si32)(gc.size_y() + 1),
                                                 (si32)(st.attrs.mosaic & cell::body::width_bits),
                                                 (si32)(st.attrs.mosaic >> cell::body::height_bits) }; }
         si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.

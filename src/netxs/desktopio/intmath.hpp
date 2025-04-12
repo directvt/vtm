@@ -219,19 +219,21 @@ namespace netxs
         else assert(faux);
         return r;
     }
+    static constexpr auto endian_BE = std::endian::native == std::endian::big;
+    static constexpr auto endian_LE = std::endian::native == std::endian::little;
     // intmath: Convert LE to host endianness.
-    template<class T, bool BE = std::endian::native == std::endian::big>
+    template<class T>
     constexpr auto letoh(T i)
     {
-        if constexpr (BE && sizeof(T) > 1) return swap_bytes(i);
-        else                               return i;
+        if constexpr (endian_BE && sizeof(T) > 1) return swap_bytes(i);
+        else                                      return i;
     }
     // intmath: Convert BE to host endianness.
-    template<class T, bool LE = std::endian::native == std::endian::little>
+    template<class T>
     constexpr auto betoh(T i)
     {
-        if constexpr (LE && sizeof(T) > 1) return swap_bytes(i);
-        else                               return i;
+        if constexpr (endian_LE && sizeof(T) > 1) return swap_bytes(i);
+        else                                      return i;
     }
     // intmath: Get the aligned integral value.
     template<class T>
