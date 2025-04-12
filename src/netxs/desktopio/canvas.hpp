@@ -1044,37 +1044,12 @@ namespace netxs
                 return token == g.token;
             }
 
-            constexpr auto size_x() const
-            {
-                return (si32)((token & size_x_mask) >> letoh_shift);
-            }
-            constexpr void size_x(si32 x)
-            {
-                token &= ~size_x_mask;
-                token |= (ui64)x << letoh_shift;
-            }
-            constexpr auto size_y() const
-            {
-                return (si32)((token & size_y_mask) >> (letoh_shift + 4));
-            }
-            constexpr void size_y(si32 y)
-            {
-                token &= ~size_y_mask;
-                token |= (ui64)y << (letoh_shift + 4);
-            }
-            constexpr auto rtl() const
-            {
-                return token & is_rtl_mask;
-            }
-            constexpr void rtl(bool b)
-            {
-                if (b) token |= is_rtl_mask;
-                else   token &= ~is_rtl_mask;
-            }
-            constexpr auto bytes() const
-            {
-                return (char*)&token;
-            }
+            constexpr auto size_x() const { return (si32)((token & size_x_mask) >> (letoh_shift + 0)); }
+            constexpr auto size_y() const { return (si32)((token & size_y_mask) >> (letoh_shift + 4)); }
+            constexpr void size_x(si32 x) { token &= ~size_x_mask; token |= (ui64)x << (letoh_shift + 0); }
+            constexpr void size_y(si32 y) { token &= ~size_y_mask; token |= (ui64)y << (letoh_shift + 4); }
+            constexpr auto rtl()    const { return token & is_rtl_mask; }
+            constexpr void rtl(bool b)    { if (b) token |= is_rtl_mask; else token &= ~is_rtl_mask; }
             constexpr auto is_jumbo() const
             {
                 return (token & netxs::letoh((ui64)0b1100'0000'0000'0000)) == netxs::letoh((ui64)0b1000'0000'0000'0000); // (bytes[1] & 0b1100'0000) == 0b1000'0000;
@@ -1082,6 +1057,10 @@ namespace netxs
             void set_jumbo_flag()
             {
                 token = (token & netxs::letoh(~(ui64)0b1100'0000'0000'0000)) | netxs::letoh((ui64)0b1000'0000'0000'0000); // bytes[1] = (bytes[1] & ~0b1100'0000) | 0b1000'0000;// First byte in UTF-8 cannot start with 0b10xx'xxxx.
+            }
+            constexpr auto bytes() const
+            {
+                return (char*)&token;
             }
             constexpr void set(ui64 t)
             {
@@ -1204,7 +1183,7 @@ namespace netxs
                 token = 0;
             }
         };
-        union body
+        struct body
         {
             struct pxtype
             {
@@ -1213,47 +1192,56 @@ namespace netxs
                 static constexpr auto bitmap = 2; // Attached argb bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
                 static constexpr auto reserv = 3;
             };
-            struct attr
+
+            static constexpr auto width_bits = (byte)0b0001'1111; // Character geometry width bits (for mosaic_mask).
+            static constexpr auto height_bits = 5; // Character geometry height bits offset (for mosaic_mask).
+            static constexpr auto shared_bits = (ui32)((1 << 24) - 1);
+
+            // Shared attributes.
+            static constexpr auto bolded_mask = (ui32)0b00000000'00000000'00000000'00000001; // bolded : 1;
+            static constexpr auto italic_mask = (ui32)0b00000000'00000000'00000000'00000010; // italic : 1;
+            static constexpr auto invert_mask = (ui32)0b00000000'00000000'00000000'00000100; // invert : 1;
+            static constexpr auto overln_mask = (ui32)0b00000000'00000000'00000000'00001000; // overln : 1;
+            static constexpr auto strike_mask = (ui32)0b00000000'00000000'00000000'00010000; // strike : 1;
+            static constexpr auto unline_mask = (ui32)0b00000000'00000000'00000000'11100000; // unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
+            static constexpr auto ucolor_mask = (ui32)0b00000000'00000000'11111111'00000000; // ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
+            static constexpr auto cursor_mask = (ui32)0b00000000'00000011'00000000'00000000; // cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
+            static constexpr auto hplink_mask = (ui32)0b00000000'00000100'00000000'00000000; // hyperlink : 1; // cell::px strores string hash.
+            static constexpr auto blinks_mask = (ui32)0b00000000'00001000'00000000'00000000; // blinks : 1;
+            static constexpr auto bitmap_mask = (ui32)0b00000000'00110000'00000000'00000000; // bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
+            static constexpr auto fusion_mask = (ui32)0b00000000'11000000'00000000'00000000; // fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
+            // Unique attributes. From 24th bit.
+            static constexpr auto mosaic_mask = (ui32)0b11111111'00000000'00000000'00000000; // ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+            static constexpr inline auto offset(ui32 mask)
             {
-                // Shared attributes.
-                ui32 bolded : 1;
-                ui32 italic : 1;
-                ui32 invert : 1;
-                ui32 overln : 1;
-                ui32 strike : 1;
-                ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
-                ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
-                ui32 cursor : 2; // 0: None, 1: Underline, 2: Block, 3: I-bar. cell::px stores cursor fg/bg if cursor is set.
-                ui32 hyperlink : 1; // cell::px strores string hash.
-                ui32 blinks : 1;
-                ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
-                ui32 fusion : 2; // todo The outlines of object boundaries must be set when rendering each window (pro::shape).
-                                 // Background interpolation current c0 with neighbor c1 and c2 cells:
-                                 //    c0 c1
-                                 //    c2
-                                 // BG interpolation type (two 1-bit values):
-                                 // 0 -- None
-                                 // 1 -- Cubic
-                                 //
-                                 // 0 1
-                                 // │ └────── interpolation type between `c0` and `c2`
-                                 // └──────── interpolation type between `c0` and `c1`
-                // Unique attributes. From 24th bit.
-                ui32 mosaic : 8; // High 3 bits -> y-fragment (0-4 utf::matrix::ky), low 5 bits -> x-fragment (0-16 utf::matrix::kx). // Ref:  https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-            };
-            static constexpr auto width_bits = (byte)0b00011111; // Character geometry width bits (for attr::mosaic).
-            static constexpr auto height_bits = 5; // Character geometry height bits count (for attr::mosaic).
-            static constexpr auto shared_bits = (1 << 24) - 1;
+                if (mask == 0) return 0;
+                auto n = 0;
+                while ((mask & 1) == 0)
+                {
+                    mask >>= 1;
+                    ++n;
+                }
+                return n;
+            }
+            // Fusion: Background interpolation current c0 with neighbor c1 and c2 cells:
+            //    c0 c1
+            //    c2
+            // BG interpolation type (two 1-bit values):
+            // 0 -- None
+            // 1 -- Cubic
+            //
+            // 0 1
+            // │ └────── interpolation type between `c0` and `c2`
+            // └──────── interpolation type between `c0` and `c1`
 
             //todo Cf's can not be entered: even using paste from clipboard
-            //dont show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
+            //don't show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
 
             //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
             // append prev: U+200C ZERO WIDTH NON-JOINER
             // append prev: U+00AD SOFT HYPHEN
 
             ui32 token;
-            attr attrs;
 
             constexpr body()
                 : token{ 0 }
@@ -1262,22 +1250,16 @@ namespace netxs
                 : token{ b.token }
             { }
             constexpr body(si32 mosaic)
-                : token{ 0 }
-            {
-                attrs.mosaic = mosaic;
-            }
+                : token{ (ui32)mosaic << offset(mosaic_mask) }
+            { }
             constexpr body(body const& b, si32 mosaic)
-                : token{ b.token }
-            {
-                attrs.mosaic = mosaic;
-            }
+                : token{ b.token & ~mosaic_mask | ((ui32)mosaic << offset(mosaic_mask)) }
+            { }
 
             constexpr body& operator = (body const&) = default;
             bool operator == (body const& b) const
             {
                 return token == b.token;
-                //sizeof(*this);
-                //sizeof(attr);
             }
             bool operator != (body const& b) const
             {
@@ -1301,21 +1283,21 @@ namespace netxs
                     {
                         if constexpr (Mode != svga::vt16) // It is not available in the Linux and Win8 consoles.
                         {
-                            if (attrs.bolded != base.attrs.bolded) dest.bld(attrs.bolded);
-                            if (attrs.italic != base.attrs.italic) dest.itc(attrs.italic);
-                            if (attrs.unline != base.attrs.unline) dest.und(attrs.unline);
-                            if (attrs.invert != base.attrs.invert) dest.inv(attrs.invert);
-                            if (attrs.strike != base.attrs.strike) dest.stk(attrs.strike);
-                            if (attrs.overln != base.attrs.overln) dest.ovr(attrs.overln);
-                            if (attrs.blinks != base.attrs.blinks) dest.blk(attrs.blinks);
-                            if (attrs.ucolor != base.attrs.ucolor) dest.unc(attrs.ucolor);
+                            if (auto bolded = token & bolded_mask; bolded != (base.token & bolded_mask)) dest.bld(!!bolded);
+                            if (auto italic = token & italic_mask; italic != (base.token & italic_mask)) dest.itc(!!italic);
+                            if (auto invert = token & invert_mask; invert != (base.token & invert_mask)) dest.inv(!!invert);
+                            if (auto overln = token & overln_mask; overln != (base.token & overln_mask)) dest.ovr(!!overln);
+                            if (auto strike = token & strike_mask; strike != (base.token & strike_mask)) dest.stk(!!strike);
+                            if (auto blinks = token & blinks_mask; blinks != (base.token & blinks_mask)) dest.blk(!!blinks);
+                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.und((si32)(unline >> offset(unline_mask)));
+                            if (auto ucolor = token & ucolor_mask; ucolor != (base.token & ucolor_mask)) dest.unc((si32)(ucolor >> offset(ucolor_mask)));
                         }
                         else
                         {
-                            if (attrs.unline != base.attrs.unline) dest.inv(attrs.unline);
+                            if (auto unline = token & unline_mask; unline != (base.token & unline_mask)) dest.inv((si32)(unline >> offset(unline_mask)));
                         }
                     }
-                    base.attrs = attrs;
+                    base.token = token;
                 }
             }
             void wipe()
@@ -1324,31 +1306,37 @@ namespace netxs
             }
             void reverse()
             {
-                attrs.invert = !!!attrs.invert;
+                token ^= invert_mask;
             }
 
-            void bld(bool b) { attrs.bolded = b; }
-            void itc(bool b) { attrs.italic = b; }
-            void und(si32 n) { attrs.unline = n; }
-            void unc(si32 c) { attrs.ucolor = c; }
-            void cur(si32 s) { attrs.cursor = s; }
-            void inv(bool b) { attrs.invert = b; }
-            void ovr(bool b) { attrs.overln = b; }
-            void stk(bool b) { attrs.strike = b; }
-            void blk(bool b) { attrs.blinks = b; }
-            void  xy(si32 m) { attrs.mosaic = m; }
+            void bld(bool b)    { token &= ~bolded_mask; token |= ((ui32)b << offset(bolded_mask)); }
+            void itc(bool b)    { token &= ~italic_mask; token |= ((ui32)b << offset(italic_mask)); }
+            void inv(bool b)    { token &= ~invert_mask; token |= ((ui32)b << offset(invert_mask)); }
+            void ovr(bool b)    { token &= ~overln_mask; token |= ((ui32)b << offset(overln_mask)); }
+            void stk(bool b)    { token &= ~strike_mask; token |= ((ui32)b << offset(strike_mask)); }
+            void blk(bool b)    { token &= ~blinks_mask; token |= ((ui32)b << offset(blinks_mask)); }
+            void und(si32 n)    { token &= ~unline_mask; token |= ((ui32)n << offset(unline_mask)); }
+            void unc(si32 c)    { token &= ~ucolor_mask; token |= ((ui32)c << offset(ucolor_mask)); }
+            void cur(si32 s)    { token &= ~cursor_mask; token |= ((ui32)s << offset(cursor_mask)); }
+            void  xy(ui32 m)    { token &= ~mosaic_mask; token |= m; }
+            void raw(ui32 r)    { token &= ~bitmap_mask; token |= r; }
+            void mosaic(si32 m) { token &= ~mosaic_mask; token |= (ui32)(m << offset(mosaic_mask)); }
+            void bitmap(si32 r) { token &= ~bitmap_mask; token |= (ui32)(r << offset(bitmap_mask)); }
+            void  xy(si32 x, si32 y) { mosaic(x + (y << height_bits)); }
 
-            bool bld() const { return attrs.bolded; }
-            bool itc() const { return attrs.italic; }
-            si32 und() const { return attrs.unline; }
-            si32 unc() const { return attrs.ucolor; }
-            si32 cur() const { return attrs.cursor; }
-            bool inv() const { return attrs.invert; }
-            bool ovr() const { return attrs.overln; }
-            bool stk() const { return attrs.strike; }
-            bool blk() const { return attrs.blinks; }
-            bool raw() const { return attrs.bitmap; }
-            si32  xy() const { return attrs.mosaic; }
+            bool bld() const { return !!(token & bolded_mask); }
+            bool itc() const { return !!(token & italic_mask); }
+            bool inv() const { return !!(token & invert_mask); }
+            bool ovr() const { return !!(token & overln_mask); }
+            bool stk() const { return !!(token & strike_mask); }
+            bool blk() const { return !!(token & blinks_mask); }
+            si32 und() const { return (si32)((token & unline_mask) >> offset(unline_mask)); }
+            si32 unc() const { return (si32)((token & ucolor_mask) >> offset(ucolor_mask)); }
+            si32 cur() const { return (si32)((token & cursor_mask) >> offset(cursor_mask)); }
+            ui32  xy() const { return (token & mosaic_mask); }
+            ui32 raw() const { return (token & bitmap_mask); }
+            si32 mosaic() const { return (si32)((token & mosaic_mask) >> offset(mosaic_mask)); }
+            si32 bitmap() const { return (si32)((token & bitmap_mask) >> offset(bitmap_mask)); }
         };
         struct clrs
         {
@@ -1558,10 +1546,10 @@ namespace netxs
             if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
             else                      uv.bg.mix(c.uv.bg);
 
-            if (c.st.raw())
+            if (auto r = c.st.raw())
             {
                 px = c.px;
-                st.attrs.bitmap = c.st.attrs.bitmap;
+                st.raw(r);
             }
             if (c.st.xy())
             {
@@ -1599,10 +1587,10 @@ namespace netxs
         {
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
-            if (c.st.raw())
+            if (auto r = c.st.raw())
             {
                 px = c.px;
-                st.attrs.bitmap = c.st.attrs.bitmap;
+                st.raw(r);
             }
             if (c.st.xy())
             {
@@ -1752,7 +1740,7 @@ namespace netxs
         {
                  if (st.xy() == 0) dest += whitespace;
             else if (gc.size_x() == 0 && gc.size_y() == 0) dest += gc.get();
-            else if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            else if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1765,7 +1753,7 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1778,7 +1766,7 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            if (gc.size_x() != 0 && (st.attrs.mosaic & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
+            if (gc.size_x() != 0 && (st.mosaic() & cell::body::width_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1891,7 +1879,7 @@ namespace netxs
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
         auto& rtl(bool b)        { gc.rtl(b);              return *this; } // cell: Set RTL attribute.
         auto& mtx(twod p)        { gc.mtx(p.x, p.y);       return *this; } // cell: Set glyph matrix.
-        auto& xy(si32 x, si32 y) { st.xy(x + (y << 5));    return *this; } // cell: Set glyph fragment.
+        auto& xy(si32 x, si32 y) { st.xy(x, y);            return *this; } // cell: Set glyph fragment.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         // cell: Set cluster unidata width.
@@ -1899,26 +1887,26 @@ namespace netxs
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.mtx(w, h);
-            st.xy(x + (y << 5));
+            st.xy(x, y);
             return *this;
         }
         auto& wdt(si32 w, si32 h, si32 x, si32 y)
         {
             gc.mtx(w, h);
-            st.xy(x + (y << 5));
+            st.xy(x, y);
             return *this;
         }
         auto& txt(view utf8, si32 vs)
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.set_direct(utf8, w, h);
-            st.xy(x + (y << 5));
+            st.xy(x, y);
             return *this;
         }
         auto& txt(view utf8, si32 w, si32 h, si32 x, si32 y)
         {
             gc.set_direct(utf8, w, h);
-            st.xy(x + (y << 5));
+            st.xy(x, y);
             return *this;
         }
         cell& txt(view utf8)
@@ -1933,7 +1921,7 @@ namespace netxs
                 auto cluster = utf::cluster(utf8);
                 auto [w, h, x, y] = utf::matrix::whxy(cluster.attr.cmatrix);
                 gc.set_direct(cluster.text, w, h);
-                st.xy(x + (y << 5));
+                st.xy(x, y);
             }
             return *this;
         }
@@ -1941,10 +1929,10 @@ namespace netxs
         {
             auto [w, h, x, y] = utf::matrix::whxy(vs);
             gc.set_direct(utf8, w, h);
-            st.xy(x + (y << 5));
+            st.xy(x, y);
             return *this;
         }
-        auto& txt(char c)        { gc.set(c); st.xy(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
+        auto& txt(char c)        { gc.set(c); st.mosaic(utf::matrix::mosaic<11>);   return *this; } // cell: Set grapheme cluster from char.
         auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
         auto& rst() // cell: Reset view attributes of the cell to zero.
@@ -1957,7 +1945,6 @@ namespace netxs
             return *this;
         }
 
-        auto jgc_token() const { return gc.jgc_token(); } // cell: Return grapheme cluster registration token.
         auto  rtl() const  { return gc.rtl();      } // cell: Return RTL attribute.
         auto  mtx() const  { return gc.mtx();      } // cell: Return cluster matrix size (in cells).
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
@@ -1966,7 +1953,7 @@ namespace netxs
         //todo deprecated: use whxy instead.
         si32  wdt() const
         {
-            auto xy = st.xy();
+            auto xy = st.mosaic();
             auto x = xy & cell::body::width_bits;
             auto y = xy >> cell::body::height_bits;
             auto w = gc.size_x() + 1;
@@ -1976,9 +1963,9 @@ namespace netxs
         // cell: Return cluster matrix metadata.
         auto whxy() const  { return std::tuple{ (si32)(gc.size_x() + 1),
                                                 (si32)(gc.size_y() + 1),
-                                                (si32)(st.attrs.mosaic & cell::body::width_bits),
-                                                (si32)(st.attrs.mosaic >> cell::body::height_bits) }; }
-        si32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
+                                                (si32)(st.mosaic() & cell::body::width_bits),
+                                                (si32)(st.mosaic() >> cell::body::height_bits) }; }
+        ui32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         template<svga Mode = svga::vtrgb>
         auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get grapheme cluster object.
@@ -2027,15 +2014,15 @@ namespace netxs
         auto set_cursor(si32 style, cell color = {})
         {
             st.cur(style);
-            if (st.attrs.bitmap != body::pxtype::bitmap && (color.uv.bg.token || color.uv.fg.token))
+            if (st.bitmap() != body::pxtype::bitmap && (color.uv.bg.token || color.uv.fg.token))
             {
-                st.attrs.bitmap = body::pxtype::colors;
+                st.bitmap(body::pxtype::colors);
                 px.token = ((ui64)color.uv.bg.token << 32) | (ui64)color.uv.fg.token;
             }
         }
         auto cursor_color() const
         {
-            auto colored = st.attrs.bitmap == body::pxtype::colors;
+            auto colored = st.bitmap() == body::pxtype::colors;
             return colored ? std::pair{ argb{ (ui32)(px.token >> 32) }, argb{ (ui32)(px.token & 0xFFFF'FFFF) }}
                            : std::pair{ argb{}, argb{} };
         }
