@@ -1805,10 +1805,6 @@ namespace netxs::ui
                 if (n)
                 {
                     auto c = cell{ parser::brush };
-                    //if (c.wdt() != 1)
-                    //{
-                    //    c.wdt(2);
-                    //}
                     parser::assign(n, c);
                 }
             }

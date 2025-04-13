@@ -1725,13 +1725,23 @@ namespace netxs
         {
             return gc == next.gc && like(next);
         }
+        // cell: Return cluster matrix metadata.
+        auto whxy() const  { return std::tuple{ (si32)(gc.size_w() + 1),
+                                                (si32)(gc.size_h() + 1),
+                                                (si32)(st.mosaic() & cell::body::x_bits),
+                                                (si32)(st.mosaic() >> cell::body::y_bits) }; }
+        // cell: Return true if cell is at the matrix right border.
+        auto matrix_end() const
+        {
+            auto w = gc.size_w() + 1;
+            return w > 1 && w == /*x*/(st.mosaic() & cell::body::x_bits);
+        }
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         void scan(text& dest) const
         {
-                 if (st.xy() == 0) dest += whitespace;
-            //todo revise
-            else if (gc.size_w() == 0 && gc.size_h() == 0) dest += gc.get();
-            else if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            auto [w, h, x, y] = whxy();
+            if (w == 0 || h != 1 || x != 1) dest += whitespace;
+            else
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1744,8 +1754,8 @@ namespace netxs
         // cell: Take the left half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_left() const
         {
-            //todo revise
-            if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,11>)
+            auto [w, h, x, y] = whxy();
+            if (w != 0 && h == 1 && x == 1)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1758,8 +1768,8 @@ namespace netxs
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
         {
-            //todo revise
-            if (gc.size_w() != 0 && (st.mosaic() & cell::body::x_bits) == 1)//wdt() == utf::matrix::vs<21,21>)
+            auto [w, h, x, y] = whxy();
+            if (w != 0 && h == 1 && x == 2)
             {
                 auto shadow = gc.get();
                 if (shadow.size() == 2 && shadow.front() == '^')
@@ -1943,21 +1953,6 @@ namespace netxs
         auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
         auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        //todo deprecated: use whxy instead.
-        si32  wdt() const
-        {
-            auto xy = st.mosaic();
-            auto x = xy & cell::body::x_bits;
-            auto y = xy >> cell::body::y_bits;
-            auto w = gc.size_w() + 1;
-            auto h = gc.size_h() + 1;
-            return utf::matrix::s(w, h, x, y);
-        }
-        // cell: Return cluster matrix metadata.
-        auto whxy() const  { return std::tuple{ (si32)(gc.size_w() + 1),
-                                                (si32)(gc.size_h() + 1),
-                                                (si32)(st.mosaic() & cell::body::x_bits),
-                                                (si32)(st.mosaic() >> cell::body::y_bits) }; }
         ui32   xy() const  { return st.xy();       } // cell: Return matrix fragment metadata.
         template<svga Mode = svga::vtrgb>
         auto  txt() const  { return gc.get<Mode>(); } // cell: Return grapheme cluster.
@@ -3047,7 +3042,7 @@ namespace netxs
             };
             auto func = [&](auto check)
             {
-                static constexpr auto right_half = rev ? utf::matrix::vs<21,11> : utf::matrix::vs<21,21>;
+                static constexpr auto right_half = rev ? 1 : 2;
                 coord.x += rev ? 1 : 0;
                 auto count = decltype(coord.x){};
                 auto width = (rev ? 0 : region.size.x) - coord.x;
@@ -3061,8 +3056,8 @@ namespace netxs
                         if constexpr (rev) stop_by_zwsp += 2; // Break here.
                         else               stop_by_zwsp++;    // Include current cluster.
                     }
-                    //todo use whxy
-                    auto not_right_half = c.wdt() != right_half;
+                    auto [w, h, x, y] = c.whxy();
+                    auto not_right_half = w != 2 || x != right_half;
                     if (stop_by_zwsp == 2 || (not_right_half && !check(txt))) return true;
                     count++;
                     return faux;

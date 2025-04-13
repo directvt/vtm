@@ -132,8 +132,7 @@ namespace netxs::ui
                     while (n)
                     {
                         auto& c = block.at(p);
-                        if (c.isspc() || c.wdt() == utf::matrix::vs<21,21>
-                         || c.txt().ends_with(utf::utf8view<0x200B>)) break;
+                        if (c.isspc() || c.matrix_end() || c.txt().ends_with(utf::utf8view<0x200B>)) break;
                         n--;
                         p--;
                     }
@@ -144,7 +143,9 @@ namespace netxs::ui
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
                         auto q = curpoint + printout.size.x - 1;
-                        if (block.at(q).wdt() == utf::matrix::vs<21,11>)
+                        auto& c = block.at(q);
+                        auto [w, h, x, y] = c.whxy();
+                        if (w == 2 && h == 1 && x == 1 && y == 1)
                         {
                             --printout.size.x;
                         }
@@ -1360,10 +1361,18 @@ namespace netxs::ui
                 caret--;
                 auto& line = content();
                 auto  iter = line.begin() + caret;
-                //todo use whxy
-                if (iter->wdt() == utf::matrix::vs<21,21> && caret > 0 && (--iter)->wdt() == utf::matrix::vs<21,11>)
+                if (caret > 0)
                 {
-                    caret--;
+                    auto [w, h, x, y] = iter->whxy();
+                    if (w == 2 && x == 2 && caret > 0)
+                    {
+                        --iter;
+                        auto [w2, h2, x2, y2] = iter->whxy();
+                        if (w2 == 2 && x2 == 1)
+                        {
+                            caret--;
+                        }
+                    }
                 }
                 return true;
             }
@@ -1392,10 +1401,18 @@ namespace netxs::ui
                 auto& line = content();
                 auto  iter = line.begin() + caret;
                 caret++;
-                //todo use whxy
-                if (iter->wdt() == utf::matrix::vs<21,11> && caret < length() && (++iter)->wdt() == utf::matrix::vs<21,21>)
+                if (caret < length())
                 {
-                    caret++;
+                    auto [w, h, x, y] = iter->whxy();
+                    if (w == 2 && x == 1)
+                    {
+                        ++iter;
+                        auto [w2, h2, x2, y2] = iter->whxy();
+                        if (w2 == 2 && x2 == 2)
+                        {
+                            caret++;
+                        }
+                    }
                 }
                 return true;
             }
@@ -1548,9 +1565,18 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
-                    //todo use whxy
-                    if ((iter1++)->wdt() == utf::matrix::vs<21,11> && iter1 != end_1 && (iter1++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
-                    if ((iter2++)->wdt() == utf::matrix::vs<21,11> && iter2 != end_2 && (iter2++)->wdt() != utf::matrix::vs<21,21>) log(prompt::para, "Corrupted glyph");
+                    auto [w1, h1, x1, y1] = (iter1++)->whxy();
+                    if (w1 == 2 && x1 == 1 && iter1 != end_1)
+                    {
+                        auto [w3, h3, x3, y3] = (iter1++)->whxy();
+                        if (w3 != 2 || x3 != 2) log(prompt::para, "Corrupted glyph");
+                    }
+                    auto [w2, h2, x2, y2] = (iter2++)->whxy();
+                    if (w1 == 2 && x2 == 1 && iter2 != end_2)
+                    {
+                        auto [w3, h3, x3, y3] = (iter2++)->whxy();
+                        if (w3 != 2 || x3 != 2) log(prompt::para, "Corrupted glyph");
+                    }
                 }
             }
             return faux;
