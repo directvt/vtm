@@ -1289,10 +1289,10 @@ namespace netxs::directvt
                         right_half(right);
                     }
                 };
+                auto src = cache.begin();
                 if (true || image.hash() != cache.hash()) // The cache has been resized.
                 {
                     block.basevt::scroll_wipe();
-                    auto src = cache.begin();
                     while (coord.y < field.y)
                     {
                         if (abort) // The cache is resized again.
@@ -1301,7 +1301,8 @@ namespace netxs::directvt
                             state = saved;
                             break;
                         }
-                        block.basevt::locate(coord);
+                        mov(0);
+                        auto beg = src + 1;
                         auto end = src + field.x;
                         while (src != end)
                         {
@@ -1315,23 +1316,19 @@ namespace netxs::directvt
                             if (w == 0 || h == 0 || y != 1 || x != 1 || len == 0 || (len == 1 && code.cdpoint < 32)) // 2D fragment is either non-standard or empty or C0.
                             {
                                 put2(c, " ");
-                                coord.x++;
                             }
                             else if (w == 1 && h == 1 && len == 1 && code.ucwidth == unidata::widths::slim) // Slim and (ansi plain text
                             {
                                 put2(c, utf8);
-                                coord.x++;
                             }
                             else if (!code.correct) // Bad cell's cluster.
                             {
                                 put2(c, utf::replacement);
-                                coord.x++;
                             }
                             else // if (x == 1) // Start of a complex char: Save coord1. Print w spaces. Save coord2. Restore coord1. Print cluster. Restore coord2.
                             {
-                                auto coord1 = coord.x;
+                                auto coord1 = src - beg;
                                 put2(c, " ");
-                                coord.x++;
                                 while (src != end)
                                 {
                                     auto cc = *src;
@@ -1342,7 +1339,6 @@ namespace netxs::directvt
                                         break; // Leave spaces.
                                     }
                                     put2(cc, " ");
-                                    ++coord.x;
                                     ++src;
                                     if (w == x)
                                     {
@@ -1363,24 +1359,26 @@ namespace netxs::directvt
                                             utf8.remove_suffix(3); // Cut rotation modifier.
                                             l -= 3;
                                         }
-                                        auto coord2 = coord.x;
-                                        mov(coord1);
+                                        if (coord1 != 0)
+                                        {
+                                            mov(coord1);
+                                        }
                                         put2(c, utf8);
-                                        mov(coord2);
+                                        if (src != end)
+                                        {
+                                            auto coord2 = src - beg;
+                                            mov(coord2 + 1/*next cell*/);
+                                        }
                                         break;
                                     }
                                 }
                             }
                         }
                         ++coord.y;
-                        coord.x = 0;
                     }
-                    std::swap(image, cache);
-                    delta = commit(true);
                 }
                 else
                 {
-                    auto src = cache.begin();
                     auto dst = image.begin();
                     while (coord.y < field.y)
                     {
@@ -1489,9 +1487,9 @@ namespace netxs::directvt
                         }
                         ++coord.y;
                     }
-                    std::swap(image, cache);
-                    delta = commit(true);
                 }
+                std::swap(image, cache);
+                delta = commit(true);
             }
             void get(view& /*data*/) { }
         };
